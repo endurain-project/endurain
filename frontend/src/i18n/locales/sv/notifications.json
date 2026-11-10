@@ -74,6 +74,14 @@
         "title": "Tvåfaktorsautentisering inaktiverad",
         "body": "Tvåfaktorsautentisering inaktiverades för ditt konto. Om det inte var du, återställ ditt lösenord och granska dina säkerhetsinställningar."
       },
+      "mfaResetByAdmin": {
+        "title": "Tvåfaktorsautentisering återställd av en administratör",
+        "body": "En administratör återställde tvåfaktorsautentiseringen för ditt konto och loggade ut dig från alla enheter. Ställ in den igen från dina säkerhetsinställningar. Kontakta din administratör om du inte väntade dig detta."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Lösenordsbyte krävs av en administratör",
+        "body": "En administratör krävde att du byter lösenord och loggade ut dig från alla enheter. Du väljer ett nytt lösenord nästa gång du loggar in med ditt lösenord. Kontakta din administratör om du inte väntade dig detta."
+      },
       "backupCodesGenerated": {
         "title": "Nya reservkoder skapades",
         "body": "Nya reservkoder skapades för ditt konto. Om det inte var du, återställ ditt lösenord och granska dina säkerhetsinställningar."
@@ -86,6 +94,14 @@
         "title": "Inloggningsleverantör bortkopplad",
         "body": "{name} kopplades bort från ditt konto. Om det inte var du, återställ ditt lösenord och granska dina säkerhetsinställningar.",
         "bodyGeneric": "En inloggningsleverantör kopplades bort från ditt konto. Om det inte var du, återställ ditt lösenord och granska dina säkerhetsinställningar."
+      },
+      "accountLocked": {
+        "title": "Kontot är låst",
+        "body": "Ditt konto låstes efter 100 misslyckade inloggningsförsök i rad. Webbläsare och appar du har loggat in från sedan din senaste säkerhetsändring kan fortfarande logga in. Om försöken inte var dina, byt eller återställ ditt lösenord, vilket också häver låsningen."
+      },
+      "mfaLocked": {
+        "title": "Tvåstegsverifiering låst",
+        "body": "Ditt konto låstes efter 100 felaktiga tvåstegsverifieringskoder i rad, så någon känner till ditt lösenord. Webbläsare och appar du har loggat in från sedan din senaste säkerhetsändring kan fortfarande logga in. Om försöken inte var dina, byt ditt lösenord."
       },
       "unknown": {
         "title": "Kontosäkerheten ändrades",

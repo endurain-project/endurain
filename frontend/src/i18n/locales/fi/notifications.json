@@ -74,6 +74,14 @@
         "title": "Kaksivaiheinen todennus poistettu käytöstä",
         "body": "Tililtäsi poistettiin käytöstä kaksivaiheinen todennus. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi."
       },
+      "mfaResetByAdmin": {
+        "title": "Ylläpitäjä nollasi kaksivaiheisen todennuksen",
+        "body": "Ylläpitäjä nollasi tilisi kaksivaiheisen todennuksen ja kirjasi sinut ulos kaikilta laitteilta. Ota se uudelleen käyttöön tietoturva-asetuksistasi. Jos et odottanut tätä, ota yhteyttä ylläpitäjääsi."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Ylläpitäjä vaati salasanan vaihtamista",
+        "body": "Ylläpitäjä vaati sinua vaihtamaan salasanasi ja kirjasi sinut ulos kaikilta laitteilta. Valitset uuden salasanan seuraavalla kerralla, kun kirjaudut sisään salasanallasi. Jos et odottanut tätä, ota yhteyttä ylläpitäjääsi."
+      },
       "backupCodesGenerated": {
         "title": "Uudet varakoodit luotu",
         "body": "Tilillesi luotiin uudet varakoodit. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi."
@@ -86,6 +94,14 @@
         "title": "Kirjautumispalvelun linkitys poistettu",
         "body": "{name} irrotettiin tilistäsi. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi.",
         "bodyGeneric": "Kirjautumispalvelu irrotettiin tilistäsi. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi."
+      },
+      "accountLocked": {
+        "title": "Tili lukittu",
+        "body": "Tilisi lukittiin 100 peräkkäisen epäonnistuneen kirjautumisyrityksen jälkeen. Selaimet ja sovellukset, joista olet kirjautunut viimeisimmän tietoturvamuutoksen jälkeen, voivat yhä kirjautua sisään. Jos yritykset eivät olleet sinun, vaihda tai nollaa salasanasi, mikä myös poistaa lukituksen."
+      },
+      "mfaLocked": {
+        "title": "Kaksivaiheinen vahvistus lukittu",
+        "body": "Tilisi lukittiin 100 peräkkäisen väärän kaksivaiheisen vahvistuskoodin jälkeen, joten joku tietää salasanasi. Selaimet ja sovellukset, joista olet kirjautunut viimeisimmän tietoturvamuutoksen jälkeen, voivat yhä kirjautua sisään. Jos yritykset eivät olleet sinun, vaihda salasanasi."
       },
       "unknown": {
         "title": "Tilin turvallisuus muuttui",

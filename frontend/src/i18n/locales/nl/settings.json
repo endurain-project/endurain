@@ -33,6 +33,7 @@
       "unverified": "E-mail niet bevestigd",
       "pendingEmail": "E-mailwijziging in behandeling",
       "pending": "Wacht op goedkeuring",
+      "deleting": "Wordt verwijderd",
       "externalAuth": "Externe authenticatie"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "Minimaal 8 tekens",
       "passwordRequired": "Wachtwoord is verplicht",
       "confirmPassword": "Wachtwoord bevestigen",
+      "mustChangePasswordHint": "De gebruiker moet bij de volgende keer inloggen een nieuw wachtwoord kiezen.",
       "confirmPasswordRequired": "Wachtwoord bevestigen",
       "preferredLanguage": "Voorkeurstaal",
       "languages": {
@@ -162,7 +164,11 @@
       "updateSuccess": "Gebruiker bijgewerkt",
       "conflict": "Die gebruikersnaam of dat e-mailadres is al in gebruik",
       "lastAdministrator": "De enige beheerder kan niet worden gedegradeerd of gedeactiveerd",
-      "saveError": "Gebruiker kon niet worden opgeslagen. Probeer het opnieuw."
+      "saveError": "Gebruiker kon niet worden opgeslagen. Probeer het opnieuw.",
+      "stepUpTitle": "Bevestig je identiteit",
+      "stepUpDescription": "Als je het e-mailadres, het toegangstype of de actieve status van {username} wijzigt, wordt die gebruiker overal uitgelogd. Bevestig dat jij het bent om door te gaan.",
+      "stepUpCreateDescription": "Een beheerdersaccount aanmaken geeft volledige toegang. Bevestig dat jij het bent om door te gaan.",
+      "stepUpConfirm": "Wijzigingen opslaan"
     },
     "delete": {
       "title": "Gebruiker verwijderen",
@@ -199,6 +205,24 @@
       "success": "Wachtwoord bijgewerkt",
       "error": "Wachtwoord kon niet worden bijgewerkt. Probeer het opnieuw."
     },
+    "mfaReset": {
+      "button": "MFA resetten",
+      "title": "Tweefactorauthenticatie resetten",
+      "description": "Hiermee wordt tweefactorauthenticatie voor {username} uitgeschakeld en worden de herstelcodes verwijderd. Alle sessies worden beëindigd, dus de gebruiker wordt op alle apparaten uitgelogd en moet na het inloggen tweefactorauthenticatie opnieuw instellen. De gebruiker wordt op de hoogte gesteld. Bevestig dat jij het bent om door te gaan.",
+      "confirm": "MFA resetten",
+      "success": "Tweefactorauthenticatie gereset",
+      "refused": "Tweefactorauthenticatie is niet ingeschakeld voor deze gebruiker.",
+      "error": "Tweefactorauthenticatie kon niet worden gereset. Probeer het opnieuw."
+    },
+    "requirePasswordChange": {
+      "button": "Wachtwoordwijziging vereisen",
+      "title": "Een wachtwoordwijziging vereisen",
+      "description": "{username} behoudt het huidige wachtwoord, maar moet een nieuw wachtwoord kiezen de volgende keer dat de gebruiker ermee inlogt. Alle sessies worden beëindigd, dus de gebruiker wordt op alle apparaten uitgelogd. Inloggen via een single sign-on-provider wordt niet beïnvloed. De gebruiker wordt op de hoogte gesteld. Bevestig dat jij het bent om door te gaan.",
+      "confirm": "Wijziging vereisen",
+      "success": "Wachtwoordwijziging vereist",
+      "refused": "Deze gebruiker heeft geen wachtwoord om te wijzigen.",
+      "error": "Een wachtwoordwijziging kon niet worden vereist. Probeer het opnieuw."
+    },
     "sessions": {
       "title": "Sessies",
       "subtitle": "Apparaten die momenteel zijn ingelogd op dit account",
@@ -217,8 +241,6 @@
       "revokeTitle": "Sessie intrekken",
       "revokeBody": "Dit logt het apparaat uit, het moet opnieuw inloggen",
       "revokeConfirm": "Intrekken",
-      "revokeCancel": "Annuleren",
-      "revokeClose": "Sluiten",
       "revokeSuccess": "Sessie ingetrokken",
       "revokeError": "Sessie kon niet worden ingetrokken. Probeer het opnieuw."
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "Serverinstellingen bijgewerkt",
     "saveError": "Serverinstellingen konden niet worden bijgewerkt. Probeer het opnieuw.",
     "staleError": "Deze instellingen zijn door iemand anders gewijzigd terwijl je ze bewerkte. Je wijzigingen zijn niet opgeslagen. Laad de pagina opnieuw om de huidige waarden te zien.",
+    "stepUpTitle": "Bevestig je identiteit",
+    "stepUpDescription": "Deze wijzigingen bepalen wie zich kan registreren, inloggen of een sessie kan behouden op deze server, hoe lang het auditspoor wordt bewaard en of openbare links tonen wie ze heeft gedeeld. Bevestig dat jij het bent om door te gaan.",
     "envLocked": "Ingesteld door {name}",
     "envSection": "Sommige instellingen hier worden ingesteld door omgevingsvariabelen ({names}). Verwijder ze uit de omgeving om die instellingen hier te bewerken.",
     "unsaved": "Niet-opgeslagen wijzigingen",
@@ -323,7 +347,9 @@
     "password": {
       "title": "Wachtwoordbeleid",
       "lengthRegular": "Minimale lengte gewone gebruikers",
-      "lengthAdmin": "Minimale lengte beheerders"
+      "lengthAdmin": "Minimale lengte beheerders",
+      "breachCheck": "Wachtwoorden uit bekende datalekken weigeren",
+      "breachCheckHint": "Controleert elk nieuw of gewijzigd wachtwoord bij haveibeenpwned.com. Alleen de eerste 5 tekens van de SHA-1-hash van het wachtwoord worden verstuurd, nooit het wachtwoord zelf. Als de dienst niet bereikbaar is, wordt het wachtwoord geaccepteerd."
     },
     "session": {
       "title": "Sessies",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "Registratie",
       "enabled": "Nieuwe gebruikersregistraties toestaan",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "Nieuwe gebruikersregistraties via single sign-on toestaan",
       "adminApproval": "Beheerdersgoedkeuring vereisen voor nieuwe registraties",
       "emailVerification": "E-mailverificatie vereisen voor nieuwe registraties"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "Laat leeg om de gebruikersnaam te gebruiken.",
       "save": "E-mailinstellingen opslaan",
       "saveSuccess": "E-mailinstellingen opgeslagen",
-      "saveError": "De e-mailinstellingen konden niet worden opgeslagen"
+      "saveError": "De e-mailinstellingen konden niet worden opgeslagen",
+      "stepUpTitle": "Bevestig je identiteit",
+      "stepUpDescription": "De mailserver ontvangt elke link voor het opnieuw instellen van wachtwoorden. Bevestig dat jij het bent om door te gaan."
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "Configureer SSO-providers voor single sign-on",
     "buttonAdd": "Provider toevoegen",
     "toggleError": "Provider kon niet worden gewijzigd. Probeer het opnieuw.",
+    "toggleStepUpDescription": "Of {name} is ingeschakeld, bepaalt wie op deze server kan inloggen. Bevestig dat jij het bent om door te gaan.",
+    "toggleStepUpConfirm": "Bevestigen",
     "enableSuccess": "Provider ingeschakeld",
     "disableSuccess": "Provider uitgeschakeld",
     "type": {
@@ -566,10 +596,19 @@
       "iconSaveError": "De provider is opgeslagen, maar het pictogram kon niet worden bijgewerkt. Bewerk de provider om het opnieuw te proberen.",
       "enabled": "Ingeschakeld",
       "autoCreateUsers": "Gebruikers automatisch aanmaken bij eerste aanmelding",
+      "linkByEmail": "Koppelen aan een bestaand account via e-mailadres",
+      "linkByEmailHint": "Laat een eerste inlog aansluiten bij het account met hetzelfde geverifieerde e-mailadres. Uitgeschakeld wordt die inlog geweigerd en koppelt de gebruiker de provider via de eigen instellingen. Standaard uitgeschakeld voor een nieuwe provider.",
       "syncUserInfo": "Profielinformatie synchroniseren bij elke aanmelding",
+      "syncUserInfoHint": "Kopieert de gekoppelde naam van de provider. Het e-mailadres is niet inbegrepen.",
+      "syncEmail": "E-mailadres synchroniseren bij elke login",
+      "syncEmailHint": "Kopieert het door de provider geverifieerde e-mailadres naar het account, legt de wijziging vast in het auditspoor en stelt het vorige adres op de hoogte. Standaard uitgeschakeld voor een nieuwe provider.",
       "createSuccess": "Provider toegevoegd",
       "updateSuccess": "Provider bijgewerkt",
+      "stepUpTitle": "Bevestig je identiteit",
+      "stepUpDescription": "Identiteitsproviders bepalen wie op deze server kan inloggen. Bevestig dat jij het bent om door te gaan.",
       "slugConflict": "Die slug is al in gebruik",
+      "issuerInUse": "Een andere identiteitsprovider gebruikt deze issuer-URL al",
+      "issuerLocked": "De issuer-URL kan niet worden gewijzigd zolang gebruikers aan deze provider zijn gekoppeld. Ontkoppel hen of voeg in plaats daarvan een nieuwe provider toe.",
       "staleError": "Deze provider is elders gewijzigd. Je wijzigingen zijn niet opgeslagen. Sluit hem en open hem opnieuw om de huidige instellingen te laden.",
       "saveError": "Provider kon niet worden opgeslagen. Probeer het opnieuw."
     }
@@ -739,23 +778,28 @@
       "revokeOthersBody": "Elk apparaat behalve dit wordt uitgelogd en moet opnieuw inloggen.",
       "revokeOthersConfirm": "Anderen uitloggen",
       "revokeOthersSuccess": "Andere sessies uitgelogd",
-      "revokeOthersError": "Andere sessies konden niet worden uitgelogd. Probeer het opnieuw."
+      "revokeOthersError": "Andere sessies konden niet worden uitgelogd. Probeer het opnieuw.",
+      "signOutEverywhere": "Overal uitloggen",
+      "signOutEverywhereTitle": "Overal uitloggen?",
+      "signOutEverywhereBody": "Elk apparaat, ook dit, wordt uitgelogd en moet opnieuw inloggen.",
+      "signOutEverywhereConfirm": "Overal uitloggen",
+      "signOutEverywhereError": "Niet alle sessies konden worden uitgelogd. Probeer het opnieuw."
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "Bekende apparaten",
+      "subtitle": "Browsers en apps waarmee je hebt ingelogd sinds je laatste beveiligingswijziging. Inloggen vanaf een ander apparaat stuurt je een melding.",
+      "empty": "Geen bekende apparaten",
+      "error": "Bekende apparaten konden niet worden geladen",
+      "current": "Dit apparaat",
+      "unknown": "Onbekend apparaat",
+      "lastSeen": "Laatst ingelogd {date}",
+      "forget": "Dit apparaat vergeten",
+      "forgetTitle": "Dit apparaat vergeten?",
+      "forgetDescription": "De volgende inlog vanaf dit apparaat telt als een nieuw apparaat en stuurt je een melding.",
+      "forgetConfirm": "Apparaat vergeten",
+      "forgetSuccess": "Apparaat vergeten",
+      "forgetError": "Het apparaat kon niet worden vergeten. Probeer het opnieuw.",
+      "forgetNotFound": "Dat apparaat is niet meer bekend."
     },
     "linked": {
       "title": "Gekoppelde accounts",

@@ -209,7 +209,7 @@
     "hideGear": "隐藏装备",
     "success": "活动已更新",
     "error": "无法更新活动",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "编辑期间，此活动已在别处被修改。您的更改未保存。请重新打开以查看当前版本。"
   },
   "alerts": {
     "hidden": "此活动已隐藏，只有您可以看到。",

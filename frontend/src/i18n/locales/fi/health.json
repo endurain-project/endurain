@@ -431,7 +431,8 @@
       "close": "Sulje",
       "createSuccess": "Vesi kirjattu.",
       "updateSuccess": "Vesimerkintä päivitetty.",
-      "saveError": "Vesimerkintääsi ei voitu tallentaa. Yritä uudelleen."
+      "saveError": "Vesimerkintääsi ei voitu tallentaa. Yritä uudelleen.",
+      "dayTakenError": "Tälle päivälle on jo vesimerkintä. Muokkaa sitä uuden lisäämisen sijaan."
     },
     "target": {
       "title": "Aseta vesitavoite",

@@ -80,7 +80,7 @@
     "back": "Atpakaļ uz inventāru",
     "notFoundTitle": "Inventārs nav atrasts",
     "notFoundDescription": "Šis inventārs, iespējams, ir dzēsts vai nepieder jums.",
-    "totalDistance": "Distance",
+    "totalDistance": "Attālums",
     "totalTime": "Laiks",
     "componentsCost": "Komponenti"
   },

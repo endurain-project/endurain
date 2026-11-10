@@ -209,7 +209,7 @@
     "hideGear": "Skryť vybavenie",
     "success": "Aktivita aktualizovaná",
     "error": "Aktivitu sa nepodarilo aktualizovať",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Táto aktivita bola počas úprav zmenená inde. Vaše zmeny neboli uložené. Otvorte ju znova a zobrazte aktuálnu verziu."
   },
   "alerts": {
     "hidden": "Táto aktivita je skrytá. Vidíte ju iba vy.",
@@ -242,7 +242,7 @@
     "yoga": "Joga",
     "alpineSki": "Zjazdové lyžovanie",
     "nordicSki": "Bežecké lyžovanie",
-    "snowboard": "Snowboard",
+    "snowboard": "Snowboarding",
     "transition": "Prechod",
     "strengthTraining": "Silový tréning",
     "crossfit": "Crossfit",

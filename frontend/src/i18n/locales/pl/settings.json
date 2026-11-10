@@ -33,6 +33,7 @@
       "unverified": "Niezweryfikowany e-mail",
       "pendingEmail": "Oczekująca zmiana e-maila",
       "pending": "Oczekuje na zatwierdzenie",
+      "deleting": "Usuwanie w toku",
       "externalAuth": "Uwierzytelnianie zewnętrzne"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "Co najmniej 8 znaków",
       "passwordRequired": "Hasło jest wymagane",
       "confirmPassword": "Potwierdź hasło",
+      "mustChangePasswordHint": "Użytkownik będzie musiał wybrać nowe hasło przy następnym logowaniu.",
       "confirmPasswordRequired": "Potwierdź hasło",
       "preferredLanguage": "Preferowany język",
       "languages": {
@@ -162,7 +164,11 @@
       "updateSuccess": "Zaktualizowano użytkownika",
       "conflict": "Ta nazwa użytkownika lub e-mail są już używane",
       "lastAdministrator": "Jedynego administratora nie można zdegradować ani dezaktywować",
-      "saveError": "Nie udało się zapisać użytkownika. Spróbuj ponownie."
+      "saveError": "Nie udało się zapisać użytkownika. Spróbuj ponownie.",
+      "stepUpTitle": "Potwierdź swoją tożsamość",
+      "stepUpDescription": "Zmiana adresu e-mail, typu dostępu lub statusu aktywności użytkownika {username} wyloguje go wszędzie. Potwierdź, że to Ty, aby kontynuować.",
+      "stepUpCreateDescription": "Utworzenie konta administratora daje pełny dostęp. Potwierdź, że to Ty, aby kontynuować.",
+      "stepUpConfirm": "Zapisz zmiany"
     },
     "delete": {
       "title": "Usuń użytkownika",
@@ -199,6 +205,24 @@
       "success": "Zaktualizowano hasło",
       "error": "Nie udało się zaktualizować hasła. Spróbuj ponownie."
     },
+    "mfaReset": {
+      "button": "Zresetuj MFA",
+      "title": "Zresetuj uwierzytelnianie dwuskładnikowe",
+      "description": "To wyłącza uwierzytelnianie dwuskładnikowe dla {username} i usuwa jego kody zapasowe. Wszystkie jego sesje się kończą, więc zostaje wylogowany ze wszystkich urządzeń i po zalogowaniu musi ponownie skonfigurować uwierzytelnianie dwuskładnikowe. Użytkownik zostanie powiadomiony. Potwierdź, że to Ty, aby kontynuować.",
+      "confirm": "Zresetuj MFA",
+      "success": "Zresetowano uwierzytelnianie dwuskładnikowe",
+      "refused": "Uwierzytelnianie dwuskładnikowe nie jest włączone dla tego użytkownika.",
+      "error": "Nie udało się zresetować uwierzytelniania dwuskładnikowego. Spróbuj ponownie."
+    },
+    "requirePasswordChange": {
+      "button": "Wymagaj zmiany hasła",
+      "title": "Wymagaj zmiany hasła",
+      "description": "{username} zachowuje obecne hasło, ale przy następnym logowaniu nim musi wybrać nowe. Wszystkie jego sesje się kończą, więc zostaje wylogowany ze wszystkich urządzeń. Logowanie przez dostawcę logowania jednokrotnego nie jest dotknięte. Użytkownik zostanie powiadomiony. Potwierdź, że to Ty, aby kontynuować.",
+      "confirm": "Wymagaj zmiany",
+      "success": "Wymagana zmiana hasła",
+      "refused": "Ten użytkownik nie ma hasła do zmiany.",
+      "error": "Nie udało się wymusić zmiany hasła. Spróbuj ponownie."
+    },
     "sessions": {
       "title": "Sesje",
       "subtitle": "Urządzenia obecnie zalogowane na tym koncie",
@@ -217,8 +241,6 @@
       "revokeTitle": "Unieważnij sesję",
       "revokeBody": "Spowoduje to wylogowanie urządzenia, które będzie musiało zalogować się ponownie",
       "revokeConfirm": "Unieważnij",
-      "revokeCancel": "Anuluj",
-      "revokeClose": "Zamknij",
       "revokeSuccess": "Unieważniono sesję",
       "revokeError": "Nie udało się unieważnić sesji. Spróbuj ponownie."
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "Zaktualizowano ustawienia serwera",
     "saveError": "Nie udało się zaktualizować ustawień serwera. Spróbuj ponownie.",
     "staleError": "Te ustawienia zostały zmienione przez kogoś innego podczas edycji. Twoje zmiany nie zostały zapisane. Odśwież stronę, aby zobaczyć aktualne wartości.",
+    "stepUpTitle": "Potwierdź swoją tożsamość",
+    "stepUpDescription": "Te zmiany wpływają na to, kto może się zarejestrować, zalogować lub utrzymać sesję na tym serwerze, jak długo przechowywany jest dziennik audytu oraz czy publiczne linki pokazują, kto je udostępnił. Potwierdź, że to Ty, aby kontynuować.",
     "envLocked": "Ustawione przez {name}",
     "envSection": "Niektóre ustawienia tutaj są ustawiane przez zmienne środowiskowe ({names}). Usuń je ze środowiska, aby edytować te ustawienia tutaj.",
     "unsaved": "Niezapisane zmiany",
@@ -323,7 +347,9 @@
     "password": {
       "title": "Zasady haseł",
       "lengthRegular": "Minimalna długość dla zwykłych użytkowników",
-      "lengthAdmin": "Minimalna długość dla administratorów"
+      "lengthAdmin": "Minimalna długość dla administratorów",
+      "breachCheck": "Odrzucaj hasła znalezione w znanych wyciekach danych",
+      "breachCheckHint": "Sprawdza każde nowe lub zmienione hasło w haveibeenpwned.com. Wysyłanych jest tylko pierwszych 5 znaków skrótu SHA-1 hasła, nigdy samo hasło. Jeśli usługa jest niedostępna, hasło jest akceptowane."
     },
     "session": {
       "title": "Sesje",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "Rejestracja",
       "enabled": "Zezwalaj na rejestrację nowych użytkowników",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "Zezwalaj na rejestrację nowych użytkowników przez logowanie jednokrotne",
       "adminApproval": "Wymagaj zatwierdzenia administratora dla nowych rejestracji",
       "emailVerification": "Wymagaj weryfikacji e-maila dla nowych rejestracji"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "Zostaw puste, aby użyć nazwy użytkownika.",
       "save": "Zapisz ustawienia poczty",
       "saveSuccess": "Ustawienia poczty zapisane",
-      "saveError": "Nie udało się zapisać ustawień poczty"
+      "saveError": "Nie udało się zapisać ustawień poczty",
+      "stepUpTitle": "Potwierdź swoją tożsamość",
+      "stepUpDescription": "Serwer poczty otrzymuje każdy link do resetowania hasła. Potwierdź, że to Ty, aby kontynuować."
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "Skonfiguruj dostawców SSO do logowania jednokrotnego",
     "buttonAdd": "Dodaj dostawcę",
     "toggleError": "Nie udało się zmienić dostawcy. Spróbuj ponownie.",
+    "toggleStepUpDescription": "To, czy {name} jest włączony, decyduje o tym, kto może się zalogować na tym serwerze. Potwierdź, że to Ty, aby kontynuować.",
+    "toggleStepUpConfirm": "Potwierdź",
     "enableSuccess": "Włączono dostawcę",
     "disableSuccess": "Wyłączono dostawcę",
     "type": {
@@ -566,10 +596,19 @@
       "iconSaveError": "Dostawca został zapisany, ale nie udało się zaktualizować jego ikony. Edytuj dostawcę, aby spróbować ponownie.",
       "enabled": "Włączony",
       "autoCreateUsers": "Automatycznie twórz użytkowników przy pierwszym logowaniu",
+      "linkByEmail": "Połącz z istniejącym kontem według adresu e-mail",
+      "linkByEmailHint": "Pozwala, aby pierwsze logowanie dołączyło do konta z tym samym zweryfikowanym adresem e-mail. Po wyłączeniu to logowanie jest odrzucane, a użytkownik łączy dostawcę w swoich ustawieniach. Domyślnie wyłączone dla nowego dostawcy.",
       "syncUserInfo": "Synchronizuj informacje profilowe przy każdym logowaniu",
+      "syncUserInfoHint": "Kopiuje zmapowaną nazwę od dostawcy. Nie obejmuje adresu e-mail.",
+      "syncEmail": "Synchronizuj e-mail przy każdym logowaniu",
+      "syncEmailHint": "Kopiuje adres e-mail zweryfikowany przez dostawcę na konto, rejestruje zmianę w dzienniku audytu i powiadamia poprzedni adres. Domyślnie wyłączone dla nowego dostawcy.",
       "createSuccess": "Dodano dostawcę",
       "updateSuccess": "Zaktualizowano dostawcę",
+      "stepUpTitle": "Potwierdź swoją tożsamość",
+      "stepUpDescription": "Dostawcy tożsamości decydują o tym, kto może się zalogować na tym serwerze. Potwierdź, że to Ty, aby kontynuować.",
       "slugConflict": "Ten slug jest już używany",
+      "issuerInUse": "Inny dostawca tożsamości już używa tego adresu URL wystawcy",
+      "issuerLocked": "Adresu URL wystawcy nie można zmienić, dopóki użytkownicy są powiązani z tym dostawcą. Odłącz ich lub dodaj nowego dostawcę.",
       "staleError": "Ten dostawca został zmieniony gdzie indziej. Twoje zmiany nie zostały zapisane. Zamknij go i otwórz ponownie, aby wczytać aktualne ustawienia.",
       "saveError": "Nie udało się zapisać dostawcy. Spróbuj ponownie."
     }
@@ -739,23 +778,28 @@
       "revokeOthersBody": "Każde urządzenie poza tym zostanie wylogowane i będzie musiało zalogować się ponownie.",
       "revokeOthersConfirm": "Wyloguj inne",
       "revokeOthersSuccess": "Wylogowano inne sesje",
-      "revokeOthersError": "Nie udało się wylogować innych sesji. Spróbuj ponownie."
+      "revokeOthersError": "Nie udało się wylogować innych sesji. Spróbuj ponownie.",
+      "signOutEverywhere": "Wyloguj wszędzie",
+      "signOutEverywhereTitle": "Wylogować wszędzie?",
+      "signOutEverywhereBody": "Każde urządzenie, także to, zostanie wylogowane i będzie musiało zalogować się ponownie.",
+      "signOutEverywhereConfirm": "Wyloguj wszędzie",
+      "signOutEverywhereError": "Nie udało się wylogować ze wszystkich sesji. Spróbuj ponownie."
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "Znane urządzenia",
+      "subtitle": "Przeglądarki i aplikacje, z których logowałeś(-aś) się od ostatniej zmiany zabezpieczeń. Logowanie z dowolnego innego urządzenia wysyła Ci powiadomienie.",
+      "empty": "Brak znanych urządzeń",
+      "error": "Nie udało się wczytać znanych urządzeń",
+      "current": "To urządzenie",
+      "unknown": "Nieznane urządzenie",
+      "lastSeen": "Ostatnie logowanie {date}",
+      "forget": "Zapomnij to urządzenie",
+      "forgetTitle": "Zapomnieć to urządzenie?",
+      "forgetDescription": "Następne logowanie z tego urządzenia będzie traktowane jak z nowego urządzenia i wyśle Ci powiadomienie.",
+      "forgetConfirm": "Zapomnij urządzenie",
+      "forgetSuccess": "Urządzenie zapomniane",
+      "forgetError": "Nie udało się zapomnieć urządzenia. Spróbuj ponownie.",
+      "forgetNotFound": "To urządzenie nie jest już znane."
     },
     "linked": {
       "title": "Powiązane konta",

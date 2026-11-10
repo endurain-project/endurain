@@ -74,6 +74,14 @@
         "title": "Dvojfaktorové overovanie vypnuté",
         "body": "Pre váš účet bolo vypnuté dvojfaktorové overovanie. Ak ste to neboli vy, obnovte heslo a skontrolujte nastavenia zabezpečenia."
       },
+      "mfaResetByAdmin": {
+        "title": "Správca obnovil dvojfaktorové overovanie",
+        "body": "Správca obnovil dvojfaktorové overovanie vášho účtu a odhlásil vás zo všetkých zariadení. Nastavte ho znova v nastaveniach zabezpečenia. Ak ste to nečakali, kontaktujte svojho správcu."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Správca vyžaduje zmenu hesla",
+        "body": "Správca vyžaduje, aby ste zmenili heslo, a odhlásil vás zo všetkých zariadení. Nové heslo zvolíte pri ďalšom prihlásení heslom. Ak ste to nečakali, kontaktujte svojho správcu."
+      },
       "backupCodesGenerated": {
         "title": "Vygenerované nové záložné kódy",
         "body": "Pre váš účet boli vygenerované nové záložné kódy. Ak ste to neboli vy, obnovte heslo a skontrolujte nastavenia zabezpečenia."
@@ -86,6 +94,14 @@
         "title": "Poskytovateľ prihlásenia odpojený",
         "body": "{name} bol odpojený od vášho účtu. Ak ste to neboli vy, obnovte heslo a skontrolujte nastavenia zabezpečenia.",
         "bodyGeneric": "Od vášho účtu bol odpojený poskytovateľ prihlásenia. Ak ste to neboli vy, obnovte heslo a skontrolujte nastavenia zabezpečenia."
+      },
+      "accountLocked": {
+        "title": "Účet je zamknutý",
+        "body": "Váš účet bol zamknutý po 100 neúspešných pokusoch o prihlásenie za sebou. Prehliadače a aplikácie, z ktorých ste sa prihlásili od poslednej zmeny zabezpečenia, sa môžu naďalej prihlásiť. Ak tieto pokusy neboli vaše, zmeňte alebo obnovte heslo, čím sa zámok zruší."
+      },
+      "mfaLocked": {
+        "title": "Dvojstupňové overovanie je zamknuté",
+        "body": "Váš účet bol zamknutý po 100 nesprávnych kódoch dvojstupňového overenia za sebou, takže niekto pozná vaše heslo. Prehliadače a aplikácie, z ktorých ste sa prihlásili od poslednej zmeny zabezpečenia, sa môžu naďalej prihlásiť. Ak tieto pokusy neboli vaše, zmeňte heslo."
       },
       "unknown": {
         "title": "Zabezpečenie účtu zmenené",

@@ -33,6 +33,7 @@
       "unverified": "Neverificēts e-pasts",
       "pendingEmail": "Gaida e-pasta maiņu",
       "pending": "Gaida apstiprinājumu",
+      "deleting": "Tiek dzēsts",
       "externalAuth": "Ārējā autentifikācija"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "Vismaz 8 rakstzīmes",
       "passwordRequired": "Parole ir obligāta",
       "confirmPassword": "Apstiprināt paroli",
+      "mustChangePasswordHint": "Lietotājam nākamajā pieteikšanās reizē būs jāizvēlas jauna parole.",
       "confirmPasswordRequired": "Apstiprināt paroli",
       "preferredLanguage": "Vēlamā valoda",
       "languages": {
@@ -162,7 +164,11 @@
       "updateSuccess": "Lietotājs atjaunināts",
       "conflict": "Šis lietotājvārds vai e-pasts jau tiek izmantots",
       "lastAdministrator": "Vienīgo administratoru nevar pazemināt vai deaktivizēt",
-      "saveError": "Neizdevās saglabāt lietotāju. Lūdzu, mēģiniet vēlreiz."
+      "saveError": "Neizdevās saglabāt lietotāju. Lūdzu, mēģiniet vēlreiz.",
+      "stepUpTitle": "Apstipriniet savu identitāti",
+      "stepUpDescription": "Mainot lietotāja {username} e-pastu, piekļuves veidu vai aktīvo statusu, viņš tiek izrakstīts visur. Apstipriniet, ka tas esat Jūs, lai turpinātu.",
+      "stepUpCreateDescription": "Administratora konta izveide piešķir pilnu piekļuvi. Apstipriniet, ka tas esat Jūs, lai turpinātu.",
+      "stepUpConfirm": "Saglabāt izmaiņas"
     },
     "delete": {
       "title": "Dzēst lietotāju",
@@ -199,6 +205,24 @@
       "success": "Parole atjaunināta",
       "error": "Neizdevās atjaunināt paroli. Lūdzu, mēģiniet vēlreiz."
     },
+    "mfaReset": {
+      "button": "Atiestatīt MFA",
+      "title": "Atiestatīt divfaktoru autentifikāciju",
+      "description": "Tas izslēdz lietotāja {username} divfaktoru autentifikāciju un noņem viņa rezerves kodus. Visas viņa sesijas beidzas, tāpēc viņš tiek izrakstīts visās ierīcēs un pēc pieteikšanās atkal jāiestata divfaktoru autentifikācija. Viņš saņem paziņojumu. Apstipriniet, ka tas esat Jūs, lai turpinātu.",
+      "confirm": "Atiestatīt MFA",
+      "success": "Divfaktoru autentifikācija atiestatīta",
+      "refused": "Šim lietotājam divfaktoru autentifikācija nav ieslēgta.",
+      "error": "Neizdevās atiestatīt divfaktoru autentifikāciju. Lūdzu, mēģiniet vēlreiz."
+    },
+    "requirePasswordChange": {
+      "button": "Pieprasīt paroles maiņu",
+      "title": "Pieprasīt paroles maiņu",
+      "description": "Lietotājs {username} patur pašreizējo paroli, bet nākamajā pieteikšanās reizē ar to viņam būs jāizvēlas jauna. Visas viņa sesijas beidzas, tāpēc viņš tiek izrakstīts visās ierīcēs. Pieteikšanos ar vienotās pieteikšanās pakalpojumu sniedzēju tas neietekmē. Viņš saņem paziņojumu. Apstipriniet, ka tas esat Jūs, lai turpinātu.",
+      "confirm": "Pieprasīt maiņu",
+      "success": "Paroles maiņa pieprasīta",
+      "refused": "Šim lietotājam nav paroles, ko mainīt.",
+      "error": "Neizdevās pieprasīt paroles maiņu. Lūdzu, mēģiniet vēlreiz."
+    },
     "sessions": {
       "title": "Sesijas",
       "subtitle": "Ierīces, kas pašlaik ir pieteiktas šajā kontā",
@@ -217,8 +241,6 @@
       "revokeTitle": "Atsaukt sesiju",
       "revokeBody": "Tas izraksta ierīci, tai būs jāpiesakās vēlreiz",
       "revokeConfirm": "Atsaukt",
-      "revokeCancel": "Atcelt",
-      "revokeClose": "Aizvērt",
       "revokeSuccess": "Sesija atsaukta",
       "revokeError": "Neizdevās atsaukt sesiju. Lūdzu, mēģiniet vēlreiz."
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "Servera iestatījumi atjaunināti",
     "saveError": "Neizdevās atjaunināt servera iestatījumus. Lūdzu, mēģiniet vēlreiz.",
     "staleError": "Šos iestatījumus rediģēšanas laikā mainīja kāds cits. Jūsu izmaiņas netika saglabātas. Pārlādējiet lapu, lai redzētu pašreizējās vērtības.",
+    "stepUpTitle": "Apstipriniet savu identitāti",
+    "stepUpDescription": "Šīs izmaiņas ietekmē to, kas var reģistrēties, pieteikties vai uzturēt sesiju šajā serverī, cik ilgi tiek glabāts audita žurnāls un vai publiskās saites parāda, kas tās kopīgoja. Apstipriniet, ka tas esat Jūs, lai turpinātu.",
     "envLocked": "Iestatīts ar {name}",
     "envSection": "Dažus šeit redzamos iestatījumus nosaka vides mainīgie ({names}). Noņemiet tos no vides, lai šos iestatījumus varētu labot šeit.",
     "unsaved": "Nesaglabātas izmaiņas",
@@ -323,7 +347,9 @@
     "password": {
       "title": "Paroles politika",
       "lengthRegular": "Minimālais garums parastajiem lietotājiem",
-      "lengthAdmin": "Minimālais garums administratoriem"
+      "lengthAdmin": "Minimālais garums administratoriem",
+      "breachCheck": "Noraidīt paroles, kas atrastas zināmās datu noplūdēs",
+      "breachCheckHint": "Pārbauda katru jauno vai mainīto paroli ar haveibeenpwned.com. Tiek nosūtītas tikai pirmās 5 paroles SHA-1 jaucējkoda rakstzīmes, nekad pati parole. Ja pakalpojums nav sasniedzams, parole tiek pieņemta."
     },
     "session": {
       "title": "Sesijas",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "Reģistrācija",
       "enabled": "Atļaut jaunu lietotāju reģistrāciju",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "Atļaut jauniem lietotājiem reģistrēties ar vienoto pieteikšanos",
       "adminApproval": "Pieprasīt administratora apstiprinājumu jaunām reģistrācijām",
       "emailVerification": "Pieprasīt e-pasta verifikāciju jaunām reģistrācijām"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "Atstājiet tukšu, lai izmantotu lietotājvārdu.",
       "save": "Saglabāt pasta iestatījumus",
       "saveSuccess": "Pasta iestatījumi saglabāti",
-      "saveError": "Neizdevās saglabāt pasta iestatījumus"
+      "saveError": "Neizdevās saglabāt pasta iestatījumus",
+      "stepUpTitle": "Apstipriniet savu identitāti",
+      "stepUpDescription": "Pasta serveris saņem katru paroles atiestatīšanas saiti. Apstipriniet, ka tas esat Jūs, lai turpinātu."
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "Konfigurējiet SSO pakalpojumu sniedzējus vienotai pieteikšanās",
     "buttonAdd": "Pievienot pakalpojumu sniedzēju",
     "toggleError": "Neizdevās mainīt pakalpojumu sniedzēju. Lūdzu, mēģiniet vēlreiz.",
+    "toggleStepUpDescription": "Mainot, vai {name} ir iespējots, tiek noteikts, kas var pieteikties šajā serverī. Apstipriniet, ka tas esat Jūs, lai turpinātu.",
+    "toggleStepUpConfirm": "Apstiprināt",
     "enableSuccess": "Pakalpojumu sniedzējs iespējots",
     "disableSuccess": "Pakalpojumu sniedzējs atspējots",
     "type": {
@@ -566,10 +596,19 @@
       "iconSaveError": "Pakalpojuma sniedzējs tika saglabāts, bet tā ikonu neizdevās atjaunināt. Rediģējiet pakalpojuma sniedzēju, lai mēģinātu vēlreiz.",
       "enabled": "Iespējots",
       "autoCreateUsers": "Automātiski izveidot lietotājus pirmajā pieteikšanās reizē",
+      "linkByEmail": "Saistīt ar esošu kontu pēc e-pasta",
+      "linkByEmailHint": "Ļauj pirmajai pieteikšanās reizei pievienoties kontam ar to pašu apstiprināto e-pastu. Ja izslēgts, šāda pieteikšanās tiek noraidīta, un lietotājs piesaista pakalpojumu sniedzēju savos iestatījumos. Jaunam pakalpojumu sniedzējam pēc noklusējuma izslēgts.",
       "syncUserInfo": "Sinhronizēt profila informāciju katrā pieteikšanās reizē",
+      "syncUserInfoHint": "Kopē piesaistīto vārdu no pakalpojumu sniedzēja. E-pastu neietver.",
+      "syncEmail": "Sinhronizēt e-pastu katrā pieteikšanās reizē",
+      "syncEmailHint": "Kopē kontam e-pastu, ko apstiprināja pakalpojumu sniedzējs, reģistrē izmaiņu auditā un paziņo iepriekšējai adresei. Jaunam pakalpojumu sniedzējam pēc noklusējuma izslēgts.",
       "createSuccess": "Pakalpojumu sniedzējs pievienots",
       "updateSuccess": "Pakalpojumu sniedzējs atjaunināts",
+      "stepUpTitle": "Apstipriniet savu identitāti",
+      "stepUpDescription": "Identitātes pakalpojumu sniedzēji nosaka, kas var pieteikties šajā serverī. Apstipriniet, ka tas esat Jūs, lai turpinātu.",
       "slugConflict": "Šis identifikators jau tiek izmantots",
+      "issuerInUse": "Cits identitātes pakalpojumu sniedzējs jau izmanto šo izdevēja URL",
+      "issuerLocked": "Izdevēja URL nevar mainīt, kamēr ar šo pakalpojumu sniedzēju ir saistīti lietotāji. Atsaistiet tos vai pievienojiet jaunu pakalpojumu sniedzēju.",
       "staleError": "Šis pakalpojuma sniedzējs tika mainīts citur. Jūsu izmaiņas netika saglabātas. Aizveriet un atveriet to vēlreiz, lai ielādētu pašreizējos iestatījumus.",
       "saveError": "Neizdevās saglabāt pakalpojumu sniedzēju. Lūdzu, mēģiniet vēlreiz."
     }
@@ -608,7 +647,7 @@
     "metric": {
       "calories": "Kalorijas",
       "activities": "Aktivitāšu skaits",
-      "distance": "Distance",
+      "distance": "Attālums",
       "elevation": "Augstuma ieguvums",
       "duration": "Ilgums"
     },
@@ -739,23 +778,28 @@
       "revokeOthersBody": "Visas ierīces, izņemot šo, tiks izrakstītas, un tām būs jāpiesakās vēlreiz.",
       "revokeOthersConfirm": "Izrakstīt citas",
       "revokeOthersSuccess": "Citas sesijas izrakstītas",
-      "revokeOthersError": "Neizdevās izrakstīt pārējās sesijas. Lūdzu, mēģiniet vēlreiz."
+      "revokeOthersError": "Neizdevās izrakstīt pārējās sesijas. Lūdzu, mēģiniet vēlreiz.",
+      "signOutEverywhere": "Izrakstīties visur",
+      "signOutEverywhereTitle": "Izrakstīties visur?",
+      "signOutEverywhereBody": "Visas ierīces, arī šī, tiks izrakstītas, un būs jāpiesakās vēlreiz.",
+      "signOutEverywhereConfirm": "Izrakstīties visur",
+      "signOutEverywhereError": "Neizdevās izrakstīties no visām sesijām. Lūdzu, mēģiniet vēlreiz."
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "Zināmās ierīces",
+      "subtitle": "Pārlūkprogrammas un lietotnes, no kurām pieteicāties kopš pēdējām drošības izmaiņām. Pieteikšanās no jebkuras citas ierīces nosūta Jums paziņojumu.",
+      "empty": "Nav zināmu ierīču",
+      "error": "Neizdevās ielādēt zināmās ierīces",
+      "current": "Šī ierīce",
+      "unknown": "Nezināma ierīce",
+      "lastSeen": "Pēdējā pieteikšanās: {date}",
+      "forget": "Aizmirst šo ierīci",
+      "forgetTitle": "Aizmirst šo ierīci?",
+      "forgetDescription": "Nākamā pieteikšanās no šīs ierīces tiks uzskatīta par jaunu ierīci un nosūtīs Jums paziņojumu.",
+      "forgetConfirm": "Aizmirst ierīci",
+      "forgetSuccess": "Ierīce aizmirsta",
+      "forgetError": "Neizdevās aizmirst ierīci. Lūdzu, mēģiniet vēlreiz.",
+      "forgetNotFound": "Šī ierīce vairs nav zināma."
     },
     "linked": {
       "title": "Saistītie konti",

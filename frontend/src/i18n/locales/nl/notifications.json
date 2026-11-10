@@ -74,6 +74,14 @@
         "title": "Tweefactorauthenticatie uitgeschakeld",
         "body": "Tweefactorauthenticatie is uitgeschakeld voor je account. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen."
       },
+      "mfaResetByAdmin": {
+        "title": "Tweefactorauthenticatie gereset door een beheerder",
+        "body": "Een beheerder heeft tweefactorauthenticatie voor je account gereset en je op alle apparaten uitgelogd. Stel het opnieuw in via je beveiligingsinstellingen. Als je dit niet verwachtte, neem dan contact op met je beheerder."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Wachtwoordwijziging vereist door een beheerder",
+        "body": "Een beheerder heeft vereist dat je je wachtwoord wijzigt en je op alle apparaten uitgelogd. Je kiest een nieuw wachtwoord de volgende keer dat je met je wachtwoord inlogt. Als je dit niet verwachtte, neem dan contact op met je beheerder."
+      },
       "backupCodesGenerated": {
         "title": "Nieuwe herstelcodes gegenereerd",
         "body": "Er zijn nieuwe herstelcodes gegenereerd voor je account. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen."
@@ -86,6 +94,14 @@
         "title": "Inlogprovider ontkoppeld",
         "body": "{name} is losgekoppeld van je account. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen.",
         "bodyGeneric": "Een inlogprovider is losgekoppeld van je account. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen."
+      },
+      "accountLocked": {
+        "title": "Account vergrendeld",
+        "body": "Je account is vergrendeld na 100 mislukte inlogpogingen achter elkaar. Browsers en apps waarmee je hebt ingelogd sinds je laatste beveiligingswijziging kunnen nog steeds inloggen. Als jij deze pogingen niet was, wijzig of reset dan je wachtwoord, waarmee ook de vergrendeling wordt opgeheven."
+      },
+      "mfaLocked": {
+        "title": "Tweestapsverificatie vergrendeld",
+        "body": "Je account is vergrendeld na 100 foute tweestapsverificatiecodes achter elkaar, dus iemand kent je wachtwoord. Browsers en apps waarmee je hebt ingelogd sinds je laatste beveiligingswijziging kunnen nog steeds inloggen. Als jij deze pogingen niet was, wijzig dan je wachtwoord."
       },
       "unknown": {
         "title": "Accountbeveiliging gewijzigd",

@@ -33,6 +33,7 @@
       "unverified": "Vahvistamaton sähköposti",
       "pendingEmail": "Sähköpostin vaihto odottaa",
       "pending": "Odottaa hyväksyntää",
+      "deleting": "Poistetaan",
       "externalAuth": "Ulkoinen todennus"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "Vähintään 8 merkkiä",
       "passwordRequired": "Salasana on pakollinen",
       "confirmPassword": "Vahvista salasana",
+      "mustChangePasswordHint": "Käyttäjän on valittava uusi salasana seuraavalla kirjautumiskerralla.",
       "confirmPasswordRequired": "Vahvista salasana",
       "preferredLanguage": "Ensisijainen kieli",
       "languages": {
@@ -162,7 +164,11 @@
       "updateSuccess": "Käyttäjä päivitetty",
       "conflict": "Tämä käyttäjänimi tai sähköposti on jo käytössä",
       "lastAdministrator": "Ainoaa ylläpitäjää ei voi alentaa tai poistaa käytöstä",
-      "saveError": "Käyttäjää ei voitu tallentaa. Yritä uudelleen."
+      "saveError": "Käyttäjää ei voitu tallentaa. Yritä uudelleen.",
+      "stepUpTitle": "Vahvista henkilöllisyytesi",
+      "stepUpDescription": "Käyttäjän {username} sähköpostin, käyttöoikeustyypin tai aktiivisuustilan muuttaminen kirjaa hänet ulos kaikkialta. Vahvista, että se olet sinä, jatkaaksesi.",
+      "stepUpCreateDescription": "Ylläpitäjätilin luominen antaa täydet oikeudet. Vahvista, että se olet sinä, jatkaaksesi.",
+      "stepUpConfirm": "Tallenna muutokset"
     },
     "delete": {
       "title": "Poista käyttäjä",
@@ -199,6 +205,24 @@
       "success": "Salasana päivitetty",
       "error": "Salasanaa ei voitu päivittää. Yritä uudelleen."
     },
+    "mfaReset": {
+      "button": "Nollaa MFA",
+      "title": "Nollaa kaksivaiheinen todennus",
+      "description": "Tämä poistaa käyttäjän {username} kaksivaiheisen todennuksen käytöstä ja poistaa hänen varakoodinsa. Kaikki hänen istuntonsa päättyvät, joten hän kirjautuu ulos kaikilta laitteilta, ja hänen on otettava kaksivaiheinen todennus uudelleen käyttöön kirjauduttuaan sisään. Hänelle ilmoitetaan asiasta. Vahvista, että se olet sinä, jatkaaksesi.",
+      "confirm": "Nollaa MFA",
+      "success": "Kaksivaiheinen todennus nollattu",
+      "refused": "Kaksivaiheinen todennus ei ole käytössä tällä käyttäjällä.",
+      "error": "Kaksivaiheisen todennuksen nollaaminen epäonnistui. Yritä uudelleen."
+    },
+    "requirePasswordChange": {
+      "button": "Vaadi salasanan vaihto",
+      "title": "Vaadi salasanan vaihto",
+      "description": "Käyttäjä {username} säilyttää nykyisen salasanansa, mutta hänen on valittava uusi seuraavalla kerralla, kun hän kirjautuu sillä sisään. Kaikki hänen istuntonsa päättyvät, joten hän kirjautuu ulos kaikilta laitteilta. Kertakirjautumispalvelun kautta kirjautuminen ei muutu. Hänelle ilmoitetaan asiasta. Vahvista, että se olet sinä, jatkaaksesi.",
+      "confirm": "Vaadi vaihto",
+      "success": "Salasanan vaihto vaadittu",
+      "refused": "Tällä käyttäjällä ei ole vaihdettavaa salasanaa.",
+      "error": "Salasanan vaihdon vaatiminen epäonnistui. Yritä uudelleen."
+    },
     "sessions": {
       "title": "Istunnot",
       "subtitle": "Tällä tilillä parhaillaan kirjautuneena olevat laitteet",
@@ -217,8 +241,6 @@
       "revokeTitle": "Peruuta istunto",
       "revokeBody": "Tämä kirjaa laitteen ulos, ja sillä on kirjauduttava uudelleen sisään",
       "revokeConfirm": "Peruuta",
-      "revokeCancel": "Peruuta",
-      "revokeClose": "Sulje",
       "revokeSuccess": "Istunto peruutettu",
       "revokeError": "Istuntoa ei voitu peruuttaa. Yritä uudelleen."
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "Palvelimen asetukset päivitetty",
     "saveError": "Palvelimen asetuksia ei voitu päivittää. Yritä uudelleen.",
     "staleError": "Joku muu muutti näitä asetuksia muokkaamisesi aikana. Muutoksiasi ei tallennettu. Lataa sivu uudelleen nähdäksesi nykyiset arvot.",
+    "stepUpTitle": "Vahvista henkilöllisyytesi",
+    "stepUpDescription": "Nämä muutokset vaikuttavat siihen, kuka voi rekisteröityä, kirjautua sisään tai pitää istunnon tällä palvelimella, kuinka kauan auditointilokia säilytetään ja näkyvätkö jakajat julkisissa linkeissä. Vahvista, että se olet sinä, jatkaaksesi.",
     "envLocked": "Määritetty muuttujalla {name}",
     "envSection": "Jotkin tämän osion asetukset on määritetty ympäristömuuttujilla ({names}). Poista ne ympäristöstä, jos haluat muokata niitä täällä.",
     "unsaved": "Tallentamattomia muutoksia",
@@ -323,7 +347,9 @@
     "password": {
       "title": "Salasanakäytäntö",
       "lengthRegular": "Tavallisten käyttäjien vähimmäispituus",
-      "lengthAdmin": "Ylläpitäjien vähimmäispituus"
+      "lengthAdmin": "Ylläpitäjien vähimmäispituus",
+      "breachCheck": "Hylkää tunnetuissa tietovuodoissa esiintyneet salasanat",
+      "breachCheckHint": "Tarkistaa jokaisen uuden tai vaihdetun salasanan haveibeenpwned.com-palvelussa. Vain salasanan SHA-1-tiivisteen 5 ensimmäistä merkkiä lähetetään, ei koskaan itse salasanaa. Jos palveluun ei saada yhteyttä, salasana hyväksytään."
     },
     "session": {
       "title": "Istunnot",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "Rekisteröityminen",
       "enabled": "Salli uusien käyttäjien rekisteröityminen",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "Salli uusien käyttäjien rekisteröityminen kertakirjautumisen kautta",
       "adminApproval": "Vaadi ylläpitäjän hyväksyntä uusille rekisteröitymisille",
       "emailVerification": "Vaadi sähköpostin vahvistus uusille rekisteröitymisille"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "Jätä tyhjäksi käyttääksesi käyttäjänimeä.",
       "save": "Tallenna sähköpostiasetukset",
       "saveSuccess": "Sähköpostiasetukset tallennettu",
-      "saveError": "Sähköpostiasetuksia ei voitu tallentaa"
+      "saveError": "Sähköpostiasetuksia ei voitu tallentaa",
+      "stepUpTitle": "Vahvista henkilöllisyytesi",
+      "stepUpDescription": "Postipalvelin vastaanottaa jokaisen salasanan palautuslinkin. Vahvista, että se olet sinä, jatkaaksesi."
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "Määritä SSO-tarjoajat kertakirjautumista varten",
     "buttonAdd": "Lisää tarjoaja",
     "toggleError": "Tarjoajaa ei voitu muuttaa. Yritä uudelleen.",
+    "toggleStepUpDescription": "Tarjoajan {name} käyttöönoton muuttaminen määrää, kuka voi kirjautua tälle palvelimelle. Vahvista, että se olet sinä, jatkaaksesi.",
+    "toggleStepUpConfirm": "Vahvista",
     "enableSuccess": "Tarjoaja otettu käyttöön",
     "disableSuccess": "Tarjoaja poistettu käytöstä",
     "type": {
@@ -566,10 +596,19 @@
       "iconSaveError": "Palvelu tallennettiin, mutta sen kuvaketta ei voitu päivittää. Muokkaa palvelua yrittääksesi uudelleen.",
       "enabled": "Käytössä",
       "autoCreateUsers": "Luo käyttäjät automaattisesti ensimmäisellä kirjautumisella",
+      "linkByEmail": "Linkitä olemassa olevaan tiliin sähköpostin perusteella",
+      "linkByEmailHint": "Antaa ensimmäisen kirjautumisen liittyä tiliin, jolla on sama vahvistettu sähköposti. Pois päältä kirjautuminen hylätään ja käyttäjä linkittää tarjoajan omista asetuksistaan. Uudella tarjoajalla oletuksena pois päältä.",
       "syncUserInfo": "Synkronoi profiilitiedot jokaisella kirjautumisella",
+      "syncUserInfoHint": "Kopioi yhdistetyn nimen tarjoajalta. Se ei sisällä sähköpostia.",
+      "syncEmail": "Synkronoi sähköposti jokaisella kirjautumisella",
+      "syncEmailHint": "Kopioi tarjoajan vahvistaman sähköpostin tilille, kirjaa muutoksen auditointilokiin ja ilmoittaa edelliseen osoitteeseen. Uudella tarjoajalla oletuksena pois päältä.",
       "createSuccess": "Tarjoaja lisätty",
       "updateSuccess": "Tarjoaja päivitetty",
+      "stepUpTitle": "Vahvista henkilöllisyytesi",
+      "stepUpDescription": "Identiteetintarjoajat määräävät, kuka voi kirjautua tälle palvelimelle. Vahvista, että se olet sinä, jatkaaksesi.",
       "slugConflict": "Tämä tunniste on jo käytössä",
+      "issuerInUse": "Toinen identiteetintarjoaja käyttää jo tätä liikkeeseenlaskijan URL-osoitetta",
+      "issuerLocked": "Liikkeeseenlaskijan URL-osoitetta ei voi muuttaa, kun käyttäjiä on linkitetty tähän tarjoajaan. Poista linkitykset tai lisää uusi tarjoaja.",
       "staleError": "Tämä palvelu muuttui muualla. Muutoksiasi ei tallennettu. Sulje ja avaa se uudelleen ladataksesi nykyiset asetukset.",
       "saveError": "Tarjoajaa ei voitu tallentaa. Yritä uudelleen."
     }
@@ -739,23 +778,28 @@
       "revokeOthersBody": "Jokainen laite tätä lukuun ottamatta kirjataan ulos ja niiden on kirjauduttava uudelleen sisään.",
       "revokeOthersConfirm": "Kirjaa muut ulos",
       "revokeOthersSuccess": "Muut istunnot kirjattu ulos",
-      "revokeOthersError": "Muita istuntoja ei voitu kirjata ulos. Yritä uudelleen."
+      "revokeOthersError": "Muita istuntoja ei voitu kirjata ulos. Yritä uudelleen.",
+      "signOutEverywhere": "Kirjaa ulos kaikkialta",
+      "signOutEverywhereTitle": "Kirjataanko ulos kaikkialta?",
+      "signOutEverywhereBody": "Jokainen laite, myös tämä, kirjataan ulos, ja niiden on kirjauduttava uudelleen sisään.",
+      "signOutEverywhereConfirm": "Kirjaa ulos kaikkialta",
+      "signOutEverywhereError": "Kaikkia istuntoja ei voitu kirjata ulos. Yritä uudelleen."
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "Tunnetut laitteet",
+      "subtitle": "Selaimet ja sovellukset, joista olet kirjautunut viimeisimmän tietoturvamuutoksen jälkeen. Kirjautuminen muulta laitteelta lähettää sinulle ilmoituksen.",
+      "empty": "Ei tunnettuja laitteita",
+      "error": "Tunnettuja laitteita ei voitu ladata",
+      "current": "Tämä laite",
+      "unknown": "Tuntematon laite",
+      "lastSeen": "Viimeksi kirjautunut {date}",
+      "forget": "Unohda tämä laite",
+      "forgetTitle": "Unohdetaanko tämä laite?",
+      "forgetDescription": "Seuraava kirjautuminen tältä laitteelta lasketaan uudeksi laitteeksi ja lähettää sinulle ilmoituksen.",
+      "forgetConfirm": "Unohda laite",
+      "forgetSuccess": "Laite unohdettu",
+      "forgetError": "Laitetta ei voitu unohtaa. Yritä uudelleen.",
+      "forgetNotFound": "Tätä laitetta ei enää tunneta."
     },
     "linked": {
       "title": "Linkitetyt tilit",
@@ -903,9 +947,9 @@
       "connectTitle": "Yhdistä Strava",
       "connectDescription": "Syötä Strava API -sovelluksesi client id ja secret aloittaaksesi.",
       "connectHint": "Sinut ohjataan Stravaan valtuuttamaan pääsy ja palautetaan sitten tänne.",
-      "clientId": "Client ID",
+      "clientId": "Asiakastunnus",
       "clientIdPlaceholder": "123456",
-      "clientSecret": "Client secret",
+      "clientSecret": "Asiakassalaisuus",
       "connectError": "Stravaan ei voitu yhdistää. Tarkista tietosi ja yritä uudelleen.",
       "scopeError": "Strava ei saanut kaikkia Endurainin tarvitsemia oikeuksia. Yhdistä uudelleen ja jätä kaikki oikeudet valituiksi.",
       "completing": "Viimeistellään Strava-yhteyttä…",

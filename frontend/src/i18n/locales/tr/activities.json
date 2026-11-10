@@ -209,7 +209,7 @@
     "hideGear": "Ekipmanı gizle",
     "success": "Etkinlik güncellendi",
     "error": "Etkinlik güncellenemedi",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Bu etkinlik siz düzenlerken başka bir yerde değiştirildi. Değişiklikleriniz kaydedilmedi. Güncel sürümü görmek için etkinliği yeniden açın."
   },
   "alerts": {
     "hidden": "Bu etkinlik gizli. Yalnızca siz görebilirsiniz.",

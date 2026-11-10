@@ -74,6 +74,14 @@
         "title": "Authentification à deux facteurs désactivée",
         "body": "L'authentification à deux facteurs a été désactivée sur votre compte. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité."
       },
+      "mfaResetByAdmin": {
+        "title": "Authentification à deux facteurs réinitialisée par un administrateur",
+        "body": "Un administrateur a réinitialisé l'authentification à deux facteurs de votre compte et vous a déconnecté de tous vos appareils. Configurez-la à nouveau depuis vos paramètres de sécurité. Si vous ne vous y attendiez pas, contactez votre administrateur."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Changement de mot de passe exigé par un administrateur",
+        "body": "Un administrateur vous a demandé de changer votre mot de passe et vous a déconnecté de tous vos appareils. Vous choisirez un nouveau mot de passe lors de votre prochaine connexion avec votre mot de passe. Si vous ne vous y attendiez pas, contactez votre administrateur."
+      },
       "backupCodesGenerated": {
         "title": "Nouveaux codes de secours générés",
         "body": "De nouveaux codes de secours ont été générés pour votre compte. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité."
@@ -86,6 +94,14 @@
         "title": "Fournisseur de connexion dissocié",
         "body": "{name} a été dissocié de votre compte. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité.",
         "bodyGeneric": "Un fournisseur de connexion a été dissocié de votre compte. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité."
+      },
+      "accountLocked": {
+        "title": "Compte verrouillé",
+        "body": "Votre compte a été verrouillé après 100 échecs de connexion consécutifs. Les navigateurs et applications depuis lesquels vous vous êtes connecté depuis votre dernière modification de sécurité peuvent toujours se connecter. Si ces tentatives ne sont pas les vôtres, changez ou réinitialisez votre mot de passe, ce qui lève aussi le verrou."
+      },
+      "mfaLocked": {
+        "title": "Vérification en deux étapes verrouillée",
+        "body": "Votre compte a été verrouillé après 100 codes de vérification en deux étapes incorrects consécutifs, ce qui signifie que quelqu'un connaît votre mot de passe. Les navigateurs et applications depuis lesquels vous vous êtes connecté depuis votre dernière modification de sécurité peuvent toujours se connecter. Si ces tentatives ne sont pas les vôtres, changez votre mot de passe."
       },
       "unknown": {
         "title": "Sécurité du compte modifiée",

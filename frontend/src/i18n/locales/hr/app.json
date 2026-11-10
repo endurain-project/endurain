@@ -53,6 +53,7 @@
     "mismatch": "Lozinke se ne podudaraju",
     "tooShort": "Ova je lozinka prekratka. Upotrijebite barem {min} znakova.",
     "tooCommon": "Ova je lozinka previše uobičajena. Odaberite onu koju je teže pogoditi.",
+    "breached": "Ova se lozinka pojavila u poznatom curenju podataka. Odaberite drugu.",
     "matchesAccount": "Ne koristite svoje korisničko ime ili adresu e-pošte kao lozinku.",
     "blank": "Lozinka ne može sadržavati samo razmake.",
     "unchanged": "Odaberite lozinku koja se razlikuje od trenutne.",

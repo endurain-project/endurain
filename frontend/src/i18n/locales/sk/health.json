@@ -431,7 +431,8 @@
       "close": "Zavrieť",
       "createSuccess": "Voda zaznamenaná.",
       "updateSuccess": "Záznam vody aktualizovaný.",
-      "saveError": "Váš záznam vody sa nepodarilo uložiť. Skúste to znova."
+      "saveError": "Váš záznam vody sa nepodarilo uložiť. Skúste to znova.",
+      "dayTakenError": "Záznam o vode pre tento deň už existuje. Upravte ho namiesto pridania ďalšieho."
     },
     "target": {
       "title": "Nastaviť cieľ vody",

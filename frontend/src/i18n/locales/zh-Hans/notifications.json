@@ -1,43 +1,43 @@
 {
-  "title": "Notifications",
-  "subtitle": "Recent activity, requests and alerts",
-  "navLabel": "Notifications",
-  "unread": "Unread",
-  "markRead": "Mark as read",
+  "title": "通知",
+  "subtitle": "近期动态、请求和提醒",
+  "navLabel": "通知",
+  "unread": "未读",
+  "markRead": "标记为已读",
   "markAllRead": "全部标记为已读",
   "seeAll": "查看全部",
-  "loadMore": "Load more",
-  "loading": "Loading…",
+  "loadMore": "加载更多",
+  "loading": "加载中…",
   "badge": "{count} 条未读通知",
   "empty": {
-    "title": "You're all caught up",
-    "description": "Updates about your activities, followers and integrations will show up here."
+    "title": "您已查看全部通知",
+    "description": "有关您的活动、关注者和集成的更新将显示在这里。"
   },
   "error": {
-    "title": "Couldn't load notifications",
-    "description": "Something went wrong while loading your notifications.",
-    "retry": "Try again"
+    "title": "无法加载通知",
+    "description": "加载通知时出错。",
+    "retry": "重试"
   },
   "types": {
     "newActivity": {
-      "title": "New activity",
-      "body": "A new activity was added to your account."
+      "title": "新活动",
+      "body": "您的账户中添加了一个新活动。"
     },
     "duplicateActivity": {
-      "title": "Possible duplicate activity",
-      "body": "An activity with the same start time may already exist."
+      "title": "可能的重复活动",
+      "body": "可能已存在开始时间相同的活动。"
     },
     "newFollowerRequest": {
-      "title": "New follower request",
-      "body": "{name} ({'@'}{username}) wants to follow you."
+      "title": "新的关注请求",
+      "body": "{name}（{'@'}{username}）想要关注您。"
     },
     "followerRequestAccepted": {
-      "title": "Follower request accepted",
-      "body": "{name} ({'@'}{username}) accepted your follower request."
+      "title": "关注请求已接受",
+      "body": "{name}（{'@'}{username}）接受了您的关注请求。"
     },
     "garminTokenExpired": {
-      "title": "Garmin Connect needs attention",
-      "body": "Your Garmin Connect session expired. Reconnect it to keep syncing."
+      "title": "Garmin Connect 需要处理",
+      "body": "您的 Garmin Connect 会话已过期。请重新连接以继续同步。"
     },
     "stravaTokenExpired": {
       "title": "Strava 需要处理",
@@ -74,6 +74,14 @@
         "title": "双因素认证已关闭",
         "body": "您的账户已关闭双因素认证。如果这不是您本人操作，请重置密码并检查您的安全设置。"
       },
+      "mfaResetByAdmin": {
+        "title": "管理员已重置双重验证",
+        "body": "管理员已重置您账户的双重验证，并将您从所有设备退出登录。请在安全设置中重新设置。如果这不在您的预期之内，请联系管理员。"
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "管理员要求更改密码",
+        "body": "管理员要求您更改密码，并将您从所有设备退出登录。下次使用密码登录时，您需要选择新密码。如果这不在您的预期之内，请联系管理员。"
+      },
       "backupCodesGenerated": {
         "title": "已生成新的备用码",
         "body": "您的账户已生成新的备用码。如果这不是您本人操作，请重置密码并检查您的安全设置。"
@@ -87,6 +95,14 @@
         "body": "{name} 已与您的账户取消关联。如果这不是您本人操作，请重置密码并检查您的安全设置。",
         "bodyGeneric": "有登录提供者已与您的账户取消关联。如果这不是您本人操作，请重置密码并检查您的安全设置。"
       },
+      "accountLocked": {
+        "title": "账户已锁定",
+        "body": "您的账户在连续 100 次登录失败后被锁定。自您上次安全更改以来登录过的浏览器和应用仍可登录。如果这些尝试不是您本人所为，请更改或重置密码，这也会解除锁定。"
+      },
+      "mfaLocked": {
+        "title": "两步验证已锁定",
+        "body": "您的账户在连续输入 100 次错误的两步验证码后被锁定，这说明有人知道您的密码。自您上次安全更改以来登录过的浏览器和应用仍可登录。如果这些尝试不是您本人所为，请更改密码。"
+      },
       "unknown": {
         "title": "账户安全设置已更改",
         "body": "您账户的某项安全设置已更改。如果这不是您本人操作，请重置密码并检查您的安全设置。"
@@ -97,12 +113,12 @@
       "body": "检测到来自 {os} 上 {browser} 的新登录（{ip}）。如果这不是您本人操作，请更改密码并退出其他会话。"
     },
     "adminSignUpApproval": {
-      "title": "New sign-up needs approval",
-      "body": "{name} ({'@'}{username}) is waiting for account approval."
+      "title": "新的注册需要审批",
+      "body": "{name}（{'@'}{username}）正在等待账户审批。"
     },
     "unknown": {
-      "title": "Notification",
-      "body": "You have a new notification."
+      "title": "通知",
+      "body": "您有一条新通知。"
     }
   }
 }

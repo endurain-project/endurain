@@ -53,6 +53,7 @@
     "mismatch": "Gesli se ne ujemata",
     "tooShort": "To geslo je prekratko. Uporabi vsaj {min} znakov.",
     "tooCommon": "To geslo je preveč običajno. Izberi tako, ki ga je težje uganiti.",
+    "breached": "To geslo se je pojavilo v znani kršitvi podatkov. Izberi drugo.",
     "matchesAccount": "Kot geslo ne uporabljaj uporabniškega imena ali e-poštnega naslova.",
     "blank": "Geslo ne sme vsebovati samo presledkov.",
     "unchanged": "Izberi geslo, ki se razlikuje od trenutnega.",

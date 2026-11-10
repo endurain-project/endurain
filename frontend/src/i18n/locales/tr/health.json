@@ -26,7 +26,7 @@
     "restingHeartRate": "Dinlenme KAH",
     "avgSkinTemperatureDeviation": "Cilt sıc. sapması",
     "weight": "Kilo",
-    "bmi": "BMI",
+    "bmi": "VKİ",
     "steps": "Adımlar",
     "fasting": "Oruç",
     "water": "Su tüketimi",
@@ -79,7 +79,7 @@
       "delete": "Kaydı sil"
     },
     "detail": {
-      "bmi": "BMI",
+      "bmi": "VKİ",
       "bodyFat": "Vücut yağı",
       "bodyWater": "Vücut suyu",
       "boneMass": "Kemik kütlesi",
@@ -431,7 +431,8 @@
       "close": "Kapat",
       "createSuccess": "Su kaydedildi.",
       "updateSuccess": "Su kaydı güncellendi.",
-      "saveError": "Su kaydınız kaydedilemedi. Lütfen tekrar deneyin."
+      "saveError": "Su kaydınız kaydedilemedi. Lütfen tekrar deneyin.",
+      "dayTakenError": "Bu gün için zaten bir su kaydı var. Yeni kayıt eklemek yerine mevcut kaydı düzenleyin."
     },
     "target": {
       "title": "Su hedefi belirle",

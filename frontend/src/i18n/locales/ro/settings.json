@@ -33,6 +33,7 @@
       "unverified": "E-mail neverificat",
       "pendingEmail": "Schimbare de e-mail în așteptare",
       "pending": "În așteptarea aprobării",
+      "deleting": "Se șterge",
       "externalAuth": "Autentificare externă"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "Cel puțin 8 caractere",
       "passwordRequired": "Parola este obligatorie",
       "confirmPassword": "Confirmă parola",
+      "mustChangePasswordHint": "Utilizatorul va trebui să aleagă o parolă nouă la următoarea autentificare.",
       "confirmPasswordRequired": "Confirmă parola",
       "preferredLanguage": "Limbă preferată",
       "languages": {
@@ -162,7 +164,11 @@
       "updateSuccess": "Utilizator actualizat",
       "conflict": "Acel nume de utilizator sau e-mail este deja folosit",
       "lastAdministrator": "Singurul administrator nu poate fi retrogradat sau dezactivat",
-      "saveError": "Nu am putut salva utilizatorul. Te rugăm să încerci din nou."
+      "saveError": "Nu am putut salva utilizatorul. Te rugăm să încerci din nou.",
+      "stepUpTitle": "Confirmă-ți identitatea",
+      "stepUpDescription": "Schimbarea e-mailului, a tipului de acces sau a stării active pentru {username} îl deconectează peste tot. Confirmă că ești tu pentru a continua.",
+      "stepUpCreateDescription": "Crearea unui cont de administrator acordă acces complet. Confirmă că ești tu pentru a continua.",
+      "stepUpConfirm": "Salvează modificările"
     },
     "delete": {
       "title": "Șterge utilizatorul",
@@ -199,6 +205,24 @@
       "success": "Parolă actualizată",
       "error": "Nu am putut actualiza parola. Te rugăm să încerci din nou."
     },
+    "mfaReset": {
+      "button": "Resetează MFA",
+      "title": "Resetează autentificarea în doi pași",
+      "description": "Aceasta dezactivează autentificarea în doi pași pentru {username} și îi elimină codurile de rezervă. Toate sesiunile lui se încheie, deci este deconectat de pe toate dispozitivele și trebuie să configureze din nou autentificarea în doi pași după autentificare. Este notificat. Confirmă că ești tu pentru a continua.",
+      "confirm": "Resetează MFA",
+      "success": "Autentificarea în doi pași a fost resetată",
+      "refused": "Autentificarea în doi pași nu este activată pentru acest utilizator.",
+      "error": "Nu s-a putut reseta autentificarea în doi pași. Încearcă din nou."
+    },
+    "requirePasswordChange": {
+      "button": "Cere schimbarea parolei",
+      "title": "Cere schimbarea parolei",
+      "description": "{username} își păstrează parola actuală, dar trebuie să aleagă una nouă la următoarea autentificare cu ea. Toate sesiunile lui se încheie, deci este deconectat de pe toate dispozitivele. Autentificarea printr-un furnizor single sign-on nu este afectată. Este notificat. Confirmă că ești tu pentru a continua.",
+      "confirm": "Cere schimbarea",
+      "success": "Schimbarea parolei este cerută",
+      "refused": "Acest utilizator nu are o parolă de schimbat.",
+      "error": "Nu s-a putut cere schimbarea parolei. Încearcă din nou."
+    },
     "sessions": {
       "title": "Sesiuni",
       "subtitle": "Dispozitive autentificate momentan în acest cont",
@@ -217,8 +241,6 @@
       "revokeTitle": "Revocă sesiunea",
       "revokeBody": "Aceasta deconectează dispozitivul; va trebui să se autentifice din nou",
       "revokeConfirm": "Revocă",
-      "revokeCancel": "Anulează",
-      "revokeClose": "Închide",
       "revokeSuccess": "Sesiune revocată",
       "revokeError": "Nu am putut revoca sesiunea. Te rugăm să încerci din nou."
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "Setările serverului au fost actualizate",
     "saveError": "Nu am putut actualiza setările serverului. Te rugăm să încerci din nou.",
     "staleError": "Aceste setări au fost modificate de altcineva cât timp le editai. Modificările tale nu au fost salvate. Reîncarcă pagina pentru a vedea valorile curente.",
+    "stepUpTitle": "Confirmă-ți identitatea",
+    "stepUpDescription": "Aceste modificări afectează cine se poate înregistra, autentifica sau păstra o sesiune pe acest server, cât timp este păstrat jurnalul de audit sau dacă linkurile publice arată cine le-a partajat. Confirmă că ești tu pentru a continua.",
     "envLocked": "Setat de {name}",
     "envSection": "Unele setări de aici sunt definite de variabile de mediu ({names}). Elimină-le din mediu pentru a edita aceste setări aici.",
     "unsaved": "Modificări nesalvate",
@@ -323,7 +347,9 @@
     "password": {
       "title": "Politica parolelor",
       "lengthRegular": "Lungime minimă pentru utilizatorii obișnuiți",
-      "lengthAdmin": "Lungime minimă pentru utilizatorii administratori"
+      "lengthAdmin": "Lungime minimă pentru utilizatorii administratori",
+      "breachCheck": "Refuză parolele găsite în breșe de date cunoscute",
+      "breachCheckHint": "Verifică fiecare parolă nouă sau schimbată cu haveibeenpwned.com. Sunt trimise doar primele 5 caractere ale hash-ului SHA-1 al parolei, niciodată parola. Dacă serviciul nu poate fi contactat, parola este acceptată."
     },
     "session": {
       "title": "Sesiuni",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "Înregistrare",
       "enabled": "Permite înscrierea de noi utilizatori",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "Permite înregistrarea de utilizatori noi prin single sign-on",
       "adminApproval": "Necesită aprobarea administratorului pentru noile înscrieri",
       "emailVerification": "Necesită verificarea e-mailului pentru noile înscrieri"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "Lasă gol pentru a folosi numele de utilizator.",
       "save": "Salvează setările de e-mail",
       "saveSuccess": "Setările de e-mail au fost salvate",
-      "saveError": "Setările de e-mail nu au putut fi salvate"
+      "saveError": "Setările de e-mail nu au putut fi salvate",
+      "stepUpTitle": "Confirmă-ți identitatea",
+      "stepUpDescription": "Serverul de e-mail primește fiecare link de resetare a parolei. Confirmă că ești tu pentru a continua."
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "Configurează furnizorii SSO pentru autentificarea unică",
     "buttonAdd": "Adaugă furnizor",
     "toggleError": "Nu am putut modifica furnizorul. Te rugăm să încerci din nou.",
+    "toggleStepUpDescription": "Schimbarea stării de activare a {name} decide cine se poate autentifica pe acest server. Confirmă că ești tu pentru a continua.",
+    "toggleStepUpConfirm": "Confirmă",
     "enableSuccess": "Furnizor activat",
     "disableSuccess": "Furnizor dezactivat",
     "type": {
@@ -542,7 +572,7 @@
       "issuerUrlRequired": "URL-ul emitentului este obligatoriu",
       "issuerUrlRefused": "URL-ul furnizorului a fost refuzat. Trebuie să folosească https:// și să se rezolve de pe server, iar un furnizor dintr-o rețea privată trebuie inclus în SSRF_ALLOWED_HOSTS.",
       "issuerUrlTooLong": "URL-ul emitentului trebuie să aibă cel mult 500 de caractere",
-      "clientId": "Client ID",
+      "clientId": "ID client",
       "clientIdRequired": "Client ID-ul este obligatoriu",
       "clientIdTooLong": "Client ID-ul trebuie să aibă cel mult 512 caractere",
       "clientSecret": "Secret client",
@@ -566,10 +596,19 @@
       "iconSaveError": "Furnizorul a fost salvat, dar pictograma lui nu a putut fi actualizată. Editează furnizorul pentru a încerca din nou.",
       "enabled": "Activat",
       "autoCreateUsers": "Creează automat utilizatori la prima autentificare",
+      "linkByEmail": "Asociază cu un cont existent după e-mail",
+      "linkByEmailHint": "Permite ca o primă autentificare să se alăture contului care are același e-mail verificat. Dezactivat, acea autentificare este refuzată, iar utilizatorul asociază furnizorul din setările sale. Dezactivat implicit pentru un furnizor nou.",
       "syncUserInfo": "Sincronizează informațiile de profil la fiecare autentificare",
+      "syncUserInfoHint": "Copiază numele mapat de la furnizor. Nu include e-mailul.",
+      "syncEmail": "Sincronizează e-mailul la fiecare autentificare",
+      "syncEmailHint": "Copiază pe cont e-mailul verificat de furnizor, auditează modificarea și notifică adresa anterioară. Dezactivat implicit pentru un furnizor nou.",
       "createSuccess": "Furnizor adăugat",
       "updateSuccess": "Furnizor actualizat",
+      "stepUpTitle": "Confirmă-ți identitatea",
+      "stepUpDescription": "Furnizorii de identitate decid cine se poate autentifica pe acest server. Confirmă că ești tu pentru a continua.",
       "slugConflict": "Acel slug este deja folosit",
+      "issuerInUse": "Un alt furnizor de identitate folosește deja acest URL de emitent",
+      "issuerLocked": "URL-ul emitentului nu poate fi schimbat cât timp există utilizatori asociați cu acest furnizor. Disociază-i sau adaugă în schimb un furnizor nou.",
       "staleError": "Acest furnizor a fost modificat în altă parte. Modificările tale nu au fost salvate. Închide-l și redeschide-l pentru a încărca setările curente.",
       "saveError": "Nu am putut salva furnizorul. Te rugăm să încerci din nou."
     }
@@ -739,23 +778,28 @@
       "revokeOthersBody": "Fiecare dispozitiv în afară de acesta va fi deconectat și va trebui să se autentifice din nou.",
       "revokeOthersConfirm": "Deconectează celelalte",
       "revokeOthersSuccess": "Celelalte sesiuni au fost deconectate",
-      "revokeOthersError": "Nu am putut deconecta celelalte sesiuni. Te rugăm să încerci din nou."
+      "revokeOthersError": "Nu am putut deconecta celelalte sesiuni. Te rugăm să încerci din nou.",
+      "signOutEverywhere": "Deconectează-te peste tot",
+      "signOutEverywhereTitle": "Te deconectezi peste tot?",
+      "signOutEverywhereBody": "Toate dispozitivele, inclusiv acesta, vor fi deconectate și va trebui să te autentifici din nou.",
+      "signOutEverywhereConfirm": "Deconectează-te peste tot",
+      "signOutEverywhereError": "Nu s-a putut face deconectarea din toate sesiunile. Încearcă din nou."
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "Dispozitive cunoscute",
+      "subtitle": "Browsere și aplicații din care te-ai autentificat de la ultima modificare de securitate. Autentificarea de pe orice alt dispozitiv îți trimite o notificare.",
+      "empty": "Niciun dispozitiv cunoscut",
+      "error": "Nu s-au putut încărca dispozitivele cunoscute",
+      "current": "Acest dispozitiv",
+      "unknown": "Dispozitiv necunoscut",
+      "lastSeen": "Ultima autentificare {date}",
+      "forget": "Uită acest dispozitiv",
+      "forgetTitle": "Uiți acest dispozitiv?",
+      "forgetDescription": "Următoarea autentificare de pe acest dispozitiv va conta ca dispozitiv nou și îți va trimite o notificare.",
+      "forgetConfirm": "Uită dispozitivul",
+      "forgetSuccess": "Dispozitiv uitat",
+      "forgetError": "Nu s-a putut uita dispozitivul. Încearcă din nou.",
+      "forgetNotFound": "Acel dispozitiv nu mai este cunoscut."
     },
     "linked": {
       "title": "Conturi asociate",
@@ -903,7 +947,7 @@
       "connectTitle": "Conectează Strava",
       "connectDescription": "Introdu client id-ul și secretul aplicației tale API Strava pentru a începe.",
       "connectHint": "Vei fi trimis la Strava pentru a autoriza accesul, apoi vei fi adus înapoi aici.",
-      "clientId": "Client ID",
+      "clientId": "ID client",
       "clientIdPlaceholder": "123456",
       "clientSecret": "Secret client",
       "connectError": "Nu am putut conecta la Strava. Te rugăm să-ți verifici detaliile și să încerci din nou.",

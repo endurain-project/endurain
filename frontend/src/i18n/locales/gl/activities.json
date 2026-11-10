@@ -209,7 +209,7 @@
     "hideGear": "Ocultar equipamento",
     "success": "Actividade actualizada",
     "error": "Non se puido actualizar a actividade",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Esta actividade foi modificada noutro lugar mentres a editabas. Os teus cambios non se gardaron. Ábrea de novo para ver a versión actual."
   },
   "alerts": {
     "hidden": "Esta actividade está oculta. Só ti podes vela.",

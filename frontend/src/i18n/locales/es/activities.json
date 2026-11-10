@@ -121,7 +121,7 @@
     "number": "#",
     "type": "Tipo",
     "duration": "Duración",
-    "reps": "Reps",
+    "reps": "Repeticiones",
     "exercise": "Ejercicio",
     "stroke": "Estilo",
     "weight": "Peso"
@@ -209,7 +209,7 @@
     "hideGear": "Ocultar equipamiento",
     "success": "Actividad actualizada",
     "error": "No se pudo actualizar la actividad",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Esta actividad se modificó en otro lugar mientras la editabas. Tus cambios no se guardaron. Vuelve a abrirla para ver la versión actual."
   },
   "alerts": {
     "hidden": "Esta actividad está oculta. Solo tú puedes verla.",

@@ -74,6 +74,14 @@
         "title": "Kaheastmeline autentimine välja lülitatud",
         "body": "Sinu konto kaheastmeline autentimine lülitati välja. Kui see ei olnud sina, lähtesta oma parool ja vaata üle oma turvaseaded."
       },
+      "mfaResetByAdmin": {
+        "title": "Administraator lähtestas kaheastmelise autentimise",
+        "body": "Administraator lähtestas sinu konto kaheastmelise autentimise ja logis sind kõigis seadmetes välja. Seadista see uuesti oma turvaseadetes. Kui sa seda ei oodanud, võta ühendust oma administraatoriga."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Administraator nõuab parooli muutmist",
+        "body": "Administraator nõudis, et muudaksid oma parooli, ja logis sind kõigis seadmetes välja. Valid uue parooli järgmisel korral, kui logid parooliga sisse. Kui sa seda ei oodanud, võta ühendust oma administraatoriga."
+      },
       "backupCodesGenerated": {
         "title": "Uued varukoodid loodud",
         "body": "Sinu kontole loodi uued varukoodid. Kui see ei olnud sina, lähtesta oma parool ja vaata üle oma turvaseaded."
@@ -86,6 +94,14 @@
         "title": "Sisselogimispakkuja eemaldatud",
         "body": "{name} eemaldati sinu kontolt. Kui see ei olnud sina, lähtesta oma parool ja vaata üle oma turvaseaded.",
         "bodyGeneric": "Sisselogimispakkuja eemaldati sinu kontolt. Kui see ei olnud sina, lähtesta oma parool ja vaata üle oma turvaseaded."
+      },
+      "accountLocked": {
+        "title": "Konto lukustatud",
+        "body": "Sinu konto lukustati pärast 100 järjestikust ebaõnnestunud sisselogimiskatset. Brauserid ja rakendused, millest oled pärast viimast turvamuudatust sisse loginud, saavad endiselt sisse logida. Kui need katsed ei olnud sinu omad, muuda või lähtesta oma parool, mis tühistab ka lukustuse."
+      },
+      "mfaLocked": {
+        "title": "Kaheastmeline kinnitus lukustatud",
+        "body": "Sinu konto lukustati pärast 100 järjestikust valet kaheastmelise kinnituse koodi, seega keegi teab sinu parooli. Brauserid ja rakendused, millest oled pärast viimast turvamuudatust sisse loginud, saavad endiselt sisse logida. Kui need katsed ei olnud sinu omad, muuda oma parool."
       },
       "unknown": {
         "title": "Konto turvalisus muutus",

@@ -33,6 +33,7 @@
       "unverified": "Nepotvrđena e-pošta",
       "pendingEmail": "Promjena e-pošte na čekanju",
       "pending": "Čeka odobrenje",
+      "deleting": "Brisanje u tijeku",
       "externalAuth": "Vanjska autentifikacija"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "Najmanje 8 znakova",
       "passwordRequired": "Lozinka je obavezna",
       "confirmPassword": "Potvrdi lozinku",
+      "mustChangePasswordHint": "Korisnik će morati odabrati novu lozinku pri sljedećoj prijavi.",
       "confirmPasswordRequired": "Potvrdi lozinku",
       "preferredLanguage": "Željeni jezik",
       "languages": {
@@ -162,7 +164,11 @@
       "updateSuccess": "Korisnik je ažuriran",
       "conflict": "To korisničko ime ili e-pošta se već koristi",
       "lastAdministrator": "Jedini administrator ne može biti degradiran ni deaktiviran",
-      "saveError": "Nije moguće spremiti korisnika. Pokušajte ponovno."
+      "saveError": "Nije moguće spremiti korisnika. Pokušajte ponovno.",
+      "stepUpTitle": "Potvrdite svoj identitet",
+      "stepUpDescription": "Promjena e-pošte, vrste pristupa ili aktivnog statusa korisnika {username} odjavljuje ga posvuda. Potvrdite da ste to vi za nastavak.",
+      "stepUpCreateDescription": "Stvaranje administratorskog računa daje puni pristup. Potvrdite da ste to vi za nastavak.",
+      "stepUpConfirm": "Spremi promjene"
     },
     "delete": {
       "title": "Izbriši korisnika",
@@ -199,6 +205,24 @@
       "success": "Lozinka je ažurirana",
       "error": "Nije moguće ažurirati lozinku. Pokušajte ponovno."
     },
+    "mfaReset": {
+      "button": "Poništi MFA",
+      "title": "Poništi dvofaktorsku autentifikaciju",
+      "description": "Ovo isključuje dvofaktorsku autentifikaciju za korisnika {username} i uklanja njegove sigurnosne kodove. Sve njegove sesije završavaju pa se odjavljuje sa svih uređaja te nakon prijave mora ponovno postaviti dvofaktorsku autentifikaciju. Korisnik će biti obaviješten. Potvrdite da ste to vi za nastavak.",
+      "confirm": "Poništi MFA",
+      "success": "Dvofaktorska autentifikacija je poništena",
+      "refused": "Dvofaktorska autentifikacija nije uključena za ovog korisnika.",
+      "error": "Poništavanje dvofaktorske autentifikacije nije uspjelo. Pokušajte ponovno."
+    },
+    "requirePasswordChange": {
+      "button": "Zahtijevaj promjenu lozinke",
+      "title": "Zahtijevaj promjenu lozinke",
+      "description": "Korisnik {username} zadržava trenutnu lozinku, ali pri sljedećoj prijavi njome mora odabrati novu. Sve njegove sesije završavaju pa se odjavljuje sa svih uređaja. Prijava putem pružatelja jedinstvene prijave nije pogođena. Korisnik će biti obaviješten. Potvrdite da ste to vi za nastavak.",
+      "confirm": "Zahtijevaj promjenu",
+      "success": "Promjena lozinke je zahtijevana",
+      "refused": "Ovaj korisnik nema lozinku za promjenu.",
+      "error": "Zahtijevanje promjene lozinke nije uspjelo. Pokušajte ponovno."
+    },
     "sessions": {
       "title": "Sesije",
       "subtitle": "Uređaji trenutno prijavljeni na ovaj račun",
@@ -217,8 +241,6 @@
       "revokeTitle": "Opozovi sesiju",
       "revokeBody": "Ovo odjavljuje uređaj, morat će se ponovno prijaviti",
       "revokeConfirm": "Opozovi",
-      "revokeCancel": "Odustani",
-      "revokeClose": "Zatvori",
       "revokeSuccess": "Sesija je opozvana",
       "revokeError": "Nije moguće opozvati sesiju. Pokušajte ponovno."
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "Postavke poslužitelja su ažurirane",
     "saveError": "Nije moguće ažurirati postavke poslužitelja. Pokušajte ponovno.",
     "staleError": "Netko je promijenio ove postavke dok ste ih uređivali. Vaše promjene nisu spremljene. Ponovno učitajte stranicu da vidite trenutne vrijednosti.",
+    "stepUpTitle": "Potvrdite svoj identitet",
+    "stepUpDescription": "Ove promjene utječu na to tko se može registrirati, prijaviti ili zadržati sesiju na ovom poslužitelju, koliko se dugo čuva revizijski zapis i prikazuju li javne poveznice tko ih je podijelio. Potvrdite da ste to vi za nastavak.",
     "envLocked": "Postavljeno varijablom {name}",
     "envSection": "Neke postavke ovdje određuju varijable okoline ({names}). Uklonite ih iz okoline kako biste te postavke mogli uređivati ovdje.",
     "unsaved": "Nespremljene promjene",
@@ -323,7 +347,9 @@
     "password": {
       "title": "Pravila lozinke",
       "lengthRegular": "Minimalna duljina za obične korisnike",
-      "lengthAdmin": "Minimalna duljina za administratore"
+      "lengthAdmin": "Minimalna duljina za administratore",
+      "breachCheck": "Odbij lozinke pronađene u poznatim curenjima podataka",
+      "breachCheckHint": "Provjerava svaku novu ili promijenjenu lozinku putem haveibeenpwned.com. Šalje se samo prvih 5 znakova SHA-1 sažetka lozinke, nikada sama lozinka. Ako usluga nije dostupna, lozinka se prihvaća."
     },
     "session": {
       "title": "Sesije",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "Registracija",
       "enabled": "Dopusti registracije novih korisnika",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "Dopusti registraciju novih korisnika putem jedinstvene prijave",
       "adminApproval": "Zahtijevaj odobrenje administratora za nove registracije",
       "emailVerification": "Zahtijevaj potvrdu e-pošte za nove registracije"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "Ostavite prazno za korištenje korisničkog imena.",
       "save": "Spremi postavke e-pošte",
       "saveSuccess": "Postavke e-pošte spremljene",
-      "saveError": "Postavke e-pošte nije bilo moguće spremiti"
+      "saveError": "Postavke e-pošte nije bilo moguće spremiti",
+      "stepUpTitle": "Potvrdite svoj identitet",
+      "stepUpDescription": "Poštanski poslužitelj prima svaku poveznicu za ponovno postavljanje lozinke. Potvrdite da ste to vi za nastavak."
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "Konfigurirajte SSO pružatelje za jedinstvenu prijavu",
     "buttonAdd": "Dodaj pružatelja",
     "toggleError": "Nije moguće promijeniti pružatelja. Pokušajte ponovno.",
+    "toggleStepUpDescription": "Promjena je li {name} omogućen određuje tko se može prijaviti na ovaj poslužitelj. Potvrdite da ste to vi za nastavak.",
+    "toggleStepUpConfirm": "Potvrdi",
     "enableSuccess": "Pružatelj je omogućen",
     "disableSuccess": "Pružatelj je onemogućen",
     "type": {
@@ -542,10 +572,10 @@
       "issuerUrlRequired": "URL izdavatelja je obavezan",
       "issuerUrlRefused": "URL pružatelja je odbijen. Mora koristiti https:// i biti razriješen s poslužitelja, a pružatelj u privatnoj mreži mora biti naveden u SSRF_ALLOWED_HOSTS.",
       "issuerUrlTooLong": "URL izdavatelja mora imati 500 znakova ili manje",
-      "clientId": "Client ID",
+      "clientId": "ID klijenta",
       "clientIdRequired": "Client ID je obavezan",
       "clientIdTooLong": "Client ID mora imati 512 znakova ili manje",
-      "clientSecret": "Client secret",
+      "clientSecret": "Tajna klijenta",
       "clientSecretRequired": "Client secret je obavezan",
       "clientSecretTooLong": "Client secret mora imati 512 znakova ili manje",
       "clientSecretHintEdit": "Ostavite prazno da zadržite trenutni secret",
@@ -566,10 +596,19 @@
       "iconSaveError": "Pružatelj je spremljen, ali njegovu ikonu nije bilo moguće ažurirati. Uredite pružatelja da pokušate ponovno.",
       "enabled": "Omogućeno",
       "autoCreateUsers": "Automatski stvori korisnike pri prvoj prijavi",
+      "linkByEmail": "Poveži s postojećim računom putem e-pošte",
+      "linkByEmailHint": "Omogućuje da se prva prijava pridruži računu s istom potvrđenom e-poštom. Isključeno, ta se prijava odbija, a korisnik povezuje pružatelja u svojim postavkama. Za novog pružatelja zadano je isključeno.",
       "syncUserInfo": "Sinkroniziraj podatke profila pri svakoj prijavi",
+      "syncUserInfoHint": "Kopira mapirano ime od pružatelja. Ne uključuje e-poštu.",
+      "syncEmail": "Sinkroniziraj e-poštu pri svakoj prijavi",
+      "syncEmailHint": "Kopira e-poštu koju je pružatelj potvrdio na račun, bilježi promjenu u reviziji i obavještava prethodnu adresu. Za novog pružatelja zadano je isključeno.",
       "createSuccess": "Pružatelj je dodan",
       "updateSuccess": "Pružatelj je ažuriran",
+      "stepUpTitle": "Potvrdite svoj identitet",
+      "stepUpDescription": "Pružatelji identiteta određuju tko se može prijaviti na ovaj poslužitelj. Potvrdite da ste to vi za nastavak.",
       "slugConflict": "Taj slug se već koristi",
+      "issuerInUse": "Drugi pružatelj identiteta već koristi ovaj URL izdavatelja",
+      "issuerLocked": "URL izdavatelja ne može se promijeniti dok su korisnici povezani s ovim pružateljem. Odvojite ih ili umjesto toga dodajte novog pružatelja.",
       "staleError": "Ovaj je pružatelj promijenjen drugdje. Vaše promjene nisu spremljene. Zatvorite ga i ponovno otvorite da učitate trenutne postavke.",
       "saveError": "Nije moguće spremiti pružatelja. Pokušajte ponovno."
     }
@@ -739,23 +778,28 @@
       "revokeOthersBody": "Svaki uređaj osim ovog bit će odjavljen i morat će se ponovno prijaviti.",
       "revokeOthersConfirm": "Odjavi druge",
       "revokeOthersSuccess": "Druge sesije su odjavljene",
-      "revokeOthersError": "Nije moguće odjaviti druge sesije. Pokušajte ponovno."
+      "revokeOthersError": "Nije moguće odjaviti druge sesije. Pokušajte ponovno.",
+      "signOutEverywhere": "Odjavi se posvuda",
+      "signOutEverywhereTitle": "Odjaviti se posvuda?",
+      "signOutEverywhereBody": "Svi uređaji, uključujući ovaj, bit će odjavljeni i morat će se ponovno prijaviti.",
+      "signOutEverywhereConfirm": "Odjavi se posvuda",
+      "signOutEverywhereError": "Odjava sa svih sesija nije uspjela. Pokušajte ponovno."
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "Poznati uređaji",
+      "subtitle": "Preglednici i aplikacije s kojih ste se prijavili od posljednje sigurnosne promjene. Prijava s bilo kojeg drugog uređaja šalje vam obavijest.",
+      "empty": "Nema poznatih uređaja",
+      "error": "Učitavanje poznatih uređaja nije uspjelo",
+      "current": "Ovaj uređaj",
+      "unknown": "Nepoznat uređaj",
+      "lastSeen": "Zadnja prijava {date}",
+      "forget": "Zaboravi ovaj uređaj",
+      "forgetTitle": "Zaboraviti ovaj uređaj?",
+      "forgetDescription": "Sljedeća prijava s ovog uređaja računat će se kao novi uređaj i poslat će vam obavijest.",
+      "forgetConfirm": "Zaboravi uređaj",
+      "forgetSuccess": "Uređaj je zaboravljen",
+      "forgetError": "Zaboravljanje uređaja nije uspjelo. Pokušajte ponovno.",
+      "forgetNotFound": "Taj uređaj više nije poznat."
     },
     "linked": {
       "title": "Povezani računi",
@@ -903,9 +947,9 @@
       "connectTitle": "Poveži Strava",
       "connectDescription": "Unesite client id i secret svoje Strava API aplikacije za početak.",
       "connectHint": "Bit ćete preusmjereni na Strava radi autorizacije pristupa, zatim vraćeni ovamo.",
-      "clientId": "Client ID",
+      "clientId": "ID klijenta",
       "clientIdPlaceholder": "123456",
-      "clientSecret": "Client secret",
+      "clientSecret": "Tajna klijenta",
       "connectError": "Nije moguće povezati sa Strava. Provjerite svoje podatke i pokušajte ponovno.",
       "scopeError": "Strava nije dobila sva dopuštenja koja Endurain treba. Povežite se ponovno i ostavite sva dopuštenja označena.",
       "completing": "Dovršavanje Strava veze…",

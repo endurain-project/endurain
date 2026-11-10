@@ -431,7 +431,8 @@
       "close": "Aizvērt",
       "createSuccess": "Ūdens reģistrēts.",
       "updateSuccess": "Ūdens ieraksts atjaunināts.",
-      "saveError": "Neizdevās saglabāt jūsu ūdens ierakstu. Lūdzu, mēģiniet vēlreiz."
+      "saveError": "Neizdevās saglabāt jūsu ūdens ierakstu. Lūdzu, mēģiniet vēlreiz.",
+      "dayTakenError": "Šai dienai ūdens ieraksts jau pastāv. Rediģējiet to, nevis pievienojiet jaunu."
     },
     "target": {
       "title": "Iestatīt ūdens mērķi",

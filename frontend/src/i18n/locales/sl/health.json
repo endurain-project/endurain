@@ -26,7 +26,7 @@
     "restingHeartRate": "Srčni utrip v mir.",
     "avgSkinTemperatureDeviation": "Odklon temp. kože",
     "weight": "Teža",
-    "bmi": "BMI",
+    "bmi": "ITM",
     "steps": "Koraki",
     "fasting": "Post",
     "water": "Vnos vode",
@@ -79,7 +79,7 @@
       "delete": "Izbriši vnos"
     },
     "detail": {
-      "bmi": "BMI",
+      "bmi": "ITM",
       "bodyFat": "Telesna maščoba",
       "bodyWater": "Telesna voda",
       "boneMass": "Kostna masa",
@@ -431,7 +431,8 @@
       "close": "Zapri",
       "createSuccess": "Voda zabeležena.",
       "updateSuccess": "Vnos vode posodobljen.",
-      "saveError": "Vnosa vode ni bilo mogoče shraniti. Prosim, poskusi znova."
+      "saveError": "Vnosa vode ni bilo mogoče shraniti. Prosim, poskusi znova.",
+      "dayTakenError": "Vnos vode za ta dan že obstaja. Uredi ga namesto dodajanja novega."
     },
     "target": {
       "title": "Nastavi cilj vode",
@@ -610,7 +611,7 @@
       "endTime": "Čas konca",
       "endBeforeStart": "Čas konca ne sme biti pred časom začetka.",
       "endWhileInProgress": "Post v teku ne more imeti časa konca.",
-      "status": "Status",
+      "status": "Stanje",
       "notes": "Opombe",
       "create": "Začni",
       "save": "Shrani",

@@ -53,6 +53,7 @@
     "mismatch": "Salasanat eivät täsmää",
     "tooShort": "Tämä salasana on liian lyhyt. Käytä vähintään {min} merkkiä.",
     "tooCommon": "Tämä salasana on liian yleinen. Valitse vaikeammin arvattava.",
+    "breached": "Tämä salasana on esiintynyt tunnetussa tietovuodossa. Valitse toinen.",
     "matchesAccount": "Älä käytä käyttäjänimeäsi tai sähköpostiosoitettasi salasanana.",
     "blank": "Salasana ei voi koostua pelkistä välilyönneistä.",
     "unchanged": "Valitse nykyisestä salasanastasi poikkeava salasana.",

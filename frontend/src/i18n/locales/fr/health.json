@@ -431,7 +431,8 @@
       "close": "Fermer",
       "createSuccess": "Eau enregistrée.",
       "updateSuccess": "Entrée d'eau mise à jour.",
-      "saveError": "Impossible d'enregistrer votre consommation d'eau. Veuillez réessayer."
+      "saveError": "Impossible d'enregistrer votre consommation d'eau. Veuillez réessayer.",
+      "dayTakenError": "Une entrée d'eau existe déjà pour ce jour. Modifiez-la au lieu d'en ajouter une autre."
     },
     "target": {
       "title": "Définir un objectif d'hydratation",

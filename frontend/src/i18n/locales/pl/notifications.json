@@ -74,6 +74,14 @@
         "title": "Wyłączono uwierzytelnianie dwuskładnikowe",
         "body": "Dla Twojego konta wyłączono uwierzytelnianie dwuskładnikowe. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
       },
+      "mfaResetByAdmin": {
+        "title": "Uwierzytelnianie dwuskładnikowe zresetowane przez administratora",
+        "body": "Administrator zresetował uwierzytelnianie dwuskładnikowe na Twoim koncie i wylogował Cię ze wszystkich urządzeń. Skonfiguruj je ponownie w ustawieniach bezpieczeństwa. Jeśli się tego nie spodziewałeś(-aś), skontaktuj się z administratorem."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Administrator wymaga zmiany hasła",
+        "body": "Administrator wymaga zmiany Twojego hasła i wylogował Cię ze wszystkich urządzeń. Nowe hasło wybierzesz przy następnym logowaniu hasłem. Jeśli się tego nie spodziewałeś(-aś), skontaktuj się z administratorem."
+      },
       "backupCodesGenerated": {
         "title": "Wygenerowano nowe kody zapasowe",
         "body": "Dla Twojego konta wygenerowano nowe kody zapasowe. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
@@ -86,6 +94,14 @@
         "title": "Odłączono dostawcę logowania",
         "body": "{name} został odłączony od Twojego konta. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń.",
         "bodyGeneric": "Dostawca logowania został odłączony od Twojego konta. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
+      },
+      "accountLocked": {
+        "title": "Konto zablokowane",
+        "body": "Twoje konto zostało zablokowane po 100 nieudanych próbach logowania z rzędu. Przeglądarki i aplikacje, z których logowałeś(-aś) się od ostatniej zmiany zabezpieczeń, nadal mogą się logować. Jeśli to nie były Twoje próby, zmień lub zresetuj hasło, co także zdejmie blokadę."
+      },
+      "mfaLocked": {
+        "title": "Weryfikacja dwuetapowa zablokowana",
+        "body": "Twoje konto zostało zablokowane po 100 błędnych kodach weryfikacji dwuetapowej z rzędu, więc ktoś zna Twoje hasło. Przeglądarki i aplikacje, z których logowałeś(-aś) się od ostatniej zmiany zabezpieczeń, nadal mogą się logować. Jeśli to nie były Twoje próby, zmień hasło."
       },
       "unknown": {
         "title": "Zmieniono zabezpieczenia konta",

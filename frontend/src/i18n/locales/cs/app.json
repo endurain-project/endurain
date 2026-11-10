@@ -53,6 +53,7 @@
     "mismatch": "Hesla se neshodují",
     "tooShort": "Toto heslo je příliš krátké. Použijte alespoň {min} znaků.",
     "tooCommon": "Toto heslo je příliš běžné. Zvolte takové, které se hůře odhaduje.",
+    "breached": "Toto heslo se objevilo ve známém úniku dat. Zvolte jiné.",
     "matchesAccount": "Nepoužívejte jako heslo své uživatelské jméno ani e-mailovou adresu.",
     "blank": "Heslo nemůže obsahovat pouze mezery.",
     "unchanged": "Zvolte heslo, které se liší od vašeho současného.",

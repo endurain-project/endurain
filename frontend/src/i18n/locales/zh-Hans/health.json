@@ -431,7 +431,8 @@
       "close": "关闭",
       "createSuccess": "饮水已记录。",
       "updateSuccess": "饮水记录已更新。",
-      "saveError": "无法保存饮水记录，请重试。"
+      "saveError": "无法保存饮水记录，请重试。",
+      "dayTakenError": "该日期已有饮水记录。请编辑该记录，而不是再添加一条。"
     },
     "target": {
       "title": "设置饮水目标",

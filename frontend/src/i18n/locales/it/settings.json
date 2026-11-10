@@ -33,6 +33,7 @@
       "unverified": "Email non verificata",
       "pendingEmail": "Modifica email in sospeso",
       "pending": "In attesa di approvazione",
+      "deleting": "In eliminazione",
       "externalAuth": "Autenticazione esterna"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "Almeno 8 caratteri",
       "passwordRequired": "La password è obbligatoria",
       "confirmPassword": "Conferma password",
+      "mustChangePasswordHint": "L'utente dovrà scegliere una nuova password al prossimo accesso.",
       "confirmPasswordRequired": "Conferma password",
       "preferredLanguage": "Lingua preferita",
       "languages": {
@@ -162,7 +164,11 @@
       "updateSuccess": "Utente aggiornato",
       "conflict": "Quel nome utente o email è già in uso",
       "lastAdministrator": "L'unico amministratore non può essere retrocesso o disattivato",
-      "saveError": "Impossibile salvare l'utente. Riprova."
+      "saveError": "Impossibile salvare l'utente. Riprova.",
+      "stepUpTitle": "Conferma la tua identità",
+      "stepUpDescription": "Cambiare l'email, il tipo di accesso o lo stato attivo di {username} lo disconnette ovunque. Conferma che sei tu per continuare.",
+      "stepUpCreateDescription": "Creare un account amministratore concede accesso completo. Conferma che sei tu per continuare.",
+      "stepUpConfirm": "Salva modifiche"
     },
     "delete": {
       "title": "Elimina utente",
@@ -199,6 +205,24 @@
       "success": "Password aggiornata",
       "error": "Impossibile aggiornare la password. Riprova."
     },
+    "mfaReset": {
+      "button": "Reimposta MFA",
+      "title": "Reimposta l'autenticazione a due fattori",
+      "description": "Questo disattiva l'autenticazione a due fattori per {username} e rimuove i suoi codici di recupero. Tutte le sue sessioni terminano, quindi viene disconnesso da ogni dispositivo e dovrà configurare di nuovo l'autenticazione a due fattori dopo l'accesso. Riceverà una notifica. Conferma che sei tu per continuare.",
+      "confirm": "Reimposta MFA",
+      "success": "Autenticazione a due fattori reimpostata",
+      "refused": "L'autenticazione a due fattori non è attiva per questo utente.",
+      "error": "Impossibile reimpostare l'autenticazione a due fattori. Riprova."
+    },
+    "requirePasswordChange": {
+      "button": "Richiedi cambio password",
+      "title": "Richiedi un cambio password",
+      "description": "{username} mantiene la password attuale ma dovrà sceglierne una nuova al prossimo accesso con essa. Tutte le sue sessioni terminano, quindi viene disconnesso da ogni dispositivo. L'accesso tramite un provider di single sign-on non è interessato. Riceverà una notifica. Conferma che sei tu per continuare.",
+      "confirm": "Richiedi cambio",
+      "success": "Cambio password richiesto",
+      "refused": "Questo utente non ha una password da cambiare.",
+      "error": "Impossibile richiedere il cambio password. Riprova."
+    },
     "sessions": {
       "title": "Sessioni",
       "subtitle": "Dispositivi attualmente connessi a questo account",
@@ -217,8 +241,6 @@
       "revokeTitle": "Revoca sessione",
       "revokeBody": "Disconnette il dispositivo, che dovrà accedere di nuovo",
       "revokeConfirm": "Revoca",
-      "revokeCancel": "Annulla",
-      "revokeClose": "Chiudi",
       "revokeSuccess": "Sessione revocata",
       "revokeError": "Impossibile revocare la sessione. Riprova."
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "Impostazioni server aggiornate",
     "saveError": "Impossibile aggiornare le impostazioni server. Riprova.",
     "staleError": "Queste impostazioni sono state modificate da qualcun altro mentre le modificavi. Le tue modifiche non sono state salvate. Ricarica la pagina per vedere i valori attuali.",
+    "stepUpTitle": "Conferma la tua identità",
+    "stepUpDescription": "Queste modifiche influiscono su chi può registrarsi, accedere o mantenere una sessione su questo server, per quanto tempo viene conservato il registro di controllo e se i link pubblici mostrano chi li ha condivisi. Conferma che sei tu per continuare.",
     "envLocked": "Impostato da {name}",
     "envSection": "Alcune impostazioni qui sono definite da variabili d'ambiente ({names}). Rimuovile dall'ambiente per modificarle qui.",
     "unsaved": "Modifiche non salvate",
@@ -323,7 +347,9 @@
     "password": {
       "title": "Policy password",
       "lengthRegular": "Lunghezza minima utenti normali",
-      "lengthAdmin": "Lunghezza minima utenti admin"
+      "lengthAdmin": "Lunghezza minima utenti admin",
+      "breachCheck": "Rifiuta le password trovate in violazioni di dati note",
+      "breachCheckHint": "Controlla ogni password nuova o modificata con haveibeenpwned.com. Vengono inviati solo i primi 5 caratteri dell'hash SHA-1 della password, mai la password. Se il servizio non è raggiungibile, la password viene accettata."
     },
     "session": {
       "title": "Sessioni",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "Registrazione",
       "enabled": "Consenti nuove registrazioni",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "Consenti nuove registrazioni tramite single sign-on",
       "adminApproval": "Richiedi approvazione admin per le nuove registrazioni",
       "emailVerification": "Richiedi verifica email per le nuove registrazioni"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "Lascia vuoto per usare il nome utente.",
       "save": "Salva impostazioni e-mail",
       "saveSuccess": "Impostazioni e-mail salvate",
-      "saveError": "Impossibile salvare le impostazioni e-mail"
+      "saveError": "Impossibile salvare le impostazioni e-mail",
+      "stepUpTitle": "Conferma la tua identità",
+      "stepUpDescription": "Il server di posta riceve ogni link di reimpostazione della password. Conferma che sei tu per continuare."
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "Configura i provider SSO per il single sign-on",
     "buttonAdd": "Aggiungi provider",
     "toggleError": "Impossibile modificare il provider. Riprova.",
+    "toggleStepUpDescription": "Cambiare l'abilitazione di {name} decide chi può accedere a questo server. Conferma che sei tu per continuare.",
+    "toggleStepUpConfirm": "Conferma",
     "enableSuccess": "Provider abilitato",
     "disableSuccess": "Provider disabilitato",
     "type": {
@@ -566,10 +596,19 @@
       "iconSaveError": "Il provider è stato salvato, ma non è stato possibile aggiornare la sua icona. Modifica il provider per riprovare.",
       "enabled": "Abilitato",
       "autoCreateUsers": "Crea utenti automaticamente al primo accesso",
+      "linkByEmail": "Collega a un account esistente tramite email",
+      "linkByEmailHint": "Permette a un primo accesso di unirsi all'account con la stessa email verificata. Se disattivato, quell'accesso viene rifiutato e l'utente collega il provider dalle proprie impostazioni. Disattivato per impostazione predefinita per un nuovo provider.",
       "syncUserInfo": "Sincronizza le informazioni del profilo ad ogni accesso",
+      "syncUserInfoHint": "Copia il nome associato dal provider. Non include l'email.",
+      "syncEmail": "Sincronizza l'email a ogni accesso",
+      "syncEmailHint": "Copia sull'account l'email verificata dal provider, registra la modifica nel registro di controllo e avvisa il precedente indirizzo. Disattivato per impostazione predefinita per un nuovo provider.",
       "createSuccess": "Provider aggiunto",
       "updateSuccess": "Provider aggiornato",
+      "stepUpTitle": "Conferma la tua identità",
+      "stepUpDescription": "I provider di identità decidono chi può accedere a questo server. Conferma che sei tu per continuare.",
       "slugConflict": "Quello slug è già in uso",
+      "issuerInUse": "Un altro provider di identità usa già questo URL dell'emittente",
+      "issuerLocked": "L'URL dell'emittente non può cambiare finché ci sono utenti collegati a questo provider. Scollegali oppure aggiungi un nuovo provider.",
       "staleError": "Questo provider è stato modificato altrove. Le tue modifiche non sono state salvate. Chiudilo e riaprilo per caricare le impostazioni attuali.",
       "saveError": "Impossibile salvare il provider. Riprova."
     }
@@ -739,23 +778,28 @@
       "revokeOthersBody": "Tutti i dispositivi tranne questo verranno disconnessi e dovranno accedere di nuovo.",
       "revokeOthersConfirm": "Disconnetti altri",
       "revokeOthersSuccess": "Altre sessioni disconnesse",
-      "revokeOthersError": "Impossibile disconnettere le altre sessioni. Riprova."
+      "revokeOthersError": "Impossibile disconnettere le altre sessioni. Riprova.",
+      "signOutEverywhere": "Disconnetti ovunque",
+      "signOutEverywhereTitle": "Disconnettere ovunque?",
+      "signOutEverywhereBody": "Ogni dispositivo, incluso questo, verrà disconnesso e dovrà accedere di nuovo.",
+      "signOutEverywhereConfirm": "Disconnetti ovunque",
+      "signOutEverywhereError": "Impossibile disconnettere tutte le sessioni. Riprova."
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "Dispositivi noti",
+      "subtitle": "Browser e app da cui hai effettuato l'accesso dall'ultima modifica di sicurezza. Accedere da qualsiasi altro dispositivo ti invia un avviso.",
+      "empty": "Nessun dispositivo noto",
+      "error": "Impossibile caricare i dispositivi noti",
+      "current": "Questo dispositivo",
+      "unknown": "Dispositivo sconosciuto",
+      "lastSeen": "Ultimo accesso {date}",
+      "forget": "Dimentica questo dispositivo",
+      "forgetTitle": "Dimenticare questo dispositivo?",
+      "forgetDescription": "Il prossimo accesso da questo dispositivo verrà considerato un nuovo dispositivo e ti invierà un avviso.",
+      "forgetConfirm": "Dimentica dispositivo",
+      "forgetSuccess": "Dispositivo dimenticato",
+      "forgetError": "Impossibile dimenticare il dispositivo. Riprova.",
+      "forgetNotFound": "Quel dispositivo non è più noto."
     },
     "linked": {
       "title": "Account collegati",

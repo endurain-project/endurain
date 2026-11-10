@@ -33,6 +33,7 @@
       "unverified": "電子郵件未驗證",
       "pendingEmail": "電子郵件變更待處理",
       "pending": "待審核",
+      "deleting": "刪除中",
       "externalAuth": "外部驗證"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "至少 8 個字元",
       "passwordRequired": "密碼為必填",
       "confirmPassword": "確認密碼",
+      "mustChangePasswordHint": "該使用者下次登入時必須選擇新密碼。",
       "confirmPasswordRequired": "確認密碼",
       "preferredLanguage": "偏好語言",
       "languages": {
@@ -162,7 +164,11 @@
       "updateSuccess": "使用者已更新",
       "conflict": "該使用者名稱或電子郵件已被使用",
       "lastAdministrator": "唯一的管理員無法被降級或停用",
-      "saveError": "無法儲存使用者，請再試一次。"
+      "saveError": "無法儲存使用者，請再試一次。",
+      "stepUpTitle": "確認您的身分",
+      "stepUpDescription": "變更 {username} 的電子郵件、存取類型或啟用狀態會使其在所有裝置上登出。請確認是您本人操作以繼續。",
+      "stepUpCreateDescription": "建立管理員帳號將授予完整存取權限。請確認是您本人操作以繼續。",
+      "stepUpConfirm": "儲存變更"
     },
     "delete": {
       "title": "刪除使用者",
@@ -199,6 +205,24 @@
       "success": "密碼已更新",
       "error": "無法更新密碼，請再試一次。"
     },
+    "mfaReset": {
+      "button": "重設 MFA",
+      "title": "重設雙重驗證",
+      "description": "這將關閉 {username} 的雙重驗證並刪除其備用代碼。其所有工作階段將結束，即在所有裝置上登出，登入後必須重新設定雙重驗證。系統會通知該使用者。請確認是您本人操作以繼續。",
+      "confirm": "重設 MFA",
+      "success": "雙重驗證已重設",
+      "refused": "此使用者未開啟雙重驗證。",
+      "error": "無法重設雙重驗證，請再試一次。"
+    },
+    "requirePasswordChange": {
+      "button": "要求變更密碼",
+      "title": "要求變更密碼",
+      "description": "{username} 保留目前密碼，但下次使用該密碼登入時必須選擇新密碼。其所有工作階段將結束，即在所有裝置上登出。透過單一登入提供者登入不受影響。系統會通知該使用者。請確認是您本人操作以繼續。",
+      "confirm": "要求變更",
+      "success": "已要求變更密碼",
+      "refused": "此使用者沒有可變更的密碼。",
+      "error": "無法要求變更密碼，請再試一次。"
+    },
     "sessions": {
       "title": "工作階段",
       "subtitle": "目前登入此帳戶的裝置",
@@ -217,8 +241,6 @@
       "revokeTitle": "撤銷工作階段",
       "revokeBody": "這將登出該裝置，裝置需重新登入",
       "revokeConfirm": "撤銷",
-      "revokeCancel": "取消",
-      "revokeClose": "關閉",
       "revokeSuccess": "工作階段已撤銷",
       "revokeError": "無法撤銷工作階段，請再試一次。"
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "伺服器設定已更新",
     "saveError": "無法更新伺服器設定，請再試一次。",
     "staleError": "您編輯期間，這些設定已被其他人變更，您的變更未儲存。請重新整理頁面查看目前的值。",
+    "stepUpTitle": "確認您的身分",
+    "stepUpDescription": "這些變更會影響誰可以在此伺服器上註冊、登入或保持工作階段、稽核記錄保留多久，以及公開連結是否顯示分享者。請確認是您本人操作以繼續。",
     "envLocked": "由 {name} 設定",
     "envSection": "此處的部分設定由環境變數（{names}）決定。請從環境中移除這些變數，以便在此處編輯相應設定。",
     "unsaved": "未儲存的變更",
@@ -323,7 +347,9 @@
     "password": {
       "title": "密碼原則",
       "lengthRegular": "一般使用者最短長度",
-      "lengthAdmin": "管理員使用者最短長度"
+      "lengthAdmin": "管理員使用者最短長度",
+      "breachCheck": "拒絕曾在已知資料外洩中出現過的密碼",
+      "breachCheckHint": "透過 haveibeenpwned.com 檢查每個新密碼或變更後的密碼。僅傳送密碼 SHA-1 雜湊的前 5 個字元，絕不傳送密碼本身。如果無法連線該服務，則接受該密碼。"
     },
     "session": {
       "title": "工作階段",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "註冊",
       "enabled": "允許新使用者註冊",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "允許透過單一登入註冊新使用者",
       "adminApproval": "新申請須經管理員審核",
       "emailVerification": "新申請須驗證電子郵件"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "留空則使用使用者名稱。",
       "save": "儲存郵件設定",
       "saveSuccess": "郵件設定已儲存",
-      "saveError": "無法儲存郵件設定"
+      "saveError": "無法儲存郵件設定",
+      "stepUpTitle": "確認您的身分",
+      "stepUpDescription": "郵件伺服器會收到每一個密碼重設連結。請確認是您本人操作以繼續。"
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "設定單一登入的 SSO 提供者",
     "buttonAdd": "新增提供者",
     "toggleError": "無法變更提供者，請再試一次。",
+    "toggleStepUpDescription": "變更 {name} 是否啟用會決定誰可以登入此伺服器。請確認是您本人操作以繼續。",
+    "toggleStepUpConfirm": "確認",
     "enableSuccess": "提供者已啟用",
     "disableSuccess": "提供者已停用",
     "type": {
@@ -566,10 +596,19 @@
       "iconSaveError": "提供者已儲存，但其圖示未能更新。請編輯提供者以重試。",
       "enabled": "已啟用",
       "autoCreateUsers": "首次登入時自動建立使用者",
+      "linkByEmail": "透過電子郵件連結到現有帳號",
+      "linkByEmailHint": "允許首次登入加入使用相同已驗證電子郵件的帳號。關閉時，該登入將被拒絕，使用者需在自己的設定中連結提供者。新提供者預設為關閉。",
       "syncUserInfo": "每次登入時同步個人資料",
+      "syncUserInfoHint": "從提供者複製已對應的名稱，不包括電子郵件。",
+      "syncEmail": "每次登入時同步電子郵件",
+      "syncEmailHint": "將提供者已驗證的電子郵件複製到帳號，記錄該變更並通知先前的地址。新提供者預設為關閉。",
       "createSuccess": "提供者已新增",
       "updateSuccess": "提供者已更新",
+      "stepUpTitle": "確認您的身分",
+      "stepUpDescription": "身分提供者決定誰可以登入此伺服器。請確認是您本人操作以繼續。",
       "slugConflict": "該 Slug 已被使用",
+      "issuerInUse": "另一個身分提供者已使用此簽發者 URL",
+      "issuerLocked": "有使用者連結到此提供者時，無法變更簽發者 URL。請先取消連結，或改為新增提供者。",
       "staleError": "此提供者已在其他地方變更，您的變更未儲存。請關閉後重新開啟以載入目前的設定。",
       "saveError": "無法儲存提供者，請再試一次。"
     }
@@ -739,23 +778,28 @@
       "revokeOthersBody": "除此裝置外的所有裝置都將被登出，需重新登入。",
       "revokeOthersConfirm": "登出其他",
       "revokeOthersSuccess": "其他工作階段已登出",
-      "revokeOthersError": "無法登出其他工作階段，請再試一次。"
+      "revokeOthersError": "無法登出其他工作階段，請再試一次。",
+      "signOutEverywhere": "在所有裝置上登出",
+      "signOutEverywhereTitle": "在所有裝置上登出？",
+      "signOutEverywhereBody": "包括此裝置在內的所有裝置都將登出，需要重新登入。",
+      "signOutEverywhereConfirm": "在所有裝置上登出",
+      "signOutEverywhereError": "無法登出所有工作階段，請再試一次。"
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "已知裝置",
+      "subtitle": "自您上次安全性變更以來登入過的瀏覽器和應用程式。從任何其他裝置登入時，您都會收到通知。",
+      "empty": "沒有已知裝置",
+      "error": "無法載入已知裝置",
+      "current": "此裝置",
+      "unknown": "未知裝置",
+      "lastSeen": "最近登入於 {date}",
+      "forget": "忘記此裝置",
+      "forgetTitle": "忘記此裝置？",
+      "forgetDescription": "下次從此裝置登入將被視為新裝置，並向您發送通知。",
+      "forgetConfirm": "忘記裝置",
+      "forgetSuccess": "裝置已忘記",
+      "forgetError": "無法忘記該裝置，請再試一次。",
+      "forgetNotFound": "該裝置已不在已知裝置中。"
     },
     "linked": {
       "title": "已連結帳戶",

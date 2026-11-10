@@ -33,6 +33,7 @@
       "unverified": "Nepatvirtintas el. paštas",
       "pendingEmail": "Laukiama el. pašto keitimo",
       "pending": "Laukia patvirtinimo",
+      "deleting": "Trinama",
       "externalAuth": "Išorinis autentifikavimas"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "Bent 8 simboliai",
       "passwordRequired": "Slaptažodis yra privalomas",
       "confirmPassword": "Patvirtinti slaptažodį",
+      "mustChangePasswordHint": "Naudotojas turės pasirinkti naują slaptažodį kitą kartą prisijungdamas.",
       "confirmPasswordRequired": "Patvirtinti slaptažodį",
       "preferredLanguage": "Pageidaujama kalba",
       "languages": {
@@ -162,7 +164,11 @@
       "updateSuccess": "Naudotojas atnaujintas",
       "conflict": "Šis naudotojo vardas arba el. paštas jau naudojamas",
       "lastAdministrator": "Vienintelio administratoriaus negalima pažeminti ar išjungti",
-      "saveError": "Nepavyko išsaugoti naudotojo. Bandykite dar kartą."
+      "saveError": "Nepavyko išsaugoti naudotojo. Bandykite dar kartą.",
+      "stepUpTitle": "Patvirtinkite savo tapatybę",
+      "stepUpDescription": "Pakeitus naudotojo {username} el. paštą, prieigos tipą ar aktyvumo būseną, jis bus atjungtas visur. Patvirtinkite, kad tai Jūs, kad tęstumėte.",
+      "stepUpCreateDescription": "Sukūrus administratoriaus paskyrą suteikiama visa prieiga. Patvirtinkite, kad tai Jūs, kad tęstumėte.",
+      "stepUpConfirm": "Išsaugoti pakeitimus"
     },
     "delete": {
       "title": "Ištrinti naudotoją",
@@ -199,6 +205,24 @@
       "success": "Slaptažodis atnaujintas",
       "error": "Nepavyko atnaujinti slaptažodžio. Bandykite dar kartą."
     },
+    "mfaReset": {
+      "button": "Atstatyti MFA",
+      "title": "Atstatyti dviejų veiksnių autentifikavimą",
+      "description": "Tai išjungia naudotojo {username} dviejų veiksnių autentifikavimą ir pašalina jo atsarginius kodus. Visos jo sesijos baigiamos, todėl jis atjungiamas visuose įrenginiuose ir po prisijungimo turės iš naujo nustatyti dviejų veiksnių autentifikavimą. Jis gaus pranešimą. Patvirtinkite, kad tai Jūs, kad tęstumėte.",
+      "confirm": "Atstatyti MFA",
+      "success": "Dviejų veiksnių autentifikavimas atstatytas",
+      "refused": "Šiam naudotojui dviejų veiksnių autentifikavimas neįjungtas.",
+      "error": "Nepavyko atstatyti dviejų veiksnių autentifikavimo. Bandykite dar kartą."
+    },
+    "requirePasswordChange": {
+      "button": "Reikalauti keisti slaptažodį",
+      "title": "Reikalauti pakeisti slaptažodį",
+      "description": "Naudotojas {username} pasilieka dabartinį slaptažodį, bet kitą kartą jį naudodamas prisijungti turės pasirinkti naują. Visos jo sesijos baigiamos, todėl jis atjungiamas visuose įrenginiuose. Prisijungimas per vieningo prisijungimo teikėją nepaveikiamas. Jis gaus pranešimą. Patvirtinkite, kad tai Jūs, kad tęstumėte.",
+      "confirm": "Reikalauti keisti",
+      "success": "Slaptažodžio keitimo reikalaujama",
+      "refused": "Šis naudotojas neturi slaptažodžio, kurį galėtų pakeisti.",
+      "error": "Nepavyko pareikalauti pakeisti slaptažodžio. Bandykite dar kartą."
+    },
     "sessions": {
       "title": "Sesijos",
       "subtitle": "Įrenginiai, šiuo metu prisijungę prie šios paskyros",
@@ -217,8 +241,6 @@
       "revokeTitle": "Atšaukti sesiją",
       "revokeBody": "Tai atjungs įrenginį, jam reikės prisijungti iš naujo",
       "revokeConfirm": "Atšaukti",
-      "revokeCancel": "Atšaukti",
-      "revokeClose": "Uždaryti",
       "revokeSuccess": "Sesija atšaukta",
       "revokeError": "Nepavyko atšaukti sesijos. Bandykite dar kartą."
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "Serverio nustatymai atnaujinti",
     "saveError": "Nepavyko atnaujinti serverio nustatymų. Bandykite dar kartą.",
     "staleError": "Šiuos nustatymus pakeitė kitas asmuo, kol juos redagavote. Jūsų pakeitimai neišsaugoti. Įkelkite puslapį iš naujo, kad pamatytumėte dabartines reikšmes.",
+    "stepUpTitle": "Patvirtinkite savo tapatybę",
+    "stepUpDescription": "Šie pakeitimai veikia, kas gali registruotis, prisijungti ar išlaikyti sesiją šiame serveryje, kiek laiko saugomas audito žurnalas ir ar vieši saitai rodo, kas jais pasidalijo. Patvirtinkite, kad tai Jūs, kad tęstumėte.",
     "envLocked": "Nustatyta kintamuoju {name}",
     "envSection": "Kai kuriuos čia esančius nustatymus nustato aplinkos kintamieji ({names}). Pašalinkite juos iš aplinkos, kad galėtumėte tuos nustatymus redaguoti čia.",
     "unsaved": "Neišsaugoti pakeitimai",
@@ -323,7 +347,9 @@
     "password": {
       "title": "Slaptažodžių politika",
       "lengthRegular": "Minimalus įprastų naudotojų ilgis",
-      "lengthAdmin": "Minimalus administratorių ilgis"
+      "lengthAdmin": "Minimalus administratorių ilgis",
+      "breachCheck": "Atmesti slaptažodžius, rastus žinomuose duomenų nutekėjimuose",
+      "breachCheckHint": "Kiekvieną naują ar pakeistą slaptažodį patikrina per haveibeenpwned.com. Siunčiami tik pirmieji 5 slaptažodžio SHA-1 maišos simboliai, niekada ne pats slaptažodis. Jei paslauga nepasiekiama, slaptažodis priimamas."
     },
     "session": {
       "title": "Sesijos",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "Registracija",
       "enabled": "Leisti naujų naudotojų registracijas",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "Leisti naujiems naudotojams registruotis per vieningą prisijungimą",
       "adminApproval": "Reikalauti administratoriaus patvirtinimo naujoms registracijoms",
       "emailVerification": "Reikalauti el. pašto patvirtinimo naujoms registracijoms"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "Palikite tuščią, kad būtų naudojamas naudotojo vardas.",
       "save": "Išsaugoti pašto nustatymus",
       "saveSuccess": "Pašto nustatymai išsaugoti",
-      "saveError": "Nepavyko išsaugoti pašto nustatymų"
+      "saveError": "Nepavyko išsaugoti pašto nustatymų",
+      "stepUpTitle": "Patvirtinkite savo tapatybę",
+      "stepUpDescription": "Pašto serveris gauna kiekvieną slaptažodžio atstatymo saitą. Patvirtinkite, kad tai Jūs, kad tęstumėte."
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "Konfigūruokite SSO teikėjus vieningam prisijungimui",
     "buttonAdd": "Pridėti teikėją",
     "toggleError": "Nepavyko pakeisti teikėjo. Bandykite dar kartą.",
+    "toggleStepUpDescription": "Keičiant, ar {name} įjungtas, sprendžiama, kas gali prisijungti prie šio serverio. Patvirtinkite, kad tai Jūs, kad tęstumėte.",
+    "toggleStepUpConfirm": "Patvirtinti",
     "enableSuccess": "Teikėjas įjungtas",
     "disableSuccess": "Teikėjas išjungtas",
     "type": {
@@ -566,10 +596,19 @@
       "iconSaveError": "Teikėjas išsaugotas, bet jo piktogramos atnaujinti nepavyko. Redaguokite teikėją ir bandykite dar kartą.",
       "enabled": "Įjungta",
       "autoCreateUsers": "Automatiškai kurti naudotojus pirmojo prisijungimo metu",
+      "linkByEmail": "Susieti su esama paskyra pagal el. paštą",
+      "linkByEmailHint": "Leidžia pirmam prisijungimui prisijungti prie paskyros, turinčios tą patį patvirtintą el. paštą. Išjungus, toks prisijungimas atmetamas, o naudotojas teikėją susieja savo nustatymuose. Naujam teikėjui pagal numatytuosius nustatymus išjungta.",
       "syncUserInfo": "Sinchronizuoti profilio informaciją kiekvieno prisijungimo metu",
+      "syncUserInfoHint": "Nukopijuoja susietą vardą iš teikėjo. El. pašto neapima.",
+      "syncEmail": "Sinchronizuoti el. paštą kiekvieno prisijungimo metu",
+      "syncEmailHint": "Nukopijuoja teikėjo patvirtintą el. paštą į paskyrą, įrašo pakeitimą į audito žurnalą ir praneša ankstesniam adresui. Naujam teikėjui pagal numatytuosius nustatymus išjungta.",
       "createSuccess": "Teikėjas pridėtas",
       "updateSuccess": "Teikėjas atnaujintas",
+      "stepUpTitle": "Patvirtinkite savo tapatybę",
+      "stepUpDescription": "Tapatybės teikėjai sprendžia, kas gali prisijungti prie šio serverio. Patvirtinkite, kad tai Jūs, kad tęstumėte.",
       "slugConflict": "Šis trumpinys jau naudojamas",
+      "issuerInUse": "Kitas tapatybės teikėjas jau naudoja šį išdavėjo URL",
+      "issuerLocked": "Išdavėjo URL negalima keisti, kol prie šio teikėjo yra susietų naudotojų. Atsiekite juos arba pridėkite naują teikėją.",
       "staleError": "Šis teikėjas buvo pakeistas kitur. Jūsų pakeitimai neišsaugoti. Uždarykite ir atidarykite jį iš naujo, kad įkeltumėte dabartinius nustatymus.",
       "saveError": "Nepavyko išsaugoti teikėjo. Bandykite dar kartą."
     }
@@ -739,23 +778,28 @@
       "revokeOthersBody": "Visi įrenginiai, išskyrus šį, bus atjungti ir jiems reikės prisijungti iš naujo.",
       "revokeOthersConfirm": "Atjungti kitus",
       "revokeOthersSuccess": "Kitos sesijos atjungtos",
-      "revokeOthersError": "Nepavyko atjungti kitų sesijų. Bandykite dar kartą."
+      "revokeOthersError": "Nepavyko atjungti kitų sesijų. Bandykite dar kartą.",
+      "signOutEverywhere": "Atsijungti visur",
+      "signOutEverywhereTitle": "Atsijungti visur?",
+      "signOutEverywhereBody": "Visi įrenginiai, įskaitant šį, bus atjungti ir turės prisijungti iš naujo.",
+      "signOutEverywhereConfirm": "Atsijungti visur",
+      "signOutEverywhereError": "Nepavyko atsijungti nuo visų sesijų. Bandykite dar kartą."
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "Žinomi įrenginiai",
+      "subtitle": "Naršyklės ir programėlės, iš kurių prisijungėte nuo paskutinio saugumo pakeitimo. Prisijungus iš bet kurio kito įrenginio, gausite pranešimą.",
+      "empty": "Žinomų įrenginių nėra",
+      "error": "Nepavyko įkelti žinomų įrenginių",
+      "current": "Šis įrenginys",
+      "unknown": "Nežinomas įrenginys",
+      "lastSeen": "Paskutinį kartą prisijungta {date}",
+      "forget": "Pamiršti šį įrenginį",
+      "forgetTitle": "Pamiršti šį įrenginį?",
+      "forgetDescription": "Kitas prisijungimas iš šio įrenginio bus laikomas naujo įrenginio prisijungimu ir Jums bus išsiųstas pranešimas.",
+      "forgetConfirm": "Pamiršti įrenginį",
+      "forgetSuccess": "Įrenginys pamirštas",
+      "forgetError": "Nepavyko pamiršti įrenginio. Bandykite dar kartą.",
+      "forgetNotFound": "Šis įrenginys nebėra žinomas."
     },
     "linked": {
       "title": "Susietos paskyros",

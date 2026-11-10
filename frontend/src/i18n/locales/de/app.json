@@ -53,6 +53,7 @@
     "mismatch": "Passwörter stimmen nicht überein",
     "tooShort": "Dieses Passwort ist zu kurz. Verwende mindestens {min} Zeichen.",
     "tooCommon": "Dieses Passwort ist zu gebräuchlich. Wähle eines, das schwerer zu erraten ist.",
+    "breached": "Dieses Passwort tauchte in einem bekannten Datenleck auf. Wähle ein anderes.",
     "matchesAccount": "Verwende nicht deinen Benutzernamen oder deine E-Mail-Adresse als Passwort.",
     "blank": "Ein Passwort darf nicht nur aus Leerzeichen bestehen.",
     "unchanged": "Wähle ein Passwort, das sich von deinem aktuellen unterscheidet.",

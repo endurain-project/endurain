@@ -431,7 +431,8 @@
       "close": "Chiudi",
       "createSuccess": "Acqua registrata.",
       "updateSuccess": "Voce acqua aggiornata.",
-      "saveError": "Impossibile salvare la voce acqua. Riprova."
+      "saveError": "Impossibile salvare la voce acqua. Riprova.",
+      "dayTakenError": "Esiste già una registrazione di acqua per quel giorno. Modificala invece di aggiungerne un'altra."
     },
     "target": {
       "title": "Imposta obiettivo idratazione",

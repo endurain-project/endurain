@@ -209,7 +209,7 @@
     "hideGear": "Nascondi attrezzatura",
     "success": "Attività aggiornata",
     "error": "Impossibile aggiornare l'attività",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Questa attività è stata modificata altrove mentre la stavi modificando. Le tue modifiche non sono state salvate. Riaprila per vedere la versione attuale."
   },
   "alerts": {
     "hidden": "Questa attività è nascosta. Solo tu puoi vederla.",

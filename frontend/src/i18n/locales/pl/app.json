@@ -53,6 +53,7 @@
     "mismatch": "Hasła nie są zgodne",
     "tooShort": "To hasło jest za krótkie. Użyj co najmniej {min} znaków.",
     "tooCommon": "To hasło jest zbyt popularne. Wybierz takie, które trudniej odgadnąć.",
+    "breached": "To hasło pojawiło się w znanym wycieku danych. Wybierz inne.",
     "matchesAccount": "Nie używaj nazwy użytkownika ani adresu e-mail jako hasła.",
     "blank": "Hasło nie może składać się wyłącznie ze spacji.",
     "unchanged": "Wybierz hasło inne niż obecne.",

@@ -33,6 +33,7 @@
       "unverified": "Neověřený e-mail",
       "pendingEmail": "Čeká na změnu e-mailu",
       "pending": "Čeká na schválení",
+      "deleting": "Probíhá mazání",
       "externalAuth": "Externí ověření"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "Alespoň 8 znaků",
       "passwordRequired": "Heslo je povinné",
       "confirmPassword": "Potvrďte heslo",
+      "mustChangePasswordHint": "Uživatel bude muset při příštím přihlášení zvolit nové heslo.",
       "confirmPasswordRequired": "Potvrďte heslo",
       "preferredLanguage": "Preferovaný jazyk",
       "languages": {
@@ -162,7 +164,11 @@
       "updateSuccess": "Uživatel aktualizován",
       "conflict": "Toto uživatelské jméno nebo e-mail se již používá",
       "lastAdministrator": "Jediného správce nelze degradovat ani deaktivovat",
-      "saveError": "Nepodařilo se uložit uživatele. Zkuste to prosím znovu."
+      "saveError": "Nepodařilo se uložit uživatele. Zkuste to prosím znovu.",
+      "stepUpTitle": "Potvrďte svou totožnost",
+      "stepUpDescription": "Změna e-mailu, typu přístupu nebo aktivního stavu uživatele {username} jej odhlásí všude. Pro pokračování potvrďte, že jste to vy.",
+      "stepUpCreateDescription": "Vytvoření účtu správce uděluje plný přístup. Pro pokračování potvrďte, že jste to vy.",
+      "stepUpConfirm": "Uložit změny"
     },
     "delete": {
       "title": "Smazat uživatele",
@@ -199,6 +205,24 @@
       "success": "Heslo aktualizováno",
       "error": "Nepodařilo se aktualizovat heslo. Zkuste to prosím znovu."
     },
+    "mfaReset": {
+      "button": "Resetovat MFA",
+      "title": "Reset dvoufaktorového ověřování",
+      "description": "Tím se vypne dvoufaktorové ověřování uživatele {username} a odstraní se jeho záložní kódy. Všechny jeho relace skončí, takže bude odhlášen ze všech zařízení, a po přihlášení bude muset dvoufaktorové ověřování nastavit znovu. Bude o tom informován. Pro pokračování potvrďte, že jste to vy.",
+      "confirm": "Resetovat MFA",
+      "success": "Dvoufaktorové ověřování resetováno",
+      "refused": "Dvoufaktorové ověřování není pro tohoto uživatele zapnuto.",
+      "error": "Dvoufaktorové ověřování se nepodařilo resetovat. Zkuste to prosím znovu."
+    },
+    "requirePasswordChange": {
+      "button": "Vyžadovat změnu hesla",
+      "title": "Vyžadovat změnu hesla",
+      "description": "Uživatel {username} si ponechá současné heslo, ale při příštím přihlášení jím bude muset zvolit nové. Všechny jeho relace skončí, takže bude odhlášen ze všech zařízení. Přihlášení přes poskytovatele jednotného přihlášení to neovlivní. Bude o tom informován. Pro pokračování potvrďte, že jste to vy.",
+      "confirm": "Vyžadovat změnu",
+      "success": "Změna hesla vyžadována",
+      "refused": "Tento uživatel nemá žádné heslo ke změně.",
+      "error": "Změnu hesla se nepodařilo vyžadovat. Zkuste to prosím znovu."
+    },
     "sessions": {
       "title": "Relace",
       "subtitle": "Zařízení aktuálně přihlášená k tomuto účtu",
@@ -217,8 +241,6 @@
       "revokeTitle": "Zrušit relaci",
       "revokeBody": "Tím se zařízení odhlásí, bude se muset přihlásit znovu",
       "revokeConfirm": "Zrušit",
-      "revokeCancel": "Zrušit",
-      "revokeClose": "Zavřít",
       "revokeSuccess": "Relace zrušena",
       "revokeError": "Nepodařilo se zrušit relaci. Zkuste to prosím znovu."
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "Nastavení serveru aktualizováno",
     "saveError": "Nepodařilo se aktualizovat nastavení serveru. Zkuste to prosím znovu.",
     "staleError": "Tato nastavení během úprav změnil někdo jiný. Vaše změny nebyly uloženy. Načtěte stránku znovu, abyste viděli aktuální hodnoty.",
+    "stepUpTitle": "Potvrďte svou totožnost",
+    "stepUpDescription": "Tyto změny ovlivňují, kdo se může na tomto serveru registrovat, přihlašovat nebo udržet relaci, jak dlouho se uchovává auditní záznam a zda veřejné odkazy zobrazují, kdo je sdílel. Pro pokračování potvrďte, že jste to vy.",
     "envLocked": "Nastaveno proměnnou {name}",
     "envSection": "Některá nastavení zde jsou určena proměnnými prostředí ({names}). Odeberte je z prostředí, abyste tato nastavení mohli upravit zde.",
     "unsaved": "Neuložené změny",
@@ -323,7 +347,9 @@
     "password": {
       "title": "Zásady hesel",
       "lengthRegular": "Minimální délka pro běžné uživatele",
-      "lengthAdmin": "Minimální délka pro administrátory"
+      "lengthAdmin": "Minimální délka pro administrátory",
+      "breachCheck": "Odmítat hesla nalezená ve známých únicích dat",
+      "breachCheckHint": "Každé nové nebo změněné heslo zkontroluje přes haveibeenpwned.com. Odesílá se pouze prvních 5 znaků hashe SHA-1 hesla, nikdy samotné heslo. Pokud služba není dostupná, heslo se přijme."
     },
     "session": {
       "title": "Relace",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "Registrace",
       "enabled": "Povolit registrace nových uživatelů",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "Povolit registraci nových uživatelů přes jednotné přihlášení",
       "adminApproval": "Vyžadovat schválení administrátorem pro nové registrace",
       "emailVerification": "Vyžadovat ověření e-mailu pro nové registrace"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "Ponechte prázdné, chcete-li použít uživatelské jméno.",
       "save": "Uložit nastavení pošty",
       "saveSuccess": "Nastavení pošty uložena",
-      "saveError": "Nastavení pošty se nepodařilo uložit"
+      "saveError": "Nastavení pošty se nepodařilo uložit",
+      "stepUpTitle": "Potvrďte svou totožnost",
+      "stepUpDescription": "Poštovní server přijímá každý odkaz pro obnovení hesla. Pro pokračování potvrďte, že jste to vy."
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "Konfigurujte poskytovatele SSO pro jednotné přihlášení",
     "buttonAdd": "Přidat poskytovatele",
     "toggleError": "Nepodařilo se změnit poskytovatele. Zkuste to prosím znovu.",
+    "toggleStepUpDescription": "Změna povolení {name} rozhoduje o tom, kdo se může přihlásit k tomuto serveru. Pro pokračování potvrďte, že jste to vy.",
+    "toggleStepUpConfirm": "Potvrdit",
     "enableSuccess": "Poskytovatel povolen",
     "disableSuccess": "Poskytovatel zakázán",
     "type": {
@@ -566,10 +596,19 @@
       "iconSaveError": "Poskytovatel byl uložen, ale jeho ikonu se nepodařilo aktualizovat. Upravte poskytovatele a zkuste to znovu.",
       "enabled": "Povoleno",
       "autoCreateUsers": "Automaticky vytvářet uživatele při prvním přihlášení",
+      "linkByEmail": "Propojit s existujícím účtem podle e-mailu",
+      "linkByEmailHint": "Umožní, aby se první přihlášení připojilo k účtu se stejným ověřeným e-mailem. Když je vypnuto, toto přihlášení je odmítnuto a uživatel propojí poskytovatele ve svém nastavení. U nového poskytovatele je ve výchozím stavu vypnuto.",
       "syncUserInfo": "Synchronizovat informace o profilu při každém přihlášení",
+      "syncUserInfoHint": "Zkopíruje namapované jméno od poskytovatele. Nezahrnuje e-mail.",
+      "syncEmail": "Synchronizovat e-mail při každém přihlášení",
+      "syncEmailHint": "Zkopíruje e-mail ověřený poskytovatelem do účtu, zapíše změnu do auditu a upozorní předchozí adresu. U nového poskytovatele je ve výchozím stavu vypnuto.",
       "createSuccess": "Poskytovatel přidán",
       "updateSuccess": "Poskytovatel aktualizován",
+      "stepUpTitle": "Potvrďte svou totožnost",
+      "stepUpDescription": "Poskytovatelé identity rozhodují o tom, kdo se může přihlásit k tomuto serveru. Pro pokračování potvrďte, že jste to vy.",
       "slugConflict": "Tento slug se již používá",
+      "issuerInUse": "Tuto URL vydavatele již používá jiný poskytovatel identity",
+      "issuerLocked": "URL vydavatele nelze změnit, dokud jsou k tomuto poskytovateli propojeni uživatelé. Odpojte je nebo přidejte nového poskytovatele.",
       "staleError": "Tento poskytovatel byl změněn jinde. Vaše změny nebyly uloženy. Zavřete jej a znovu otevřete, abyste načetli aktuální nastavení.",
       "saveError": "Nepodařilo se uložit poskytovatele. Zkuste to prosím znovu."
     }
@@ -739,23 +778,28 @@
       "revokeOthersBody": "Každé zařízení kromě tohoto bude odhlášeno a bude se muset přihlásit znovu.",
       "revokeOthersConfirm": "Odhlásit ostatní",
       "revokeOthersSuccess": "Ostatní relace odhlášeny",
-      "revokeOthersError": "Nepodařilo se odhlásit ostatní relace. Zkuste to prosím znovu."
+      "revokeOthersError": "Nepodařilo se odhlásit ostatní relace. Zkuste to prosím znovu.",
+      "signOutEverywhere": "Odhlásit všude",
+      "signOutEverywhereTitle": "Odhlásit všude?",
+      "signOutEverywhereBody": "Každé zařízení, včetně tohoto, bude odhlášeno a bude se muset přihlásit znovu.",
+      "signOutEverywhereConfirm": "Odhlásit všude",
+      "signOutEverywhereError": "Nepodařilo se odhlásit všechny relace. Zkuste to prosím znovu."
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "Známá zařízení",
+      "subtitle": "Prohlížeče a aplikace, ze kterých jste se přihlásili od poslední změny zabezpečení. Přihlášení z jakéhokoli jiného zařízení vám odešle upozornění.",
+      "empty": "Žádná známá zařízení",
+      "error": "Známá zařízení se nepodařilo načíst",
+      "current": "Toto zařízení",
+      "unknown": "Neznámé zařízení",
+      "lastSeen": "Naposledy přihlášeno {date}",
+      "forget": "Zapomenout toto zařízení",
+      "forgetTitle": "Zapomenout toto zařízení?",
+      "forgetDescription": "Další přihlášení z tohoto zařízení se bude počítat jako nové zařízení a odešle vám upozornění.",
+      "forgetConfirm": "Zapomenout zařízení",
+      "forgetSuccess": "Zařízení zapomenuto",
+      "forgetError": "Zařízení se nepodařilo zapomenout. Zkuste to prosím znovu.",
+      "forgetNotFound": "Toto zařízení už není známé."
     },
     "linked": {
       "title": "Propojené účty",

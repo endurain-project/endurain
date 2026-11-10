@@ -431,7 +431,8 @@
       "close": "Uždaryti",
       "createSuccess": "Vanduo įrašytas.",
       "updateSuccess": "Vandens įrašas atnaujintas.",
-      "saveError": "Nepavyko išsaugoti vandens įrašo. Bandykite dar kartą."
+      "saveError": "Nepavyko išsaugoti vandens įrašo. Bandykite dar kartą.",
+      "dayTakenError": "Šiai dienai vandens įrašas jau yra. Redaguokite jį vietoj naujo pridėjimo."
     },
     "target": {
       "title": "Nustatyti vandens tikslą",

@@ -48,11 +48,12 @@
     "empty": "暂无预览内容"
   },
   "password": {
-    "hintLength": "At least {min} characters.",
-    "invalid": "Password does not meet the requirements",
+    "hintLength": "至少 {min} 个字符。",
+    "invalid": "密码不符合要求",
     "mismatch": "两次密码不一致",
     "tooShort": "此密码太短，请至少使用 {min} 个字符。",
     "tooCommon": "此密码太常见，请选择更难猜测的密码。",
+    "breached": "此密码曾出现在已知的数据泄露事件中。请选择其他密码。",
     "matchesAccount": "请勿使用您的用户名或电子邮件地址作为密码。",
     "blank": "密码不能只包含空格。",
     "unchanged": "请选择与当前密码不同的密码。",

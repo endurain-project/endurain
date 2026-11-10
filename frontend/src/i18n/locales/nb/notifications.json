@@ -74,6 +74,14 @@
         "title": "Tofaktorautentisering slått av",
         "body": "Tofaktorautentisering ble slått av for kontoen din. Hvis dette ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine."
       },
+      "mfaResetByAdmin": {
+        "title": "Tofaktorautentisering tilbakestilt av en administrator",
+        "body": "En administrator har tilbakestilt tofaktorautentiseringen for kontoen din og logget deg ut på alle enheter. Sett den opp på nytt fra sikkerhetsinnstillingene dine. Hvis du ikke ventet dette, kontakt administratoren din."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Passordendring kreves av en administrator",
+        "body": "En administrator har krevd at du endrer passordet ditt, og logget deg ut på alle enheter. Du velger et nytt passord neste gang du logger inn med passordet ditt. Hvis du ikke ventet dette, kontakt administratoren din."
+      },
       "backupCodesGenerated": {
         "title": "Nye reservekoder generert",
         "body": "Nye reservekoder ble generert for kontoen din. Hvis dette ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine."
@@ -86,6 +94,14 @@
         "title": "Innloggingsleverandør frakoblet",
         "body": "{name} ble koblet fra kontoen din. Hvis dette ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine.",
         "bodyGeneric": "En innloggingsleverandør ble koblet fra kontoen din. Hvis dette ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine."
+      },
+      "accountLocked": {
+        "title": "Kontoen er låst",
+        "body": "Kontoen din ble låst etter 100 mislykkede innloggingsforsøk på rad. Nettlesere og apper du har logget inn fra siden din siste sikkerhetsendring, kan fortsatt logge inn. Hvis disse forsøkene ikke var dine, endre eller tilbakestill passordet ditt, noe som også opphever låsen."
+      },
+      "mfaLocked": {
+        "title": "Tofaktorbekreftelse låst",
+        "body": "Kontoen din ble låst etter 100 feil tofaktorkoder på rad, så noen kjenner passordet ditt. Nettlesere og apper du har logget inn fra siden din siste sikkerhetsendring, kan fortsatt logge inn. Hvis disse forsøkene ikke var dine, endre passordet ditt."
       },
       "unknown": {
         "title": "Kontosikkerheten ble endret",

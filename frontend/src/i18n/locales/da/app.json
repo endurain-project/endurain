@@ -53,6 +53,7 @@
     "mismatch": "Adgangskoderne stemmer ikke overens",
     "tooShort": "Denne adgangskode er for kort. Brug mindst {min} tegn.",
     "tooCommon": "Denne adgangskode er for almindelig. Vælg en, der er sværere at gætte.",
+    "breached": "Denne adgangskode har optrådt i et kendt datalæk. Vælg en anden.",
     "matchesAccount": "Brug ikke dit brugernavn eller din e-mailadresse som adgangskode.",
     "blank": "En adgangskode kan ikke kun bestå af mellemrum.",
     "unchanged": "Vælg en anden adgangskode end din nuværende.",

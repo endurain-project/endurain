@@ -65,7 +65,7 @@
     "toggleDetails": "Lichaamssamenstelling tonen/verbergen",
     "chartTitle": "Gewichtstrend",
     "chartWeightSeries": "Gewicht",
-    "chartTargetSeries": "Target",
+    "chartTargetSeries": "Doel",
     "interval": {
       "label": "Tijdsperiode",
       "last_7_days": "Afgelopen 7 dagen",
@@ -145,7 +145,7 @@
     "sourceGarmin": "Van Garmin Connect",
     "chartTitle": "Stappentrend",
     "chartStepsSeries": "Stappen",
-    "chartTargetSeries": "Target",
+    "chartTargetSeries": "Doel",
     "interval": {
       "label": "Tijdsperiode",
       "last_7_days": "Afgelopen 7 dagen",
@@ -238,7 +238,7 @@
     "toggleDetails": "Slaapdetails tonen/verbergen",
     "chartTitle": "Slaaptrend",
     "chartSleepSeries": "Slaap",
-    "chartTargetSeries": "Target",
+    "chartTargetSeries": "Doel",
     "interval": {
       "label": "Tijdsperiode",
       "last_7_days": "Afgelopen 7 dagen",
@@ -403,7 +403,7 @@
     "sourceGarmin": "Van Garmin Connect",
     "chartTitle": "Waterinname-trend",
     "chartWaterSeries": "Water",
-    "chartTargetSeries": "Target",
+    "chartTargetSeries": "Doel",
     "interval": {
       "label": "Tijdsperiode",
       "last_7_days": "Afgelopen 7 dagen",
@@ -431,7 +431,8 @@
       "close": "Sluiten",
       "createSuccess": "Water geregistreerd.",
       "updateSuccess": "Watervermelding bijgewerkt.",
-      "saveError": "Watervermelding kon niet worden opgeslagen. Probeer het opnieuw."
+      "saveError": "Watervermelding kon niet worden opgeslagen. Probeer het opnieuw.",
+      "dayTakenError": "Voor die dag bestaat al een waterregistratie. Bewerk die in plaats van een nieuwe toe te voegen."
     },
     "target": {
       "title": "Waterinname-target instellen",
@@ -470,7 +471,7 @@
     "targetButton": "Target instellen",
     "chartTitle": "Dagelijkse frequentie",
     "chartCountSeries": "Stoelgang",
-    "chartTargetSeries": "Target",
+    "chartTargetSeries": "Doel",
     "interval": {
       "label": "Tijdsperiode",
       "last_7_days": "Afgelopen 7 dagen",
@@ -554,7 +555,7 @@
     "active": {
       "title": "Vasten bezig",
       "started": "Gestart",
-      "target": "Target",
+      "target": "Doel",
       "complete": "Afronden",
       "break": "Vasten verbreken",
       "cancel": "Annuleren",

@@ -431,7 +431,8 @@
       "close": "Zamknij",
       "createSuccess": "Zapisano wodę.",
       "updateSuccess": "Zaktualizowano wpis wody.",
-      "saveError": "Nie udało się zapisać wpisu wody. Spróbuj ponownie."
+      "saveError": "Nie udało się zapisać wpisu wody. Spróbuj ponownie.",
+      "dayTakenError": "Wpis o wodzie dla tego dnia już istnieje. Edytuj go zamiast dodawać kolejny."
     },
     "target": {
       "title": "Ustaw cel wody",

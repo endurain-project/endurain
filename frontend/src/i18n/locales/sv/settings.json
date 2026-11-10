@@ -33,6 +33,7 @@
       "unverified": "Overifierad e-post",
       "pendingEmail": "Väntande ändring av e-post",
       "pending": "Väntar på godkännande",
+      "deleting": "Håller på att raderas",
       "externalAuth": "Extern autentisering"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "Minst 8 tecken",
       "passwordRequired": "Lösenord krävs",
       "confirmPassword": "Bekräfta lösenord",
+      "mustChangePasswordHint": "Användaren måste välja ett nytt lösenord vid nästa inloggning.",
       "confirmPasswordRequired": "Bekräfta lösenord",
       "preferredLanguage": "Föredraget språk",
       "languages": {
@@ -115,7 +117,7 @@
       },
       "units": "Enheter",
       "unitsMetric": "Metrisk",
-      "unitsImperial": "Imperial",
+      "unitsImperial": "Brittiskt/amerikanskt",
       "weightUnits": "Viktenheter",
       "weightUnitsDefault": "Följ enheter",
       "weightUnitsMetric": "Kilogram (kg)",
@@ -162,7 +164,11 @@
       "updateSuccess": "Användare uppdaterad",
       "conflict": "Det användarnamnet eller den e-postadressen används redan",
       "lastAdministrator": "Den enda administratören kan inte degraderas eller inaktiveras",
-      "saveError": "Kunde inte spara användaren. Försök igen."
+      "saveError": "Kunde inte spara användaren. Försök igen.",
+      "stepUpTitle": "Bekräfta din identitet",
+      "stepUpDescription": "Om du ändrar e-postadress, åtkomsttyp eller aktiv status för {username} loggas användaren ut överallt. Bekräfta att det är du för att fortsätta.",
+      "stepUpCreateDescription": "Att skapa ett administratörskonto ger full åtkomst. Bekräfta att det är du för att fortsätta.",
+      "stepUpConfirm": "Spara ändringar"
     },
     "delete": {
       "title": "Ta bort användare",
@@ -199,6 +205,24 @@
       "success": "Lösenord uppdaterat",
       "error": "Kunde inte uppdatera lösenordet. Försök igen."
     },
+    "mfaReset": {
+      "button": "Återställ MFA",
+      "title": "Återställ tvåfaktorsautentisering",
+      "description": "Detta stänger av tvåfaktorsautentisering för {username} och tar bort användarens reservkoder. Alla användarens sessioner avslutas, så användaren loggas ut från alla enheter och måste ställa in tvåfaktorsautentisering igen efter inloggning. Användaren får ett meddelande. Bekräfta att det är du för att fortsätta.",
+      "confirm": "Återställ MFA",
+      "success": "Tvåfaktorsautentisering återställd",
+      "refused": "Tvåfaktorsautentisering är inte aktiverad för den här användaren.",
+      "error": "Det gick inte att återställa tvåfaktorsautentisering. Försök igen."
+    },
+    "requirePasswordChange": {
+      "button": "Kräv lösenordsbyte",
+      "title": "Kräv ett lösenordsbyte",
+      "description": "{username} behåller sitt nuvarande lösenord men måste välja ett nytt nästa gång användaren loggar in med det. Alla användarens sessioner avslutas, så användaren loggas ut från alla enheter. Inloggning via en leverantör av enkel inloggning påverkas inte. Användaren får ett meddelande. Bekräfta att det är du för att fortsätta.",
+      "confirm": "Kräv byte",
+      "success": "Lösenordsbyte krävs",
+      "refused": "Den här användaren har inget lösenord att byta.",
+      "error": "Det gick inte att kräva ett lösenordsbyte. Försök igen."
+    },
     "sessions": {
       "title": "Sessioner",
       "subtitle": "Enheter som för närvarande är inloggade på det här kontot",
@@ -217,8 +241,6 @@
       "revokeTitle": "Återkalla session",
       "revokeBody": "Det här loggar ut enheten och den måste logga in igen",
       "revokeConfirm": "Återkalla",
-      "revokeCancel": "Avbryt",
-      "revokeClose": "Stäng",
       "revokeSuccess": "Session återkallad",
       "revokeError": "Kunde inte återkalla sessionen. Försök igen."
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "Serverinställningar uppdaterade",
     "saveError": "Kunde inte uppdatera serverinställningarna. Försök igen.",
     "staleError": "Någon annan ändrade de här inställningarna medan du redigerade. Dina ändringar sparades inte. Ladda om sidan för att se de aktuella värdena.",
+    "stepUpTitle": "Bekräfta din identitet",
+    "stepUpDescription": "Dessa ändringar påverkar vem som kan registrera sig, logga in eller behålla en session på den här servern, hur länge granskningsloggen sparas eller om publika länkar visar vem som delade dem. Bekräfta att det är du för att fortsätta.",
     "envLocked": "Anges av {name}",
     "envSection": "Vissa inställningar här anges av miljövariabler ({names}). Ta bort dem från miljön för att redigera de inställningarna här.",
     "unsaved": "Osparade ändringar",
@@ -313,7 +337,7 @@
       "title": "Allmänt",
       "units": "Standardenheter",
       "unitsMetric": "Metrisk",
-      "unitsImperial": "Imperial",
+      "unitsImperial": "Brittiskt/amerikanskt",
       "currency": "Standardvaluta",
       "currencyEuro": "Euro (€)",
       "currencyDollar": "Dollar ($)",
@@ -323,7 +347,9 @@
     "password": {
       "title": "Lösenordspolicy",
       "lengthRegular": "Minsta längd vanliga användare",
-      "lengthAdmin": "Minsta längd adminanvändare"
+      "lengthAdmin": "Minsta längd adminanvändare",
+      "breachCheck": "Avvisa lösenord som förekommer i kända dataintrång",
+      "breachCheckHint": "Kontrollerar varje nytt eller ändrat lösenord med haveibeenpwned.com. Bara de första 5 tecknen i lösenordets SHA-1-hash skickas, aldrig lösenordet. Om tjänsten inte kan nås godkänns lösenordet."
     },
     "session": {
       "title": "Sessioner",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "Registrering",
       "enabled": "Tillåt nya användarregistreringar",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "Tillåt nya användarregistreringar via enkel inloggning",
       "adminApproval": "Kräv admingodkännande för nya registreringar",
       "emailVerification": "Kräv e-postverifiering för nya registreringar"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "Lämna tomt för att använda användarnamnet.",
       "save": "Spara e-postinställningar",
       "saveSuccess": "E-postinställningarna sparades",
-      "saveError": "E-postinställningarna kunde inte sparas"
+      "saveError": "E-postinställningarna kunde inte sparas",
+      "stepUpTitle": "Bekräfta din identitet",
+      "stepUpDescription": "Mailservern tar emot varje länk för lösenordsåterställning. Bekräfta att det är du för att fortsätta."
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "Konfigurera SSO-leverantörer för enkel inloggning",
     "buttonAdd": "Lägg till leverantör",
     "toggleError": "Kunde inte ändra leverantören. Försök igen.",
+    "toggleStepUpDescription": "Att ändra om {name} är aktiverad avgör vem som kan logga in på den här servern. Bekräfta att det är du för att fortsätta.",
+    "toggleStepUpConfirm": "Bekräfta",
     "enableSuccess": "Leverantör aktiverad",
     "disableSuccess": "Leverantör inaktiverad",
     "type": {
@@ -566,10 +596,19 @@
       "iconSaveError": "Leverantören sparades, men ikonen kunde inte uppdateras. Redigera leverantören för att försöka igen.",
       "enabled": "Aktiverad",
       "autoCreateUsers": "Skapa automatiskt användare vid första inloggning",
+      "linkByEmail": "Koppla till ett befintligt konto via e-post",
+      "linkByEmailHint": "Låter en första inloggning gå med i kontot som har samma verifierade e-postadress. Av: den inloggningen avvisas och användaren kopplar leverantören från sina inställningar. Av som standard för en ny leverantör.",
       "syncUserInfo": "Synkronisera profilinfo vid varje inloggning",
+      "syncUserInfoHint": "Kopierar det mappade namnet från leverantören. Det omfattar inte e-postadressen.",
+      "syncEmail": "Synkronisera e-post vid varje inloggning",
+      "syncEmailHint": "Kopierar e-postadressen som leverantören verifierat till kontot, loggar ändringen och meddelar den tidigare adressen. Av som standard för en ny leverantör.",
       "createSuccess": "Leverantör tillagd",
       "updateSuccess": "Leverantör uppdaterad",
+      "stepUpTitle": "Bekräfta din identitet",
+      "stepUpDescription": "Identitetsleverantörer avgör vem som kan logga in på den här servern. Bekräfta att det är du för att fortsätta.",
       "slugConflict": "Den sluggen används redan",
+      "issuerInUse": "En annan identitetsleverantör använder redan den här utfärdar-URL:en",
+      "issuerLocked": "Utfärdar-URL:en kan inte ändras medan användare är kopplade till den här leverantören. Koppla bort dem eller lägg till en ny leverantör i stället.",
       "staleError": "Den här leverantören ändrades på annat håll. Dina ändringar sparades inte. Stäng och öppna den igen för att ladda de aktuella inställningarna.",
       "saveError": "Kunde inte spara leverantören. Försök igen."
     }
@@ -739,23 +778,28 @@
       "revokeOthersBody": "Alla enheter utom den här loggas ut och måste logga in igen.",
       "revokeOthersConfirm": "Logga ut övriga",
       "revokeOthersSuccess": "Andra sessioner utloggade",
-      "revokeOthersError": "Kunde inte logga ut de andra sessionerna. Försök igen."
+      "revokeOthersError": "Kunde inte logga ut de andra sessionerna. Försök igen.",
+      "signOutEverywhere": "Logga ut överallt",
+      "signOutEverywhereTitle": "Logga ut överallt?",
+      "signOutEverywhereBody": "Alla enheter, inklusive den här, loggas ut och måste logga in igen.",
+      "signOutEverywhereConfirm": "Logga ut överallt",
+      "signOutEverywhereError": "Det gick inte att logga ut från alla sessioner. Försök igen."
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "Kända enheter",
+      "subtitle": "Webbläsare och appar du har loggat in från sedan din senaste säkerhetsändring. Om du loggar in från en annan enhet får du ett meddelande.",
+      "empty": "Inga kända enheter",
+      "error": "Det gick inte att ladda kända enheter",
+      "current": "Den här enheten",
+      "unknown": "Okänd enhet",
+      "lastSeen": "Senast inloggad {date}",
+      "forget": "Glöm den här enheten",
+      "forgetTitle": "Glöm den här enheten?",
+      "forgetDescription": "Nästa inloggning från den här enheten räknas som en ny enhet och ger dig ett meddelande.",
+      "forgetConfirm": "Glöm enhet",
+      "forgetSuccess": "Enheten har glömts",
+      "forgetError": "Det gick inte att glömma enheten. Försök igen.",
+      "forgetNotFound": "Den enheten är inte längre känd."
     },
     "linked": {
       "title": "Kopplade konton",

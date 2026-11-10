@@ -53,6 +53,7 @@
     "mismatch": "Slaptažodžiai nesutampa",
     "tooShort": "Šis slaptažodis per trumpas. Naudokite bent {min} simbolių.",
     "tooCommon": "Šis slaptažodis per dažnas. Pasirinkite sunkiau atspėjamą.",
+    "breached": "Šis slaptažodis buvo rastas žinomame duomenų nutekėjime. Pasirinkite kitą.",
     "matchesAccount": "Nenaudokite naudotojo vardo ar el. pašto adreso kaip slaptažodžio.",
     "blank": "Slaptažodį negali sudaryti vien tarpai.",
     "unchanged": "Pasirinkite slaptažodį, kuris skiriasi nuo dabartinio.",

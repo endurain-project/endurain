@@ -74,6 +74,14 @@
         "title": "Autenticación en dos pasos desactivada",
         "body": "Se desactivó la autenticación en dos pasos en tu cuenta. Si no fuiste tú, restablece tu contraseña y revisa tus ajustes de seguridad."
       },
+      "mfaResetByAdmin": {
+        "title": "Autenticación en dos pasos restablecida por un administrador",
+        "body": "Un administrador restableció la autenticación en dos pasos de tu cuenta y cerró tu sesión en todos los dispositivos. Vuelve a configurarla desde los ajustes de seguridad. Si no lo esperabas, contacta con tu administrador."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Cambio de contraseña exigido por un administrador",
+        "body": "Un administrador exigió que cambies tu contraseña y cerró tu sesión en todos los dispositivos. Elegirás una contraseña nueva la próxima vez que inicies sesión con tu contraseña. Si no lo esperabas, contacta con tu administrador."
+      },
       "backupCodesGenerated": {
         "title": "Nuevos códigos de respaldo generados",
         "body": "Se generaron nuevos códigos de respaldo para tu cuenta. Si no fuiste tú, restablece tu contraseña y revisa tus ajustes de seguridad."
@@ -86,6 +94,14 @@
         "title": "Proveedor de inicio de sesión desvinculado",
         "body": "{name} se desvinculó de tu cuenta. Si no fuiste tú, restablece tu contraseña y revisa tus ajustes de seguridad.",
         "bodyGeneric": "Se desvinculó un proveedor de inicio de sesión de tu cuenta. Si no fuiste tú, restablece tu contraseña y revisa tus ajustes de seguridad."
+      },
+      "accountLocked": {
+        "title": "Cuenta bloqueada",
+        "body": "Tu cuenta se bloqueó tras 100 intentos fallidos de inicio de sesión seguidos. Los navegadores y las apps desde los que iniciaste sesión desde tu último cambio de seguridad aún pueden iniciar sesión. Si esos intentos no fueron tuyos, cambia o restablece tu contraseña, lo que también levanta el bloqueo."
+      },
+      "mfaLocked": {
+        "title": "Verificación en dos pasos bloqueada",
+        "body": "Tu cuenta se bloqueó tras 100 códigos de verificación en dos pasos incorrectos seguidos, así que alguien conoce tu contraseña. Los navegadores y las apps desde los que iniciaste sesión desde tu último cambio de seguridad aún pueden iniciar sesión. Si esos intentos no fueron tuyos, cambia tu contraseña."
       },
       "unknown": {
         "title": "Seguridad de la cuenta modificada",

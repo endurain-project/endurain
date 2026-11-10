@@ -209,7 +209,7 @@
     "hideGear": "Piilota varusteet",
     "success": "Aktiviteetti päivitetty",
     "error": "Aktiviteettia ei voitu päivittää",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Tätä aktiviteettia muutettiin muualla, kun muokkasit sitä. Muutoksiasi ei tallennettu. Avaa se uudelleen nähdäksesi nykyisen version."
   },
   "alerts": {
     "hidden": "Tämä aktiviteetti on piilotettu. Vain sinä näet sen.",

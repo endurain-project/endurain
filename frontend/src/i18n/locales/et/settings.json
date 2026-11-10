@@ -33,6 +33,7 @@
       "unverified": "Kinnitamata e-post",
       "pendingEmail": "E-posti muutmine ootel",
       "pending": "Ootab heakskiitu",
+      "deleting": "Kustutatakse",
       "externalAuth": "Väline autentimine"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "Vähemalt 8 tähemärki",
       "passwordRequired": "Parool on kohustuslik",
       "confirmPassword": "Kinnita parool",
+      "mustChangePasswordHint": "Kasutaja peab oma järgmisel sisselogimisel valima uue parooli.",
       "confirmPasswordRequired": "Kinnita parool",
       "preferredLanguage": "Eelistatud keel",
       "languages": {
@@ -162,7 +164,11 @@
       "updateSuccess": "Kasutaja uuendatud",
       "conflict": "See kasutajanimi või e-post on juba kasutusel",
       "lastAdministrator": "Ainsat administraatorit ei saa alandada ega deaktiveerida",
-      "saveError": "Kasutajat ei õnnestunud salvestada. Palun proovi uuesti."
+      "saveError": "Kasutajat ei õnnestunud salvestada. Palun proovi uuesti.",
+      "stepUpTitle": "Kinnita oma identiteet",
+      "stepUpDescription": "Kasutaja {username} e-posti aadressi, juurdepääsutüübi või aktiivse oleku muutmine logib ta kõikjalt välja. Jätkamiseks kinnita, et see oled sina.",
+      "stepUpCreateDescription": "Administraatorikonto loomine annab täieliku juurdepääsu. Jätkamiseks kinnita, et see oled sina.",
+      "stepUpConfirm": "Salvesta muudatused"
     },
     "delete": {
       "title": "Kustuta kasutaja",
@@ -199,6 +205,24 @@
       "success": "Parool uuendatud",
       "error": "Parooli ei õnnestunud uuendada. Palun proovi uuesti."
     },
+    "mfaReset": {
+      "button": "Lähtesta MFA",
+      "title": "Lähtesta kaheastmeline autentimine",
+      "description": "See lülitab kasutajal {username} kaheastmelise autentimise välja ja eemaldab tema varukoodid. Kõik tema seansid lõpevad, nii et ta logitakse kõigis seadmetes välja ja peab pärast sisselogimist kaheastmelise autentimise uuesti seadistama. Teda teavitatakse. Jätkamiseks kinnita, et see oled sina.",
+      "confirm": "Lähtesta MFA",
+      "success": "Kaheastmeline autentimine lähtestatud",
+      "refused": "Sellel kasutajal ei ole kaheastmeline autentimine sisse lülitatud.",
+      "error": "Kaheastmelist autentimist ei õnnestunud lähtestada. Palun proovi uuesti."
+    },
+    "requirePasswordChange": {
+      "button": "Nõua parooli muutmist",
+      "title": "Nõua parooli muutmist",
+      "description": "Kasutaja {username} jätab praeguse parooli alles, kuid peab järgmisel sisselogimisel sellega valima uue. Kõik tema seansid lõpevad, nii et ta logitakse kõigis seadmetes välja. Ühekordse sisselogimise pakkuja kaudu sisselogimist see ei mõjuta. Teda teavitatakse. Jätkamiseks kinnita, et see oled sina.",
+      "confirm": "Nõua muutmist",
+      "success": "Parooli muutmine nõutud",
+      "refused": "Sellel kasutajal ei ole parooli, mida muuta.",
+      "error": "Parooli muutmist ei õnnestunud nõuda. Palun proovi uuesti."
+    },
     "sessions": {
       "title": "Seansid",
       "subtitle": "Seadmed, mis on praegu sellesse kontosse sisse logitud",
@@ -217,8 +241,6 @@
       "revokeTitle": "Tühista seanss",
       "revokeBody": "See logib seadme välja, see peab uuesti sisse logima",
       "revokeConfirm": "Tühista",
-      "revokeCancel": "Tühista",
-      "revokeClose": "Sulge",
       "revokeSuccess": "Seanss tühistatud",
       "revokeError": "Seanssi ei õnnestunud tühistada. Palun proovi uuesti."
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "Serveri seaded uuendatud",
     "saveError": "Serveri seadeid ei õnnestunud uuendada. Palun proovi uuesti.",
     "staleError": "Keegi teine muutis neid seadeid, kui sa neid muutsid. Sinu muudatusi ei salvestatud. Praeguste väärtuste nägemiseks laadi leht uuesti.",
+    "stepUpTitle": "Kinnita oma identiteet",
+    "stepUpDescription": "Need muudatused mõjutavad, kes saab sellesse serverisse registreeruda, sisse logida või seanssi säilitada, kui kaua auditilogi säilitatakse ning kas avalikud lingid näitavad, kes need jagas. Jätkamiseks kinnita, et see oled sina.",
     "envLocked": "Määratud muutujaga {name}",
     "envSection": "Mõned siinsed seaded on määratud keskkonnamuutujatega ({names}). Eemalda need keskkonnast, et neid siin muuta.",
     "unsaved": "Salvestamata muudatused",
@@ -323,7 +347,9 @@
     "password": {
       "title": "Parooli reeglid",
       "lengthRegular": "Tavakasutajate minimaalne pikkus",
-      "lengthAdmin": "Administraatorite minimaalne pikkus"
+      "lengthAdmin": "Administraatorite minimaalne pikkus",
+      "breachCheck": "Keeldu teadaolevates andmeleketes leitud paroolidest",
+      "breachCheckHint": "Kontrollib iga uut või muudetud parooli haveibeenpwned.com abil. Saadetakse ainult parooli SHA-1 räsi esimesed 5 märki, mitte kunagi parooli ennast. Kui teenus ei ole kättesaadav, parool aktsepteeritakse."
     },
     "session": {
       "title": "Seansid",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "Registreerimine",
       "enabled": "Luba uute kasutajate registreerumine",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "Luba uute kasutajate registreerimine ühekordse sisselogimise kaudu",
       "adminApproval": "Nõua uutele registreerumistele administraatori heakskiitu",
       "emailVerification": "Nõua uutele registreerumistele e-posti kinnitamist"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "Jäta tühjaks, et kasutada kasutajanime.",
       "save": "Salvesta e-posti seaded",
       "saveSuccess": "E-posti seaded salvestatud",
-      "saveError": "E-posti seadeid ei õnnestunud salvestada"
+      "saveError": "E-posti seadeid ei õnnestunud salvestada",
+      "stepUpTitle": "Kinnita oma identiteet",
+      "stepUpDescription": "Meiliserver saab iga parooli lähtestamise lingi. Jätkamiseks kinnita, et see oled sina."
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "Seadista SSO-pakkujad ühekordseks sisselogimiseks",
     "buttonAdd": "Lisa pakkuja",
     "toggleError": "Pakkujat ei õnnestunud muuta. Palun proovi uuesti.",
+    "toggleStepUpDescription": "Selle muutmine, kas {name} on lubatud, otsustab, kes saab sellesse serverisse sisse logida. Jätkamiseks kinnita, et see oled sina.",
+    "toggleStepUpConfirm": "Kinnita",
     "enableSuccess": "Pakkuja lubatud",
     "disableSuccess": "Pakkuja keelatud",
     "type": {
@@ -566,10 +596,19 @@
       "iconSaveError": "Pakkuja salvestati, kuid selle ikooni ei õnnestunud uuendada. Proovimiseks muuda pakkujat uuesti.",
       "enabled": "Lubatud",
       "autoCreateUsers": "Loo kasutajad automaatselt esimesel sisselogimisel",
+      "linkByEmail": "Seo olemasoleva kontoga e-posti kaudu",
+      "linkByEmailHint": "Lubab esmasel sisselogimisel liituda kontoga, millel on sama kinnitatud e-posti aadress. Väljalülitatuna see sisselogimine lükatakse tagasi ja kasutaja seob pakkuja oma seadetes. Uue pakkuja puhul vaikimisi väljas.",
       "syncUserInfo": "Sünkrooni profiiliteave igal sisselogimisel",
+      "syncUserInfoHint": "Kopeerib seotud nime pakkujalt. See ei sisalda e-posti aadressi.",
+      "syncEmail": "Sünkrooni e-post igal sisselogimisel",
+      "syncEmailHint": "Kopeerib pakkuja kinnitatud e-posti aadressi kontole, auditeerib muudatuse ja teavitab eelmist aadressi. Uue pakkuja puhul vaikimisi väljas.",
       "createSuccess": "Pakkuja lisatud",
       "updateSuccess": "Pakkuja uuendatud",
+      "stepUpTitle": "Kinnita oma identiteet",
+      "stepUpDescription": "Identiteedipakkujad otsustavad, kes saab sellesse serverisse sisse logida. Jätkamiseks kinnita, et see oled sina.",
       "slugConflict": "See identifikaator on juba kasutusel",
+      "issuerInUse": "Teine identiteedipakkuja kasutab seda väljaandja URL-i juba",
+      "issuerLocked": "Väljaandja URL-i ei saa muuta, kuni selle pakkujaga on kasutajaid seotud. Eemalda nende sidumine või lisa selle asemel uus pakkuja.",
       "staleError": "See pakkuja muutus mujal. Sinu muudatusi ei salvestatud. Praeguste seadete laadimiseks sulge see ja ava uuesti.",
       "saveError": "Pakkujat ei õnnestunud salvestada. Palun proovi uuesti."
     }
@@ -739,23 +778,28 @@
       "revokeOthersBody": "Kõik seadmed peale selle logitakse välja ja peavad uuesti sisse logima.",
       "revokeOthersConfirm": "Logi teised välja",
       "revokeOthersSuccess": "Teised seansid välja logitud",
-      "revokeOthersError": "Teisi seansse ei õnnestunud välja logida. Palun proovi uuesti."
+      "revokeOthersError": "Teisi seansse ei õnnestunud välja logida. Palun proovi uuesti.",
+      "signOutEverywhere": "Logi kõikjalt välja",
+      "signOutEverywhereTitle": "Kas logida kõikjalt välja?",
+      "signOutEverywhereBody": "Kõik seadmed, sealhulgas see, logitakse välja ja peavad uuesti sisse logima.",
+      "signOutEverywhereConfirm": "Logi kõikjalt välja",
+      "signOutEverywhereError": "Kõigist seanssidest ei õnnestunud välja logida. Palun proovi uuesti."
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "Tuntud seadmed",
+      "subtitle": "Brauserid ja rakendused, millest oled pärast viimast turvamuudatust sisse loginud. Sisselogimine mis tahes muust seadmest saadab sulle teate.",
+      "empty": "Tuntud seadmeid pole",
+      "error": "Tuntud seadmeid ei õnnestunud laadida",
+      "current": "See seade",
+      "unknown": "Tundmatu seade",
+      "lastSeen": "Viimati sisse logitud {date}",
+      "forget": "Unusta see seade",
+      "forgetTitle": "Kas unustada see seade?",
+      "forgetDescription": "Järgmine sisselogimine sellest seadmest loetakse uueks seadmeks ja saadab sulle teate.",
+      "forgetConfirm": "Unusta seade",
+      "forgetSuccess": "Seade unustatud",
+      "forgetError": "Seadet ei õnnestunud unustada. Palun proovi uuesti.",
+      "forgetNotFound": "See seade ei ole enam tuntud."
     },
     "linked": {
       "title": "Seotud kontod",
@@ -966,7 +1010,7 @@
       "error": "Importi ei õnnestunud alustada. Palun proovi uuesti."
     },
     "strava": {
-      "title": "Strava import",
+      "title": "Stravast importimine",
       "subtitle": "Impordi serveri strava-impordi kausta paigutatud Strava hulgiekspordist",
       "import": "Impordi",
       "activities": "Impordi tegevused",

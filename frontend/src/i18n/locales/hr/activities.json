@@ -209,7 +209,7 @@
     "hideGear": "Sakrij opremu",
     "success": "Aktivnost je ažurirana",
     "error": "Nije moguće ažurirati aktivnost",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Ova je aktivnost promijenjena na drugom mjestu dok ste je uređivali. Vaše promjene nisu spremljene. Ponovno je otvorite da vidite trenutnu verziju."
   },
   "alerts": {
     "hidden": "Ova je aktivnost skrivena. Samo je vi možete vidjeti.",

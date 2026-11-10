@@ -431,7 +431,8 @@
       "close": "Schließen",
       "createSuccess": "Wasser eingetragen.",
       "updateSuccess": "Wassereintrag aktualisiert.",
-      "saveError": "Dein Wassereintrag konnte nicht gespeichert werden. Bitte versuche es erneut."
+      "saveError": "Dein Wassereintrag konnte nicht gespeichert werden. Bitte versuche es erneut.",
+      "dayTakenError": "Für diesen Tag gibt es bereits einen Wassereintrag. Bearbeite ihn, statt einen weiteren hinzuzufügen."
     },
     "target": {
       "title": "Wasserziel setzen",

@@ -431,7 +431,8 @@
       "close": "Zatvori",
       "createSuccess": "Voda je zabeležena.",
       "updateSuccess": "Unos vode je ažuriran.",
-      "saveError": "Nije moguće sačuvati unos vode. Pokušajte ponovo."
+      "saveError": "Nije moguće sačuvati unos vode. Pokušajte ponovo.",
+      "dayTakenError": "Unos vode za taj dan već postoji. Izmenite ga umesto dodavanja novog."
     },
     "target": {
       "title": "Postavi cilj vode",

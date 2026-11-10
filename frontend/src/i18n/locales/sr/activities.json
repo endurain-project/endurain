@@ -209,7 +209,7 @@
     "hideGear": "Sakrij opremu",
     "success": "Aktivnost je ažurirana",
     "error": "Nije moguće ažurirati aktivnost",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Ova aktivnost je izmenjena na drugom mestu dok ste je uređivali. Vaše izmene nisu sačuvane. Ponovo je otvorite da biste videli trenutnu verziju."
   },
   "alerts": {
     "hidden": "Ova aktivnost je skrivena. Samo vi je možete videti.",
@@ -258,7 +258,7 @@
     "windsurf": "Vindsurf",
     "indoorWalk": "Hodanje u zatvorenom",
     "standUpPaddling": "Veslanje na dasci",
-    "surf": "Surf",
+    "surf": "Surfovanje",
     "trackRun": "Trčanje na stazi",
     "ebikeRide": "Vožnja električnog bicikla",
     "ebikeMountainRide": "Vožnja električnog brdskog bicikla",

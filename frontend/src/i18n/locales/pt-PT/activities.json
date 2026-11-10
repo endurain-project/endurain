@@ -209,7 +209,7 @@
     "hideGear": "Ocultar equipamento",
     "success": "Atividade atualizada",
     "error": "Não foi possível atualizar a atividade",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Esta atividade foi alterada noutro local enquanto a editavas. As tuas alterações não foram guardadas. Volta a abri-la para ver a versão atual."
   },
   "alerts": {
     "hidden": "Esta atividade está oculta. Apenas tu a podes ver.",
@@ -239,7 +239,7 @@
     "walk": "Caminhada",
     "hike": "Montanhismo",
     "rowing": "Remo",
-    "yoga": "Yoga",
+    "yoga": "Ioga",
     "alpineSki": "Esqui alpino",
     "nordicSki": "Esqui nórdico",
     "snowboard": "Snowboard",

@@ -74,6 +74,14 @@
         "title": "Autenticació de dos factors desactivada",
         "body": "S'ha desactivat l'autenticació de dos factors al teu compte. Si no has estat tu, restableix la contrasenya i revisa la configuració de seguretat."
       },
+      "mfaResetByAdmin": {
+        "title": "Autenticació de dos factors restablerta per un administrador",
+        "body": "Un administrador ha restablert l'autenticació de dos factors del teu compte i ha tancat la teva sessió a tots els dispositius. Torna-la a configurar des de la configuració de seguretat. Si no ho esperaves, contacta amb el teu administrador."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Un administrador requereix un canvi de contrasenya",
+        "body": "Un administrador t'ha exigit que canviïs la contrasenya i ha tancat la teva sessió a tots els dispositius. Triaràs una contrasenya nova la propera vegada que iniciïs sessió amb la contrasenya. Si no ho esperaves, contacta amb el teu administrador."
+      },
       "backupCodesGenerated": {
         "title": "Nous codis de seguretat generats",
         "body": "S'han generat nous codis de seguretat per al teu compte. Si no has estat tu, restableix la contrasenya i revisa la configuració de seguretat."
@@ -86,6 +94,14 @@
         "title": "Proveïdor d'inici de sessió desvinculat",
         "body": "{name} s'ha desvinculat del teu compte. Si no has estat tu, restableix la contrasenya i revisa la configuració de seguretat.",
         "bodyGeneric": "S'ha desvinculat un proveïdor d'inici de sessió del teu compte. Si no has estat tu, restableix la contrasenya i revisa la configuració de seguretat."
+      },
+      "accountLocked": {
+        "title": "Compte bloquejat",
+        "body": "El teu compte s'ha bloquejat després de 100 intents d'inici de sessió fallits seguits. Els navegadors i aplicacions des dels quals has iniciat sessió des del teu últim canvi de seguretat encara poden iniciar-la. Si aquests intents no eren teus, canvia o restableix la contrasenya, cosa que també aixeca el bloqueig."
+      },
+      "mfaLocked": {
+        "title": "Verificació en dos passos bloquejada",
+        "body": "El teu compte s'ha bloquejat després de 100 codis de verificació en dos passos incorrectes seguits, així que algú coneix la teva contrasenya. Els navegadors i aplicacions des dels quals has iniciat sessió des del teu últim canvi de seguretat encara poden iniciar-la. Si aquests intents no eren teus, canvia la contrasenya."
       },
       "unknown": {
         "title": "Seguretat del compte canviada",

@@ -209,7 +209,7 @@
     "hideGear": "Приховати спорядження",
     "success": "Активність оновлено",
     "error": "Не вдалося оновити активність",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Цю активність було змінено деінде, поки ви її редагували. Ваші зміни не збережено. Відкрийте її знову, щоб побачити поточну версію."
   },
   "alerts": {
     "hidden": "Ця активність прихована. Тільки ви можете її бачити.",

@@ -33,6 +33,7 @@
       "unverified": "Email não verificado",
       "pendingEmail": "Alteração de email pendente",
       "pending": "Aprovação pendente",
+      "deleting": "A ser eliminado",
       "externalAuth": "Autenticação externa"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "Pelo menos 8 caracteres",
       "passwordRequired": "A palavra-passe é obrigatória",
       "confirmPassword": "Confirmar palavra-passe",
+      "mustChangePasswordHint": "O utilizador terá de escolher uma nova palavra-passe no próximo início de sessão.",
       "confirmPasswordRequired": "Confirmar palavra-passe",
       "preferredLanguage": "Idioma preferido",
       "languages": {
@@ -162,7 +164,11 @@
       "updateSuccess": "Utilizador atualizado",
       "conflict": "Esse nome de utilizador ou email já está em uso",
       "lastAdministrator": "O único administrador não pode ser despromovido nem desativado",
-      "saveError": "Não foi possível guardar o utilizador. Tenta novamente."
+      "saveError": "Não foi possível guardar o utilizador. Tenta novamente.",
+      "stepUpTitle": "Confirma a tua identidade",
+      "stepUpDescription": "Alterar o email, o tipo de acesso ou o estado ativo de {username} termina a sessão em todo o lado. Confirma que és tu para continuar.",
+      "stepUpCreateDescription": "Criar uma conta de administrador concede acesso total. Confirma que és tu para continuar.",
+      "stepUpConfirm": "Guardar alterações"
     },
     "delete": {
       "title": "Eliminar utilizador",
@@ -199,6 +205,24 @@
       "success": "Palavra-passe atualizada",
       "error": "Não foi possível atualizar a palavra-passe. Tenta novamente."
     },
+    "mfaReset": {
+      "button": "Repor MFA",
+      "title": "Repor autenticação de dois fatores",
+      "description": "Isto desativa a autenticação de dois fatores de {username} e remove os respetivos códigos de recuperação. Todas as sessões terminam, pelo que a sessão é terminada em todos os dispositivos, e a autenticação de dois fatores tem de ser configurada novamente após iniciar sessão. O utilizador é notificado. Confirma que és tu para continuar.",
+      "confirm": "Repor MFA",
+      "success": "Autenticação de dois fatores reposta",
+      "refused": "A autenticação de dois fatores não está ativada para este utilizador.",
+      "error": "Não foi possível repor a autenticação de dois fatores. Tenta novamente."
+    },
+    "requirePasswordChange": {
+      "button": "Exigir alteração de palavra-passe",
+      "title": "Exigir uma alteração de palavra-passe",
+      "description": "{username} mantém a palavra-passe atual, mas tem de escolher uma nova da próxima vez que iniciar sessão com ela. Todas as sessões terminam, pelo que a sessão é terminada em todos os dispositivos. O início de sessão através de um fornecedor de início de sessão único não é afetado. O utilizador é notificado. Confirma que és tu para continuar.",
+      "confirm": "Exigir alteração",
+      "success": "Alteração de palavra-passe exigida",
+      "refused": "Este utilizador não tem palavra-passe para alterar.",
+      "error": "Não foi possível exigir uma alteração de palavra-passe. Tenta novamente."
+    },
     "sessions": {
       "title": "Sessões",
       "subtitle": "Dispositivos atualmente com sessão iniciada nesta conta",
@@ -217,8 +241,6 @@
       "revokeTitle": "Revogar sessão",
       "revokeBody": "Isto termina a sessão no dispositivo, que terá de iniciar sessão novamente",
       "revokeConfirm": "Revogar",
-      "revokeCancel": "Cancelar",
-      "revokeClose": "Fechar",
       "revokeSuccess": "Sessão revogada",
       "revokeError": "Não foi possível revogar a sessão. Tenta novamente."
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "Definições do servidor atualizadas",
     "saveError": "Não foi possível atualizar as definições do servidor. Tenta novamente.",
     "staleError": "Estas definições foram alteradas por outra pessoa enquanto as editavas. As tuas alterações não foram guardadas. Recarrega a página para ver os valores atuais.",
+    "stepUpTitle": "Confirma a tua identidade",
+    "stepUpDescription": "Estas alterações afetam quem se pode registar, iniciar sessão ou manter uma sessão neste servidor, durante quanto tempo o registo de auditoria é mantido, ou se as ligações públicas mostram quem as partilhou. Confirma que és tu para continuar.",
     "envLocked": "Definido por {name}",
     "envSection": "Algumas definições aqui são definidas por variáveis de ambiente ({names}). Remova-as do ambiente para editar essas definições aqui.",
     "unsaved": "Alterações não guardadas",
@@ -323,7 +347,9 @@
     "password": {
       "title": "Política de palavras-passe",
       "lengthRegular": "Comprimento mínimo utilizadores regulares",
-      "lengthAdmin": "Comprimento mínimo utilizadores admin"
+      "lengthAdmin": "Comprimento mínimo utilizadores admin",
+      "breachCheck": "Recusar palavras-passe encontradas em fugas de dados conhecidas",
+      "breachCheckHint": "Verifica cada palavra-passe nova ou alterada com o haveibeenpwned.com. Apenas os primeiros 5 caracteres do hash SHA-1 da palavra-passe são enviados, nunca a palavra-passe. Se o serviço não puder ser contactado, a palavra-passe é aceite."
     },
     "session": {
       "title": "Sessões",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "Registo",
       "enabled": "Permitir novos registos",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "Permitir novos registos de utilizadores através de início de sessão único",
       "adminApproval": "Requerer aprovação de admin para novos registos",
       "emailVerification": "Requerer verificação de email para novos registos"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "Deixa em branco para usar o nome de utilizador.",
       "save": "Guardar definições de email",
       "saveSuccess": "Definições de email guardadas",
-      "saveError": "Não foi possível guardar as definições de email"
+      "saveError": "Não foi possível guardar as definições de email",
+      "stepUpTitle": "Confirma a tua identidade",
+      "stepUpDescription": "O servidor de email recebe todas as ligações de reposição de palavra-passe. Confirma que és tu para continuar."
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "Configurar fornecedores de SSO para início de sessão único",
     "buttonAdd": "Adicionar fornecedor",
     "toggleError": "Não foi possível alterar o fornecedor. Tenta novamente.",
+    "toggleStepUpDescription": "Alterar se {name} está ativado decide quem pode iniciar sessão neste servidor. Confirma que és tu para continuar.",
+    "toggleStepUpConfirm": "Confirmar",
     "enableSuccess": "Fornecedor ativado",
     "disableSuccess": "Fornecedor desativado",
     "type": {
@@ -542,15 +572,15 @@
       "issuerUrlRequired": "O URL do emissor é obrigatório",
       "issuerUrlRefused": "O URL do fornecedor foi recusado. Tem de usar https:// e ser resolvido a partir do servidor, e um fornecedor numa rede privada tem de constar em SSRF_ALLOWED_HOSTS.",
       "issuerUrlTooLong": "O URL do emissor deve ter 500 caracteres ou menos",
-      "clientId": "Client ID",
+      "clientId": "ID do cliente",
       "clientIdRequired": "O Client ID é obrigatório",
       "clientIdTooLong": "O Client ID deve ter 512 caracteres ou menos",
-      "clientSecret": "Client secret",
+      "clientSecret": "Segredo do cliente",
       "clientSecretRequired": "O client secret é obrigatório",
       "clientSecretTooLong": "O client secret deve ter 512 caracteres ou menos",
       "clientSecretHintEdit": "Deixa em branco para manter o secret atual",
       "clientSecretPlaceholderEdit": "Sem alterações",
-      "scopes": "Scopes",
+      "scopes": "Âmbitos",
       "scopesHint": "Scopes OAuth separados por espaço",
       "scopesTooLong": "Os scopes devem ter 500 caracteres ou menos",
       "icon": "Ícone",
@@ -566,10 +596,19 @@
       "iconSaveError": "O fornecedor foi guardado, mas não foi possível atualizar o seu ícone. Edita o fornecedor para tentar novamente.",
       "enabled": "Ativado",
       "autoCreateUsers": "Criar utilizadores automaticamente no primeiro início de sessão",
+      "linkByEmail": "Associar a uma conta existente por email",
+      "linkByEmailHint": "Permite que um primeiro início de sessão se junte à conta que tem o mesmo email verificado. Desativado, esse início de sessão é recusado e o utilizador associa o fornecedor nas suas definições. Desativado por predefinição num novo fornecedor.",
       "syncUserInfo": "Sincronizar informações de perfil em cada início de sessão",
+      "syncUserInfoHint": "Copia o nome mapeado do fornecedor. Não inclui o email.",
+      "syncEmail": "Sincronizar email em cada início de sessão",
+      "syncEmailHint": "Copia o email verificado pelo fornecedor para a conta, regista a alteração na auditoria e notifica o endereço anterior. Desativado por predefinição num novo fornecedor.",
       "createSuccess": "Fornecedor adicionado",
       "updateSuccess": "Fornecedor atualizado",
+      "stepUpTitle": "Confirma a tua identidade",
+      "stepUpDescription": "Os fornecedores de identidade decidem quem pode iniciar sessão neste servidor. Confirma que és tu para continuar.",
       "slugConflict": "Esse slug já está em uso",
+      "issuerInUse": "Outro fornecedor de identidade já usa este URL de emissor",
+      "issuerLocked": "O URL do emissor não pode ser alterado enquanto houver utilizadores associados a este fornecedor. Desassocia-os ou adiciona um novo fornecedor.",
       "staleError": "Este fornecedor foi alterado noutro lugar. As tuas alterações não foram guardadas. Fecha-o e volta a abri-lo para carregar as definições atuais.",
       "saveError": "Não foi possível guardar o fornecedor. Tenta novamente."
     }
@@ -739,23 +778,28 @@
       "revokeOthersBody": "Todos os dispositivos exceto este terminarão a sessão e terão de iniciar sessão novamente.",
       "revokeOthersConfirm": "Terminar sessão nos outros",
       "revokeOthersSuccess": "Outras sessões terminadas",
-      "revokeOthersError": "Não foi possível terminar as outras sessões. Tenta novamente."
+      "revokeOthersError": "Não foi possível terminar as outras sessões. Tenta novamente.",
+      "signOutEverywhere": "Terminar sessão em todo o lado",
+      "signOutEverywhereTitle": "Terminar sessão em todo o lado?",
+      "signOutEverywhereBody": "A sessão de todos os dispositivos, incluindo este, será terminada e terão de iniciar sessão novamente.",
+      "signOutEverywhereConfirm": "Terminar sessão em todo o lado",
+      "signOutEverywhereError": "Não foi possível terminar todas as sessões. Tenta novamente."
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "Dispositivos conhecidos",
+      "subtitle": "Navegadores e aplicações a partir dos quais iniciaste sessão desde a tua última alteração de segurança. Iniciar sessão a partir de qualquer outro dispositivo envia-te um aviso.",
+      "empty": "Sem dispositivos conhecidos",
+      "error": "Não foi possível carregar os dispositivos conhecidos",
+      "current": "Este dispositivo",
+      "unknown": "Dispositivo desconhecido",
+      "lastSeen": "Último início de sessão {date}",
+      "forget": "Esquecer este dispositivo",
+      "forgetTitle": "Esquecer este dispositivo?",
+      "forgetDescription": "O próximo início de sessão a partir deste dispositivo conta como um novo dispositivo e envia-te um aviso.",
+      "forgetConfirm": "Esquecer dispositivo",
+      "forgetSuccess": "Dispositivo esquecido",
+      "forgetError": "Não foi possível esquecer o dispositivo. Tenta novamente.",
+      "forgetNotFound": "Esse dispositivo já não é conhecido."
     },
     "linked": {
       "title": "Contas associadas",
@@ -903,9 +947,9 @@
       "connectTitle": "Ligar Strava",
       "connectDescription": "Introduz o client id e o secret da tua aplicação de API do Strava para começar.",
       "connectHint": "Serás enviado para o Strava para autorizar o acesso e depois regressarás aqui.",
-      "clientId": "Client ID",
+      "clientId": "ID do cliente",
       "clientIdPlaceholder": "123456",
-      "clientSecret": "Client secret",
+      "clientSecret": "Segredo do cliente",
       "connectError": "Não foi possível ligar ao Strava. Verifica os teus dados e tenta novamente.",
       "scopeError": "O Strava não recebeu todas as permissões de que o Endurain precisa. Liga novamente e deixa todas as permissões marcadas.",
       "completing": "A concluir a ligação ao Strava…",

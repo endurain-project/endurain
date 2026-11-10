@@ -53,6 +53,7 @@
     "mismatch": "Les mots de passe ne correspondent pas",
     "tooShort": "Ce mot de passe est trop court. Utilisez au moins {min} caractères.",
     "tooCommon": "Ce mot de passe est trop courant. Choisissez-en un plus difficile à deviner.",
+    "breached": "Ce mot de passe est apparu dans une fuite de données connue. Choisissez-en un autre.",
     "matchesAccount": "N'utilisez pas votre nom d'utilisateur ou votre adresse e-mail comme mot de passe.",
     "blank": "Un mot de passe ne peut pas être composé uniquement d'espaces.",
     "unchanged": "Choisissez un mot de passe différent de votre mot de passe actuel.",

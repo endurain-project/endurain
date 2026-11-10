@@ -209,7 +209,7 @@
     "hideGear": "Slėpti įrangą",
     "success": "Veikla atnaujinta",
     "error": "Nepavyko atnaujinti veiklos",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Ši veikla buvo pakeista kitur, kol ją redagavote. Jūsų pakeitimai neišsaugoti. Atidarykite ją iš naujo, kad pamatytumėte dabartinę versiją."
   },
   "alerts": {
     "hidden": "Ši veikla paslėpta. Tik jūs galite ją matyti.",

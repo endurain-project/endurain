@@ -53,6 +53,7 @@
     "mismatch": "A jelszavak nem egyeznek",
     "tooShort": "Ez a jelszó túl rövid. Legalább {min} karaktert használj.",
     "tooCommon": "Ez a jelszó túl gyakori. Válassz egy nehezebben kitalálhatót.",
+    "breached": "Ez a jelszó szerepelt egy ismert adatszivárgásban. Válassz másikat.",
     "matchesAccount": "Ne használd jelszóként a felhasználónevedet vagy az e-mail-címedet.",
     "blank": "A jelszó nem állhat csupa szóközből.",
     "unchanged": "Válassz a jelenlegitől eltérő jelszót.",

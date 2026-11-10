@@ -74,6 +74,14 @@
         "title": "Dviejų veiksnių autentifikavimas išjungtas",
         "body": "Jūsų paskyroje išjungtas dviejų veiksnių autentifikavimas. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus."
       },
+      "mfaResetByAdmin": {
+        "title": "Administratorius atstatė dviejų veiksnių autentifikavimą",
+        "body": "Administratorius atstatė Jūsų paskyros dviejų veiksnių autentifikavimą ir atjungė Jus visuose įrenginiuose. Nustatykite jį iš naujo saugumo nustatymuose. Jei to nesitikėjote, susisiekite su administratoriumi."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Administratorius pareikalavo pakeisti slaptažodį",
+        "body": "Administratorius pareikalavo, kad pakeistumėte slaptažodį, ir atjungė Jus visuose įrenginiuose. Naują slaptažodį pasirinksite kitą kartą prisijungdami su slaptažodžiu. Jei to nesitikėjote, susisiekite su administratoriumi."
+      },
       "backupCodesGenerated": {
         "title": "Sugeneruoti nauji atsarginiai kodai",
         "body": "Jūsų paskyrai sugeneruoti nauji atsarginiai kodai. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus."
@@ -86,6 +94,14 @@
         "title": "Prisijungimo teikėjas atsietas",
         "body": "{name} buvo atsietas nuo jūsų paskyros. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus.",
         "bodyGeneric": "Prisijungimo teikėjas buvo atsietas nuo jūsų paskyros. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus."
+      },
+      "accountLocked": {
+        "title": "Paskyra užrakinta",
+        "body": "Jūsų paskyra buvo užrakinta po 100 nesėkmingų prisijungimo bandymų iš eilės. Naršyklės ir programėlės, iš kurių prisijungėte nuo paskutinio saugumo pakeitimo, vis dar gali prisijungti. Jei šie bandymai nebuvo Jūsų, pakeiskite arba atstatykite slaptažodį – tai taip pat atrakina paskyrą."
+      },
+      "mfaLocked": {
+        "title": "Dviejų žingsnių patvirtinimas užrakintas",
+        "body": "Jūsų paskyra buvo užrakinta po 100 neteisingų dviejų žingsnių patvirtinimo kodų iš eilės, vadinasi, kažkas žino Jūsų slaptažodį. Naršyklės ir programėlės, iš kurių prisijungėte nuo paskutinio saugumo pakeitimo, vis dar gali prisijungti. Jei šie bandymai nebuvo Jūsų, pakeiskite slaptažodį."
       },
       "unknown": {
         "title": "Pasikeitė paskyros saugumas",

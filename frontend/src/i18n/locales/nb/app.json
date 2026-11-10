@@ -53,6 +53,7 @@
     "mismatch": "Passordene stemmer ikke overens",
     "tooShort": "Dette passordet er for kort. Bruk minst {min} tegn.",
     "tooCommon": "Dette passordet er for vanlig. Velg et som er vanskeligere å gjette.",
+    "breached": "Dette passordet har vært med i et kjent datainnbrudd. Velg et annet.",
     "matchesAccount": "Ikke bruk brukernavnet eller e-postadressen din som passord.",
     "blank": "Et passord kan ikke bare bestå av mellomrom.",
     "unchanged": "Velg et annet passord enn det du bruker nå.",

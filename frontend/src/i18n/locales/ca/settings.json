@@ -33,6 +33,7 @@
       "unverified": "Correu no verificat",
       "pendingEmail": "Canvi de correu pendent",
       "pending": "Pendent d'aprovació",
+      "deleting": "S'està eliminant",
       "externalAuth": "Auth externa"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "Almenys 8 caràcters",
       "passwordRequired": "La contrasenya és obligatòria",
       "confirmPassword": "Confirma la contrasenya",
+      "mustChangePasswordHint": "L'usuari haurà de triar una contrasenya nova en el seu proper inici de sessió.",
       "confirmPasswordRequired": "Confirma la contrasenya",
       "preferredLanguage": "Idioma preferit",
       "languages": {
@@ -162,7 +164,11 @@
       "updateSuccess": "Usuari actualitzat",
       "conflict": "Aquest nom d'usuari o correu ja està en ús",
       "lastAdministrator": "L'únic administrador no es pot degradar ni desactivar",
-      "saveError": "No s'ha pogut desar l'usuari. Torna-ho a intentar."
+      "saveError": "No s'ha pogut desar l'usuari. Torna-ho a intentar.",
+      "stepUpTitle": "Confirma la teva identitat",
+      "stepUpDescription": "Canviar el correu, el tipus d'accés o l'estat actiu de {username} tanca la seva sessió a tot arreu. Confirma que ets tu per continuar.",
+      "stepUpCreateDescription": "Crear un compte d'administrador atorga accés total. Confirma que ets tu per continuar.",
+      "stepUpConfirm": "Desa els canvis"
     },
     "delete": {
       "title": "Elimina l'usuari",
@@ -199,6 +205,24 @@
       "success": "Contrasenya actualitzada",
       "error": "No s'ha pogut actualitzar la contrasenya. Torna-ho a intentar."
     },
+    "mfaReset": {
+      "button": "Restableix l'MFA",
+      "title": "Restableix l'autenticació de dos factors",
+      "description": "Això desactiva l'autenticació de dos factors de {username} i elimina els seus codis de seguretat. Totes les seves sessions finalitzen, de manera que es tanca la sessió a tots els dispositius, i haurà de tornar a configurar l'autenticació de dos factors després d'iniciar sessió. Se li notifica. Confirma que ets tu per continuar.",
+      "confirm": "Restableix l'MFA",
+      "success": "Autenticació de dos factors restablerta",
+      "refused": "L'autenticació de dos factors no està activada per a aquest usuari.",
+      "error": "No s'ha pogut restablir l'autenticació de dos factors. Torna-ho a intentar."
+    },
+    "requirePasswordChange": {
+      "button": "Exigeix un canvi de contrasenya",
+      "title": "Exigeix un canvi de contrasenya",
+      "description": "{username} conserva la contrasenya actual però n'haurà de triar una de nova el proper cop que iniciï sessió amb ella. Totes les seves sessions finalitzen, de manera que es tanca la sessió a tots els dispositius. L'inici de sessió mitjançant un proveïdor d'inici de sessió únic no es veu afectat. Se li notifica. Confirma que ets tu per continuar.",
+      "confirm": "Exigeix el canvi",
+      "success": "Canvi de contrasenya exigit",
+      "refused": "Aquest usuari no té cap contrasenya per canviar.",
+      "error": "No s'ha pogut exigir el canvi de contrasenya. Torna-ho a intentar."
+    },
     "sessions": {
       "title": "Sessions",
       "subtitle": "Dispositius actualment connectats a aquest compte",
@@ -217,8 +241,6 @@
       "revokeTitle": "Revoca la sessió",
       "revokeBody": "Això tanca la sessió del dispositiu, que haurà d'iniciar-la de nou",
       "revokeConfirm": "Revoca",
-      "revokeCancel": "Cancel·la",
-      "revokeClose": "Tanca",
       "revokeSuccess": "Sessió revocada",
       "revokeError": "No s'ha pogut revocar la sessió. Torna-ho a intentar."
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "Configuració del servidor actualitzada",
     "saveError": "No s'ha pogut actualitzar la configuració del servidor. Torna-ho a intentar.",
     "staleError": "Algú altre ha canviat aquesta configuració mentre l'editaves. Els teus canvis no s'han desat. Recarrega la pàgina per veure els valors actuals.",
+    "stepUpTitle": "Confirma la teva identitat",
+    "stepUpDescription": "Aquests canvis afecten qui es pot registrar, iniciar sessió o mantenir una sessió en aquest servidor, quant de temps es conserva el registre d'auditoria, o si els enllaços públics mostren qui els ha compartit. Confirma que ets tu per continuar.",
     "envLocked": "Definit per {name}",
     "envSection": "Alguns paràmetres d'aquí els defineixen variables d'entorn ({names}). Elimina-les de l'entorn per editar aquests paràmetres aquí.",
     "unsaved": "Canvis sense desar",
@@ -323,7 +347,9 @@
     "password": {
       "title": "Política de contrasenyes",
       "lengthRegular": "Longitud mínima usuaris regulars",
-      "lengthAdmin": "Longitud mínima usuaris administradors"
+      "lengthAdmin": "Longitud mínima usuaris administradors",
+      "breachCheck": "Rebutja contrasenyes trobades en filtracions de dades conegudes",
+      "breachCheckHint": "Comprova cada contrasenya nova o canviada amb haveibeenpwned.com. Només s'envien els primers 5 caràcters del hash SHA-1 de la contrasenya, mai la contrasenya. Si no es pot accedir al servei, la contrasenya s'accepta."
     },
     "session": {
       "title": "Sessions",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "Registre",
       "enabled": "Permet nous registres d'usuaris",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "Permet nous registres d'usuaris mitjançant l'inici de sessió únic",
       "adminApproval": "Requereix aprovació de l'admin per als nous registres",
       "emailVerification": "Requereix verificació de correu per als nous registres"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "Deixa-ho buit per utilitzar el nom d'usuari.",
       "save": "Desa la configuració del correu",
       "saveSuccess": "Configuració del correu desada",
-      "saveError": "No s'ha pogut desar la configuració del correu"
+      "saveError": "No s'ha pogut desar la configuració del correu",
+      "stepUpTitle": "Confirma la teva identitat",
+      "stepUpDescription": "El servidor de correu rep cada enllaç de restabliment de contrasenya. Confirma que ets tu per continuar."
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "Configura proveïdors SSO per a l'inici de sessió únic",
     "buttonAdd": "Afegeix proveïdor",
     "toggleError": "No s'ha pogut canviar el proveïdor. Torna-ho a intentar.",
+    "toggleStepUpDescription": "Canviar si {name} està activat decideix qui pot iniciar sessió en aquest servidor. Confirma que ets tu per continuar.",
+    "toggleStepUpConfirm": "Confirma",
     "enableSuccess": "Proveïdor activat",
     "disableSuccess": "Proveïdor desactivat",
     "type": {
@@ -566,10 +596,19 @@
       "iconSaveError": "El proveïdor s'ha desat, però no s'ha pogut actualitzar la seva icona. Edita el proveïdor per tornar-ho a provar.",
       "enabled": "Activat",
       "autoCreateUsers": "Crea usuaris automàticament en el primer inici de sessió",
+      "linkByEmail": "Vincula a un compte existent per correu",
+      "linkByEmailHint": "Permet que un primer inici de sessió s'uneixi al compte que tingui el mateix correu verificat. Desactivat, aquest inici de sessió es rebutja i l'usuari vincula el proveïdor des de la seva configuració. Desactivat per defecte en un proveïdor nou.",
       "syncUserInfo": "Sincronitza la informació del perfil a cada inici de sessió",
+      "syncUserInfoHint": "Copia el nom assignat des del proveïdor. No inclou el correu.",
+      "syncEmail": "Sincronitza el correu a cada inici de sessió",
+      "syncEmailHint": "Copia el correu verificat pel proveïdor al compte, audita el canvi i notifica l'adreça anterior. Desactivat per defecte en un proveïdor nou.",
       "createSuccess": "Proveïdor afegit",
       "updateSuccess": "Proveïdor actualitzat",
+      "stepUpTitle": "Confirma la teva identitat",
+      "stepUpDescription": "Els proveïdors d'identitat decideixen qui pot iniciar sessió en aquest servidor. Confirma que ets tu per continuar.",
       "slugConflict": "Aquest slug ja està en ús",
+      "issuerInUse": "Un altre proveïdor d'identitat ja utilitza aquest URL d'emissor",
+      "issuerLocked": "L'URL de l'emissor no es pot canviar mentre hi hagi usuaris vinculats a aquest proveïdor. Desvincula'ls o afegeix un proveïdor nou.",
       "staleError": "Aquest proveïdor s'ha canviat en un altre lloc. Els teus canvis no s'han desat. Tanca'l i torna'l a obrir per carregar la configuració actual.",
       "saveError": "No s'ha pogut desar el proveïdor. Torna-ho a intentar."
     }
@@ -739,23 +778,28 @@
       "revokeOthersBody": "Tots els dispositius excepte aquest tancaran la sessió i hauran d'iniciar-la de nou.",
       "revokeOthersConfirm": "Tanca les altres sessions",
       "revokeOthersSuccess": "Altres sessions tancades",
-      "revokeOthersError": "No s'han pogut tancar les altres sessions. Torna-ho a intentar."
+      "revokeOthersError": "No s'han pogut tancar les altres sessions. Torna-ho a intentar.",
+      "signOutEverywhere": "Tanca la sessió a tot arreu",
+      "signOutEverywhereTitle": "Tancar la sessió a tot arreu?",
+      "signOutEverywhereBody": "Tots els dispositius, inclòs aquest, tancaran la sessió i hauran d'iniciar-la de nou.",
+      "signOutEverywhereConfirm": "Tanca la sessió a tot arreu",
+      "signOutEverywhereError": "No s'ha pogut tancar totes les sessions. Torna-ho a intentar."
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "Dispositius coneguts",
+      "subtitle": "Navegadors i aplicacions des dels quals has iniciat sessió des del teu últim canvi de seguretat. Iniciar sessió des de qualsevol altre dispositiu t'envia un avís.",
+      "empty": "Cap dispositiu conegut",
+      "error": "No s'han pogut carregar els dispositius coneguts",
+      "current": "Aquest dispositiu",
+      "unknown": "Dispositiu desconegut",
+      "lastSeen": "Últim inici de sessió {date}",
+      "forget": "Oblida aquest dispositiu",
+      "forgetTitle": "Oblidar aquest dispositiu?",
+      "forgetDescription": "El proper inici de sessió des d'aquest dispositiu es compta com a dispositiu nou i t'envia un avís.",
+      "forgetConfirm": "Oblida el dispositiu",
+      "forgetSuccess": "Dispositiu oblidat",
+      "forgetError": "No s'ha pogut oblidar el dispositiu. Torna-ho a intentar.",
+      "forgetNotFound": "Aquest dispositiu ja no és conegut."
     },
     "linked": {
       "title": "Comptes vinculats",

@@ -209,7 +209,7 @@
     "hideGear": "Skjul utstyr",
     "success": "Aktivitet oppdatert",
     "error": "Kunne ikke oppdatere aktiviteten",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Denne aktiviteten ble endret et annet sted mens du redigerte. Endringene dine ble ikke lagret. Åpne den på nytt for å se gjeldende versjon."
   },
   "alerts": {
     "hidden": "Denne aktiviteten er skjult. Bare du kan se den.",

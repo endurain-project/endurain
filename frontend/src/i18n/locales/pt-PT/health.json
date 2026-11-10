@@ -10,7 +10,7 @@
   "nav": {
     "label": "Secções de saúde",
     "soon": "Em breve",
-    "dashboard": "Dashboard",
+    "dashboard": "Painel",
     "sleep": "Sono",
     "rhr": "FC em repouso",
     "steps": "Passos",
@@ -20,7 +20,7 @@
     "poop": "Movimentos intestinais"
   },
   "dashboard": {
-    "title": "Dashboard",
+    "title": "Painel",
     "subtitle": "O teu bem-estar diário num relance",
     "sleep": "Sono",
     "restingHeartRate": "FC em repouso",
@@ -431,7 +431,8 @@
       "close": "Fechar",
       "createSuccess": "Água registada.",
       "updateSuccess": "Entrada de água atualizada.",
-      "saveError": "Não foi possível guardar a entrada de água. Tenta novamente."
+      "saveError": "Não foi possível guardar a entrada de água. Tenta novamente.",
+      "dayTakenError": "Já existe um registo de água para esse dia. Edita-o em vez de adicionar outro."
     },
     "target": {
       "title": "Definir objetivo de água",

@@ -74,6 +74,14 @@
         "title": "Dvofaktorska autentifikacija isključena",
         "body": "Dvofaktorska autentifikacija je isključena za vaš nalog. Ako to niste bili vi, resetujte lozinku i pregledajte svoja bezbednosna podešavanja."
       },
+      "mfaResetByAdmin": {
+        "title": "Administrator je resetovao dvofaktorsku autentifikaciju",
+        "body": "Administrator je resetovao dvofaktorsku autentifikaciju za vaš nalog i odjavio vas sa svih uređaja. Podesite je ponovo u bezbednosnim podešavanjima. Ako to niste očekivali, kontaktirajte administratora."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Administrator zahteva promenu lozinke",
+        "body": "Administrator je zahtevao da promenite lozinku i odjavio vas sa svih uređaja. Novu lozinku ćete izabrati pri sledećoj prijavi lozinkom. Ako to niste očekivali, kontaktirajte administratora."
+      },
       "backupCodesGenerated": {
         "title": "Generisani su novi rezervni kodovi",
         "body": "Za vaš nalog su generisani novi rezervni kodovi. Ako to niste bili vi, resetujte lozinku i pregledajte svoja bezbednosna podešavanja."
@@ -86,6 +94,14 @@
         "title": "Provajder prijave odvezan",
         "body": "{name} je odvezan od vašeg naloga. Ako to niste bili vi, resetujte lozinku i pregledajte svoja bezbednosna podešavanja.",
         "bodyGeneric": "Provajder prijave je odvezan od vašeg naloga. Ako to niste bili vi, resetujte lozinku i pregledajte svoja bezbednosna podešavanja."
+      },
+      "accountLocked": {
+        "title": "Nalog je zaključan",
+        "body": "Vaš nalog je zaključan nakon 100 neuspešnih pokušaja prijave zaredom. Pregledači i aplikacije iz kojih ste se prijavili od poslednje bezbednosne promene i dalje mogu da se prijave. Ako ove pokušaje niste izvršili vi, promenite ili resetujte lozinku, čime se i uklanja zaključavanje."
+      },
+      "mfaLocked": {
+        "title": "Dvostepena verifikacija je zaključana",
+        "body": "Vaš nalog je zaključan nakon 100 pogrešnih kodova dvostepene verifikacije zaredom, pa neko zna vašu lozinku. Pregledači i aplikacije iz kojih ste se prijavili od poslednje bezbednosne promene i dalje mogu da se prijave. Ako ove pokušaje niste izvršili vi, promenite lozinku."
       },
       "unknown": {
         "title": "Bezbednost naloga promenjena",

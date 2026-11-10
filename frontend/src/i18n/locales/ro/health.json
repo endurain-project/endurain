@@ -26,7 +26,7 @@
     "restingHeartRate": "Puls în repaus",
     "avgSkinTemperatureDeviation": "Dev. temp. piele",
     "weight": "Greutate",
-    "bmi": "BMI",
+    "bmi": "IMC",
     "steps": "Pași",
     "fasting": "Post",
     "water": "Aport de apă",
@@ -79,7 +79,7 @@
       "delete": "Șterge înregistrarea"
     },
     "detail": {
-      "bmi": "BMI",
+      "bmi": "IMC",
       "bodyFat": "Grăsime corporală",
       "bodyWater": "Apă corporală",
       "boneMass": "Masă osoasă",
@@ -431,7 +431,8 @@
       "close": "Închide",
       "createSuccess": "Apă înregistrată.",
       "updateSuccess": "Înregistrarea de apă a fost actualizată.",
-      "saveError": "Nu am putut salva înregistrarea ta de apă. Te rugăm să încerci din nou."
+      "saveError": "Nu am putut salva înregistrarea ta de apă. Te rugăm să încerci din nou.",
+      "dayTakenError": "Există deja o înregistrare de apă pentru acea zi. Editeaz-o în loc să adaugi alta."
     },
     "target": {
       "title": "Setează obiectivul de apă",

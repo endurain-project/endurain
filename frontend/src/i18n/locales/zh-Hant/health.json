@@ -431,7 +431,8 @@
       "close": "關閉",
       "createSuccess": "飲水已記錄。",
       "updateSuccess": "飲水記錄已更新。",
-      "saveError": "無法儲存您的飲水記錄。請再試一次。"
+      "saveError": "無法儲存您的飲水記錄。請再試一次。",
+      "dayTakenError": "該日期已有飲水記錄。請編輯該記錄，而不是再新增一筆。"
     },
     "target": {
       "title": "設定飲水目標",

@@ -33,6 +33,7 @@
       "unverified": "Correo no verificado",
       "pendingEmail": "Cambio de correo pendiente",
       "pending": "Pendiente de aprobación",
+      "deleting": "Eliminando",
       "externalAuth": "Autenticación externa"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "Al menos 8 caracteres",
       "passwordRequired": "La contraseña es obligatoria",
       "confirmPassword": "Confirmar contraseña",
+      "mustChangePasswordHint": "El usuario tendrá que elegir una contraseña nueva en su próximo inicio de sesión.",
       "confirmPasswordRequired": "Confirmar contraseña",
       "preferredLanguage": "Idioma preferido",
       "languages": {
@@ -162,7 +164,11 @@
       "updateSuccess": "Usuario actualizado",
       "conflict": "Ese nombre de usuario o correo ya está en uso",
       "lastAdministrator": "El único administrador no puede ser degradado ni desactivado",
-      "saveError": "No se pudo guardar el usuario. Inténtalo de nuevo."
+      "saveError": "No se pudo guardar el usuario. Inténtalo de nuevo.",
+      "stepUpTitle": "Confirma tu identidad",
+      "stepUpDescription": "Cambiar el correo electrónico, el tipo de acceso o el estado activo de {username} cierra su sesión en todas partes. Confirma que eres tú para continuar.",
+      "stepUpCreateDescription": "Crear una cuenta de administrador concede acceso total. Confirma que eres tú para continuar.",
+      "stepUpConfirm": "Guardar cambios"
     },
     "delete": {
       "title": "Eliminar usuario",
@@ -199,6 +205,24 @@
       "success": "Contraseña actualizada",
       "error": "No se pudo actualizar la contraseña. Inténtalo de nuevo."
     },
+    "mfaReset": {
+      "button": "Restablecer MFA",
+      "title": "Restablecer la autenticación en dos pasos",
+      "description": "Esto desactiva la autenticación en dos pasos de {username} y elimina sus códigos de respaldo. Todas sus sesiones terminan, por lo que se cierra su sesión en todos los dispositivos, y tendrá que volver a configurar la autenticación en dos pasos tras iniciar sesión. Se le notifica. Confirma que eres tú para continuar.",
+      "confirm": "Restablecer MFA",
+      "success": "Autenticación en dos pasos restablecida",
+      "refused": "La autenticación en dos pasos no está activada para este usuario.",
+      "error": "No se pudo restablecer la autenticación en dos pasos. Inténtalo de nuevo."
+    },
+    "requirePasswordChange": {
+      "button": "Exigir cambio de contraseña",
+      "title": "Exigir un cambio de contraseña",
+      "description": "{username} conserva su contraseña actual, pero debe elegir una nueva la próxima vez que inicie sesión con ella. Todas sus sesiones terminan, por lo que se cierra su sesión en todos los dispositivos. El inicio de sesión mediante un proveedor de inicio de sesión único no se ve afectado. Se le notifica. Confirma que eres tú para continuar.",
+      "confirm": "Exigir cambio",
+      "success": "Cambio de contraseña exigido",
+      "refused": "Este usuario no tiene contraseña que cambiar.",
+      "error": "No se pudo exigir el cambio de contraseña. Inténtalo de nuevo."
+    },
     "sessions": {
       "title": "Sesiones",
       "subtitle": "Dispositivos actualmente conectados a esta cuenta",
@@ -217,8 +241,6 @@
       "revokeTitle": "Revocar sesión",
       "revokeBody": "Esto cierra la sesión del dispositivo; deberá volver a iniciar sesión",
       "revokeConfirm": "Revocar",
-      "revokeCancel": "Cancelar",
-      "revokeClose": "Cerrar",
       "revokeSuccess": "Sesión revocada",
       "revokeError": "No se pudo revocar la sesión. Inténtalo de nuevo."
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "Ajustes del servidor actualizados",
     "saveError": "No se pudieron actualizar los ajustes del servidor. Inténtalo de nuevo.",
     "staleError": "Otra persona cambió estos ajustes mientras los editabas. Tus cambios no se guardaron. Recarga la página para ver los valores actuales.",
+    "stepUpTitle": "Confirma tu identidad",
+    "stepUpDescription": "Estos cambios afectan a quién puede registrarse, iniciar sesión o mantener una sesión en este servidor, a cuánto tiempo se conserva el registro de auditoría o a si los enlaces públicos muestran quién los compartió. Confirma que eres tú para continuar.",
     "envLocked": "Definido por {name}",
     "envSection": "Algunos ajustes de aquí los definen variables de entorno ({names}). Elimínalas del entorno para editar esos ajustes aquí.",
     "unsaved": "Cambios sin guardar",
@@ -323,7 +347,9 @@
     "password": {
       "title": "Política de contraseñas",
       "lengthRegular": "Longitud mínima usuarios regulares",
-      "lengthAdmin": "Longitud mínima usuarios administradores"
+      "lengthAdmin": "Longitud mínima usuarios administradores",
+      "breachCheck": "Rechazar contraseñas encontradas en filtraciones de datos conocidas",
+      "breachCheckHint": "Comprueba cada contraseña nueva o cambiada con haveibeenpwned.com. Solo se envían los 5 primeros caracteres del hash SHA-1 de la contraseña, nunca la contraseña. Si no se puede acceder al servicio, la contraseña se acepta."
     },
     "session": {
       "title": "Sesiones",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "Registro",
       "enabled": "Permitir nuevos registros de usuarios",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "Permitir nuevos registros de usuarios mediante inicio de sesión único",
       "adminApproval": "Requerir aprobación de administrador para nuevos registros",
       "emailVerification": "Requerir verificación de correo para nuevos registros"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "Déjalo vacío para usar el usuario.",
       "save": "Guardar ajustes de correo",
       "saveSuccess": "Ajustes de correo guardados",
-      "saveError": "No se pudieron guardar los ajustes de correo"
+      "saveError": "No se pudieron guardar los ajustes de correo",
+      "stepUpTitle": "Confirma tu identidad",
+      "stepUpDescription": "El servidor de correo recibe cada enlace de restablecimiento de contraseña. Confirma que eres tú para continuar."
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "Configura proveedores de SSO para el inicio de sesión único",
     "buttonAdd": "Añadir proveedor",
     "toggleError": "No se pudo cambiar el proveedor. Inténtalo de nuevo.",
+    "toggleStepUpDescription": "Cambiar si {name} está activado decide quién puede iniciar sesión en este servidor. Confirma que eres tú para continuar.",
+    "toggleStepUpConfirm": "Confirmar",
     "enableSuccess": "Proveedor habilitado",
     "disableSuccess": "Proveedor deshabilitado",
     "type": {
@@ -566,10 +596,19 @@
       "iconSaveError": "El proveedor se guardó, pero no se pudo actualizar su icono. Edita el proveedor para intentarlo de nuevo.",
       "enabled": "Habilitado",
       "autoCreateUsers": "Crear usuarios automáticamente en el primer inicio de sesión",
+      "linkByEmail": "Vincular a una cuenta existente por correo electrónico",
+      "linkByEmailHint": "Permite que un primer inicio de sesión se una a la cuenta que tiene el mismo correo verificado. Si está desactivado, ese inicio de sesión se rechaza y el usuario vincula el proveedor desde sus ajustes. Desactivado por defecto en un proveedor nuevo.",
       "syncUserInfo": "Sincronizar información de perfil en cada inicio de sesión",
+      "syncUserInfoHint": "Copia el nombre asignado desde el proveedor. No incluye el correo electrónico.",
+      "syncEmail": "Sincronizar el correo en cada inicio de sesión",
+      "syncEmailHint": "Copia en la cuenta el correo que verificó el proveedor, audita el cambio y notifica a la dirección anterior. Desactivado por defecto en un proveedor nuevo.",
       "createSuccess": "Proveedor añadido",
       "updateSuccess": "Proveedor actualizado",
+      "stepUpTitle": "Confirma tu identidad",
+      "stepUpDescription": "Los proveedores de identidad deciden quién puede iniciar sesión en este servidor. Confirma que eres tú para continuar.",
       "slugConflict": "Ese slug ya está en uso",
+      "issuerInUse": "Otro proveedor de identidad ya usa esta URL del emisor",
+      "issuerLocked": "La URL del emisor no se puede cambiar mientras haya usuarios vinculados a este proveedor. Desvincúlalos o añade un proveedor nuevo.",
       "staleError": "Este proveedor se modificó en otro lugar. Tus cambios no se guardaron. Ciérralo y ábrelo de nuevo para cargar los ajustes actuales.",
       "saveError": "No se pudo guardar el proveedor. Inténtalo de nuevo."
     }
@@ -739,23 +778,28 @@
       "revokeOthersBody": "Todos los dispositivos excepto este cerrarán la sesión y necesitarán volver a iniciar sesión.",
       "revokeOthersConfirm": "Cerrar sesión en los demás",
       "revokeOthersSuccess": "Otras sesiones cerradas",
-      "revokeOthersError": "No se pudieron cerrar las otras sesiones. Inténtalo de nuevo."
+      "revokeOthersError": "No se pudieron cerrar las otras sesiones. Inténtalo de nuevo.",
+      "signOutEverywhere": "Cerrar sesión en todas partes",
+      "signOutEverywhereTitle": "¿Cerrar sesión en todas partes?",
+      "signOutEverywhereBody": "Se cerrará la sesión en todos los dispositivos, incluido este, y tendrán que iniciar sesión de nuevo.",
+      "signOutEverywhereConfirm": "Cerrar sesión en todas partes",
+      "signOutEverywhereError": "No se pudo cerrar la sesión en todas las sesiones. Inténtalo de nuevo."
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "Dispositivos conocidos",
+      "subtitle": "Navegadores y apps desde los que iniciaste sesión desde tu último cambio de seguridad. Iniciar sesión desde cualquier otro dispositivo te envía un aviso.",
+      "empty": "No hay dispositivos conocidos",
+      "error": "No se pudieron cargar los dispositivos conocidos",
+      "current": "Este dispositivo",
+      "unknown": "Dispositivo desconocido",
+      "lastSeen": "Último inicio de sesión {date}",
+      "forget": "Olvidar este dispositivo",
+      "forgetTitle": "¿Olvidar este dispositivo?",
+      "forgetDescription": "El próximo inicio de sesión desde este dispositivo contará como un dispositivo nuevo y te enviará un aviso.",
+      "forgetConfirm": "Olvidar dispositivo",
+      "forgetSuccess": "Dispositivo olvidado",
+      "forgetError": "No se pudo olvidar el dispositivo. Inténtalo de nuevo.",
+      "forgetNotFound": "Ese dispositivo ya no es conocido."
     },
     "linked": {
       "title": "Cuentas vinculadas",

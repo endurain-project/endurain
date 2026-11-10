@@ -74,6 +74,14 @@
         "title": "İki adımlı kimlik doğrulama kapatıldı",
         "body": "Hesabınız için iki adımlı kimlik doğrulama kapatıldı. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
       },
+      "mfaResetByAdmin": {
+        "title": "İki adımlı kimlik doğrulama bir yönetici tarafından sıfırlandı",
+        "body": "Bir yönetici hesabınızın iki adımlı kimlik doğrulamasını sıfırladı ve tüm cihazlardaki oturumlarınızı kapattı. Güvenlik ayarlarınızdan yeniden kurun. Bunu beklemiyorsanız yöneticinizle iletişime geçin."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Parola değişikliği bir yönetici tarafından zorunlu kılındı",
+        "body": "Bir yönetici parolanızı değiştirmenizi zorunlu kıldı ve tüm cihazlardaki oturumlarınızı kapattı. Parolanızla bir sonraki girişinizde yeni bir parola seçeceksiniz. Bunu beklemiyorsanız yöneticinizle iletişime geçin."
+      },
       "backupCodesGenerated": {
         "title": "Yeni yedek kodlar oluşturuldu",
         "body": "Hesabınız için yeni yedek kodlar oluşturuldu. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
@@ -86,6 +94,14 @@
         "title": "Giriş sağlayıcısının bağlantısı kaldırıldı",
         "body": "{name} sağlayıcısının hesabınızla bağlantısı kaldırıldı. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin.",
         "bodyGeneric": "Bir giriş sağlayıcısının hesabınızla bağlantısı kaldırıldı. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
+      },
+      "accountLocked": {
+        "title": "Hesap kilitlendi",
+        "body": "Hesabınız art arda 100 başarısız giriş denemesinden sonra kilitlendi. Son güvenlik değişikliğinizden bu yana giriş yaptığınız tarayıcılar ve uygulamalar yine de giriş yapabilir. Bu denemeler size ait değilse parolanızı değiştirin veya sıfırlayın; bu işlem kilidi de kaldırır."
+      },
+      "mfaLocked": {
+        "title": "İki adımlı doğrulama kilitlendi",
+        "body": "Hesabınız art arda 100 yanlış iki adımlı doğrulama kodundan sonra kilitlendi; yani biri parolanızı biliyor. Son güvenlik değişikliğinizden bu yana giriş yaptığınız tarayıcılar ve uygulamalar yine de giriş yapabilir. Bu denemeler size ait değilse parolanızı değiştirin."
       },
       "unknown": {
         "title": "Hesap güvenliği değişti",

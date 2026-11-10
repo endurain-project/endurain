@@ -431,7 +431,8 @@
       "close": "Cerrar",
       "createSuccess": "Agua registrada.",
       "updateSuccess": "Entrada de agua actualizada.",
-      "saveError": "No se pudo guardar tu entrada de agua. Inténtalo de nuevo."
+      "saveError": "No se pudo guardar tu entrada de agua. Inténtalo de nuevo.",
+      "dayTakenError": "Ya existe un registro de agua para ese día. Edítalo en lugar de añadir otro."
     },
     "target": {
       "title": "Establecer objetivo de agua",

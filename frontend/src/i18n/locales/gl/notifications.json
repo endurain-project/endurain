@@ -74,6 +74,14 @@
         "title": "Autenticación en dous pasos desactivada",
         "body": "Desactivouse a autenticación en dous pasos na túa conta. Se non foches ti, restablece o contrasinal e revisa a túa configuración de seguridade."
       },
+      "mfaResetByAdmin": {
+        "title": "Autenticación en dous pasos restablecida por un administrador",
+        "body": "Un administrador restableceu a autenticación en dous pasos da túa conta e pechou a túa sesión en todos os dispositivos. Configúraa de novo desde os axustes de seguranza. Se non o esperabas, contacta co teu administrador."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Cambio de contrasinal esixido por un administrador",
+        "body": "Un administrador esixiu que cambies o teu contrasinal e pechou a túa sesión en todos os dispositivos. Escollerás un contrasinal novo a próxima vez que inicies sesión co teu contrasinal. Se non o esperabas, contacta co teu administrador."
+      },
       "backupCodesGenerated": {
         "title": "Xeráronse novos códigos de recuperación",
         "body": "Xeráronse novos códigos de recuperación para a túa conta. Se non foches ti, restablece o contrasinal e revisa a túa configuración de seguridade."
@@ -86,6 +94,14 @@
         "title": "Provedor de inicio de sesión desvinculado",
         "body": "{name} desvinculouse da túa conta. Se non foches ti, restablece o contrasinal e revisa a túa configuración de seguridade.",
         "bodyGeneric": "Desvinculouse un provedor de inicio de sesión da túa conta. Se non foches ti, restablece o contrasinal e revisa a túa configuración de seguridade."
+      },
+      "accountLocked": {
+        "title": "Conta bloqueada",
+        "body": "A túa conta bloqueouse tras 100 intentos de inicio de sesión fallidos seguidos. Os navegadores e aplicacións desde os que iniciaches sesión desde o teu último cambio de seguranza aínda poden iniciar sesión. Se eses intentos non foron teus, cambia ou restablece o teu contrasinal, o que tamén levanta o bloqueo."
+      },
+      "mfaLocked": {
+        "title": "Verificación en dous pasos bloqueada",
+        "body": "A túa conta bloqueouse tras 100 códigos de verificación en dous pasos incorrectos seguidos, polo que alguén coñece o teu contrasinal. Os navegadores e aplicacións desde os que iniciaches sesión desde o teu último cambio de seguranza aínda poden iniciar sesión. Se eses intentos non foron teus, cambia o teu contrasinal."
       },
       "unknown": {
         "title": "Seguridade da conta cambiada",

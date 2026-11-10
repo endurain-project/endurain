@@ -74,6 +74,14 @@
         "title": "Autenticação de dois fatores desativada",
         "body": "A autenticação de dois fatores foi desativada na tua conta. Se não foste tu, repõe a palavra-passe e revê as tuas definições de segurança."
       },
+      "mfaResetByAdmin": {
+        "title": "Autenticação de dois fatores reposta por um administrador",
+        "body": "Um administrador repôs a autenticação de dois fatores da tua conta e terminou a tua sessão em todos os dispositivos. Configura-a novamente nas definições de segurança. Se não estavas à espera disto, contacta o teu administrador."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Alteração de palavra-passe exigida por um administrador",
+        "body": "Um administrador exigiu que alterasses a tua palavra-passe e terminou a tua sessão em todos os dispositivos. Vais escolher uma nova palavra-passe da próxima vez que iniciares sessão com a tua palavra-passe. Se não estavas à espera disto, contacta o teu administrador."
+      },
       "backupCodesGenerated": {
         "title": "Novos códigos de recuperação gerados",
         "body": "Foram gerados novos códigos de recuperação para a tua conta. Se não foste tu, repõe a palavra-passe e revê as tuas definições de segurança."
@@ -86,6 +94,14 @@
         "title": "Fornecedor de início de sessão desassociado",
         "body": "{name} foi desassociado da tua conta. Se não foste tu, repõe a palavra-passe e revê as tuas definições de segurança.",
         "bodyGeneric": "Um fornecedor de início de sessão foi desassociado da tua conta. Se não foste tu, repõe a palavra-passe e revê as tuas definições de segurança."
+      },
+      "accountLocked": {
+        "title": "Conta bloqueada",
+        "body": "A tua conta foi bloqueada após 100 tentativas de início de sessão falhadas seguidas. Os navegadores e aplicações a partir dos quais iniciaste sessão desde a tua última alteração de segurança ainda podem iniciar sessão. Se estas tentativas não foram tuas, altera ou repõe a tua palavra-passe, o que também remove o bloqueio."
+      },
+      "mfaLocked": {
+        "title": "Verificação em dois passos bloqueada",
+        "body": "A tua conta foi bloqueada após 100 códigos de verificação em dois passos errados seguidos, por isso alguém conhece a tua palavra-passe. Os navegadores e aplicações a partir dos quais iniciaste sessão desde a tua última alteração de segurança ainda podem iniciar sessão. Se estas tentativas não foram tuas, altera a tua palavra-passe."
       },
       "unknown": {
         "title": "Segurança da conta alterada",

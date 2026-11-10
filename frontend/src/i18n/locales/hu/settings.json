@@ -33,6 +33,7 @@
       "unverified": "Nem megerősített e-mail",
       "pendingEmail": "Függőben lévő e-mail-módosítás",
       "pending": "Jóváhagyásra vár",
+      "deleting": "Törlés alatt",
       "externalAuth": "Külső hitelesítés"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "Legalább 8 karakter",
       "passwordRequired": "A jelszó megadása kötelező",
       "confirmPassword": "Jelszó megerősítése",
+      "mustChangePasswordHint": "A felhasználónak a következő bejelentkezéskor új jelszót kell választania.",
       "confirmPasswordRequired": "Jelszó megerősítése",
       "preferredLanguage": "Preferált nyelv",
       "languages": {
@@ -162,7 +164,11 @@
       "updateSuccess": "Felhasználó frissítve",
       "conflict": "Ez a felhasználónév vagy e-mail-cím már használatban van",
       "lastAdministrator": "Az egyetlen rendszergazda nem fokozható le és nem inaktiválható",
-      "saveError": "Nem sikerült menteni a felhasználót. Kérjük, próbáld újra."
+      "saveError": "Nem sikerült menteni a felhasználót. Kérjük, próbáld újra.",
+      "stepUpTitle": "Erősítsd meg a személyazonosságodat",
+      "stepUpDescription": "{username} e-mail-címének, hozzáférési típusának vagy aktív állapotának módosítása mindenhonnan kijelentkezteti. A folytatáshoz erősítsd meg, hogy te vagy az.",
+      "stepUpCreateDescription": "Rendszergazdai fiók létrehozása teljes hozzáférést ad. A folytatáshoz erősítsd meg, hogy te vagy az.",
+      "stepUpConfirm": "Módosítások mentése"
     },
     "delete": {
       "title": "Felhasználó törlése",
@@ -199,6 +205,24 @@
       "success": "Jelszó frissítve",
       "error": "Nem sikerült frissíteni a jelszót. Kérjük, próbáld újra."
     },
+    "mfaReset": {
+      "button": "MFA visszaállítása",
+      "title": "Kétfaktoros hitelesítés visszaállítása",
+      "description": "Ez kikapcsolja {username} kétfaktoros hitelesítését, és törli a tartalék kódjait. Minden munkamenete megszűnik, így minden eszközről kijelentkezik, és a bejelentkezés után újra be kell állítania a kétfaktoros hitelesítést. Értesítést kap. A folytatáshoz erősítsd meg, hogy te vagy az.",
+      "confirm": "MFA visszaállítása",
+      "success": "Kétfaktoros hitelesítés visszaállítva",
+      "refused": "Ennél a felhasználónál nincs bekapcsolva a kétfaktoros hitelesítés.",
+      "error": "Nem sikerült visszaállítani a kétfaktoros hitelesítést. Kérjük, próbáld újra."
+    },
+    "requirePasswordChange": {
+      "button": "Jelszómódosítás előírása",
+      "title": "Jelszómódosítás előírása",
+      "description": "{username} megtartja a jelenlegi jelszavát, de legközelebb, amikor azzal jelentkezik be, újat kell választania. Minden munkamenete megszűnik, így minden eszközről kijelentkezik. Az egyszeri bejelentkezési szolgáltatón keresztüli bejelentkezést ez nem érinti. Értesítést kap. A folytatáshoz erősítsd meg, hogy te vagy az.",
+      "confirm": "Módosítás előírása",
+      "success": "Jelszómódosítás előírva",
+      "refused": "Ennek a felhasználónak nincs módosítható jelszava.",
+      "error": "Nem sikerült előírni a jelszómódosítást. Kérjük, próbáld újra."
+    },
     "sessions": {
       "title": "Munkamenetek",
       "subtitle": "Ehhez a fiókhoz jelenleg bejelentkezett eszközök",
@@ -217,8 +241,6 @@
       "revokeTitle": "Munkamenet visszavonása",
       "revokeBody": "Ez kijelentkezteti az eszközt, és újra be kell jelentkeznie",
       "revokeConfirm": "Visszavonás",
-      "revokeCancel": "Mégse",
-      "revokeClose": "Bezárás",
       "revokeSuccess": "Munkamenet visszavonva",
       "revokeError": "Nem sikerült visszavonni a munkamenetet. Kérjük, próbáld újra."
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "Kiszolgálóbeállítások frissítve",
     "saveError": "Nem sikerült frissíteni a kiszolgálóbeállításokat. Kérjük, próbáld újra.",
     "staleError": "Más módosította ezeket a beállításokat, miközben szerkesztetted őket. A módosításaid nem lettek mentve. Töltsd újra az oldalt az aktuális értékek megtekintéséhez.",
+    "stepUpTitle": "Erősítsd meg a személyazonosságodat",
+    "stepUpDescription": "Ezek a módosítások befolyásolják, hogy ki regisztrálhat, jelentkezhet be vagy tarthat fenn munkamenetet ezen a szerveren, mennyi ideig őrizzük meg az auditnaplót, illetve hogy a nyilvános hivatkozások megmutatják-e, ki osztotta meg őket. A folytatáshoz erősítsd meg, hogy te vagy az.",
     "envLocked": "{name} állítja be",
     "envSection": "Az itteni beállítások egy részét környezeti változók ({names}) határozzák meg. Töröld őket a környezetből, hogy itt szerkeszthesd ezeket a beállításokat.",
     "unsaved": "Nem mentett módosítások",
@@ -323,7 +347,9 @@
     "password": {
       "title": "Jelszószabályzat",
       "lengthRegular": "Minimális hossz normál felhasználóknál",
-      "lengthAdmin": "Minimális hossz rendszergazdáknál"
+      "lengthAdmin": "Minimális hossz rendszergazdáknál",
+      "breachCheck": "Az ismert adatszivárgásokban szereplő jelszavak elutasítása",
+      "breachCheckHint": "Minden új vagy módosított jelszót ellenőriz a haveibeenpwned.com szolgáltatással. A jelszó SHA-1 kivonatának csak az első 5 karaktere kerül elküldésre, a jelszó soha. Ha a szolgáltatás nem érhető el, a jelszót elfogadjuk."
     },
     "session": {
       "title": "Munkamenetek",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "Regisztráció",
       "enabled": "Új felhasználói regisztrációk engedélyezése",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "Új felhasználók regisztrációjának engedélyezése egyszeri bejelentkezéssel",
       "adminApproval": "Rendszergazdai jóváhagyás megkövetelése új regisztrációkhoz",
       "emailVerification": "E-mail-ellenőrzés megkövetelése új regisztrációkhoz"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "Hagyd üresen a felhasználónév használatához.",
       "save": "E-mail-beállítások mentése",
       "saveSuccess": "E-mail-beállítások mentve",
-      "saveError": "Az e-mail-beállításokat nem sikerült menteni"
+      "saveError": "Az e-mail-beállításokat nem sikerült menteni",
+      "stepUpTitle": "Erősítsd meg a személyazonosságodat",
+      "stepUpDescription": "A levelezőszerver megkapja az összes jelszó-visszaállítási hivatkozást. A folytatáshoz erősítsd meg, hogy te vagy az."
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "Konfiguráld az SSO-szolgáltatókat az egyszeri bejelentkezéshez",
     "buttonAdd": "Szolgáltató hozzáadása",
     "toggleError": "Nem sikerült módosítani a szolgáltatót. Kérjük, próbáld újra.",
+    "toggleStepUpDescription": "Annak módosítása, hogy {name} engedélyezett-e, meghatározza, ki jelentkezhet be erre a szerverre. A folytatáshoz erősítsd meg, hogy te vagy az.",
+    "toggleStepUpConfirm": "Megerősítés",
     "enableSuccess": "Szolgáltató engedélyezve",
     "disableSuccess": "Szolgáltató letiltva",
     "type": {
@@ -566,10 +596,19 @@
       "iconSaveError": "A szolgáltatót mentettük, de az ikonját nem sikerült frissíteni. Az újrapróbáláshoz szerkeszd a szolgáltatót.",
       "enabled": "Engedélyezve",
       "autoCreateUsers": "Felhasználók automatikus létrehozása az első bejelentkezéskor",
+      "linkByEmail": "Összekapcsolás meglévő fiókkal e-mail-cím alapján",
+      "linkByEmailHint": "Lehetővé teszi, hogy az első bejelentkezés csatlakozzon az azonos ellenőrzött e-mail-címmel rendelkező fiókhoz. Kikapcsolva ez a bejelentkezés elutasításra kerül, és a felhasználó a beállításaiban kapcsolja össze a szolgáltatót. Új szolgáltatónál alapértelmezés szerint ki van kapcsolva.",
       "syncUserInfo": "Profilinformációk szinkronizálása minden bejelentkezéskor",
+      "syncUserInfoHint": "Átmásolja a leképezett nevet a szolgáltatótól. Az e-mail-címet nem tartalmazza.",
+      "syncEmail": "E-mail-cím szinkronizálása minden bejelentkezéskor",
+      "syncEmailHint": "A szolgáltató által ellenőrzött e-mail-címet átmásolja a fiókra, naplózza a módosítást, és értesíti az előző címet. Új szolgáltatónál alapértelmezés szerint ki van kapcsolva.",
       "createSuccess": "Szolgáltató hozzáadva",
       "updateSuccess": "Szolgáltató frissítve",
+      "stepUpTitle": "Erősítsd meg a személyazonosságodat",
+      "stepUpDescription": "Az identitásszolgáltatók határozzák meg, ki jelentkezhet be erre a szerverre. A folytatáshoz erősítsd meg, hogy te vagy az.",
       "slugConflict": "Ez a slug már használatban van",
+      "issuerInUse": "Egy másik identitásszolgáltató már használja ezt a kibocsátói URL-t",
+      "issuerLocked": "A kibocsátói URL nem módosítható, amíg felhasználók vannak összekapcsolva ezzel a szolgáltatóval. Válaszd le őket, vagy adj hozzá új szolgáltatót.",
       "staleError": "Ez a szolgáltató máshol módosult. A módosításaid nem lettek mentve. Zárd be és nyisd meg újra a jelenlegi beállítások betöltéséhez.",
       "saveError": "Nem sikerült menteni a szolgáltatót. Kérjük, próbáld újra."
     }
@@ -739,23 +778,28 @@
       "revokeOthersBody": "Ezen kívül minden eszköz ki lesz jelentkeztetve, és újra be kell jelentkeznie.",
       "revokeOthersConfirm": "Egyebek kijelentkeztetése",
       "revokeOthersSuccess": "Egyéb munkamenetekből kijelentkezve",
-      "revokeOthersError": "Nem sikerült kijelentkezni a többi munkamenetből. Kérjük, próbáld újra."
+      "revokeOthersError": "Nem sikerült kijelentkezni a többi munkamenetből. Kérjük, próbáld újra.",
+      "signOutEverywhere": "Kijelentkezés mindenhonnan",
+      "signOutEverywhereTitle": "Kijelentkezel mindenhonnan?",
+      "signOutEverywhereBody": "Minden eszközről, ezt is beleértve, kijelentkeztetünk, és újra be kell jelentkezned.",
+      "signOutEverywhereConfirm": "Kijelentkezés mindenhonnan",
+      "signOutEverywhereError": "Nem sikerült minden munkamenetből kijelentkezni. Kérjük, próbáld újra."
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "Ismert eszközök",
+      "subtitle": "Böngészők és alkalmazások, amelyekből az utolsó biztonsági módosítás óta bejelentkeztél. Bármely más eszközről történő bejelentkezéskor értesítést kapsz.",
+      "empty": "Nincsenek ismert eszközök",
+      "error": "Nem sikerült betölteni az ismert eszközöket",
+      "current": "Ez az eszköz",
+      "unknown": "Ismeretlen eszköz",
+      "lastSeen": "Utolsó bejelentkezés: {date}",
+      "forget": "Eszköz elfelejtése",
+      "forgetTitle": "Elfelejted ezt az eszközt?",
+      "forgetDescription": "Az erről az eszközről történő következő bejelentkezés új eszköznek számít, és értesítést kapsz.",
+      "forgetConfirm": "Eszköz elfelejtése",
+      "forgetSuccess": "Eszköz elfelejtve",
+      "forgetError": "Nem sikerült elfelejteni az eszközt. Kérjük, próbáld újra.",
+      "forgetNotFound": "Ez az eszköz már nem ismert."
     },
     "linked": {
       "title": "Kapcsolt fiókok",

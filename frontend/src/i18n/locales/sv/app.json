@@ -53,6 +53,7 @@
     "mismatch": "Lösenorden matchar inte",
     "tooShort": "Lösenordet är för kort. Använd minst {min} tecken.",
     "tooCommon": "Lösenordet är för vanligt. Välj ett som är svårare att gissa.",
+    "breached": "Det här lösenordet förekom i ett känt dataintrång. Välj ett annat.",
     "matchesAccount": "Använd inte ditt användarnamn eller din e-postadress som lösenord.",
     "blank": "Ett lösenord kan inte bestå enbart av blanksteg.",
     "unchanged": "Välj ett lösenord som skiljer sig från ditt nuvarande.",

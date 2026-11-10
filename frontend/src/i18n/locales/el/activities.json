@@ -209,7 +209,7 @@
     "hideGear": "Απόκρυψη εξοπλισμού",
     "success": "Η δραστηριότητα ενημερώθηκε",
     "error": "Δεν ήταν δυνατή η ενημέρωση της δραστηριότητας",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Αυτή η δραστηριότητα άλλαξε αλλού ενώ την επεξεργαζόσασταν. Οι αλλαγές σας δεν αποθηκεύτηκαν. Ανοίξτε την ξανά για να δείτε την τρέχουσα έκδοση."
   },
   "alerts": {
     "hidden": "Αυτή η δραστηριότητα είναι κρυφή. Μόνο εσείς μπορείτε να τη δείτε.",
@@ -257,7 +257,7 @@
     "mixedSurfaceRide": "Ποδηλασία μικτής επιφάνειας",
     "windsurf": "Γουίντσερφ",
     "indoorWalk": "Περπάτημα εσωτερικού χώρου",
-    "standUpPaddling": "Stand-up paddling",
+    "standUpPaddling": "Κωπηλασία όρθια",
     "surf": "Σερφ",
     "trackRun": "Τρέξιμο στίβου",
     "ebikeRide": "Ποδηλασία με E-bike",

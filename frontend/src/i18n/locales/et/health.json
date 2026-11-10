@@ -293,7 +293,7 @@
       "respiration": "Hingamine",
       "avg": "Keskmine",
       "min": "Min",
-      "max": "Max",
+      "max": "Maks",
       "noData": "Andmeid pole salvestatud."
     },
     "hypnogram": {
@@ -431,7 +431,8 @@
       "close": "Sulge",
       "createSuccess": "Vesi logitud.",
       "updateSuccess": "Veekirje uuendatud.",
-      "saveError": "Sinu veekirjet ei õnnestunud salvestada. Palun proovi uuesti."
+      "saveError": "Sinu veekirjet ei õnnestunud salvestada. Palun proovi uuesti.",
+      "dayTakenError": "Sellel päeval on veekirje juba olemas. Muuda seda, selle asemel et lisada uut."
     },
     "target": {
       "title": "Sea vee eesmärk",

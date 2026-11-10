@@ -431,7 +431,8 @@
       "close": "Luk",
       "createSuccess": "Vand registreret.",
       "updateSuccess": "Vandpost opdateret.",
-      "saveError": "Kunne ikke gemme din vandpost. Prøv venligst igen."
+      "saveError": "Kunne ikke gemme din vandpost. Prøv venligst igen.",
+      "dayTakenError": "Der findes allerede en vandregistrering for den dag. Rediger den i stedet for at tilføje en ny."
     },
     "target": {
       "title": "Sæt vandmål",

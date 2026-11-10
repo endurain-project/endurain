@@ -431,7 +431,8 @@
       "close": "Tanca",
       "createSuccess": "Aigua registrada.",
       "updateSuccess": "Entrada d'aigua actualitzada.",
-      "saveError": "No s'ha pogut desar l'entrada d'aigua. Torna-ho a intentar."
+      "saveError": "No s'ha pogut desar l'entrada d'aigua. Torna-ho a intentar.",
+      "dayTakenError": "Ja existeix un registre d'aigua per a aquest dia. Edita'l en lloc d'afegir-ne un altre."
     },
     "target": {
       "title": "Estableix l'objectiu d'aigua",

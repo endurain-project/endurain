@@ -33,6 +33,7 @@
       "unverified": "Doğrulanmamış e-posta",
       "pendingEmail": "Bekleyen e-posta değişikliği",
       "pending": "Onay bekliyor",
+      "deleting": "Siliniyor",
       "externalAuth": "Harici kimlik doğrulama"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "En az 8 karakter",
       "passwordRequired": "Parola zorunludur",
       "confirmPassword": "Parolayı onayla",
+      "mustChangePasswordHint": "Kullanıcı bir sonraki girişinde yeni bir parola seçmek zorunda kalacak.",
       "confirmPasswordRequired": "Parolayı onayla",
       "preferredLanguage": "Tercih edilen dil",
       "languages": {
@@ -162,7 +164,11 @@
       "updateSuccess": "Kullanıcı güncellendi",
       "conflict": "Bu kullanıcı adı veya e-posta zaten kullanılıyor",
       "lastAdministrator": "Tek yönetici düşürülemez veya devre dışı bırakılamaz",
-      "saveError": "Kullanıcı kaydedilemedi. Lütfen tekrar deneyin."
+      "saveError": "Kullanıcı kaydedilemedi. Lütfen tekrar deneyin.",
+      "stepUpTitle": "Kimliğinizi doğrulayın",
+      "stepUpDescription": "{username} kullanıcısının e-postasını, erişim türünü veya etkin durumunu değiştirmek, kullanıcının her yerden oturumunu kapatır. Devam etmek için sizin olduğunuzu doğrulayın.",
+      "stepUpCreateDescription": "Yönetici hesabı oluşturmak tam erişim verir. Devam etmek için sizin olduğunuzu doğrulayın.",
+      "stepUpConfirm": "Değişiklikleri kaydet"
     },
     "delete": {
       "title": "Kullanıcıyı sil",
@@ -199,6 +205,24 @@
       "success": "Parola güncellendi",
       "error": "Parola güncellenemedi. Lütfen tekrar deneyin."
     },
+    "mfaReset": {
+      "button": "MFA'yı sıfırla",
+      "title": "İki adımlı kimlik doğrulamayı sıfırla",
+      "description": "Bu işlem {username} için iki adımlı kimlik doğrulamayı kapatır ve yedek kodlarını kaldırır. Tüm oturumları sona erer, yani her cihazdaki oturumu kapanır ve giriş yaptıktan sonra iki adımlı kimlik doğrulamayı yeniden kurması gerekir. Kullanıcıya bildirim gönderilir. Devam etmek için sizin olduğunuzu doğrulayın.",
+      "confirm": "MFA'yı sıfırla",
+      "success": "İki adımlı kimlik doğrulama sıfırlandı",
+      "refused": "Bu kullanıcı için iki adımlı kimlik doğrulama açık değil.",
+      "error": "İki adımlı kimlik doğrulama sıfırlanamadı. Lütfen tekrar deneyin."
+    },
+    "requirePasswordChange": {
+      "button": "Parola değişikliğini zorunlu kıl",
+      "title": "Parola değişikliğini zorunlu kıl",
+      "description": "{username} mevcut parolasını korur ancak onunla bir sonraki girişinde yeni bir parola seçmek zorundadır. Tüm oturumları sona erer, yani her cihazdaki oturumu kapanır. Tek oturum açma sağlayıcısıyla giriş etkilenmez. Kullanıcıya bildirim gönderilir. Devam etmek için sizin olduğunuzu doğrulayın.",
+      "confirm": "Değişikliği zorunlu kıl",
+      "success": "Parola değişikliği zorunlu kılındı",
+      "refused": "Bu kullanıcının değiştirilecek bir parolası yok.",
+      "error": "Parola değişikliği zorunlu kılınamadı. Lütfen tekrar deneyin."
+    },
     "sessions": {
       "title": "Oturumlar",
       "subtitle": "Şu anda bu hesaba giriş yapmış cihazlar",
@@ -217,8 +241,6 @@
       "revokeTitle": "Oturumu iptal et",
       "revokeBody": "Bu, cihazın oturumunu kapatır; tekrar giriş yapmaları gerekir",
       "revokeConfirm": "İptal et",
-      "revokeCancel": "İptal",
-      "revokeClose": "Kapat",
       "revokeSuccess": "Oturum iptal edildi",
       "revokeError": "Oturum iptal edilemedi. Lütfen tekrar deneyin."
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "Sunucu ayarları güncellendi",
     "saveError": "Sunucu ayarları güncellenemedi. Lütfen tekrar deneyin.",
     "staleError": "Siz düzenlerken bu ayarlar başka biri tarafından değiştirildi. Değişiklikleriniz kaydedilmedi. Güncel değerleri görmek için sayfayı yenileyin.",
+    "stepUpTitle": "Kimliğinizi doğrulayın",
+    "stepUpDescription": "Bu değişiklikler bu sunucuda kimlerin kaydolabileceğini, giriş yapabileceğini veya oturum tutabileceğini, denetim kaydının ne kadar süre saklanacağını ya da herkese açık bağlantıların paylaşanı gösterip göstermeyeceğini etkiler. Devam etmek için sizin olduğunuzu doğrulayın.",
     "envLocked": "{name} tarafından ayarlanıyor",
     "envSection": "Buradaki bazı ayarlar ortam değişkenleriyle ({names}) belirleniyor. Bu ayarları burada düzenlemek için değişkenleri ortamdan kaldırın.",
     "unsaved": "Kaydedilmemiş değişiklikler",
@@ -323,7 +347,9 @@
     "password": {
       "title": "Parola ilkesi",
       "lengthRegular": "Normal kullanıcılar için minimum uzunluk",
-      "lengthAdmin": "Yönetici kullanıcılar için minimum uzunluk"
+      "lengthAdmin": "Yönetici kullanıcılar için minimum uzunluk",
+      "breachCheck": "Bilinen veri ihlallerinde bulunan parolaları reddet",
+      "breachCheckHint": "Yeni veya değiştirilen her parolayı haveibeenpwned.com ile kontrol eder. Parolanın SHA-1 özetinin yalnızca ilk 5 karakteri gönderilir, parolanın kendisi asla gönderilmez. Hizmete ulaşılamazsa parola kabul edilir."
     },
     "session": {
       "title": "Oturumlar",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "Kayıt",
       "enabled": "Yeni kullanıcı kayıtlarına izin ver",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "Tek oturum açma ile yeni kullanıcı kaydına izin ver",
       "adminApproval": "Yeni kayıtlar için yönetici onayı iste",
       "emailVerification": "Yeni kayıtlar için e-posta doğrulaması iste"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "Kullanıcı adını kullanmak için boş bırakın.",
       "save": "E-posta ayarlarını kaydet",
       "saveSuccess": "E-posta ayarları kaydedildi",
-      "saveError": "E-posta ayarları kaydedilemedi"
+      "saveError": "E-posta ayarları kaydedilemedi",
+      "stepUpTitle": "Kimliğinizi doğrulayın",
+      "stepUpDescription": "Posta sunucusu her parola sıfırlama bağlantısını alır. Devam etmek için sizin olduğunuzu doğrulayın."
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "Tek oturum açma için SSO sağlayıcılarını yapılandırın",
     "buttonAdd": "Sağlayıcı ekle",
     "toggleError": "Sağlayıcı değiştirilemedi. Lütfen tekrar deneyin.",
+    "toggleStepUpDescription": "{name} sağlayıcısının etkin olup olmadığını değiştirmek, bu sunucuya kimlerin giriş yapabileceğini belirler. Devam etmek için sizin olduğunuzu doğrulayın.",
+    "toggleStepUpConfirm": "Onayla",
     "enableSuccess": "Sağlayıcı etkinleştirildi",
     "disableSuccess": "Sağlayıcı devre dışı bırakıldı",
     "type": {
@@ -566,10 +596,19 @@
       "iconSaveError": "Sağlayıcı kaydedildi ancak simgesi güncellenemedi. Tekrar denemek için sağlayıcıyı düzenleyin.",
       "enabled": "Etkin",
       "autoCreateUsers": "İlk girişte kullanıcıları otomatik oluştur",
+      "linkByEmail": "E-postayla mevcut bir hesaba bağla",
+      "linkByEmailHint": "İlk girişin, aynı doğrulanmış e-postaya sahip hesaba katılmasını sağlar. Kapalıyken bu giriş reddedilir ve kullanıcı sağlayıcıyı kendi ayarlarından bağlar. Yeni bir sağlayıcı için varsayılan olarak kapalıdır.",
       "syncUserInfo": "Her girişte profil bilgisini eşitle",
+      "syncUserInfoHint": "Eşlenen adı sağlayıcıdan kopyalar. E-postayı içermez.",
+      "syncEmail": "E-postayı her girişte eşitle",
+      "syncEmailHint": "Sağlayıcının doğruladığı e-postayı hesaba kopyalar, değişikliği denetim kaydına işler ve önceki adrese bildirim gönderir. Yeni bir sağlayıcı için varsayılan olarak kapalıdır.",
       "createSuccess": "Sağlayıcı eklendi",
       "updateSuccess": "Sağlayıcı güncellendi",
+      "stepUpTitle": "Kimliğinizi doğrulayın",
+      "stepUpDescription": "Kimlik sağlayıcıları bu sunucuya kimlerin giriş yapabileceğini belirler. Devam etmek için sizin olduğunuzu doğrulayın.",
       "slugConflict": "Bu kısa ad zaten kullanılıyor",
+      "issuerInUse": "Başka bir kimlik sağlayıcı bu düzenleyen URL'sini zaten kullanıyor",
+      "issuerLocked": "Kullanıcılar bu sağlayıcıya bağlıyken düzenleyen URL'si değiştirilemez. Bağlantılarını kaldırın veya bunun yerine yeni bir sağlayıcı ekleyin.",
       "staleError": "Bu sağlayıcı başka bir yerde değiştirildi. Değişiklikleriniz kaydedilmedi. Güncel ayarları yüklemek için kapatıp yeniden açın.",
       "saveError": "Sağlayıcı kaydedilemedi. Lütfen tekrar deneyin."
     }
@@ -739,23 +778,28 @@
       "revokeOthersBody": "Bu cihaz dışındaki her cihazın oturumu kapatılacak ve tekrar giriş yapması gerekecek.",
       "revokeOthersConfirm": "Diğerlerinden çıkış yap",
       "revokeOthersSuccess": "Diğer oturumlardan çıkış yapıldı",
-      "revokeOthersError": "Diğer oturumlardan çıkış yapılamadı. Lütfen tekrar deneyin."
+      "revokeOthersError": "Diğer oturumlardan çıkış yapılamadı. Lütfen tekrar deneyin.",
+      "signOutEverywhere": "Her yerden çıkış yap",
+      "signOutEverywhereTitle": "Her yerden çıkış yapılsın mı?",
+      "signOutEverywhereBody": "Bu cihaz dahil her cihazın oturumu kapatılacak ve tekrar giriş yapmaları gerekecek.",
+      "signOutEverywhereConfirm": "Her yerden çıkış yap",
+      "signOutEverywhereError": "Tüm oturumlardan çıkış yapılamadı. Lütfen tekrar deneyin."
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "Bilinen cihazlar",
+      "subtitle": "Son güvenlik değişikliğinizden bu yana giriş yaptığınız tarayıcılar ve uygulamalar. Başka bir cihazdan giriş yapmak size bir bildirim gönderir.",
+      "empty": "Bilinen cihaz yok",
+      "error": "Bilinen cihazlar yüklenemedi",
+      "current": "Bu cihaz",
+      "unknown": "Bilinmeyen cihaz",
+      "lastSeen": "Son giriş {date}",
+      "forget": "Bu cihazı unut",
+      "forgetTitle": "Bu cihaz unutulsun mu?",
+      "forgetDescription": "Bu cihazdan bir sonraki giriş yeni bir cihaz sayılır ve size bir bildirim gönderir.",
+      "forgetConfirm": "Cihazı unut",
+      "forgetSuccess": "Cihaz unutuldu",
+      "forgetError": "Cihaz unutulamadı. Lütfen tekrar deneyin.",
+      "forgetNotFound": "Bu cihaz artık bilinmiyor."
     },
     "linked": {
       "title": "Bağlı hesaplar",

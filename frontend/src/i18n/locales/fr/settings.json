@@ -33,6 +33,7 @@
       "unverified": "E-mail non vérifié",
       "pendingEmail": "Changement d'e-mail en attente",
       "pending": "En attente d'approbation",
+      "deleting": "Suppression en cours",
       "externalAuth": "Auth. externe"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "Au moins 8 caractères",
       "passwordRequired": "Le mot de passe est obligatoire",
       "confirmPassword": "Confirmer le mot de passe",
+      "mustChangePasswordHint": "L'utilisateur devra choisir un nouveau mot de passe lors de sa prochaine connexion.",
       "confirmPasswordRequired": "Confirmer le mot de passe",
       "preferredLanguage": "Langue préférée",
       "languages": {
@@ -162,7 +164,11 @@
       "updateSuccess": "Utilisateur mis à jour",
       "conflict": "Ce nom d'utilisateur ou cet e-mail est déjà utilisé",
       "lastAdministrator": "Le seul administrateur ne peut pas être rétrogradé ni désactivé",
-      "saveError": "Impossible d'enregistrer l'utilisateur. Veuillez réessayer."
+      "saveError": "Impossible d'enregistrer l'utilisateur. Veuillez réessayer.",
+      "stepUpTitle": "Confirmez votre identité",
+      "stepUpDescription": "Modifier l'e-mail, le type d'accès ou le statut actif de {username} le déconnecte partout. Confirmez qu'il s'agit bien de vous pour continuer.",
+      "stepUpCreateDescription": "Créer un compte administrateur donne un accès complet. Confirmez qu'il s'agit bien de vous pour continuer.",
+      "stepUpConfirm": "Enregistrer les modifications"
     },
     "delete": {
       "title": "Supprimer l'utilisateur",
@@ -199,6 +205,24 @@
       "success": "Mot de passe mis à jour",
       "error": "Impossible de mettre à jour le mot de passe. Veuillez réessayer."
     },
+    "mfaReset": {
+      "button": "Réinitialiser la MFA",
+      "title": "Réinitialiser l'authentification à deux facteurs",
+      "description": "Cela désactive l'authentification à deux facteurs de {username} et supprime ses codes de secours. Toutes ses sessions prennent fin : il est donc déconnecté de tous ses appareils et doit configurer à nouveau l'authentification à deux facteurs après s'être reconnecté. Il en est informé. Confirmez qu'il s'agit bien de vous pour continuer.",
+      "confirm": "Réinitialiser la MFA",
+      "success": "Authentification à deux facteurs réinitialisée",
+      "refused": "L'authentification à deux facteurs n'est pas activée pour cet utilisateur.",
+      "error": "Impossible de réinitialiser l'authentification à deux facteurs. Veuillez réessayer."
+    },
+    "requirePasswordChange": {
+      "button": "Exiger un changement de mot de passe",
+      "title": "Exiger un changement de mot de passe",
+      "description": "{username} garde son mot de passe actuel mais devra en choisir un nouveau lors de sa prochaine connexion avec celui-ci. Toutes ses sessions prennent fin : il est donc déconnecté de tous ses appareils. La connexion via un fournisseur d'authentification unique n'est pas concernée. Il en est informé. Confirmez qu'il s'agit bien de vous pour continuer.",
+      "confirm": "Exiger le changement",
+      "success": "Changement de mot de passe exigé",
+      "refused": "Cet utilisateur n'a pas de mot de passe à changer.",
+      "error": "Impossible d'exiger un changement de mot de passe. Veuillez réessayer."
+    },
     "sessions": {
       "title": "Sessions",
       "subtitle": "Appareils actuellement connectés à ce compte",
@@ -217,8 +241,6 @@
       "revokeTitle": "Révoquer la session",
       "revokeBody": "Ceci déconnecte l'appareil, qui devra se reconnecter",
       "revokeConfirm": "Révoquer",
-      "revokeCancel": "Annuler",
-      "revokeClose": "Fermer",
       "revokeSuccess": "Session révoquée",
       "revokeError": "Impossible de révoquer la session. Veuillez réessayer."
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "Paramètres du serveur mis à jour",
     "saveError": "Impossible de mettre à jour les paramètres du serveur. Veuillez réessayer.",
     "staleError": "Ces paramètres ont été modifiés par quelqu'un d'autre pendant que vous les modifiiez. Vos modifications n'ont pas été enregistrées. Rechargez la page pour voir les valeurs actuelles.",
+    "stepUpTitle": "Confirmez votre identité",
+    "stepUpDescription": "Ces modifications déterminent qui peut s'inscrire, se connecter ou conserver une session sur ce serveur, combien de temps le journal d'audit est conservé, ou si les liens publics indiquent qui les a partagés. Confirmez qu'il s'agit bien de vous pour continuer.",
     "envLocked": "Défini par {name}",
     "envSection": "Certains réglages ici sont définis par des variables d'environnement ({names}). Retirez-les de l'environnement pour modifier ces réglages ici.",
     "unsaved": "Modifications non enregistrées",
@@ -323,7 +347,9 @@
     "password": {
       "title": "Politique de mot de passe",
       "lengthRegular": "Longueur minimale pour les utilisateurs réguliers",
-      "lengthAdmin": "Longueur minimale pour les administrateurs"
+      "lengthAdmin": "Longueur minimale pour les administrateurs",
+      "breachCheck": "Refuser les mots de passe présents dans des fuites de données connues",
+      "breachCheckHint": "Vérifie chaque mot de passe nouveau ou modifié avec haveibeenpwned.com. Seuls les 5 premiers caractères du hachage SHA-1 du mot de passe sont envoyés, jamais le mot de passe. Si le service est inaccessible, le mot de passe est accepté."
     },
     "session": {
       "title": "Sessions",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "Inscription",
       "enabled": "Autoriser les nouvelles inscriptions",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "Autoriser l'inscription de nouveaux utilisateurs via l'authentification unique",
       "adminApproval": "Exiger l'approbation admin pour les nouvelles inscriptions",
       "emailVerification": "Exiger la vérification de l'e-mail pour les nouvelles inscriptions"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "Laissez vide pour utiliser le nom d'utilisateur.",
       "save": "Enregistrer les paramètres e-mail",
       "saveSuccess": "Paramètres e-mail enregistrés",
-      "saveError": "Impossible d'enregistrer les paramètres e-mail"
+      "saveError": "Impossible d'enregistrer les paramètres e-mail",
+      "stepUpTitle": "Confirmez votre identité",
+      "stepUpDescription": "Le serveur de messagerie reçoit chaque lien de réinitialisation de mot de passe. Confirmez qu'il s'agit bien de vous pour continuer."
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "Configurez les fournisseurs SSO pour l'authentification unique",
     "buttonAdd": "Ajouter un fournisseur",
     "toggleError": "Impossible de modifier le fournisseur. Veuillez réessayer.",
+    "toggleStepUpDescription": "Activer ou désactiver {name} détermine qui peut se connecter à ce serveur. Confirmez qu'il s'agit bien de vous pour continuer.",
+    "toggleStepUpConfirm": "Confirmer",
     "enableSuccess": "Fournisseur activé",
     "disableSuccess": "Fournisseur désactivé",
     "type": {
@@ -566,10 +596,19 @@
       "iconSaveError": "Le fournisseur a été enregistré, mais son icône n'a pas pu être mise à jour. Modifiez le fournisseur pour réessayer.",
       "enabled": "Activé",
       "autoCreateUsers": "Créer automatiquement les utilisateurs à la première connexion",
+      "linkByEmail": "Associer à un compte existant par e-mail",
+      "linkByEmailHint": "Permet à une première connexion de rejoindre le compte ayant le même e-mail vérifié. Désactivé, cette connexion est refusée et l'utilisateur associe le fournisseur depuis ses paramètres. Désactivé par défaut pour un nouveau fournisseur.",
       "syncUserInfo": "Synchroniser les informations du profil à chaque connexion",
+      "syncUserInfoHint": "Copie le nom mappé depuis le fournisseur. Cela n'inclut pas l'e-mail.",
+      "syncEmail": "Synchroniser l'e-mail à chaque connexion",
+      "syncEmailHint": "Copie l'e-mail vérifié par le fournisseur sur le compte, consigne la modification dans le journal d'audit et prévient l'ancienne adresse. Désactivé par défaut pour un nouveau fournisseur.",
       "createSuccess": "Fournisseur ajouté",
       "updateSuccess": "Fournisseur mis à jour",
+      "stepUpTitle": "Confirmez votre identité",
+      "stepUpDescription": "Les fournisseurs d'identité déterminent qui peut se connecter à ce serveur. Confirmez qu'il s'agit bien de vous pour continuer.",
       "slugConflict": "Cet identifiant est déjà utilisé",
+      "issuerInUse": "Un autre fournisseur d'identité utilise déjà cette URL d'émetteur",
+      "issuerLocked": "L'URL de l'émetteur ne peut pas être modifiée tant que des utilisateurs sont associés à ce fournisseur. Dissociez-les ou ajoutez plutôt un nouveau fournisseur.",
       "staleError": "Ce fournisseur a été modifié ailleurs. Vos modifications n'ont pas été enregistrées. Fermez-le et rouvrez-le pour charger les paramètres actuels.",
       "saveError": "Impossible d'enregistrer le fournisseur. Veuillez réessayer."
     }
@@ -739,23 +778,28 @@
       "revokeOthersBody": "Tous les appareils sauf celui-ci seront déconnectés et devront se reconnecter.",
       "revokeOthersConfirm": "Déconnecter les autres",
       "revokeOthersSuccess": "Autres sessions déconnectées",
-      "revokeOthersError": "Impossible de déconnecter les autres sessions. Veuillez réessayer."
+      "revokeOthersError": "Impossible de déconnecter les autres sessions. Veuillez réessayer.",
+      "signOutEverywhere": "Se déconnecter partout",
+      "signOutEverywhereTitle": "Se déconnecter partout ?",
+      "signOutEverywhereBody": "Tous les appareils, y compris celui-ci, seront déconnectés et devront se reconnecter.",
+      "signOutEverywhereConfirm": "Se déconnecter partout",
+      "signOutEverywhereError": "Impossible de déconnecter toutes les sessions. Veuillez réessayer."
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "Appareils connus",
+      "subtitle": "Navigateurs et applications depuis lesquels vous vous êtes connecté depuis votre dernière modification de sécurité. Une connexion depuis tout autre appareil vous envoie une notification.",
+      "empty": "Aucun appareil connu",
+      "error": "Impossible de charger les appareils connus",
+      "current": "Cet appareil",
+      "unknown": "Appareil inconnu",
+      "lastSeen": "Dernière connexion le {date}",
+      "forget": "Oublier cet appareil",
+      "forgetTitle": "Oublier cet appareil ?",
+      "forgetDescription": "La prochaine connexion depuis cet appareil sera considérée comme un nouvel appareil et vous enverra une notification.",
+      "forgetConfirm": "Oublier l'appareil",
+      "forgetSuccess": "Appareil oublié",
+      "forgetError": "Impossible d'oublier l'appareil. Veuillez réessayer.",
+      "forgetNotFound": "Cet appareil n'est plus connu."
     },
     "linked": {
       "title": "Comptes liés",
@@ -820,7 +864,7 @@
       "empty": "Vous n'avez pas encore de clés API.",
       "name": "Nom",
       "namePlaceholder": "ex. Script de téléversement Garmin",
-      "scopes": "Permissions",
+      "scopes": "Autorisations",
       "scopesHint": "Choisissez ce que cette clé est autorisée à faire. Au moins une est requise.",
       "expiry": "Expiration (facultatif)",
       "expiryHint": "Laissez vide pour utiliser la durée la plus longue autorisée par le serveur. Une date plus tardive est refusée.",

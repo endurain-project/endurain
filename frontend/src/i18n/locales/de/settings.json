@@ -33,6 +33,7 @@
       "unverified": "E-Mail nicht bestätigt",
       "pendingEmail": "Ausstehende E-Mail-Änderung",
       "pending": "Genehmigung ausstehend",
+      "deleting": "Wird gelöscht",
       "externalAuth": "Externe Auth"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "Mindestens 8 Zeichen",
       "passwordRequired": "Passwort ist erforderlich",
       "confirmPassword": "Passwort bestätigen",
+      "mustChangePasswordHint": "Der Benutzer muss bei der nächsten Anmeldung ein neues Passwort wählen.",
       "confirmPasswordRequired": "Passwort bestätigen",
       "preferredLanguage": "Bevorzugte Sprache",
       "languages": {
@@ -162,7 +164,11 @@
       "updateSuccess": "Benutzer aktualisiert",
       "conflict": "Dieser Benutzername oder diese E-Mail wird bereits verwendet",
       "lastAdministrator": "Der einzige Administrator kann nicht herabgestuft oder deaktiviert werden",
-      "saveError": "Benutzer konnte nicht gespeichert werden. Bitte versuche es erneut."
+      "saveError": "Benutzer konnte nicht gespeichert werden. Bitte versuche es erneut.",
+      "stepUpTitle": "Bestätige deine Identität",
+      "stepUpDescription": "Wenn du die E-Mail-Adresse, den Zugriffstyp oder den Aktivstatus von {username} änderst, wird die Person überall abgemeldet. Bestätige, dass du es bist, um fortzufahren.",
+      "stepUpCreateDescription": "Das Erstellen eines Administratorkontos gewährt vollen Zugriff. Bestätige, dass du es bist, um fortzufahren.",
+      "stepUpConfirm": "Änderungen speichern"
     },
     "delete": {
       "title": "Benutzer löschen",
@@ -199,6 +205,24 @@
       "success": "Passwort aktualisiert",
       "error": "Passwort konnte nicht aktualisiert werden. Bitte versuche es erneut."
     },
+    "mfaReset": {
+      "button": "MFA zurücksetzen",
+      "title": "Zwei-Faktor-Authentifizierung zurücksetzen",
+      "description": "Dadurch wird die Zwei-Faktor-Authentifizierung für {username} deaktiviert und die Backup-Codes werden entfernt. Alle Sitzungen enden, sodass die Person auf allen Geräten abgemeldet wird und nach der Anmeldung die Zwei-Faktor-Authentifizierung erneut einrichten muss. Sie wird benachrichtigt. Bestätige, dass du es bist, um fortzufahren.",
+      "confirm": "MFA zurücksetzen",
+      "success": "Zwei-Faktor-Authentifizierung zurückgesetzt",
+      "refused": "Die Zwei-Faktor-Authentifizierung ist für diesen Benutzer nicht aktiviert.",
+      "error": "Die Zwei-Faktor-Authentifizierung konnte nicht zurückgesetzt werden. Bitte versuche es erneut."
+    },
+    "requirePasswordChange": {
+      "button": "Passwortänderung verlangen",
+      "title": "Eine Passwortänderung verlangen",
+      "description": "{username} behält das aktuelle Passwort, muss aber bei der nächsten Anmeldung damit ein neues wählen. Alle Sitzungen enden, sodass die Person auf allen Geräten abgemeldet wird. Die Anmeldung über einen Single-Sign-On-Anbieter ist nicht betroffen. Sie wird benachrichtigt. Bestätige, dass du es bist, um fortzufahren.",
+      "confirm": "Änderung verlangen",
+      "success": "Passwortänderung verlangt",
+      "refused": "Dieser Benutzer hat kein Passwort, das geändert werden könnte.",
+      "error": "Die Passwortänderung konnte nicht verlangt werden. Bitte versuche es erneut."
+    },
     "sessions": {
       "title": "Sitzungen",
       "subtitle": "Derzeit bei diesem Konto angemeldete Geräte",
@@ -217,8 +241,6 @@
       "revokeTitle": "Sitzung widerrufen",
       "revokeBody": "Das Gerät wird abgemeldet und muss sich erneut anmelden",
       "revokeConfirm": "Widerrufen",
-      "revokeCancel": "Abbrechen",
-      "revokeClose": "Schließen",
       "revokeSuccess": "Sitzung widerrufen",
       "revokeError": "Sitzung konnte nicht widerrufen werden. Bitte versuche es erneut."
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "Servereinstellungen aktualisiert",
     "saveError": "Servereinstellungen konnten nicht aktualisiert werden. Bitte versuche es erneut.",
     "staleError": "Diese Einstellungen wurden von jemand anderem geändert, während du sie bearbeitet hast. Deine Änderungen wurden nicht gespeichert. Lade die Seite neu, um die aktuellen Werte zu sehen.",
+    "stepUpTitle": "Bestätige deine Identität",
+    "stepUpDescription": "Diese Änderungen betreffen, wer sich auf diesem Server registrieren, anmelden oder eine Sitzung behalten kann, wie lange das Audit-Protokoll aufbewahrt wird oder ob öffentliche Links anzeigen, wer sie geteilt hat. Bestätige, dass du es bist, um fortzufahren.",
     "envLocked": "Festgelegt durch {name}",
     "envSection": "Einige Einstellungen hier werden durch Umgebungsvariablen ({names}) festgelegt. Entferne sie aus der Umgebung, um diese Einstellungen hier zu bearbeiten.",
     "unsaved": "Nicht gespeicherte Änderungen",
@@ -323,7 +347,9 @@
     "password": {
       "title": "Passwortrichtlinie",
       "lengthRegular": "Mindestlänge für normale Benutzer",
-      "lengthAdmin": "Mindestlänge für Administratoren"
+      "lengthAdmin": "Mindestlänge für Administratoren",
+      "breachCheck": "Passwörter aus bekannten Datenlecks ablehnen",
+      "breachCheckHint": "Prüft jedes neue oder geänderte Passwort mit haveibeenpwned.com. Es werden nur die ersten 5 Zeichen des SHA-1-Hashes des Passworts gesendet, nie das Passwort selbst. Ist der Dienst nicht erreichbar, wird das Passwort akzeptiert."
     },
     "session": {
       "title": "Sitzungen",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "Registrierung",
       "enabled": "Neue Benutzerregistrierungen erlauben",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "Neue Benutzerregistrierungen über Single Sign-On erlauben",
       "adminApproval": "Admin-Genehmigung für neue Registrierungen erforderlich",
       "emailVerification": "E-Mail-Bestätigung für neue Registrierungen erforderlich"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "Leer lassen, um den Benutzernamen zu verwenden.",
       "save": "E-Mail-Einstellungen speichern",
       "saveSuccess": "E-Mail-Einstellungen gespeichert",
-      "saveError": "Die E-Mail-Einstellungen konnten nicht gespeichert werden"
+      "saveError": "Die E-Mail-Einstellungen konnten nicht gespeichert werden",
+      "stepUpTitle": "Bestätige deine Identität",
+      "stepUpDescription": "Der Mailserver erhält jeden Link zum Zurücksetzen von Passwörtern. Bestätige, dass du es bist, um fortzufahren."
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "SSO-Anbieter für Single Sign-On konfigurieren",
     "buttonAdd": "Anbieter hinzufügen",
     "toggleError": "Anbieter konnte nicht geändert werden. Bitte versuche es erneut.",
+    "toggleStepUpDescription": "Ob {name} aktiviert ist, entscheidet darüber, wer sich an diesem Server anmelden kann. Bestätige, dass du es bist, um fortzufahren.",
+    "toggleStepUpConfirm": "Bestätigen",
     "enableSuccess": "Anbieter aktiviert",
     "disableSuccess": "Anbieter deaktiviert",
     "type": {
@@ -566,10 +596,19 @@
       "iconSaveError": "Der Anbieter wurde gespeichert, aber sein Symbol konnte nicht aktualisiert werden. Bearbeite den Anbieter, um es erneut zu versuchen.",
       "enabled": "Aktiviert",
       "autoCreateUsers": "Benutzer bei erster Anmeldung automatisch erstellen",
+      "linkByEmail": "Per E-Mail mit einem bestehenden Konto verknüpfen",
+      "linkByEmailHint": "Lässt eine erste Anmeldung dem Konto mit derselben bestätigten E-Mail-Adresse beitreten. Ist die Option aus, wird diese Anmeldung abgelehnt und der Benutzer verknüpft den Anbieter in seinen Einstellungen. Bei einem neuen Anbieter standardmäßig aus.",
       "syncUserInfo": "Profilinformationen bei jeder Anmeldung synchronisieren",
+      "syncUserInfoHint": "Übernimmt den zugeordneten Namen vom Anbieter. Die E-Mail-Adresse ist nicht enthalten.",
+      "syncEmail": "E-Mail bei jeder Anmeldung synchronisieren",
+      "syncEmailHint": "Übernimmt die vom Anbieter bestätigte E-Mail-Adresse in das Konto, protokolliert die Änderung im Audit-Protokoll und benachrichtigt die vorherige Adresse. Bei einem neuen Anbieter standardmäßig aus.",
       "createSuccess": "Anbieter hinzugefügt",
       "updateSuccess": "Anbieter aktualisiert",
+      "stepUpTitle": "Bestätige deine Identität",
+      "stepUpDescription": "Identitätsanbieter entscheiden, wer sich an diesem Server anmelden kann. Bestätige, dass du es bist, um fortzufahren.",
       "slugConflict": "Dieser Slug wird bereits verwendet",
+      "issuerInUse": "Ein anderer Identitätsanbieter verwendet diese Aussteller-URL bereits",
+      "issuerLocked": "Die Aussteller-URL kann nicht geändert werden, solange Benutzer mit diesem Anbieter verknüpft sind. Hebe die Verknüpfungen auf oder füge stattdessen einen neuen Anbieter hinzu.",
       "staleError": "Dieser Anbieter wurde anderswo geändert. Deine Änderungen wurden nicht gespeichert. Schließe ihn und öffne ihn erneut, um die aktuellen Einstellungen zu laden.",
       "saveError": "Anbieter konnte nicht gespeichert werden. Bitte versuche es erneut."
     }
@@ -739,23 +778,28 @@
       "revokeOthersBody": "Alle Geräte außer diesem werden abgemeldet und müssen sich erneut anmelden.",
       "revokeOthersConfirm": "Andere abmelden",
       "revokeOthersSuccess": "Andere Sitzungen abgemeldet",
-      "revokeOthersError": "Die anderen Sitzungen konnten nicht abgemeldet werden. Bitte versuche es erneut."
+      "revokeOthersError": "Die anderen Sitzungen konnten nicht abgemeldet werden. Bitte versuche es erneut.",
+      "signOutEverywhere": "Überall abmelden",
+      "signOutEverywhereTitle": "Überall abmelden?",
+      "signOutEverywhereBody": "Alle Geräte, einschließlich dieses, werden abgemeldet und müssen sich erneut anmelden.",
+      "signOutEverywhereConfirm": "Überall abmelden",
+      "signOutEverywhereError": "Es konnte nicht von allen Sitzungen abgemeldet werden. Bitte versuche es erneut."
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "Bekannte Geräte",
+      "subtitle": "Browser und Apps, mit denen du dich seit deiner letzten Sicherheitsänderung angemeldet hast. Eine Anmeldung von einem anderen Gerät löst eine Benachrichtigung aus.",
+      "empty": "Keine bekannten Geräte",
+      "error": "Bekannte Geräte konnten nicht geladen werden",
+      "current": "Dieses Gerät",
+      "unknown": "Unbekanntes Gerät",
+      "lastSeen": "Zuletzt angemeldet {date}",
+      "forget": "Dieses Gerät vergessen",
+      "forgetTitle": "Dieses Gerät vergessen?",
+      "forgetDescription": "Die nächste Anmeldung von diesem Gerät zählt als neues Gerät und löst eine Benachrichtigung aus.",
+      "forgetConfirm": "Gerät vergessen",
+      "forgetSuccess": "Gerät vergessen",
+      "forgetError": "Das Gerät konnte nicht vergessen werden. Bitte versuche es erneut.",
+      "forgetNotFound": "Dieses Gerät ist nicht mehr bekannt."
     },
     "linked": {
       "title": "Verknüpfte Konten",

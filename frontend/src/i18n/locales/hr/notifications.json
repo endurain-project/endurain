@@ -74,6 +74,14 @@
         "title": "Dvofaktorska autentifikacija isključena",
         "body": "Dvofaktorska autentifikacija isključena je za vaš račun. Ako to niste bili vi, resetirajte lozinku i pregledajte svoje sigurnosne postavke."
       },
+      "mfaResetByAdmin": {
+        "title": "Administrator je poništio dvofaktorsku autentifikaciju",
+        "body": "Administrator je poništio dvofaktorsku autentifikaciju za vaš račun i odjavio vas sa svih uređaja. Ponovno je postavite u sigurnosnim postavkama. Ako to niste očekivali, obratite se svom administratoru."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Administrator je zahtijevao promjenu lozinke",
+        "body": "Administrator je zahtijevao da promijenite lozinku i odjavio vas sa svih uređaja. Novu ćete lozinku odabrati pri sljedećoj prijavi lozinkom. Ako to niste očekivali, obratite se svom administratoru."
+      },
       "backupCodesGenerated": {
         "title": "Generirani su novi sigurnosni kodovi",
         "body": "Za vaš račun generirani su novi sigurnosni kodovi. Ako to niste bili vi, resetirajte lozinku i pregledajte svoje sigurnosne postavke."
@@ -86,6 +94,14 @@
         "title": "Pružatelj prijave odspojen",
         "body": "{name} je odspojen od vašeg računa. Ako to niste bili vi, resetirajte lozinku i pregledajte svoje sigurnosne postavke.",
         "bodyGeneric": "Pružatelj prijave odspojen je od vašeg računa. Ako to niste bili vi, resetirajte lozinku i pregledajte svoje sigurnosne postavke."
+      },
+      "accountLocked": {
+        "title": "Račun je zaključan",
+        "body": "Vaš je račun zaključan nakon 100 uzastopnih neuspjelih pokušaja prijave. Preglednici i aplikacije s kojih ste se prijavili od posljednje sigurnosne promjene i dalje se mogu prijaviti. Ako ti pokušaji nisu bili vaši, promijenite ili ponovno postavite lozinku, što također uklanja zaključavanje."
+      },
+      "mfaLocked": {
+        "title": "Provjera u dva koraka je zaključana",
+        "body": "Vaš je račun zaključan nakon 100 uzastopnih pogrešnih kodova provjere u dva koraka, što znači da netko zna vašu lozinku. Preglednici i aplikacije s kojih ste se prijavili od posljednje sigurnosne promjene i dalje se mogu prijaviti. Ako ti pokušaji nisu bili vaši, promijenite lozinku."
       },
       "unknown": {
         "title": "Sigurnost računa promijenjena",

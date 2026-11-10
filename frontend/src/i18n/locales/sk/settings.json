@@ -33,6 +33,7 @@
       "unverified": "Neoverený e-mail",
       "pendingEmail": "Čakajúca zmena e-mailu",
       "pending": "Čaká na schválenie",
+      "deleting": "Odstraňuje sa",
       "externalAuth": "Externé overenie"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "Aspoň 8 znakov",
       "passwordRequired": "Heslo je povinné",
       "confirmPassword": "Potvrďte heslo",
+      "mustChangePasswordHint": "Používateľ bude musieť pri ďalšom prihlásení zvoliť nové heslo.",
       "confirmPasswordRequired": "Potvrďte heslo",
       "preferredLanguage": "Preferovaný jazyk",
       "languages": {
@@ -162,7 +164,11 @@
       "updateSuccess": "Používateľ aktualizovaný",
       "conflict": "Toto používateľské meno alebo e-mail sa už používa",
       "lastAdministrator": "Jediného správcu nemožno degradovať ani deaktivovať",
-      "saveError": "Používateľa sa nepodarilo uložiť. Skúste to znova."
+      "saveError": "Používateľa sa nepodarilo uložiť. Skúste to znova.",
+      "stepUpTitle": "Potvrďte svoju identitu",
+      "stepUpDescription": "Zmena e-mailu, typu prístupu alebo aktívneho stavu používateľa {username} ho odhlási všade. Pokračujte potvrdením, že ste to vy.",
+      "stepUpCreateDescription": "Vytvorenie účtu správcu udeľuje plný prístup. Pokračujte potvrdením, že ste to vy.",
+      "stepUpConfirm": "Uložiť zmeny"
     },
     "delete": {
       "title": "Odstrániť používateľa",
@@ -199,6 +205,24 @@
       "success": "Heslo aktualizované",
       "error": "Heslo sa nepodarilo aktualizovať. Skúste to znova."
     },
+    "mfaReset": {
+      "button": "Obnoviť MFA",
+      "title": "Obnoviť dvojfaktorové overovanie",
+      "description": "Týmto sa vypne dvojfaktorové overovanie používateľa {username} a odstránia sa jeho záložné kódy. Všetky jeho relácie sa ukončia, takže sa odhlási zo všetkých zariadení a po prihlásení si musí dvojfaktorové overovanie nastaviť znova. Bude upozornený. Pokračujte potvrdením, že ste to vy.",
+      "confirm": "Obnoviť MFA",
+      "success": "Dvojfaktorové overovanie bolo obnovené",
+      "refused": "Dvojfaktorové overovanie nie je pre tohto používateľa zapnuté.",
+      "error": "Dvojfaktorové overovanie sa nepodarilo obnoviť. Skúste to znova."
+    },
+    "requirePasswordChange": {
+      "button": "Vyžadovať zmenu hesla",
+      "title": "Vyžadovať zmenu hesla",
+      "description": "{username} si ponechá súčasné heslo, ale pri ďalšom prihlásení ním musí zvoliť nové. Všetky jeho relácie sa ukončia, takže sa odhlási zo všetkých zariadení. Prihlásenie cez poskytovateľa jednotného prihlásenia sa to netýka. Bude upozornený. Pokračujte potvrdením, že ste to vy.",
+      "confirm": "Vyžadovať zmenu",
+      "success": "Zmena hesla je vyžadovaná",
+      "refused": "Tento používateľ nemá heslo, ktoré by sa dalo zmeniť.",
+      "error": "Zmenu hesla sa nepodarilo vyžadovať. Skúste to znova."
+    },
     "sessions": {
       "title": "Relácie",
       "subtitle": "Zariadenia aktuálne prihlásené do tohto účtu",
@@ -217,8 +241,6 @@
       "revokeTitle": "Zrušiť reláciu",
       "revokeBody": "Toto odhlási zariadenie, bude sa musieť znova prihlásiť",
       "revokeConfirm": "Zrušiť",
-      "revokeCancel": "Zrušiť",
-      "revokeClose": "Zavrieť",
       "revokeSuccess": "Relácia zrušená",
       "revokeError": "Reláciu sa nepodarilo zrušiť. Skúste to znova."
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "Nastavenia servera aktualizované",
     "saveError": "Nastavenia servera sa nepodarilo aktualizovať. Skúste to znova.",
     "staleError": "Tieto nastavenia počas úprav zmenil niekto iný. Vaše zmeny neboli uložené. Načítajte stránku znova, aby ste videli aktuálne hodnoty.",
+    "stepUpTitle": "Potvrďte svoju identitu",
+    "stepUpDescription": "Tieto zmeny ovplyvňujú, kto sa môže zaregistrovať, prihlásiť alebo udržať reláciu na tomto serveri, ako dlho sa uchováva auditný záznam alebo či verejné odkazy zobrazujú, kto ich zdieľal. Pokračujte potvrdením, že ste to vy.",
     "envLocked": "Nastavené premennou {name}",
     "envSection": "Niektoré nastavenia tu sú určené premennými prostredia ({names}). Odstráňte ich z prostredia, aby ste tieto nastavenia mohli upraviť tu.",
     "unsaved": "Neuložené zmeny",
@@ -323,7 +347,9 @@
     "password": {
       "title": "Pravidlá hesla",
       "lengthRegular": "Minimálna dĺžka pre bežných používateľov",
-      "lengthAdmin": "Minimálna dĺžka pre administrátorov"
+      "lengthAdmin": "Minimálna dĺžka pre administrátorov",
+      "breachCheck": "Odmietať heslá nájdené v známych únikoch údajov",
+      "breachCheckHint": "Každé nové alebo zmenené heslo skontroluje cez haveibeenpwned.com. Odosiela sa iba prvých 5 znakov hashu SHA-1 hesla, nikdy nie samotné heslo. Ak je služba nedostupná, heslo sa prijme."
     },
     "session": {
       "title": "Relácie",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "Registrácia",
       "enabled": "Povoliť registrácie nových používateľov",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "Povoliť registráciu nových používateľov cez jednotné prihlásenie",
       "adminApproval": "Vyžadovať schválenie administrátorom pre nové registrácie",
       "emailVerification": "Vyžadovať overenie e-mailu pre nové registrácie"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "Ak chcete použiť používateľské meno, ponechajte prázdne.",
       "save": "Uložiť nastavenia pošty",
       "saveSuccess": "Nastavenia pošty uložené",
-      "saveError": "Nastavenia pošty sa nepodarilo uložiť"
+      "saveError": "Nastavenia pošty sa nepodarilo uložiť",
+      "stepUpTitle": "Potvrďte svoju identitu",
+      "stepUpDescription": "Poštový server dostáva každý odkaz na obnovenie hesla. Pokračujte potvrdením, že ste to vy."
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "Konfigurujte poskytovateľov SSO pre jednotné prihlásenie",
     "buttonAdd": "Pridať poskytovateľa",
     "toggleError": "Poskytovateľa sa nepodarilo zmeniť. Skúste to znova.",
+    "toggleStepUpDescription": "Zmena zapnutia poskytovateľa {name} rozhoduje o tom, kto sa môže prihlásiť na tento server. Pokračujte potvrdením, že ste to vy.",
+    "toggleStepUpConfirm": "Potvrdiť",
     "enableSuccess": "Poskytovateľ povolený",
     "disableSuccess": "Poskytovateľ zakázaný",
     "type": {
@@ -542,10 +572,10 @@
       "issuerUrlRequired": "URL vydavateľa je povinná",
       "issuerUrlRefused": "URL poskytovateľa bolo odmietnuté. Musí používať https://, byť preložiteľné zo servera a poskytovateľ v privátnej sieti musí byť uvedený v SSRF_ALLOWED_HOSTS.",
       "issuerUrlTooLong": "URL vydavateľa musí mať najviac 500 znakov",
-      "clientId": "Client ID",
+      "clientId": "ID klienta",
       "clientIdRequired": "Client ID je povinné",
       "clientIdTooLong": "Client ID musí mať najviac 512 znakov",
-      "clientSecret": "Client secret",
+      "clientSecret": "Tajný kľúč klienta",
       "clientSecretRequired": "Client secret je povinný",
       "clientSecretTooLong": "Client secret musí mať najviac 512 znakov",
       "clientSecretHintEdit": "Nechajte prázdne na zachovanie aktuálneho secret",
@@ -566,10 +596,19 @@
       "iconSaveError": "Poskytovateľ bol uložený, ale jeho ikonu sa nepodarilo aktualizovať. Upravte poskytovateľa a skúste to znova.",
       "enabled": "Povolené",
       "autoCreateUsers": "Automaticky vytvárať používateľov pri prvom prihlásení",
+      "linkByEmail": "Pripojiť k existujúcemu účtu podľa e-mailu",
+      "linkByEmailHint": "Umožňuje, aby sa prvé prihlásenie pripojilo k účtu s rovnakým overeným e-mailom. Keď je vypnuté, toto prihlásenie sa odmietne a používateľ pripojí poskytovateľa vo svojich nastaveniach. Pre nového poskytovateľa je predvolene vypnuté.",
       "syncUserInfo": "Synchronizovať informácie profilu pri každom prihlásení",
+      "syncUserInfoHint": "Skopíruje namapované meno od poskytovateľa. Nezahŕňa e-mail.",
+      "syncEmail": "Synchronizovať e-mail pri každom prihlásení",
+      "syncEmailHint": "Skopíruje e-mail overený poskytovateľom do účtu, zaznamená zmenu do auditu a upozorní predchádzajúcu adresu. Pre nového poskytovateľa je predvolene vypnuté.",
       "createSuccess": "Poskytovateľ pridaný",
       "updateSuccess": "Poskytovateľ aktualizovaný",
+      "stepUpTitle": "Potvrďte svoju identitu",
+      "stepUpDescription": "Poskytovatelia identity rozhodujú o tom, kto sa môže prihlásiť na tento server. Pokračujte potvrdením, že ste to vy.",
       "slugConflict": "Tento slug sa už používa",
+      "issuerInUse": "Iný poskytovateľ identity už používa túto URL vydavateľa",
+      "issuerLocked": "URL vydavateľa sa nedá zmeniť, kým sú k tomuto poskytovateľovi pripojení používatelia. Odpojte ich alebo namiesto toho pridajte nového poskytovateľa.",
       "staleError": "Tento poskytovateľ bol zmenený inde. Vaše zmeny neboli uložené. Zatvorte ho a znova otvorte, aby ste načítali aktuálne nastavenia.",
       "saveError": "Poskytovateľa sa nepodarilo uložiť. Skúste to znova."
     }
@@ -739,23 +778,28 @@
       "revokeOthersBody": "Každé zariadenie okrem tohto bude odhlásené a bude sa musieť znova prihlásiť.",
       "revokeOthersConfirm": "Odhlásiť ostatné",
       "revokeOthersSuccess": "Ostatné relácie odhlásené",
-      "revokeOthersError": "Ostatné relácie sa nepodarilo odhlásiť. Skúste to znova."
+      "revokeOthersError": "Ostatné relácie sa nepodarilo odhlásiť. Skúste to znova.",
+      "signOutEverywhere": "Odhlásiť všade",
+      "signOutEverywhereTitle": "Odhlásiť všade?",
+      "signOutEverywhereBody": "Všetky zariadenia vrátane tohto budú odhlásené a bude sa potrebné znova prihlásiť.",
+      "signOutEverywhereConfirm": "Odhlásiť všade",
+      "signOutEverywhereError": "Nepodarilo sa odhlásiť zo všetkých relácií. Skúste to znova."
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "Známe zariadenia",
+      "subtitle": "Prehliadače a aplikácie, z ktorých ste sa prihlásili od poslednej zmeny zabezpečenia. Prihlásenie z akéhokoľvek iného zariadenia vám pošle upozornenie.",
+      "empty": "Žiadne známe zariadenia",
+      "error": "Známe zariadenia sa nepodarilo načítať",
+      "current": "Toto zariadenie",
+      "unknown": "Neznáme zariadenie",
+      "lastSeen": "Posledné prihlásenie {date}",
+      "forget": "Zabudnúť toto zariadenie",
+      "forgetTitle": "Zabudnúť toto zariadenie?",
+      "forgetDescription": "Ďalšie prihlásenie z tohto zariadenia sa bude považovať za nové zariadenie a pošle vám upozornenie.",
+      "forgetConfirm": "Zabudnúť zariadenie",
+      "forgetSuccess": "Zariadenie bolo zabudnuté",
+      "forgetError": "Zariadenie sa nepodarilo zabudnúť. Skúste to znova.",
+      "forgetNotFound": "Toto zariadenie už nie je známe."
     },
     "linked": {
       "title": "Prepojené účty",
@@ -903,9 +947,9 @@
       "connectTitle": "Pripojiť Strava",
       "connectDescription": "Pre začatie zadajte client id a secret vašej Strava API aplikácie.",
       "connectHint": "Budete presmerovaní na Strava na autorizáciu prístupu a potom vrátení sem.",
-      "clientId": "Client ID",
+      "clientId": "ID klienta",
       "clientIdPlaceholder": "123456",
-      "clientSecret": "Client secret",
+      "clientSecret": "Tajný kľúč klienta",
       "connectError": "Pripojenie k Strava sa nepodarilo. Skontrolujte svoje údaje a skúste to znova.",
       "scopeError": "Strava nezískala všetky oprávnenia, ktoré Endurain potrebuje. Pripojte sa znova a nechajte všetky oprávnenia zaškrtnuté.",
       "completing": "Dokončovanie pripojenia Strava…",

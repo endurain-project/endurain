@@ -74,6 +74,14 @@
         "title": "Verificare în doi pași dezactivată",
         "body": "Verificarea în doi pași a fost dezactivată pentru contul tău. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate."
       },
+      "mfaResetByAdmin": {
+        "title": "Autentificarea în doi pași a fost resetată de un administrator",
+        "body": "Un administrator a resetat autentificarea în doi pași pentru contul tău și te-a deconectat de pe toate dispozitivele. Configureaz-o din nou din setările de securitate. Dacă nu te așteptai la asta, contactează administratorul."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Un administrator a cerut schimbarea parolei",
+        "body": "Un administrator ți-a cerut să îți schimbi parola și te-a deconectat de pe toate dispozitivele. Vei alege o parolă nouă la următoarea autentificare cu parola. Dacă nu te așteptai la asta, contactează administratorul."
+      },
       "backupCodesGenerated": {
         "title": "Au fost generate coduri de rezervă noi",
         "body": "Au fost generate coduri de rezervă noi pentru contul tău. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate."
@@ -86,6 +94,14 @@
         "title": "Furnizor de autentificare dezasociat",
         "body": "{name} a fost dezasociat de la contul tău. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate.",
         "bodyGeneric": "Un furnizor de autentificare a fost dezasociat de la contul tău. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate."
+      },
+      "accountLocked": {
+        "title": "Cont blocat",
+        "body": "Contul tău a fost blocat după 100 de încercări de autentificare eșuate la rând. Browserele și aplicațiile din care te-ai autentificat de la ultima modificare de securitate se pot autentifica în continuare. Dacă aceste încercări nu au fost ale tale, schimbă sau resetează-ți parola, ceea ce ridică și blocarea."
+      },
+      "mfaLocked": {
+        "title": "Verificarea în doi pași a fost blocată",
+        "body": "Contul tău a fost blocat după 100 de coduri greșite de verificare în doi pași la rând, deci cineva îți știe parola. Browserele și aplicațiile din care te-ai autentificat de la ultima modificare de securitate se pot autentifica în continuare. Dacă aceste încercări nu au fost ale tale, schimbă-ți parola."
       },
       "unknown": {
         "title": "Securitatea contului a fost modificată",

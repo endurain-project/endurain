@@ -431,7 +431,8 @@
       "close": "Bezárás",
       "createSuccess": "Folyadék rögzítve.",
       "updateSuccess": "Folyadékbejegyzés frissítve.",
-      "saveError": "Nem sikerült menteni a folyadékbejegyzést. Kérjük, próbáld újra."
+      "saveError": "Nem sikerült menteni a folyadékbejegyzést. Kérjük, próbáld újra.",
+      "dayTakenError": "Erre a napra már van vízbevitel-bejegyzés. Szerkeszd azt új hozzáadása helyett."
     },
     "target": {
       "title": "Folyadékcél beállítása",

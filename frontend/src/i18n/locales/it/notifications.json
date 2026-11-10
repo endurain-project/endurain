@@ -74,6 +74,14 @@
         "title": "Autenticazione a due fattori disattivata",
         "body": "L'autenticazione a due fattori è stata disattivata per il tuo account. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza."
       },
+      "mfaResetByAdmin": {
+        "title": "Autenticazione a due fattori reimpostata da un amministratore",
+        "body": "Un amministratore ha reimpostato l'autenticazione a due fattori per il tuo account e ti ha disconnesso da tutti i dispositivi. Configurala di nuovo dalle impostazioni di sicurezza. Se non te lo aspettavi, contatta il tuo amministratore."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Cambio password richiesto da un amministratore",
+        "body": "Un amministratore ti ha richiesto di cambiare la password e ti ha disconnesso da tutti i dispositivi. Sceglierai una nuova password al prossimo accesso con la tua password. Se non te lo aspettavi, contatta il tuo amministratore."
+      },
       "backupCodesGenerated": {
         "title": "Nuovi codici di recupero generati",
         "body": "Sono stati generati nuovi codici di recupero per il tuo account. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza."
@@ -86,6 +94,14 @@
         "title": "Provider di accesso scollegato",
         "body": "{name} è stato scollegato dal tuo account. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza.",
         "bodyGeneric": "Un provider di accesso è stato scollegato dal tuo account. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza."
+      },
+      "accountLocked": {
+        "title": "Account bloccato",
+        "body": "Il tuo account è stato bloccato dopo 100 tentativi di accesso falliti di fila. I browser e le app da cui hai effettuato l'accesso dall'ultima modifica di sicurezza possono ancora accedere. Se questi tentativi non erano tuoi, cambia o reimposta la password: anche questo toglie il blocco."
+      },
+      "mfaLocked": {
+        "title": "Verifica in due passaggi bloccata",
+        "body": "Il tuo account è stato bloccato dopo 100 codici di verifica in due passaggi errati di fila, quindi qualcuno conosce la tua password. I browser e le app da cui hai effettuato l'accesso dall'ultima modifica di sicurezza possono ancora accedere. Se questi tentativi non erano tuoi, cambia la password."
       },
       "unknown": {
         "title": "Sicurezza dell'account modificata",

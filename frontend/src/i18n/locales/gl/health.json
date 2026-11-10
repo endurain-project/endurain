@@ -26,7 +26,7 @@
     "restingHeartRate": "FC en repouso",
     "avgSkinTemperatureDeviation": "Desv. temp. pel",
     "weight": "Peso",
-    "bmi": "BMI",
+    "bmi": "IMC",
     "steps": "Pasos",
     "fasting": "Xaxún",
     "water": "Inxestión de auga",
@@ -79,7 +79,7 @@
       "delete": "Eliminar entrada"
     },
     "detail": {
-      "bmi": "BMI",
+      "bmi": "IMC",
       "bodyFat": "Graxa corporal",
       "bodyWater": "Auga corporal",
       "boneMass": "Masa ósea",
@@ -431,7 +431,8 @@
       "close": "Pechar",
       "createSuccess": "Auga rexistrada.",
       "updateSuccess": "Entrada de auga actualizada.",
-      "saveError": "Non se puido gardar a entrada de auga. Por favor, téntao de novo."
+      "saveError": "Non se puido gardar a entrada de auga. Por favor, téntao de novo.",
+      "dayTakenError": "Xa existe un rexistro de auga para ese día. Edítao en lugar de engadir outro."
     },
     "target": {
       "title": "Establecer obxectivo de auga",

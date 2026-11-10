@@ -74,6 +74,14 @@
         "title": "Tofaktorgodkendelse slået fra",
         "body": "Tofaktorgodkendelse blev slået fra for din konto. Hvis det ikke var dig, så nulstil din adgangskode og gennemgå dine sikkerhedsindstillinger."
       },
+      "mfaResetByAdmin": {
+        "title": "Tofaktorgodkendelse nulstillet af en administrator",
+        "body": "En administrator nulstillede tofaktorgodkendelse for din konto og loggede dig ud af alle enheder. Sæt den op igen fra dine sikkerhedsindstillinger. Hvis du ikke forventede dette, så kontakt din administrator."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Skift af adgangskode krævet af en administrator",
+        "body": "En administrator har krævet, at du skifter din adgangskode, og loggede dig ud af alle enheder. Du vælger en ny adgangskode, næste gang du logger ind med din adgangskode. Hvis du ikke forventede dette, så kontakt din administrator."
+      },
       "backupCodesGenerated": {
         "title": "Nye backup-koder genereret",
         "body": "Der blev genereret nye backup-koder til din konto. Hvis det ikke var dig, så nulstil din adgangskode og gennemgå dine sikkerhedsindstillinger."
@@ -86,6 +94,14 @@
         "title": "Loginudbyder frakoblet",
         "body": "{name} blev frakoblet din konto. Hvis det ikke var dig, så nulstil din adgangskode og gennemgå dine sikkerhedsindstillinger.",
         "bodyGeneric": "En loginudbyder blev frakoblet din konto. Hvis det ikke var dig, så nulstil din adgangskode og gennemgå dine sikkerhedsindstillinger."
+      },
+      "accountLocked": {
+        "title": "Konto låst",
+        "body": "Din konto blev låst efter 100 mislykkede loginforsøg i træk. Browsere og apps, du har logget ind fra siden din seneste sikkerhedsændring, kan stadig logge ind. Hvis forsøgene ikke var dine, så skift eller nulstil din adgangskode, hvilket også ophæver låsen."
+      },
+      "mfaLocked": {
+        "title": "Totrinsbekræftelse låst",
+        "body": "Din konto blev låst efter 100 forkerte koder til totrinsbekræftelse i træk, så nogen kender din adgangskode. Browsere og apps, du har logget ind fra siden din seneste sikkerhedsændring, kan stadig logge ind. Hvis forsøgene ikke var dine, så skift din adgangskode."
       },
       "unknown": {
         "title": "Kontosikkerheden er ændret",

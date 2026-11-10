@@ -431,7 +431,8 @@
       "close": "Stäng",
       "createSuccess": "Vatten loggat.",
       "updateSuccess": "Vattenpost uppdaterad.",
-      "saveError": "Kunde inte spara din vattenpost. Försök igen."
+      "saveError": "Kunde inte spara din vattenpost. Försök igen.",
+      "dayTakenError": "Det finns redan en vattenpost för den dagen. Redigera den i stället för att lägga till en till."
     },
     "target": {
       "title": "Ange vattenmål",

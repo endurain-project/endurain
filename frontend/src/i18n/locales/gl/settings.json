@@ -33,6 +33,7 @@
       "unverified": "Correo non verificado",
       "pendingEmail": "Cambio de correo pendente",
       "pending": "Pendente de aprobación",
+      "deleting": "Eliminándose",
       "externalAuth": "Autenticación externa"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "Polo menos 8 caracteres",
       "passwordRequired": "O contrasinal é obrigatorio",
       "confirmPassword": "Confirmar contrasinal",
+      "mustChangePasswordHint": "O usuario terá que escoller un contrasinal novo no seu próximo inicio de sesión.",
       "confirmPasswordRequired": "Confirmar contrasinal",
       "preferredLanguage": "Idioma preferido",
       "languages": {
@@ -162,7 +164,11 @@
       "updateSuccess": "Usuario actualizado",
       "conflict": "Ese nome de usuario ou correo electrónico xa está en uso",
       "lastAdministrator": "O único administrador non pode ser degradado nin desactivado",
-      "saveError": "Non se puido gardar o usuario. Por favor, téntao de novo."
+      "saveError": "Non se puido gardar o usuario. Por favor, téntao de novo.",
+      "stepUpTitle": "Confirma a túa identidade",
+      "stepUpDescription": "Cambiar o correo, o tipo de acceso ou o estado activo de {username} péchalle a sesión en todas partes. Confirma que es ti para continuar.",
+      "stepUpCreateDescription": "Crear unha conta de administrador concede acceso completo. Confirma que es ti para continuar.",
+      "stepUpConfirm": "Gardar os cambios"
     },
     "delete": {
       "title": "Eliminar usuario",
@@ -199,6 +205,24 @@
       "success": "Contrasinal actualizado",
       "error": "Non se puido actualizar o contrasinal. Por favor, téntao de novo."
     },
+    "mfaReset": {
+      "button": "Restablecer MFA",
+      "title": "Restablecer a autenticación en dous pasos",
+      "description": "Isto desactiva a autenticación en dous pasos de {username} e elimina os seus códigos de recuperación. Todas as súas sesións finalizan, polo que se pecha a súa sesión en todos os dispositivos, e terá que configurar de novo a autenticación en dous pasos despois de iniciar sesión. Recibirá unha notificación. Confirma que es ti para continuar.",
+      "confirm": "Restablecer MFA",
+      "success": "Autenticación en dous pasos restablecida",
+      "refused": "A autenticación en dous pasos non está activada para este usuario.",
+      "error": "Non se puido restablecer a autenticación en dous pasos. Téntao de novo."
+    },
+    "requirePasswordChange": {
+      "button": "Esixir cambio de contrasinal",
+      "title": "Esixir un cambio de contrasinal",
+      "description": "{username} mantén o seu contrasinal actual pero terá que escoller un novo a próxima vez que inicie sesión con el. Todas as súas sesións finalizan, polo que se pecha a súa sesión en todos os dispositivos. O inicio de sesión mediante un provedor de inicio de sesión único non se ve afectado. Recibirá unha notificación. Confirma que es ti para continuar.",
+      "confirm": "Esixir cambio",
+      "success": "Cambio de contrasinal esixido",
+      "refused": "Este usuario non ten contrasinal que cambiar.",
+      "error": "Non se puido esixir o cambio de contrasinal. Téntao de novo."
+    },
     "sessions": {
       "title": "Sesións",
       "subtitle": "Dispositivos actualmente con sesión iniciada nesta conta",
@@ -217,8 +241,6 @@
       "revokeTitle": "Revogar sesión",
       "revokeBody": "Isto pecha a sesión do dispositivo, que terá que volver a iniciar sesión",
       "revokeConfirm": "Revogar",
-      "revokeCancel": "Cancelar",
-      "revokeClose": "Pechar",
       "revokeSuccess": "Sesión revogada",
       "revokeError": "Non se puido revogar a sesión. Por favor, téntao de novo."
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "Configuración do servidor actualizada",
     "saveError": "Non se puido actualizar a configuración do servidor. Por favor, téntao de novo.",
     "staleError": "Outra persoa cambiou esta configuración mentres a editabas. Os teus cambios non se gardaron. Recarga a páxina para ver os valores actuais.",
+    "stepUpTitle": "Confirma a túa identidade",
+    "stepUpDescription": "Estes cambios afectan a quen pode rexistrarse, iniciar sesión ou manter unha sesión neste servidor, canto tempo se conserva o rexistro de auditoría, ou se as ligazóns públicas mostran quen as compartiu. Confirma que es ti para continuar.",
     "envLocked": "Definido por {name}",
     "envSection": "Algúns axustes de aquí defínense mediante variables de contorno ({names}). Elimínaas do contorno para editar eses axustes aquí.",
     "unsaved": "Cambios sen gardar",
@@ -323,7 +347,9 @@
     "password": {
       "title": "Política de contrasinais",
       "lengthRegular": "Lonxitude mínima usuarios regulares",
-      "lengthAdmin": "Lonxitude mínima usuarios administradores"
+      "lengthAdmin": "Lonxitude mínima usuarios administradores",
+      "breachCheck": "Rexeitar contrasinais atopados en filtracións de datos coñecidas",
+      "breachCheckHint": "Comproba cada contrasinal novo ou cambiado con haveibeenpwned.com. Só se envían os primeiros 5 caracteres do hash SHA-1 do contrasinal, nunca o contrasinal. Se non se pode acceder ao servizo, o contrasinal acéptase."
     },
     "session": {
       "title": "Sesións",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "Rexistro",
       "enabled": "Permitir novos rexistros de usuarios",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "Permitir o rexistro de novos usuarios mediante inicio de sesión único",
       "adminApproval": "Requirir aprobación do administrador para novos rexistros",
       "emailVerification": "Requirir verificación de correo para novos rexistros"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "Déixao baleiro para usar o nome de usuario.",
       "save": "Gardar configuración do correo",
       "saveSuccess": "Configuración do correo gardada",
-      "saveError": "Non se puido gardar a configuración do correo"
+      "saveError": "Non se puido gardar a configuración do correo",
+      "stepUpTitle": "Confirma a túa identidade",
+      "stepUpDescription": "O servidor de correo recibe todas as ligazóns de restablecemento de contrasinal. Confirma que es ti para continuar."
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "Configura provedores SSO para o inicio de sesión único",
     "buttonAdd": "Engadir provedor",
     "toggleError": "Non se puido cambiar o provedor. Por favor, téntao de novo.",
+    "toggleStepUpDescription": "Cambiar se {name} está activado decide quen pode iniciar sesión neste servidor. Confirma que es ti para continuar.",
+    "toggleStepUpConfirm": "Confirmar",
     "enableSuccess": "Provedor activado",
     "disableSuccess": "Provedor desactivado",
     "type": {
@@ -566,10 +596,19 @@
       "iconSaveError": "O provedor gardouse, pero non se puido actualizar a súa icona. Edita o provedor para tentalo de novo.",
       "enabled": "Activado",
       "autoCreateUsers": "Crear usuarios automaticamente no primeiro inicio de sesión",
+      "linkByEmail": "Vincular a unha conta existente polo correo",
+      "linkByEmailHint": "Permite que un primeiro inicio de sesión se una á conta que ten o mesmo correo verificado. Desactivado, ese inicio de sesión é rexeitado e o usuario vincula o provedor desde os seus axustes. Desactivado por defecto para un provedor novo.",
       "syncUserInfo": "Sincronizar información do perfil en cada inicio de sesión",
+      "syncUserInfoHint": "Copia o nome asignado desde o provedor. Non inclúe o correo.",
+      "syncEmail": "Sincronizar o correo en cada inicio de sesión",
+      "syncEmailHint": "Copia na conta o correo verificado polo provedor, rexistra o cambio na auditoría e notifica o enderezo anterior. Desactivado por defecto para un provedor novo.",
       "createSuccess": "Provedor engadido",
       "updateSuccess": "Provedor actualizado",
+      "stepUpTitle": "Confirma a túa identidade",
+      "stepUpDescription": "Os provedores de identidade deciden quen pode iniciar sesión neste servidor. Confirma que es ti para continuar.",
       "slugConflict": "Ese slug xa está en uso",
+      "issuerInUse": "Outro provedor de identidade xa usa esta URL do emisor",
+      "issuerLocked": "A URL do emisor non se pode cambiar mentres haxa usuarios vinculados a este provedor. Desvincúlaos ou engade un provedor novo.",
       "staleError": "Este provedor cambiou noutro lugar. Os teus cambios non se gardaron. Péchao e ábreo de novo para cargar a configuración actual.",
       "saveError": "Non se puido gardar o provedor. Por favor, téntao de novo."
     }
@@ -739,23 +778,28 @@
       "revokeOthersBody": "Todos os dispositivos excepto este pecharán a sesión e terán que volver a iniciar sesión.",
       "revokeOthersConfirm": "Pechar outros",
       "revokeOthersSuccess": "Outras sesións pechadas",
-      "revokeOthersError": "Non se puideron pechar as outras sesións. Por favor, téntao de novo."
+      "revokeOthersError": "Non se puideron pechar as outras sesións. Por favor, téntao de novo.",
+      "signOutEverywhere": "Pechar sesión en todas partes",
+      "signOutEverywhereTitle": "Pechar sesión en todas partes?",
+      "signOutEverywhereBody": "Pecharase a sesión en todos os dispositivos, incluído este, e terán que iniciar sesión de novo.",
+      "signOutEverywhereConfirm": "Pechar sesión en todas partes",
+      "signOutEverywhereError": "Non se puido pechar todas as sesións. Téntao de novo."
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "Dispositivos coñecidos",
+      "subtitle": "Navegadores e aplicacións desde os que iniciaches sesión desde o teu último cambio de seguranza. Iniciar sesión desde calquera outro dispositivo envíache un aviso.",
+      "empty": "Ningún dispositivo coñecido",
+      "error": "Non se puideron cargar os dispositivos coñecidos",
+      "current": "Este dispositivo",
+      "unknown": "Dispositivo descoñecido",
+      "lastSeen": "Último inicio de sesión: {date}",
+      "forget": "Esquecer este dispositivo",
+      "forgetTitle": "Esquecer este dispositivo?",
+      "forgetDescription": "O seguinte inicio de sesión desde este dispositivo contará como un dispositivo novo e enviarache un aviso.",
+      "forgetConfirm": "Esquecer dispositivo",
+      "forgetSuccess": "Dispositivo esquecido",
+      "forgetError": "Non se puido esquecer o dispositivo. Téntao de novo.",
+      "forgetNotFound": "Ese dispositivo xa non é coñecido."
     },
     "linked": {
       "title": "Contas vinculadas",

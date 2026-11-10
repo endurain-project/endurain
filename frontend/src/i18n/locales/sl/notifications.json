@@ -74,6 +74,14 @@
         "title": "Dvostopenjska avtentikacija izklopljena",
         "body": "Za tvoj račun je bila izklopljena dvostopenjska avtentikacija. Če to nisi bil ti, ponastavi geslo in preglej varnostne nastavitve."
       },
+      "mfaResetByAdmin": {
+        "title": "Skrbnik je ponastavil dvostopenjsko avtentikacijo",
+        "body": "Skrbnik je ponastavil dvostopenjsko avtentikacijo za tvoj račun in te odjavil z vseh naprav. Znova jo nastavi v varnostnih nastavitvah. Če tega nisi pričakoval, se obrni na skrbnika."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Skrbnik zahteva spremembo gesla",
+        "body": "Skrbnik je zahteval, da spremeniš geslo, in te odjavil z vseh naprav. Novo geslo boš izbral ob naslednji prijavi z geslom. Če tega nisi pričakoval, se obrni na skrbnika."
+      },
       "backupCodesGenerated": {
         "title": "Ustvarjene nove varnostne kode",
         "body": "Za tvoj račun so bile ustvarjene nove varnostne kode. Če to nisi bil ti, ponastavi geslo in preglej varnostne nastavitve."
@@ -86,6 +94,14 @@
         "title": "Ponudnik prijave odklopljen",
         "body": "{name} je bil odklopljen od tvojega računa. Če to nisi bil ti, ponastavi geslo in preglej varnostne nastavitve.",
         "bodyGeneric": "Ponudnik prijave je bil odklopljen od tvojega računa. Če to nisi bil ti, ponastavi geslo in preglej varnostne nastavitve."
+      },
+      "accountLocked": {
+        "title": "Račun je zaklenjen",
+        "body": "Tvoj račun je bil zaklenjen po 100 zaporednih neuspelih poskusih prijave. Brskalniki in aplikacije, iz katerih si se prijavil od zadnje varnostne spremembe, se še vedno lahko prijavijo. Če teh poskusov nisi izvedel ti, spremeni ali ponastavi geslo, kar tudi odpre zaklep."
+      },
+      "mfaLocked": {
+        "title": "Dvostopenjsko preverjanje je zaklenjeno",
+        "body": "Tvoj račun je bil zaklenjen po 100 zaporednih napačnih kodah dvostopenjskega preverjanja, zato nekdo pozna tvoje geslo. Brskalniki in aplikacije, iz katerih si se prijavil od zadnje varnostne spremembe, se še vedno lahko prijavijo. Če teh poskusov nisi izvedel ti, spremeni geslo."
       },
       "unknown": {
         "title": "Varnost računa spremenjena",

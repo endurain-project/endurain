@@ -209,7 +209,7 @@
     "hideGear": "Ausrüstung verbergen",
     "success": "Aktivität aktualisiert",
     "error": "Aktivität konnte nicht aktualisiert werden",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Diese Aktivität wurde während der Bearbeitung an anderer Stelle geändert. Deine Änderungen wurden nicht gespeichert. Öffne sie erneut, um die aktuelle Version zu sehen."
   },
   "alerts": {
     "hidden": "Diese Aktivität ist versteckt. Nur du kannst sie sehen.",

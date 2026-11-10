@@ -33,6 +33,7 @@
       "unverified": "邮箱未验证",
       "pendingEmail": "邮箱更改待处理",
       "pending": "待审核",
+      "deleting": "正在删除",
       "externalAuth": "外部认证"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "至少 8 个字符",
       "passwordRequired": "密码为必填项",
       "confirmPassword": "确认密码",
+      "mustChangePasswordHint": "该用户下次登录时必须选择新密码。",
       "confirmPasswordRequired": "确认密码",
       "preferredLanguage": "首选语言",
       "languages": {
@@ -162,7 +164,11 @@
       "updateSuccess": "用户已更新",
       "conflict": "该用户名或邮箱已被使用",
       "lastAdministrator": "唯一的管理员不能被降级或停用",
-      "saveError": "无法保存用户，请重试。"
+      "saveError": "无法保存用户，请重试。",
+      "stepUpTitle": "确认您的身份",
+      "stepUpDescription": "更改 {username} 的邮箱、访问类型或启用状态会使其在所有设备上退出登录。请确认是您本人操作以继续。",
+      "stepUpCreateDescription": "创建管理员账户将授予完全访问权限。请确认是您本人操作以继续。",
+      "stepUpConfirm": "保存更改"
     },
     "delete": {
       "title": "删除用户",
@@ -199,6 +205,24 @@
       "success": "密码已更新",
       "error": "无法更新密码，请重试。"
     },
+    "mfaReset": {
+      "button": "重置 MFA",
+      "title": "重置双重验证",
+      "description": "这将关闭 {username} 的双重验证并删除其备份码。其所有会话将结束，即在所有设备上退出登录，登录后必须重新设置双重验证。系统会通知该用户。请确认是您本人操作以继续。",
+      "confirm": "重置 MFA",
+      "success": "双重验证已重置",
+      "refused": "此用户未开启双重验证。",
+      "error": "无法重置双重验证，请重试。"
+    },
+    "requirePasswordChange": {
+      "button": "要求更改密码",
+      "title": "要求更改密码",
+      "description": "{username} 保留当前密码，但下次使用该密码登录时必须选择新密码。其所有会话将结束，即在所有设备上退出登录。通过单点登录提供者登录不受影响。系统会通知该用户。请确认是您本人操作以继续。",
+      "confirm": "要求更改",
+      "success": "已要求更改密码",
+      "refused": "此用户没有可更改的密码。",
+      "error": "无法要求更改密码，请重试。"
+    },
     "sessions": {
       "title": "会话",
       "subtitle": "当前登录此账户的设备",
@@ -217,8 +241,6 @@
       "revokeTitle": "撤销会话",
       "revokeBody": "这将注销该设备，需要重新登录",
       "revokeConfirm": "撤销",
-      "revokeCancel": "取消",
-      "revokeClose": "关闭",
       "revokeSuccess": "会话已撤销",
       "revokeError": "无法撤销会话，请重试。"
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "服务器设置已更新",
     "saveError": "无法更新服务器设置，请重试。",
     "staleError": "您编辑期间，这些设置已被其他人更改，您的更改未保存。请刷新页面查看当前值。",
+    "stepUpTitle": "确认您的身份",
+    "stepUpDescription": "这些更改会影响谁可以在此服务器上注册、登录或保持会话、审计记录保留多长时间，以及公开链接是否显示分享者。请确认是您本人操作以继续。",
     "envLocked": "由 {name} 设置",
     "envSection": "此处的部分设置由环境变量（{names}）决定。请从环境中移除这些变量，以便在此处编辑相应设置。",
     "unsaved": "未保存的更改",
@@ -323,7 +347,9 @@
     "password": {
       "title": "密码策略",
       "lengthRegular": "普通用户最短密码长度",
-      "lengthAdmin": "管理员最短密码长度"
+      "lengthAdmin": "管理员最短密码长度",
+      "breachCheck": "拒绝在已知数据泄露中出现过的密码",
+      "breachCheckHint": "通过 haveibeenpwned.com 检查每个新密码或更改后的密码。仅发送密码 SHA-1 哈希的前 5 个字符，绝不发送密码本身。如果无法连接该服务，则接受该密码。"
     },
     "session": {
       "title": "会话",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "注册",
       "enabled": "允许新用户注册",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "允许通过单点登录注册新用户",
       "adminApproval": "新注册需要管理员审核",
       "emailVerification": "新注册需要邮箱验证"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "留空则使用用户名。",
       "save": "保存邮件设置",
       "saveSuccess": "邮件设置已保存",
-      "saveError": "无法保存邮件设置"
+      "saveError": "无法保存邮件设置",
+      "stepUpTitle": "确认您的身份",
+      "stepUpDescription": "邮件服务器会收到每一个密码重置链接。请确认是您本人操作以继续。"
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "配置用于单点登录的 SSO 提供者",
     "buttonAdd": "添加提供者",
     "toggleError": "无法更改提供者，请重试。",
+    "toggleStepUpDescription": "更改 {name} 是否启用会决定谁可以登录此服务器。请确认是您本人操作以继续。",
+    "toggleStepUpConfirm": "确认",
     "enableSuccess": "提供者已启用",
     "disableSuccess": "提供者已禁用",
     "type": {
@@ -566,10 +596,19 @@
       "iconSaveError": "提供者已保存，但其图标未能更新。请编辑提供者以重试。",
       "enabled": "已启用",
       "autoCreateUsers": "首次登录时自动创建用户",
+      "linkByEmail": "通过邮箱关联到现有账户",
+      "linkByEmailHint": "允许首次登录加入使用相同已验证邮箱的账户。关闭时，该登录将被拒绝，用户需在自己的设置中关联提供者。新提供者默认关闭。",
       "syncUserInfo": "每次登录时同步个人资料信息",
+      "syncUserInfoHint": "从提供者复制已映射的姓名，不包括邮箱。",
+      "syncEmail": "每次登录时同步邮箱",
+      "syncEmailHint": "将提供者已验证的邮箱复制到账户，记录该更改并通知之前的地址。新提供者默认关闭。",
       "createSuccess": "提供者已添加",
       "updateSuccess": "提供者已更新",
+      "stepUpTitle": "确认您的身份",
+      "stepUpDescription": "身份提供者决定谁可以登录此服务器。请确认是您本人操作以继续。",
       "slugConflict": "该 Slug 已被使用",
+      "issuerInUse": "另一个身份提供者已使用此颁发者 URL",
+      "issuerLocked": "有用户关联到此提供者时，无法更改颁发者 URL。请先取消关联，或改为添加新的提供者。",
       "staleError": "此提供者已在其他地方更改，您的更改未保存。请关闭后重新打开以加载当前设置。",
       "saveError": "无法保存提供者，请重试。"
     }
@@ -739,23 +778,28 @@
       "revokeOthersBody": "除本设备外，所有设备将被注销，需要重新登录。",
       "revokeOthersConfirm": "注销其他设备",
       "revokeOthersSuccess": "其他会话已注销",
-      "revokeOthersError": "无法注销其他会话，请重试。"
+      "revokeOthersError": "无法注销其他会话，请重试。",
+      "signOutEverywhere": "在所有设备上退出登录",
+      "signOutEverywhereTitle": "在所有设备上退出登录？",
+      "signOutEverywhereBody": "包括此设备在内的所有设备都将退出登录，需要重新登录。",
+      "signOutEverywhereConfirm": "在所有设备上退出登录",
+      "signOutEverywhereError": "无法退出所有会话，请重试。"
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "已知设备",
+      "subtitle": "自您上次安全更改以来登录过的浏览器和应用。从任何其他设备登录时，您都会收到通知。",
+      "empty": "没有已知设备",
+      "error": "无法加载已知设备",
+      "current": "此设备",
+      "unknown": "未知设备",
+      "lastSeen": "最近登录于 {date}",
+      "forget": "忘记此设备",
+      "forgetTitle": "忘记此设备？",
+      "forgetDescription": "下次从此设备登录将被视为新设备，并向您发送通知。",
+      "forgetConfirm": "忘记设备",
+      "forgetSuccess": "设备已忘记",
+      "forgetError": "无法忘记该设备，请重试。",
+      "forgetNotFound": "该设备已不在已知设备中。"
     },
     "linked": {
       "title": "关联账户",

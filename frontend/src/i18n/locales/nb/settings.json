@@ -33,6 +33,7 @@
       "unverified": "Ubekreftet e-post",
       "pendingEmail": "Venter på endring av e-post",
       "pending": "Venter på godkjenning",
+      "deleting": "Slettes",
       "externalAuth": "Ekstern autentisering"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "Minst 8 tegn",
       "passwordRequired": "Passord er obligatorisk",
       "confirmPassword": "Bekreft passord",
+      "mustChangePasswordHint": "Brukeren må velge et nytt passord ved neste innlogging.",
       "confirmPasswordRequired": "Bekreft passord",
       "preferredLanguage": "Foretrukket språk",
       "languages": {
@@ -162,7 +164,11 @@
       "updateSuccess": "Bruker oppdatert",
       "conflict": "Det brukernavnet eller den e-posten er allerede i bruk",
       "lastAdministrator": "Den eneste administratoren kan ikke degraderes eller deaktiveres",
-      "saveError": "Kunne ikke lagre brukeren. Vennligst prøv igjen."
+      "saveError": "Kunne ikke lagre brukeren. Vennligst prøv igjen.",
+      "stepUpTitle": "Bekreft identiteten din",
+      "stepUpDescription": "Hvis du endrer e-postadressen, tilgangstypen eller aktivstatusen til {username}, logges brukeren ut overalt. Bekreft at det er deg for å fortsette.",
+      "stepUpCreateDescription": "Å opprette en administratorkonto gir full tilgang. Bekreft at det er deg for å fortsette.",
+      "stepUpConfirm": "Lagre endringer"
     },
     "delete": {
       "title": "Slett bruker",
@@ -199,6 +205,24 @@
       "success": "Passord oppdatert",
       "error": "Kunne ikke oppdatere passordet. Vennligst prøv igjen."
     },
+    "mfaReset": {
+      "button": "Tilbakestill MFA",
+      "title": "Tilbakestill tofaktorautentisering",
+      "description": "Dette slår av tofaktorautentisering for {username} og fjerner reservekodene. Alle øktene avsluttes, så brukeren logges ut på alle enheter, og må sette opp tofaktorautentisering på nytt etter innlogging. Brukeren får beskjed. Bekreft at det er deg for å fortsette.",
+      "confirm": "Tilbakestill MFA",
+      "success": "Tofaktorautentisering tilbakestilt",
+      "refused": "Tofaktorautentisering er ikke slått på for denne brukeren.",
+      "error": "Kunne ikke tilbakestille tofaktorautentisering. Vennligst prøv igjen."
+    },
+    "requirePasswordChange": {
+      "button": "Krev passordendring",
+      "title": "Krev en passordendring",
+      "description": "{username} beholder det nåværende passordet, men må velge et nytt neste gang vedkommende logger inn med det. Alle øktene avsluttes, så brukeren logges ut på alle enheter. Innlogging via en leverandør for enkel pålogging påvirkes ikke. Brukeren får beskjed. Bekreft at det er deg for å fortsette.",
+      "confirm": "Krev endring",
+      "success": "Passordendring kreves",
+      "refused": "Denne brukeren har ikke noe passord å endre.",
+      "error": "Kunne ikke kreve passordendring. Vennligst prøv igjen."
+    },
     "sessions": {
       "title": "Økter",
       "subtitle": "Enheter som er innlogget på denne kontoen nå",
@@ -217,8 +241,6 @@
       "revokeTitle": "Tilbakekall økt",
       "revokeBody": "Dette logger ut enheten, og de må logge inn på nytt",
       "revokeConfirm": "Tilbakekall",
-      "revokeCancel": "Avbryt",
-      "revokeClose": "Lukk",
       "revokeSuccess": "Økt tilbakekalt",
       "revokeError": "Kunne ikke tilbakekalle økten. Vennligst prøv igjen."
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "Serverinnstillinger oppdatert",
     "saveError": "Kunne ikke oppdatere serverinnstillingene. Vennligst prøv igjen.",
     "staleError": "Disse innstillingene ble endret av noen andre mens du redigerte. Endringene dine ble ikke lagret. Last inn siden på nytt for å se gjeldende verdier.",
+    "stepUpTitle": "Bekreft identiteten din",
+    "stepUpDescription": "Disse endringene påvirker hvem som kan registrere seg, logge inn eller beholde en økt på denne serveren, hvor lenge revisjonsloggen oppbevares, eller om offentlige lenker viser hvem som delte dem. Bekreft at det er deg for å fortsette.",
     "envLocked": "Angitt av {name}",
     "envSection": "Noen innstillinger her angis av miljøvariabler ({names}). Fjern dem fra miljøet for å redigere dem her.",
     "unsaved": "Ulagrede endringer",
@@ -323,7 +347,9 @@
     "password": {
       "title": "Passordretningslinjer",
       "lengthRegular": "Minimumslengde for vanlige brukere",
-      "lengthAdmin": "Minimumslengde for administratorbrukere"
+      "lengthAdmin": "Minimumslengde for administratorbrukere",
+      "breachCheck": "Avvis passord som finnes i kjente datainnbrudd",
+      "breachCheckHint": "Sjekker hvert nye eller endrede passord mot haveibeenpwned.com. Bare de første 5 tegnene i passordets SHA-1-hash sendes, aldri selve passordet. Hvis tjenesten ikke kan nås, godtas passordet."
     },
     "session": {
       "title": "Økter",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "Registrering",
       "enabled": "Tillat nye brukerregistreringer",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "Tillat nye brukerregistreringer via enkel pålogging",
       "adminApproval": "Krev godkjenning fra administrator for nye registreringer",
       "emailVerification": "Krev e-postbekreftelse for nye registreringer"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "La stå tomt for å bruke brukernavnet.",
       "save": "Lagre e-postinnstillinger",
       "saveSuccess": "E-postinnstillingene er lagret",
-      "saveError": "E-postinnstillingene kunne ikke lagres"
+      "saveError": "E-postinnstillingene kunne ikke lagres",
+      "stepUpTitle": "Bekreft identiteten din",
+      "stepUpDescription": "E-postserveren mottar hver lenke for tilbakestilling av passord. Bekreft at det er deg for å fortsette."
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "Konfigurer SSO-leverandører for enkel pålogging",
     "buttonAdd": "Legg til leverandør",
     "toggleError": "Kunne ikke endre leverandøren. Vennligst prøv igjen.",
+    "toggleStepUpDescription": "Om {name} er aktivert, avgjør hvem som kan logge inn på denne serveren. Bekreft at det er deg for å fortsette.",
+    "toggleStepUpConfirm": "Bekreft",
     "enableSuccess": "Leverandør aktivert",
     "disableSuccess": "Leverandør deaktivert",
     "type": {
@@ -566,10 +596,19 @@
       "iconSaveError": "Leverandøren ble lagret, men ikonet kunne ikke oppdateres. Rediger leverandøren for å prøve igjen.",
       "enabled": "Aktivert",
       "autoCreateUsers": "Opprett brukere automatisk ved første innlogging",
+      "linkByEmail": "Koble til en eksisterende konto via e-post",
+      "linkByEmailHint": "Lar en første innlogging slutte seg til kontoen som har samme bekreftede e-postadresse. Når den er av, avvises innloggingen, og brukeren kobler til leverandøren fra innstillingene sine. Av som standard for en ny leverandør.",
       "syncUserInfo": "Synkroniser profilinformasjon ved hver innlogging",
+      "syncUserInfoHint": "Kopierer det tilordnede navnet fra leverandøren. E-postadressen er ikke med.",
+      "syncEmail": "Synkroniser e-post ved hver innlogging",
+      "syncEmailHint": "Kopierer e-postadressen leverandøren har bekreftet over til kontoen, logger endringen i revisjonsloggen og varsler den forrige adressen. Av som standard for en ny leverandør.",
       "createSuccess": "Leverandør lagt til",
       "updateSuccess": "Leverandør oppdatert",
+      "stepUpTitle": "Bekreft identiteten din",
+      "stepUpDescription": "Identitetsleverandører avgjør hvem som kan logge inn på denne serveren. Bekreft at det er deg for å fortsette.",
       "slugConflict": "Den slug-en er allerede i bruk",
+      "issuerInUse": "En annen identitetsleverandør bruker allerede denne utsteder-URL-en",
+      "issuerLocked": "Utsteder-URL-en kan ikke endres så lenge brukere er koblet til denne leverandøren. Koble dem fra, eller legg til en ny leverandør i stedet.",
       "staleError": "Denne leverandøren ble endret et annet sted. Endringene dine ble ikke lagret. Lukk og åpne den på nytt for å laste de gjeldende innstillingene.",
       "saveError": "Kunne ikke lagre leverandøren. Vennligst prøv igjen."
     }
@@ -739,23 +778,28 @@
       "revokeOthersBody": "Alle enheter unntatt denne vil bli logget ut og må logge inn på nytt.",
       "revokeOthersConfirm": "Logg ut andre",
       "revokeOthersSuccess": "Andre økter logget ut",
-      "revokeOthersError": "Kunne ikke logge ut de andre øktene. Vennligst prøv igjen."
+      "revokeOthersError": "Kunne ikke logge ut de andre øktene. Vennligst prøv igjen.",
+      "signOutEverywhere": "Logg ut overalt",
+      "signOutEverywhereTitle": "Logge ut overalt?",
+      "signOutEverywhereBody": "Alle enheter, inkludert denne, blir logget ut og må logge inn på nytt.",
+      "signOutEverywhereConfirm": "Logg ut overalt",
+      "signOutEverywhereError": "Kunne ikke logge ut av alle øktene. Vennligst prøv igjen."
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "Kjente enheter",
+      "subtitle": "Nettlesere og apper du har logget inn fra siden din siste sikkerhetsendring. Innlogging fra en annen enhet sender deg et varsel.",
+      "empty": "Ingen kjente enheter",
+      "error": "Kunne ikke laste kjente enheter",
+      "current": "Denne enheten",
+      "unknown": "Ukjent enhet",
+      "lastSeen": "Sist innlogget {date}",
+      "forget": "Glem denne enheten",
+      "forgetTitle": "Glemme denne enheten?",
+      "forgetDescription": "Neste innlogging fra denne enheten regnes som en ny enhet og sender deg et varsel.",
+      "forgetConfirm": "Glem enhet",
+      "forgetSuccess": "Enheten er glemt",
+      "forgetError": "Kunne ikke glemme enheten. Vennligst prøv igjen.",
+      "forgetNotFound": "Den enheten er ikke lenger kjent."
     },
     "linked": {
       "title": "Koblede kontoer",

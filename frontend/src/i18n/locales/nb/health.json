@@ -431,7 +431,8 @@
       "close": "Lukk",
       "createSuccess": "Vann registrert.",
       "updateSuccess": "Vannoppføring oppdatert.",
-      "saveError": "Kunne ikke lagre vannoppføringen din. Vennligst prøv igjen."
+      "saveError": "Kunne ikke lagre vannoppføringen din. Vennligst prøv igjen.",
+      "dayTakenError": "Det finnes allerede en vannregistrering for den dagen. Rediger den i stedet for å legge til en ny."
     },
     "target": {
       "title": "Sett vannmål",

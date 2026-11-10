@@ -33,6 +33,7 @@
       "unverified": "Neverificirana e-pošta",
       "pendingEmail": "Čakajoča sprememba e-pošte",
       "pending": "Čaka na odobritev",
+      "deleting": "Se briše",
       "externalAuth": "Zunanja avtentikacija"
     },
     "actions": {
@@ -73,6 +74,7 @@
       "passwordHint": "Vsaj 8 znakov",
       "passwordRequired": "Geslo je obvezno",
       "confirmPassword": "Potrdi geslo",
+      "mustChangePasswordHint": "Uporabnik bo moral ob naslednji prijavi izbrati novo geslo.",
       "confirmPasswordRequired": "Potrdi geslo",
       "preferredLanguage": "Želeni jezik",
       "languages": {
@@ -162,7 +164,11 @@
       "updateSuccess": "Uporabnik posodobljen",
       "conflict": "To uporabniško ime ali e-pošta je že zasedena",
       "lastAdministrator": "Edinega skrbnika ni mogoče degradirati ali deaktivirati",
-      "saveError": "Uporabnika ni bilo mogoče shraniti. Prosim, poskusi znova."
+      "saveError": "Uporabnika ni bilo mogoče shraniti. Prosim, poskusi znova.",
+      "stepUpTitle": "Potrdi svojo identiteto",
+      "stepUpDescription": "Sprememba e-pošte, vrste dostopa ali aktivnega stanja uporabnika {username} ga povsod odjavi. Za nadaljevanje potrdi, da si to ti.",
+      "stepUpCreateDescription": "Ustvarjanje skrbniškega računa podeli poln dostop. Za nadaljevanje potrdi, da si to ti.",
+      "stepUpConfirm": "Shrani spremembe"
     },
     "delete": {
       "title": "Izbriši uporabnika",
@@ -199,6 +205,24 @@
       "success": "Geslo posodobljeno",
       "error": "Gesla ni bilo mogoče posodobiti. Prosim, poskusi znova."
     },
+    "mfaReset": {
+      "button": "Ponastavi MFA",
+      "title": "Ponastavi dvostopenjsko avtentikacijo",
+      "description": "S tem se izklopi dvostopenjska avtentikacija za uporabnika {username} in odstranijo njegove varnostne kode. Vse njegove seje se končajo, zato je odjavljen z vseh naprav in mora po prijavi znova nastaviti dvostopenjsko avtentikacijo. Obveščen bo. Za nadaljevanje potrdi, da si to ti.",
+      "confirm": "Ponastavi MFA",
+      "success": "Dvostopenjska avtentikacija je ponastavljena",
+      "refused": "Dvostopenjska avtentikacija za tega uporabnika ni vklopljena.",
+      "error": "Dvostopenjske avtentikacije ni bilo mogoče ponastaviti. Poskusi znova."
+    },
+    "requirePasswordChange": {
+      "button": "Zahtevaj spremembo gesla",
+      "title": "Zahtevaj spremembo gesla",
+      "description": "{username} obdrži trenutno geslo, vendar mora ob naslednji prijavi z njim izbrati novo. Vse njegove seje se končajo, zato je odjavljen z vseh naprav. Prijava prek ponudnika enotne prijave ni prizadeta. Obveščen bo. Za nadaljevanje potrdi, da si to ti.",
+      "confirm": "Zahtevaj spremembo",
+      "success": "Sprememba gesla je zahtevana",
+      "refused": "Ta uporabnik nima gesla, ki bi ga bilo mogoče spremeniti.",
+      "error": "Spremembe gesla ni bilo mogoče zahtevati. Poskusi znova."
+    },
     "sessions": {
       "title": "Seje",
       "subtitle": "Naprave, ki so trenutno prijavljene v ta račun",
@@ -217,8 +241,6 @@
       "revokeTitle": "Prekliči sejo",
       "revokeBody": "To odjavi napravo, ki se bo morala znova prijaviti",
       "revokeConfirm": "Prekliči",
-      "revokeCancel": "Prekliči",
-      "revokeClose": "Zapri",
       "revokeSuccess": "Seja preklicana",
       "revokeError": "Seje ni bilo mogoče preklicati. Prosim, poskusi znova."
     },
@@ -279,6 +301,8 @@
     "saveSuccess": "Nastavitve strežnika posodobljene",
     "saveError": "Nastavitev strežnika ni bilo mogoče posodobiti. Prosim, poskusi znova.",
     "staleError": "Te nastavitve je med urejanjem spremenil nekdo drug. Tvoje spremembe niso bile shranjene. Znova naloži stran, da vidiš trenutne vrednosti.",
+    "stepUpTitle": "Potrdi svojo identiteto",
+    "stepUpDescription": "Te spremembe vplivajo na to, kdo se lahko registrira, prijavi ali obdrži sejo na tem strežniku, kako dolgo se hrani revizijska sled ali javne povezave pokažejo, kdo jih je delil. Za nadaljevanje potrdi, da si to ti.",
     "envLocked": "Nastavljeno s spremenljivko {name}",
     "envSection": "Nekatere nastavitve tukaj določajo okoljske spremenljivke ({names}). Odstranite jih iz okolja, da boste te nastavitve lahko urejali tukaj.",
     "unsaved": "Neshranjene spremembe",
@@ -323,7 +347,9 @@
     "password": {
       "title": "Pravilnik za gesla",
       "lengthRegular": "Minimalna dolžina za navadne uporabnike",
-      "lengthAdmin": "Minimalna dolžina za skrbnike"
+      "lengthAdmin": "Minimalna dolžina za skrbnike",
+      "breachCheck": "Zavrni gesla, najdena v znanih kršitvah podatkov",
+      "breachCheckHint": "Vsako novo ali spremenjeno geslo preveri s haveibeenpwned.com. Pošlje se samo prvih 5 znakov zgoščene vrednosti SHA-1 gesla, nikoli geslo. Če storitev ni dosegljiva, je geslo sprejeto."
     },
     "session": {
       "title": "Seje",
@@ -353,7 +379,7 @@
     "signup": {
       "title": "Registracija",
       "enabled": "Dovoli registracijo novih uporabnikov",
-      "ssoEnabled": "Allow new user sign-ups through single sign-on",
+      "ssoEnabled": "Dovoli registracijo novih uporabnikov prek enotne prijave",
       "adminApproval": "Zahtevaj odobritev skrbnika za nove registracije",
       "emailVerification": "Zahtevaj verifikacijo e-pošte za nove registracije"
     },
@@ -480,7 +506,9 @@
       "fromAddressHint": "Pusti prazno, da se uporabi uporabniško ime.",
       "save": "Shrani poštne nastavitve",
       "saveSuccess": "Poštne nastavitve shranjene",
-      "saveError": "Poštnih nastavitev ni bilo mogoče shraniti"
+      "saveError": "Poštnih nastavitev ni bilo mogoče shraniti",
+      "stepUpTitle": "Potrdi svojo identiteto",
+      "stepUpDescription": "Poštni strežnik prejme vsako povezavo za ponastavitev gesla. Za nadaljevanje potrdi, da si to ti."
     }
   },
   "idp": {
@@ -488,6 +516,8 @@
     "subtitle": "Konfiguriraj SSO ponudnike za enotno prijavo",
     "buttonAdd": "Dodaj ponudnika",
     "toggleError": "Ponudnika ni bilo mogoče spremeniti. Prosim, poskusi znova.",
+    "toggleStepUpDescription": "Sprememba vklopa ponudnika {name} odloča, kdo se lahko prijavi na ta strežnik. Za nadaljevanje potrdi, da si to ti.",
+    "toggleStepUpConfirm": "Potrdi",
     "enableSuccess": "Ponudnik omogočen",
     "disableSuccess": "Ponudnik onemogočen",
     "type": {
@@ -566,10 +596,19 @@
       "iconSaveError": "Ponudnik je bil shranjen, vendar njegove ikone ni bilo mogoče posodobiti. Uredi ponudnika, da poskusiš znova.",
       "enabled": "Omogočen",
       "autoCreateUsers": "Samodejno ustvari uporabnike ob prvi prijavi",
+      "linkByEmail": "Poveži z obstoječim računom prek e-pošte",
+      "linkByEmailHint": "Omogoči, da se prva prijava pridruži računu z istim preverjenim e-poštnim naslovom. Če je izklopljeno, je ta prijava zavrnjena, uporabnik pa ponudnika poveže v svojih nastavitvah. Za novega ponudnika je privzeto izklopljeno.",
       "syncUserInfo": "Sinhroniziraj podatke profila ob vsaki prijavi",
+      "syncUserInfoHint": "Kopira preslikano ime od ponudnika. Ne vključuje e-pošte.",
+      "syncEmail": "Sinhroniziraj e-pošto ob vsaki prijavi",
+      "syncEmailHint": "Kopira e-pošto, ki jo je preveril ponudnik, na račun, revidira spremembo in obvesti prejšnji naslov. Za novega ponudnika je privzeto izklopljeno.",
       "createSuccess": "Ponudnik dodan",
       "updateSuccess": "Ponudnik posodobljen",
+      "stepUpTitle": "Potrdi svojo identiteto",
+      "stepUpDescription": "Ponudniki identitete odločajo, kdo se lahko prijavi na ta strežnik. Za nadaljevanje potrdi, da si to ti.",
       "slugConflict": "Ta slug je že zaseden",
+      "issuerInUse": "Drug ponudnik identitete že uporablja ta URL izdajatelja",
+      "issuerLocked": "URL izdajatelja ni mogoče spremeniti, dokler so s tem ponudnikom povezani uporabniki. Odveži jih ali namesto tega dodaj novega ponudnika.",
       "staleError": "Ta ponudnik je bil spremenjen drugje. Tvoje spremembe niso bile shranjene. Zapri ga in ga znova odpri, da naložiš trenutne nastavitve.",
       "saveError": "Ponudnika ni bilo mogoče shraniti. Prosim, poskusi znova."
     }
@@ -739,23 +778,28 @@
       "revokeOthersBody": "Vsaka naprava razen te bo odjavljena in se bo morala znova prijaviti.",
       "revokeOthersConfirm": "Odjavi ostale",
       "revokeOthersSuccess": "Druge seje odjavljene",
-      "revokeOthersError": "Drugih sej ni bilo mogoče odjaviti. Prosim, poskusi znova."
+      "revokeOthersError": "Drugih sej ni bilo mogoče odjaviti. Prosim, poskusi znova.",
+      "signOutEverywhere": "Odjavi povsod",
+      "signOutEverywhereTitle": "Odjava povsod?",
+      "signOutEverywhereBody": "Vse naprave, tudi ta, bodo odjavljene in se bo treba znova prijaviti.",
+      "signOutEverywhereConfirm": "Odjavi povsod",
+      "signOutEverywhereError": "Odjava iz vseh sej ni uspela. Poskusi znova."
     },
     "devices": {
-      "title": "Known devices",
-      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
-      "empty": "No known devices",
-      "error": "Couldn't load known devices",
-      "current": "This device",
-      "unknown": "Unknown device",
-      "lastSeen": "Last signed in {date}",
-      "forget": "Forget this device",
-      "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
-      "forgetConfirm": "Forget device",
-      "forgetSuccess": "Device forgotten",
-      "forgetError": "Couldn't forget the device. Please try again.",
-      "forgetNotFound": "That device is no longer known."
+      "title": "Znane naprave",
+      "subtitle": "Brskalniki in aplikacije, iz katerih si se prijavil od zadnje varnostne spremembe. Prijava iz katere koli druge naprave ti pošlje obvestilo.",
+      "empty": "Ni znanih naprav",
+      "error": "Znanih naprav ni bilo mogoče naložiti",
+      "current": "Ta naprava",
+      "unknown": "Neznana naprava",
+      "lastSeen": "Zadnja prijava {date}",
+      "forget": "Pozabi to napravo",
+      "forgetTitle": "Pozabim to napravo?",
+      "forgetDescription": "Naslednja prijava iz te naprave se šteje za novo napravo in ti pošlje obvestilo.",
+      "forgetConfirm": "Pozabi napravo",
+      "forgetSuccess": "Naprava pozabljena",
+      "forgetError": "Naprave ni bilo mogoče pozabiti. Poskusi znova.",
+      "forgetNotFound": "Ta naprava ni več znana."
     },
     "linked": {
       "title": "Povezani računi",
@@ -1088,11 +1132,11 @@
       "gravelRide": "Gravel kolesarjenje",
       "virtualRide": "Virtualno kolesarjenje",
       "ows": "Plavanje v odprtih vodah",
-      "windsurf": "Windsurf",
+      "windsurf": "Jadralna deska",
       "tennis": "Tenis",
       "alpineSki": "Alpsko smučanje",
       "nordicSki": "Nordijsko smučanje",
-      "snowboard": "Snowboard"
+      "snowboard": "Snežna deska"
     },
     "dataTransfer": {
       "title": "Tvoji podatki",

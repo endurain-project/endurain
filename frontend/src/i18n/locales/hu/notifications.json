@@ -74,6 +74,14 @@
         "title": "Kétfaktoros hitelesítés kikapcsolva",
         "body": "A fiókodnál kikapcsoltuk a kétfaktoros hitelesítést. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
       },
+      "mfaResetByAdmin": {
+        "title": "A rendszergazda visszaállította a kétfaktoros hitelesítést",
+        "body": "A rendszergazda visszaállította a fiókod kétfaktoros hitelesítését, és minden eszközről kijelentkeztetett. Állítsd be újra a biztonsági beállításokban. Ha nem számítottál erre, fordulj a rendszergazdához."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "A rendszergazda jelszómódosítást írt elő",
+        "body": "A rendszergazda jelszómódosítást írt elő számodra, és minden eszközről kijelentkeztetett. Legközelebb, amikor jelszóval jelentkezel be, új jelszót kell választanod. Ha nem számítottál erre, fordulj a rendszergazdához."
+      },
       "backupCodesGenerated": {
         "title": "Új tartalék kódok létrehozva",
         "body": "A fiókodhoz új tartalék kódokat hoztunk létre. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
@@ -86,6 +94,14 @@
         "title": "Bejelentkezési szolgáltató leválasztva",
         "body": "A(z) {name} leválasztva a fiókodról. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat.",
         "bodyGeneric": "Egy bejelentkezési szolgáltató leválasztva a fiókodról. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
+      },
+      "accountLocked": {
+        "title": "Fiók zárolva",
+        "body": "A fiókodat 100 egymást követő sikertelen bejelentkezési kísérlet után zároltuk. Azok a böngészők és alkalmazások, amelyekből az utolsó biztonsági módosítás óta bejelentkeztél, továbbra is be tudnak jelentkezni. Ha nem te próbálkoztál, módosítsd vagy állítsd vissza a jelszavadat, ami a zárolást is feloldja."
+      },
+      "mfaLocked": {
+        "title": "Kétlépéses ellenőrzés zárolva",
+        "body": "A fiókodat 100 egymást követő hibás kétlépéses ellenőrző kód után zároltuk, tehát valaki ismeri a jelszavadat. Azok a böngészők és alkalmazások, amelyekből az utolsó biztonsági módosítás óta bejelentkeztél, továbbra is be tudnak jelentkezni. Ha nem te próbálkoztál, módosítsd a jelszavadat."
       },
       "unknown": {
         "title": "A fiók biztonsága megváltozott",

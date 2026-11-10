@@ -209,7 +209,7 @@
     "hideGear": "Peida varustus",
     "success": "Tegevus uuendatud",
     "error": "Tegevust ei õnnestunud uuendada",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Seda tegevust muudeti mujal, kui sa seda redigeerisid. Sinu muudatusi ei salvestatud. Ava see uuesti, et näha praegust versiooni."
   },
   "alerts": {
     "hidden": "See tegevus on peidetud. Ainult sina näed seda.",

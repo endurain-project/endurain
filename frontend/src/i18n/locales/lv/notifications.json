@@ -74,6 +74,14 @@
         "title": "Divfaktoru autentifikācija izslēgta",
         "body": "Jūsu kontam tika izslēgta divfaktoru autentifikācija. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
       },
+      "mfaResetByAdmin": {
+        "title": "Administrators atiestatīja divfaktoru autentifikāciju",
+        "body": "Administrators atiestatīja Jūsu konta divfaktoru autentifikāciju un izrakstīja Jūs visās ierīcēs. Iestatiet to vēlreiz drošības iestatījumos. Ja to negaidījāt, sazinieties ar administratoru."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Administrators pieprasīja paroles maiņu",
+        "body": "Administrators pieprasīja, lai nomainītu paroli, un izrakstīja Jūs visās ierīcēs. Jauno paroli izvēlēsieties nākamreiz, kad pieteiksieties ar paroli. Ja to negaidījāt, sazinieties ar administratoru."
+      },
       "backupCodesGenerated": {
         "title": "Izveidoti jauni rezerves kodi",
         "body": "Jūsu kontam tika izveidoti jauni rezerves kodi. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
@@ -86,6 +94,14 @@
         "title": "Pieteikšanās pakalpojuma sniedzējs atsaistīts",
         "body": "{name} tika atsaistīts no jūsu konta. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus.",
         "bodyGeneric": "Pieteikšanās pakalpojuma sniedzējs tika atsaistīts no jūsu konta. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
+      },
+      "accountLocked": {
+        "title": "Konts bloķēts",
+        "body": "Jūsu konts tika bloķēts pēc 100 neveiksmīgiem pieteikšanās mēģinājumiem pēc kārtas. Pārlūkprogrammas un lietotnes, no kurām pieteicāties kopš pēdējām drošības izmaiņām, joprojām var pieteikties. Ja šie mēģinājumi nebija Jūsu, nomainiet vai atiestatiet paroli, kas arī noņem bloķēšanu."
+      },
+      "mfaLocked": {
+        "title": "Divpakāpju verifikācija bloķēta",
+        "body": "Jūsu konts tika bloķēts pēc 100 nepareiziem divpakāpju verifikācijas kodiem pēc kārtas, tātad kāds zina Jūsu paroli. Pārlūkprogrammas un lietotnes, no kurām pieteicāties kopš pēdējām drošības izmaiņām, joprojām var pieteikties. Ja šie mēģinājumi nebija Jūsu, nomainiet paroli."
       },
       "unknown": {
         "title": "Konta drošība mainīta",

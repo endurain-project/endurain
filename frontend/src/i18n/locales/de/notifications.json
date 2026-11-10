@@ -74,6 +74,14 @@
         "title": "Zwei-Faktor-Authentifizierung deaktiviert",
         "body": "Die Zwei-Faktor-Authentifizierung wurde für dein Konto deaktiviert. Wenn du das nicht warst, setze dein Passwort zurück und prüfe deine Sicherheitseinstellungen."
       },
+      "mfaResetByAdmin": {
+        "title": "Zwei-Faktor-Authentifizierung von einem Administrator zurückgesetzt",
+        "body": "Ein Administrator hat die Zwei-Faktor-Authentifizierung für dein Konto zurückgesetzt und dich auf allen Geräten abgemeldet. Richte sie in deinen Sicherheitseinstellungen erneut ein. Wenn du das nicht erwartet hast, wende dich an deinen Administrator."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Passwortänderung von einem Administrator verlangt",
+        "body": "Ein Administrator hat verlangt, dass du dein Passwort änderst, und dich auf allen Geräten abgemeldet. Du wählst ein neues Passwort, wenn du dich das nächste Mal mit deinem Passwort anmeldest. Wenn du das nicht erwartet hast, wende dich an deinen Administrator."
+      },
       "backupCodesGenerated": {
         "title": "Neue Backup-Codes erstellt",
         "body": "Für dein Konto wurden neue Backup-Codes erstellt. Wenn du das nicht warst, setze dein Passwort zurück und prüfe deine Sicherheitseinstellungen."
@@ -86,6 +94,14 @@
         "title": "Anmeldeanbieter getrennt",
         "body": "{name} wurde von deinem Konto getrennt. Wenn du das nicht warst, setze dein Passwort zurück und prüfe deine Sicherheitseinstellungen.",
         "bodyGeneric": "Ein Anmeldeanbieter wurde von deinem Konto getrennt. Wenn du das nicht warst, setze dein Passwort zurück und prüfe deine Sicherheitseinstellungen."
+      },
+      "accountLocked": {
+        "title": "Konto gesperrt",
+        "body": "Dein Konto wurde nach 100 fehlgeschlagenen Anmeldeversuchen in Folge gesperrt. Browser und Apps, mit denen du dich seit deiner letzten Sicherheitsänderung angemeldet hast, können sich weiterhin anmelden. Wenn diese Versuche nicht von dir stammten, ändere oder setze dein Passwort zurück, wodurch auch die Sperre aufgehoben wird."
+      },
+      "mfaLocked": {
+        "title": "Zwei-Schritt-Verifizierung gesperrt",
+        "body": "Dein Konto wurde nach 100 falschen Codes der Zwei-Schritt-Verifizierung in Folge gesperrt, also kennt jemand dein Passwort. Browser und Apps, mit denen du dich seit deiner letzten Sicherheitsänderung angemeldet hast, können sich weiterhin anmelden. Wenn diese Versuche nicht von dir stammten, ändere dein Passwort."
       },
       "unknown": {
         "title": "Kontosicherheit geändert",
