@@ -158,6 +158,14 @@ MFA verification failures use a separate policy:
 | 10 failures | 30 minutes |
 | 15 failures | 2 hours |
 
+MFA verification failures also count against the account across every address, on `/auth/mfa/verify` and on the SSO token exchange. After **100 wrong MFA codes in a row** for one account, MFA sign-in is locked for **30 days**:
+
+- The count restarts on a successful MFA sign-in and expires after 30 days without a failure.
+- A sign-in from a **known device** of the account (defined in the password lock below) is not refused by this lock. It still needs the right code and is still held by the tiered MFA lockout above, and its wrong codes still count.
+- The lock and the count are cleared by a successful MFA sign-in, the user turning MFA off or setting it up again from a signed-in session, or an administrator resetting the user's MFA. A password reset or change does not clear them.
+- When the 100th wrong code locks it, the owner gets one email and one in-app notification (`account_security_changed` with the change `mfa_locked`) and an `auth.lockout.apply` audit row with the counter `mfa_account`. The audit row holds no username.
+- The refusal is the same `429`, with `Retry-After`, as the tiered MFA lockout.
+
 Password login failures also count against the account across every address. After **100 failed sign-ins in a row** for one username the account is locked for **30 days**:
 
 - The count restarts on a successful sign-in and expires after 30 days without a failure.
@@ -170,7 +178,7 @@ The per-client counters key an IPv6 address by its /64 network and an IPv4 addre
 
 **Features:**
 
-- Failures count per username and client network (an IPv6 address by its /64), so one client cannot lock a user out for everyone; the account-wide lock below counts failures from every address
+- Failures count per username and client network (an IPv6 address by its /64), so one client cannot lock a user out for everyone; the account-wide locks below count failures from every address
 - Lockout persists through MFA flow (prevents bypass)
 - Counter resets on successful authentication
 - Graceful error messages with remaining lockout time
