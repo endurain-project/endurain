@@ -32,10 +32,14 @@ vi.mock('@/composables/useSafeRedirect', () => ({
     Array.isArray(value) ? String(value[0] ?? '') : typeof value === 'string' ? value : '',
   useSafeRedirect: () => ({
     getSafeRedirect: (value: unknown) =>
-      typeof value === 'string' && (value.startsWith('/') || value.startsWith('endurain:'))
+      typeof value === 'string' &&
+      (value.startsWith('/') ||
+        value.startsWith('endurain:') ||
+        value.startsWith('https://app.example.org/'))
         ? value
         : '/',
-    isCustomSchemeRedirect: (value: string) => value.startsWith('endurain:'),
+    isNativeRedirect: (value: string) =>
+      value.startsWith('endurain:') || value.startsWith('https://app.example.org/'),
     getSsoRedirect: () => '',
     navigateAfterLogin: mocks.navigateAfterLogin,
   }),
@@ -282,6 +286,24 @@ describe('processSsoCallback', () => {
       expect(window.location.href).toBe('endurain://native-callback?session_id=sso-session')
       expect(mocks.completeTokenLogin).not.toHaveBeenCalled()
       expect(mocks.routerReplace).not.toHaveBeenCalledWith({ name: 'home' })
+    })
+
+    it('forwards the session_id to a listed claimed-https address', async () => {
+      mocks.route.query = {
+        sso: 'success',
+        session_id: 'sso-session',
+        external_redirect: 'true',
+        redirect: 'https://app.example.org/auth/sso/callback',
+      }
+
+      const { processSsoCallback } = useSsoLogin()
+      const result = await processSsoCallback()
+
+      expect(result).toEqual({ status: 'completed' })
+      expect(window.location.href).toBe(
+        'https://app.example.org/auth/sso/callback?session_id=sso-session',
+      )
+      expect(mocks.completeTokenLogin).not.toHaveBeenCalled()
     })
 
     it.each([

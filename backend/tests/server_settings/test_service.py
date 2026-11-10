@@ -1405,21 +1405,9 @@ class TestGetServerSettingsForPublic:
 
     @patch("modules.server_settings.service.core_config.settings")
     @patch("modules.server_settings.service.server_settings_crud.get_server_settings")
-    def test_reflects_configured_schemes_sorted(self, mock_get, mock_config, mock_db):
-        """Test the redirect schemes mirror ALLOWED_REDIRECT_SCHEMES, sorted."""
-        mock_get.return_value = self._stored_settings()
-        mock_config.ALLOWED_REDIRECT_SCHEMES = {"gadgetbridge", "endurain"}
-
-        result = server_settings_service.get_server_settings_for_public(mock_db)
-
-        assert result.allowed_redirect_schemes == ["endurain", "gadgetbridge"]
-
-    @patch("modules.server_settings.service.core_config.settings")
-    @patch("modules.server_settings.service.server_settings_crud.get_server_settings")
     def test_reflects_configured_uris_sorted(self, mock_get, mock_config, mock_db):
         """Test the redirect addresses mirror ALLOWED_REDIRECT_URIS, sorted."""
         mock_get.return_value = self._stored_settings()
-        mock_config.ALLOWED_REDIRECT_SCHEMES = {"endurain"}
         mock_config.ALLOWED_REDIRECT_URIS = {"gadgetbridge://auth", "endurain://cb"}
 
         result = server_settings_service.get_server_settings_for_public(mock_db)
@@ -1435,6 +1423,7 @@ class TestGetServerSettingsForPublic:
 
         assert "signup_require_admin_approval" not in dumped
         assert "tileserver_api_key" not in dumped
+        assert "allowed_redirect_schemes" not in dumped
 
 
 class TestEditMailSettingsLocking:

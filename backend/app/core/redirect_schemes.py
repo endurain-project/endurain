@@ -1,7 +1,9 @@
 """The URI schemes a redirect after sign-in must never use, and how a redirect's scheme is read.
 
-Shared by the ``ALLOWED_REDIRECT_SCHEMES`` and ``ALLOWED_REDIRECT_URIS`` settings, which refuse them at startup, and the redirect validator,
-which refuses them even when they are configured. It reads no settings, so a pure layer may import it.
+Shared by the ``ALLOWED_REDIRECT_URIS`` setting, which refuses them at startup, and the redirect validator,
+which refuses them even when they are configured. ``https`` is not among them: a claimed-https address
+(Android App Links, iOS Universal Links) is a redirect only as an exact listed entry. It reads no settings, so a
+pure layer may import it.
 """
 
 import re
@@ -9,8 +11,8 @@ import re
 #: RFC 3986 3.1: ``scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )``.
 _SCHEME = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*")
 
-#: ``http`` and ``https`` are external redirects; the rest run script or read local content in the browser.
-UNSAFE_REDIRECT_SCHEMES = frozenset({"http", "https", "javascript", "data", "file", "vbscript", "blob"})
+#: ``http`` is an unencrypted external redirect; the rest run script or read local content in the browser.
+UNSAFE_REDIRECT_SCHEMES = frozenset({"http", "javascript", "data", "file", "vbscript", "blob"})
 
 
 def uri_scheme(uri: str) -> str | None:

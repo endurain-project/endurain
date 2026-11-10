@@ -3107,7 +3107,7 @@ export interface paths {
          *     PKCE (Proof Key for Code Exchange) is REQUIRED for all clients (OAuth 2.1 compliance).
          *     Both code_challenge and code_challenge_method=S256 must be provided.
          *
-         *     The client type comes from the redirect alone: a custom-scheme redirect starts a mobile flow, anything else
+         *     The client type comes from the redirect alone: a native-app redirect starts a mobile flow, anything else
          *     a web flow. The request needs no `X-Client-Type` header and ignores one.
          *
          *     Rate Limit: 10 requests per minute per IP
@@ -8400,14 +8400,14 @@ export interface components {
          * @description Start linking an identity provider to the signed-in user's account, authorised by step-up verification.
          *
          *     Attributes:
-         *         redirect: Frontend return path after linking (a relative path or a configured custom scheme).
+         *         redirect: Frontend return path after linking (a relative path or a configured native-app address).
          *         revoke_other_sessions: Whether to sign out the user's other sessions once the link completes.
          *         step_up: The caller's step-up verification.
          */
         IdentityProviderLinkStart: {
             /**
              * Redirect
-             * @description Frontend return path after linking (relative path or a configured custom scheme)
+             * @description Frontend return path after linking (relative path or a configured native-app address)
              */
             redirect?: string | null;
             /**
@@ -10753,21 +10753,14 @@ export interface components {
          *         signup_require_email_verification: Whether a new sign-up must verify its email
          *             address, which is also when the password is chosen.
          *         login_photo_set: Whether a custom login photo is configured.
-         *         allowed_redirect_schemes: Custom URI schemes (ALLOWED_REDIRECT_SCHEMES) that
+         *         allowed_redirect_uris: Exact redirect addresses (ALLOWED_REDIRECT_URIS) that
          *             SSO redirects may target, so the frontend validates the same allow-list
          *             as the backend.
-         *         allowed_redirect_uris: Exact redirect addresses (ALLOWED_REDIRECT_URIS) that
-         *             SSO redirects may target; when not empty they replace the schemes.
          */
         ServerSettingsReadPublic: {
             /**
-             * Allowed Redirect Schemes
-             * @description Custom URI schemes SSO redirects may target
-             */
-            allowed_redirect_schemes: string[];
-            /**
              * Allowed Redirect Uris
-             * @description Exact addresses SSO redirects may target; when not empty they replace the schemes
+             * @description Exact addresses SSO redirects may target
              */
             allowed_redirect_uris: string[];
             /** @description Currency (euro, dollar, pound) */

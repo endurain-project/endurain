@@ -56,7 +56,7 @@ def _state(**overrides):
         "idp_id": 1,
         "client_type": "web",
         "user_id": None,
-        "browser_binding_hash": None,
+        "browser_binding_hash": core_hashing.sha256_hex("binding"),
         "purpose": _PURPOSE.LOGIN,
         "nonce": "n",
         "redirect_path": None,
@@ -109,7 +109,7 @@ class TestStateRefusals:
             jasil_testing.capture_audit() as audit,
             pytest.raises(core_exceptions.InvalidInputError, match=_STATE_MESSAGE),
         ):
-            service.prepare_callback("test", "state-id", None, MagicMock())
+            service.prepare_callback("test", "state-id", "binding", MagicMock())
         return audit
 
     def test_an_unknown_state_is_audited(self, service):
@@ -176,6 +176,27 @@ class TestStateRefusals:
             entry = _assert_step_up_row(audit, outcome="denied", reason="browser_mismatch")
         _assert_no_actor(entry)
         audit.assert_not_audited(_LOGIN)
+
+    @pytest.mark.parametrize("browser_binding", [None, "another-browser"])
+    def test_a_login_callback_from_another_browser_is_denied_anonymously(self, service, browser_binding):
+        with (
+            patch.object(callback_service.idp_crud, "get_identity_provider_by_slug", return_value=_idp()),
+            patch.object(service, "get_unused_oauth_state", return_value=_state()),
+            jasil_testing.capture_audit() as audit,
+            pytest.raises(core_exceptions.InvalidInputError, match=_STATE_MESSAGE),
+        ):
+            service.prepare_callback("test", "state-id", browser_binding, MagicMock())
+
+        entry = audit.assert_audited(_LOGIN, outcome="denied")
+        assert entry.details == {
+            "method": "identity_provider",
+            "mfa": False,
+            "reason": "browser_mismatch",
+            "new_device": False,
+        }
+        _assert_no_actor(entry)
+        audit.assert_not_audited(_LINK)
+        audit.assert_not_audited(_STEP_UP)
 
     def test_a_missing_provider_is_not_audited(self, service):
         with (

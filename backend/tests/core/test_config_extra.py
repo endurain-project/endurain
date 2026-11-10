@@ -70,78 +70,9 @@ class TestSettings:
         assert s.PHOTON_API_HOST == "photon.example.com"
         assert s.NOMINATIM_API_HOST == "nominatim.example.org"
 
-    def test_allowed_redirect_schemes_comma_separated(self):
-        from core.config import Settings
-
-        s = Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES="endurain,gadgetbridge")
-        assert {"endurain", "gadgetbridge"} == s.ALLOWED_REDIRECT_SCHEMES
-
-    def test_allowed_redirect_schemes_lowercased(self):
-        from core.config import Settings
-
-        s = Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES="Endurain, MyApp")
-        assert {"endurain", "myapp"} == s.ALLOWED_REDIRECT_SCHEMES
-
-    @pytest.mark.parametrize("unsafe", ["http", "https", "javascript", "data", "file", "vbscript", "blob"])
-    def test_allowed_redirect_schemes_refuses_unsafe_scheme(self, unsafe):
-        """An unsafe scheme in ALLOWED_REDIRECT_SCHEMES must fail at startup.
-
-        Asserts:
-            - ValidationError naming the refused scheme
-        """
-        from core.config import Settings
-
-        with pytest.raises(ValidationError, match=unsafe):
-            Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES=f"endurain,{unsafe}")
-
-    def test_allowed_redirect_schemes_refuses_unsafe_scheme_in_any_case(self):
-        """The refusal must hold when the operator writes the scheme in upper case.
-
-        Asserts:
-            - ValidationError for HTTPS
-        """
-        from core.config import Settings
-
-        with pytest.raises(ValidationError, match="https"):
-            Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES="endurain,HTTPS")
-
-    def test_allowed_redirect_schemes_drops_invalid_scheme_syntax(self):
-        from core.config import Settings
-
-        s = Settings(
-            _env_file=None,
-            ALLOWED_REDIRECT_SCHEMES=(
-                "endurain,nodomain.freeyourgadget.gadgetbridge.nightly_nopebble,"
-                "nodomain.freeyourgadget.gadgetbridge.nightly-nopebble,1app,my app"
-            ),
-        )
-        assert {"endurain", "nodomain.freeyourgadget.gadgetbridge.nightly-nopebble"} == s.ALLOWED_REDIRECT_SCHEMES
-
-    def test_allowed_redirect_schemes_empty(self):
-        from core.config import Settings
-
-        s = Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES="")
-        assert set() == s.ALLOWED_REDIRECT_SCHEMES
-
-    def test_allowed_redirect_schemes_none(self):
-        from core.config import Settings
-
-        s = Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES=None)
-        assert set() == s.ALLOWED_REDIRECT_SCHEMES
-
     def test_allowed_redirect_uris_default_is_the_mobile_app_callback(self):
         s = Settings(_env_file=None)
-        assert {"endurain://auth/sso/callback"} == s.ALLOWED_REDIRECT_URIS
-
-    def test_the_deprecated_schemes_decide_when_they_are_set_and_the_addresses_are_not(self):
-        """An operator still on ALLOWED_REDIRECT_SCHEMES keeps their schemes until v0.22."""
-        s = Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES="endurain,gadgetbridge")
-        assert {"endurain", "gadgetbridge"} == s.ALLOWED_REDIRECT_SCHEMES
-        assert set() == s.ALLOWED_REDIRECT_URIS
-
-    def test_the_addresses_win_when_both_are_set(self):
-        s = Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES="endurain", ALLOWED_REDIRECT_URIS="gadgetbridge://auth")
-        assert {"gadgetbridge://auth"} == s.ALLOWED_REDIRECT_URIS
+        assert {"com.endurain.endurain:/auth/sso/callback"} == s.ALLOWED_REDIRECT_URIS
 
     def test_allowed_redirect_uris_comma_separated_with_lowercased_scheme(self):
         s = Settings(_env_file=None, ALLOWED_REDIRECT_URIS="Endurain://oauth/Callback, gadgetbridge://auth ,")
@@ -160,7 +91,6 @@ class TestSettings:
     @pytest.mark.parametrize(
         "uri",
         [
-            "https://evil.example/cb",
             "HTTP://evil.example/cb",
             "javascript://x",
             "data://x",
@@ -176,6 +106,37 @@ class TestSettings:
         with pytest.raises(ValidationError, match="unsafe scheme"):
             Settings(_env_file=None, ALLOWED_REDIRECT_URIS=f"endurain://cb,{uri}")
 
+    def test_allowed_redirect_uris_accepts_an_exact_https_address(self):
+        s = Settings(
+            _env_file=None,
+            ALLOWED_REDIRECT_URIS="HTTPS://app.example.org/auth/sso/callback, https://app.example.org:8443/cb?x=1#f",
+        )
+        assert {
+            "https://app.example.org/auth/sso/callback",
+            "https://app.example.org:8443/cb?x=1#f",
+        } == s.ALLOWED_REDIRECT_URIS
+
+    @pytest.mark.parametrize(
+        "uri",
+        [
+            "https://",
+            "https:///callback",
+            "https:host/callback",
+            "https:/callback",
+            "https://user@app.example.org/cb",
+            "https://user:pw@app.example.org/cb",
+            "https://@app.example.org/cb",
+            "https://app.example.org:abc/cb",
+            "https://app.example.org:99999/cb",
+            "https://[::1/cb",
+            "https://app example.org/cb",
+            "https://app.example.org\\cb",
+        ],
+    )
+    def test_allowed_redirect_uris_refuses_a_malformed_https_address(self, uri):
+        with pytest.raises(ValidationError, match="ALLOWED_REDIRECT_URIS"):
+            Settings(_env_file=None, ALLOWED_REDIRECT_URIS=f"endurain://cb,{uri}")
+
     @pytest.mark.parametrize(
         "uri", ["/relative", "cb", "endurain:", "1app://cb", "my app://cb", "my_app:/cb", "endurain://"]
     )
@@ -187,28 +148,6 @@ class TestSettings:
     def test_allowed_redirect_uris_refuses_control_characters(self, char):
         with pytest.raises(ValidationError, match="control characters"):
             Settings(_env_file=None, ALLOWED_REDIRECT_URIS=f"endurain://cb{char}x")
-
-    def test_setting_the_deprecated_schemes_warns(self):
-        settings = Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES="endurain")
-        with (
-            patch.dict(os.environ, {}, clear=True),
-            patch("core.config.settings", settings),
-            patch("core.config.logger") as logger,
-        ):
-            core_config.check_deprecated_env_vars()
-        message = logger.warning.call_args.args[0]
-        assert "ALLOWED_REDIRECT_SCHEMES" in message
-        assert "v0.22" in message
-        assert "ALLOWED_REDIRECT_URIS" in message
-
-    def test_the_default_schemes_do_not_warn(self):
-        with (
-            patch.dict(os.environ, {}, clear=True),
-            patch("core.config.settings", Settings(_env_file=None)),
-            patch("core.config.logger") as logger,
-        ):
-            core_config.check_deprecated_env_vars()
-        logger.warning.assert_not_called()
 
     def test_trusted_proxies_comma_separated(self):
         from core.config import Settings
@@ -1025,6 +964,19 @@ class TestCheckDeprecatedEnvVars:
         # One header line plus one line per offending variable.
         assert len(mock_log.method_calls) == 4
 
+    @patch.dict(os.environ, {"ALLOWED_REDIRECT_SCHEMES": "endurain"}, clear=True)
+    def test_allowed_redirect_schemes_aborts_pointing_to_allowed_redirect_uris(self):
+        from core.config import check_deprecated_env_vars
+
+        with (
+            patch("core.config.logger") as mock_log,
+            pytest.raises(OSError, match="ALLOWED_REDIRECT_SCHEMES"),
+        ):
+            check_deprecated_env_vars()
+
+        logged = " ".join(str(call) for call in mock_log.method_calls)
+        assert "ALLOWED_REDIRECT_URIS" in logged
+
     def test_mapping_contains_expected_keys(self):
         from core.config import DEPRECATED_ENV_VARS
 
@@ -1034,6 +986,7 @@ class TestCheckDeprecatedEnvVars:
             "FRONTEND_PROTOCOL",
             "RATE_LIMIT_STORAGE_URI",
             "AUTH_SECURITY_STORAGE_URI",
+            "ALLOWED_REDIRECT_SCHEMES",
         }
         assert all(isinstance(hint, str) and hint for hint in DEPRECATED_ENV_VARS.values())
 

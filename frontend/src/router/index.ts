@@ -356,7 +356,7 @@ export async function authGuard(to: RouteLocationNormalized) {
 
   // An in-progress SSO handoff to the mobile app must be allowed to finish
   // even when the browser already has an authenticated session: this callback
-  // only forwards the session_id to the native app's custom scheme redirect,
+  // only forwards the session_id to the native app's redirect address (a custom scheme or a claimed https link),
   // it never touches the browser session, so it shouldn't be treated as a
   // "guest-only" login attempt.
   const isExternalSsoHandoff = to.query.sso === 'success' && to.query.external_redirect === 'true'

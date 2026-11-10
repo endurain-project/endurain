@@ -47,10 +47,8 @@ def enrich_user_identity_providers(
 
 
 def validate_redirect(redirect: str | None) -> None:
-    """Refuse a frontend return path that is not a relative path or a configured custom scheme."""
-    identity_providers_utils.validate_redirect_url(
-        redirect, core_config.settings.ALLOWED_REDIRECT_SCHEMES, core_config.settings.ALLOWED_REDIRECT_URIS
-    )
+    """Refuse a frontend return path that is not a relative path or a configured native-app address."""
+    identity_providers_utils.validate_redirect_url(redirect, core_config.settings.ALLOWED_REDIRECT_URIS)
 
 
 def stage_browser_link(
@@ -75,7 +73,6 @@ def stage_browser_link(
         idp_id,
         redirect,
         client_ip,
-        core_config.settings.ALLOWED_REDIRECT_SCHEMES,
         core_config.settings.ALLOWED_REDIRECT_URIS,
         session_id,
         ends_other_sessions,

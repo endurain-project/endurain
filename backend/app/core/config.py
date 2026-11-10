@@ -21,6 +21,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from tempfile import gettempdir
 from typing import Annotated, Self
+from urllib.parse import urlsplit
 
 import jasil.capabilities as platform_capabilities
 import jasil.profile as platform_profile
@@ -129,12 +130,10 @@ class Settings(BaseSettings):
     # comma-separated env value (e.g. "a,b,c") rather than
     # JSON. Without this pydantic-settings would attempt
     # ``json.loads`` first and raise on plain strings.
-    # Deprecated: removed in v0.22.0 in favour of ALLOWED_REDIRECT_URIS.
-    ALLOWED_REDIRECT_SCHEMES: Annotated[set[str], NoDecode] = {"endurain"}
-    # Exact redirect addresses mobile apps may use. While not empty, only these are allowed and the schemes are
-    # ignored. The default is the Endurain mobile app's callback; an operator who sets only the deprecated schemes
-    # keeps deciding by them (see ``_defer_to_deprecated_schemes``).
-    ALLOWED_REDIRECT_URIS: Annotated[set[str], NoDecode] = {"endurain://auth/sso/callback"}
+    # Exact redirect addresses native apps may use (custom-scheme or claimed-https); any other redirect that carries a
+    # scheme is refused. The default is the Endurain mobile app's callback, its applicationId in reverse-DNS form
+    # (RFC 8252 7.1).
+    ALLOWED_REDIRECT_URIS: Annotated[set[str], NoDecode] = {"com.endurain.endurain:/auth/sso/callback"}
     TRUSTED_PROXIES: Annotated[list[str], NoDecode] = []
     # Narrow SSRF exception list for admin-configured
     # outbound calls (currently OIDC discovery / JWKS).
@@ -374,46 +373,18 @@ class Settings(BaseSettings):
             return "starttls"
         return normalised
 
-    @field_validator("ALLOWED_REDIRECT_SCHEMES", mode="before")
-    @classmethod
-    def _parse_allowed_schemes(cls, v: str | Iterable[object] | None) -> set[str]:
-        """Accept comma-separated env value or already-parsed iterable.
-
-        Schemes are lower-cased. An unsafe scheme (``core.redirect_schemes``) is refused at startup.
-
-        Raises:
-            ValueError: If an entry is an unsafe scheme.
-        """
-        if v is None or v == "":
-            return set()
-        if isinstance(v, str):
-            schemes = {s.strip().lower() for s in v.split(",") if s.strip()}
-        else:
-            schemes = {str(s).strip().lower() for s in v if str(s).strip()}
-        invalid = sorted(s for s in schemes if core_redirect_schemes.uri_scheme(f"{s}:") is None)
-        if invalid:
-            logger.warning(
-                "Ignoring ALLOWED_REDIRECT_SCHEMES entries that are not valid URI schemes: %s",
-                ", ".join(invalid),
-                extra=core_logger.context(console=True),
-            )
-        schemes.difference_update(invalid)
-        unsafe = sorted(schemes & core_redirect_schemes.UNSAFE_REDIRECT_SCHEMES)
-        if unsafe:
-            raise ValueError(f"ALLOWED_REDIRECT_SCHEMES must not contain unsafe schemes: {', '.join(unsafe)}")
-        return schemes
-
     @field_validator("ALLOWED_REDIRECT_URIS", mode="before")
     @classmethod
     def _parse_allowed_redirect_uris(cls, v: str | Iterable[object] | None) -> set[str]:
         """Accept comma-separated env value or already-parsed iterable.
 
         Each entry is a ``scheme:target`` address, the ``//`` optional (RFC 3986); its scheme is lower-cased and the
-        rest is kept as written.
+        rest is kept as written. An ``https`` entry must be ``https://host/...`` with a host, no userinfo and a valid
+        port.
 
         Raises:
-            ValueError: If an entry has a control character, is not ``scheme:target``, or has an unsafe scheme
-                (``core.redirect_schemes``).
+            ValueError: If an entry has a control character, is not ``scheme:target``, has an unsafe scheme
+                (``core.redirect_schemes``), or is a malformed ``https`` address.
         """
         if v is None or v == "":
             return set()
@@ -429,8 +400,32 @@ class Settings(BaseSettings):
                 raise ValueError(f"ALLOWED_REDIRECT_URIS entry '{entry}' must look like scheme:target")
             if scheme in core_redirect_schemes.UNSAFE_REDIRECT_SCHEMES:
                 raise ValueError(f"ALLOWED_REDIRECT_URIS must not contain unsafe schemes: {scheme}")
-            uris.add(core_redirect_schemes.normalise_redirect_uri(entry))
+            address = core_redirect_schemes.normalise_redirect_uri(entry)
+            if scheme == "https" and not cls._is_https_address_with_host(address):
+                raise ValueError(
+                    f"ALLOWED_REDIRECT_URIS https entry '{entry}' must look like https://host/path, "
+                    "with a host, no user info and a valid port"
+                )
+            uris.add(address)
         return uris
+
+    @staticmethod
+    def _is_https_address_with_host(address: str) -> bool:
+        """Report whether an ``https`` address is ``https://host...`` without userinfo and with a valid port.
+
+        Args:
+            address: The address, its scheme already lower-cased.
+
+        Returns:
+            True when the address has an authority with a host, no ``@``, no whitespace or backslash, and a parsable port.
+        """
+        if not address.startswith("https://") or any(char.isspace() or char == "\\" for char in address):
+            return False
+        try:
+            parts = urlsplit(address)
+            return bool(parts.hostname) and "@" not in parts.netloc and (parts.port is None or parts.port > 0)
+        except ValueError:
+            return False
 
     @field_validator("TRUSTED_PROXIES", mode="before")
     @classmethod
@@ -637,17 +632,6 @@ class Settings(BaseSettings):
             )
             return 1.0
         return rate
-
-    @model_validator(mode="after")
-    def _defer_to_deprecated_schemes(self) -> Self:
-        """Let ``ALLOWED_REDIRECT_SCHEMES`` decide when it is set and ``ALLOWED_REDIRECT_URIS`` is not.
-
-        The default addresses would otherwise override the schemes of an operator who has not moved to
-        ``ALLOWED_REDIRECT_URIS`` yet. Removed with ``ALLOWED_REDIRECT_SCHEMES`` in v0.22.
-        """
-        if "ALLOWED_REDIRECT_SCHEMES" in self.model_fields_set and "ALLOWED_REDIRECT_URIS" not in self.model_fields_set:
-            self.ALLOWED_REDIRECT_URIS = set()
-        return self
 
     @model_validator(mode="after")
     def _fill_filesystem_defaults(self) -> Self:
@@ -1189,7 +1173,7 @@ def check_required_env_vars() -> None:
     validate_log_level(settings.LOG_LEVEL)
 
 
-# Environment variables retired in v0.19.x and v0.20.0. Maps the removed variable
+# Environment variables retired in v0.19.x, v0.20.0 and v0.21.0. Maps the removed variable
 # name to a short, actionable remediation string. These are validated by
 # ``check_deprecated_env_vars`` at startup: because ``Settings`` uses
 # ``extra="ignore"``, a stale value would otherwise be silently dropped, leaving
@@ -1224,6 +1208,12 @@ DEPRECATED_ENV_VARS: dict[str, str] = {
         "serves rate-limit counters, auth lockout, pending MFA and websocket "
         "tickets. Set REDIS_URL to the value this held."
     ),
+    # Retired in v0.21.0. A scheme list said which apps could receive a sign-in redirect; ignoring a leftover value
+    # would leave the operator believing it still limits them.
+    "ALLOWED_REDIRECT_SCHEMES": (
+        "removed. List the exact redirect addresses in ALLOWED_REDIRECT_URIS instead, for example "
+        "ALLOWED_REDIRECT_URIS=com.endurain.endurain:/auth/sso/callback."
+    ),
 }
 
 
@@ -1231,7 +1221,7 @@ def check_deprecated_env_vars() -> None:
     """
     Abort startup when retired environment variables are still set.
 
-    Variables removed in v0.19.x and v0.20.0 are silently ignored by ``Settings``
+    Variables removed in v0.19.x, v0.20.0 and v0.21.0 are silently ignored by ``Settings``
     (``extra="ignore"``), so a leftover value would give the operator no
     feedback. Every offending variable is collected and reported together
     so the deployment can be fixed in a single pass rather than one restart
@@ -1241,13 +1231,6 @@ def check_deprecated_env_vars() -> None:
         EnvironmentError: If any deprecated variable is present in the
             process environment.
     """
-    if "ALLOWED_REDIRECT_SCHEMES" in settings.model_fields_set:
-        logger.warning(
-            "ALLOWED_REDIRECT_SCHEMES is deprecated and will be removed in v0.22. "
-            "Use ALLOWED_REDIRECT_URIS to list the exact redirect addresses instead.",
-            extra=core_logger.context(console=True),
-        )
-
     found = [name for name in DEPRECATED_ENV_VARS if name in os.environ]
     if not found:
         return

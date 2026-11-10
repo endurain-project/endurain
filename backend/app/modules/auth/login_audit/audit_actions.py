@@ -20,7 +20,11 @@ class LoginMethod(StrEnum):
 
 
 class LoginFailureReason(StrEnum):
-    """Why a sign-in was refused; ``SECURITY_CHANGED`` is a step refused because the account's security changed."""
+    """Why a sign-in was refused.
+
+    ``SECURITY_CHANGED`` is a step refused because the account's security changed. ``BROWSER_MISMATCH`` is an SSO
+    callback that came from a browser other than the one that started the sign-in.
+    """
 
     INVALID_CREDENTIALS = "invalid_credentials"
     LOCKED_OUT = "locked_out"
@@ -41,6 +45,7 @@ class LoginFailureReason(StrEnum):
     NO_SUBJECT = "no_subject"
     PROVIDER_ERROR = "provider_error"
     SECURITY_CHANGED = "security_changed"
+    BROWSER_MISMATCH = "browser_mismatch"
 
 
 class StepUpMethod(StrEnum):
@@ -93,7 +98,7 @@ class LoginDetails(VersionedPayload):
 
     model_config = ConfigDict(extra="forbid")
 
-    SCHEMA_VERSION: ClassVar[int] = 5
+    SCHEMA_VERSION: ClassVar[int] = 6
 
     method: LoginMethod
     mfa: bool = False

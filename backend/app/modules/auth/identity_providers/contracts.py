@@ -83,7 +83,7 @@ class EndSessionRequest(BaseModel):
 
 
 class BrowserFlowStart(BaseModel):
-    """Where to send the browser that starts a link or step-up, and the secret that binds the flow to it.
+    """Where to send the browser that starts a login, link or step-up, and the secret that binds the flow to it.
 
     Attributes:
         authorization_url: The provider's authorization URL.

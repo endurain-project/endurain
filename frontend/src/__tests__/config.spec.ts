@@ -20,7 +20,6 @@ const publicSettings: PublicServerSettings = {
   num_records_per_page: 25,
   tileserver_url: 'https://tiles.test/{z}/{x}/{y}.png',
   tileserver_attribution: '&copy; Test tiles',
-  allowed_redirect_schemes: ['endurain'],
   allowed_redirect_uris: [],
 }
 

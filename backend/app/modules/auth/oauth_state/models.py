@@ -29,7 +29,7 @@ class OAuthState(Base):
         created_at: Timestamp for expiry calculation.
         expires_at: Hard expiry at 10 minutes.
         used: Prevents replay attacks.
-        browser_binding_hash: SHA-256 of the secret the browser that started a link or step-up holds in a cookie.
+        browser_binding_hash: SHA-256 of the secret the browser that started a login, link or step-up holds in a cookie.
         idp_code_verifier: Fernet-encrypted PKCE verifier this server sends the identity provider at the token exchange.
         purpose: The flow the state belongs to (``OAuthStatePurpose``).
         session_id: The session that started a link or step-up flow.

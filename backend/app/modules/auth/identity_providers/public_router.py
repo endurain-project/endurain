@@ -84,7 +84,7 @@ def initiate_login(
     PKCE (Proof Key for Code Exchange) is REQUIRED for all clients (OAuth 2.1 compliance).
     Both code_challenge and code_challenge_method=S256 must be provided.
 
-    The client type comes from the redirect alone: a custom-scheme redirect starts a mobile flow, anything else
+    The client type comes from the redirect alone: a native-app redirect starts a mobile flow, anything else
     a web flow. The request needs no `X-Client-Type` header and ignores one.
 
     Rate Limit: 10 requests per minute per IP
@@ -103,17 +103,18 @@ def initiate_login(
         NotFoundError: If the identity provider is not found or disabled.
         InvalidInputError: If PKCE validation or the redirect check fails.
     """
-    authorization_url = service.begin_login(
+    start = service.begin_login(
         idp_slug,
         code_challenge,
         code_challenge_method,
         redirect,
         core_network.get_ip_address(request),
-        core_config.settings.ALLOWED_REDIRECT_SCHEMES,
         core_config.settings.ALLOWED_REDIRECT_URIS,
         db,
     )
-    return RedirectResponse(url=authorization_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+    response = RedirectResponse(url=start.authorization_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+    idp_dependencies.set_browser_binding_cookie(response, start.browser_binding)
+    return response
 
 
 @router.get("/callback/{idp_slug}", status_code=status.HTTP_307_TEMPORARY_REDIRECT, response_class=RedirectResponse)
@@ -143,7 +144,7 @@ def handle_callback(
         password_hasher: Password hasher dependency for session management.
         db: Database session dependency.
         service: Identity provider service.
-        browser_binding: The cookie that binds a link or step-up to the browser that started it.
+        browser_binding: The cookie that binds the login, link or step-up to the browser that started it.
         code: Authorization code received from the identity provider; absent when it returned an error.
         error: The provider's error code, such as ``login_required`` when it could not sign the user in again.
         state: State parameter used for CSRF protection (database state ID).

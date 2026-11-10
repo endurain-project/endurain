@@ -15,10 +15,8 @@ from modules.auth.identity_providers.utils import (
 HOST = "https://app.example.com"
 
 
-def validate_redirect_url(redirect, allowed_schemes=None, allowed_uris=None):
-    if allowed_schemes is None:
-        allowed_schemes = {"endurain"}
-    return _validate_redirect_url(redirect, allowed_schemes, allowed_uris or set())
+def validate_redirect_url(redirect, allowed_uris=None):
+    return _validate_redirect_url(redirect, allowed_uris or set())
 
 
 class TestValidatePkceChallenge:
@@ -179,46 +177,28 @@ class TestValidateRedirectUrl:
         """
         validate_redirect_url("/settings?tab=security")
 
-    def test_custom_scheme_allowed_when_configured(self):
-        """Custom URI scheme in ALLOWED_REDIRECT_SCHEMES must pass.
+    def test_custom_scheme_allowed_when_listed(self):
+        """A custom-scheme address in ALLOWED_REDIRECT_URIS must pass.
 
         Asserts:
-            - No exception when scheme is in allowed set
+            - No exception when the address is in the allowed set
         """
-        validate_redirect_url("endurain://endurain/oauth/callback", {"endurain"})
+        validate_redirect_url("endurain://endurain/oauth/callback", {"endurain://endurain/oauth/callback"})
 
     def test_custom_scheme_case_insensitive(self):
-        """Scheme comparison must be case-insensitive.
+        """The scheme comparison must be case-insensitive.
 
         Asserts:
-            - ENDURAIN:// is allowed when 'endurain' configured
+            - ENDURAIN:// matches a listed endurain:// address
         """
-        validate_redirect_url("ENDURAIN://endurain/callback", {"endurain"})
-
-    def test_multiple_custom_schemes_allowed(self):
-        """Multiple schemes can be configured simultaneously.
-
-        Asserts:
-            - Both schemes accepted independently
-        """
-        schemes = {"endurain", "myapp"}
-        validate_redirect_url("endurain://callback", schemes)
-        validate_redirect_url("myapp://callback", schemes)
-
-    def test_mixed_case_custom_scheme_allowed_when_configured(self):
-        """A mixed-case custom scheme must match its lower-case allow-list entry.
-
-        Asserts:
-            - Endurain://callback is accepted when 'endurain' is configured
-        """
-        validate_redirect_url("Endurain://callback", {"endurain"})
+        validate_redirect_url("ENDURAIN://endurain/callback", {"endurain://endurain/callback"})
 
     @pytest.mark.parametrize(
-        "redirect", ["com.example.app:/oauth2redirect", "Com.Example.App:/cb", "endurain:callback"]
+        "redirect", ["com.example.app:/oauth2redirect", "Com.Example.App:/oauth2redirect", "endurain:callback"]
     )
-    def test_a_custom_scheme_without_an_authority_is_allowed_when_configured(self, redirect):
+    def test_a_custom_scheme_without_an_authority_is_allowed_when_listed(self, redirect):
         """RFC 3986 ends the scheme at the first ':'; the '//' authority is optional (RFC 8252 7.1 callbacks)."""
-        validate_redirect_url(redirect, {"endurain", "com.example.app"})
+        validate_redirect_url(redirect, {"com.example.app:/oauth2redirect", "endurain:callback"})
 
     def test_a_relative_path_with_a_colon_is_a_path(self):
         """A scheme starts with a letter, so a value starting with '/' never has one."""
@@ -228,35 +208,75 @@ class TestValidateRedirectUrl:
     # Inputs that MUST raise HTTPException(400)
     # ------------------------------------------------------------------
 
-    @pytest.mark.parametrize("redirect", ["HTTPS://evil.example", "HtTp://evil.example"])
-    def test_external_http_scheme_in_any_case_is_rejected(self, redirect):
-        """External HTTP/HTTPS URLs must be rejected regardless of letter case.
+    @pytest.mark.parametrize("redirect", ["HtTp://evil.example", "http://evil.example"])
+    def test_http_scheme_in_any_case_is_rejected(self, redirect):
+        """HTTP must be rejected regardless of letter case, even when listed.
 
         Asserts:
             - InvalidInputError with the external-redirect message
         """
         with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
-            validate_redirect_url(redirect)
+            validate_redirect_url(redirect, {redirect})
         assert "External HTTP redirects are not allowed" in exc_info.value.detail
 
-    @pytest.mark.parametrize("redirect", ["http:evil.example", "HTTPS:evil.example/cb"])
-    def test_external_http_scheme_without_slashes_is_rejected(self, redirect):
+    @pytest.mark.parametrize("redirect", ["http:evil.example", "HTTP:evil.example/cb"])
+    def test_http_scheme_without_slashes_is_rejected(self, redirect):
         """A browser reads "http:evil.example" as "http://evil.example/", so it is an external redirect too."""
         with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
-            validate_redirect_url(redirect, {"endurain", "http", "https"})
+            validate_redirect_url(redirect, {"endurain://cb", "http:evil.example"})
         assert "External HTTP redirects are not allowed" in exc_info.value.detail
+
+    @pytest.mark.parametrize(
+        "redirect",
+        [
+            "https://evil.example",
+            "HTTPS://evil.example",
+            "HtTpS://evil.example/cb",
+            "https:evil.example/cb",
+            "https://",
+        ],
+    )
+    def test_an_unlisted_https_redirect_is_rejected(self, redirect):
+        """An https address is allowed only as an exact listed entry, in any letter case.
+
+        Asserts:
+            - InvalidInputError when the address is not listed, even if another https address is
+        """
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
+            validate_redirect_url(redirect, {"https://app.example.org/auth/sso/callback"})
+        assert exc_info.value.status_code == 400
+
+    @pytest.mark.parametrize(
+        "redirect",
+        [
+            "https://app.example.org/auth/sso/callback/",
+            "https://app.example.org/auth/sso/callback?x=1",
+            "https://app.example.org:8443/auth/sso/callback",
+            "https://evil.example/auth/sso/callback",
+        ],
+    )
+    def test_a_near_miss_of_a_listed_https_address_is_rejected(self, redirect):
+        with pytest.raises(core_exceptions.InvalidInputError):
+            validate_redirect_url(redirect, {"https://app.example.org/auth/sso/callback"})
+
+    @pytest.mark.parametrize(
+        "redirect", ["https://app.example.org/auth/sso/callback", "HTTPS://app.example.org/auth/sso/callback"]
+    )
+    def test_a_listed_https_address_is_allowed(self, redirect):
+        """An App Link / Universal Link address in ALLOWED_REDIRECT_URIS passes, the scheme in any letter case."""
+        validate_redirect_url(redirect, {"https://app.example.org/auth/sso/callback"})
 
     @pytest.mark.parametrize(
         "redirect", ["JavaScript://x", "data://x", "file://x", "JavaScript:alert(1)", "data:text/html,x", "blob:x"]
     )
     def test_unsafe_scheme_is_rejected_even_when_allowed(self, redirect):
-        """Unsafe schemes must be refused even when listed in allowed_schemes.
+        """Unsafe schemes must be refused even when the address is listed.
 
         Asserts:
-            - InvalidInputError when the scheme is in the allow-list
+            - InvalidInputError when the address is in the allow-list
         """
         with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
-            validate_redirect_url(redirect, {"endurain", "javascript", "data", "file"})
+            validate_redirect_url(redirect, {redirect})
         assert exc_info.value.status_code == 400
 
     def test_http_url_is_rejected(self):
@@ -290,10 +310,10 @@ class TestValidateRedirectUrl:
         assert exc_info.value.status_code == 400
 
     def test_custom_scheme_not_in_allowlist_is_rejected(self):
-        """Custom scheme not in ALLOWED_REDIRECT_SCHEMES must be rejected.
+        """A custom-scheme address with no ALLOWED_REDIRECT_URIS entry must be rejected.
 
         Asserts:
-            - HTTPException 400 when scheme not configured
+            - HTTPException 400 when no address is configured
         """
         with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url("endurain://callback", set())
@@ -301,13 +321,13 @@ class TestValidateRedirectUrl:
         assert "not allowed" in exc_info.value.detail.lower()
 
     def test_wrong_custom_scheme_is_rejected(self):
-        """Scheme not in the allow-list must be rejected even if others are.
+        """An address not in the allow-list must be rejected even if others are.
 
         Asserts:
-            - HTTPException 400 when only a different scheme is configured
+            - HTTPException 400 when only a different address is configured
         """
         with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
-            validate_redirect_url("myapp://callback", {"endurain"})
+            validate_redirect_url("myapp://callback", {"endurain://callback"})
         assert exc_info.value.status_code == 400
 
     def test_path_traversal_double_dot_is_rejected(self):
@@ -386,8 +406,8 @@ class TestValidateRedirectUrl:
         assert exc_info.value.status_code == 400
 
 
-class TestIsCustomSchemeRedirect:
-    """Test suite for is_custom_scheme_redirect."""
+class TestIsNativeRedirect:
+    """Test suite for is_native_redirect."""
 
     def test_custom_scheme_is_true(self):
         """A custom URI scheme redirect is reported as custom.
@@ -395,33 +415,32 @@ class TestIsCustomSchemeRedirect:
         Asserts:
             - True for endurain://callback
         """
-        assert idp_utils.is_custom_scheme_redirect("endurain://callback") is True
+        assert idp_utils.is_native_redirect("endurain://callback") is True
 
-    def test_https_in_any_case_is_false(self):
-        """External HTTPS redirects are never custom-scheme redirects.
-
-        Asserts:
-            - False for HTTPS://x
-        """
-        assert idp_utils.is_custom_scheme_redirect("HTTPS://x") is False
+    @pytest.mark.parametrize("redirect", ["https://app.example.org/auth/sso/callback", "HTTPS://app.example.org/cb"])
+    def test_a_validated_https_address_is_true(self, redirect):
+        """A listed claimed-https address is a native-app redirect, so it has already passed validation."""
+        assert idp_utils.is_native_redirect(redirect) is True
 
     def test_custom_scheme_without_an_authority_is_true(self):
         """RFC 3986 ends the scheme at the first ':', so an RFC 8252 7.1 callback is a custom scheme."""
-        assert idp_utils.is_custom_scheme_redirect("com.example.app:/oauth2redirect") is True
+        assert idp_utils.is_native_redirect("com.example.app:/oauth2redirect") is True
 
     @pytest.mark.parametrize("redirect", ["/activities/a:b", "/x://y", "my app:/cb", "1app:/cb"])
     def test_a_value_without_a_well_formed_scheme_is_false(self, redirect):
         """A path or a malformed scheme name is not a custom-scheme redirect."""
-        assert idp_utils.is_custom_scheme_redirect(redirect) is False
+        assert idp_utils.is_native_redirect(redirect) is False
 
-    @pytest.mark.parametrize("redirect", ["JavaScript://x", "data://x", "file://x", "javascript:alert(1)", "http:x"])
+    @pytest.mark.parametrize(
+        "redirect", ["JavaScript://x", "data://x", "file://x", "javascript:alert(1)", "http:x", "HTTP://x"]
+    )
     def test_unsafe_scheme_is_false(self, redirect):
         """Unsafe schemes are never treated as custom-scheme redirects.
 
         Asserts:
             - False for each unsafe scheme
         """
-        assert idp_utils.is_custom_scheme_redirect(redirect) is False
+        assert idp_utils.is_native_redirect(redirect) is False
 
 
 class TestAppendQueryParams:
@@ -455,6 +474,12 @@ class TestBuildLinkResultUrl:
     def test_custom_scheme_is_not_host_prefixed(self):
         assert idp_utils.build_link_result_url(HOST, "gadgetbridge://callback", "Google", success=True) == (
             "gadgetbridge://callback?idp_link=success&idp_name=Google"
+        )
+
+    def test_a_listed_https_address_is_not_host_prefixed(self):
+        assert (
+            idp_utils.build_link_result_url(HOST, "https://app.example.org/auth/sso/callback", "Google", success=True)
+            == "https://app.example.org/auth/sso/callback?idp_link=success&idp_name=Google"
         )
 
     def test_error_omits_idp_name(self):
@@ -515,21 +540,21 @@ class TestNormalizeIssuerUrl:
 
 
 class TestValidateRedirectUrlWithExactAddresses:
-    """When ALLOWED_REDIRECT_URIS is set, only those exact addresses are allowed and the schemes are ignored."""
+    """Only the exact addresses in ALLOWED_REDIRECT_URIS are allowed; an empty set allows none."""
 
     URIS: ClassVar[set[str]] = {"endurain://oauth/callback", "gadgetbridge://auth"}
 
     def test_an_exact_address_is_allowed(self):
-        validate_redirect_url("endurain://oauth/callback", {"endurain"}, self.URIS)
-        validate_redirect_url("gadgetbridge://auth", set(), self.URIS)
+        validate_redirect_url("endurain://oauth/callback", self.URIS)
+        validate_redirect_url("gadgetbridge://auth", self.URIS)
 
     def test_the_scheme_matches_in_any_letter_case(self):
-        validate_redirect_url("ENDURAIN://oauth/callback", set(), self.URIS)
+        validate_redirect_url("ENDURAIN://oauth/callback", self.URIS)
 
     def test_the_rest_of_the_address_matches_exactly(self):
-        validate_redirect_url("endurain://oauth/callback", set(), self.URIS)
+        validate_redirect_url("endurain://oauth/callback", self.URIS)
         with pytest.raises(core_exceptions.InvalidInputError, match="ALLOWED_REDIRECT_URIS"):
-            validate_redirect_url("endurain://oauth/Callback", set(), self.URIS)
+            validate_redirect_url("endurain://oauth/Callback", self.URIS)
 
     @pytest.mark.parametrize(
         "redirect",
@@ -542,27 +567,22 @@ class TestValidateRedirectUrlWithExactAddresses:
     )
     def test_another_address_under_a_listed_scheme_is_refused(self, redirect):
         with pytest.raises(core_exceptions.InvalidInputError, match="ALLOWED_REDIRECT_URIS"):
-            validate_redirect_url(redirect, {"endurain"}, self.URIS)
+            validate_redirect_url(redirect, self.URIS)
 
     def test_an_address_without_an_authority_matches_with_its_path_case_kept(self):
         uris = {"com.example.app:/Callback"}
-        validate_redirect_url("com.example.app:/Callback", set(), uris)
-        validate_redirect_url("COM.Example.App:/Callback", set(), uris)
+        validate_redirect_url("com.example.app:/Callback", uris)
+        validate_redirect_url("COM.Example.App:/Callback", uris)
         with pytest.raises(core_exceptions.InvalidInputError, match="ALLOWED_REDIRECT_URIS"):
-            validate_redirect_url("com.example.app:/callback", set(), uris)
-
-    def test_a_scheme_only_in_the_schemes_is_refused(self):
-        with pytest.raises(core_exceptions.InvalidInputError):
-            validate_redirect_url("myapp://callback", {"myapp"}, self.URIS)
+            validate_redirect_url("com.example.app:/callback", uris)
 
     def test_relative_paths_stay_allowed(self):
-        validate_redirect_url("/dashboard", set(), self.URIS)
+        validate_redirect_url("/dashboard", self.URIS)
 
     def test_an_unsafe_scheme_is_refused_even_when_listed(self):
         with pytest.raises(core_exceptions.InvalidInputError):
-            validate_redirect_url("javascript://x", set(), {"javascript://x"})
+            validate_redirect_url("javascript://x", {"javascript://x"})
 
-    def test_without_addresses_the_schemes_decide(self):
-        validate_redirect_url("endurain://anything/at/all", {"endurain"}, set())
-        with pytest.raises(core_exceptions.InvalidInputError):
-            validate_redirect_url("myapp://callback", {"endurain"}, set())
+    def test_without_addresses_a_custom_scheme_is_refused(self):
+        with pytest.raises(core_exceptions.InvalidInputError, match="ALLOWED_REDIRECT_URIS"):
+            validate_redirect_url("endurain://anything/at/all", set())

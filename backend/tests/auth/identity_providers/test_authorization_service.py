@@ -8,13 +8,13 @@ import pytest
 from authlib.oauth2.rfc7636 import create_s256_code_challenge
 
 import core.exceptions as core_exceptions
+import core.hashing as core_hashing
 import core.network as core_network
 import modules.auth.identity_providers.authorization_service as authorization_service
 import modules.auth.identity_providers.oidc_client_service as oidc_client_service
 
 HOST = "https://app.example.com"
 CHALLENGE = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
-ALLOWED = {"gadgetbridge"}
 
 
 @pytest.fixture
@@ -35,8 +35,8 @@ class TestBeginLogin:
             patch.object(service, "create_login_oauth_state", return_value="state-id") as create_state,
             patch.object(service, "initiate_login", return_value="https://provider.example/auth") as initiate,
         ):
-            url = service.begin_login("test", challenge, method, redirect, "10.0.0.1", ALLOWED, uris, MagicMock())
-        return url, create_state, initiate
+            start = service.begin_login("test", challenge, method, redirect, "10.0.0.1", uris or set(), MagicMock())
+        return start, create_state, initiate
 
     def test_an_unknown_provider_is_not_found(self, service):
         with pytest.raises(core_exceptions.NotFoundError):
@@ -55,23 +55,57 @@ class TestBeginLogin:
         with pytest.raises(core_exceptions.DomainError):
             self._begin(service, idp=_idp(), challenge="short")
 
+    def test_a_custom_scheme_redirect_is_refused_without_a_listed_address(self, service):
+        with pytest.raises(core_exceptions.InvalidInputError):
+            self._begin(service, idp=_idp(), redirect="gadgetbridge://auth")
+
     def test_a_redirect_that_leaves_the_app_is_refused(self, service):
         with pytest.raises(core_exceptions.InvalidInputError):
             self._begin(service, idp=_idp(), redirect="https://evil.example/")
 
-    def test_exact_addresses_replace_the_schemes(self, service):
+    def test_an_unlisted_https_redirect_is_refused_when_another_is_listed(self, service):
+        with pytest.raises(core_exceptions.InvalidInputError):
+            self._begin(
+                service,
+                idp=_idp(),
+                redirect="https://evil.example/auth/sso/callback",
+                uris={"https://app.example.org/auth/sso/callback"},
+            )
+
+    def test_a_listed_https_redirect_means_a_mobile_client(self, service):
+        address = "https://app.example.org/auth/sso/callback"
+        _, create_state, _ = self._begin(service, idp=_idp(), redirect=address, uris={address})
+
+        assert create_state.call_args.kwargs["client_type"] == "mobile"
+        assert create_state.call_args.kwargs["redirect_path"] == address
+
+    def test_only_the_listed_addresses_are_allowed(self, service):
         uris = {"gadgetbridge://auth"}
         self._begin(service, idp=_idp(), redirect="gadgetbridge://auth", uris=uris)
         with pytest.raises(core_exceptions.InvalidInputError):
             self._begin(service, idp=_idp(), redirect="gadgetbridge://done", uris=uris)
 
     def test_a_valid_request_returns_the_authorization_url(self, service):
-        url, create_state, initiate = self._begin(service, idp=_idp(), redirect="/dashboard")
+        start, create_state, initiate = self._begin(service, idp=_idp(), redirect="/dashboard")
 
-        assert url == "https://provider.example/auth"
+        assert start.authorization_url == "https://provider.example/auth"
         assert create_state.call_args.kwargs["redirect_path"] == "/dashboard"
         assert create_state.call_args.kwargs["ip_address"] == "10.0.0.1"
         assert initiate.call_args.kwargs["oauth_state_id"] == "state-id"
+
+    def test_the_login_is_bound_to_the_browser_that_starts_it(self, service):
+        """The state keeps only the digest; the raw secret goes back to the caller for the cookie."""
+        start, create_state, _ = self._begin(service, idp=_idp())
+
+        assert start.browser_binding
+        assert create_state.call_args.kwargs["browser_binding_hash"] == core_hashing.sha256_hex(start.browser_binding)
+        assert start.browser_binding not in create_state.call_args.kwargs.values()
+
+    def test_every_login_gets_its_own_binding(self, service):
+        first, _, _ = self._begin(service, idp=_idp())
+        second, _, _ = self._begin(service, idp=_idp())
+
+        assert first.browser_binding != second.browser_binding
 
     @pytest.mark.parametrize("redirect", [None, "/dashboard"])
     def test_a_path_redirect_or_none_means_a_web_client(self, service, redirect):
@@ -80,7 +114,9 @@ class TestBeginLogin:
         assert create_state.call_args.kwargs["client_type"] == "web"
 
     def test_a_custom_scheme_redirect_means_a_mobile_client(self, service):
-        _, create_state, _ = self._begin(service, idp=_idp(), redirect="gadgetbridge://done")
+        _, create_state, _ = self._begin(
+            service, idp=_idp(), redirect="gadgetbridge://done", uris={"gadgetbridge://done"}
+        )
 
         assert create_state.call_args.kwargs["client_type"] == "mobile"
 
@@ -99,10 +135,12 @@ def test_a_login_oauth_state_is_committed_before_the_browser_is_redirected(mock_
             redirect_path=None,
             code_challenge="c" * 43,
             code_challenge_method="S256",
+            browser_binding_hash="h" * 64,
             db=mock_db,
         )
 
     assert state_id == "s"
+    assert create.call_args.kwargs["browser_binding_hash"] == "h" * 64
     assert create.call_args.kwargs["idp_id"] == 3
     mock_db.commit.assert_called_once()
     assert 43 <= len(create.call_args.kwargs["idp_code_verifier"]) <= 128

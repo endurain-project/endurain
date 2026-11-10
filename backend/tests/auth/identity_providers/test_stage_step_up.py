@@ -106,7 +106,16 @@ class TestStageStepUp:
 
     @pytest.mark.parametrize(
         "redirect",
-        ["https://evil.example.com/", "//evil.example.com", "endurain://callback", "settings", "/../x", "   ", " /x"],
+        [
+            "https://evil.example.com/",
+            "HTTPS://app.example.org/auth/sso/callback",
+            "//evil.example.com",
+            "endurain://callback",
+            "settings",
+            "/../x",
+            "   ",
+            " /x",
+        ],
     )
     def test_only_a_relative_return_path_is_accepted(self, service, redirect):
         with pytest.raises(core_exceptions.InvalidInputError):

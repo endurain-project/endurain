@@ -92,7 +92,7 @@ export function useSsoLogin() {
   const route = useRoute()
   const router = useRouter()
   const auth = useAuthStore()
-  const { getSafeRedirect, getSsoRedirect, isCustomSchemeRedirect, navigateAfterLogin } =
+  const { getSafeRedirect, getSsoRedirect, isNativeRedirect, navigateAfterLogin } =
     useSafeRedirect()
   let pendingMfa: PendingSsoMfa | null = null
 
@@ -162,19 +162,20 @@ export function useSsoLogin() {
       // The session id is single-use and already held here, so it does not stay in the history.
       dropQueryParam(route, router, 'session_id')
 
-      // The flag comes from the URL, so it alone grants nothing: only the app's own
-      // deep-link scheme may be navigated to with the session ID. Anything else
+      // The flag comes from the URL, so it alone grants nothing: only a native-app address
+      // the server lists may be navigated to with the session ID. Anything else
       // takes the normal token exchange below, which needs the stored PKCE verifier.
       const redirect = getSafeRedirect(route.query.redirect)
-      if (route.query.external_redirect === 'true' && isCustomSchemeRedirect(redirect)) {
+      if (route.query.external_redirect === 'true' && isNativeRedirect(redirect)) {
         const target = new URL(redirect)
         target.searchParams.set('session_id', sessionId)
         window.location.href = target.href
-        // Custom schemes don't actually navigate the tab away, so this document
-        // stays loaded. When the browser already has its own authenticated
-        // session, fall back to the dashboard instead of leaving a stale login
-        // form behind in case the OS handoff to the app doesn't happen (app not
-        // installed, prompt dismissed, desktop testing, etc.).
+        // A custom scheme doesn't navigate the tab away, so this document stays loaded;
+        // a claimed https link may navigate away when the app isn't installed. When
+        // the browser already has its own authenticated session, fall back to the
+        // dashboard instead of leaving a stale login form behind in case the OS
+        // handoff to the app doesn't happen (app not installed, prompt dismissed,
+        // desktop testing, etc.).
         if (auth.isAuthenticated) {
           await router.replace({ name: 'home' })
         }

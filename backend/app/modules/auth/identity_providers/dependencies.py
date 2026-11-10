@@ -16,7 +16,7 @@ import modules.auth.identity_providers.step_up_ticket_store as step_up_ticket_st
 import modules.auth.identity_providers.token_service as token_service
 import modules.auth.oauth_state.constants as oauth_state_constants
 
-#: The cookie that binds a link or step-up to the browser that started it. Scoped to the callback, the one place
+#: The cookie that binds a login, link or step-up to the browser that started it. Scoped to the callback, the one place
 #: that reads it, and Lax rather than Strict because the callback is a top-level navigation back from the provider.
 #: A browser holds one at a time, so of two flows started together only the later can finish.
 _BINDING_COOKIE_BASE_NAME = "endurain_idp_binding"
@@ -108,7 +108,7 @@ def set_browser_binding_cookie(response: Response, browser_binding: str) -> None
     """Keep a flow's browser binding in this browser until the flow's OAuth state expires.
 
     Args:
-        response: The response that starts the link or step-up.
+        response: The response that starts the login, link or step-up.
         browser_binding: The secret the callback requires.
     """
     response.set_cookie(

@@ -44,7 +44,7 @@ class OAuthStateCreate(BaseModel):
     expires_at: datetime = Field(..., description="Expiry timestamp")
     user_id: StrictInt | None = Field(None, description="Signed-in user of a link or step-up flow")
     browser_binding_hash: StrictStr | None = Field(
-        None, min_length=64, max_length=64, description="SHA-256 of the browser binding (link and step-up flows)"
+        None, min_length=64, max_length=64, description="SHA-256 of the browser binding"
     )
     idp_code_verifier: StrictStr | None = Field(
         None, min_length=43, max_length=128, description="PKCE verifier sent to the identity provider"

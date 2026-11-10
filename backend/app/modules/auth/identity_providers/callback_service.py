@@ -122,13 +122,13 @@ class CallbackService:
         """Accept a provider callback: find its provider and claim its one-time state.
 
         The state is looked up by its opaque id and checked against the provider named in the URL, because
-        without that a state minted for one provider could be replayed against another's callback. A link or
-        step-up must also finish in the browser that started it: a link's provider URL is otherwise all an
-        attacker needs to bind a victim's provider account to their own, and a step-up's to have the victim
-        prove a sign-in for the attacker's session. It is then claimed atomically, so of two concurrent
-        callbacks with the same state only one continues. A state that is unknown, bound elsewhere, finished
-        by another browser or already used gets the same answer, so a caller learns nothing about which of
-        those it was.
+        without that a state minted for one provider could be replayed against another's callback. Every flow
+        must also finish in the browser that started it: a login's provider URL is otherwise all an attacker
+        needs to have the victim sign in to a session the attacker holds, a link's to bind a victim's provider
+        account to their own, and a step-up's to have the victim prove a sign-in for the attacker's session. It
+        is then claimed atomically, so of two concurrent callbacks with the same state only one continues. A state
+        that is unknown, bound elsewhere, finished by another browser or already used gets the same answer, so a
+        caller learns nothing about which of those it was.
 
         Args:
             idp_slug: Slug of the provider from the callback URL.
@@ -164,9 +164,7 @@ class CallbackService:
             )
             _record_state_refusal(idp.id, oauth_state)
             raise core_exceptions.InvalidInputError("Invalid or expired OAuth state")
-        if oauth_state.purpose != oauth_state_constants.OAuthStatePurpose.LOGIN and not _is_bound_browser(
-            browser_binding, oauth_state.browser_binding_hash
-        ):
+        if not _is_bound_browser(browser_binding, oauth_state.browser_binding_hash):
             logger.warning(
                 "IdP <purpose> callback refused for state <value_1>: not the browser that started it",
                 extra=core_logger.context(
@@ -267,9 +265,9 @@ class CallbackService:
                 # Encoded so a "&" or "#" in the path cannot start another query parameter; "/" and ":" stay
                 # readable and the frontend decodes the value back.
                 redirect_url += f"&redirect={quote(redirect_path, safe='/:')}"
-                # A custom scheme tells the frontend to skip its own token exchange and pass the session id on
-                # to the native app.
-                if identity_provider_utils.is_custom_scheme_redirect(redirect_path):
+                # A native-app address tells the frontend to skip its own token exchange and pass the session id
+                # on to the native app.
+                if identity_provider_utils.is_native_redirect(redirect_path):
                     redirect_url += "&external_redirect=true"
 
             # The session id is the handle exchanged for tokens, so only a one-way fingerprint is logged.
@@ -1138,14 +1136,18 @@ def _record_state_refusal(idp_id: int, oauth_state: oauth_state_schema.OAuthStat
 
 
 def _record_browser_mismatch(idp_id: int, oauth_state: oauth_state_schema.OAuthStateRead) -> None:
-    """Audit a link or step-up callback that came from a browser other than the one that started it.
+    """Audit a callback that came from a browser other than the one that started the flow.
 
-    The user is only the target: that browser is not theirs, so they are not named as the actor.
+    A login row is anonymous. A link or step-up row names the user only as the target: that browser is not
+    theirs, so they are not named as the actor.
 
     Args:
         idp_id: The provider the callback came to.
-        oauth_state: The link or step-up state.
+        oauth_state: The login, link or step-up state.
     """
+    if oauth_state.purpose == oauth_state_constants.OAuthStatePurpose.LOGIN:
+        _record_login_refusal(jasil_audit.Outcome.DENIED, login_audit_actions.LoginFailureReason.BROWSER_MISMATCH)
+        return
     if oauth_state.user_id is None:
         return
     if oauth_state.purpose == oauth_state_constants.OAuthStatePurpose.LINK:
@@ -1217,11 +1219,11 @@ def _require_fresh_sign_in(claims: dict[str, Any], oauth_state: oauth_state_sche
 
 
 def _is_bound_browser(browser_binding: str | None, binding_hash: str | None) -> bool:
-    """Tell whether a callback comes from the browser that started the link or step-up.
+    """Tell whether a callback comes from the browser that started the login, link or step-up.
 
     Args:
-        browser_binding: The browser's link-binding cookie, if it sent one.
-        binding_hash: The digest the link's OAuth state stored, if any.
+        browser_binding: The browser's binding cookie, if it sent one.
+        binding_hash: The digest the flow's OAuth state stored, if any.
 
     Returns:
         True when both are present and the cookie hashes to the stored digest.

@@ -492,11 +492,9 @@ class ServerSettingsReadPublic(ServerSettingsBase):
         signup_require_email_verification: Whether a new sign-up must verify its email
             address, which is also when the password is chosen.
         login_photo_set: Whether a custom login photo is configured.
-        allowed_redirect_schemes: Custom URI schemes (ALLOWED_REDIRECT_SCHEMES) that
+        allowed_redirect_uris: Exact redirect addresses (ALLOWED_REDIRECT_URIS) that
             SSO redirects may target, so the frontend validates the same allow-list
             as the backend.
-        allowed_redirect_uris: Exact redirect addresses (ALLOWED_REDIRECT_URIS) that
-            SSO redirects may target; when not empty they replace the schemes.
     """
 
     login_photo_set: StrictBool = Field(..., description="Is login photo set (true - yes, false - no)")
@@ -504,13 +502,9 @@ class ServerSettingsReadPublic(ServerSettingsBase):
         ...,
         description="Require email verification for new sign-ups (true - yes, false - no)",
     )
-    allowed_redirect_schemes: list[str] = Field(
-        ...,
-        description="Custom URI schemes SSO redirects may target",
-    )
     allowed_redirect_uris: list[str] = Field(
         ...,
-        description="Exact addresses SSO redirects may target; when not empty they replace the schemes",
+        description="Exact addresses SSO redirects may target",
     )
 
 

@@ -3,7 +3,9 @@
 The decisions behind each route are covered where they live, in ``test_service_sso_flow.py``.
 """
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 from fastapi import FastAPI
@@ -15,9 +17,12 @@ import core.exceptions as core_exceptions
 import core.pagination as core_pagination
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_providers.authorization_service as authorization_service
+import modules.auth.identity_providers.callback_service as callback_service
+import modules.auth.identity_providers.contracts as identity_provider_contracts
 import modules.auth.identity_providers.dependencies as idp_dependencies
 import modules.auth.identity_providers.public_router as public_router
 import modules.auth.identity_providers.schema as idp_schema
+import modules.auth.oauth_state.constants as oauth_state_constants
 
 PREFIX = "/api/v1/public/idp"
 CHALLENGE = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
@@ -39,6 +44,10 @@ def client(service, monkeypatch):
     monkeypatch.setattr(public_router, "idp_provider_service", service)
     app.dependency_overrides[credentials_integration.get_password_hasher] = lambda: MagicMock()
     return TestClient(app)
+
+
+def _start(url, binding="binding"):
+    return identity_provider_contracts.BrowserFlowStart(authorization_url=url, browser_binding=binding)
 
 
 class TestListProviders:
@@ -63,23 +72,39 @@ class TestInitiateLogin:
         return client.get(f"{PREFIX}/login/pocket-id", params=params, follow_redirects=False)
 
     def test_redirects_to_the_authorization_url_the_service_built(self, client, service):
-        service.begin_login.return_value = "https://provider.example/auth?state=abc"
+        service.begin_login.return_value = _start("https://provider.example/auth?state=abc")
 
         response = self._login(client, redirect="/dashboard")
 
         assert response.status_code == 307
         assert response.headers["location"] == "https://provider.example/auth?state=abc"
 
+    def test_keeps_the_login_binding_in_a_cookie_for_the_callback(self, client, service):
+        service.begin_login.return_value = _start("https://provider.example/auth", "login-secret")
+
+        response = self._login(client)
+
+        cookie = response.headers["set-cookie"]
+        assert f"{idp_dependencies.BINDING_COOKIE_NAME}=login-secret" in cookie
+        assert f"Path={idp_dependencies.BINDING_COOKIE_PATH}" in cookie
+        assert f"Max-Age={oauth_state_constants.STATE_TTL_SECONDS}" in cookie
+        assert "HttpOnly" in cookie
+        assert "SameSite=lax" in cookie
+
+    def test_the_binding_is_not_in_the_redirect_url(self, client, service):
+        service.begin_login.return_value = _start("https://provider.example/auth", "login-secret")
+
+        assert "login-secret" not in self._login(client).headers["location"]
+
     def test_hands_the_request_facts_to_the_service(self, client, service):
-        service.begin_login.return_value = "https://provider.example/auth"
+        service.begin_login.return_value = _start("https://provider.example/auth")
 
         self._login(client, redirect="/dashboard")
 
         args = service.begin_login.call_args.args
         assert args[0] == "pocket-id"
         assert args[1:4] == (CHALLENGE, "S256", "/dashboard")
-        assert args[5] == core_config.settings.ALLOWED_REDIRECT_SCHEMES
-        assert args[6] == core_config.settings.ALLOWED_REDIRECT_URIS
+        assert args[5] == core_config.settings.ALLOWED_REDIRECT_URIS
 
     def test_the_client_type_header_does_not_choose_the_client_type(self, client):
         real = authorization_service.AuthorizationService(MagicMock(), "https://app.example.com")
@@ -149,6 +174,86 @@ class TestHandleCallback:
         response = client.get(f"{PREFIX}/callback/pocket-id", follow_redirects=False)
 
         assert response.status_code == 422
+
+
+class TestLoginBindingRoundTrip:
+    """The real login and callback routes and services, with a real cookie jar and an in-memory state store."""
+
+    @pytest.fixture
+    def make_client(self):
+        states = {}
+        idp = SimpleNamespace(id=1, slug="pocket-id", enabled=True)
+        authorization = authorization_service.AuthorizationService(MagicMock(), "https://app.example.com")
+        callback = callback_service.CallbackService(MagicMock(), MagicMock(), MagicMock(), "https://app.example.com")
+
+        def create_state(idp_id, **kwargs):
+            states["state-id"] = SimpleNamespace(
+                id="state-id",
+                idp_id=idp_id,
+                browser_binding_hash=kwargs["browser_binding_hash"],
+                purpose="login",
+                user_id=None,
+                client_type="web",
+            )
+            return "state-id"
+
+        def make():
+            app = FastAPI()
+            core_exceptions.register_exception_handlers(app)
+            app.include_router(public_router.router, prefix=PREFIX)
+            app.dependency_overrides[core_db.get_db] = lambda: MagicMock()
+            app.dependency_overrides[idp_dependencies.get_authorization_service] = lambda: authorization
+            app.dependency_overrides[idp_dependencies.get_callback_service] = lambda: callback
+            app.dependency_overrides[credentials_integration.get_password_hasher] = lambda: MagicMock()
+            # The cookie is Secure outside development, so a browser, and this jar, keeps it only over https.
+            return TestClient(app, base_url="https://testserver")
+
+        with (
+            patch.object(authorization_service.idp_crud, "get_identity_provider_by_slug", return_value=idp),
+            patch.object(callback_service.idp_crud, "get_identity_provider_by_slug", return_value=idp),
+            patch.object(authorization, "create_login_oauth_state", side_effect=create_state),
+            patch.object(
+                authorization,
+                "initiate_login",
+                side_effect=lambda _idp, _db, _redirect, oauth_state_id: (
+                    f"https://provider.example/auth?state={oauth_state_id}"
+                ),
+            ),
+            patch.object(callback, "get_unused_oauth_state", side_effect=lambda state, _db: states.get(state)),
+            patch.object(callback, "claim_oauth_state", return_value=True),
+            patch.object(callback, "complete_callback", return_value="https://app.example.com/login?sso=success"),
+            patch.object(callback_service, "_record_login_refusal"),
+        ):
+            yield make, callback
+
+    def _start(self, client):
+        response = client.get(
+            f"{PREFIX}/login/pocket-id",
+            params={"code_challenge": CHALLENGE, "code_challenge_method": "S256"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 307
+        return parse_qs(urlparse(response.headers["location"]).query)["state"][0]
+
+    def test_the_login_cookie_reaches_the_callback_route_and_binds_the_browser(self, make_client):
+        make, callback = make_client
+        client = make()
+        state = self._start(client)
+
+        response = client.get(f"{PREFIX}/callback/pocket-id?state={state}&code=abc", follow_redirects=False)
+
+        assert response.status_code == 307
+        assert response.headers["location"] == "https://app.example.com/login?sso=success"
+        callback.complete_callback.assert_called_once()
+
+    def test_a_browser_without_the_login_cookie_is_refused(self, make_client):
+        make, callback = make_client
+        state = self._start(make())
+
+        response = make().get(f"{PREFIX}/callback/pocket-id?state={state}&code=abc", follow_redirects=False)
+
+        assert response.status_code == 400
+        callback.complete_callback.assert_not_called()
 
 
 class TestReadIcon:

@@ -33,13 +33,19 @@ def _idp(enabled=True, **overrides):
 
 
 def _oauth_state(**overrides):
-    values = {"idp_id": 1, "client_type": "web", "user_id": None, "browser_binding_hash": None, "purpose": _LOGIN}
+    values = {
+        "idp_id": 1,
+        "client_type": "web",
+        "user_id": None,
+        "browser_binding_hash": core_hashing.sha256_hex("binding"),
+        "purpose": _LOGIN,
+    }
     values.update(overrides)
     return SimpleNamespace(**values)
 
 
 class TestPrepareCallback:
-    def _prepare(self, service, *, idp, oauth_state, claimed=True, browser_binding=None):
+    def _prepare(self, service, *, idp, oauth_state, claimed=True, browser_binding="binding"):
         self.claim = MagicMock(return_value=claimed)
         with (
             patch.object(callback_service.idp_crud, "get_identity_provider_by_slug", return_value=idp),
@@ -88,14 +94,28 @@ class TestPrepareCallback:
     def test_a_link_state_without_a_binding_is_refused(self, service):
         with pytest.raises(core_exceptions.InvalidInputError, match="Invalid or expired OAuth state"):
             self._prepare(
-                service, idp=_idp(), oauth_state=_oauth_state(user_id=7, purpose=_LINK), browser_binding="binding"
+                service,
+                idp=_idp(),
+                oauth_state=_oauth_state(user_id=7, purpose=_LINK, browser_binding_hash=None),
+                browser_binding="binding",
             )
 
-    def test_a_login_needs_no_binding(self, service):
-        """A login is bound to its client by PKCE at the token exchange instead."""
+    def test_a_login_finishes_in_the_browser_that_started_it(self, service):
         idp, oauth_state = _idp(), _oauth_state()
 
-        assert self._prepare(service, idp=idp, oauth_state=oauth_state) == (idp, oauth_state)
+        assert self._prepare(service, idp=idp, oauth_state=oauth_state, browser_binding="binding") == (idp, oauth_state)
+
+    @pytest.mark.parametrize("browser_binding", [None, "", "another-browser"])
+    def test_a_login_from_another_browser_is_refused_before_the_state_is_claimed(self, service, browser_binding):
+        """A login URL a victim was handed must not hand its session to whoever started it."""
+        with pytest.raises(core_exceptions.InvalidInputError, match="Invalid or expired OAuth state"):
+            self._prepare(service, idp=_idp(), oauth_state=_oauth_state(), browser_binding=browser_binding)
+        self.claim.assert_not_called()
+
+    def test_a_login_state_without_a_binding_is_refused(self, service):
+        with pytest.raises(core_exceptions.InvalidInputError, match="Invalid or expired OAuth state"):
+            self._prepare(service, idp=_idp(), oauth_state=_oauth_state(browser_binding_hash=None))
+        self.claim.assert_not_called()
 
 
 def _login(redirect_path=None):
@@ -184,6 +204,13 @@ class TestCompleteCallback:
         url, _ = self._complete(service, _login(redirect_path="com.example.app:/done"), self._state())
 
         assert url.endswith("&redirect=com.example.app:/done&external_redirect=true")
+
+    def test_a_https_return_path_is_flagged_for_the_native_client(self, service):
+        url, _ = self._complete(
+            service, _login(redirect_path="https://app.example.org/auth/sso/callback"), self._state()
+        )
+
+        assert url.endswith("&redirect=https://app.example.org/auth/sso/callback&external_redirect=true")
 
     def test_a_relative_return_path_with_a_scheme_like_segment_is_not_flagged(self, service):
         url, _ = self._complete(service, _login(redirect_path="/x://y"), self._state())

@@ -39,6 +39,7 @@ class AuthorizationService:
         redirect_path: str | None,
         code_challenge: str,
         code_challenge_method: str,
+        browser_binding_hash: str,
         db: Session,
     ) -> str:
         """Persist the OAuth state of a login flow and return its id.
@@ -50,6 +51,7 @@ class AuthorizationService:
             redirect_path: Frontend path to return to after login.
             code_challenge: PKCE challenge the token exchange is checked against.
             code_challenge_method: PKCE method (``S256``).
+            browser_binding_hash: SHA-256 of the secret the starting browser keeps in a cookie; the callback requires it.
             db: Database session.
 
         Returns:
@@ -66,6 +68,7 @@ class AuthorizationService:
             redirect_path=redirect_path,
             code_challenge=code_challenge,
             code_challenge_method=code_challenge_method,
+            browser_binding_hash=browser_binding_hash,
             idp_code_verifier=_new_code_verifier(),
             purpose=oauth_state_constants.OAuthStatePurpose.LOGIN,
         )
@@ -84,7 +87,6 @@ class AuthorizationService:
         idp_id: int,
         redirect: str | None,
         client_ip: str | None,
-        allowed_schemes: set[str],
         allowed_uris: set[str],
         session_id: str,
         ends_other_sessions: bool,
@@ -100,10 +102,9 @@ class AuthorizationService:
         Args:
             user_id: The signed-in user linking the provider.
             idp_id: Provider to link.
-            redirect: Frontend path or custom scheme to return to.
+            redirect: Frontend path or native-app address to return to.
             client_ip: Address of the client that started the link.
-            allowed_schemes: Custom URI schemes a redirect may use.
-            allowed_uris: Exact custom-scheme addresses a redirect may use; when not empty, they replace the schemes.
+            allowed_uris: Exact native-app addresses a redirect may use.
             session_id: The session that started the link; the callback requires it to be alive.
             ends_other_sessions: Whether the callback ends the user's other sessions, all but ``session_id``.
             db: Database session.
@@ -117,7 +118,7 @@ class AuthorizationService:
             InvalidInputError: If the redirect is not allowed.
             NotFoundError: If the provider does not exist or is disabled.
         """
-        identity_provider_utils.validate_redirect_url(redirect, allowed_schemes, allowed_uris)
+        identity_provider_utils.validate_redirect_url(redirect, allowed_uris)
         idp = idp_crud.get_identity_provider(idp_id, db)
         if idp is None or not idp.enabled:
             raise core_exceptions.NotFoundError("Identity provider not found or disabled")
@@ -163,7 +164,7 @@ class AuthorizationService:
             idp_id: Provider to sign in with again.
             action: The sensitive operation the step-up authorises.
             code_challenge: S256 challenge of the verifier the browser keeps.
-            redirect: Frontend path to return to; custom schemes are refused.
+            redirect: Frontend path to return to; only a relative path is accepted; every scheme, https included, is refused.
             client_ip: Address of the client that started the step-up.
             db: Database session.
             security_generation: The account's generation, read before the step-up started; the state records it, so
@@ -177,8 +178,8 @@ class AuthorizationService:
                 fresh sign-in.
             NotFoundError: If the provider does not exist, is disabled or is not linked to the user.
         """
-        # No custom scheme is allowed, and a blank value, which the validator lets through, is no path either.
-        identity_provider_utils.validate_redirect_url(redirect, set(), set())
+        # No scheme is allowed, https included (an empty allowlist), and a blank value, which the validator lets through, is no path either.
+        identity_provider_utils.validate_redirect_url(redirect, set())
         if not redirect.startswith("/"):
             raise core_exceptions.InvalidInputError("Redirect must be a relative path starting with '/'.")
         auth_computation.validate_pkce_challenge(code_challenge, "S256")
@@ -345,14 +346,13 @@ class AuthorizationService:
         code_challenge_method: str,
         redirect: str | None,
         client_ip: str | None,
-        allowed_redirect_schemes: set[str],
         allowed_redirect_uris: set[str],
         db: Session,
-    ) -> str:
-        """Validate a login request and return the provider's authorization URL.
+    ) -> identity_provider_contracts.BrowserFlowStart:
+        """Validate a login request and return the provider's authorization URL with the login's browser binding.
 
         PKCE is required of every client (OAuth 2.1). The client type comes only from the validated redirect: a
-        custom scheme marks a native app (``mobile``) and anything else is ``web``, because the browser leg of the
+        native-app address marks a native app (``mobile``) and anything else is ``web``, because the browser leg of the
         flow cannot carry a header.
 
         Args:
@@ -361,13 +361,13 @@ class AuthorizationService:
             code_challenge_method: PKCE method, which must be ``S256``.
             redirect: Frontend path to return to after login.
             client_ip: Address of the client that started the flow.
-            allowed_redirect_schemes: Custom URI schemes a redirect may use.
-            allowed_redirect_uris: Exact custom-scheme addresses a redirect may use; when not empty, they replace
-                the schemes.
+            allowed_redirect_uris: Exact native-app addresses a redirect may use.
             db: Database session.
 
         Returns:
-            The authorization URL to send the browser to.
+            The authorization URL to send the browser to and the browser binding the route sets as a cookie. The
+            state stores only the binding's digest, so the callback can tell the browser that started the login
+            from one that was handed its URL.
 
         Raises:
             NotFoundError: If the provider does not exist or is disabled.
@@ -382,9 +382,10 @@ class AuthorizationService:
             raise core_exceptions.InvalidInputError("code_challenge_method must be S256")
         auth_computation.validate_pkce_challenge(code_challenge, code_challenge_method)
         # Refused before anything is stored, so a login cannot be turned into an open redirect.
-        identity_provider_utils.validate_redirect_url(redirect, allowed_redirect_schemes, allowed_redirect_uris)
+        identity_provider_utils.validate_redirect_url(redirect, allowed_redirect_uris)
 
         client_type = identity_provider_utils.client_type_for_redirect(redirect)
+        browser_binding = secrets.token_urlsafe(32)
         state_id = self.create_login_oauth_state(
             idp.id,
             client_type=client_type,
@@ -392,9 +393,13 @@ class AuthorizationService:
             redirect_path=redirect,
             code_challenge=code_challenge,
             code_challenge_method=code_challenge_method,
+            browser_binding_hash=core_hashing.sha256_hex(browser_binding),
             db=db,
         )
-        return self.initiate_login(idp, db, redirect, oauth_state_id=state_id)
+        return identity_provider_contracts.BrowserFlowStart(
+            authorization_url=self.initiate_login(idp, db, redirect, oauth_state_id=state_id),
+            browser_binding=browser_binding,
+        )
 
 
 def _stage_bound_flow(
@@ -420,7 +425,7 @@ def _stage_bound_flow(
         user_id: The signed-in user.
         client_type: ``web`` or ``mobile``.
         client_ip: Address of the client that started the flow.
-        redirect: Frontend path or custom scheme to return to.
+        redirect: Frontend path or native-app address to return to.
         db: Database session.
         session_id: The session that started the flow; the callback requires it to be alive.
         security_generation: The account's generation, read by the caller before it verified the step-up.
