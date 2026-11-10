@@ -64,24 +64,44 @@ def cancel_email_change(
     response_model=sign_up_schema.SignUpRead,
     responses={
         400: {
-            "description": "The token is unknown, used or expired; a sign-up confirmation carries no password (the "
-            "`password-required` problem type, and the token stays usable); or a password accompanies a token that "
-            "does not choose one."
+            "description": "The token is unknown, used, expired or not a sign-up token, or the account takes no "
+            "password from a link."
         },
         403: {
-            "description": "A sign-up is confirmed while email verification is turned off on this server (the "
+            "description": "The sign-up is confirmed while email verification is turned off on this server (the "
             "`email-verification-disabled` problem type)."
         },
     },
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
-def verify_email(
+def confirm_sign_up(
     request: Request,
     confirm_data: sign_up_schema.SignUpConfirm,
     db: core_dependencies.DbSession,
 ) -> sign_up_schema.SignUpRead:
-    """Verify an account's email address using its one-time token; a sign-up also chooses its password."""
-    return sign_up_service.verify_email(confirm_data.token, confirm_data.password, db)
+    """Confirm a sign-up with the token of its emailed link and choose the account's password."""
+    return sign_up_service.confirm_sign_up(confirm_data.token, confirm_data.password, db)
+
+
+@router.post(
+    "/email-change/confirm",
+    response_model=sign_up_schema.SignUpRead,
+    responses={
+        400: {
+            "description": "The token is unknown, used, expired or not an email-change token, or the change was "
+            "requested before a security change of the account."
+        },
+        409: {"description": "Another account holds the new address now."},
+    },
+)
+@core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
+def confirm_email_change(
+    request: Request,
+    confirm_data: sign_up_schema.EmailChangeConfirm,
+    db: core_dependencies.DbSession,
+) -> sign_up_schema.SignUpRead:
+    """Confirm an email change with the token of the link emailed to the new address."""
+    return sign_up_service.confirm_email_change(confirm_data.token, db)
 
 
 @router.post(

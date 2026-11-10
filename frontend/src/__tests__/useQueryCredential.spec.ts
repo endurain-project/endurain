@@ -66,7 +66,7 @@ describe('useQueryCredential', () => {
     route.query = { token: 'reset-token' }
     useQueryCredential('token')
 
-    route.path = '/verify-email'
+    route.path = '/signup/confirm'
     route.query = {}
     expect(useQueryCredential('token').value).toBe('')
   })

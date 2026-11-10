@@ -70,9 +70,9 @@ def _confirm(db, event="event-1") -> str:
     """Deliver the confirmation mail and open its link; return the id of the notice's token."""
     message = sign_up_service.prepare_email_change_verification_email(7, event, _HOST, db)
     assert message is not None
-    raw = message[2].split("verify-email?token=")[1].split('"')[0].split("<")[0].split("&")[0]
+    raw = message[2].split("?token=")[1].split('"')[0].split("<")[0].split("&")[0]
     with patch(_PUBLISH) as publish:
-        sign_up_service.verify_email(raw, None, db)
+        sign_up_service.confirm_email_change(raw, db)
     return publish.call_args.args[1]["token_id"]
 
 
@@ -266,9 +266,9 @@ class TestChangesTheOwnerDidNotRequest:
         db.commit()
         message = sign_up_service.prepare_email_change_verification_email(7, "event-1", _HOST, db)
         assert message is not None
-        raw = message[2].split("verify-email?token=")[1].split('"')[0].split("<")[0].split("&")[0]
+        raw = message[2].split("?token=")[1].split('"')[0].split("<")[0].split("&")[0]
         with patch(_PUBLISH) as publish:
-            sign_up_service.verify_email(raw, None, db)
+            sign_up_service.confirm_email_change(raw, db)
 
         notice = sign_up_service.prepare_email_changed_email(7, publish.call_args.args[1]["token_id"], _HOST, db)
 

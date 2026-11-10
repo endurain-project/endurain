@@ -48,12 +48,12 @@ def _reset(settings, db):
         password_reset_service.use_password_reset_token("token", _PASSWORD, db)
 
 
-def _verify_email(settings, db):
+def _confirm_sign_up(settings, db):
     with (
         patch.object(sign_up_service.server_settings_integration, "get_server_settings", return_value=settings),
         patch.object(sign_up_service, "verify_sign_up_token", side_effect=_ReachedError),
     ):
-        sign_up_service.verify_email("token", _PASSWORD, db)
+        sign_up_service.confirm_sign_up("token", _PASSWORD, db)
 
 
 def _signup(settings, db):
@@ -134,7 +134,7 @@ def _required_change(settings, db):
 
 _FLOWS = [
     pytest.param(_reset, id="password-reset"),
-    pytest.param(_verify_email, id="sign-up-confirmation"),
+    pytest.param(_confirm_sign_up, id="sign-up-confirmation"),
     pytest.param(_signup, id="sign-up"),
     pytest.param(_onboarding, id="onboarding"),
     pytest.param(_admin_create, id="admin-create"),

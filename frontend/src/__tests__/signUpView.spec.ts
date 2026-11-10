@@ -56,7 +56,7 @@ async function mountFilled() {
 describe('SignUpView', () => {
   beforeEach(() => {
     requestSignUp.mockReset()
-    requestSignUp.mockResolvedValue({ email_verification_required: true })
+    requestSignUp.mockResolvedValue({ next_step: 'check_email' })
     push.mockClear()
   })
 
@@ -104,6 +104,21 @@ describe('SignUpView', () => {
       expect(wrapper.text().includes(i18n.global.t('login.resendVerification'))).toBe(shown)
     },
   )
+
+  it.each([
+    ['check_email', { emailVerificationSent: 'true' }],
+    ['await_approval', { adminApprovalRequired: 'true' }],
+    ['sign_in', {}],
+  ])('opens the sign-in page for the next step %s', async (nextStep, query) => {
+    requireVerification.value = true
+    requestSignUp.mockResolvedValue({ next_step: nextStep })
+    const wrapper = await mountFilled()
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(push).toHaveBeenCalledWith({ name: 'login', query })
+  })
 
   it('asks only for the account fields', async () => {
     requireVerification.value = true

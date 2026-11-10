@@ -3,7 +3,7 @@
 import hmac
 from collections.abc import Callable, Collection
 from datetime import UTC, datetime, timedelta
-from typing import NoReturn
+from typing import Literal, NoReturn, overload
 from uuid import uuid4
 
 import jasil.audit as jasil_audit
@@ -40,6 +40,10 @@ EXISTING_ACCOUNT_NOTICE_COOLDOWN_SECONDS = 3600
 EMAIL_CHANGE_RESEND_COOLDOWN_SECONDS = 3600
 SIGN_UP_RESEND_COOLDOWN_SECONDS = 3600
 EMAIL_CHANGE_TAKEN_NOTICE_COOLDOWN_SECONDS = 3600
+
+#: Frontend pages the emailed links open, one per kind of link; each calls the route of its kind.
+SIGN_UP_CONFIRM_PATH = "/signup/confirm"
+EMAIL_CHANGE_CONFIRM_PATH = "/confirm-email-change"
 
 #: How long a verification token, and so a pending email change, stays valid.
 SIGN_UP_TOKEN_TTL = timedelta(hours=24)
@@ -371,11 +375,9 @@ def resend_sign_up_verification_email(email: str, state: StateProvider, db: Sess
         db: Database session.
 
     Returns:
-        The same message for every outcome.
+        The same next step for every outcome.
     """
-    response = sign_up_schema.SignUpRead(
-        message="If the address is awaiting verification, a new verification email was sent."
-    )
+    response = sign_up_schema.SignUpRead(next_step=sign_up_schema.SignUpNextStep.CHECK_EMAIL)
     server_settings = server_settings_integration.get_server_settings(db)
     if not (server_settings.signup_require_email_verification and server_settings_integration.is_mail_configured(db)):
         return response
@@ -456,11 +458,12 @@ def _issue_verification_email(
     previous_email: str | None,
     event_id: str,
     frontend_host: str,
+    link_path: str,
     build_email: Callable[[str, str, str, str], tuple[str, str, str]],
     db: Session,
     pending_change: sign_up_contracts.SignUpTokenState | None = None,
 ) -> tuple[str, str, str, str]:
-    """Create a verification link for ``email`` and return the email ``build_email`` makes of it.
+    """Create a verification link to the frontend page at ``link_path`` and return the email ``build_email`` makes of it.
 
     ``pending_change`` is the email change the link confirms, whose generation, identifier and revert window the new
     token keeps.
@@ -475,7 +478,7 @@ def _issue_verification_email(
         change_id=pending_change.change_id if pending_change else None,
         revert_until=pending_change.revert_until if pending_change else None,
     )
-    link = f"{frontend_host}/verify-email?token={token}"
+    link = f"{frontend_host}{link_path}?token={token}"
     locale = core_i18n.normalize_locale(user.preferred_language)
     subject, html_content, text_content = build_email(user.name, link, frontend_host, locale)
     return email, subject, html_content, text_content
@@ -492,7 +495,14 @@ def prepare_sign_up_verification_email(
     if user is None:
         return None
     return _issue_verification_email(
-        user, user.email, None, event_id, frontend_host, sign_up_email_messages.get_signup_confirmation_email, db
+        user,
+        user.email,
+        None,
+        event_id,
+        frontend_host,
+        SIGN_UP_CONFIRM_PATH,
+        sign_up_email_messages.get_signup_confirmation_email,
+        db,
     )
 
 
@@ -528,6 +538,7 @@ def prepare_email_change_verification_email(
         pending.previous_email,
         event_id,
         frontend_host,
+        EMAIL_CHANGE_CONFIRM_PATH,
         sign_up_email_messages.get_email_change_confirmation_email,
         db,
         pending,
@@ -818,66 +829,71 @@ def revoke_user_tokens(user_id: int, db: Session) -> None:
     sign_up_crud.mark_user_sign_up_tokens_used(user_id, db)
 
 
-def verify_sign_up_token(token: str, db: Session, *, with_password: bool) -> sign_up_contracts.SignUpTokenClaim:
-    """Stage consumption of a valid verification token and return what it proves.
+def _refuse_sign_up_token(reason: str | None = None) -> NoReturn:
+    """Record a refused confirmation and raise the problem an unknown token gets."""
+    details = sign_up_audit_actions.SignUpConfirmDetails(reason=reason) if reason else None
+    jasil_audit.record_detached(
+        sign_up_audit_actions.SIGN_UP_CONFIRM, outcome=jasil_audit.Outcome.FAILURE, details=details
+    )
+    raise core_exceptions.InvalidInputError("Invalid or expired sign up token")
 
-    A confirmation that sets a password or moves the address bumps the account's security generation before the
-    claim writes the token row, so the generation row is the first lock taken. An email change is refused when the
-    generation it was requested under is no longer the account's: a password reset, an administrator's password
-    set or any other security change since the request ends it.
+
+@overload
+def verify_sign_up_token(
+    token: str, db: Session, *, email_change: Literal[True]
+) -> sign_up_contracts.EmailChangeClaim: ...
+
+
+@overload
+def verify_sign_up_token(
+    token: str, db: Session, *, email_change: Literal[False]
+) -> sign_up_contracts.SignUpTokenClaim: ...
+
+
+def verify_sign_up_token(token: str, db: Session, *, email_change: bool) -> sign_up_contracts.SignUpTokenClaim:
+    """Stage consumption of a valid verification token of one kind and return what it proves.
+
+    A token of the other kind is refused like an unknown one, and stays unused for its own route. Confirming bumps
+    the account's security generation before the claim writes the token row, so the generation row is the first lock
+    taken. An email change is refused when the generation it was requested under is no longer the account's: a
+    password reset, an administrator's password set or any other security change since the request ends it.
 
     Args:
         token: The raw verification token.
-        with_password: Whether the confirmation carries a password.
+        email_change: Whether the token must be an email-change token, or a sign-up token.
         db: Database session.
 
     Returns:
         What the token proves.
 
     Raises:
-        InvalidInputError: If the token is unknown, used or expired.
+        InvalidInputError: If the token is unknown, used, expired or of the other kind.
     """
     token_hash = token_hashing.sha256_hex(token)
     usable = sign_up_crud.get_usable_sign_up_token(token_hash, db)
+    if usable is not None and isinstance(usable, sign_up_contracts.EmailChangeClaim) is not email_change:
+        _refuse_sign_up_token()
     if isinstance(usable, sign_up_contracts.EmailChangeClaim) and not security_generation_integration.matches_locked(
         usable.user_id, usable.security_generation, db
     ):
-        jasil_audit.record_detached(
-            sign_up_audit_actions.SIGN_UP_CONFIRM,
-            outcome=jasil_audit.Outcome.FAILURE,
-            details=sign_up_audit_actions.SignUpConfirmDetails(reason="security_changed"),
-        )
-        raise core_exceptions.InvalidInputError("Invalid or expired sign up token")
-    if usable is not None and (with_password or isinstance(usable, sign_up_contracts.EmailChangeClaim)):
+        _refuse_sign_up_token("security_changed")
+    if usable is not None:
         security_generation_integration.stage_bump(usable.user_id, db)
     claim = sign_up_crud.claim_sign_up_token(token_hash, db)
     if claim is None:
-        jasil_audit.record_detached(
-            sign_up_audit_actions.SIGN_UP_CONFIRM,
-            outcome=jasil_audit.Outcome.FAILURE,
-        )
-        raise core_exceptions.InvalidInputError("Invalid or expired sign up token")
+        _refuse_sign_up_token()
     return claim
 
 
 def _signup_response(server_settings: server_settings_schema.ServerSettingsRead) -> sign_up_schema.SignUpRead:
     """Describe a sign-up from the server's policy alone, so every outcome reads the same."""
-    message = "Sign-up request received."
-    email_verification_required: bool | None = None
-    admin_approval_required: bool | None = None
     if server_settings.signup_require_email_verification:
-        message += " Check your email for verification instructions."
-        email_verification_required = True
-    if server_settings.signup_require_admin_approval:
-        message += " Account is pending admin approval."
-        admin_approval_required = True
-    if not server_settings.signup_require_email_verification and not server_settings.signup_require_admin_approval:
-        message += " You can now log in."
-    return sign_up_schema.SignUpRead(
-        message=message,
-        email_verification_required=email_verification_required,
-        admin_approval_required=admin_approval_required,
-    )
+        next_step = sign_up_schema.SignUpNextStep.CHECK_EMAIL
+    elif server_settings.signup_require_admin_approval:
+        next_step = sign_up_schema.SignUpNextStep.AWAIT_APPROVAL
+    else:
+        next_step = sign_up_schema.SignUpNextStep.SIGN_IN
+    return sign_up_schema.SignUpRead(next_step=next_step)
 
 
 def _require_username_free(username: str, db: Session) -> None:
@@ -971,104 +987,109 @@ def _commit_sign_up(user_id: int, db: Session) -> None:
     logger.info("Email verification completed", extra=core_logger.context(user_id=user_id))
 
 
-def verify_email(token: str, password: str | None, db: Session) -> sign_up_schema.SignUpRead:
-    """Consume a verification token and apply the server's email-verification policy.
+def confirm_sign_up(token: str, password: str, db: Session) -> sign_up_schema.SignUpRead:
+    """Consume a sign-up token, set the account's password and apply the server's email-verification policy.
 
-    Confirming a sign-up also sets the account's password, replacing any credential the account already has, and
-    ends its sessions and voids its unused password-reset tokens, as a password reset does. A sign-up confirmation
-    without a password is refused before anything is committed, so the token stays usable for the retry that carries
-    one.
-
-    A token that replaces the account's address (an email-change token) first switches the account to the
-    confirmed address and stages the notice to the previous one; a conflict or any later failure rolls the
-    claim back with the rest of the transaction.
-
-    The address is marked verified in every case. Only a sign-up (an inactive account that no administrator
-    deactivated) is activated, and only a sign-up goes on to the administrators' approval when the server
-    requires it; an active or deactivated account keeps its state.
+    The password replaces any credential the account already has, and ends its sessions and voids its unused
+    password-reset tokens, as a password reset does. The address is marked verified. Only a sign-up (an inactive
+    account that no administrator deactivated) is activated, and it goes on to the administrators' approval when the
+    server requires it. An account an administrator activated before it was confirmed has no password yet and chooses
+    one here too; an account that takes no password from a link refuses the confirmation.
 
     Args:
-        token: The raw verification token.
-        password: The password chosen for a sign-up; None for any other token.
+        token: The raw sign-up token.
+        password: The password the user chooses.
         db: Database session.
 
     Returns:
         What happens next for the account.
 
     Raises:
-        InvalidInputError: If the token is invalid or expired, or a password accompanies a token that is not a
-            sign-up confirmation.
-        PasswordRequiredError: If a sign-up confirmation carries no password.
+        InvalidInputError: If the token is unknown, used, expired or not a sign-up token, or the account takes no
+            password from a link.
         PasswordPolicyError: If the password fails the configured policy.
         EmailVerificationDisabledError: If a sign-up is confirmed while email verification is not enabled.
+        NotFoundError: If the token's user no longer exists.
     """
     server_settings = server_settings_integration.get_server_settings(db)
-    if password is not None:
-        # The breach check is a network call, so it runs before the claim opens the write transaction.
-        credentials_integration.reject_breached_password(server_settings, password, db)
-    claim = verify_sign_up_token(token, db, with_password=password is not None)
+    # The breach check is a network call, so it runs before the claim opens the write transaction.
+    credentials_integration.reject_breached_password(server_settings, password, db)
+    claim = verify_sign_up_token(token, db, email_change=False)
     user_id = claim.user_id
-    if isinstance(claim, sign_up_contracts.EmailChangeClaim):
-        users_integration.stage_confirmed_email_change(user_id, claim.email, db)
-        sign_up_event_publishers.publish_email_changed(user_id, claim.id, db)
     user = users_integration.get_user(user_id, db)
     if user is None:
         raise core_exceptions.NotFoundError("User not found")
 
-    # An inactive account is a sign-up awaiting verification unless it was deactivated: a link verifies the
-    # address of a deactivated account but never activates it or asks the administrators to approve it.
+    # An inactive account is a sign-up awaiting verification unless it was deactivated: a link never activates a
+    # deactivated account or asks the administrators to approve it.
     is_sign_up = not user.active and not users_integration.is_deactivated(user_id, db)
     if is_sign_up and not server_settings.signup_require_email_verification:
         raise core_exceptions.EmailVerificationDisabledError()
 
-    # A sign-up confirmation chooses the password. An account an administrator activated before it was
-    # confirmed has none yet either, and without one it could neither sign in nor reset its password.
-    sets_password = claim.previous_email is None and (
-        is_sign_up or (user.active and not credentials_integration.has_local_password(user_id, db))
+    # An account an administrator activated before it was confirmed has no password yet, and without one it could
+    # neither sign in nor reset its password.
+    if not (is_sign_up or (user.active and not credentials_integration.has_local_password(user_id, db))):
+        raise core_exceptions.InvalidInputError("This account does not choose a password from a link")
+    hashed_password = credentials_integration.validate_and_hash_password_for_user(
+        server_settings,
+        users_schema.normalize_access_type(user.access_type),
+        password,
+        db,
+        username=user.username,
+        email=user.email,
     )
-    if sets_password and password is None:
-        raise core_exceptions.PasswordRequiredError()
-    if password is not None and not sets_password:
-        raise core_exceptions.InvalidInputError("Only a sign-up confirmation chooses a password")
-    if password is not None:
-        hashed_password = credentials_integration.validate_and_hash_password_for_user(
-            server_settings,
-            users_schema.normalize_access_type(user.access_type),
-            password,
-            db,
-            username=user.username,
-            email=user.email,
-        )
-        credentials_integration.set_local_password_hash(user_id, hashed_password, db, change_required=False)
-        password_reset_tokens_integration.revoke_unused_tokens(user_id, db)
-        sessions_integration.delete_sessions_by_user(user_id, db)
+    credentials_integration.set_local_password_hash(user_id, hashed_password, db, change_required=False)
+    password_reset_tokens_integration.revoke_unused_tokens(user_id, db)
+    sessions_integration.delete_sessions_by_user(user_id, db)
 
-    if claim.previous_email is None:
-        jasil_audit.stage(
-            db,
-            sign_up_audit_actions.SIGN_UP_CONFIRM,
-            target_type="user",
-            target_id=str(user_id),
-            target_owner_id=str(user_id),
-            details=sign_up_audit_actions.SignUpConfirmDetails(password_set=password is not None),
-        )
+    jasil_audit.stage(
+        db,
+        sign_up_audit_actions.SIGN_UP_CONFIRM,
+        target_type="user",
+        target_id=str(user_id),
+        target_owner_id=str(user_id),
+        details=sign_up_audit_actions.SignUpConfirmDetails(password_set=True),
+    )
     users_integration.stage_email_verification(user_id, server_settings, db)
-    if not is_sign_up:
-        db.commit()
-        logger.info("Email verification completed", extra=core_logger.context(user_id=user_id))
-        return sign_up_schema.SignUpRead(message="Email verified successfully.")
-
-    if not server_settings.signup_require_admin_approval:
+    if not is_sign_up or not server_settings.signup_require_admin_approval:
         _commit_sign_up(user_id, db)
-        return sign_up_schema.SignUpRead(message="Email verified successfully. You can now log in.")
+        return sign_up_schema.SignUpRead(next_step=sign_up_schema.SignUpNextStep.SIGN_IN)
 
     request_sign_up_admin_approval(user.id, db)
     _commit_sign_up(user_id, db)
+    return sign_up_schema.SignUpRead(next_step=sign_up_schema.SignUpNextStep.AWAIT_APPROVAL)
 
-    return sign_up_schema.SignUpRead(
-        message="Email verified successfully. Your account is now pending admin approval.",
-        admin_approval_required=True,
-    )
+
+def confirm_email_change(token: str, db: Session) -> sign_up_schema.SignUpRead:
+    """Consume an email-change token, switch the account to the confirmed address and mark it verified.
+
+    The notice to the previous address is staged with the switch; a conflict or any later failure rolls the claim back
+    with the rest of the transaction. The account's state is otherwise kept, and its security generation moves, so
+    its sessions end.
+
+    Args:
+        token: The raw email-change token.
+        db: Database session.
+
+    Returns:
+        The next step: signing in with the new address.
+
+    Raises:
+        InvalidInputError: If the token is unknown, used, expired, not an email-change token, or requested before a
+            security change.
+        ConflictError: If another account holds the address now.
+        NotFoundError: If the token's user no longer exists.
+    """
+    server_settings = server_settings_integration.get_server_settings(db)
+    claim = verify_sign_up_token(token, db, email_change=True)
+    user_id = claim.user_id
+    users_integration.stage_confirmed_email_change(user_id, claim.email, db)
+    sign_up_event_publishers.publish_email_changed(user_id, claim.id, db)
+    if users_integration.get_user(user_id, db) is None:
+        raise core_exceptions.NotFoundError("User not found")
+    users_integration.stage_email_verification(user_id, server_settings, db)
+    _commit_sign_up(user_id, db)
+    return sign_up_schema.SignUpRead(next_step=sign_up_schema.SignUpNextStep.SIGN_IN)
 
 
 def delete_expired_sign_up_tokens(db: Session) -> int:

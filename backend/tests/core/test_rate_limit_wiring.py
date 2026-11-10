@@ -117,7 +117,8 @@ _TIERED_ENDPOINTS = [
     pytest.param(auth_router.logout, core_rate_limit.WRITE, id="logout"),
     pytest.param(onboarding_public_router.complete_onboarding, core_rate_limit.SENSITIVE, id="onboarding-complete"),
     pytest.param(sign_up_tokens_router.signup, core_rate_limit.SENSITIVE, id="signup"),
-    pytest.param(sign_up_tokens_router.verify_email, core_rate_limit.SENSITIVE, id="verify-email"),
+    pytest.param(sign_up_tokens_router.confirm_sign_up, core_rate_limit.SENSITIVE, id="confirm-sign-up"),
+    pytest.param(sign_up_tokens_router.confirm_email_change, core_rate_limit.SENSITIVE, id="confirm-email-change"),
     pytest.param(sign_up_tokens_router.cancel_email_change, core_rate_limit.SENSITIVE, id="cancel-email-change"),
     pytest.param(
         sign_up_tokens_router.resend_verification_email, core_rate_limit.SENSITIVE, id="resend-sign-up-verification"
@@ -414,7 +415,7 @@ def test_every_decorated_endpoint_is_in_the_manifest():
 
     A hand-maintained list of sensitive routes is only as good as the last person
     who remembered to append to it, and this one had already drifted: ``signup``,
-    ``verify_email`` and the MFA backup-code route were all rate-limited in the
+    ``confirm_sign_up`` and the MFA backup-code route were all rate-limited in the
     application and absent here, so deleting their decorators would have broken
     no test. Deriving the expected set from the source makes the omission the
     failure instead of the silence.

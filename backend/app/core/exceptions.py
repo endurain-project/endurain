@@ -221,15 +221,14 @@ class EmailVerificationDisabledError(PermissionDeniedError):
 
 
 class PasswordRequiredError(InvalidInputError):
-    """A sign-up arrived without the password the account is still missing.
+    """A sign-up request arrived without the password the server needs while email verification is off.
 
-    Raised by a sign-up request while email verification is off and by a sign-up confirmation that still needs the
-    password. Clients branch on the ``password-required`` problem type to ask the user for a password and send the
-    same request again; a confirmation token stays usable because nothing was committed.
+    Clients branch on the ``password-required`` problem type to ask the user for a password and send the same request
+    again.
     """
 
     code = "password-required"
-    default_detail = "A password is required to confirm this sign-up"
+    default_detail = "A password is required to sign up"
 
 
 class IdpReauthRequiredError(UnauthenticatedError):

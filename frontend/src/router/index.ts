@@ -73,9 +73,15 @@ const router = createRouter({
       meta: { requiresAuth: false, bare: true },
     },
     {
-      path: '/verify-email',
-      name: 'verify-email',
-      component: () => import('@/features/auth/views/EmailVerificationView.vue'),
+      path: '/signup/confirm',
+      name: 'sign-up-confirm',
+      component: () => import('@/features/auth/views/SignUpConfirmView.vue'),
+      meta: { requiresAuth: false, bare: true },
+    },
+    {
+      path: '/confirm-email-change',
+      name: 'confirm-email-change',
+      component: () => import('@/features/auth/views/ConfirmEmailChangeView.vue'),
       meta: { requiresAuth: false, bare: true },
     },
     {

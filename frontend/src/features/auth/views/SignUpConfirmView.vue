@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { LoaderCircle } from '@lucide/vue'
@@ -10,7 +10,6 @@ import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { ErrorState } from '@/components/ui/error-state'
 import { FormField } from '@/components/ui/form-field'
-import { LoadingState } from '@/components/ui/loading-state'
 import { useForm } from '@/composables/useForm'
 import ResendVerificationForm from '@/features/auth/components/ResendVerificationForm.vue'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
@@ -23,10 +22,8 @@ import { HttpError } from '@/services/http'
 import { confirmSignUp } from '@/features/auth/services/signUp'
 import { compose, required } from '@/utils/validators'
 
-type Status = 'pending' | 'password' | 'success' | 'error' | 'resend'
+type Status = 'password' | 'success' | 'error' | 'resend'
 
-/** Problem type the backend answers for a sign-up link confirmed without a password. */
-const PASSWORD_REQUIRED_TYPE = 'urn:endurain:error:password-required'
 const EMAIL_VERIFICATION_DISABLED_TYPE = 'urn:endurain:error:email-verification-disabled'
 
 /** Form field shape backing the choose-password form. */
@@ -37,15 +34,14 @@ interface ChoosePasswordValues {
 
 const { t } = useI18n()
 
-const status = ref<Status>('pending')
-const errorMessage = ref('')
-/** Whether the shown error may clear on its own, so trying again can succeed. */
-const errorRetryable = ref(false)
-const adminApprovalRequired = ref(false)
-
 /** Verification token from the emailed link; empty when absent or malformed. */
 const verifyCredential = useQueryCredential('token')
 const token = ref(verifyCredential.value)
+
+// Without a token (the "didn't get the email" entry) the page offers a new email instead of the form.
+const status = ref<Status>(token.value.length > 0 ? 'password' : 'resend')
+const errorMessage = ref('')
+const adminApprovalRequired = ref(false)
 
 // The account tier is unknown before submitting, so the regular policy applies;
 // a stricter server-side policy answers 422 (see `submitPassword`).
@@ -60,12 +56,22 @@ const { hint: passwordHint, validate: validatePassword, policyError } = usePassw
 async function submitPassword(formValues: ChoosePasswordValues): Promise<void> {
   try {
     const response = await confirmSignUp({ token: token.value, password: formValues.password })
-    adminApprovalRequired.value = response.admin_approval_required === true
+    adminApprovalRequired.value = response.next_step === 'await_approval'
     verifyCredential.clear()
     status.value = 'success'
   } catch (error) {
     if (error instanceof HttpError && error.status === 422) {
       throw new Error(policyError(error) ?? t('resetPassword.errorWeakPassword'))
+    }
+    if (error instanceof HttpError && error.type === EMAIL_VERIFICATION_DISABLED_TYPE) {
+      verifyCredential.clear()
+      showError(t('verifyEmail.errorVerificationDisabled'))
+      return
+    }
+    if (error instanceof HttpError && error.status === 404) {
+      verifyCredential.clear()
+      showError(t('verifyEmail.errorNotFound'))
+      return
     }
     if (error instanceof HttpError && error.status === 400) {
       verifyCredential.clear()
@@ -96,54 +102,11 @@ const { matches: passwordsMatch, error: confirmPasswordError } = usePasswordConf
  * Switches to the error state with a message.
  *
  * @param message - Translated message shown to the user.
- * @param retryable - Whether trying the same link again can succeed.
  */
-function showError(message: string, retryable = false): void {
+function showError(message: string): void {
   errorMessage.value = message
-  errorRetryable.value = retryable
   status.value = 'error'
 }
-
-/**
- * Verifies the email token from the link and maps the outcome to a display
- * status. A missing token (the "didn't get the email" entry) shows the resend
- * form; backend rejections surface as errors, retryable only when transient.
- */
-async function verify(): Promise<void> {
-  if (token.value.length === 0) {
-    status.value = 'resend'
-    return
-  }
-
-  status.value = 'pending'
-  try {
-    const response = await confirmSignUp({ token: token.value })
-    adminApprovalRequired.value = response.admin_approval_required === true
-    verifyCredential.clear()
-    status.value = 'success'
-  } catch (error) {
-    if (error instanceof HttpError && error.type === PASSWORD_REQUIRED_TYPE) {
-      status.value = 'password'
-    } else if (error instanceof HttpError && error.type === EMAIL_VERIFICATION_DISABLED_TYPE) {
-      verifyCredential.clear()
-      showError(t('verifyEmail.errorVerificationDisabled'))
-    } else if (error instanceof HttpError && error.status === 404) {
-      verifyCredential.clear()
-      showError(t('verifyEmail.errorNotFound'))
-    } else if (error instanceof HttpError && error.status === 400) {
-      verifyCredential.clear()
-      showError(t('verifyEmail.errorInvalidToken'))
-    } else if (error instanceof HttpError && error.status === 409) {
-      showError(t('verifyEmail.errorEmailTaken'))
-    } else {
-      showError(t('verifyEmail.errorGeneral'), true)
-    }
-  }
-}
-
-onMounted(() => {
-  void verify()
-})
 </script>
 
 <template>
@@ -151,14 +114,8 @@ onMounted(() => {
     <div class="rounded-card border border-border bg-card p-6 sm:p-8">
       <AppLogo width="40" height="40" class="mx-auto mb-3 size-10" />
 
-      <LoadingState
-        v-if="status === 'pending'"
-        :label="t('verifyEmail.verifyingBody')"
-        class="py-8"
-      />
-
       <form
-        v-else-if="status === 'password'"
+        v-if="status === 'password'"
         class="flex flex-col"
         novalidate
         @submit.prevent="handleSubmit"
@@ -242,17 +199,11 @@ onMounted(() => {
         :title="t('verifyEmail.invalidTitle')"
         :description="errorMessage"
         class="py-8"
-        @retry="verify"
       >
-        <template #action="{ retry }">
-          <div class="flex flex-wrap items-center justify-center gap-3">
-            <Button v-if="errorRetryable" variant="outline" @click="retry">{{
-              t('verifyEmail.retry')
-            }}</Button>
-            <Button as-child variant="ghost">
-              <RouterLink :to="{ name: 'login' }">{{ t('verifyEmail.backToLogin') }}</RouterLink>
-            </Button>
-          </div>
+        <template #action>
+          <Button as-child variant="ghost">
+            <RouterLink :to="{ name: 'login' }">{{ t('verifyEmail.backToLogin') }}</RouterLink>
+          </Button>
         </template>
       </ErrorState>
 

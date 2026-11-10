@@ -4,7 +4,7 @@ import { confirmPasswordReset, requestPasswordReset } from '@/features/auth/serv
 import { completeOnboarding, fetchOnboardingStatus } from '@/features/auth/services/onboarding'
 import { refreshSession } from '@/features/auth/services/session'
 import { getAccessToken, getCsrfToken } from '@/services/authTokens'
-import { confirmSignUp } from '@/features/auth/services/signUp'
+import { confirmEmailChange, confirmSignUp } from '@/features/auth/services/signUp'
 import { exchangeSessionForTokens } from '@/services/identityProviders'
 
 vi.mock('@/services/runtime', () => ({
@@ -67,24 +67,24 @@ describe('passwordReset service', () => {
 })
 
 describe('signUp service', () => {
-  it('confirms a sign-up with the verification token', async () => {
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({ message: 'verified', admin_approval_required: true }),
-    )
-    const result = await confirmSignUp({ token: 'verify-tok' })
+  it('confirms a sign-up with the verification token and the chosen password', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ next_step: 'await_approval' }))
+    const result = await confirmSignUp({ token: 'verify-tok', password: 'chosen-pass' })
     const call = fetchMock.mock.calls[0]
     expect(call?.[0]).toContain('/public/sign-up/confirm')
     expect(call?.[1].method).toBe('POST')
-    expect(call?.[1].body).toBe(JSON.stringify({ token: 'verify-tok' }))
-    expect(result.admin_approval_required).toBe(true)
+    expect(call?.[1].body).toBe(JSON.stringify({ token: 'verify-tok', password: 'chosen-pass' }))
+    expect(result.next_step).toBe('await_approval')
   })
 
-  it('sends the chosen password when confirming a sign-up link', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ message: 'verified' }))
-    await confirmSignUp({ token: 'verify-tok', password: 'chosen-pass' })
-    expect(fetchMock.mock.calls[0]?.[1].body).toBe(
-      JSON.stringify({ token: 'verify-tok', password: 'chosen-pass' }),
-    )
+  it('confirms an email change with the token alone', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ next_step: 'sign_in' }))
+    const result = await confirmEmailChange({ token: 'change-tok' })
+    const call = fetchMock.mock.calls[0]
+    expect(call?.[0]).toContain('/public/email-change/confirm')
+    expect(call?.[1].method).toBe('POST')
+    expect(call?.[1].body).toBe(JSON.stringify({ token: 'change-tok' }))
+    expect(result.next_step).toBe('sign_in')
   })
 })
 

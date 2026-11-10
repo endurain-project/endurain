@@ -3148,6 +3148,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/email-change/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Email Change
+         * @description Confirm an email change with the token of the link emailed to the new address.
+         */
+        post: operations["confirm_email_change"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/idp": {
         parameters: {
             query?: never;
@@ -3446,10 +3466,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Verify Email
-         * @description Verify an account's email address using its one-time token; a sign-up also chooses its password.
+         * Confirm Sign Up
+         * @description Confirm a sign-up with the token of its emailed link and choose the account's password.
          */
-        post: operations["verify_email"];
+        post: operations["confirm_sign_up"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5861,6 +5881,20 @@ export interface components {
              * @description Whether the account's previous email address was restored
              */
             email_restored: boolean;
+        };
+        /**
+         * EmailChangeConfirm
+         * @description Request schema for confirming an email change.
+         *
+         *     Attributes:
+         *         token: The token of the link emailed to the new address.
+         */
+        EmailChangeConfirm: {
+            /**
+             * Token
+             * @description The token of the link emailed to the new address
+             */
+            token: string;
         };
         /**
          * EmailStatus
@@ -11069,43 +11103,42 @@ export interface components {
          * @description Request schema for confirming a sign-up.
          *
          *     Attributes:
-         *         token: The sign-up token received by user.
-         *         password: The password the user chooses while confirming a sign-up; omitted for an email change.
+         *         token: The token of the sign-up link emailed to the new account.
+         *         password: The password the user chooses for the account.
          */
         SignUpConfirm: {
-            /** Password */
-            password?: string | null;
+            /**
+             * Password
+             * @description User's password
+             */
+            password: string;
             /**
              * Token
-             * @description The sign-up token received by the user
+             * @description The token of the sign-up link emailed to the new account
              */
             token: string;
         };
+        /**
+         * SignUpNextStep
+         * @description What a client does after a sign-up request, a resend or a confirmation.
+         *
+         *     Attributes:
+         *         SIGN_IN: The account is ready; the user signs in.
+         *         CHECK_EMAIL: A verification email was sent; the user opens its link.
+         *         AWAIT_APPROVAL: An administrator must approve the account before it can sign in.
+         * @enum {string}
+         */
+        SignUpNextStep: "sign_in" | "check_email" | "await_approval";
         /**
          * SignUpRead
          * @description Response schema for sign-up operations.
          *
          *     Attributes:
-         *         message: Human-readable result message.
-         *         email_verification_required: Whether email verification is required.
-         *         admin_approval_required: Whether admin approval is required.
+         *         next_step: What the client does next.
          */
         SignUpRead: {
-            /**
-             * Admin Approval Required
-             * @description Whether admin approval is required
-             */
-            admin_approval_required?: boolean | null;
-            /**
-             * Email Verification Required
-             * @description Whether email verification is required
-             */
-            email_verification_required?: boolean | null;
-            /**
-             * Message
-             * @description Human-readable result message
-             */
-            message: string;
+            /** @description What the client does next: sign in, check the email for a verification link, or wait for an administrator's approval */
+            next_step: components["schemas"]["SignUpNextStep"];
         };
         /**
          * SignUpResend
@@ -30418,6 +30451,97 @@ export interface operations {
             };
         };
     };
+    confirm_email_change: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailChangeConfirm"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignUpRead"];
+                };
+            };
+            /** @description The token is unknown, used, expired or not an email-change token, or the change was requested before a security change of the account. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Another account holds the new address now. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The body is larger than the route accepts. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     get_enabled_identity_providers: {
         parameters: {
             query?: {
@@ -31406,7 +31530,7 @@ export interface operations {
             };
         };
     };
-    verify_email: {
+    confirm_sign_up: {
         parameters: {
             query?: never;
             header?: never;
@@ -31428,7 +31552,7 @@ export interface operations {
                     "application/json": components["schemas"]["SignUpRead"];
                 };
             };
-            /** @description The token is unknown, used or expired; a sign-up confirmation carries no password (the `password-required` problem type, and the token stays usable); or a password accompanies a token that does not choose one. */
+            /** @description The token is unknown, used, expired or not a sign-up token, or the account takes no password from a link. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -31437,7 +31561,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description A sign-up is confirmed while email verification is turned off on this server (the `email-verification-disabled` problem type). */
+            /** @description The sign-up is confirmed while email verification is turned off on this server (the `email-verification-disabled` problem type). */
             403: {
                 headers: {
                     [name: string]: unknown;

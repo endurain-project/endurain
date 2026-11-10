@@ -10,6 +10,7 @@ from jasil.providers import StateBackendUnavailableError
 import core.exceptions as core_exceptions
 import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.sign_up_tokens.contracts as sign_up_contracts
+import modules.auth.sign_up_tokens.schema as sign_up_schema
 import modules.auth.sign_up_tokens.service as sign_up_service
 import modules.users.users.schema as users_schema
 
@@ -98,7 +99,7 @@ class TestSignupWithATakenEmail:
             result = sign_up_service.signup(_signup_user(), state, mock_db)
 
         publishers.publish_sign_up_existing_account.assert_not_called()
-        assert result.message
+        assert result.next_step
 
 
 class TestSignupCommitsTheAccountAndItsEventTogether:
@@ -278,7 +279,7 @@ class TestExistingAccountNoticeCooldown:
         result, publishers = self._signup_with_a_taken_email(broken, mock_db)
 
         publishers.publish_sign_up_existing_account.assert_not_called()
-        assert result.message
+        assert result.next_step
 
 
 class TestSignupWithATakenUsername:
@@ -328,7 +329,7 @@ class TestSignupWithATakenUsername:
     def test_a_free_username_with_a_registered_email_answers_200_and_stages_the_notice(self, mock_db, state):
         result, (_users, publishers) = self._signup(state, mock_db, username_holder=None, email_holder=MagicMock(id=3))
 
-        assert result.message
+        assert result.next_step
         publishers.publish_sign_up_existing_account.assert_called_once_with(3, mock_db)
 
     def test_a_username_taken_while_the_insert_raced_is_refused(self, mock_db, state):
@@ -413,7 +414,7 @@ def _claim(*, previous_email=None):
     return MagicMock(id="t1", user_id=7, email="u@example.com", previous_email=previous_email)
 
 
-class TestVerifyEmailPassword:
+class TestConfirmSignUp:
     @pytest.fixture
     def deps(self):
         names = [
@@ -438,16 +439,8 @@ class TestVerifyEmailPassword:
             mocks["credentials_integration"].validate_and_hash_password_for_user.return_value = "hashed"
             yield mocks | {"verify_token": verify_token}
 
-    def test_a_sign_up_token_without_a_password_asks_for_one_and_commits_nothing(self, deps, mock_db):
-        with pytest.raises(core_exceptions.PasswordRequiredError):
-            sign_up_service.verify_email("tok", None, mock_db)
-
-        mock_db.commit.assert_not_called()
-        deps["credentials_integration"].set_local_password_hash.assert_not_called()
-        deps["users_integration"].stage_email_verification.assert_not_called()
-
     def test_the_password_replaces_any_existing_hash_and_ends_sessions(self, deps, mock_db):
-        result = sign_up_service.verify_email("tok", "ChosenPass1!", mock_db)
+        result = sign_up_service.confirm_sign_up("tok", "ChosenPass1!", mock_db)
 
         creds = deps["credentials_integration"]
         creds.validate_and_hash_password_for_user.assert_called_once()
@@ -460,17 +453,24 @@ class TestVerifyEmailPassword:
         deps["sessions_integration"].delete_sessions_by_user.assert_called_once_with(7, mock_db)
         deps["password_reset_tokens_integration"].revoke_unused_tokens.assert_called_once_with(7, mock_db)
         deps["users_integration"].stage_email_verification.assert_called_once()
-        assert "log in" in result.message
+        assert result.next_step is sign_up_schema.SignUpNextStep.SIGN_IN
 
-    def test_the_token_is_verified_knowing_whether_a_password_comes_with_it(self, deps, mock_db):
-        sign_up_service.verify_email("tok", "ChosenPass1!", mock_db)
-        deps["verify_token"].assert_called_once_with("tok", mock_db, with_password=True)
+    def test_a_sign_up_pending_approval_awaits_it(self, deps, mock_db):
+        with (
+            patch(
+                f"{_MODULE}.server_settings_integration.get_server_settings",
+                return_value=_settings(verification=True, approval=True),
+            ),
+            patch(f"{_MODULE}.request_sign_up_admin_approval"),
+        ):
+            result = sign_up_service.confirm_sign_up("tok", "ChosenPass1!", mock_db)
 
-        deps["verify_token"].reset_mock()
-        deps["users_integration"].get_user.return_value = MagicMock(id=7, active=True, access_type="regular")
-        deps["credentials_integration"].has_local_password.return_value = True
-        sign_up_service.verify_email("tok", None, mock_db)
-        deps["verify_token"].assert_called_once_with("tok", mock_db, with_password=False)
+        assert result.next_step is sign_up_schema.SignUpNextStep.AWAIT_APPROVAL
+
+    def test_the_token_is_verified_as_a_sign_up_token(self, deps, mock_db):
+        sign_up_service.confirm_sign_up("tok", "ChosenPass1!", mock_db)
+
+        deps["verify_token"].assert_called_once_with("tok", mock_db, email_change=False)
 
     def test_a_password_failing_the_policy_is_a_policy_error(self, deps, mock_db):
         deps[
@@ -478,69 +478,84 @@ class TestVerifyEmailPassword:
         ].validate_and_hash_password_for_user.side_effect = credentials_contracts.PasswordTooCommonError()
 
         with pytest.raises(credentials_contracts.PasswordTooCommonError):
-            sign_up_service.verify_email("tok", "weakweak", mock_db)
+            sign_up_service.confirm_sign_up("tok", "weakweak", mock_db)
 
         mock_db.commit.assert_not_called()
         deps["credentials_integration"].set_local_password_hash.assert_not_called()
 
-    def test_an_activated_account_without_a_password_still_chooses_one(self, deps, mock_db):
+    def test_an_activated_account_without_a_password_chooses_one(self, deps, mock_db):
         deps["users_integration"].get_user.return_value = MagicMock(id=7, active=True, access_type="regular")
         deps["credentials_integration"].has_local_password.return_value = False
 
-        with pytest.raises(core_exceptions.PasswordRequiredError):
-            sign_up_service.verify_email("tok", None, mock_db)
-        mock_db.commit.assert_not_called()
+        sign_up_service.confirm_sign_up("tok", "ChosenPass1!", mock_db)
 
-        sign_up_service.verify_email("tok", "ChosenPass1!", mock_db)
         deps["credentials_integration"].set_local_password_hash.assert_called_once_with(
             7, "hashed", mock_db, change_required=False
         )
 
-    def test_an_activated_account_with_a_password_verifies_without_one(self, deps, mock_db):
-        deps["users_integration"].get_user.return_value = MagicMock(id=7, active=True, access_type="regular")
+    @pytest.mark.parametrize("active", [True, False])
+    def test_an_account_that_does_not_take_a_password_refuses_one(self, deps, mock_db, active):
+        deps["users_integration"].get_user.return_value = MagicMock(id=7, active=active, access_type="regular")
+        deps["users_integration"].is_deactivated.return_value = not active
         deps["credentials_integration"].has_local_password.return_value = True
 
-        sign_up_service.verify_email("tok", None, mock_db)
-
-        deps["credentials_integration"].set_local_password_hash.assert_not_called()
-        mock_db.commit.assert_called_once()
-
-    def test_an_email_change_token_refuses_a_password(self, deps, mock_db):
-        deps["verify_token"].return_value = _claim(previous_email="old@example.com")
-
         with pytest.raises(core_exceptions.InvalidInputError):
-            sign_up_service.verify_email("tok", "ChosenPass1!", mock_db)
+            sign_up_service.confirm_sign_up("tok", "ChosenPass1!", mock_db)
 
         deps["credentials_integration"].set_local_password_hash.assert_not_called()
-
-    def test_an_email_change_token_without_a_password_works_as_before(self, deps, mock_db):
-        deps["verify_token"].return_value = _claim(previous_email="old@example.com")
-        deps["users_integration"].get_user.return_value = MagicMock(id=7, active=True)
-
-        result = sign_up_service.verify_email("tok", None, mock_db)
-
-        deps["sessions_integration"].delete_sessions_by_user.assert_not_called()
-        deps["password_reset_tokens_integration"].revoke_unused_tokens.assert_not_called()
-        mock_db.commit.assert_called_once()
-        assert "verified" in result.message.lower()
+        mock_db.commit.assert_not_called()
 
     def test_a_sign_up_token_with_verification_disabled_is_refused(self, deps, mock_db):
         with (
             patch(f"{_MODULE}.server_settings_integration.get_server_settings", return_value=_settings()),
             pytest.raises(core_exceptions.EmailVerificationDisabledError),
         ):
-            sign_up_service.verify_email("tok", "ChosenPass1!", mock_db)
+            sign_up_service.confirm_sign_up("tok", "ChosenPass1!", mock_db)
+
+
+class TestConfirmEmailChange:
+    @pytest.fixture
+    def deps(self):
+        names = ["credentials_integration", "sessions_integration", "users_integration"]
+        mocks = {name: MagicMock() for name in names}
+        with (
+            patch(f"{_MODULE}.server_settings_integration.get_server_settings", return_value=_settings()),
+            patch(f"{_MODULE}.verify_sign_up_token") as verify_token,
+            patch.multiple(_MODULE, **mocks),
+            patch(f"{_MODULE}.sign_up_event_publishers") as publishers,
+        ):
+            verify_token.return_value = _claim(previous_email="old@example.com")
+            mocks["users_integration"].get_user.return_value = MagicMock(id=7, active=True)
+            yield mocks | {"verify_token": verify_token, "publishers": publishers}
+
+    def test_the_address_is_switched_and_the_account_signs_in_again(self, deps, mock_db):
+        result = sign_up_service.confirm_email_change("tok", mock_db)
+
+        deps["verify_token"].assert_called_once_with("tok", mock_db, email_change=True)
+        deps["users_integration"].stage_confirmed_email_change.assert_called_once_with(7, "u@example.com", mock_db)
+        deps["publishers"].publish_email_changed.assert_called_once_with(7, "t1", mock_db)
+        deps["users_integration"].stage_email_verification.assert_called_once()
+        deps["credentials_integration"].set_local_password_hash.assert_not_called()
+        deps["sessions_integration"].delete_sessions_by_user.assert_not_called()
+        mock_db.commit.assert_called_once()
+        assert result.next_step is sign_up_schema.SignUpNextStep.SIGN_IN
 
 
 class TestVerifySignUpTokenBump:
-    """A confirmation that sets a password or moves the address bumps the generation before the claim writes."""
+    """A sign-up confirmation or an email change bumps the generation before the claim writes."""
 
     @staticmethod
     def _plain():
         return sign_up_contracts.SignUpTokenClaim(id="t", user_id=7, email="u@example.com", previous_email=None)
 
     @staticmethod
-    def _verify(claim, *, with_password, usable=True):
+    def _change(generation=0):
+        return sign_up_contracts.EmailChangeClaim(
+            id="t", user_id=7, email="new@example.com", previous_email="old@example.com", security_generation=generation
+        )
+
+    @staticmethod
+    def _verify(claim, *, email_change, usable=True):
         mocks = MagicMock()
         with (
             patch(f"{_MODULE}.sign_up_crud.get_usable_sign_up_token", return_value=claim if usable else None),
@@ -551,42 +566,74 @@ class TestVerifySignUpTokenBump:
             mocks.attach_mock(bump, "bump")
             mocks.attach_mock(claim_token, "claim")
             with contextlib.suppress(core_exceptions.InvalidInputError):
-                sign_up_service.verify_sign_up_token("tok", MagicMock(), with_password=with_password)
+                sign_up_service.verify_sign_up_token("tok", MagicMock(), email_change=email_change)
         return [call[0] for call in mocks.mock_calls], bump
 
-    def test_a_password_confirmation_bumps_before_the_claim(self):
-        names, bump = self._verify(self._plain(), with_password=True)
+    def test_a_sign_up_confirmation_bumps_before_the_claim(self):
+        names, bump = self._verify(self._plain(), email_change=False)
 
         assert names == ["bump", "claim"]
         bump.assert_called_once()
         assert bump.call_args.args[0] == 7
 
     def test_an_email_change_bumps_before_the_claim(self):
-        change = sign_up_contracts.EmailChangeClaim(
-            id="t", user_id=7, email="new@example.com", previous_email="old@example.com", security_generation=0
-        )
-
-        names, _ = self._verify(change, with_password=False)
+        names, _ = self._verify(self._change(), email_change=True)
 
         assert names == ["bump", "claim"]
 
     def test_an_email_change_from_an_earlier_generation_neither_bumps_nor_claims(self, security_generations):
         security_generations.generations[7] = 1
-        change = sign_up_contracts.EmailChangeClaim(
-            id="t", user_id=7, email="new@example.com", previous_email="old@example.com", security_generation=0
-        )
 
-        names, bump = self._verify(change, with_password=False)
+        names, bump = self._verify(self._change(0), email_change=True)
 
         assert names == []
         bump.assert_not_called()
 
-    def test_a_plain_verification_does_not_bump(self):
-        names, _ = self._verify(self._plain(), with_password=False)
-
-        assert names == ["claim"]
-
     def test_an_unusable_token_does_not_bump(self):
-        names, _ = self._verify(self._plain(), with_password=True, usable=False)
+        names, _ = self._verify(self._plain(), email_change=False, usable=False)
 
         assert names == ["claim"]
+
+    @pytest.mark.parametrize(
+        ("claim", "email_change"), [(_plain.__func__(), True), (_change.__func__(), False)], ids=["sign-up", "change"]
+    )
+    def test_a_token_of_the_other_kind_is_refused_untouched(self, claim, email_change):
+        names, bump = self._verify(claim, email_change=email_change)
+
+        assert names == []
+        bump.assert_not_called()
+
+
+class TestSignupNextStep:
+    @pytest.mark.parametrize(
+        ("verification", "approval", "expected"),
+        [
+            (False, False, sign_up_schema.SignUpNextStep.SIGN_IN),
+            (True, False, sign_up_schema.SignUpNextStep.CHECK_EMAIL),
+            (True, True, sign_up_schema.SignUpNextStep.CHECK_EMAIL),
+            (False, True, sign_up_schema.SignUpNextStep.AWAIT_APPROVAL),
+        ],
+    )
+    def test_the_next_step_follows_the_policy_alone(self, mock_db, state, verification, approval, expected):
+        with (
+            patch(
+                f"{_MODULE}.server_settings_integration.get_server_settings",
+                return_value=_settings(verification=verification, approval=approval),
+            ),
+            patch(f"{_MODULE}.server_settings_integration.is_mail_configured", return_value=True),
+            patch(f"{_MODULE}.users_integration", **_FREE_USERNAME) as users,
+            patch(f"{_MODULE}.sign_up_event_publishers"),
+        ):
+            users.stage_signup_user.return_value = MagicMock(id=7, pending_admin_approval=approval)
+            result = sign_up_service.signup(_signup_user(with_password=not verification), state, mock_db)
+
+        assert result.next_step is expected
+
+    def test_a_resend_always_says_to_check_the_email(self, mock_db, state):
+        with (
+            patch(f"{_MODULE}.server_settings_integration.get_server_settings", return_value=_settings()),
+            patch(f"{_MODULE}.server_settings_integration.is_mail_configured", return_value=False),
+        ):
+            result = sign_up_service.resend_sign_up_verification_email("a@example.com", state, mock_db)
+
+        assert result.next_step is sign_up_schema.SignUpNextStep.CHECK_EMAIL

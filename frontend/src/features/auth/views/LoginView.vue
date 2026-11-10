@@ -481,7 +481,7 @@ onMounted(async () => {
 
         <RouterLink
           v-if="verificationEmailSent"
-          :to="{ name: 'verify-email' }"
+          :to="{ name: 'sign-up-confirm' }"
           class="self-center text-meta text-muted-foreground hover:text-foreground"
         >
           {{ t('login.resendVerification') }}

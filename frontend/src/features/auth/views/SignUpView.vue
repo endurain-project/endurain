@@ -98,10 +98,9 @@ async function submitForm(formValues: SignUpFormValues): Promise<void> {
     const response = await requestSignUp(payload)
 
     const query: Record<string, string> = {}
-    if (response.email_verification_required) {
+    if (response.next_step === 'check_email') {
       query.emailVerificationSent = 'true'
-    }
-    if (response.admin_approval_required) {
+    } else if (response.next_step === 'await_approval') {
       query.adminApprovalRequired = 'true'
     }
 
@@ -293,7 +292,7 @@ onMounted(async () => {
 
         <RouterLink
           v-if="!passwordRequired"
-          :to="{ name: 'verify-email' }"
+          :to="{ name: 'sign-up-confirm' }"
           class="self-center text-meta text-muted-foreground hover:text-foreground"
         >
           {{ t('login.resendVerification') }}

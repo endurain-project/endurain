@@ -1,6 +1,7 @@
 """Pydantic schemas for sign-up token operations."""
 
 from datetime import datetime
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 
@@ -90,18 +91,35 @@ class SignUpConfirm(BaseModel):
     """Request schema for confirming a sign-up.
 
     Attributes:
-        token: The sign-up token received by user.
-        password: The password the user chooses while confirming a sign-up; omitted for an email change.
+        token: The token of the sign-up link emailed to the new account.
+        password: The password the user chooses for the account.
     """
 
     token: StrictStr = Field(
         ...,
-        description=("The sign-up token received by the user"),
+        description=("The token of the sign-up link emailed to the new account"),
         min_length=1,
         max_length=256,
     )
 
-    password: users_schema.UserPassword | None = None
+    password: users_schema.UserPassword
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class EmailChangeConfirm(BaseModel):
+    """Request schema for confirming an email change.
+
+    Attributes:
+        token: The token of the link emailed to the new address.
+    """
+
+    token: StrictStr = Field(
+        ...,
+        description="The token of the link emailed to the new address",
+        min_length=1,
+        max_length=256,
+    )
 
     model_config = ConfigDict(extra="forbid")
 
@@ -150,26 +168,31 @@ class SignUpResend(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class SignUpNextStep(StrEnum):
+    """What a client does after a sign-up request, a resend or a confirmation.
+
+    Attributes:
+        SIGN_IN: The account is ready; the user signs in.
+        CHECK_EMAIL: A verification email was sent; the user opens its link.
+        AWAIT_APPROVAL: An administrator must approve the account before it can sign in.
+    """
+
+    SIGN_IN = "sign_in"
+    CHECK_EMAIL = "check_email"
+    AWAIT_APPROVAL = "await_approval"
+
+
 class SignUpRead(BaseModel):
     """Response schema for sign-up operations.
 
     Attributes:
-        message: Human-readable result message.
-        email_verification_required: Whether email verification is required.
-        admin_approval_required: Whether admin approval is required.
+        next_step: What the client does next.
     """
 
-    message: StrictStr = Field(
+    next_step: SignUpNextStep = Field(
         ...,
-        description="Human-readable result message",
-    )
-    email_verification_required: StrictBool | None = Field(
-        default=None,
-        description=("Whether email verification is required"),
-    )
-    admin_approval_required: StrictBool | None = Field(
-        default=None,
-        description=("Whether admin approval is required"),
+        description="What the client does next: sign in, check the email for a verification link, or wait for an "
+        "administrator's approval",
     )
 
     model_config = ConfigDict(extra="forbid")

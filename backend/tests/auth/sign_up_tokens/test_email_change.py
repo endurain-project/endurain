@@ -16,6 +16,7 @@ import modules.auth.password_reset_tokens.models as password_reset_models
 import modules.auth.sign_up_tokens.crud as sign_up_crud
 import modules.auth.sign_up_tokens.integration_service as sign_up_integration
 import modules.auth.sign_up_tokens.models as sign_up_models
+import modules.auth.sign_up_tokens.schema as sign_up_schema
 import modules.auth.sign_up_tokens.service as sign_up_service
 import modules.users.users.models as users_models
 from tests._helpers.db import create_sqlite_session, ensure_user
@@ -162,7 +163,7 @@ class TestPrepareEmailChangeVerificationEmail:
         fresh = next(row for row in rows.values() if row.id != "pending")
         assert fresh.used is False
         assert (fresh.email, fresh.previous_email) == ("new@example.com", "user7@example.com")
-        assert f"{_HOST}/verify-email?token=" in html_content
+        assert f"{_HOST}/confirm-email-change?token=" in html_content
 
     def test_an_expired_pending_change_is_not_reissued(self, db):
         _add_token(
@@ -178,7 +179,7 @@ class TestPrepareEmailChangeVerificationEmail:
 
 
 def _link_token(message) -> str:
-    return message[2].split("verify-email?token=")[1].split('"')[0].split("<")[0].split("&")[0]
+    return message[2].split("?token=")[1].split('"')[0].split("<")[0].split("&")[0]
 
 
 class TestRetriedMailEvent:
@@ -241,9 +242,9 @@ class TestVerifyEmailOfAPendingChange:
         _add_token(db, token_id="t1", token="plain", email="New@Example.com", previous_email="user7@example.com")
 
         with patch(_PUBLISH) as publish:
-            result = sign_up_service.verify_email("plain", None, db)
+            result = sign_up_service.confirm_email_change("plain", db)
 
-        assert result.message == "Email verified successfully."
+        assert result.next_step is sign_up_schema.SignUpNextStep.SIGN_IN
         db.expire_all()
         user = db.get(users_models.Users, 7)
         assert (user.email, user.email_verified) == ("new@example.com", True)
@@ -256,7 +257,7 @@ class TestVerifyEmailOfAPendingChange:
         _add_token(db, token_id="t1", token="plain", email="user8@example.com", previous_email="user7@example.com")
 
         with patch(_PUBLISH) as publish, pytest.raises(core_exceptions.ConflictError):
-            sign_up_service.verify_email("plain", None, db)
+            sign_up_service.confirm_email_change("plain", db)
         # get_db rolls the session back on an unhandled exception.
         db.rollback()
 
@@ -276,19 +277,20 @@ class TestVerifyEmailOfAPendingChange:
         )
 
         with patch(_PUBLISH) as publish, pytest.raises(core_exceptions.InvalidInputError):
-            sign_up_service.verify_email("plain", None, db)
+            sign_up_service.confirm_email_change("plain", db)
 
         assert db.get(users_models.Users, 7).email == "user7@example.com"
         publish.assert_not_called()
 
-    def test_a_sign_up_token_leaves_the_address_alone_and_sends_no_notice(self, db):
+    def test_a_sign_up_token_is_refused_and_left_usable(self, db):
         self._activate(db)
-        credentials_integration.set_local_password_hash(7, "existing-hash", db, change_required=False)
         _add_token(db, token_id="t1", token="plain", email="user7@example.com", previous_email=None)
 
-        with patch(_PUBLISH) as publish:
-            sign_up_service.verify_email("plain", None, db)
+        with patch(_PUBLISH) as publish, pytest.raises(core_exceptions.InvalidInputError):
+            sign_up_service.confirm_email_change("plain", db)
+        db.rollback()
 
+        assert _tokens(db).one().used is False
         assert db.get(users_models.Users, 7).email == "user7@example.com"
         publish.assert_not_called()
 
@@ -328,30 +330,30 @@ class TestVerifyEmailOnAnInactiveAccount:
             self._settings(verification=verification, approval=approval),
             patch(_PUBLISH) as publish,
         ):
-            result = sign_up_service.verify_email("plain", None, db)
+            result = sign_up_service.confirm_email_change("plain", db)
 
-        assert result.message == "Email verified successfully."
-        assert result.admin_approval_required is None
+        assert result.next_step is sign_up_schema.SignUpNextStep.SIGN_IN
         db.expire_all()
         user = db.get(users_models.Users, 7)
         assert (user.email, user.email_verified, user.active) == ("new@example.com", True, False)
         assert user.deactivated_at is not None
         assert [call.args[0] for call in publish.call_args_list] == ["auth.email_changed"]
 
-    def test_a_verification_link_marks_a_deactivated_account_verified_without_activating_it(self, db, mail_configured):
+    def test_a_sign_up_link_of_a_deactivated_account_is_refused_and_leaves_the_account_alone(self, db, mail_configured):
         self._make_inactive(db, deactivated=True)
         _add_token(db, token_id="t1", token="plain", email="user7@example.com", previous_email=None)
 
         with (
-            self._settings(verification=False, approval=False),
+            self._settings(verification=True, approval=False),
             patch(_PUBLISH) as publish,
+            pytest.raises(core_exceptions.InvalidInputError),
         ):
-            result = sign_up_service.verify_email("plain", None, db)
+            sign_up_service.confirm_sign_up("plain", "ChosenPass1!", db)
+        db.rollback()
 
-        assert result.message == "Email verified successfully."
-        db.expire_all()
         user = db.get(users_models.Users, 7)
-        assert (user.email_verified, user.active) == (True, False)
+        assert (user.email_verified, user.active) == (False, False)
+        assert _tokens(db).one().used is False
         publish.assert_not_called()
 
     def test_a_sign_up_awaiting_verification_is_activated_without_admin_approval(self, db, mail_configured):
@@ -362,9 +364,9 @@ class TestVerifyEmailOnAnInactiveAccount:
             self._settings(verification=True, approval=False),
             patch(_PUBLISH) as publish,
         ):
-            result = sign_up_service.verify_email("plain", "ChosenPass1!", db)
+            result = sign_up_service.confirm_sign_up("plain", "ChosenPass1!", db)
 
-        assert result.message == "Email verified successfully. You can now log in."
+        assert result.next_step is sign_up_schema.SignUpNextStep.SIGN_IN
         db.expire_all()
         user = db.get(users_models.Users, 7)
         assert (user.active, user.email_verified, user.pending_admin_approval) == (True, True, False)
@@ -378,9 +380,9 @@ class TestVerifyEmailOnAnInactiveAccount:
             self._settings(verification=True, approval=True),
             patch(f"{_SERVICE}.request_sign_up_admin_approval_emails") as approval_emails,
         ):
-            result = sign_up_service.verify_email("plain", "ChosenPass1!", db)
+            result = sign_up_service.confirm_sign_up("plain", "ChosenPass1!", db)
 
-        assert result.admin_approval_required is True
+        assert result.next_step is sign_up_schema.SignUpNextStep.AWAIT_APPROVAL
         db.expire_all()
         user = db.get(users_models.Users, 7)
         assert (user.active, user.email_verified, user.pending_admin_approval) == (False, True, True)
@@ -426,7 +428,7 @@ class TestVerifyEmailVoidsPasswordResetTokens:
             patch(f"{_SERVICE}.server_settings_integration.get_server_settings", return_value=settings),
             patch(_PUBLISH),
         ):
-            sign_up_service.verify_email("plain", "ChosenPass1!", db)
+            sign_up_service.confirm_sign_up("plain", "ChosenPass1!", db)
 
         assert self._reset_used(db) is True
 
@@ -443,7 +445,7 @@ class TestVerifyEmailVoidsPasswordResetTokens:
             patch(f"{_SERVICE}.server_settings_integration.get_server_settings", return_value=settings),
             patch(_PUBLISH),
         ):
-            sign_up_service.verify_email("plain", None, db)
+            sign_up_service.confirm_email_change("plain", db)
 
         assert self._reset_used(db) is True
 
@@ -577,22 +579,48 @@ def test_get_sign_up_token_by_id(db):
     assert sign_up_crud.get_sign_up_token_by_id("nope", db) is None
 
 
-class TestVerifyEmailLeavesTheTokenUsableWithoutAPassword:
-    def test_the_refused_request_rolls_the_claim_back(self, db):
-        _add_token(db, token_id="t", token="raw", email="user7@example.com", previous_email=None)
+class TestATokenServesOnlyItsOwnKind:
+    """A link of the other kind is refused like an unknown token, and stays usable for its own route."""
+
+    @staticmethod
+    def _confirm_sign_up(db):
+        return sign_up_service.confirm_sign_up("raw", "ChosenPass1!", db)
+
+    @staticmethod
+    def _confirm_change(db):
+        return sign_up_service.confirm_email_change("raw", db)
+
+    @pytest.mark.parametrize(
+        ("previous_email", "confirm"),
+        [("user7@example.com", "_confirm_sign_up"), (None, "_confirm_change")],
+        ids=["change-token-on-sign-up", "sign-up-token-on-change"],
+    )
+    def test_the_refusal_is_the_unknown_token_problem_and_nothing_is_consumed(self, db, previous_email, confirm):
+        _add_token(db, token_id="t", token="raw", email="new@example.com", previous_email=previous_email)
         settings = MagicMock(signup_require_email_verification=True, signup_require_admin_approval=False)
 
         with (
             patch(f"{_SERVICE}.server_settings_integration.get_server_settings", return_value=settings),
-            patch(f"{_SERVICE}.users_integration") as users,
+            patch(f"{_SERVICE}.security_generation_integration.stage_bump") as bump,
+            jasil_testing.capture_audit() as audit,
+            pytest.raises(core_exceptions.InvalidInputError) as refused,
         ):
-            users.get_user.return_value = MagicMock(id=7, active=False)
-            users.is_deactivated.return_value = False
-            with pytest.raises(core_exceptions.PasswordRequiredError):
-                sign_up_service.verify_email("raw", None, db)
-            db.rollback()
+            getattr(self, confirm)(db)
+        db.rollback()
 
+        with (
+            patch(f"{_SERVICE}.server_settings_integration.get_server_settings", return_value=settings),
+            pytest.raises(core_exceptions.InvalidInputError) as unknown,
+        ):
+            sign_up_service.confirm_sign_up("never-issued", "ChosenPass1!", db)
+        assert (refused.value.status_code, refused.value.code, refused.value.detail) == (
+            unknown.value.status_code,
+            unknown.value.code,
+            unknown.value.detail,
+        )
         assert _tokens(db).one().used is False
+        bump.assert_not_called()
+        audit.assert_audited("auth.sign_up.confirm", outcome="failure")
 
 
 class TestSignUpPrehijack:
@@ -616,7 +644,7 @@ class TestSignUpPrehijack:
             patch(f"{_SERVICE}.server_settings_integration.get_server_settings", return_value=settings),
             patch(f"{_SERVICE}.sessions_integration") as sessions,
         ):
-            sign_up_service.verify_email("plain", "OwnerChosen1!", db)
+            sign_up_service.confirm_sign_up("plain", "OwnerChosen1!", db)
 
         db.expire_all()
         stored = credentials_integration.get_password_hash(7, db)
@@ -769,7 +797,7 @@ class TestEmailChangeSecurityGeneration:
         security_generations.stage_bump(7, db)
 
         with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.InvalidInputError):
-            sign_up_service.verify_email("plain", None, db)
+            sign_up_service.confirm_email_change("plain", db)
 
         db.expire_all()
         assert db.get(users_models.Users, 7).email == "user7@example.com"
@@ -780,7 +808,7 @@ class TestEmailChangeSecurityGeneration:
         self._pending(db, security_generation=None)
 
         with pytest.raises(core_exceptions.InvalidInputError):
-            sign_up_service.verify_email("plain", None, db)
+            sign_up_service.confirm_email_change("plain", db)
 
         assert db.get(users_models.Users, 7).email == "user7@example.com"
 
@@ -789,7 +817,7 @@ class TestEmailChangeSecurityGeneration:
         self._pending(db, security_generation=1)
 
         with patch(_PUBLISH):
-            sign_up_service.verify_email("plain", None, db)
+            sign_up_service.confirm_email_change("plain", db)
 
         db.expire_all()
         assert db.get(users_models.Users, 7).email == "new@example.com"

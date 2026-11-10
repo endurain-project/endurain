@@ -137,10 +137,7 @@ class TestSignupEndpoint:
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert "message" in data
-        assert "log in" in data["message"].lower()
-        assert data["email_verification_required"] is None
-        assert data["admin_approval_required"] is None
+        assert data == {"next_step": "sign_in"}
 
     @patch("modules.auth.sign_up_tokens.service.request_sign_up_verification_email")
     @patch("modules.auth.sign_up_tokens.service.users_integration.stage_signup_user")
@@ -176,7 +173,7 @@ class TestSignupEndpoint:
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert data["email_verification_required"] is True
+        assert data == {"next_step": "check_email"}
 
     @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
     def test_signup_disabled_returns_403(
@@ -220,6 +217,12 @@ class TestSignupEndpoint:
             "/sign-up/sign-up/request",
             json={},
         )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+    def test_confirm_sign_up_missing_password_returns_422(self, signup_client) -> None:
+        """Returns 422 when the body carries no password: a sign-up link always chooses one."""
+        response = signup_client.post("/sign-up/sign-up/confirm", json={"token": "valid-token"})
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
@@ -311,7 +314,7 @@ class TestSignupEndpoint:
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert data["admin_approval_required"] is True
+        assert data == {"next_step": "await_approval"}
         mock_request_approval.assert_called_once()
         assert mock_request_approval.call_args.args[0] == 4
 
@@ -359,7 +362,7 @@ class TestSignupEndpoint:
 # ---------------------------------------------------------------------------
 
 
-class TestVerifyEmailEndpoint:
+class TestConfirmSignUpEndpoint:
     """Tests for POST /sign-up/sign-up/confirm."""
 
     @pytest.fixture(autouse=True)
@@ -383,7 +386,7 @@ class TestVerifyEmailEndpoint:
     @patch("modules.auth.sign_up_tokens.service.users_integration.stage_email_verification")
     @patch("modules.auth.sign_up_tokens.service.verify_sign_up_token")
     @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
-    def test_verify_email_success_no_admin_approval(
+    def test_confirm_sign_up_success_no_admin_approval(
         self,
         mock_settings,
         mock_use_token,
@@ -414,12 +417,11 @@ class TestVerifyEmailEndpoint:
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert "verified" in data["message"].lower()
-        assert data["admin_approval_required"] is None
+        assert data == {"next_step": "sign_in"}
 
     @patch("modules.auth.sign_up_tokens.service.verify_sign_up_token")
     @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
-    def test_verify_email_invalid_token_returns_400(
+    def test_confirm_sign_up_invalid_token_returns_400(
         self,
         mock_settings,
         mock_use_token,
@@ -439,50 +441,15 @@ class TestVerifyEmailEndpoint:
 
         response = signup_client.post(
             "/sign-up/sign-up/confirm",
-            json={"token": "invalid-token"},
+            json={"token": "invalid-token", "password": "ChosenPass1!"},
         )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    @patch("modules.auth.sign_up_tokens.service.request_sign_up_admin_approval_emails")
-    @patch("modules.auth.sign_up_tokens.service.users_integration.get_user")
-    @patch("modules.auth.sign_up_tokens.service.users_integration.stage_email_verification")
-    @patch("modules.auth.sign_up_tokens.service.verify_sign_up_token")
-    @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
-    def test_verify_email_of_an_active_account_skips_the_sign_up_flow(
-        self,
-        mock_settings,
-        mock_use_token,
-        mock_verify_email,
-        mock_get_user,
-        mock_send_admin_email,
-        signup_client,
-    ) -> None:
-        """
-        An already active account confirming a changed address is verified without asking an
-        admin to approve it, and without needing the sign-up policy to require verification.
-        """
-        mock_settings.return_value = MagicMock(
-            signup_require_email_verification=False,
-            signup_require_admin_approval=True,
-        )
-        mock_use_token.return_value = MagicMock(user_id=10, previous_email=None)
-        mock_get_user.return_value = MagicMock(id=10, active=True)
-
-        response = signup_client.post(
-            "/sign-up/sign-up/confirm",
-            json={"token": "valid-verification-token"},
-        )
-
-        assert response.status_code == status.HTTP_200_OK
-        assert response.json()["admin_approval_required"] is None
-        mock_verify_email.assert_called_once()
-        mock_send_admin_email.assert_not_called()
-
     @patch("modules.auth.sign_up_tokens.service.users_integration.get_user")
     @patch("modules.auth.sign_up_tokens.service.verify_sign_up_token")
     @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
-    def test_verify_email_not_enabled_returns_403(
+    def test_confirm_sign_up_not_enabled_returns_403(
         self,
         mock_settings,
         mock_use_token,
@@ -501,14 +468,14 @@ class TestVerifyEmailEndpoint:
 
         response = signup_client.post(
             "/sign-up/sign-up/confirm",
-            json={"token": "any-token"},
+            json={"token": "any-token", "password": "ChosenPass1!"},
         )
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert response.json()["type"] == "urn:endurain:error:email-verification-disabled"
 
     @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
-    def test_verify_email_missing_token_returns_422(
+    def test_confirm_sign_up_missing_token_returns_422(
         self,
         mock_settings,
         signup_client,
@@ -532,7 +499,7 @@ class TestVerifyEmailEndpoint:
     @patch("modules.auth.sign_up_tokens.service.users_integration.stage_email_verification")
     @patch("modules.auth.sign_up_tokens.service.verify_sign_up_token")
     @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
-    def test_verify_email_with_admin_approval_sets_flag(
+    def test_confirm_sign_up_with_admin_approval_sets_flag(
         self,
         mock_settings,
         mock_use_token,
@@ -563,13 +530,13 @@ class TestVerifyEmailEndpoint:
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert data["admin_approval_required"] is True
+        assert data == {"next_step": "await_approval"}
 
     @patch("modules.auth.sign_up_tokens.service.users_integration.get_user")
     @patch("modules.auth.sign_up_tokens.service.users_integration.stage_email_verification")
     @patch("modules.auth.sign_up_tokens.service.verify_sign_up_token")
     @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
-    def test_verify_email_skips_notifications_when_email_not_configured(
+    def test_confirm_sign_up_skips_notifications_when_email_not_configured(
         self,
         mock_settings,
         mock_use_token,
@@ -602,15 +569,14 @@ class TestVerifyEmailEndpoint:
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert "verified" in data["message"].lower()
-        assert data["admin_approval_required"] is None
+        assert data == {"next_step": "sign_in"}
 
     @patch("modules.auth.sign_up_tokens.service.request_sign_up_admin_approval_emails")
     @patch("modules.auth.sign_up_tokens.service.users_integration.get_user")
     @patch("modules.auth.sign_up_tokens.service.users_integration.stage_email_verification")
     @patch("modules.auth.sign_up_tokens.service.verify_sign_up_token")
     @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
-    def test_verify_email_returns_500_when_get_user_by_id_returns_none(
+    def test_confirm_sign_up_returns_500_when_get_user_by_id_returns_none(
         self,
         mock_settings,
         mock_use_token,
@@ -669,36 +635,64 @@ class TestSignUpPasswordOverHttp:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         mock_create_user.assert_not_called()
 
-    @patch("modules.auth.sign_up_tokens.service.users_integration.get_user")
-    @patch("modules.auth.sign_up_tokens.service.users_integration.is_deactivated", return_value=False)
+
+class TestConfirmEmailChangeEndpoint:
+    """Tests for POST /sign-up/email-change/confirm."""
+
+    @patch("modules.auth.sign_up_tokens.service.sign_up_event_publishers")
+    @patch("modules.auth.sign_up_tokens.service.users_integration")
     @patch("modules.auth.sign_up_tokens.service.verify_sign_up_token")
     @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
-    def test_confirming_a_sign_up_without_a_password_answers_password_required(
-        self, mock_settings, mock_use_token, _deactivated, mock_get_user, signup_client
+    def test_a_confirmed_change_answers_sign_in(
+        self, mock_settings, mock_use_token, mock_users, _publishers, signup_client
     ) -> None:
         mock_settings.return_value = MagicMock(
-            signup_require_email_verification=True, signup_require_admin_approval=False
+            signup_require_email_verification=False, signup_require_admin_approval=True
         )
-        mock_use_token.return_value = MagicMock(user_id=10, previous_email=None)
-        mock_get_user.return_value = MagicMock(id=10, active=False)
+        mock_use_token.return_value = MagicMock(
+            id="t", user_id=10, email="new@example.com", previous_email="old@example.com"
+        )
+        mock_users.get_user.return_value = MagicMock(id=10, active=True)
 
-        response = signup_client.post("/sign-up/sign-up/confirm", json={"token": "valid-token"})
+        response = signup_client.post("/sign-up/email-change/confirm", json={"token": "valid-token"})
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == {"next_step": "sign_in"}
+        mock_use_token.assert_called_once()
+        assert mock_use_token.call_args.kwargs == {"email_change": True}
+
+    @patch("modules.auth.sign_up_tokens.service.verify_sign_up_token")
+    @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
+    def test_an_unusable_token_answers_400(self, mock_settings, mock_use_token, signup_client) -> None:
+        mock_settings.return_value = MagicMock()
+        mock_use_token.side_effect = core_exceptions.InvalidInputError("Invalid or expired sign up token")
+
+        response = signup_client.post("/sign-up/email-change/confirm", json={"token": "bad"})
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert response.json()["type"] == "urn:endurain:error:password-required"
+
+    def test_a_password_is_not_accepted(self, signup_client) -> None:
+        response = signup_client.post(
+            "/sign-up/email-change/confirm", json={"token": "valid-token", "password": "ChosenPass1!"}
+        )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+    def test_a_missing_token_answers_422(self, signup_client) -> None:
+        assert signup_client.post("/sign-up/email-change/confirm", json={}).status_code == 422
 
 
 class TestResendEndpoint:
     """Tests for POST /sign-up/sign-up/resend."""
 
     @patch("modules.auth.sign_up_tokens.public_router.sign_up_service.resend_sign_up_verification_email")
-    def test_answers_with_the_service_message(self, mock_resend, signup_client):
-        mock_resend.return_value = sign_up_schema.SignUpRead(message="If it is awaiting verification, sent.")
+    def test_answers_with_the_service_next_step(self, mock_resend, signup_client):
+        mock_resend.return_value = sign_up_schema.SignUpRead(next_step=sign_up_schema.SignUpNextStep.CHECK_EMAIL)
 
         response = signup_client.post("/sign-up/sign-up/resend", json={"email": "u@example.com"})
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.json()["message"] == "If it is awaiting verification, sent."
+        assert response.json() == {"next_step": "check_email"}
         assert mock_resend.call_args.args[0] == "u@example.com"
 
     def test_rejects_an_invalid_email(self, signup_client):

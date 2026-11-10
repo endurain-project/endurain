@@ -108,13 +108,16 @@ export type PasswordChangeLoginRequest = Schemas['PasswordChangeLoginRequest']
 export type SignUpRequest = Schemas['UserSignup']
 
 /**
- * Sign-up response returned by `POST /public/sign-up/request`, indicating whether the
- * account still needs email verification and/or admin approval before login.
+ * Sign-up response returned by the sign-up routes, naming what the client does next
+ * (`next_step`: sign in, check the email, or await an administrator's approval).
  */
 export type SignUpResponse = Schemas['SignUpRead']
 
-/** Body of `POST /public/sign-up/confirm`; `password` is only sent for a sign-up link. */
+/** Body of `POST /public/sign-up/confirm`: the emailed token and the chosen password. */
 export type SignUpConfirm = Schemas['SignUpConfirm']
+
+/** Body of `POST /public/email-change/confirm`: the token of the link emailed to the new address. */
+export type EmailChangeConfirm = Schemas['EmailChangeConfirm']
 
 /** Request body that reports an emailed email-change notice as not made by the account's owner. */
 export type EmailChangeCancel = Schemas['EmailChangeCancel']

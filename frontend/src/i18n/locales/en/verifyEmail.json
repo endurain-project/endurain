@@ -6,6 +6,8 @@
   "submittingPassword": "Saving password",
   "successTitle": "Email verified",
   "successBody": "Your email address has been confirmed.",
+  "emailChangeSuccessTitle": "Email address changed",
+  "emailChangeSuccessBody": "Your new email address is confirmed. You were signed out everywhere, so sign in again.",
   "adminApprovalBody": "Your account is now waiting for administrator approval.",
   "continueButton": "Continue to sign in",
   "invalidTitle": "Verification failed",
