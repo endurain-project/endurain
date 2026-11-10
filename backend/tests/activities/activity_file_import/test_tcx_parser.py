@@ -560,6 +560,30 @@ class TestUtilsTcx:
         assert laps[0]["total_elapsed_time"] == 320
         assert laps[0]["total_timer_time"] == 20
 
+    def test_parse_laps_converts_tcxreader_kmh_speed_to_ms(self):
+        """tcxreader reports a lap's average speed in km/h; the stored lap speed is m/s and pace s/m."""
+        t0 = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
+        lap = SimpleNamespace(
+            start_time=t0,
+            end_time=t0 + timedelta(seconds=2423),
+            trackpoints=[],
+            tpx_ext_stats={},
+            distance=6795.94,
+            calories=None,
+            hr_avg=None,
+            hr_max=None,
+            cadence_avg=None,
+            cadence_max=None,
+            ascent=None,
+            descent=None,
+            avg_speed=6795.94 / 2423 * 3.6,
+        )
+
+        laps = tcx_parser._parse_laps(SimpleNamespace(laps=[lap]), [])
+
+        assert laps[0]["enhanced_avg_speed"] == pytest.approx(6795.94 / 2423)
+        assert laps[0]["enhanced_avg_pace"] == pytest.approx(2423 / 6795.94)
+
     def test_build_activity_falls_back_to_elapsed_without_timer(self):
         """Without a derived timer time, total_timer_time falls back to elapsed."""
         start = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)

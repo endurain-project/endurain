@@ -151,6 +151,8 @@ def _parse_laps(
         lap_avg_pw, lap_max_pw, lap_np = _parse_lap_power(lap)
 
         max_spd_val = lap.tpx_ext_stats.get("Speed", {}).get("max", 0)
+        # tcxreader derives a lap's average speed in km/h; laps store m/s.
+        avg_spd_val = lap.avg_speed / 3.6 if lap.avg_speed else None
         # tcxreader derives lap cadence only from <Cadence>; laps that carry it
         # solely in the TPX RunCadence extension fall back to its stats.
         run_cadence = lap.tpx_ext_stats.get("RunCadence", {})
@@ -202,8 +204,8 @@ def _parse_laps(
                 "total_ascent": lap_ascent,
                 "total_descent": lap_descent,
                 "normalized_power": (round(lap_np) if lap_np else None),
-                "enhanced_avg_pace": (1 / lap.avg_speed if lap.avg_speed and lap.avg_speed != 0 else None),
-                "enhanced_avg_speed": (lap.avg_speed if lap.avg_speed else None),
+                "enhanced_avg_pace": (1 / avg_spd_val if avg_spd_val else None),
+                "enhanced_avg_speed": avg_spd_val,
                 "enhanced_max_pace": (1 / max_spd_val if max_spd_val and max_spd_val != 0 else None),
                 "enhanced_max_speed": (max_spd_val if max_spd_val else None),
             }
