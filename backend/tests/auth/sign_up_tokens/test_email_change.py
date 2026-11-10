@@ -124,9 +124,10 @@ class TestRequestEmailChange:
 
         assert [row.id for row in _tokens(db)] == ["old"]
         assert _tokens(db).one().used is False
-        publish.assert_called_once()
-        assert publish.call_args.args[0] == "auth.email_change_verification_requested"
-        assert publish.call_args.args[1] == {"user_id": 7}
+        assert [call.args[:2] for call in publish.call_args_list] == [
+            ("auth.email_change_requested", {"user_id": 7}),
+            ("auth.email_change_verification_requested", {"user_id": 7}),
+        ]
 
     def test_the_staged_token_replaces_the_earlier_one_once_committed(self, db, mail_configured):
         _add_token(db, token_id="old", token="old", email="user7@example.com", previous_email=None)

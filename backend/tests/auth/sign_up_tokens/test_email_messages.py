@@ -408,3 +408,24 @@ class TestGetEmailChangeRequestedEmail:
         _, html_body, _ = self._build(name="<script>alert(1)</script>")
 
         assert "<script>" not in html_body
+
+
+class TestGetAdminEmailChangeRequestedEmail:
+    def _build(self, name="Alice", new_email="secret.person@example.com"):
+        return email_messages.get_admin_email_change_requested_email(name, new_email, "https://app.example", "en")
+
+    def test_names_the_administrator_masks_the_new_address_and_has_no_link(self):
+        subject, html_body, text_body = self._build()
+
+        assert subject.startswith("Endurain - ")
+        for body in (html_body, text_body):
+            assert "administrator" in body
+            assert "s***@example.com" in body
+            assert "secret.person@example.com" not in body
+            assert "cancel-email-change" not in body
+        assert "This wasn't me" not in html_body
+
+    def test_escapes_the_name(self):
+        _, html_body, _ = self._build(name="<script>alert(1)</script>")
+
+        assert "<script>" not in html_body

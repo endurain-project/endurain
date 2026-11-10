@@ -168,9 +168,10 @@ def request_sign_up_verification_email(user_id: int, db: Session) -> None:
 
 
 def request_email_change(user_id: int, email: str, previous_email: str, db: Session) -> bool:
-    """Stage a pending email change and its confirmation event, when mail is configured.
+    """Stage a pending email change, its notice to the current address and its confirmation event.
 
-    The token row records the pending address; its raw value is discarded, because the delivery subscriber
+    Nothing is staged when mail is not configured. The change is not revertible, so the notice carries no link. The
+    token row records the pending address; its raw value is discarded, because the delivery subscriber
     issues the token that is mailed. The caller owns the transaction, so the row and the event commit together.
 
     Args:
@@ -191,6 +192,7 @@ def request_email_change(user_id: int, email: str, previous_email: str, db: Sess
         db,
         security_generation=security_generation_integration.current_generation(user_id, db),
     )
+    sign_up_event_publishers.publish_email_change_requested(user_id, db)
     sign_up_event_publishers.publish_email_change_verification_requested(user_id, db)
     return True
 
@@ -645,12 +647,13 @@ def prepare_email_change_requested_email(
     frontend_host: str,
     db: Session,
 ) -> tuple[str, str, str, str] | None:
-    """Return the notice, for the current address, that an email change was requested, with its "this wasn't me" link.
+    """Return the notice, for the current address, that an email change was requested.
 
-    The link carries the identifier of the stored change and a proof derived from it and the end of its revert window,
-    seven days after the request. Nothing else is stored for it, and it is bound to the change, not to the account's
-    security generation, so confirming the change does not end it. A retry of the event, and a resend of the
-    confirmation link, mail the same link.
+    A change the owner requested carries a "this wasn't me" link; a change an administrator requested has no link,
+    because it is not revertible. The link carries the identifier of the stored change and a proof derived from it and
+    the end of its revert window, seven days after the request. Nothing else is stored for it, and it is bound to the
+    change, not to the account's security generation, so confirming the change does not end it. A retry of the event,
+    and a resend of the confirmation link, mail the same link.
 
     Args:
         user_id: The user whose address a change was requested for.
@@ -665,11 +668,18 @@ def prepare_email_change_requested_email(
     if user is None:
         return None
     pending = _find_pending_email_change(user_id, db)
-    if pending is None or pending.email is None or pending.change_id is None or pending.revert_until is None:
+    if pending is None or pending.email is None:
         return None
     if pending.security_generation != security_generation_integration.current_generation(user_id, db):
         return None
     locale = core_i18n.normalize_locale(user.preferred_language)
+    if pending.change_id is None or pending.revert_until is None:
+        return (
+            user.email,
+            *sign_up_email_messages.get_admin_email_change_requested_email(
+                user.name, pending.email, frontend_host, locale
+            ),
+        )
     return (
         user.email,
         *sign_up_email_messages.get_email_change_requested_email(

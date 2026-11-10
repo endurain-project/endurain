@@ -59,6 +59,24 @@ def _pending(db, *, security_generation=0, expires_in=timedelta(hours=24), email
     db.commit()
 
 
+def _pending_by_admin(db, *, security_generation=0):
+    now = datetime.now(UTC)
+    db.add(
+        sign_up_models.SignUpToken(
+            id="t2",
+            user_id=7,
+            token_hash="hash",
+            created_at=now,
+            expires_at=now + timedelta(hours=24),
+            used=False,
+            email="new@example.com",
+            previous_email="user7@example.com",
+            security_generation=security_generation,
+        )
+    )
+    db.commit()
+
+
 def _link_token(db) -> str:
     message = sign_up_service.prepare_email_change_requested_email(7, _HOST, db)
     assert message is not None
@@ -81,11 +99,12 @@ class TestRequestPublishesTheNotice:
         call = next(c for c in publish.call_args_list if c.args[0] == sign_up_events.EMAIL_CHANGE_REQUESTED)
         assert call.args[1] == {"user_id": 7}
 
-    def test_an_administrators_change_does_not_stage_it(self, db, mail_configured):
+    def test_an_administrators_change_stages_it_too(self, db, mail_configured):
         with patch(_PUBLISH) as publish:
             sign_up_service.request_email_change(7, "new@example.com", "user7@example.com", db)
 
-        assert sign_up_events.EMAIL_CHANGE_REQUESTED not in [call.args[0] for call in publish.call_args_list]
+        call = next(c for c in publish.call_args_list if c.args[0] == sign_up_events.EMAIL_CHANGE_REQUESTED)
+        assert call.args[1] == {"user_id": 7}
 
     def test_the_publisher_carries_the_user_id_only(self):
         db = MagicMock()
@@ -174,3 +193,24 @@ class TestCancel:
         assert security_generations.bumps == []
         assert db.query(sign_up_models.SignUpToken).filter_by(used=False).count() == 1
         audit.assert_audited(_ACTION, outcome="failure")
+
+
+class TestPrepareTheAdministratorNotice:
+    def test_goes_to_the_current_address_masks_the_new_one_and_has_no_link(self, db):
+        _pending_by_admin(db)
+
+        recipient, subject, html_body, text_body = sign_up_service.prepare_email_change_requested_email(7, _HOST, db)
+
+        assert recipient == "user7@example.com"
+        assert subject
+        for body in (html_body, text_body):
+            assert "new@example.com" not in body
+            assert "n***@example.com" in body
+            assert "cancel-email-change" not in body
+            assert "administrator" in body
+
+    def test_a_change_made_stale_by_a_security_change_sends_nothing(self, db, security_generations):
+        _pending_by_admin(db, security_generation=0)
+        security_generations.stage_bump(7, db)
+
+        assert sign_up_service.prepare_email_change_requested_email(7, _HOST, db) is None

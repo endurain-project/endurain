@@ -233,6 +233,61 @@ def get_email_change_requested_email(
     return subject, html_content, text_content
 
 
+def get_admin_email_change_requested_email(
+    user_name: str,
+    new_email: str,
+    frontend_host: str,
+    locale: str | None = None,
+) -> tuple[str, str, str]:
+    """Build a localized notice, for the current address, that an administrator asked to change the account's email.
+
+    The new address is shown masked, so the notice does not disclose it in full to the current inbox. An
+    administrator's change is not revertible, so the notice carries no link and points the reader to their
+    administrator.
+
+    Args:
+        user_name: The recipient's display name.
+        new_email: The address the administrator asked for.
+        frontend_host: Base URL of the frontend, used in the footer.
+        locale: Preferred locale code for the recipient.
+
+    Returns:
+        A 3-tuple of (subject, html_content, text_content).
+    """
+    safe_name = html.escape(user_name)
+    masked_email = mask_email(new_email)
+
+    def tr(key: str, **kwargs: str) -> str:
+        return core_i18n.t(f"email_change_requested_admin.{key}", locale, **kwargs)
+
+    subject = tr("subject")
+    heading = tr("heading")
+    intro = tr("intro", new_email=masked_email)
+    safe_intro = tr("intro", new_email=html.escape(masked_email))
+    ignore = tr("ignore")
+
+    body_inner = f"""
+            <p>{tr("greeting", name=safe_name)}</p>
+            <p>{safe_intro}</p>
+            <p>{ignore}</p>"""
+
+    html_content = core_email_templates.wrap_email(
+        locale=locale,
+        subject=subject,
+        heading=heading,
+        body_inner=body_inner,
+        frontend_host=frontend_host,
+        link_color=core_email_templates.LINK_COLOR_PRIMARY,
+    )
+
+    labels = core_i18n.common_labels(locale)
+    text_content = (
+        f"{tr('greeting', name=user_name)}\n\n{intro}\n\n{ignore}\n\n{labels['best_regards']}\n{labels['team']}"
+    )
+
+    return subject, html_content, text_content
+
+
 def get_email_changed_email(
     user_name: str,
     new_email: str,

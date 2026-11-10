@@ -309,8 +309,7 @@ class TestAdminEmailEdit:
         assert (updated.email, updated.email_verified) == ("user7@example.com", True)
         assert updated.pending_email == "new@example.com"
         assert updated.pending_email_expires_at is not None
-        publish.assert_called_once()
-        assert publish.call_args.args[0] == _EVENT
+        assert [call.args[0] for call in publish.call_args_list] == ["auth.email_change_requested", _EVENT]
         sessions.assert_called_once_with(7, db)
 
     def test_a_changed_email_marked_verified_applies_at_once_and_cancels_a_pending_change(self, db, mail, publish):
