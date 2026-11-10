@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { IdentityProviderPublic } from '@/types'
+import type { PublicServerSettings } from '@/features/config/types'
+
 import { useSsoLogin } from '@/features/auth/composables/useSsoLogin'
 import { HttpError } from '@/services/http'
 
@@ -366,5 +369,41 @@ describe('processSsoCallback', () => {
       expect(window.location.href).toBe('endurain://native-callback?session_id=sso-session')
       expect(mocks.routerReplace).toHaveBeenCalledWith({ name: 'home' })
     })
+  })
+})
+
+describe('maybeAutoRedirect', () => {
+  const settings = {
+    sso_enabled: true,
+    sso_auto_redirect: true,
+    local_login_enabled: false,
+  } as PublicServerSettings
+  const providers = [{ slug: 'acme' }] as IdentityProviderPublic[]
+
+  it('starts the SSO login when nothing on the route blocks it', async () => {
+    const { maybeAutoRedirect } = useSsoLogin()
+
+    maybeAutoRedirect(settings, providers, false)
+
+    await vi.waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1))
+  })
+
+  it.each([
+    'logoutSuccess',
+    'sessionExpired',
+    'passwordResetSuccess',
+    'passwordResetInvalidLink',
+    'onboardingComplete',
+    'emailVerificationSent',
+    'adminApprovalRequired',
+    'verifyEmailInvalidLink',
+  ])('does not auto-redirect when the route carries %s', async (flag) => {
+    mocks.route.query = { [flag]: 'true' }
+    const { maybeAutoRedirect } = useSsoLogin()
+
+    maybeAutoRedirect(settings, providers, false)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(assignMock).not.toHaveBeenCalled()
   })
 })

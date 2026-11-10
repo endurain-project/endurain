@@ -1,4 +1,4 @@
-import { useRoute } from 'vue-router'
+import { useRoute, type LocationQuery } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
 import type { Severity } from '@/types'
@@ -22,6 +22,17 @@ const STATUS_FLAG_ALERTS: ReadonlyArray<{ query: string; kind: Severity; key: st
   { query: 'adminApprovalRequired', kind: 'info', key: 'login.adminApprovalRequired' },
   { query: 'verifyEmailInvalidLink', kind: 'error', key: 'login.verifyEmailInvalidLink' },
 ]
+
+/**
+ * Whether the login route carries a boolean status flag (signed out, session
+ * expired, password reset, ...).
+ *
+ * @param query - The current route query.
+ * @returns `true` when any status flag is set.
+ */
+export function hasLoginStatusFlag(query: LocationQuery): boolean {
+  return STATUS_FLAG_ALERTS.some((entry) => query[entry.query] === 'true')
+}
 
 /** Maps an `error` query value from an SSO callback to a translation key. */
 const SSO_ERROR_KEYS: Record<string, string> = {

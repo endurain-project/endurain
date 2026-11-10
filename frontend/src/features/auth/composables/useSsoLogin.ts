@@ -8,6 +8,7 @@ import { generateCodeChallenge, generateCodeVerifier } from '@/features/auth/uti
 import { HttpError } from '@/services/http'
 import { exchangeSessionForTokens, getIdentityProviderLoginUrl } from '@/services/identityProviders'
 import { dropQueryParam } from '@/composables/useRouteQuery'
+import { hasLoginStatusFlag } from '@/features/auth/composables/useLoginRouteMessages'
 import { getQueryString, useSafeRedirect } from '@/composables/useSafeRedirect'
 import { useTelemetry } from '@/composables/useTelemetry'
 
@@ -220,7 +221,8 @@ export function useSsoLogin() {
 
   /**
    * Redirects to the sole SSO provider when the server is configured for a
-   * single-provider, SSO-only login and no callback is in progress.
+   * single-provider, SSO-only login, no callback is in progress and the login
+   * route carries no status message (such as signed out or session expired).
    *
    * @param settings - Public server settings.
    * @param providers - Enabled SSO providers.
@@ -239,7 +241,8 @@ export function useSsoLogin() {
       onlyProvider &&
       !forceLocalLogin &&
       route.query.sso !== 'success' &&
-      !route.query.error
+      !route.query.error &&
+      !hasLoginStatusFlag(route.query)
     ) {
       void startSsoLogin(onlyProvider.slug)
     }

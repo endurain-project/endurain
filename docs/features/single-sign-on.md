@@ -262,6 +262,8 @@ Under **Settings → Server Settings**, the **Auto-redirect to SSO** option skip
 
 If **Allow local username and password login** is enabled, the auto-redirect is skipped and the login page is shown as usual (with both the local form and SSO buttons available).
 
+The login page also stays put, without redirecting, when it shows a status message: after signing out, after a session expires or is revoked, and after a password reset, an email verification or onboarding. Otherwise a session still open at the identity provider would sign the user straight back in. The user then picks the provider by hand.
+
 !!! tip "Bypassing auto-redirect"
     If you ever need to reach the local username/password form while auto-redirect is enabled (for example, if your identity provider is unreachable), append `?forceLocalLogin=true` to the Endurain URL, e.g. `https://endurain.mydomain.com/?forceLocalLogin=true`. This shows the local login form for that attempt and suppresses the automatic redirect. It does **not** disable the auto-redirect setting itself, it only applies to the current page load.
 
