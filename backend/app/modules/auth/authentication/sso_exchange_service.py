@@ -208,6 +208,11 @@ def exchange_tokens_for_session(
         except lockout_contracts.AuthSecurityStoreUnavailableError as err:
             authentication_service.raise_auth_security_store_unavailable(err)
 
+    # The session records the second factor the exchange verified next to the methods it was created with.
+    amr = session_obj.amr
+    if mfa_verified:
+        amr = [*amr, auth_constants.AuthMethod.ONE_TIME_CODE, auth_constants.AuthMethod.MULTI_FACTOR]
+
     (_, access_token_exp, access_token, refresh_token_exp, refresh_token, csrf_token) = (
         authentication_token_service.create_tokens(
             user,
@@ -222,7 +227,7 @@ def exchange_tokens_for_session(
     # window to the refresh lifetime in one conditional update. The CSRF hash is not stored: the first /refresh
     # after a page reload establishes the binding.
     session_expires_at = sessions_integration.claim_session_for_token_exchange(
-        session_id, password_hasher.hash_password(refresh_token), refresh_token_exp, db
+        session_id, password_hasher.hash_password(refresh_token), refresh_token_exp, amr, db
     )
     if session_expires_at is None:
         logger.warning("Token exchange lost race for session <value_1>", extra=core_logger.context(value_1=fingerprint))

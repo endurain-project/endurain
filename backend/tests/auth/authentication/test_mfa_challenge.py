@@ -298,7 +298,11 @@ def _exchange(stack, *, claimed: bool):
         security_generation=0,
     )
     session = SimpleNamespace(
-        user_id=USER_ID, tokens_exchanged=False, expires_at=datetime(2999, 1, 1, tzinfo=UTC), client_type="web"
+        user_id=USER_ID,
+        tokens_exchanged=False,
+        expires_at=datetime(2999, 1, 1, tzinfo=UTC),
+        client_type="web",
+        amr=["fed"],
     )
     tokens = ("sid", datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
     with (

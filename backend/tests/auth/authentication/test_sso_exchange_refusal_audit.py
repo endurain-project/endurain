@@ -27,7 +27,11 @@ def _exchange(
         security_generation=stamp,
     )
     session = SimpleNamespace(
-        user_id=5, tokens_exchanged=tokens_exchanged, expires_at=datetime(2027, 1, 1, tzinfo=UTC), client_type="web"
+        user_id=5,
+        tokens_exchanged=tokens_exchanged,
+        expires_at=datetime(2027, 1, 1, tzinfo=UTC),
+        client_type="web",
+        amr=["fed"],
     )
     inactive_error = core_exceptions.PermissionDeniedError("Inactive user") if inactive else None
     tokens = ("sid", datetime(2026, 11, 1, tzinfo=UTC), "at", datetime(2026, 12, 1, tzinfo=UTC), "rt", "csrf")

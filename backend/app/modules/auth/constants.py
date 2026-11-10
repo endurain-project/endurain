@@ -11,6 +11,15 @@ class ClientType(StrEnum):
     MOBILE = "mobile"
 
 
+class AuthMethod(StrEnum):
+    """Authentication methods a session records in its ``amr`` (RFC 8176 values)."""
+
+    LOCAL_CREDENTIAL = "pwd"  # the account's own password
+    FEDERATED = "fed"
+    ONE_TIME_CODE = "otp"  # a TOTP or backup code
+    MULTI_FACTOR = "mfa"  # more than one factor was used
+
+
 # scope (immutable)
 # ``profile`` covers the account's own data (profile, photo, goals, privacy, provider links). Two narrower scopes
 # split off what an integration token should not hold by default: taking the account's data out or in

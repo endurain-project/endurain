@@ -39,6 +39,8 @@ def _session(**updates):
         "last_rotation_at": None,
         "csrf_token_hash": None,
         "client_type": "web",
+        "auth_time": datetime.now(UTC),
+        "amr": ["pwd"],
     }
     data.update(updates)
     return sessions_contracts.SessionRead(**data)
@@ -62,8 +64,11 @@ def test_create_session_hashes_secrets_and_stages(mock_db):
             hasher,
             datetime.now(UTC) + timedelta(days=1),
             mock_db,
+            amr=["pwd", "otp", "mfa"],
         )
     assert result.id == "session-id"
+    assert create.call_args.args[0].amr == ["pwd", "otp", "mfa"]
+    assert create.call_args.args[0].auth_time == create.call_args.args[0].created_at
     hasher.hash_password.assert_called_once_with("plain-refresh")
     assert create.call_args.args[0].refresh_token == "hashed-refresh"
     assert create.call_args.args[0].ip_address == "127.0.0.1"
@@ -126,7 +131,10 @@ def test_claim_token_exchange_cleans_up_oauth_and_stages(mock_db):
         patch("modules.auth.sessions.service.sessions_crud.clear_oauth_state_reference") as clear_reference,
         patch("modules.auth.sessions.service.oauth_state_integration.delete_oauth_state") as delete_state,
     ):
-        assert sessions_service.claim_session_for_token_exchange("session-id", "hashed", wanted, mock_db) == wanted
+        assert (
+            sessions_service.claim_session_for_token_exchange("session-id", "hashed", wanted, ["fed"], mock_db)
+            == wanted
+        )
     clear_reference.assert_called_once_with("session-id", mock_db)
     delete_state.assert_called_once_with("state-id", mock_db)
     mock_db.commit.assert_not_called()
@@ -145,10 +153,10 @@ def test_claim_caps_the_new_expiry_at_the_absolute_timeout(mock_db):
         ) as claim,
     ):
         expires_at = sessions_service.claim_session_for_token_exchange(
-            "session-id", "hashed", session.created_at + timedelta(days=7), mock_db
+            "session-id", "hashed", session.created_at + timedelta(days=7), ["fed"], mock_db
         )
     assert expires_at == session.created_at + timedelta(hours=2)
-    claim.assert_called_once_with("session-id", "hashed", expires_at, mock_db)
+    claim.assert_called_once_with("session-id", "hashed", expires_at, ["fed"], mock_db)
 
 
 def test_claim_lost_race_does_not_commit(mock_db):
@@ -161,7 +169,8 @@ def test_claim_lost_race_does_not_commit(mock_db):
         patch("modules.auth.sessions.service.sessions_crud.claim_session_for_token_exchange", return_value=False),
     ):
         assert (
-            sessions_service.claim_session_for_token_exchange("session-id", "hash", datetime.now(UTC), mock_db) is None
+            sessions_service.claim_session_for_token_exchange("session-id", "hash", datetime.now(UTC), ["fed"], mock_db)
+            is None
         )
     mock_db.commit.assert_not_called()
 
@@ -169,7 +178,8 @@ def test_claim_lost_race_does_not_commit(mock_db):
 def test_claim_of_a_missing_session_is_refused(mock_db):
     with patch("modules.auth.sessions.service.sessions_crud.get_session_by_id", return_value=None):
         assert (
-            sessions_service.claim_session_for_token_exchange("session-id", "hash", datetime.now(UTC), mock_db) is None
+            sessions_service.claim_session_for_token_exchange("session-id", "hash", datetime.now(UTC), ["fed"], mock_db)
+            is None
         )
 
 
@@ -194,6 +204,7 @@ def test_a_session_created_with_a_refresh_token_needs_no_exchange(refresh_token,
             hasher,
             datetime.now(UTC) + timedelta(minutes=10),
             mock_db,
+            amr=["pwd"],
         )
     assert create.call_args.args[0].tokens_exchanged is exchanged
 
@@ -326,6 +337,7 @@ def test_create_session_caps_expiry_at_the_absolute_timeout(mock_db):
             hasher,
             before + timedelta(days=3650),
             mock_db,
+            amr=["pwd"],
         )
     staged = create.call_args.args[0]
     assert staged.expires_at == staged.created_at + _ABSOLUTE
@@ -347,6 +359,7 @@ def test_create_session_keeps_an_earlier_expiry(mock_db):
             _hasher(),
             requested,
             mock_db,
+            amr=["pwd"],
         )
     assert create.call_args.args[0].expires_at == requested
 
@@ -618,6 +631,8 @@ class TestBulkDeleteRemovesOAuthStates:
                     token_family_id=session_id,
                     rotation_count=0,
                     client_type="web",
+                    auth_time=now,
+                    amr=["pwd"],
                     oauth_state_id=state_id,
                 )
             )

@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String
+from sqlalchemy import JSON, CheckConstraint, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 import modules.auth.constants as auth_constants
@@ -41,6 +41,9 @@ class UsersSessions(Base):
             validation.
         client_type: The client the session was created for (``ClientType``); its tokens name it as
             ``client_id`` and a refresh must declare it.
+        auth_time: When the owner signed in; refresh and step-up leave it unchanged.
+        amr: How the owner proved themselves (RFC 8176 values); a session awaiting its SSO token exchange has
+            only ``fed``, and the exchange adds the second factor.
     """
 
     __tablename__ = "users_sessions"
@@ -147,4 +150,14 @@ class UsersSessions(Base):
         String(10),
         nullable=False,
         comment="Client type the session was created for: web or mobile",
+    )
+    auth_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        comment="When the user signed in; refresh and step-up do not change it",
+    )
+    amr: Mapped[list[str]] = mapped_column(
+        JSON,
+        nullable=False,
+        comment="Authentication methods of the sign-in (RFC 8176 values): pwd, fed, otp, mfa",
     )

@@ -135,9 +135,9 @@ def set_session_refresh_token_hash(
 
 
 def claim_session_for_token_exchange(
-    session_id: str, hashed_refresh_token: str, expires_at: datetime, db: Session
+    session_id: str, hashed_refresh_token: str, expires_at: datetime, amr: Sequence[str], db: Session
 ) -> bool:
-    """Atomically claim a session for one-shot token exchange and give it its real expiry."""
+    """Atomically claim a session for one-shot token exchange, give it its real expiry and record its final methods."""
     matched = core_database.rowcount(
         db,
         update(sessions_models.UsersSessions)
@@ -145,7 +145,7 @@ def claim_session_for_token_exchange(
             sessions_models.UsersSessions.id == session_id,
             sessions_models.UsersSessions.tokens_exchanged.is_(False),
         )
-        .values(tokens_exchanged=True, refresh_token=hashed_refresh_token, expires_at=expires_at),
+        .values(tokens_exchanged=True, refresh_token=hashed_refresh_token, expires_at=expires_at, amr=list(amr)),
     )
     return matched == 1
 

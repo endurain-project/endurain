@@ -237,7 +237,11 @@ class TestSsoSignIn:
             security_generation=0,
         )
         session = SimpleNamespace(
-            user_id=5, tokens_exchanged=False, expires_at=datetime(2027, 1, 1, tzinfo=UTC), client_type=client_type
+            user_id=5,
+            tokens_exchanged=False,
+            expires_at=datetime(2027, 1, 1, tzinfo=UTC),
+            client_type=client_type,
+            amr=["fed"],
         )
         with (
             patch(f"{_SERVICE}.sessions_integration.get_session_with_oauth_state", return_value=(session, oauth_state)),

@@ -308,6 +308,7 @@ class TestWebExchange:
                 core_timezone.to_utc_aware(state.expires_at),
                 db,
                 oauth_state_id=state_id,
+                amr=["pwd"],
             )
             db.commit()
         return session_id

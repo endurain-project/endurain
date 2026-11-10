@@ -41,6 +41,8 @@ def _session(*, last_activity_at: datetime, created_at: datetime) -> sessions_co
         last_rotation_at=None,
         csrf_token_hash=None,
         client_type="web",
+        auth_time=created_at,
+        amr=["pwd"],
     )
 
 

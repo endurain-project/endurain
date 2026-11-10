@@ -241,6 +241,7 @@ class TestCompleteLogin:
                 password_hasher,
                 token_manager,
                 mock_db,
+                mfa=False,
             )
             result = authentication_dependencies.deliver_auth_outcome(response, outcome).model_dump()
 
@@ -290,6 +291,7 @@ class TestCompleteLogin:
                 password_hasher,
                 token_manager,
                 mock_db,
+                mfa=False,
             )
             result = authentication_dependencies.deliver_auth_outcome(response, outcome).model_dump()
 
@@ -327,7 +329,13 @@ class TestCompleteLogin:
             ) as mock_create_session,
         ):
             outcome = auth_utils.complete_login(
-                "127.0.0.1", "pytest-agent", sample_user_read, password_hasher, token_manager, mock_db
+                "127.0.0.1",
+                "pytest-agent",
+                sample_user_read,
+                password_hasher,
+                token_manager,
+                mock_db,
+                mfa=False,
             )
             result = authentication_dependencies.deliver_auth_outcome(response, outcome).model_dump()
 
@@ -350,7 +358,13 @@ class TestCompleteLogin:
             return_value=MagicMock(expires_at=session_expiry),
         ):
             outcome = auth_utils.complete_login(
-                "127.0.0.1", "pytest-agent", sample_user_read, password_hasher, token_manager, mock_db
+                "127.0.0.1",
+                "pytest-agent",
+                sample_user_read,
+                password_hasher,
+                token_manager,
+                mock_db,
+                mfa=False,
             )
             result = authentication_dependencies.deliver_auth_outcome(response, outcome).model_dump()
 
@@ -388,6 +402,7 @@ class TestCompleteLogin:
                 password_hasher,
                 token_manager,
                 mock_db,
+                mfa=False,
             )
             authentication_dependencies.deliver_auth_outcome(response, outcome)
 
@@ -418,6 +433,7 @@ class TestCompleteLogin:
                 password_hasher,
                 token_manager,
                 mock_db,
+                mfa=False,
             )
             authentication_dependencies.deliver_auth_outcome(response, outcome)
 
@@ -445,6 +461,7 @@ class TestCompleteLogin:
                 password_hasher,
                 token_manager,
                 mock_db,
+                mfa=False,
             )
             authentication_dependencies.deliver_auth_outcome(response, outcome)
 
@@ -530,6 +547,7 @@ class TestCompleteLogin:
                 password_hasher,
                 token_manager,
                 mock_db,
+                mfa=False,
             )
             result1 = authentication_dependencies.deliver_auth_outcome(response1, outcome).model_dump()
 
@@ -540,6 +558,7 @@ class TestCompleteLogin:
                 password_hasher,
                 token_manager,
                 mock_db,
+                mfa=False,
             )
             result2 = authentication_dependencies.deliver_auth_outcome(response2, outcome).model_dump()
 
@@ -601,6 +620,14 @@ class TestClearRefreshTokenCookies:
             assert "samesite=strict" in lower
 
 
+class TestPasswordAmr:
+    def test_a_password_alone_is_pwd(self):
+        assert auth_utils.password_amr(mfa=False) == ["pwd"]
+
+    def test_a_second_factor_adds_otp_and_mfa(self):
+        assert auth_utils.password_amr(mfa=True) == ["pwd", "otp", "mfa"]
+
+
 class TestCreateMobilePkceSessionResponse:
     """Tests for create_mobile_pkce_session_response."""
 
@@ -615,6 +642,7 @@ class TestCreateMobilePkceSessionResponse:
                 password_hasher=password_hasher,
                 db=mock_db,
                 security_generation=0,
+                mfa=False,
             )
         assert exc_info.value.status_code == 400
 
@@ -639,6 +667,7 @@ class TestCreateMobilePkceSessionResponse:
                 password_hasher=password_hasher,
                 db=mock_db,
                 security_generation=0,
+                mfa=False,
             )
 
         assert isinstance(result, auth_schema.MobileSessionRead)

@@ -80,6 +80,8 @@ class UserSessionsInternal(UserSessionsBase):
         csrf_token_hash: Hashed CSRF token for refresh
             validation.
         client_type: The client the session was created for.
+        auth_time: When the user signed in.
+        amr: Authentication methods of the sign-in.
     """
 
     user_id: StrictInt = Field(..., ge=1, description="User ID that owns this session")
@@ -109,6 +111,8 @@ class UserSessionsInternal(UserSessionsBase):
         description="Hashed CSRF token for refresh validation",
     )
     client_type: auth_constants.ClientType = Field(..., description="Client type the session was created for")
+    auth_time: datetime = Field(..., description="When the user signed in")
+    amr: list[StrictStr] = Field(..., description="Authentication methods of the sign-in (RFC 8176 values)")
 
     model_config = ConfigDict(
         from_attributes=True,

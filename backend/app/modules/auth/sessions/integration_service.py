@@ -67,6 +67,8 @@ def create_session(
     db: Session,
     oauth_state_id: str | None = None,
     csrf_token: str | None = None,
+    *,
+    amr: Sequence[str],
 ) -> sessions_contracts.SessionRead:
     """Stage a session."""
     return sessions_service.create_session(
@@ -81,6 +83,7 @@ def create_session(
         db,
         oauth_state_id,
         csrf_token,
+        amr=amr,
     )
 
 
@@ -128,10 +131,10 @@ def delete_sessions_by_user(user_id: int, db: Session, exclude_session_id: str |
 
 
 def claim_session_for_token_exchange(
-    session_id: str, hashed_refresh_token: str, expires_at: datetime, db: Session
+    session_id: str, hashed_refresh_token: str, expires_at: datetime, amr: Sequence[str], db: Session
 ) -> datetime | None:
     """Atomically claim a session for its token exchange; returns its new expiry, or ``None`` if not claimed."""
-    return sessions_service.claim_session_for_token_exchange(session_id, hashed_refresh_token, expires_at, db)
+    return sessions_service.claim_session_for_token_exchange(session_id, hashed_refresh_token, expires_at, amr, db)
 
 
 def validate_session_timeout(

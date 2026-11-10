@@ -95,6 +95,14 @@ class TestHundredthWrongCode:
         assert _mfa_locked_events(publish) == []
         assert _store().is_locked_out(USERNAME) is False
 
+    def test_the_exchange_records_the_second_factor_it_verified(self, mfa_plain_signin):
+        claims = []
+
+        refusal = _exchange(mfa_plain_signin, _store(), claims=claims)
+
+        assert refusal is None
+        assert claims[0][3] == ["fed", "otp", "mfa"]
+
     def test_wrong_codes_across_many_challenges_reach_the_cap(self, mfa_plain_signin):
         store = _store()
         for _ in range(100):
@@ -193,8 +201,11 @@ class TestLockedAccount:
         assert _store().is_locked_out(USERNAME) is False
 
 
-def _exchange(stack, store, *, device_id=None, code=BACKUP_CODE):
-    """Run the SSO token exchange for the account with MFA, returning the refusal if there was one."""
+def _exchange(stack, store, *, device_id=None, code=BACKUP_CODE, claims=None):
+    """Run the SSO token exchange for the account with MFA, returning the refusal if there was one.
+
+    Each session claim the exchange makes is appended to ``claims``, when given.
+    """
     oauth_state = SimpleNamespace(
         id="state",
         purpose="login",
@@ -205,7 +216,11 @@ def _exchange(stack, store, *, device_id=None, code=BACKUP_CODE):
         security_generation=0,
     )
     session = SimpleNamespace(
-        user_id=USER_ID, tokens_exchanged=False, expires_at=datetime(2999, 1, 1, tzinfo=UTC), client_type="web"
+        user_id=USER_ID,
+        tokens_exchanged=False,
+        expires_at=datetime(2999, 1, 1, tzinfo=UTC),
+        client_type="web",
+        amr=["fed"],
     )
     tokens = ("sid", datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
     with (
@@ -215,7 +230,9 @@ def _exchange(stack, store, *, device_id=None, code=BACKUP_CODE):
         patch(f"{_SSO}.authentication_token_service.create_tokens", return_value=tokens),
         patch(
             f"{_SSO}.sessions_integration.claim_session_for_token_exchange",
-            return_value=datetime(2999, 1, 1, tzinfo=UTC),
+            side_effect=lambda *args: (
+                (claims.append(args) if claims is not None else None) or datetime(2999, 1, 1, tzinfo=UTC)
+            ),
         ),
         patch(f"{_SSO}.known_devices_integration.record_sign_in", return_value=MagicMock(new_device=False)),
         patch(f"{_SSO}.authentication_token_service.build_web_token_response"),

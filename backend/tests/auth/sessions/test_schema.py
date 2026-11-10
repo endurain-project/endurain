@@ -269,6 +269,8 @@ class TestUsersSessionsInternalSchema:
             tokens_exchanged=False,
             token_family_id="family-id",
             client_type="web",
+            auth_time=now,
+            amr=["pwd"],
             rotation_count=0,
             last_rotation_at=None,
             csrf_token_hash=None,
@@ -306,6 +308,8 @@ class TestUsersSessionsInternalSchema:
             tokens_exchanged=False,
             token_family_id="family-id",
             client_type="web",
+            auth_time=now,
+            amr=["pwd"],
             rotation_count=0,
         )
 
@@ -335,6 +339,8 @@ class TestUsersSessionsInternalSchema:
             refresh_token="hashed-token",
             token_family_id="family-id",
             client_type="web",
+            auth_time=now,
+            amr=["pwd"],
             rotation_count=0,
         )
 
@@ -365,6 +371,8 @@ class TestUsersSessionsInternalSchema:
                 refresh_token="hashed-token",
                 token_family_id="family-id",
                 client_type="web",
+                auth_time=now,
+                amr=["pwd"],
                 rotation_count=-1,
             )
 
@@ -421,6 +429,8 @@ class TestUsersSessionsInternalSchema:
                 oauth_state_id=long_oauth_state,
                 token_family_id="family-id",
                 client_type="web",
+                auth_time=now,
+                amr=["pwd"],
                 rotation_count=0,
             )
 
@@ -461,6 +471,8 @@ class TestUsersSessionsInternalSchema:
             tokens_exchanged=True,
             token_family_id="family-id",
             client_type="web",
+            auth_time=now,
+            amr=["pwd"],
             rotation_count=5,
             last_rotation_at=now,
             csrf_token_hash="csrf-hash",

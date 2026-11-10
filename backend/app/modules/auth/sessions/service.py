@@ -1,6 +1,6 @@
 """Session lifecycle and transaction orchestration."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 
 import jasil.audit as jasil_audit
@@ -90,10 +90,12 @@ def create_session(
     db: Session,
     oauth_state_id: str | None = None,
     csrf_token: str | None = None,
+    *,
+    amr: Sequence[str],
 ) -> sessions_contracts.SessionRead:
-    """Stage a session with hashed tokens, its client type and the client's IP address and user agent.
+    """Stage a session with hashed tokens, its client type, the client's IP address and user agent.
 
-    The caller commits.
+    ``amr`` records how the user signed in; ``auth_time`` is the moment the session is created. The caller commits.
     """
     device = sessions_utils.parse_user_agent(user_agent)
     csrf_hash = _hash_csrf_token(csrf_token) if csrf_token else None
@@ -118,6 +120,8 @@ def create_session(
         last_rotation_at=None,
         csrf_token_hash=csrf_hash,
         client_type=client_type,
+        auth_time=now,
+        amr=list(amr),
     )
     session = sessions_crud.create_session(session_data, db)
     logger.info(
@@ -243,7 +247,7 @@ def delete_session(
 
 
 def claim_session_for_token_exchange(
-    session_id: str, hashed_refresh_token: str, expires_at: datetime, db: Session
+    session_id: str, hashed_refresh_token: str, expires_at: datetime, amr: Sequence[str], db: Session
 ) -> datetime | None:
     """Atomically claim a session for its one-shot token exchange and extend it; the caller commits.
 
@@ -251,6 +255,7 @@ def claim_session_for_token_exchange(
         session_id: The session the exchange completes.
         hashed_refresh_token: Hash of the refresh token the exchange issued.
         expires_at: Expiry of that refresh token, which the session's absolute timeout may shorten.
+        amr: The methods the sign-in finally used, including a second factor verified at the exchange.
         db: Database session.
 
     Returns:
@@ -260,7 +265,9 @@ def claim_session_for_token_exchange(
     if session is None:
         return None
     session_expires_at = _cap_expiry(expires_at, session.created_at, db)
-    if not sessions_crud.claim_session_for_token_exchange(session_id, hashed_refresh_token, session_expires_at, db):
+    if not sessions_crud.claim_session_for_token_exchange(
+        session_id, hashed_refresh_token, session_expires_at, amr, db
+    ):
         logger.warning(
             "Session token exchange claim lost",
             extra=core_logger.context(session_id=core_hashing.log_fingerprint(session_id)),

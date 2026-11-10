@@ -399,7 +399,11 @@ class TestSsoSignIn:
             security_generation=0,
         )
         session = SimpleNamespace(
-            user_id=5, tokens_exchanged=False, expires_at=datetime(2027, 1, 1, tzinfo=UTC), client_type="web"
+            user_id=5,
+            tokens_exchanged=False,
+            expires_at=datetime(2027, 1, 1, tzinfo=UTC),
+            client_type="web",
+            amr=["fed"],
         )
         tokens = ("sid", datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
         hasher = MagicMock()

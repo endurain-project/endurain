@@ -201,6 +201,17 @@ def authenticate_user(
     return user
 
 
+def password_amr(*, mfa: bool) -> list[str]:
+    """Return the ``amr`` of a password sign-in: the password, and the one-time code when a second factor was used."""
+    if mfa:
+        return [
+            auth_constants.AuthMethod.LOCAL_CREDENTIAL,
+            auth_constants.AuthMethod.ONE_TIME_CODE,
+            auth_constants.AuthMethod.MULTI_FACTOR,
+        ]
+    return [auth_constants.AuthMethod.LOCAL_CREDENTIAL]
+
+
 def complete_login(
     ip_address: str,
     user_agent: str,
@@ -208,6 +219,8 @@ def complete_login(
     password_hasher: credentials_integration.PasswordHasher,
     token_manager: access_tokens_integration.TokenManager,
     db: Session,
+    *,
+    mfa: bool,
 ) -> auth_schema.AuthOutcome[auth_schema.TokenWebRead]:
     """Complete the password sign-in of a web client: create its session and tokens.
 
@@ -222,6 +235,7 @@ def complete_login(
         password_hasher (credentials_integration.PasswordHasher): Utility for password hashing.
         token_manager (access_tokens_integration.TokenManager): Utility for token generation and management.
         db (Session): Database session for storing session information.
+        mfa (bool): Whether a second factor was verified for this sign-in.
 
     Returns:
         The token body (session_id, access_token, csrf_token, token_type, expires_in, refresh_token_expires_in) and
@@ -250,6 +264,7 @@ def complete_login(
         password_hasher,
         refresh_token_exp,
         db,
+        amr=password_amr(mfa=mfa),
     )
     db.commit()
     logger.info("Login completed for user <user_id>", extra=core_logger.context(user_id=user.id))
@@ -275,6 +290,7 @@ def create_mobile_pkce_session_response(
     db: Session,
     *,
     security_generation: int | None,
+    mfa: bool,
 ) -> auth_schema.MobileSessionRead:
     """Create the session of a mobile sign-in, which the client exchanges for tokens with its PKCE verifier.
 
@@ -291,6 +307,7 @@ def create_mobile_pkce_session_response(
         db: Database session
         security_generation: The generation the exchange must still find; read before the credential that justifies
             this sign-in was verified, or the one the sign-in's MFA or password-change challenge carries.
+        mfa: Whether a second factor was verified for this sign-in.
 
     Returns:
         auth_schema.MobileSessionRead: Contains the session_id to exchange for tokens
@@ -332,6 +349,7 @@ def create_mobile_pkce_session_response(
         core_timezone.to_utc_aware(oauth_state.expires_at),
         db,
         oauth_state_id=state_id,
+        amr=password_amr(mfa=mfa),
     )
     db.commit()
     logger.debug("Mobile sign-in session created", extra=core_logger.context(user_id=user.id))
@@ -611,11 +629,12 @@ def finish_login(
             password_hasher,
             db,
             security_generation=security_generation,
+            mfa=mfa,
         )
         return auth_schema.AuthOutcome(session.model_copy(update={"device_id": sign_in.device_id}))
 
     # A web browser gets its refresh token as a cookie, and keeps its device id in a cookie that the router sets.
-    outcome = complete_login(ip_address, user_agent, user, password_hasher, token_manager, db)
+    outcome = complete_login(ip_address, user_agent, user, password_hasher, token_manager, db, mfa=mfa)
     return auth_schema.AuthOutcome(outcome.body, outcome.refresh_cookie, device_id=sign_in.device_id)
 
 

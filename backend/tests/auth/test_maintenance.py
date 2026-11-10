@@ -74,6 +74,8 @@ def _session(key: str, at: datetime, *, column: str) -> Any:
         created_at=at,
         token_family_id=key,
         client_type="web",
+        auth_time=at,
+        amr=["pwd"],
         **times,
     )
 

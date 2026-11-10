@@ -72,6 +72,8 @@ class SessionRead(BaseModel):
     last_rotation_at: datetime | None
     csrf_token_hash: str | None
     client_type: auth_constants.ClientType
+    auth_time: datetime
+    amr: list[str]
 
 
 class DeviceType(Enum):

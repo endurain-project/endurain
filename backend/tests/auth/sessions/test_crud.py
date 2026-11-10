@@ -37,6 +37,8 @@ def _row(**updates):
         "last_rotation_at": None,
         "csrf_token_hash": None,
         "client_type": "web",
+        "auth_time": datetime.now(UTC),
+        "amr": ["pwd"],
     }
     values.update(updates)
     return SimpleNamespace(**values)
@@ -129,7 +131,7 @@ def test_edit_missing_session_raises_not_found(mock_db):
 
 def test_token_exchange_claim_is_conditional_and_staged(mock_db):
     def operation(sid, db):
-        return sessions_crud.claim_session_for_token_exchange(sid, "hashed", datetime.now(UTC), db)
+        return sessions_crud.claim_session_for_token_exchange(sid, "hashed", datetime.now(UTC), ["fed"], db)
 
     mock_db.execute.return_value = _result(rowcount=1)
     assert operation("session-id", mock_db) is True
@@ -209,6 +211,8 @@ def test_existing_session_ids_names_only_the_sessions_that_still_exist():
                 token_family_id=session_id,
                 rotation_count=0,
                 client_type="web",
+                auth_time=now,
+                amr=["pwd"],
             )
         )
     db.commit()
@@ -226,6 +230,22 @@ def test_a_stored_session_reads_back_with_its_client_type():
     db.commit()
 
     assert sessions_crud.get_session_by_id("session-id", db).client_type is ClientType.MOBILE
+    db.close()
+
+
+def test_a_stored_session_reads_back_its_auth_time_and_methods():
+    from tests._helpers.db import create_sqlite_session
+
+    db = create_sqlite_session()
+    auth_time = datetime(2026, 11, 10, 8, 0, tzinfo=UTC)
+    sessions_crud.create_session(
+        sessions_schema.UserSessionsInternal(**vars(_row(auth_time=auth_time, amr=["pwd", "otp", "mfa"]))), db
+    )
+    db.commit()
+
+    stored = sessions_crud.get_session_by_id("session-id", db)
+    assert stored.auth_time.replace(tzinfo=UTC) == auth_time
+    assert stored.amr == ["pwd", "otp", "mfa"]
     db.close()
 
 
@@ -276,10 +296,13 @@ class TestUnexchangedSessions:
         self._add(db, "pending", tokens_exchanged=False, expires_in=timedelta(minutes=5))
         real_expiry = datetime.now(UTC) + timedelta(days=30)
 
-        assert sessions_crud.claim_session_for_token_exchange("pending", "hashed", real_expiry, db) is True
+        assert sessions_crud.claim_session_for_token_exchange(
+            "pending", "hashed", real_expiry, ["fed", "otp", "mfa"], db
+        )
 
         db.expire_all()
         claimed = sessions_crud.get_session_by_id("pending", db)
         assert claimed is not None
         assert claimed.tokens_exchanged is True
+        assert claimed.amr == ["fed", "otp", "mfa"]
         assert claimed.expires_at.replace(tzinfo=UTC) == real_expiry

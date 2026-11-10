@@ -911,6 +911,7 @@ class CallbackService:
             core_timezone.to_utc_aware(oauth_state.expires_at),
             db,
             oauth_state_id=oauth_state.id,
+            amr=[auth_constants.AuthMethod.FEDERATED],
         )
         self._tokens.store_session_tokens(session_id, user_read.id, idp_id, token_response, db, idp_sid=idp_sid)
         db.commit()
