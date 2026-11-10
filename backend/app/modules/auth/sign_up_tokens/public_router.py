@@ -14,6 +14,13 @@ router = APIRouter()
 @router.post(
     "/sign-up/request",
     response_model=sign_up_schema.SignUpRead,
+    responses={
+        400: {
+            "description": "A password was sent while the email address is verified first, or none was sent while "
+            "it is not (the `password-required` problem type)."
+        },
+        403: {"description": "Sign-up is not enabled on this server."},
+    },
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def signup(
@@ -29,6 +36,17 @@ def signup(
 @router.post(
     "/sign-up/confirm",
     response_model=sign_up_schema.SignUpRead,
+    responses={
+        400: {
+            "description": "The token is unknown, used or expired; a sign-up confirmation carries no password (the "
+            "`password-required` problem type, and the token stays usable); or a password accompanies a token that "
+            "does not choose one."
+        },
+        403: {
+            "description": "A sign-up is confirmed while email verification is turned off on this server (the "
+            "`email-verification-disabled` problem type)."
+        },
+    },
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def verify_email(

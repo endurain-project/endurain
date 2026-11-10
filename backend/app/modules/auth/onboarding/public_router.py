@@ -28,7 +28,10 @@ def read_onboarding_status(
     "",
     status_code=status.HTTP_201_CREATED,
     response_model=users_schema.UserRead,
-    responses={201: {"headers": core_openapi_contract.ETAG_HEADERS}},
+    responses={
+        201: {"headers": core_openapi_contract.ETAG_HEADERS},
+        400: {"description": "The setup token is unknown, expired or already used."},
+    },
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def complete_onboarding(

@@ -8,6 +8,7 @@ from starlette.concurrency import run_in_threadpool
 import core.attempt_state as core_attempt_state
 import core.cache_control as core_cache_control
 import core.network as core_network
+import core.openapi_contract as core_openapi_contract
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.websocket.dependencies as websocket_dependencies
@@ -23,6 +24,7 @@ router = APIRouter()
     "/ticket",
     response_model=websocket_schema.WsTicketRead,
     status_code=status.HTTP_201_CREATED,
+    responses={201: {"headers": core_openapi_contract.NO_STORE_RESPONSE_HEADERS}},
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["notifications:read"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)

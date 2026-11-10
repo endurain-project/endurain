@@ -32,6 +32,15 @@ from tests._helpers.routes import route_decorators, router_functions
 _APP = pathlib.Path("app")
 _DOCS = pathlib.Path("..") / "docs"
 _API_PREFIX = "/api/v1"
+# Paths under the API root kept free for planned features, as docs/integrate/compatibility.md promises: no route may
+# use them, and the docs may name them.
+_RESERVED_PATHS: tuple[tuple[str, ...], ...] = (
+    ("oauth",),
+    ("auth", "webauthn"),
+    ("profile", "passkeys"),
+    ("profile", "grants"),
+    ("oauth-clients",),
+)
 _METHODS = ("get", "post", "put", "patch", "delete")
 
 # --- Registers (shrink-only) -------------------------------------------------------------------------------
@@ -595,11 +604,12 @@ class TestApiContract:
         _compare("An If-Match operation is not fully declared", problems, {}, "Declare it in core.openapi_contract")
 
     def test_a_header_a_handler_sets_is_declared(self):
-        """An operation whose handler sets ``Location``, ``ETag`` or ``Retry-After`` declares it on that status.
+        """An operation whose handler sets ``Location``, ``ETag``, ``Retry-After`` or ``no-store`` declares it.
 
         OpenAPI is the only description a generated client reads; a header it does not list is invisible to it.
         ``Location`` belongs to the ``201``, ``ETag`` to the success response that carries the version and
-        ``Retry-After`` to the polled status read.
+        ``Retry-After`` to the polled status read; a response that carries a token or a secret declares
+        ``Cache-Control`` and ``Pragma`` (``core.openapi_contract.NO_STORE_RESPONSE_HEADERS``).
         """
         undeclared: set[str] = set()
         for (method, path), (_, function) in _handlers().items():
@@ -616,6 +626,11 @@ class TestApiContract:
                 undeclared.add(f"{method.upper()} {path}: ETag declared but not sent")
             if "set_retry_after_while_running" in calls and "Retry-After" not in declared:
                 undeclared.add(f"{method.upper()} {path}: Retry-After")
+            sends_no_store = calls & {"set_no_store", "deliver_auth_outcome"} or "NO_STORE_HEADERS" in {
+                node.attr for node in ast.walk(function) if isinstance(node, ast.Attribute)
+            }
+            if sends_no_store and not {"Cache-Control", "Pragma"} <= declared:
+                undeclared.add(f"{method.upper()} {path}: Cache-Control and Pragma")
 
         _compare("A header the handler sets is not declared", undeclared, {}, "Declare it in core.openapi_contract")
 
@@ -818,15 +833,26 @@ class TestApiContract:
                 if match is None:
                     continue
                 segments = match.group(1).removeprefix(_API_PREFIX).split("?")[0].strip("/").split("/")
-                if segments[0] not in first_segments:
+                if segments[0] not in first_segments or _is_reserved(segments):
                     continue
                 if not any(_same_path(segments, other[: len(segments)]) for other in known):
                     missing.add(f"{name}: /{'/'.join(segments)}")
 
         _compare("A documented path is not in the API", missing, {}, "Fix the page or the route")
 
+    def test_no_route_uses_a_reserved_path(self):
+        """No route lives under a path reserved for a planned feature, so adding that feature stays additive."""
+        found = {f"/{path.strip('/')}" for path in _paths() if _is_reserved(path.strip("/").split("/"))}
+
+        _compare("A route uses a reserved path", found, {}, "Move the route out of the reserved path")
+
 
 # --- Helpers for the rules ------------------------------------------------------------------------------------
+
+
+def _is_reserved(segments: list[str]) -> bool:
+    """Return whether a path, as segments under the API root, is or lies under a reserved path."""
+    return any(tuple(segments[: len(reserved)]) == reserved for reserved in _RESERVED_PATHS)
 
 
 def _same_path(left: list[str], right: list[str]) -> bool:

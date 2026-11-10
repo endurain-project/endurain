@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Request, Response
 
 import core.dependencies as core_dependencies
 import core.network as core_network
+import core.openapi_contract as core_openapi_contract
 import core.rate_limit as core_rate_limit
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.account_security.account_security_service as account_security_service
@@ -23,6 +24,7 @@ router = APIRouter()
     "/password-change",
     response_model=authentication_schema.FinishedLoginRead,
     responses={
+        200: {"headers": core_openapi_contract.NO_STORE_RESPONSE_HEADERS},
         401: {
             "description": "The password-change challenge is unknown, expired or used, or its account no longer "
             "needs to change the password."

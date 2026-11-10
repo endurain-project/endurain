@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Request, Response, Security, status
 
 import core.cache_control as core_cache_control
 import core.dependencies as core_dependencies
+import core.openapi_contract as core_openapi_contract
 import core.rate_limit as core_rate_limit
 import modules.auth.account_security.mfa_workflow_service as mfa_workflow_service
 import modules.auth.dependencies as auth_dependencies
@@ -62,6 +63,7 @@ def get_backup_code_status(
     "/setup",
     status_code=status.HTTP_201_CREATED,
     response_model=mfa_schema.MFASetupRead,
+    responses={201: {"headers": core_openapi_contract.NO_STORE_RESPONSE_HEADERS}},
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
@@ -94,6 +96,7 @@ def setup_mfa(
 @router.post(
     "/enable",
     response_model=mfa_backup_codes_schema.MFABackupCodesRead,
+    responses={200: {"headers": core_openapi_contract.NO_STORE_RESPONSE_HEADERS}},
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
@@ -208,6 +211,7 @@ def disable_mfa(
     "/backup-codes",
     status_code=status.HTTP_201_CREATED,
     response_model=mfa_backup_codes_schema.MFABackupCodesRead,
+    responses={201: {"headers": core_openapi_contract.NO_STORE_RESPONSE_HEADERS}},
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)

@@ -531,7 +531,11 @@ def read_profile_export_status(
 @router.get(
     "/export/download",
     response_class=StreamingResponse,
-    responses=core_openapi_contract.binary_response("application/zip", description="The ZIP archive of the export."),
+    responses=core_openapi_contract.binary_response(
+        "application/zip",
+        description="The ZIP archive of the export.",
+        headers=core_openapi_contract.NO_STORE_RESPONSE_HEADERS,
+    ),
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:export"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Request, Response, Security, status
 
 import core.cache_control as core_cache_control
 import core.dependencies as core_dependencies
+import core.openapi_contract as core_openapi_contract
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.account_security.api_key_service as api_key_service
@@ -43,6 +44,7 @@ def list_user_api_keys(
     "",
     response_model=api_keys_schema.UserApiKeyCreatedRead,
     status_code=status.HTTP_201_CREATED,
+    responses={201: {"headers": core_openapi_contract.NO_STORE_RESPONSE_HEADERS}},
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)

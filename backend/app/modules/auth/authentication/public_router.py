@@ -16,6 +16,7 @@ import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.network as core_network
+import core.openapi_contract as core_openapi_contract
 import core.rate_limit as core_rate_limit
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.authentication.dependencies as authentication_dependencies
@@ -38,7 +39,10 @@ router = APIRouter()
 @router.post(
     "/login",
     response_model=auth_schema.LoginRead,
-    responses={401: {"description": "The username or password is wrong, or the account may not sign in."}},
+    responses={
+        200: {"headers": core_openapi_contract.NO_STORE_RESPONSE_HEADERS},
+        401: {"description": "The username or password is wrong, or the account may not sign in."},
+    },
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def login_for_access_token(
@@ -139,12 +143,14 @@ def login_for_access_token(
     "/mfa/verify",
     response_model=auth_schema.MFAVerifyRead,
     responses={
+        200: {"headers": core_openapi_contract.NO_STORE_RESPONSE_HEADERS},
         400: {"description": "The MFA code is wrong and the sign-in challenge is still live."},
         401: {
             "description": "The sign-in challenge is unknown, expired, ended after three wrong codes, or presented "
             "from another client network or client type, so the client signs in again at `POST /auth/login`; "
             "or its account can no longer sign in."
         },
+        403: {"description": "The account is no longer active."},
     },
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
@@ -227,6 +233,7 @@ def verify_mfa_and_login(
 @router.post(
     "/refresh",
     response_model=(auth_schema.TokenWebRead | auth_schema.TokenMobileRead),
+    responses={200: {"headers": core_openapi_contract.NO_STORE_RESPONSE_HEADERS}},
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def refresh_token(
@@ -313,7 +320,11 @@ def refresh_token(
     return authentication_dependencies.deliver_auth_outcome(response, outcome)
 
 
-@router.post("/logout", response_model=auth_schema.LogoutRead)
+@router.post(
+    "/logout",
+    response_model=auth_schema.LogoutRead,
+    responses={200: {"headers": core_openapi_contract.NO_STORE_RESPONSE_HEADERS}},
+)
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def logout(
     response: Response,
@@ -345,7 +356,8 @@ def logout(
     and client_id. A web client also gets the login page as post_logout_redirect_uri, which the provider must have
     registered; a mobile client gets none. Any other session gets null. When the provider cannot be reached for
     its endpoint, the session still ends and idp_logout_url is null: the provider session stays. The answer is never
-    cached, because the URL carries the ID token.
+    cached, because the URL carries the ID token. A web client sends the `X-CSRF-Token` header, and without it the
+    answer is 403.
 
     Args:
         response: The HTTP response object to modify cookies.

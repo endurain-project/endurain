@@ -50,7 +50,18 @@ def get_enabled_identity_providers(
     return idp_provider_service.get_enabled_identity_providers(page, db)
 
 
-@router.get("/login/{idp_slug}", status_code=status.HTTP_307_TEMPORARY_REDIRECT, response_class=RedirectResponse)
+@router.get(
+    "/login/{idp_slug}",
+    status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+    response_class=RedirectResponse,
+    responses={
+        400: {
+            "description": "The PKCE challenge is missing or malformed, the redirect is not allowed, or the "
+            "provider's authorization endpoint is not a public address."
+        },
+        502: {"description": "The provider's authorization endpoint could not be resolved."},
+    },
+)
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def initiate_login(
     idp_slug: auth_dependencies.IdentityProviderSlug,
@@ -117,7 +128,17 @@ def initiate_login(
     return response
 
 
-@router.get("/callback/{idp_slug}", status_code=status.HTTP_307_TEMPORARY_REDIRECT, response_class=RedirectResponse)
+@router.get(
+    "/callback/{idp_slug}",
+    status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+    response_class=RedirectResponse,
+    responses={
+        400: {
+            "description": "The `state` is unknown, expired, already used, bound to another provider, or not "
+            "from the browser that started the flow."
+        }
+    },
+)
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def handle_callback(
     request: Request,
@@ -237,7 +258,10 @@ def read_identity_provider_icon(
     "/{idp_slug}/backchannel-logout",
     response_class=Response,
     responses={
-        200: {"description": "The sessions the logout token names have ended, or none was signed in."},
+        200: {
+            "description": "The sessions the logout token names have ended, or none was signed in.",
+            "headers": core_openapi_contract.NO_STORE_RESPONSE_HEADERS,
+        },
         400: {
             "description": "The logout token was refused: it does not verify, was already used, or the provider's "
             "signing keys could not be read."
@@ -259,7 +283,8 @@ def backchannel_logout(
     signing keys and ends the sessions it names: those signed in under its `sid`, only the user's when a `sub` is
     named too, or every session the user signed in to through the provider when only a `sub` is named. A token is
     accepted once. The answer is 200 with no body when the sessions ended or none was signed in, and 400 when the
-    token is refused. Providers that are disabled or issue no ID token answer 404.
+    token is refused. A provider that does not exist or issues no ID token answers 404; a disabled provider is still
+    served, because disabling it does not end the sessions it signed in.
     """
     service.logout(idp_slug, logout_token, db)
     return Response(headers=core_cache_control.NO_STORE_HEADERS)

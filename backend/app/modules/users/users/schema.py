@@ -542,8 +542,7 @@ class UserMe(UserRead):
         hide_activity_gear: Hide gear setting.
         discoverable: Whether other users can find the user in username search.
         has_local_password: Whether the account has a local
-            password (False for accounts that sign in through an
-            identity provider).
+            password (False for an account with no password).
     """
 
     privacy_settings_version: StrictInt | None = Field(
@@ -583,10 +582,10 @@ class UserMe(UserRead):
         ...,
         description=(
             "Whether the account has a local password set. False"
-            " indicates an account that signs in through an identity"
-            " provider; its step-up proves a fresh sign-in with that"
-            " provider instead of a password. The raw password hash"
-            " is never exposed; only this derived boolean is returned."
+            " means the account has no password; its step-up proves a"
+            " fresh sign-in with an identity provider instead of a"
+            " password. The raw password hash is never exposed; only"
+            " this derived boolean is returned."
         ),
     )
 

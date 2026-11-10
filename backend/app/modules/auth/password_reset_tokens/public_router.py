@@ -32,6 +32,12 @@ def request_password_reset(
     "/password-reset/confirm",
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        400: {
+            "description": "The reset token is unknown, used or expired, or its account is inactive or may not "
+            "reset its password."
+        }
+    },
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def confirm_password_reset(
@@ -47,6 +53,12 @@ def confirm_password_reset(
     "/password-reset/validate",
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        400: {
+            "description": "The reset token is unknown, used or expired, or its account is inactive or may not "
+            "reset its password."
+        }
+    },
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def validate_password_reset_token(

@@ -14,7 +14,9 @@ derived for every operation instead of repeated on each route:
   ``Raises:`` (which name the handler's own parameters) never reach a client.
 
 A route lists in ``responses=`` only what the document cannot derive: ``core.location.ACCEPTED_RESPONSE`` and
-``POLLED_STATUS_HEADERS``, :data:`ETAG_HEADERS` where the version is not a field of the body, and
+``POLLED_STATUS_HEADERS``, :data:`ETAG_HEADERS` where the version is not a field of the body,
+:data:`NO_STORE_RESPONSE_HEADERS` on a response that carries a token or a secret, the errors a handler raises that no
+operation fact implies (a refusal of its own, a status the dependencies and middleware do not give), and
 :func:`binary_response`.
 """
 
@@ -52,6 +54,15 @@ def replaced_response(model: type[BaseModel]) -> dict[int | str, dict[str, Any]]
 
 #: The ``headers`` of a success response whose ``ETag`` the document cannot derive, for a route's ``responses``.
 ETAG_HEADERS: dict[str, Any] = {"ETag": _ETAG_HEADER}
+#: The ``headers`` of a response that carries a token or a secret and so is never cached, for a route's ``responses``.
+#: The handler sends them with ``core.cache_control.set_no_store`` or ``core.cache_control.NO_STORE_HEADERS``.
+NO_STORE_RESPONSE_HEADERS: dict[str, Any] = {
+    "Cache-Control": {
+        "description": "`no-store`: no cache may keep the response, which carries a token or a secret.",
+        "schema": {"type": "string"},
+    },
+    "Pragma": {"description": "`no-cache`, for HTTP/1.0 caches.", "schema": {"type": "string"}},
+}
 _LOCATION_HEADER: dict[str, Any] = {
     "description": "Path of the new resource.",
     "schema": {"type": "string"},
@@ -81,7 +92,9 @@ _ERRORS: dict[str, tuple[str, dict[str, Any]]] = {
 }
 
 
-def binary_response(*media_types: str, description: str = "The file.") -> dict[int | str, dict[str, Any]]:
+def binary_response(
+    *media_types: str, description: str = "The file.", headers: dict[str, Any] | None = None
+) -> dict[int | str, dict[str, Any]]:
     """Build the ``responses`` entry of a route that sends bytes.
 
     Pair it with ``response_class=Response``: a route without a body class of its own would also declare an
@@ -90,12 +103,16 @@ def binary_response(*media_types: str, description: str = "The file.") -> dict[i
     Args:
         *media_types: The media types the route sends.
         description: What the file is.
+        headers: The ``headers`` the response declares, such as :data:`NO_STORE_RESPONSE_HEADERS`.
 
     Returns:
         The ``responses`` mapping to pass to the route.
     """
     schema = {"schema": {"type": "string", "format": "binary"}}
-    return {200: {"description": description, "content": dict.fromkeys(media_types, schema)}}
+    response: dict[str, Any] = {"description": description, "content": dict.fromkeys(media_types, schema)}
+    if headers:
+        response["headers"] = headers
+    return {200: response}
 
 
 def _resolve(document: dict[str, Any], schema: dict[str, Any]) -> dict[str, Any]:

@@ -648,7 +648,8 @@ export interface paths {
          *     and client_id. A web client also gets the login page as post_logout_redirect_uri, which the provider must have
          *     registered; a mobile client gets none. Any other session gets null. When the provider cannot be reached for
          *     its endpoint, the session still ends and idp_logout_url is null: the provider session stays. The answer is never
-         *     cached, because the URL carries the ID token.
+         *     cached, because the URL carries the ID token. A web client sends the `X-CSRF-Token` header, and without it the
+         *     answer is 403.
          */
         post: operations["logout"];
         delete?: never;
@@ -3139,7 +3140,8 @@ export interface paths {
          *     signing keys and ends the sessions it names: those signed in under its `sid`, only the user's when a `sub` is
          *     named too, or every session the user signed in to through the provider when only a `sub` is named. A token is
          *     accepted once. The answer is 200 with no body when the sessions ended or none was signed in, and 400 when the
-         *     token is refused. Providers that are disabled or issue no ID token answer 404.
+         *     token is refused. A provider that does not exist or issues no ID token answers 404; a disabled provider is still
+         *     served, because disabling it does not end the sessions it signed in.
          */
         post: operations["backchannel_logout"];
         delete?: never;
@@ -12365,8 +12367,7 @@ export interface components {
          *         hide_activity_gear: Hide gear setting.
          *         discoverable: Whether other users can find the user in username search.
          *         has_local_password: Whether the account has a local
-         *             password (False for accounts that sign in through an
-         *             identity provider).
+         *             password (False for an account with no password).
          */
         UserMe: {
             /** @description User access level */
@@ -12433,7 +12434,7 @@ export interface components {
             gender: components["schemas"]["Gender"];
             /**
              * Has Local Password
-             * @description Whether the account has a local password set. False indicates an account that signs in through an identity provider; its step-up proves a fresh sign-in with that provider instead of a password. The raw password hash is never exposed; only this derived boolean is returned.
+             * @description Whether the account has a local password set. False means the account has no password; its step-up proves a fresh sign-in with an identity provider instead of a password. The raw password hash is never exposed; only this derived boolean is returned.
              */
             has_local_password: boolean;
             /**
@@ -16078,6 +16079,10 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description `no-store`: no cache may keep the response, which carries a token or a secret. */
+                    "Cache-Control"?: string;
+                    /** @description `no-cache`, for HTTP/1.0 caches. */
+                    Pragma?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16170,6 +16175,10 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description `no-store`: no cache may keep the response, which carries a token or a secret. */
+                    "Cache-Control"?: string;
+                    /** @description `no-cache`, for HTTP/1.0 caches. */
+                    Pragma?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16266,6 +16275,10 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description `no-store`: no cache may keep the response, which carries a token or a secret. */
+                    "Cache-Control"?: string;
+                    /** @description `no-cache`, for HTTP/1.0 caches. */
+                    Pragma?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16286,6 +16299,15 @@ export interface operations {
                 headers: {
                     /** @description The authentication challenge. */
                     "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The account is no longer active. */
+            403: {
+                headers: {
                     [name: string]: unknown;
                 };
                 content: {
@@ -16371,6 +16393,10 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description `no-store`: no cache may keep the response, which carries a token or a secret. */
+                    "Cache-Control"?: string;
+                    /** @description `no-cache`, for HTTP/1.0 caches. */
+                    Pragma?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16474,6 +16500,10 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description `no-store`: no cache may keep the response, which carries a token or a secret. */
+                    "Cache-Control"?: string;
+                    /** @description `no-cache`, for HTTP/1.0 caches. */
+                    Pragma?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16572,14 +16602,27 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description `no-store`: no cache may keep the response, which carries a token or a secret. */
+                    "Cache-Control"?: string;
+                    /** @description `no-cache`, for HTTP/1.0 caches. */
+                    Pragma?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["TokenWebRead"] | components["schemas"]["TokenMobileRead"];
                 };
             };
-            /** @description The verifier does not match, or the client type differs from the one that started the sign-in. */
+            /** @description The verifier does not match, the client type differs from the one that started the sign-in, or the `mfa_code` is wrong. */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The account is no longer active, or it has MFA enabled and the request carried no `mfa_code` (the `mfa-required` problem type); the session stays usable. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -24946,6 +24989,10 @@ export interface operations {
             /** @description Successful Response */
             201: {
                 headers: {
+                    /** @description `no-store`: no cache may keep the response, which carries a token or a secret. */
+                    "Cache-Control"?: string;
+                    /** @description `no-cache`, for HTTP/1.0 caches. */
+                    Pragma?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -26266,6 +26313,10 @@ export interface operations {
             /** @description The ZIP archive of the export. */
             200: {
                 headers: {
+                    /** @description `no-store`: no cache may keep the response, which carries a token or a secret. */
+                    "Cache-Control"?: string;
+                    /** @description `no-cache`, for HTTP/1.0 caches. */
+                    Pragma?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -27872,6 +27923,10 @@ export interface operations {
             /** @description Successful Response */
             201: {
                 headers: {
+                    /** @description `no-store`: no cache may keep the response, which carries a token or a secret. */
+                    "Cache-Control"?: string;
+                    /** @description `no-cache`, for HTTP/1.0 caches. */
+                    Pragma?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -28145,6 +28200,10 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description `no-store`: no cache may keep the response, which carries a token or a secret. */
+                    "Cache-Control"?: string;
+                    /** @description `no-cache`, for HTTP/1.0 caches. */
+                    Pragma?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -28243,6 +28302,10 @@ export interface operations {
             /** @description Successful Response */
             201: {
                 headers: {
+                    /** @description `no-store`: no cache may keep the response, which carries a token or a secret. */
+                    "Cache-Control"?: string;
+                    /** @description `no-cache`, for HTTP/1.0 caches. */
+                    Pragma?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -29889,6 +29952,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description The `state` is unknown, expired, already used, bound to another provider, or not from the browser that started the flow. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
             /** @description The resource does not exist, or is concealed from the caller. */
             404: {
                 headers: {
@@ -29965,6 +30037,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description The PKCE challenge is missing or malformed, the redirect is not allowed, or the provider's authorization endpoint is not a public address. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
             /** @description The resource does not exist, or is concealed from the caller. */
             404: {
                 headers: {
@@ -29988,6 +30069,15 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The provider's authorization endpoint could not be resolved. */
+            502: {
+                headers: {
                     [name: string]: unknown;
                 };
                 content: {
@@ -30034,6 +30124,10 @@ export interface operations {
             /** @description The sessions the logout token names have ended, or none was signed in. */
             200: {
                 headers: {
+                    /** @description `no-store`: no cache may keep the response, which carries a token or a secret. */
+                    "Cache-Control"?: string;
+                    /** @description `no-cache`, for HTTP/1.0 caches. */
+                    Pragma?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -30269,6 +30363,15 @@ export interface operations {
                     "application/json": components["schemas"]["UserRead"];
                 };
             };
+            /** @description The setup token is unknown, expired or already used. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
             /** @description The request conflicts with the current state. */
             409: {
                 headers: {
@@ -30348,6 +30451,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description The reset token is unknown, used or expired, or its account is inactive or may not reset its password. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
             /** @description The request conflicts with the current state. */
             409: {
@@ -30508,6 +30620,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description The reset token is unknown, used or expired, or its account is inactive or may not reset its password. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
             /** @description The request conflicts with the current state. */
             409: {
@@ -30751,6 +30872,24 @@ export interface operations {
                     "application/json": components["schemas"]["SignUpRead"];
                 };
             };
+            /** @description The token is unknown, used or expired; a sign-up confirmation carries no password (the `password-required` problem type, and the token stays usable); or a password accompanies a token that does not choose one. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A sign-up is confirmed while email verification is turned off on this server (the `email-verification-disabled` problem type). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
             /** @description The request conflicts with the current state. */
             409: {
                 headers: {
@@ -30831,6 +30970,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SignUpRead"];
+                };
+            };
+            /** @description A password was sent while the email address is verified first, or none was sent while it is not (the `password-required` problem type). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Sign-up is not enabled on this server. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description The request conflicts with the current state. */
@@ -35843,6 +36000,10 @@ export interface operations {
             /** @description Successful Response */
             201: {
                 headers: {
+                    /** @description `no-store`: no cache may keep the response, which carries a token or a secret. */
+                    "Cache-Control"?: string;
+                    /** @description `no-cache`, for HTTP/1.0 caches. */
+                    Pragma?: string;
                     [name: string]: unknown;
                 };
                 content: {

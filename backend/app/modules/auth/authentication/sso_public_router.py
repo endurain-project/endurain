@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Request, Response
 
 import core.dependencies as core_dependencies
 import core.network as core_network
+import core.openapi_contract as core_openapi_contract
 import core.rate_limit as core_rate_limit
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.authentication.dependencies as authentication_dependencies
@@ -24,9 +25,15 @@ router = APIRouter()
     "/sessions/{session_id}/tokens",
     response_model=auth_schema.TokenWebRead | auth_schema.TokenMobileRead,
     responses={
+        200: {"headers": core_openapi_contract.NO_STORE_RESPONSE_HEADERS},
         400: {
-            "description": "The verifier does not match, or the client type differs from the one that started the sign-in."
-        }
+            "description": "The verifier does not match, the client type differs from the one that started the "
+            "sign-in, or the `mfa_code` is wrong."
+        },
+        403: {
+            "description": "The account is no longer active, or it has MFA enabled and the request carried no "
+            "`mfa_code` (the `mfa-required` problem type); the session stays usable."
+        },
     },
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
