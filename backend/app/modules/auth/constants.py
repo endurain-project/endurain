@@ -18,7 +18,11 @@ class MFAFactorType(StrEnum):
 
 
 class AuthMethod(StrEnum):
-    """Authentication methods a session records in its ``amr`` (RFC 8176 values)."""
+    """Authentication methods a session records in its ``amr``.
+
+    ``pwd``, ``otp`` and ``mfa`` are RFC 8176 values. ``fed`` is not in the RFC 8176 registry: it is a de-facto value,
+    the one Microsoft Entra ID emits for a federated sign-in.
+    """
 
     LOCAL_CREDENTIAL = "pwd"  # the account's own password
     FEDERATED = "fed"

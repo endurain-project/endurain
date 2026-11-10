@@ -233,11 +233,11 @@ def frontend_not_found(
         Response: The frontend index file or the requested resource if found.
 
     Raises:
-        NotFoundError: If the path is under the API prefix, since no API route matched it.
+        NotFoundError: If the path is under the API prefix or ``.well-known``, since no route serves it.
         HTTPException: If the requested resource is not found.
     """
     api_prefix = core_config.ROOT_PATH.strip("/")
-    if path == api_prefix or path.startswith(f"{api_prefix}/"):
+    if path in (api_prefix, ".well-known") or path.startswith((f"{api_prefix}/", ".well-known/")):
         raise core_exceptions.NotFoundError("Resource not found")
 
     if "." in path.split("/")[-1]:

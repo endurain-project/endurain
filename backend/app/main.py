@@ -342,6 +342,7 @@ def create_app() -> FastAPI:
     # reflects the validated settings.
     core_config.check_deprecated_env_vars()
     core_config.check_required_env_vars()
+    core_config.warn_unsafe_settings()
     core_config.check_required_dirs()
     core_logger.setup_main_logger()
 

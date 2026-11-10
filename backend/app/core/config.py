@@ -373,6 +373,27 @@ class Settings(BaseSettings):
             return "starttls"
         return normalised
 
+    @field_validator("ENDURAIN_HOST")
+    @classmethod
+    def _validate_endurain_host(cls, v: str) -> str:
+        """Require the public address to be an origin: ``http(s)://host[:port]``.
+
+        Raises:
+            ValueError: If the value has no scheme or host, a scheme other than http or https, user info, a path
+                (a trailing slash included), a query or a fragment, or an invalid port.
+        """
+        message = f"ENDURAIN_HOST '{v}' must look like https://host[:port], with no user info, path, query or fragment"
+        if any(char.isspace() or char in "\\?#@" for char in v):
+            raise ValueError(message)
+        try:
+            parts = urlsplit(v)
+            _ = parts.port
+        except ValueError as err:
+            raise ValueError(message) from err
+        if parts.scheme not in ("http", "https") or not parts.hostname or parts.path:
+            raise ValueError(message)
+        return v
+
     @field_validator("ALLOWED_REDIRECT_URIS", mode="before")
     @classmethod
     def _parse_allowed_redirect_uris(cls, v: str | Iterable[object] | None) -> set[str]:
@@ -1171,6 +1192,30 @@ def check_required_env_vars() -> None:
             raise ValueError(message)
 
     validate_log_level(settings.LOG_LEVEL)
+
+
+#: Hosts for which plain ``http`` is not worth a warning.
+LOOPBACK_HOSTS: frozenset[str] = frozenset({"localhost", "127.0.0.1", "::1"})
+
+
+def warn_unsafe_settings() -> None:
+    """Log the startup settings that are accepted but unwise, or that no longer take effect.
+
+    Plain ``http`` for ``ENDURAIN_HOST`` is allowed except on a loopback host, and a leftover ``ALGORITHM`` (or
+    ``ALGORITHM_FILE``) is ignored because the signing algorithm is fixed.
+    """
+    parts = urlsplit(settings.ENDURAIN_HOST)
+    if parts.scheme == "http" and parts.hostname not in LOOPBACK_HOSTS:
+        logger.warning(
+            "ENDURAIN_HOST uses plain http: tokens, cookies and links travel unencrypted. Serve Endurain over https.",
+            extra=core_logger.context(console=True),
+        )
+    for name in ("ALGORITHM", "ALGORITHM_FILE"):
+        if name in os.environ:
+            logger.warning(
+                f"{name} is ignored and will be removed: tokens are always signed with HS256.",
+                extra=core_logger.context(console=True),
+            )
 
 
 # Environment variables retired in v0.19.x, v0.20.0 and v0.21.0. Maps the removed variable

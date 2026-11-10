@@ -102,6 +102,7 @@ def main() -> None:
     """Validate the environment, configure logging, and run the worker process."""
     core_config.check_deprecated_env_vars()
     core_config.check_required_env_vars()
+    core_config.warn_unsafe_settings()
     core_config.check_required_dirs()
     core_logger.setup_main_logger()
     run_worker_process()

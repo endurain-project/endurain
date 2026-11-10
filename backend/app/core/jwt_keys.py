@@ -18,13 +18,10 @@ from joserfc import jwt
 from joserfc.jwk import KeySet, OctKey
 from joserfc.jwt import Token
 
-import core.config as core_config
 import core.key_derivation as core_key_derivation
 
 ALLOWED_ALGORITHMS: Final[frozenset[str]] = frozenset({"HS256"})
-ALGORITHM: Final[str] = core_config.read_secret("ALGORITHM", "HS256") or "HS256"
-if ALGORITHM not in ALLOWED_ALGORITHMS:
-    raise ValueError(f"ALGORITHM={ALGORITHM!r} is not in the allow-list {sorted(ALLOWED_ALGORITHMS)}.")
+ALGORITHM: Final[str] = "HS256"
 
 #: The JOSE ``typ`` of an access token (RFC 9068 section 2.1).
 ACCESS_JWT_TYP: Final[str] = "at+jwt"

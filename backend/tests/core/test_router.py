@@ -324,3 +324,33 @@ class TestUnknownApiPath(_FileResponseTestMixin):
             response = self._client().get("/api/v10/x")
 
         assert response.status_code == 200
+
+
+class TestWellKnownPaths(_FileResponseTestMixin):
+    """Nothing under /.well-known/ is the SPA shell: it answers the same 404 problem as an unknown API path."""
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/.well-known/openid-configuration",
+            "/.well-known/oauth-authorization-server",
+            "/.well-known/jwks.json",
+            "/.well-known/nested/anything",
+        ],
+    )
+    def test_a_well_known_path_is_a_404_problem_document(self, tmp_path, path):
+        with patch("core.router.core_utils.return_frontend_index") as mock:
+            mock.return_value = self._make_file_response(tmp_path)
+            response = TestUnknownApiPath._client().get(path)
+
+        mock.assert_not_called()
+        assert response.status_code == 404
+        assert response.headers["content-type"].startswith("application/problem+json")
+        assert response.json()["type"] == "urn:endurain:error:not-found"
+
+    def test_a_path_that_only_starts_like_well_known_still_gets_the_app(self, tmp_path):
+        with patch("core.router.core_utils.return_frontend_index") as mock:
+            mock.return_value = self._make_file_response(tmp_path)
+            response = TestUnknownApiPath._client().get("/.well-knownx/page")
+
+        assert response.status_code == 200
