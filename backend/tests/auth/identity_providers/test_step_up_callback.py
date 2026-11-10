@@ -248,7 +248,12 @@ class TestRefusals:
 
         assert _fragment(url) == {"step_up_error": ["failed"]}
 
-    @pytest.mark.parametrize("sub", [None, ""], ids=["missing", "empty"])
+    def test_an_integer_subject_finds_the_link_by_its_decimal_string(self, service):
+        _, _, find_link = _complete(service, claims={"sub": 12345, "auth_time": int(NOW.timestamp())})
+
+        assert find_link.call_args.args[:2] == (3, "12345")
+
+    @pytest.mark.parametrize("sub", [None, "", "   ", True], ids=["missing", "empty", "blank", "bool"])
     def test_an_id_token_without_a_subject_is_refused(self, service, sub):
         claims = {"auth_time": int(NOW.timestamp())} | ({"sub": sub} if sub is not None else {})
 

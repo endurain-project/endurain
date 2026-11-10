@@ -39,6 +39,25 @@ def requires_id_token(idp: identity_provider_contracts.IdentityProviderState) ->
     return "openid" in (idp.scopes or idp_constants.DEFAULT_SCOPES).split()
 
 
+def normalise_subject(value: object) -> str | None:
+    """Return a provider's subject as the string the links store, or None when it names no usable subject.
+
+    A provider such as GitHub identifies an account by an integer ``id``; its decimal string is the subject. A
+    string that is empty or only whitespace, a boolean and any other type name no subject.
+
+    Args:
+        value: The ``sub`` or ``id`` value the provider sent.
+
+    Returns:
+        The subject string, or None.
+    """
+    if isinstance(value, str):
+        return value if value.strip() else None
+    if isinstance(value, int) and not isinstance(value, bool):
+        return str(value)
+    return None
+
+
 def validate_redirect_url(redirect: str | None, allowed_uris: set[str]) -> None:
     """Validate the redirect URL to prevent open redirect vulnerabilities.
 

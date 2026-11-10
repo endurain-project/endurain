@@ -379,6 +379,39 @@ class TestHandleCallback:
         service._tokens.store_session_tokens.assert_not_called()
         db.commit.assert_called_once()
 
+    def _login_with_userinfo(self, service, userinfo):
+        idp = MagicMock(
+            issuer_url=None, userinfo_endpoint="https://idp.example.com/userinfo", slug="idp", provider_type="oauth2"
+        )
+        idp.name = "GitHub"
+        oauth_state = MagicMock(user_id=None, purpose=_LOGIN, nonce="nonce", redirect_path="/", client_type="web")
+        oauth_client = MagicMock()
+        oauth_client.fetch_token.return_value = {"access_token": "at"}
+        with (
+            patch.object(service._oidc, "decrypt_client_id", return_value=AUD),
+            patch.object(service._oidc, "decrypt_client_secret", return_value="secret"),
+            patch.object(service._oidc, "resolve_token_endpoint", return_value="https://idp.example.com/token"),
+            patch.object(service._oidc, "create_oauth_client", return_value=oauth_client),
+            patch.object(service._oidc, "get_userinfo", return_value=userinfo),
+            patch.object(
+                callback_service.user_provisioning_service,
+                "find_or_create_user",
+                return_value=MagicMock(id=1, username="alice", active=True),
+            ) as find_or_create,
+        ):
+            service.handle_callback(idp, "code", "state", oauth_state, MagicMock())
+        return find_or_create
+
+    def test_an_integer_id_is_the_subject_as_its_decimal_string(self, service):
+        find_or_create = self._login_with_userinfo(service, {"id": 12345})
+
+        assert find_or_create.call_args.args[1] == "12345"
+
+    @pytest.mark.parametrize("subject", [True, 1.5, ["a"], {"a": 1}, "", "   ", None])
+    def test_a_subject_that_is_not_a_usable_string_or_integer_is_refused_like_a_missing_one(self, service, subject):
+        with pytest.raises(core_exceptions.UpstreamError, match="did not provide required user identifier"):
+            self._login_with_userinfo(service, {"sub": subject})
+
     def test_link_mode_stores_no_token_because_it_creates_no_session(self, service):
         idp = MagicMock(
             id=3,

@@ -487,8 +487,8 @@ class CallbackService:
                 raise
 
             # Extract subject (unique user identifier)
-            subject = userinfo.get("sub") or userinfo.get("id")
-            if not subject:
+            subject = identity_provider_utils.normalise_subject(userinfo.get("sub") or userinfo.get("id"))
+            if subject is None:
                 _record_provider_refusal(idp.id, oauth_state, _NO_SUBJECT)
                 logger.debug(
                     "IdP <name> did not provide 'sub' or 'id' claim in userinfo: <value_2>",
@@ -853,8 +853,8 @@ class CallbackService:
             access_token=token_response.get("access_token"),
         )
         _require_fresh_sign_in(claims, oauth_state)
-        subject = claims.get("sub")
-        if not isinstance(subject, str) or not subject:
+        subject = identity_provider_utils.normalise_subject(claims.get("sub"))
+        if subject is None:
             logger.warning(
                 "Step-up refused: IdP <name> issued an ID token with no subject",
                 extra=core_logger.context(name=idp.name),
