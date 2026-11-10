@@ -19,6 +19,7 @@
     "reload": "Znovu načíst"
   },
   "staleError": "Toto bylo změněno jinde, zatímco jste na to koukali, takže nic nebylo uloženo. Byla načtena aktuální verze. Zkontrolujte ji a zkuste to znovu.",
+  "sessionRestoreError": "Nepodařilo se ověřit, zda jste přihlášeni. Server nebo vaše připojení může být nedostupné.",
   "fieldError": {
     "required": "Toto pole je povinné",
     "tooShort": "Tato hodnota je příliš krátká",

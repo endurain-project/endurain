@@ -19,6 +19,7 @@
     "reload": "Recargar"
   },
   "staleError": "Isto cambiouse noutro lugar mentres o mirabas, así que non se gardou nada. Cargouse a versión actual. Revísaa e téntao de novo.",
+  "sessionRestoreError": "Non puidemos comprobar se iniciaches sesión. Pode que o servidor ou a túa conexión non estean dispoñibles.",
   "fieldError": {
     "required": "Este campo é obrigatorio",
     "tooShort": "Este valor é demasiado curto",

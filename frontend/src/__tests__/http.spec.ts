@@ -354,6 +354,50 @@ describe('apiFetch', () => {
   })
 })
 
+describe('Retry-After', () => {
+  /**
+   * Builds an empty error response carrying a `Retry-After` header.
+   *
+   * @param status - HTTP status code.
+   * @param retryAfter - Header value, or `null` for none.
+   * @returns A Response instance.
+   */
+  function throttled(status: number, retryAfter: string | null): Response {
+    const headers = retryAfter === null ? undefined : { 'Retry-After': retryAfter }
+    return new Response(null, { status, headers })
+  }
+
+  it.each([429, 503])('reads delta-seconds from a %i', async (status) => {
+    fetchMock.mockResolvedValue(throttled(status, '30'))
+
+    const error = await apiFetch('/data').catch((caught: unknown) => caught)
+
+    expect((error as HttpError).retryAfterSeconds).toBe(30)
+  })
+
+  it('reads an HTTP-date as the seconds left until it', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-11-10T12:00:00Z'))
+    fetchMock.mockResolvedValue(throttled(429, 'Tue, 10 Nov 2026 12:01:30 GMT'))
+
+    const error = await apiFetch('/data').catch((caught: unknown) => caught)
+    vi.useRealTimers()
+
+    expect((error as HttpError).retryAfterSeconds).toBe(90)
+  })
+
+  it.each([null, 'soon', '-5', 'Tue, 10 Nov 2020 12:00:00 GMT'])(
+    'has no wait time for %j',
+    async (value) => {
+      fetchMock.mockResolvedValue(throttled(429, value))
+
+      const error = await apiFetch('/data').catch((caught: unknown) => caught)
+
+      expect((error as HttpError).retryAfterSeconds).toBeNull()
+    },
+  )
+})
+
 describe('RFC 9457 problem documents', () => {
   it('carries the problem type and request id onto HttpError', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(

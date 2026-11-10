@@ -19,6 +19,7 @@
     "reload": "Znova naloži"
   },
   "staleError": "To je bilo spremenjeno drugje, medtem ko ste si to ogledovali, zato ničesar ni bilo shranjeno. Naložena je trenutna različica. Preglejte jo in poskusite znova.",
+  "sessionRestoreError": "Nismo mogli preveriti, ali ste prijavljeni. Strežnik ali vaša povezava morda nista na voljo.",
   "fieldError": {
     "required": "To polje je obvezno",
     "tooShort": "Ta vrednost je prekratka",

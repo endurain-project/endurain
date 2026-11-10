@@ -10,6 +10,7 @@
   "settings": "Impostazioni",
   "profile": "Profilo",
   "logout": "Esci",
+  "logoutFailed": "Impossibile disconnetterti. Controlla la connessione e riprova.",
   "userMenu": "Menu utente",
   "menu": "Menu",
   "primary": "Navigazione principale",

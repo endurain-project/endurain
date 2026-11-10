@@ -10,6 +10,7 @@
   "settings": "Nastavenia",
   "profile": "Profil",
   "logout": "Odhlásenie",
+  "logoutFailed": "Odhlásenie zlyhalo. Skontrolujte pripojenie a skúste to znova.",
   "userMenu": "Používateľské menu",
   "menu": "Menu",
   "primary": "Hlavná navigácia",

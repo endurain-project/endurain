@@ -6,8 +6,18 @@ const logout = vi.fn<() => Promise<string | null>>()
 const push = vi.fn<(location: unknown) => Promise<void>>()
 const assign = vi.fn<(url: string) => void>()
 
+const toastError = vi.fn<(message: string) => void>()
+
+vi.mock('@/composables/useToasts', () => ({
+  useToasts: () => ({ error: toastError }),
+}))
+
 vi.mock('@/features/auth/stores/auth', () => ({
   useAuthStore: () => ({ logout }),
+}))
+
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({ t: (key: string) => key }),
 }))
 
 vi.mock('vue-router', () => ({
@@ -37,5 +47,15 @@ describe('useSignOut', () => {
 
     expect(assign).not.toHaveBeenCalled()
     expect(push).toHaveBeenCalledWith({ name: 'login', query: { logoutSuccess: 'true' } })
+  })
+
+  it('reports a failed logout and stays where it is', async () => {
+    logout.mockRejectedValue(new Error('network down'))
+
+    await useSignOut().signOut()
+
+    expect(toastError).toHaveBeenCalledWith('nav.logoutFailed')
+    expect(push).not.toHaveBeenCalled()
+    expect(assign).not.toHaveBeenCalled()
   })
 })

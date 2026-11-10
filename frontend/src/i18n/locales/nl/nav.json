@@ -10,6 +10,7 @@
   "settings": "Instellingen",
   "profile": "Profiel",
   "logout": "Uitloggen",
+  "logoutFailed": "Uitloggen is mislukt. Controleer je verbinding en probeer het opnieuw.",
   "userMenu": "Gebruikersmenu",
   "menu": "Menu",
   "primary": "Primaire navigatie",

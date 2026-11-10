@@ -324,6 +324,11 @@ export async function authGuard(to: RouteLocationNormalized) {
     await auth.restoreSession()
   }
 
+  // The session could not be checked (App.vue shows a retry), so neither onboarding nor login applies.
+  if (auth.restoreFailed) {
+    return true
+  }
+
   // An authenticated session proves an account exists, so only visitors are checked.
   if (!auth.isAuthenticated) {
     const onboardingRequired = await isOnboardingRequired()

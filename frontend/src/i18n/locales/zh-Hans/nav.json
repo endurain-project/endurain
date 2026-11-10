@@ -10,6 +10,7 @@
   "settings": "设置",
   "profile": "个人资料",
   "logout": "退出登录",
+  "logoutFailed": "无法退出登录。请检查网络连接后重试。",
   "userMenu": "用户菜单",
   "menu": "菜单",
   "primary": "主导航",

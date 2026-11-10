@@ -10,6 +10,7 @@
   "settings": "Configuración",
   "profile": "Perfil",
   "logout": "Pechar sesión",
+  "logoutFailed": "Non se puido pechar a sesión. Comproba a túa conexión e téntao de novo.",
   "userMenu": "Menú de usuario",
   "menu": "Menú",
   "primary": "Navegación principal",

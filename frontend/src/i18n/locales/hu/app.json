@@ -19,6 +19,7 @@
     "reload": "Újratöltés"
   },
   "staleError": "Ezt máshol módosították, miközben nézted, ezért semmi sem lett mentve. A jelenlegi verzió betöltődött. Nézd át, és próbáld újra.",
+  "sessionRestoreError": "Nem sikerült ellenőrizni, hogy be vagy-e jelentkezve. A szerver vagy a kapcsolatod lehet, hogy nem érhető el.",
   "fieldError": {
     "required": "Ez a mező kötelező",
     "tooShort": "Ez az érték túl rövid",

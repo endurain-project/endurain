@@ -19,6 +19,7 @@
     "reload": "Pārlādēt"
   },
   "staleError": "Šis tika mainīts citur, kamēr to skatījāties, tāpēc nekas netika saglabāts. Ir ielādēta pašreizējā versija. Pārskatiet to un mēģiniet vēlreiz.",
+  "sessionRestoreError": "Neizdevās pārbaudīt, vai esat pierakstījies. Serveris vai jūsu savienojums var nebūt pieejams.",
   "fieldError": {
     "required": "Šis lauks ir obligāts",
     "tooShort": "Šī vērtība ir pārāk īsa",

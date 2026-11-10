@@ -10,6 +10,7 @@
   "settings": "設定",
   "profile": "個人資料",
   "logout": "登出",
+  "logoutFailed": "無法登出。請檢查網路連線後再試。",
   "userMenu": "使用者選單",
   "menu": "選單",
   "primary": "主要導覽",

@@ -19,6 +19,7 @@
     "reload": "Recharger"
   },
   "staleError": "Ceci a été modifié ailleurs pendant que vous le consultiez, donc rien n'a été enregistré. La version actuelle a été chargée. Vérifiez-la et réessayez.",
+  "sessionRestoreError": "Impossible de vérifier si vous êtes connecté. Le serveur ou votre connexion est peut-être indisponible.",
   "fieldError": {
     "required": "Ce champ est obligatoire",
     "tooShort": "Cette valeur est trop courte",

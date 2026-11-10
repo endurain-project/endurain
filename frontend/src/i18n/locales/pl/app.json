@@ -19,6 +19,7 @@
     "reload": "Odśwież"
   },
   "staleError": "Zostało to zmienione w innym miejscu, gdy na to patrzyłeś, więc nic nie zostało zapisane. Załadowano aktualną wersję. Sprawdź ją i spróbuj ponownie.",
+  "sessionRestoreError": "Nie udało się sprawdzić, czy jesteś zalogowany. Serwer lub Twoje połączenie może być niedostępne.",
   "fieldError": {
     "required": "To pole jest wymagane",
     "tooShort": "Ta wartość jest za krótka",

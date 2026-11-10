@@ -10,6 +10,7 @@
   "settings": "Seaded",
   "profile": "Profiil",
   "logout": "Logi välja",
+  "logoutFailed": "Väljalogimine ebaõnnestus. Kontrolli ühendust ja proovi uuesti.",
   "userMenu": "Kasutajamenüü",
   "menu": "Menüü",
   "primary": "Põhinavigatsioon",

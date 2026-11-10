@@ -19,6 +19,7 @@
     "reload": "Reîncarcă"
   },
   "staleError": "Acest lucru a fost modificat în altă parte în timp ce îl vizualizai, așa că nimic nu a fost salvat. Versiunea actuală a fost încărcată. Verifică-o și încearcă din nou.",
+  "sessionRestoreError": "Nu am putut verifica dacă ești autentificat. Serverul sau conexiunea ta ar putea fi indisponibile.",
   "fieldError": {
     "required": "Acest câmp este obligatoriu",
     "tooShort": "Această valoare este prea scurtă",

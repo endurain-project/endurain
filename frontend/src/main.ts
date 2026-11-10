@@ -13,6 +13,7 @@ import { useTelemetry } from './composables/useTelemetry'
 import { useToasts } from './composables/useToasts'
 import { VueQueryPlugin, vueQueryOptions } from './plugins/vueQuery'
 import { registerRenderProviders } from './providers'
+import { onSessionEndedElsewhere } from './lib/sessionChannel'
 import { onSessionExpired } from './services/sessionExpiry'
 import { useAuthStore } from './features/auth/stores/auth'
 
@@ -55,6 +56,12 @@ async function bootstrap(): Promise<void> {
   // and send the user to the login screen with an explanatory message.
   const authStore = useAuthStore()
   onSessionExpired(() => {
+    if (authStore.expireSession() && router.currentRoute.value.name !== 'login') {
+      void router.replace({ name: 'login', query: { sessionExpired: 'true' } })
+    }
+  })
+  // A logout or expiry in another tab ends this tab's session too.
+  onSessionEndedElsewhere(() => {
     if (authStore.handleSessionExpired() && router.currentRoute.value.name !== 'login') {
       void router.replace({ name: 'login', query: { sessionExpired: 'true' } })
     }

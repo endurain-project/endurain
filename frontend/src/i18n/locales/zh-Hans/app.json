@@ -19,6 +19,7 @@
     "reload": "重新加载"
   },
   "staleError": "您查看时此内容已在别处被修改，因此未保存任何内容。已加载当前版本。请检查后重试。",
+  "sessionRestoreError": "无法确认你是否已登录。服务器或你的网络连接可能不可用。",
   "fieldError": {
     "required": "此字段为必填项",
     "tooShort": "此值太短",

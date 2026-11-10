@@ -19,6 +19,7 @@
     "reload": "Ricarica"
   },
   "staleError": "Questo è stato modificato altrove mentre lo stavi visualizzando, quindi non è stato salvato nulla. È stata caricata la versione attuale. Controllala e riprova.",
+  "sessionRestoreError": "Non è stato possibile verificare se hai effettuato l'accesso. Il server o la tua connessione potrebbero non essere disponibili.",
   "fieldError": {
     "required": "Questo campo è obbligatorio",
     "tooShort": "Questo valore è troppo corto",

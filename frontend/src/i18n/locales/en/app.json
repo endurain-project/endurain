@@ -19,6 +19,7 @@
     "reload": "Reload"
   },
   "staleError": "This was changed elsewhere while you were looking at it, so nothing was saved. The current version has been loaded. Review it and try again.",
+  "sessionRestoreError": "We couldn't check whether you are signed in. The server or your connection may be unavailable.",
   "fieldError": {
     "required": "This field is required",
     "tooShort": "This value is too short",

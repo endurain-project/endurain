@@ -19,6 +19,7 @@
     "reload": "Lataa uudelleen"
   },
   "staleError": "Tätä muutettiin muualla, kun katselit sitä, joten mitään ei tallennettu. Nykyinen versio on ladattu. Tarkista se ja yritä uudelleen.",
+  "sessionRestoreError": "Emme voineet tarkistaa, oletko kirjautunut sisään. Palvelin tai yhteytesi ei ehkä ole käytettävissä.",
   "fieldError": {
     "required": "Tämä kenttä on pakollinen",
     "tooShort": "Tämä arvo on liian lyhyt",

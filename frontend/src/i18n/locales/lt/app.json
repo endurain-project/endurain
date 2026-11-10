@@ -19,6 +19,7 @@
     "reload": "Įkelti iš naujo"
   },
   "staleError": "Tai buvo pakeista kitur, kol į tai žiūrėjote, todėl nieko neįrašyta. Įkelta dabartinė versija. Peržiūrėkite ją ir bandykite dar kartą.",
+  "sessionRestoreError": "Nepavyko patikrinti, ar esate prisijungę. Serveris arba jūsų ryšys gali būti nepasiekiamas.",
   "fieldError": {
     "required": "Šis laukas privalomas",
     "tooShort": "Ši reikšmė per trumpa",

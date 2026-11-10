@@ -19,6 +19,7 @@
     "reload": "Genindlæs"
   },
   "staleError": "Dette blev ændret et andet sted, mens du kiggede på det, så intet blev gemt. Den aktuelle version er indlæst. Gennemgå den, og prøv igen.",
+  "sessionRestoreError": "Vi kunne ikke kontrollere, om du er logget ind. Serveren eller din forbindelse er muligvis utilgængelig.",
   "fieldError": {
     "required": "Dette felt er påkrævet",
     "tooShort": "Denne værdi er for kort",

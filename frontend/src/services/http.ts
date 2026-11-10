@@ -43,6 +43,8 @@ export class HttpError extends Error {
    * @param requestId - The backend's `X-Request-ID` for this failure. Quoting it
    *   in a bug report resolves to the exact server log line.
    * @param errors - Per-field validation failures of a 422 response; empty otherwise.
+   * @param retryAfterSeconds - Seconds the server asked the client to wait (`Retry-After`, as
+   *   sent with a 429 or 503); `null` when absent or unusable.
    */
   constructor(
     readonly status: number,
@@ -51,6 +53,7 @@ export class HttpError extends Error {
     readonly type: string | null = null,
     readonly requestId: string | null = null,
     readonly errors: readonly Schemas['FieldError'][] = [],
+    readonly retryAfterSeconds: number | null = null,
   ) {
     super(getErrorMessage(status, statusText, detail))
     this.name = 'HttpError'
@@ -115,6 +118,23 @@ async function parseError(response: Response): Promise<ParsedError> {
   } catch {
     return { ...empty, detail: text }
   }
+}
+
+/**
+ * Reads a `Retry-After` header, sent either as delta-seconds or as an HTTP date.
+ *
+ * @param value - The header value, or `null` when absent.
+ * @returns Whole seconds to wait, or `null` when the header is absent, malformed or already past.
+ */
+function parseRetryAfter(value: string | null): number | null {
+  if (value === null) {
+    return null
+  }
+  const trimmed = value.trim()
+  const seconds = /^\d+$/.test(trimmed)
+    ? Number(trimmed)
+    : (Date.parse(trimmed) - Date.now()) / 1000
+  return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : null
 }
 
 /**
@@ -242,6 +262,7 @@ async function rawApiFetch<T>(path: string, init: ApiFetchOptions = {}): Promise
       parsed.type,
       parsed.requestId,
       parsed.errors,
+      parseRetryAfter(response.headers.get('Retry-After')),
     )
   }
 

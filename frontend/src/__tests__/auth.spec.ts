@@ -23,6 +23,9 @@ vi.mock('@/services/authTokens', () => ({
   setAuthTokens: vi.fn<typeof setAuthTokens>(),
 }))
 
+const { broadcastSessionEnded } = vi.hoisted(() => ({ broadcastSessionEnded: vi.fn<() => void>() }))
+vi.mock('@/lib/sessionChannel', () => ({ broadcastSessionEnded }))
+
 vi.mock('@/features/auth/services/profile', () => ({
   fetchCurrentUser: vi.fn<typeof fetchCurrentUser>(),
 }))
@@ -248,6 +251,83 @@ describe('auth store', () => {
     await auth.login('demo', 'password123')
 
     await expect(auth.logout()).resolves.toBeNull()
+    expect(auth.isAuthenticated).toBe(false)
+  })
+
+  it.each([401, 403])('clears local state when logout is refused with %i', async (status) => {
+    vi.mocked(loginWithPassword).mockResolvedValue(tokenResponse)
+    vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
+    vi.mocked(logoutSession).mockRejectedValue(new HttpError(status, 'Refused'))
+
+    const auth = useAuthStore()
+    await auth.login('demo', 'password123')
+
+    await expect(auth.logout()).resolves.toBeNull()
+    expect(auth.isAuthenticated).toBe(false)
+  })
+
+  it.each([
+    ['a network error', new TypeError('Failed to fetch')],
+    ['a 503', new HttpError(503, 'Service Unavailable')],
+    ['a 429', new HttpError(429, 'Too Many Requests')],
+  ])('keeps the session and rethrows when logout fails with %s', async (_label, failure) => {
+    vi.mocked(loginWithPassword).mockResolvedValue(tokenResponse)
+    vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
+    vi.mocked(logoutSession).mockRejectedValue(failure)
+
+    const auth = useAuthStore()
+    await auth.login('demo', 'password123')
+    vi.mocked(clearAuthTokens).mockClear()
+    broadcastSessionEnded.mockClear()
+
+    await expect(auth.logout()).rejects.toBe(failure)
+    expect(auth.isAuthenticated).toBe(true)
+    expect(clearAuthTokens).not.toHaveBeenCalled()
+    expect(broadcastSessionEnded).not.toHaveBeenCalled()
+  })
+
+  it('tells the other tabs when logout succeeds', async () => {
+    vi.mocked(logoutSession).mockResolvedValue({ idp_logout_url: null })
+
+    await useAuthStore().logout()
+
+    expect(broadcastSessionEnded).toHaveBeenCalledOnce()
+  })
+
+  it('tells the other tabs when the session expires while signed in', async () => {
+    vi.mocked(loginWithPassword).mockResolvedValue(tokenResponse)
+    vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
+    const auth = useAuthStore()
+    await auth.login('demo', 'password123')
+
+    auth.expireSession()
+
+    expect(broadcastSessionEnded).toHaveBeenCalledOnce()
+  })
+
+  it('clears the session on a 403 from the restore request', async () => {
+    vi.mocked(refreshSession).mockRejectedValue(new HttpError(403, 'Forbidden'))
+
+    const auth = useAuthStore()
+    await auth.restoreSession()
+
+    expect(clearAuthTokens).toHaveBeenCalled()
+    expect(auth.restoreFailed).toBe(false)
+    expect(auth.isReady).toBe(true)
+  })
+
+  it.each([
+    ['a network error', new TypeError('Failed to fetch')],
+    ['a 500', new HttpError(500, 'Internal Server Error')],
+    ['a 429', new HttpError(429, 'Too Many Requests')],
+  ])('keeps the session and flags a failed restore on %s', async (_label, failure) => {
+    vi.mocked(refreshSession).mockRejectedValue(failure)
+
+    const auth = useAuthStore()
+    await auth.restoreSession()
+
+    expect(clearAuthTokens).not.toHaveBeenCalled()
+    expect(auth.restoreFailed).toBe(true)
     expect(auth.isAuthenticated).toBe(false)
   })
 

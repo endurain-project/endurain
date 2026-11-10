@@ -196,6 +196,20 @@ describe('LoginView password step errors', () => {
     expect(wrapper.text()).toContain(i18n.global.t('login.invalidCredentialsPendingHint'))
   })
 
+  it.each([
+    [429, 'login.tooManyAttemptsWait'],
+    [503, 'login.unavailableWait'],
+  ])('tells the user how long to wait after a %i', async (status, key) => {
+    auth.login.mockRejectedValue(new HttpError(status, 'Refused', null, null, null, [], 42))
+    const wrapper = mountView()
+    await wrapper.find('input[name="username"]').setValue('user')
+    await wrapper.find('input[type="password"]').setValue('secret')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(i18n.global.t(key, { seconds: 42 }))
+  })
+
   it.each([403, 429])('does not add the hint to a %i', async (status) => {
     const wrapper = await submitPassword(status)
 

@@ -19,6 +19,7 @@
     "reload": "Last inn på nytt"
   },
   "staleError": "Dette ble endret et annet sted mens du så på det, så ingenting ble lagret. Den gjeldende versjonen er lastet inn. Gå gjennom den og prøv igjen.",
+  "sessionRestoreError": "Vi kunne ikke sjekke om du er logget inn. Serveren eller tilkoblingen din kan være utilgjengelig.",
   "fieldError": {
     "required": "Dette feltet er påkrevd",
     "tooShort": "Denne verdien er for kort",

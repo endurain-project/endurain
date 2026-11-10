@@ -10,6 +10,7 @@
   "settings": "Inställningar",
   "profile": "Profil",
   "logout": "Logga ut",
+  "logoutFailed": "Det gick inte att logga ut dig. Kontrollera anslutningen och försök igen.",
   "userMenu": "Användarmeny",
   "menu": "Meny",
   "primary": "Primär navigering",

@@ -19,6 +19,7 @@
     "reload": "Neu laden"
   },
   "staleError": "Dies wurde an anderer Stelle geändert, während du es angesehen hast, daher wurde nichts gespeichert. Die aktuelle Version wurde geladen. Prüfe sie und versuche es erneut.",
+  "sessionRestoreError": "Wir konnten nicht prüfen, ob du angemeldet bist. Der Server oder deine Verbindung ist möglicherweise nicht erreichbar.",
   "fieldError": {
     "required": "Dieses Feld ist erforderlich",
     "tooShort": "Dieser Wert ist zu kurz",

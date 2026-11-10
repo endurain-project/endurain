@@ -19,6 +19,7 @@
     "reload": "Laadi uuesti"
   },
   "staleError": "Seda muudeti mujal, kui vaatasid seda, seetõttu ei salvestatud midagi. Praegune versioon on laaditud. Vaata see üle ja proovi uuesti.",
+  "sessionRestoreError": "Me ei saanud kontrollida, kas oled sisse logitud. Server või sinu ühendus võib olla kättesaamatu.",
   "fieldError": {
     "required": "See väli on kohustuslik",
     "tooShort": "See väärtus on liiga lühike",

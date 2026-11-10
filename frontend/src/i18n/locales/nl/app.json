@@ -19,6 +19,7 @@
     "reload": "Opnieuw laden"
   },
   "staleError": "Dit is ergens anders gewijzigd terwijl je ernaar keek, dus er is niets opgeslagen. De huidige versie is geladen. Bekijk deze en probeer het opnieuw.",
+  "sessionRestoreError": "We konden niet controleren of je bent ingelogd. De server of je verbinding is mogelijk niet beschikbaar.",
   "fieldError": {
     "required": "Dit veld is verplicht",
     "tooShort": "Deze waarde is te kort",

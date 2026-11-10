@@ -19,6 +19,7 @@
     "reload": "Torna a carregar"
   },
   "staleError": "Això s'ha canviat en un altre lloc mentre ho estaves mirant, així que no s'ha desat res. S'ha carregat la versió actual. Revisa-la i torna-ho a provar.",
+  "sessionRestoreError": "No hem pogut comprovar si has iniciat la sessió. Pot ser que el servidor o la teva connexió no estiguin disponibles.",
   "fieldError": {
     "required": "Aquest camp és obligatori",
     "tooShort": "Aquest valor és massa curt",

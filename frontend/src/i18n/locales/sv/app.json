@@ -19,6 +19,7 @@
     "reload": "Ladda om"
   },
   "staleError": "Detta ändrades på annat håll medan du tittade på det, så inget sparades. Den aktuella versionen har lästs in. Granska den och försök igen.",
+  "sessionRestoreError": "Vi kunde inte kontrollera om du är inloggad. Servern eller din anslutning kan vara otillgänglig.",
   "fieldError": {
     "required": "Det här fältet är obligatoriskt",
     "tooShort": "Värdet är för kort",

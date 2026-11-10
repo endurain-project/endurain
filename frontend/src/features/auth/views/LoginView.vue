@@ -140,9 +140,13 @@ function getAuthErrorMessage(error: unknown, step: SignInStep): string {
     case 403:
       return t('login.forbidden')
     case 429:
-      return t('login.tooManyAttempts')
+      return error.retryAfterSeconds === null
+        ? t('login.tooManyAttempts')
+        : t('login.tooManyAttemptsWait', { seconds: error.retryAfterSeconds })
     case 503:
-      return t('login.unavailable')
+      return error.retryAfterSeconds === null
+        ? t('login.unavailable')
+        : t('login.unavailableWait', { seconds: error.retryAfterSeconds })
     default:
       return t('login.genericError')
   }

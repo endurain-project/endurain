@@ -8,10 +8,13 @@ import AppFooter from '@/components/layout/AppFooter.vue'
 import ErrorBoundary from '@/components/layout/ErrorBoundary.vue'
 import ToastHost from '@/components/layout/ToastHost.vue'
 import { Card } from '@/components/ui/card'
+import SessionRestoreErrorOverlay from '@/features/auth/components/SessionRestoreErrorOverlay.vue'
+import { useAuthStore } from '@/features/auth/stores/auth'
 import ConfigErrorOverlay from '@/features/config/components/ConfigErrorOverlay.vue'
 import { useAppConfig } from '@/features/config/composables/useAppConfig'
 
 const route = useRoute()
+const auth = useAuthStore()
 
 // Set at boot when the backend host is unreachable (misconfigured
 // ENDURAIN_HOST); when set, nothing else can work so we block the whole shell.
@@ -26,6 +29,8 @@ const showCard = computed(() => showChrome.value && !route.meta.cardless)
 
 <template>
   <ConfigErrorOverlay v-if="configError" />
+  <!-- The server could not be asked about the session, so signed-in state is unknown: offer a retry. -->
+  <SessionRestoreErrorOverlay v-else-if="auth.restoreFailed" />
   <div v-else class="flex min-h-svh flex-col bg-background text-foreground">
     <AppNavbar v-if="showChrome" />
     <main class="flex flex-1 flex-col">

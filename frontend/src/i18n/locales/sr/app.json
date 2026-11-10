@@ -19,6 +19,7 @@
     "reload": "Ponovo učitaj"
   },
   "staleError": "Ovo je izmenjeno na drugom mestu dok ste ga gledali, pa ništa nije sačuvano. Učitana je trenutna verzija. Pregledajte je i pokušajte ponovo.",
+  "sessionRestoreError": "Nismo mogli da proverimo da li ste prijavljeni. Server ili vaša veza možda nisu dostupni.",
   "fieldError": {
     "required": "Ovo polje je obavezno",
     "tooShort": "Ova vrednost je prekratka",

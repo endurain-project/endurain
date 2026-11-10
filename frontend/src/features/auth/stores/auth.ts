@@ -7,6 +7,7 @@ import type { LoginResponse, User } from '@/features/auth/types'
 import { useTelemetry } from '@/composables/useTelemetry'
 import { useRealtime } from '@/composables/useRealtime'
 import { getLocaleForBackendLanguage, loadLocaleMessages, setI18nLocale } from '@/i18n'
+import { broadcastSessionEnded } from '@/lib/sessionChannel'
 import { clearUserScopedStorage } from '@/lib/storage'
 import { queryClient } from '@/plugins/vueQuery'
 import { clearAuthTokens, setAuthTokens } from '@/services/authTokens'
@@ -49,14 +50,14 @@ export type LoginResult =
 type LoginMethod = 'password' | 'mfa' | 'password_change'
 
 /**
- * Checks whether an auth error is an expected, non-reportable outcome (an
- * unauthenticated or absent session) rather than a real fault worth capturing.
+ * Checks whether the server refused the session itself (HTTP 401 or 403), as opposed to a
+ * network error, a timeout, a 429 or a 5xx, which say nothing about whether the session is valid.
  *
  * @param error - The caught error.
- * @returns Whether the error is an expected 401/404 auth response.
+ * @returns Whether the server ruled the session invalid.
  */
-function isExpectedAuthError(error: unknown): boolean {
-  return error instanceof HttpError && [401, 404].includes(error.status)
+function isSessionRefused(error: unknown): boolean {
+  return error instanceof HttpError && (error.status === 401 || error.status === 403)
 }
 
 /**
@@ -105,6 +106,8 @@ export const useAuthStore = defineStore('auth', () => {
   const sessionId = ref<string | null>(null)
   const isReady = ref(false)
   const isAuthenticated = ref(false)
+  /** Set when the page-load restore failed for a reason other than a refused session. */
+  const restoreFailed = ref(false)
 
   /**
    * Completes a token response by storing tokens and hydrating the profile.
@@ -215,7 +218,9 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * Restores a session after page reload using the HTTP-only refresh cookie.
+   * Restores a session after page reload using the HTTP-only refresh cookie. Only the server
+   * refusing the session (401 or 403) ends it; any other failure leaves the session as it is
+   * and sets {@link restoreFailed}, so the user is offered a retry instead of being signed out.
    */
   async function restoreSession(): Promise<void> {
     if (isReady.value) {
@@ -227,10 +232,12 @@ export const useAuthStore = defineStore('auth', () => {
         await completeTokenLogin(response)
       })
       .catch((error: unknown) => {
-        clearLocalSession()
-        if (!isExpectedAuthError(error)) {
-          useTelemetry().captureError(error, { scope: 'restoreSession' })
+        if (isSessionRefused(error)) {
+          clearLocalSession()
+          return
         }
+        restoreFailed.value = true
+        useTelemetry().captureError(error, { scope: 'restoreSession' })
       })
       .finally(() => {
         isReady.value = true
@@ -269,24 +276,44 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * Logs out from the backend and always clears local auth state.
+   * Handles a session that expired in this tab: drops it here and tells the other tabs.
+   *
+   * @returns Whether a user session was active when it expired.
+   */
+  function expireSession(): boolean {
+    const wasAuthenticated = handleSessionExpired()
+    if (wasAuthenticated) {
+      broadcastSessionEnded()
+    }
+    return wasAuthenticated
+  }
+
+  /**
+   * Logs out from the backend, clears local auth state and tells the other tabs.
+   *
+   * When the server refuses the request (401 or 403) the session is already gone, so the local
+   * state is cleared as well. Any other failure (network error, 429, 5xx) leaves the server
+   * session alive, and its HTTP-only refresh cookie would restore it on the next page load, so
+   * the local session is kept and the error is thrown for the caller to report.
    *
    * @returns The identity provider's end-session URL when the session signed in
    *   through a provider and the URL is `https:`, otherwise `null`.
+   * @throws {unknown} The logout failure when the server may still hold the session.
    */
   async function logout(): Promise<string | null> {
     let idpLogoutUrl: string | null = null
     try {
       idpLogoutUrl = httpsUrlOrNull((await logoutSession()).idp_logout_url)
     } catch (error) {
-      if (!isExpectedAuthError(error)) {
+      if (!isSessionRefused(error)) {
         useTelemetry().captureError(error, { scope: 'logout' })
+        throw error
       }
-    } finally {
-      clearLocalSession()
-      isReady.value = true
-      useTelemetry().trackEvent('logout')
     }
+    clearLocalSession()
+    isReady.value = true
+    broadcastSessionEnded()
+    useTelemetry().trackEvent('logout')
     return idpLogoutUrl
   }
 
@@ -294,12 +321,14 @@ export const useAuthStore = defineStore('auth', () => {
     sessionId,
     isReady,
     isAuthenticated,
+    restoreFailed,
     completeTokenLogin,
     login,
     verifyMfa,
     changePassword,
     restoreSession,
     handleSessionExpired,
+    expireSession,
     clearLocalSession,
     logout,
   }

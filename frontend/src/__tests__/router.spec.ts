@@ -59,6 +59,17 @@ describe('authGuard', () => {
     queryClient.clear()
   })
 
+  it('lets the navigation through, without a login redirect, when the session could not be restored', async () => {
+    const auth = useAuthStore()
+    auth.isReady = true
+    auth.restoreFailed = true
+
+    const result = await authGuard(routeTo({ requiresAuth: true }, '/activities'))
+
+    expect(result).toBe(true)
+    expect(fetchOnboardingStatus).not.toHaveBeenCalled()
+  })
+
   it('redirects unauthenticated users to login with a redirect query', async () => {
     const auth = useAuthStore()
     auth.isReady = true

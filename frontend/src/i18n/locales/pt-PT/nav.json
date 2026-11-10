@@ -10,6 +10,7 @@
   "settings": "Definições",
   "profile": "Perfil",
   "logout": "Terminar sessão",
+  "logoutFailed": "Não foi possível terminar a sessão. Verifica a tua ligação e tenta novamente.",
   "userMenu": "Menu de utilizador",
   "menu": "Menu",
   "primary": "Navegação principal",

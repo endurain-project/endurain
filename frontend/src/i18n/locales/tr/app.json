@@ -19,6 +19,7 @@
     "reload": "Yeniden yükle"
   },
   "staleError": "Bunu baktığınız sırada başka bir yerde değiştirildi, bu yüzden hiçbir şey kaydedilmedi. Güncel sürüm yüklendi. Gözden geçirin ve yeniden deneyin.",
+  "sessionRestoreError": "Oturum açıp açmadığınızı kontrol edemedik. Sunucu veya bağlantınız kullanılamıyor olabilir.",
   "fieldError": {
     "required": "Bu alan zorunludur",
     "tooShort": "Bu değer çok kısa",
