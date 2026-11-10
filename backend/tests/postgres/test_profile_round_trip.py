@@ -150,6 +150,12 @@ def _small_export_batches(monkeypatch):
     )
 
 
+@pytest.fixture(autouse=True)
+def _process_memory_is_not_the_suites(monkeypatch):
+    """Read no process memory: the pytest process holds what earlier tests allocated, which these tests are not about."""
+    monkeypatch.setattr("modules.users.users_profile.utils.get_memory_usage_mb", lambda *_args, **_kwargs: 0.0)
+
+
 def _png(width: int = 2, height: int = 2, shade: int = 200) -> bytes:
     """Return a valid PNG, different for each shade."""
 

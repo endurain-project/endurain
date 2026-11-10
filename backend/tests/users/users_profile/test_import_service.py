@@ -88,6 +88,12 @@ class TestImportPerformanceConfig:
         assert config.batch_size == 50
 
 
+@pytest.fixture(autouse=True)
+def _process_memory_is_not_the_suites(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Read no process memory: the pytest process holds what earlier tests allocated, which these tests are not about."""
+    monkeypatch.setattr("modules.users.users_profile.utils.get_memory_usage_mb", lambda *_args, **_kwargs: 0.0)
+
+
 class TestImportServiceInit:
     def test_init_creates_service(self) -> None:
         mock_db = MagicMock(spec=Session)

@@ -24,12 +24,12 @@ def _wait_for_upload_job_completed(cluster) -> bool:
     """Wait for JASIL to record the upload job's completion.
 
     The handler commits the ingestion job's ``completed`` status in its own transaction; the runner closes the
-    ``processing_jobs`` row and its attempt in a later one, so the attempts are only final after that.
+    ``jasil_processing_jobs`` row and its attempt in a later one, so the attempts are only final after that.
     """
     return cluster.wait_for(
         lambda: (
             cluster.scalar(
-                "SELECT count(*) FROM processing_jobs WHERE subscriber_id = :subscriber AND status = 'completed'",
+                "SELECT count(*) FROM jasil_processing_jobs WHERE subscriber_id = :subscriber AND status = 'completed'",
                 subscriber=_UPLOAD_SUBSCRIBER,
             )
             == 1
