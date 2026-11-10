@@ -220,8 +220,9 @@ def edit_mail_settings(
     """
     verify_step_up(step_up, identity_providers_constants.StepUpAction.ADMIN_MAIL_SETTINGS_EDIT)
     snapshot = read_mail_settings(db)
-    # End the read transaction: the validation below may resolve DNS.
-    db.rollback()
+    # A verified step-up staged the use of a backup code and its audit row; commit them so the code is spent. This also
+    # ends the read transaction before the validation below, which may resolve DNS.
+    db.commit()
     core_etag.require_if_match(if_match, snapshot.version, "mail settings")
     keeps_password = server_settings_constants.MAIL_CREDENTIAL_FIELD not in attributes.model_fields_set
     plain_password = (

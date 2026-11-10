@@ -1139,9 +1139,24 @@ class TestEditMailSettings:
         )
 
         mail_env.write.assert_not_called()
-        db.commit.assert_not_called()
-        assert db.rollback.call_count == 2
+        db.commit.assert_called_once()
+        db.rollback.assert_called_once()
         assert result.host == "mail.example.com"
+
+    def test_the_step_up_is_committed_before_the_mail_check(self, mail_env):
+        # A step-up stages the consumption of a backup code and its audit row; a rollback would let the code be reused.
+        calls = []
+        db = MagicMock()
+        db.rollback.side_effect = lambda: calls.append("rollback")
+        db.commit.side_effect = lambda: calls.append("commit")
+        verifier = MagicMock(side_effect=lambda *_: calls.append("step_up"))
+        mail_env.problems.side_effect = lambda *_: calls.append("check") or []
+
+        server_settings_mail_service.edit_mail_settings(
+            _mail_edit(mail_env.stored, port=465), _STEP_UP, verifier, db, if_match="*"
+        )
+
+        assert calls[:3] == ["step_up", "commit", "check"]
 
     def test_the_row_is_locked_for_the_edit(self, mail_env):
         server_settings_mail_service.edit_mail_settings(
@@ -1166,7 +1181,8 @@ class TestEditMailSettings:
         )
 
         assert "password" not in mail_env.write.call_args.args[0].model_fields_set
-        db.commit.assert_called_once()
+        # The step-up is committed, then the write.
+        assert db.commit.call_count == 2
 
     def test_an_unchanged_password_keeps_its_stored_token(self, mail_env):
         body = _mail_edit(mail_env.stored, port=465, password="plain-old")
