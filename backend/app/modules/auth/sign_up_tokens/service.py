@@ -50,6 +50,7 @@ def _stage_sign_up_token(
     *,
     token: str | None = None,
     used: bool = False,
+    security_generation: int | None = None,
 ) -> sign_up_contracts.SignUpTokenState:
     """Stage a user's new verification token, using up their earlier ones, and return its row.
 
@@ -60,6 +61,8 @@ def _stage_sign_up_token(
         db: Database session.
         token: The raw token to store the hash of; a random one is generated when omitted.
         used: Whether the row is stored already used, as the record of a change that was applied.
+        security_generation: The account's security generation when an email change was requested; None on any
+            other token.
 
     Returns:
         The staged token row.
@@ -78,13 +81,19 @@ def _stage_sign_up_token(
         used=used,
         email=email,
         previous_email=previous_email,
+        security_generation=security_generation,
     )
     sign_up_crud.mark_user_sign_up_tokens_used(user_id, db)
     return sign_up_crud.create_sign_up_token(sign_up_token, db)
 
 
 def create_sign_up_token(
-    user_id: int, email: str, event_id: str, db: Session, previous_email: str | None = None
+    user_id: int,
+    email: str,
+    event_id: str,
+    db: Session,
+    previous_email: str | None = None,
+    security_generation: int | None = None,
 ) -> str:
     """Return the verification token for a mail event, replacing the user's earlier tokens and committing it.
 
@@ -98,6 +107,8 @@ def create_sign_up_token(
         db: Database session.
         previous_email: The account's address when an email change was requested; set only on an email-change
             token, which replaces that address with ``email`` once confirmed.
+        security_generation: The generation the email change was requested under; set only on an email-change
+            token.
 
     Returns:
         The raw token, which is not stored.
@@ -105,7 +116,7 @@ def create_sign_up_token(
     token = access_tokens_integration.derive_email_token(f"sign-up:{event_id}")
     if sign_up_crud.sign_up_token_exists(token_hashing.sha256_hex(token), db):
         return token
-    _stage_sign_up_token(user_id, email, previous_email, db, token=token)
+    _stage_sign_up_token(user_id, email, previous_email, db, token=token, security_generation=security_generation)
     db.commit()
     logger.info("Sign-up verification token created", extra=core_logger.context(user_id=user_id))
     return token
@@ -139,7 +150,13 @@ def request_email_change(user_id: int, email: str, previous_email: str, db: Sess
     """
     if not server_settings_integration.is_mail_configured(db):
         return False
-    _stage_sign_up_token(user_id, email, previous_email, db)
+    _stage_sign_up_token(
+        user_id,
+        email,
+        previous_email,
+        db,
+        security_generation=security_generation_integration.current_generation(user_id, db),
+    )
     sign_up_event_publishers.publish_email_change_verification_requested(user_id, db)
     return True
 
@@ -223,7 +240,13 @@ def request_self_service_email_change(
     """
     if not server_settings_integration.is_mail_configured(db):
         return False
-    _stage_sign_up_token(user_id, email, previous_email, db)
+    _stage_sign_up_token(
+        user_id,
+        email,
+        previous_email,
+        db,
+        security_generation=security_generation_integration.current_generation(user_id, db),
+    )
     holder = _holder_of(email, user_id, db)
     if holder is None:
         sign_up_event_publishers.publish_email_change_verification_requested(user_id, db)
@@ -397,9 +420,12 @@ def _issue_verification_email(
     frontend_host: str,
     build_email: Callable[[str, str, str, str], tuple[str, str, str]],
     db: Session,
+    security_generation: int | None = None,
 ) -> tuple[str, str, str, str]:
     """Create a verification link for ``email`` and return the email ``build_email`` makes of it."""
-    token = create_sign_up_token(user.id, email, event_id, db, previous_email=previous_email)
+    token = create_sign_up_token(
+        user.id, email, event_id, db, previous_email=previous_email, security_generation=security_generation
+    )
     link = f"{frontend_host}/verify-email?token={token}"
     locale = core_i18n.normalize_locale(user.preferred_language)
     subject, html_content, text_content = build_email(user.name, link, frontend_host, locale)
@@ -430,17 +456,21 @@ def prepare_email_change_verification_email(
     """Re-issue the user's pending email-change token and return its email for delivery after the session closes.
 
     Only a token's hash is stored, so the link is made from the pending change and the event id and mailed to the
-    pending address; a retry of the event gets the same link. An address another account holds gets none.
+    pending address; a retry of the event gets the same link. The new token keeps the generation the change was
+    requested under, so a security change since then leaves the change unconfirmable and it is not mailed. An
+    address another account holds gets none.
 
     Returns:
-        The recipient, subject, HTML and text, or None when the user or a pending change is missing, or another
-        account holds the pending address.
+        The recipient, subject, HTML and text, or None when the user or a pending change is missing, the change
+        predates a security change, or another account holds the pending address.
     """
     user = users_integration.get_user(user_id, db)
     if user is None:
         return None
     pending = _find_pending_email_change(user_id, db)
     if pending is None or pending.email is None or _holder_of(pending.email, user_id, db) is not None:
+        return None
+    if pending.security_generation != security_generation_integration.current_generation(user_id, db):
         return None
     return _issue_verification_email(
         user,
@@ -450,6 +480,7 @@ def prepare_email_change_verification_email(
         frontend_host,
         sign_up_email_messages.get_email_change_confirmation_email,
         db,
+        pending.security_generation,
     )
 
 
@@ -561,7 +592,9 @@ def verify_sign_up_token(token: str, db: Session, *, with_password: bool) -> sig
     """Stage consumption of a valid verification token and return what it proves.
 
     A confirmation that sets a password or moves the address bumps the account's security generation before the
-    claim writes the token row, so the generation row is the first lock taken.
+    claim writes the token row, so the generation row is the first lock taken. An email change is refused when the
+    generation it was requested under is no longer the account's: a password reset, an administrator's password
+    set or any other security change since the request ends it.
 
     Args:
         token: The raw verification token.
@@ -576,6 +609,15 @@ def verify_sign_up_token(token: str, db: Session, *, with_password: bool) -> sig
     """
     token_hash = token_hashing.sha256_hex(token)
     usable = sign_up_crud.get_usable_sign_up_token(token_hash, db)
+    if isinstance(usable, sign_up_contracts.EmailChangeClaim) and not security_generation_integration.matches_locked(
+        usable.user_id, usable.security_generation, db
+    ):
+        jasil_audit.record_detached(
+            sign_up_audit_actions.SIGN_UP_CONFIRM,
+            outcome=jasil_audit.Outcome.FAILURE,
+            details=sign_up_audit_actions.SignUpConfirmDetails(reason="security_changed"),
+        )
+        raise core_exceptions.InvalidInputError("Invalid or expired sign up token")
     if usable is not None and (with_password or isinstance(usable, sign_up_contracts.EmailChangeClaim)):
         security_generation_integration.stage_bump(usable.user_id, db)
     claim = sign_up_crud.claim_sign_up_token(token_hash, db)

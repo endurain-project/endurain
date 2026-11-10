@@ -21,6 +21,7 @@ import modules.auth.account_security.email_messages as account_security_email_me
 import modules.auth.account_security.event_publishers as account_security_event_publishers
 import modules.auth.account_security.events as account_security_events
 import modules.auth.account_security.step_up_service as step_up_service
+import modules.auth.api_keys.integration_service as api_keys_integration
 import modules.auth.authentication.integration_service as authentication_integration
 import modules.auth.authentication.schema as authentication_schema
 import modules.auth.constants as auth_constants
@@ -394,6 +395,8 @@ def change_managed_user_password(
     credentials_integration.set_local_password_hash(user_id, hashed_password, db, change_required=True)
     password_reset_tokens_integration.revoke_unused_tokens(user_id, db)
     revoked = sessions_integration.delete_sessions_by_user(user_id, db)
+    # The administrator ends every credential of the account that the old password could have created.
+    api_keys_integration.revoke_user_api_keys(user_id, db)
     authentication_integration.clear_account_login_lockout(db_user.username)
     _stage_credential_changed(
         account_security_audit_actions.PASSWORD_SET,

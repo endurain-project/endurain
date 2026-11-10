@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "Parola sıfırlandı",
-        "body": "Parolanız bir sıfırlama bağlantısıyla sıfırlandı. Bunu siz yapmadıysanız parolanızı tekrar sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
+        "body": "Parolanız bir sıfırlama bağlantısıyla sıfırlandı. Bunu siz yapmadıysanız parolanızı tekrar sıfırlayın ve güvenlik ayarlarınızı gözden geçirin. Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "Parola bir yönetici tarafından belirlendi",
-        "body": "Bir yönetici hesabınız için yeni bir parola belirledi. Bunu beklemiyorsanız yöneticinizle iletişime geçin."
+        "body": "Bir yönetici hesabınız için yeni bir parola belirledi. Bunu beklemiyorsanız yöneticinizle iletişime geçin. Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "İki adımlı kimlik doğrulama açıldı",

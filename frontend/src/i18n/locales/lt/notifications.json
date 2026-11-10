@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "Slaptažodis nustatytas iš naujo",
-        "body": "Jūsų slaptažodis buvo nustatytas iš naujo naudojant atkūrimo nuorodą. Jei tai nebuvote Jūs, vėl nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus."
+        "body": "Jūsų slaptažodis buvo nustatytas iš naujo naudojant atkūrimo nuorodą. Jei tai nebuvote Jūs, vėl nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus. Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "Slaptažodį nustatė administratorius",
-        "body": "Administratorius nustatė naują jūsų paskyros slaptažodį. Jei to nesitikėjote, susisiekite su administratoriumi."
+        "body": "Administratorius nustatė naują jūsų paskyros slaptažodį. Jei to nesitikėjote, susisiekite su administratoriumi. Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "Dviejų veiksnių autentifikavimas įjungtas",

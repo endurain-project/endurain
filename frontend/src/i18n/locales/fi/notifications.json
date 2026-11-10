@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "Salasana nollattu",
-        "body": "Salasanasi nollattiin nollauslinkin avulla. Jos et tehnyt tätä itse, nollaa salasanasi uudelleen ja tarkista turvallisuusasetuksesi."
+        "body": "Salasanasi nollattiin nollauslinkin avulla. Jos et tehnyt tätä itse, nollaa salasanasi uudelleen ja tarkista turvallisuusasetuksesi. Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "Ylläpitäjä asetti salasanan",
-        "body": "Ylläpitäjä asetti tilillesi uuden salasanan. Jos et odottanut tätä, ota yhteyttä ylläpitäjääsi."
+        "body": "Ylläpitäjä asetti tilillesi uuden salasanan. Jos et odottanut tätä, ota yhteyttä ylläpitäjääsi. Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "Kaksivaiheinen todennus otettu käyttöön",

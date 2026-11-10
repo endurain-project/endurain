@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "密码已重置",
-        "body": "您的密码已通过重置链接重置。如果这不是您本人操作，请再次重置密码并检查您的安全设置。"
+        "body": "您的密码已通过重置链接重置。如果这不是您本人操作，请再次重置密码并检查您的安全设置。 Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "管理员已设置密码",
-        "body": "管理员为您的账户设置了新密码。如果您并不知情，请联系管理员。"
+        "body": "管理员为您的账户设置了新密码。如果您并不知情，请联系管理员。 Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "双因素认证已开启",

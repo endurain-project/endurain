@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "Passord tilbakestilt",
-        "body": "Passordet ditt ble tilbakestilt med en tilbakestillingslenke. Hvis dette ikke var deg, tilbakestill passordet på nytt og gå gjennom sikkerhetsinnstillingene dine."
+        "body": "Passordet ditt ble tilbakestilt med en tilbakestillingslenke. Hvis dette ikke var deg, tilbakestill passordet på nytt og gå gjennom sikkerhetsinnstillingene dine. Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "Passord satt av en administrator",
-        "body": "En administrator har satt et nytt passord for kontoen din. Hvis du ikke ventet dette, kontakt administratoren din."
+        "body": "En administrator har satt et nytt passord for kontoen din. Hvis du ikke ventet dette, kontakt administratoren din. Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "Tofaktorautentisering slått på",

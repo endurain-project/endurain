@@ -22,6 +22,13 @@ _NOTICE_KEYS = {
     account_security_events.AccountSecurityChange.ACCOUNT_LOCKED.value: "security_notice_account_locked",
     account_security_events.AccountSecurityChange.MFA_LOCKED.value: "security_notice_mfa_locked",
 }
+# The changes that also end the account's API keys and pending email change, which the notice says.
+_RECOVERY_CHANGES = frozenset(
+    {
+        account_security_events.AccountSecurityChange.PASSWORD_RESET.value,
+        account_security_events.AccountSecurityChange.PASSWORD_SET_BY_ADMIN.value,
+    }
+)
 _PROVIDER_CHANGES = frozenset(
     {IDENTITY_PROVIDER_LINKED, account_security_events.AccountSecurityChange.IDENTITY_PROVIDER_UNLINKED.value}
 )
@@ -67,10 +74,14 @@ def get_account_security_changed_email(
     heading = tr(f"{change}.heading")
     security_label = tr("security_label")
     security_notice = tr(_NOTICE_KEYS.get(change, "security_notice"))
+    recovery_effects = tr("recovery_effects") if change in _RECOVERY_CHANGES else ""
+    recovery_html = f"<p>{recovery_effects}</p>" if recovery_effects else ""
+    recovery_text = f"{recovery_effects}\n\n" if recovery_effects else ""
 
     body_inner = f"""
             <p>{tr("greeting", name=html.escape(user_name))}</p>
             <p>{safe_intro}</p>
+            {recovery_html}
             <div
                 style="background-color: {core_email_templates.WARNING_BG};
                 border: 1px solid {core_email_templates.WARNING_BORDER};
@@ -93,6 +104,7 @@ def get_account_security_changed_email(
     text_content = (
         f"{tr('greeting', name=user_name)}\n\n"
         f"{intro}\n\n"
+        f"{recovery_text}"
         f"{security_label} {security_notice}\n\n"
         f"{labels['best_regards']}\n"
         f"{labels['team']}"

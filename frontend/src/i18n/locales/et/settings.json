@@ -189,7 +189,7 @@
     "password": {
       "button": "Lähtesta parool",
       "title": "Lähtesta parool",
-      "description": "Sea kasutajale {username} uus parool",
+      "description": "Sea kasutajale {username} uus parool All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Uus parool",
       "confirmLabel": "Kinnita uus parool",
       "required": "Parool on kohustuslik",

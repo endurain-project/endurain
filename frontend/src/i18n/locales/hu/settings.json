@@ -189,7 +189,7 @@
     "password": {
       "button": "Jelszó visszaállítása",
       "title": "Jelszó visszaállítása",
-      "description": "Állíts be új jelszót a következőhöz: {username}",
+      "description": "Állíts be új jelszót a következőhöz: {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Új jelszó",
       "confirmLabel": "Új jelszó megerősítése",
       "required": "A jelszó megadása kötelező",

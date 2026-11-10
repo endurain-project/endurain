@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "密碼已重設",
-        "body": "您的密碼已透過重設連結重設。如果這不是您本人操作，請再次重設密碼並檢查您的安全性設定。"
+        "body": "您的密碼已透過重設連結重設。如果這不是您本人操作，請再次重設密碼並檢查您的安全性設定。 Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "管理員已設定密碼",
-        "body": "管理員為您的帳號設定了新密碼。如果您並不知情，請聯絡管理員。"
+        "body": "管理員為您的帳號設定了新密碼。如果您並不知情，請聯絡管理員。 Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "雙重驗證已開啟",

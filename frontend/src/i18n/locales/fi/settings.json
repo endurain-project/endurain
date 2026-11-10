@@ -189,7 +189,7 @@
     "password": {
       "button": "Nollaa salasana",
       "title": "Nollaa salasana",
-      "description": "Aseta uusi salasana käyttäjälle {username}",
+      "description": "Aseta uusi salasana käyttäjälle {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Uusi salasana",
       "confirmLabel": "Vahvista uusi salasana",
       "required": "Salasana on pakollinen",

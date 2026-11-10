@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "Mot de passe réinitialisé",
-        "body": "Votre mot de passe a été réinitialisé à l'aide d'un lien de réinitialisation. Si ce n'était pas vous, réinitialisez-le à nouveau et vérifiez vos paramètres de sécurité."
+        "body": "Votre mot de passe a été réinitialisé à l'aide d'un lien de réinitialisation. Si ce n'était pas vous, réinitialisez-le à nouveau et vérifiez vos paramètres de sécurité. Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "Mot de passe défini par un administrateur",
-        "body": "Un administrateur a défini un nouveau mot de passe pour votre compte. Si vous ne vous y attendiez pas, contactez votre administrateur."
+        "body": "Un administrateur a défini un nouveau mot de passe pour votre compte. Si vous ne vous y attendiez pas, contactez votre administrateur. Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "Authentification à deux facteurs activée",

@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "Adgangskode nulstillet",
-        "body": "Din adgangskode blev nulstillet med et nulstillingslink. Hvis det ikke var dig, så nulstil din adgangskode igen og gennemgå dine sikkerhedsindstillinger."
+        "body": "Din adgangskode blev nulstillet med et nulstillingslink. Hvis det ikke var dig, så nulstil din adgangskode igen og gennemgå dine sikkerhedsindstillinger. Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "Adgangskode angivet af en administrator",
-        "body": "En administrator har angivet en ny adgangskode til din konto. Hvis du ikke forventede det, så kontakt din administrator."
+        "body": "En administrator har angivet en ny adgangskode til din konto. Hvis du ikke forventede det, så kontakt din administrator. Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "Tofaktorgodkendelse slået til",

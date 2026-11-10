@@ -16,17 +16,23 @@ class SignUpTokenState(BaseModel):
     used: bool
     email: str | None
     previous_email: str | None
+    security_generation: int | None
 
     model_config = ConfigDict(from_attributes=True, frozen=True)
 
 
 class SignUpTokenClaim(BaseModel):
-    """What a claimed token proves: its owner, the address it confirms and the address it replaces."""
+    """What a claimed token proves: its owner, the address it confirms and the address it replaces.
+
+    ``security_generation`` is the account generation an email change was requested under; it is None on any other
+    token.
+    """
 
     id: str
     user_id: int
     email: str | None
     previous_email: str | None
+    security_generation: int | None = None
 
     model_config = ConfigDict(from_attributes=True, frozen=True)
 

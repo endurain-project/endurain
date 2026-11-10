@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "Lozinka resetirana",
-        "body": "Vaša je lozinka resetirana putem poveznice za resetiranje. Ako to niste bili vi, ponovno resetirajte lozinku i pregledajte svoje sigurnosne postavke."
+        "body": "Vaša je lozinka resetirana putem poveznice za resetiranje. Ako to niste bili vi, ponovno resetirajte lozinku i pregledajte svoje sigurnosne postavke. Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "Administrator je postavio lozinku",
-        "body": "Administrator je postavio novu lozinku za vaš račun. Ako to niste očekivali, obratite se administratoru."
+        "body": "Administrator je postavio novu lozinku za vaš račun. Ako to niste očekivali, obratite se administratoru. Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "Dvofaktorska autentifikacija uključena",

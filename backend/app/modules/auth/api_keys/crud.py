@@ -3,7 +3,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 import core.database as core_database
@@ -104,6 +104,14 @@ def revoke_api_key(api_key_id: str, user_id: int, db: Session) -> None:
         raise core_exceptions.NotFoundError(f"API key {api_key_id} not found for user {user_id}")
     row.is_active = False
     db.flush()
+
+
+def revoke_all_api_keys_for_user(user_id: int, db: Session) -> int:
+    """Stage revocation of every active API key a user owns and return how many were revoked."""
+    model = api_keys_models.UsersApiKeys
+    return core_database.rowcount(
+        db, update(model).where(model.user_id == user_id, model.is_active.is_(True)).values(is_active=False)
+    )
 
 
 def delete_api_key(api_key_id: str, user_id: int, db: Session) -> None:

@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "Jelszó visszaállítva",
-        "body": "A jelszavadat egy visszaállító hivatkozással állítottuk vissza. Ha nem te voltál, állítsd vissza újra a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
+        "body": "A jelszavadat egy visszaállító hivatkozással állítottuk vissza. Ha nem te voltál, állítsd vissza újra a jelszavadat, és ellenőrizd a biztonsági beállításaidat. Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "A rendszergazda jelszót állított be",
-        "body": "A rendszergazda új jelszót állított be a fiókodhoz. Ha nem számítottál rá, fordulj a rendszergazdához."
+        "body": "A rendszergazda új jelszót állított be a fiókodhoz. Ha nem számítottál rá, fordulj a rendszergazdához. Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "Kétfaktoros hitelesítés bekapcsolva",

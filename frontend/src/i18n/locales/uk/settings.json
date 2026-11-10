@@ -189,7 +189,7 @@
     "password": {
       "button": "Скинути пароль",
       "title": "Скинути пароль",
-      "description": "Встановіть новий пароль для {username}",
+      "description": "Встановіть новий пароль для {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Новий пароль",
       "confirmLabel": "Підтвердьте новий пароль",
       "required": "Пароль обов'язковий",

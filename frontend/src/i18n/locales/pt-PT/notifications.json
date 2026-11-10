@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "Palavra-passe reposta",
-        "body": "A tua palavra-passe foi reposta através de uma ligação de reposição. Se não foste tu, repõe novamente a palavra-passe e revê as tuas definições de segurança."
+        "body": "A tua palavra-passe foi reposta através de uma ligação de reposição. Se não foste tu, repõe novamente a palavra-passe e revê as tuas definições de segurança. Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "Palavra-passe definida por um administrador",
-        "body": "Um administrador definiu uma nova palavra-passe para a tua conta. Se não estavas à espera, contacta o teu administrador."
+        "body": "Um administrador definiu uma nova palavra-passe para a tua conta. Se não estavas à espera, contacta o teu administrador. Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "Autenticação de dois fatores ativada",

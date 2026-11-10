@@ -12,6 +12,13 @@ _PREFIX = "modules.auth.account_security.account_security_service."
 
 
 @pytest.fixture(autouse=True)
+def api_keys():
+    """Replace the API-key boundary."""
+    with patch(_PREFIX + "api_keys_integration") as integration:
+        yield integration
+
+
+@pytest.fixture(autouse=True)
 def password_reset_tokens():
     """Replace the password-reset-token boundary."""
     with patch(_PREFIX + "password_reset_tokens_integration") as integration:
@@ -181,6 +188,33 @@ class TestChangeOwnPassword:
             mock_settings, "admin", "new-pass", mock_db, username="alice", email="alice@example.com"
         )
 
+    def test_keeps_the_users_api_keys(self, mock_db, api_keys):
+        """The user is signed in and manages their keys on the keys page; a change of password keeps them."""
+        mock_user = MagicMock(access_type="regular", username="alice", email="alice@example.com")
+        prefix = "modules.auth.account_security.account_security_service."
+        with (
+            patch(prefix + "step_up_service.verify_step_up_credentials"),
+            patch(prefix + "server_settings_integration.get_server_settings"),
+            patch(prefix + "credentials_integration.has_local_password", return_value=True),
+            patch(prefix + "credentials_integration.ensure_password_differs_from_current"),
+            patch(prefix + "users_integration.require_user", return_value=mock_user),
+            patch(prefix + "credentials_integration.validate_and_hash_password_for_user", return_value="hashed"),
+            patch(prefix + "credentials_integration.set_local_password_hash"),
+            patch(prefix + "sessions_integration.delete_sessions_by_user"),
+        ):
+            account_security_service.stage_change_own_password(
+                user_id=7,
+                current_password="old-pass",
+                new_password="new-pass",
+                mfa_code=None,
+                step_up_store=MagicMock(),
+                db=mock_db,
+                revoke_other_sessions=True,
+                current_session_id="session-1",
+            )
+
+        api_keys.revoke_user_api_keys.assert_not_called()
+
     @pytest.mark.parametrize("revoke", [True, False])
     def test_revokes_other_sessions_only_when_asked(self, revoke, mock_db):
         """Other sessions are deleted, keeping the current one, only when the caller asks."""
@@ -218,6 +252,20 @@ class TestChangeOwnPassword:
 
 class TestChangeManagedUserPassword:
     """Tests for managed user password changes."""
+
+    def test_revokes_the_users_api_keys(self, mock_db, api_keys):
+        """The administrator knows the password, and whoever held the old one may hold a key."""
+        mock_user = MagicMock(access_type="regular", username="alice", email="alice@example.com")
+        with (
+            patch(_PREFIX + "server_settings_integration.get_server_settings"),
+            patch(_PREFIX + "users_integration.require_user", return_value=mock_user),
+            patch(_PREFIX + "credentials_integration.validate_and_hash_password_for_user", return_value="hashed"),
+            patch(_PREFIX + "credentials_integration.set_local_password_hash"),
+            patch(_PREFIX + "sessions_integration.delete_sessions_by_user"),
+        ):
+            account_security_service.change_managed_user_password(42, "new-pass", mock_db)
+
+        api_keys.revoke_user_api_keys.assert_called_once_with(42, mock_db)
 
     def test_voids_the_users_unused_reset_tokens(self, mock_db, password_reset_tokens):
         """A reset link mailed before the administrator set a password stops working."""

@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "Contrasenya restablerta",
-        "body": "S'ha restablert la teva contrasenya amb un enllaç de restabliment. Si no has estat tu, torna a restablir la contrasenya i revisa la configuració de seguretat."
+        "body": "S'ha restablert la teva contrasenya amb un enllaç de restabliment. Si no has estat tu, torna a restablir la contrasenya i revisa la configuració de seguretat. Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "Contrasenya establerta per un administrador",
-        "body": "Un administrador ha establert una contrasenya nova per al teu compte. Si no ho esperaves, contacta amb l'administrador."
+        "body": "Un administrador ha establert una contrasenya nova per al teu compte. Si no ho esperaves, contacta amb l'administrador. Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "Autenticació de dos factors activada",

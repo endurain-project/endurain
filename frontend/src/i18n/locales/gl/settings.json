@@ -189,7 +189,7 @@
     "password": {
       "button": "Restablecer contrasinal",
       "title": "Restablecer contrasinal",
-      "description": "Establece un novo contrasinal para {username}",
+      "description": "Establece un novo contrasinal para {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Novo contrasinal",
       "confirmLabel": "Confirmar novo contrasinal",
       "required": "O contrasinal é obrigatorio",

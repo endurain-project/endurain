@@ -189,7 +189,7 @@
     "password": {
       "button": "Restablecer contraseña",
       "title": "Restablecer contraseña",
-      "description": "Establecer una nueva contraseña para {username}",
+      "description": "Establecer una nueva contraseña para {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Nueva contraseña",
       "confirmLabel": "Confirmar nueva contraseña",
       "required": "La contraseña es obligatoria",

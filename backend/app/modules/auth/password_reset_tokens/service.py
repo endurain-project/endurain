@@ -13,6 +13,7 @@ import core.exceptions as core_exceptions
 import core.i18n as core_i18n
 import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as access_tokens_integration
+import modules.auth.api_keys.integration_service as api_keys_integration
 import modules.auth.authentication.integration_service as authentication_integration
 import modules.auth.computation as token_hashing
 import modules.auth.credentials.integration_service as credentials_integration
@@ -275,6 +276,8 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
     credentials_integration.set_local_password_hash(token_user_id, hashed_password, db, change_required=False)
     password_reset_crud.mark_user_password_reset_tokens_used(token_user_id, db)
     sessions_integration.delete_sessions_by_user(token_user_id, db)
+    # Whoever held the old password may hold a key, and the owner has just proved they hold the mailbox.
+    api_keys_integration.revoke_user_api_keys(token_user_id, db)
     jasil_audit.stage(
         db,
         password_reset_audit_actions.PASSWORD_RESET,

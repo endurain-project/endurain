@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "Lösenordet återställdes",
-        "body": "Ditt lösenord återställdes med en återställningslänk. Om det inte var du, återställ lösenordet igen och granska dina säkerhetsinställningar."
+        "body": "Ditt lösenord återställdes med en återställningslänk. Om det inte var du, återställ lösenordet igen och granska dina säkerhetsinställningar. Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "Lösenord inställt av en administratör",
-        "body": "En administratör har ställt in ett nytt lösenord för ditt konto. Om du inte väntade dig det, kontakta din administratör."
+        "body": "En administratör har ställt in ett nytt lösenord för ditt konto. Om du inte väntade dig det, kontakta din administratör. Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "Tvåfaktorsautentisering aktiverad",

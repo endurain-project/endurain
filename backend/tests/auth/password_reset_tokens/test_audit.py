@@ -46,6 +46,29 @@ def test_a_reset_is_audited_and_announced(mock_db):
     assert publish.call_args.args[1] == {"user_id": 7}
 
 
+def test_a_reset_revokes_the_users_api_keys(mock_db):
+    """Whoever held the old password may hold a key, so a recovery ends the keys with the sessions."""
+    with (
+        patch.object(password_reset_service.password_reset_crud, "claim_password_reset_token", return_value=7),
+        patch.object(password_reset_service.server_settings_integration, "get_server_settings"),
+        patch.object(password_reset_service.users_integration, "require_user") as require_user,
+        patch.object(password_reset_service, "_may_reset_password", return_value=True),
+        patch.object(password_reset_service.credentials_integration, "ensure_password_differs_from_current"),
+        patch.object(password_reset_service.credentials_integration, "validate_and_hash_password_for_user"),
+        patch.object(password_reset_service.credentials_integration, "set_local_password_hash"),
+        patch.object(password_reset_service.password_reset_crud, "mark_user_password_reset_tokens_used"),
+        patch.object(password_reset_service.sessions_integration, "delete_sessions_by_user"),
+        patch.object(password_reset_service.authentication_integration, "clear_account_login_lockout"),
+        patch.object(password_reset_service.api_keys_integration, "revoke_user_api_keys") as revoke_keys,
+        patch.object(platform_publisher, "publish_on_commit"),
+    ):
+        require_user.return_value.access_type = "regular"
+        require_user.return_value.username = "alice"
+        password_reset_service.use_password_reset_token("raw-token", "new-password", mock_db)
+
+    revoke_keys.assert_called_once_with(7, mock_db)
+
+
 def test_an_invalid_token_is_recorded_without_a_target(mock_db):
     with (
         patch.object(

@@ -189,7 +189,7 @@
     "password": {
       "button": "Passwort zurücksetzen",
       "title": "Passwort zurücksetzen",
-      "description": "Neues Passwort für {username} festlegen",
+      "description": "Neues Passwort für {username} festlegen All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Neues Passwort",
       "confirmLabel": "Neues Passwort bestätigen",
       "required": "Passwort ist erforderlich",

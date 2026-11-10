@@ -189,7 +189,7 @@
     "password": {
       "button": "Resetează parola",
       "title": "Resetează parola",
-      "description": "Setează o parolă nouă pentru {username}",
+      "description": "Setează o parolă nouă pentru {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Parolă nouă",
       "confirmLabel": "Confirmă parola nouă",
       "required": "Parola este obligatorie",

@@ -189,7 +189,7 @@
     "password": {
       "button": "Επαναφορά κωδικού",
       "title": "Επαναφορά κωδικού",
-      "description": "Ορίστε έναν νέο κωδικό για τον/την {username}",
+      "description": "Ορίστε έναν νέο κωδικό για τον/την {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Νέος κωδικός",
       "confirmLabel": "Επιβεβαίωση νέου κωδικού",
       "required": "Ο κωδικός είναι υποχρεωτικός",

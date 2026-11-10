@@ -13,6 +13,7 @@ import {
   Watch,
 } from '@lucide/vue'
 
+import i18n from '@/i18n'
 import type {
   Notification,
   NotificationOptionsOf,
@@ -155,6 +156,16 @@ describe('presentNotification', () => {
     expect(result.bodyKey).toBe(`notifications.types.accountSecurityChanged.${key}.body`)
     expect(result.to).toEqual({ name: 'settings-security' })
   })
+
+  it.each(['passwordReset', 'passwordSetByAdmin'])(
+    'tells the user that the %s recovery ended their API keys and pending email change',
+    (key) => {
+      const body = i18n.global.t(`notifications.types.accountSecurityChanged.${key}.body`)
+
+      expect(body).toContain('API keys')
+      expect(body).toContain('pending email change')
+    },
+  )
 
   it('names the provider of an unlink', () => {
     const result = presentNotification(

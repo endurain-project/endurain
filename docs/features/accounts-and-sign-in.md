@@ -69,6 +69,19 @@ sequenceDiagram
 - If the server has no mail configured, the request is answered with a "service unavailable" error. Ask an administrator to reset the password in [user management](user-management.md#resetting-a-password).
 - The new password must satisfy the server's password policy.
 
+### What a password change or reset ends
+
+A change that could mean the account was in someone else's hands ends what that person could have started. A pending email change is the one to watch: the person who requested it could otherwise confirm it after you recover the account and take over the address that password resets are mailed to.
+
+| What happens | Sessions | Unused reset links | Pending email change | [API keys](../integrate/api-keys.md) |
+| ------------ | -------- | ------------------ | -------------------- | ------------------------------------ |
+| You reset your password with the emailed link | All end | End | Ends | Revoked |
+| An administrator sets your password | All end | End | Ends | Revoked |
+| You change your password | Others end, unless you turn the switch off | End | Ends | Kept |
+| You choose **Sign out everywhere** | All end | Kept | Ends | Kept |
+
+The email and notification you get after a reset or an administrator's password set say that keys were revoked and a pending email change was cancelled. An email change that ends is not confirmed when its link is opened, and the page answers like an expired link. Request the change again. Create new API keys after a reset or an administrator's password set; the revoked ones stay in the list as inactive. When you change your password or sign out everywhere while signed in, revoke any key you do not recognise under **Settings → Security**.
+
 ## Password rules
 
 Passwords follow [NIST SP 800-63B-4](https://pages.nist.gov/800-63-4/sp800-63b.html): length matters, character mixes do not. A new password must:

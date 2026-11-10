@@ -189,7 +189,7 @@
     "password": {
       "button": "Atstatyti slaptažodį",
       "title": "Atstatyti slaptažodį",
-      "description": "Nustatyti naują slaptažodį naudotojui {username}",
+      "description": "Nustatyti naują slaptažodį naudotojui {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Naujas slaptažodis",
       "confirmLabel": "Patvirtinti naują slaptažodį",
       "required": "Slaptažodis yra privalomas",

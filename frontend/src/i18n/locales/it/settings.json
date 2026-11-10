@@ -189,7 +189,7 @@
     "password": {
       "button": "Reimposta password",
       "title": "Reimposta password",
-      "description": "Imposta una nuova password per {username}",
+      "description": "Imposta una nuova password per {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Nuova password",
       "confirmLabel": "Conferma nuova password",
       "required": "La password è obbligatoria",

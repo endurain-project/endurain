@@ -133,12 +133,14 @@ class TestEmailPreparation:
     def test_email_change_verification_prepares_its_own_message(
         self, _get_user, _holder, pending, create_token, build_email, mock_db
     ):
-        pending.return_value = [MagicMock(email="new@example.test", previous_email="old@example.test")]
+        pending.return_value = [
+            MagicMock(email="new@example.test", previous_email="old@example.test", security_generation=0)
+        ]
         build_email.return_value = ("subject", "html", "text")
 
         result = sign_up_service.prepare_email_change_verification_email(1, "event-1", "https://example.test", mock_db)
 
         assert result == ("new@example.test", "subject", "html", "text")
         create_token.assert_called_once_with(
-            1, "new@example.test", "event-1", mock_db, previous_email="old@example.test"
+            1, "new@example.test", "event-1", mock_db, previous_email="old@example.test", security_generation=0
         )

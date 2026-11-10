@@ -2,7 +2,7 @@
 
 from datetime import datetime as datetime_type
 
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
@@ -20,6 +20,8 @@ class SignUpToken(Base):
         used: Whether the token has been used.
         email: Email address the token proves (empty on rows from before the column existed).
         previous_email: Account email address when an email change was requested (email-change tokens only).
+        security_generation: Account security generation the email change was requested under (email-change
+            tokens only); the confirmation is refused once the account's generation has moved on.
     """
 
     __tablename__ = "sign_up_tokens"
@@ -61,4 +63,9 @@ class SignUpToken(Base):
         String(250),
         nullable=True,
         comment="Account email address when an email change was requested (email-change tokens only)",
+    )
+    security_generation: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Account security generation an email-change token was issued under (email-change tokens only)",
     )

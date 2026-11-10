@@ -60,6 +60,11 @@ def revoke_api_key(api_key_id: str, user_id: int, db: Session) -> None:
     api_keys_crud.revoke_api_key(api_key_id, user_id, db)
 
 
+def revoke_user_api_keys(user_id: int, db: Session) -> int:
+    """Stage revocation of every active API key a user owns and return how many were revoked."""
+    return api_keys_crud.revoke_all_api_keys_for_user(user_id, db)
+
+
 def delete_api_key(api_key_id: str, user_id: int, db: Session) -> None:
     """Stage deletion of a user's API key."""
     api_keys_crud.delete_api_key(api_key_id, user_id, db)

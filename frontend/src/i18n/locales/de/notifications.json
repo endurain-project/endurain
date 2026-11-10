@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "Passwort zurückgesetzt",
-        "body": "Dein Passwort wurde über einen Link zum Zurücksetzen zurückgesetzt. Wenn du das nicht warst, setze dein Passwort erneut zurück und prüfe deine Sicherheitseinstellungen."
+        "body": "Dein Passwort wurde über einen Link zum Zurücksetzen zurückgesetzt. Wenn du das nicht warst, setze dein Passwort erneut zurück und prüfe deine Sicherheitseinstellungen. Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "Passwort von einem Administrator festgelegt",
-        "body": "Ein Administrator hat ein neues Passwort für dein Konto festgelegt. Wenn du das nicht erwartet hast, wende dich an deinen Administrator."
+        "body": "Ein Administrator hat ein neues Passwort für dein Konto festgelegt. Wenn du das nicht erwartet hast, wende dich an deinen Administrator. Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "Zwei-Faktor-Authentifizierung aktiviert",

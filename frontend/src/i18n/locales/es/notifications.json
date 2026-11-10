@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "Contraseña restablecida",
-        "body": "Tu contraseña se restableció mediante un enlace de restablecimiento. Si no fuiste tú, restablécela de nuevo y revisa tus ajustes de seguridad."
+        "body": "Tu contraseña se restableció mediante un enlace de restablecimiento. Si no fuiste tú, restablécela de nuevo y revisa tus ajustes de seguridad. Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "Contraseña establecida por un administrador",
-        "body": "Un administrador estableció una nueva contraseña para tu cuenta. Si no lo esperabas, contacta con tu administrador."
+        "body": "Un administrador estableció una nueva contraseña para tu cuenta. Si no lo esperabas, contacta con tu administrador. Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "Autenticación en dos pasos activada",

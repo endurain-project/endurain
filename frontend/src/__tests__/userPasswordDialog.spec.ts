@@ -111,3 +111,14 @@ describe('UserPasswordDialog weak password', () => {
     },
   )
 })
+
+describe('UserPasswordDialog description', () => {
+  it('tells the administrator what the password set ends', () => {
+    const description = i18n.global.t('settings.users.password.description', { username: 'bob' })
+
+    expect(description).toContain('bob')
+    expect(description).toContain('API keys')
+    expect(description).toContain('pending email change')
+    expect(description).toContain('sessions')
+  })
+})

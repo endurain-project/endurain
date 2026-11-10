@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "Parool lähtestatud",
-        "body": "Sinu parool lähtestati lähtestuslingi abil. Kui see ei olnud sina, lähtesta oma parool uuesti ja vaata üle oma turvaseaded."
+        "body": "Sinu parool lähtestati lähtestuslingi abil. Kui see ei olnud sina, lähtesta oma parool uuesti ja vaata üle oma turvaseaded. Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "Administraator määras parooli",
-        "body": "Administraator määras sinu kontole uue parooli. Kui sa seda ei oodanud, võta ühendust oma administraatoriga."
+        "body": "Administraator määras sinu kontole uue parooli. Kui sa seda ei oodanud, võta ühendust oma administraatoriga. Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "Kaheastmeline autentimine sisse lülitatud",

@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "Password reimpostata",
-        "body": "La tua password è stata reimpostata tramite un link di reimpostazione. Se non sei stato tu, reimpostala di nuovo e controlla le impostazioni di sicurezza."
+        "body": "La tua password è stata reimpostata tramite un link di reimpostazione. Se non sei stato tu, reimpostala di nuovo e controlla le impostazioni di sicurezza. Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "Password impostata da un amministratore",
-        "body": "Un amministratore ha impostato una nuova password per il tuo account. Se non te lo aspettavi, contatta il tuo amministratore."
+        "body": "Un amministratore ha impostato una nuova password per il tuo account. Se non te lo aspettavi, contatta il tuo amministratore. Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "Autenticazione a due fattori attivata",

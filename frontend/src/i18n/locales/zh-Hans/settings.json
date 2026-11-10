@@ -189,7 +189,7 @@
     "password": {
       "button": "重置密码",
       "title": "重置密码",
-      "description": "为 {username} 设置新密码",
+      "description": "为 {username} 设置新密码 All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "新密码",
       "confirmLabel": "确认新密码",
       "required": "密码为必填项",

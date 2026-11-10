@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "Parolă resetată",
-        "body": "Parola ta a fost resetată printr-un link de resetare. Dacă nu ai fost tu, resetează-ți din nou parola și verifică setările de securitate."
+        "body": "Parola ta a fost resetată printr-un link de resetare. Dacă nu ai fost tu, resetează-ți din nou parola și verifică setările de securitate. Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "Parolă setată de un administrator",
-        "body": "Un administrator a setat o parolă nouă pentru contul tău. Dacă nu te așteptai la asta, contactează administratorul."
+        "body": "Un administrator a setat o parolă nouă pentru contul tău. Dacă nu te așteptai la asta, contactează administratorul. Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "Verificare în doi pași activată",

@@ -43,7 +43,7 @@ def test_a_sign_up_confirmation_is_audited_with_the_password_flag(deps, mock_db)
         sign_up_service.verify_email("tok", "ChosenPass1!", mock_db)
 
     entry = audit.assert_audited(_ACTION, target_type="user", target_id="7", target_owner_id="7")
-    assert entry.details == {"password_set": True}
+    assert entry.details == {"password_set": True, "reason": None}
     assert "ChosenPass1!" not in repr(entry)
 
 
@@ -77,7 +77,7 @@ def test_confirming_an_active_account_that_already_has_a_password_sets_none(deps
         sign_up_service.verify_email("tok", None, mock_db)
 
     entry = audit.assert_audited(_ACTION, target_type="user", target_id="7", target_owner_id="7")
-    assert entry.details == {"password_set": False}
+    assert entry.details == {"password_set": False, "reason": None}
 
 
 def test_an_email_change_confirmation_is_not_audited_here(deps, mock_db):
@@ -109,5 +109,5 @@ def test_an_invalid_token_is_recorded_as_a_failure_without_a_target(mock_db):
 
     entry = audit.assert_audited(_ACTION, outcome="failure")
     assert entry.target_type is None
-    assert entry.details == {"password_set": None}
+    assert entry.details == {"password_set": None, "reason": None}
     assert "raw-token" not in repr(entry)

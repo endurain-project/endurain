@@ -189,7 +189,7 @@
     "password": {
       "button": "Atiestatīt paroli",
       "title": "Atiestatīt paroli",
-      "description": "Iestatiet jaunu paroli lietotājam {username}",
+      "description": "Iestatiet jaunu paroli lietotājam {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Jaunā parole",
       "confirmLabel": "Apstiprināt jauno paroli",
       "required": "Parole ir obligāta",

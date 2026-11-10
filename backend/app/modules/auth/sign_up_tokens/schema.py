@@ -19,6 +19,7 @@ class SignUpToken(BaseModel):
         used: Whether the token has been used.
         email: Email address the token proves.
         previous_email: Account email address a pending email change replaces.
+        security_generation: Account security generation a pending email change was requested under.
     """
 
     id: StrictStr = Field(
@@ -56,6 +57,10 @@ class SignUpToken(BaseModel):
         default=None,
         description="Account email address a pending email change replaces",
         max_length=250,
+    )
+    security_generation: StrictInt | None = Field(
+        default=None,
+        description="Account security generation a pending email change was requested under",
     )
 
     model_config = ConfigDict(

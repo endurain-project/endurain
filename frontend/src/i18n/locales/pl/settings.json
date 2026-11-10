@@ -189,7 +189,7 @@
     "password": {
       "button": "Resetuj hasło",
       "title": "Resetuj hasło",
-      "description": "Ustaw nowe hasło dla {username}",
+      "description": "Ustaw nowe hasło dla {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Nowe hasło",
       "confirmLabel": "Potwierdź nowe hasło",
       "required": "Hasło jest wymagane",

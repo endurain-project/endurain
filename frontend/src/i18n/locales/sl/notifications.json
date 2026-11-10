@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "Geslo ponastavljeno",
-        "body": "Tvoje geslo je bilo ponastavljeno s povezavo za ponastavitev. Če to nisi bil ti, znova ponastavi geslo in preglej varnostne nastavitve."
+        "body": "Tvoje geslo je bilo ponastavljeno s povezavo za ponastavitev. Če to nisi bil ti, znova ponastavi geslo in preglej varnostne nastavitve. Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "Geslo je nastavil skrbnik",
-        "body": "Skrbnik je nastavil novo geslo za tvoj račun. Če tega nisi pričakoval, se obrni na skrbnika."
+        "body": "Skrbnik je nastavil novo geslo za tvoj račun. Če tega nisi pričakoval, se obrni na skrbnika. Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "Dvostopenjska avtentikacija vklopljena",

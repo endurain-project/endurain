@@ -195,7 +195,7 @@
     "password": {
       "button": "Reset password",
       "title": "Reset password",
-      "description": "Set a new password for {username}",
+      "description": "Set a new password for {username}. All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "New password",
       "confirmLabel": "Confirm new password",
       "required": "Password is required",

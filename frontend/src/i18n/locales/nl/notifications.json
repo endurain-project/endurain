@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "Wachtwoord opnieuw ingesteld",
-        "body": "Je wachtwoord is opnieuw ingesteld via een resetlink. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen."
+        "body": "Je wachtwoord is opnieuw ingesteld via een resetlink. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen. Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "Wachtwoord ingesteld door een beheerder",
-        "body": "Een beheerder heeft een nieuw wachtwoord voor je account ingesteld. Als je dit niet verwachtte, neem dan contact op met je beheerder."
+        "body": "Een beheerder heeft een nieuw wachtwoord voor je account ingesteld. Als je dit niet verwachtte, neem dan contact op met je beheerder. Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "Tweefactorauthenticatie ingeschakeld",

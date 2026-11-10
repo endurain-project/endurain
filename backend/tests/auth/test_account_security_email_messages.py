@@ -58,6 +58,21 @@ class TestGetAccountSecurityChangedEmail:
         assert "contact your Endurain administrator" in html_body
         assert "reset your password" not in html_body
 
+    @pytest.mark.parametrize("change", ["password_reset", "password_set_by_admin"])
+    def test_a_recovery_says_that_api_keys_and_a_pending_email_change_ended(self, change):
+        _, html_body, text_body = email_messages.get_account_security_changed_email("Alice", change, None, HOST, "en")
+
+        for body in (html_body, text_body):
+            assert "API keys" in body
+            assert "revoked" in body
+            assert "pending email change" in body
+
+    @pytest.mark.parametrize("change", ["password_changed", "mfa_enabled", "account_locked"])
+    def test_other_changes_do_not_mention_revoked_api_keys(self, change):
+        _, html_body, text_body = email_messages.get_account_security_changed_email("Alice", change, None, HOST, "en")
+
+        assert "revoked" not in html_body + text_body
+
     def test_a_locked_account_says_what_is_refused_for_how_long_and_how_to_lift_it(self):
         _, html_body, text_body = email_messages.get_account_security_changed_email(
             "Alice", "account_locked", None, HOST, "en"

@@ -189,7 +189,7 @@
     "password": {
       "button": "Restableix la contrasenya",
       "title": "Restableix la contrasenya",
-      "description": "Estableix una nova contrasenya per a {username}",
+      "description": "Estableix una nova contrasenya per a {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Nova contrasenya",
       "confirmLabel": "Confirma la nova contrasenya",
       "required": "La contrasenya és obligatòria",

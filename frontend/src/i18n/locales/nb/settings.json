@@ -189,7 +189,7 @@
     "password": {
       "button": "Tilbakestill passord",
       "title": "Tilbakestill passord",
-      "description": "Sett et nytt passord for {username}",
+      "description": "Sett et nytt passord for {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Nytt passord",
       "confirmLabel": "Bekreft nytt passord",
       "required": "Passord er obligatorisk",

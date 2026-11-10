@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "Parole atiestatīta",
-        "body": "Jūsu parole tika atiestatīta, izmantojot atiestatīšanas saiti. Ja tas neesat bijis Jūs, atkal atiestatiet paroli un pārskatiet drošības iestatījumus."
+        "body": "Jūsu parole tika atiestatīta, izmantojot atiestatīšanas saiti. Ja tas neesat bijis Jūs, atkal atiestatiet paroli un pārskatiet drošības iestatījumus. Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "Administrators iestatīja paroli",
-        "body": "Administrators iestatīja jūsu kontam jaunu paroli. Ja negaidījāt to, sazinieties ar administratoru."
+        "body": "Administrators iestatīja jūsu kontam jaunu paroli. Ja negaidījāt to, sazinieties ar administratoru. Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "Divfaktoru autentifikācija ieslēgta",

@@ -189,7 +189,7 @@
     "password": {
       "button": "Ponovno postavi lozinku",
       "title": "Ponovno postavi lozinku",
-      "description": "Postavi novu lozinku za {username}",
+      "description": "Postavi novu lozinku za {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Nova lozinka",
       "confirmLabel": "Potvrdi novu lozinku",
       "required": "Lozinka je obavezna",

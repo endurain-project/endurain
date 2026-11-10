@@ -189,7 +189,7 @@
     "password": {
       "button": "Нулирай паролата",
       "title": "Нулирай паролата",
-      "description": "Задайте нова парола за {username}",
+      "description": "Задайте нова парола за {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Нова парола",
       "confirmLabel": "Потвърди новата парола",
       "required": "Паролата е задължителна",

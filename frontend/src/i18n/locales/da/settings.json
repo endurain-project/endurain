@@ -189,7 +189,7 @@
     "password": {
       "button": "Nulstil adgangskode",
       "title": "Nulstil adgangskode",
-      "description": "Sæt en ny adgangskode for {username}",
+      "description": "Sæt en ny adgangskode for {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Ny adgangskode",
       "confirmLabel": "Bekræft ny adgangskode",
       "required": "Adgangskode er påkrævet",

@@ -189,7 +189,7 @@
     "password": {
       "button": "Wachtwoord opnieuw instellen",
       "title": "Wachtwoord opnieuw instellen",
-      "description": "Stel een nieuw wachtwoord in voor {username}",
+      "description": "Stel een nieuw wachtwoord in voor {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Nieuw wachtwoord",
       "confirmLabel": "Nieuw wachtwoord bevestigen",
       "required": "Wachtwoord is verplicht",

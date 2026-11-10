@@ -15,6 +15,8 @@ class SignUpConfirmDetails(VersionedPayload):
 
     Attributes:
         password_set: Whether the confirmation set the account's password; None for a refused token.
+        reason: Why a token was refused, when it is known: ``security_changed`` for an email change requested before
+            a security change of the account.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -22,6 +24,7 @@ class SignUpConfirmDetails(VersionedPayload):
     SCHEMA_VERSION: ClassVar[int] = 1
 
     password_set: bool | None = None
+    reason: str | None = None
 
 
 SIGN_UP_CONFIRM = jasil_audit.AuditAction(

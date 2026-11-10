@@ -3,6 +3,7 @@
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
+import jasil.testing as jasil_testing
 import pytest
 from jasil.backends.state_memory import MemoryState
 from jasil.providers import StateBackendUnavailableError
@@ -48,7 +49,18 @@ def _tokens(db, user_id=7):
     )
 
 
-def _add_token(db, *, token_id, token, user_id=7, email, previous_email, expires_in=timedelta(hours=1), used=False):
+def _add_token(
+    db,
+    *,
+    token_id,
+    token,
+    user_id=7,
+    email,
+    previous_email,
+    expires_in=timedelta(hours=1),
+    used=False,
+    security_generation=0,
+):
     now = datetime.now(UTC)
     db.add(
         sign_up_models.SignUpToken(
@@ -60,6 +72,7 @@ def _add_token(db, *, token_id, token, user_id=7, email, previous_email, expires
             used=used,
             email=email,
             previous_email=previous_email,
+            security_generation=security_generation,
         )
     )
     db.commit()
@@ -710,3 +723,82 @@ class TestSelfServiceEmailChange:
             users_service.stage_confirmed_email_change(7, "user8@example.com", db)
         db.rollback()
         assert db.get(users_models.Users, 7).email == "user7@example.com"
+
+
+class TestEmailChangeSecurityGeneration:
+    """A pending email change is a proof: a security change after the request ends it."""
+
+    @pytest.fixture(autouse=True)
+    def settings(self):
+        settings = MagicMock(signup_require_email_verification=False, signup_require_admin_approval=False)
+        with patch(f"{_SERVICE}.server_settings_integration.get_server_settings", return_value=settings):
+            yield
+
+    @staticmethod
+    def _pending(db, *, security_generation):
+        _add_token(
+            db,
+            token_id="t1",
+            token="plain",
+            email="new@example.com",
+            previous_email="user7@example.com",
+            security_generation=security_generation,
+        )
+
+    def test_a_requested_change_is_stamped_with_the_current_generation(self, db, mail_configured, security_generations):
+        security_generations.generations[7] = 3
+
+        with patch(_PUBLISH):
+            sign_up_service.request_email_change(7, "new@example.com", "user7@example.com", db)
+
+        assert _tokens(db).one().security_generation == 3
+
+    def test_a_sign_up_token_carries_no_stamp(self, db):
+        sign_up_service.create_sign_up_token(7, "user7@example.com", "event-1", db)
+
+        assert _tokens(db).one().security_generation is None
+
+    def test_a_change_requested_before_a_security_change_cannot_be_confirmed(self, db, security_generations):
+        self._pending(db, security_generation=0)
+        security_generations.stage_bump(7, db)
+
+        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.InvalidInputError):
+            sign_up_service.verify_email("plain", None, db)
+
+        db.expire_all()
+        assert db.get(users_models.Users, 7).email == "user7@example.com"
+        entry = audit.assert_audited("auth.sign_up.confirm", outcome="failure")
+        assert entry.details == {"password_set": None, "reason": "security_changed"}
+
+    def test_a_change_with_no_stamp_cannot_be_confirmed(self, db):
+        self._pending(db, security_generation=None)
+
+        with pytest.raises(core_exceptions.InvalidInputError):
+            sign_up_service.verify_email("plain", None, db)
+
+        assert db.get(users_models.Users, 7).email == "user7@example.com"
+
+    def test_a_change_requested_after_the_security_change_is_confirmed(self, db, security_generations):
+        security_generations.stage_bump(7, db)
+        self._pending(db, security_generation=1)
+
+        with patch(_PUBLISH):
+            sign_up_service.verify_email("plain", None, db)
+
+        db.expire_all()
+        assert db.get(users_models.Users, 7).email == "new@example.com"
+
+    def test_the_mailed_token_keeps_the_stamp_of_the_request(self, db):
+        self._pending(db, security_generation=0)
+
+        sign_up_service.prepare_email_change_verification_email(7, "event-1", _HOST, db)
+
+        fresh = _tokens(db).filter_by(used=False).one()
+        assert fresh.security_generation == 0
+
+    def test_a_change_made_stale_is_not_mailed(self, db, security_generations):
+        self._pending(db, security_generation=0)
+        security_generations.stage_bump(7, db)
+
+        assert sign_up_service.prepare_email_change_verification_email(7, "event-1", _HOST, db) is None
+        assert _tokens(db).filter_by(used=False).count() == 1

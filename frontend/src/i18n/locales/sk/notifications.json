@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "Heslo obnovené",
-        "body": "Vaše heslo bolo obnovené pomocou odkazu na obnovenie. Ak ste to neboli vy, obnovte heslo znova a skontrolujte nastavenia zabezpečenia."
+        "body": "Vaše heslo bolo obnovené pomocou odkazu na obnovenie. Ak ste to neboli vy, obnovte heslo znova a skontrolujte nastavenia zabezpečenia. Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "Heslo nastavil správca",
-        "body": "Správca nastavil pre váš účet nové heslo. Ak ste to nečakali, kontaktujte správcu."
+        "body": "Správca nastavil pre váš účet nové heslo. Ak ste to nečakali, kontaktujte správcu. Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "Dvojfaktorové overovanie zapnuté",

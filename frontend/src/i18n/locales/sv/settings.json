@@ -189,7 +189,7 @@
     "password": {
       "button": "Återställ lösenord",
       "title": "Återställ lösenord",
-      "description": "Ange ett nytt lösenord för {username}",
+      "description": "Ange ett nytt lösenord för {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Nytt lösenord",
       "confirmLabel": "Bekräfta nytt lösenord",
       "required": "Lösenord krävs",

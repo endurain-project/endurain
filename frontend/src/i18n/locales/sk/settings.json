@@ -189,7 +189,7 @@
     "password": {
       "button": "Obnoviť heslo",
       "title": "Obnoviť heslo",
-      "description": "Nastavte nové heslo pre {username}",
+      "description": "Nastavte nové heslo pre {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Nové heslo",
       "confirmLabel": "Potvrďte nové heslo",
       "required": "Heslo je povinné",

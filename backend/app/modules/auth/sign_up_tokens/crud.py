@@ -26,7 +26,7 @@ def get_usable_sign_up_token(token_hash: str, db: Session) -> sign_up_contracts.
         The token's id, user and addresses, or None when it is unknown, used or expired.
     """
     model = sign_up_models.SignUpToken
-    stmt = select(model.id, model.user_id, model.email, model.previous_email).where(
+    stmt = select(model.id, model.user_id, model.email, model.previous_email, model.security_generation).where(
         model.token_hash == token_hash,
         model.used.is_(False),
         model.expires_at > datetime.now(UTC),
@@ -57,7 +57,7 @@ def claim_sign_up_token(token_hash: str, db: Session) -> sign_up_contracts.SignU
             model.expires_at > datetime.now(UTC),
         )
         .values(used=True)
-        .returning(model.id, model.user_id, model.email, model.previous_email)
+        .returning(model.id, model.user_id, model.email, model.previous_email, model.security_generation)
     )
     row = db.execute(stmt).one_or_none()
     db.flush()
@@ -113,6 +113,7 @@ def create_sign_up_token(
         used=token.used,
         email=token.email,
         previous_email=token.previous_email,
+        security_generation=token.security_generation,
     )
     db.add(row)
     db.flush()

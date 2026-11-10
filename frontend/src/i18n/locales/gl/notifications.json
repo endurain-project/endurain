@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "Contrasinal restablecido",
-        "body": "Restableceuse o teu contrasinal cunha ligazón de restablecemento. Se non foches ti, volve restablecer o contrasinal e revisa a túa configuración de seguridade."
+        "body": "Restableceuse o teu contrasinal cunha ligazón de restablecemento. Se non foches ti, volve restablecer o contrasinal e revisa a túa configuración de seguridade. Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "Contrasinal definido por un administrador",
-        "body": "Un administrador definiu un novo contrasinal para a túa conta. Se non o esperabas, contacta co teu administrador."
+        "body": "Un administrador definiu un novo contrasinal para a túa conta. Se non o esperabas, contacta co teu administrador. Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "Autenticación en dous pasos activada",

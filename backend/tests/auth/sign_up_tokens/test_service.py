@@ -516,12 +516,23 @@ class TestVerifySignUpTokenBump:
 
     def test_an_email_change_bumps_before_the_claim(self):
         change = sign_up_contracts.EmailChangeClaim(
-            id="t", user_id=7, email="new@example.com", previous_email="old@example.com"
+            id="t", user_id=7, email="new@example.com", previous_email="old@example.com", security_generation=0
         )
 
         names, _ = self._verify(change, with_password=False)
 
         assert names == ["bump", "claim"]
+
+    def test_an_email_change_from_an_earlier_generation_neither_bumps_nor_claims(self, security_generations):
+        security_generations.generations[7] = 1
+        change = sign_up_contracts.EmailChangeClaim(
+            id="t", user_id=7, email="new@example.com", previous_email="old@example.com", security_generation=0
+        )
+
+        names, bump = self._verify(change, with_password=False)
+
+        assert names == []
+        bump.assert_not_called()
 
     def test_a_plain_verification_does_not_bump(self):
         names, _ = self._verify(self._plain(), with_password=False)

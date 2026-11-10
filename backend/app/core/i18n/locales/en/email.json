@@ -36,6 +36,7 @@
   "email_changed.security_label": "Security notice:",
   "email_changed.security_notice": "If you didn't make this change, contact your Endurain administrator right away, as someone else may have access to your account.",
   "security_change.greeting": "Hi {name},",
+  "security_change.recovery_effects": "Any API keys on the account were revoked, so create new ones in Settings → Security, and any pending email change was cancelled.",
   "security_change.security_label": "Security notice:",
   "security_change.security_notice": "If you didn't make this change, reset your password right away and review your account's security settings, as someone else may have access to your account.",
   "security_change.security_notice_admin": "If you didn't expect this change, contact your Endurain administrator right away, as someone else may have access to your account.",

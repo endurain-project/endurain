@@ -60,11 +60,11 @@
       },
       "passwordReset": {
         "title": "Hasło zostało zresetowane",
-        "body": "Twoje hasło zostało zresetowane za pomocą linku do resetowania. Jeśli to nie Ty, zresetuj hasło ponownie i sprawdź ustawienia zabezpieczeń."
+        "body": "Twoje hasło zostało zresetowane za pomocą linku do resetowania. Jeśli to nie Ty, zresetuj hasło ponownie i sprawdź ustawienia zabezpieczeń. Any API keys were revoked and any pending email change was cancelled."
       },
       "passwordSetByAdmin": {
         "title": "Hasło ustawione przez administratora",
-        "body": "Administrator ustawił nowe hasło dla Twojego konta. Jeśli się tego nie spodziewasz, skontaktuj się z administratorem."
+        "body": "Administrator ustawił nowe hasło dla Twojego konta. Jeśli się tego nie spodziewasz, skontaktuj się z administratorem. Any API keys were revoked and any pending email change was cancelled."
       },
       "mfaEnabled": {
         "title": "Włączono uwierzytelnianie dwuskładnikowe",

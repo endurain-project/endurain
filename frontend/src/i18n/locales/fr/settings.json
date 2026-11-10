@@ -189,7 +189,7 @@
     "password": {
       "button": "Réinitialiser le mot de passe",
       "title": "Réinitialiser le mot de passe",
-      "description": "Définir un nouveau mot de passe pour {username}",
+      "description": "Définir un nouveau mot de passe pour {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Nouveau mot de passe",
       "confirmLabel": "Confirmer le nouveau mot de passe",
       "required": "Le mot de passe est obligatoire",
