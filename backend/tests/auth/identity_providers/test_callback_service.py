@@ -19,6 +19,7 @@ _LINK = oauth_state_constants.OAuthStatePurpose.LINK
 
 HOST = "https://app.example.com"
 AUD = "client-id-123"
+NATIVE = "com.endurain.endurain:/auth/sso/callback"
 
 
 @pytest.fixture
@@ -279,6 +280,48 @@ class TestCompleteCallback:
         )
 
         assert url == f"{HOST}/settings/security?idp_link=error"
+
+    def test_a_failed_native_login_returns_to_the_native_app_with_the_error(self, service):
+        url, _ = self._complete(
+            service,
+            None,
+            self._state(redirect_path=NATIVE, client_type="mobile"),
+            error=core_exceptions.UpstreamError("down"),
+        )
+
+        assert url == f"{NATIVE}?error=sso_failed"
+
+    def test_a_refused_native_login_returns_to_the_native_app_with_its_reason(self, service):
+        refusal = callback_service.user_provisioning_service.SsoSignInRefusedError(
+            "The account is not active", login_error="sso_account_disabled"
+        )
+
+        url, _ = self._complete(service, None, self._state(redirect_path=NATIVE), error=refusal)
+
+        assert url == f"{NATIVE}?error=sso_account_disabled"
+
+    def test_a_native_login_the_provider_refused_returns_to_the_native_app(self, service):
+        with patch.object(callback_service, "_record_provider_refusal"):
+            url = service.complete_callback(
+                _idp(),
+                None,
+                "access_denied",
+                "state",
+                self._state(redirect_path=NATIVE),
+                "10.0.0.1",
+                "agent",
+                MagicMock(),
+                MagicMock(),
+            )
+
+        assert url == f"{NATIVE}?error=sso_failed"
+
+    def test_a_failed_web_login_with_a_return_path_stays_on_the_login_page(self, service):
+        url, _ = self._complete(
+            service, None, self._state(redirect_path="/activities"), error=core_exceptions.UpstreamError("down")
+        )
+
+        assert url == f"{HOST}/login?error=sso_failed"
 
 
 class TestHandleCallback:

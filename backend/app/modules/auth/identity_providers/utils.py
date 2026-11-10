@@ -172,6 +172,26 @@ def build_link_result_url(host: str, redirect_path: str | None, idp_name: str | 
     return f"{host}{append_query_params(base, params)}"
 
 
+def build_login_error_url(host: str, redirect_path: str | None, error: str) -> str:
+    """Build the redirect that hands a failed sign-in back to the client that started it.
+
+    A sign-in that started with a native-app address (validated when the sign-in started) returns to that address
+    with the error in its query, as a failed link does; any other sign-in returns to the web login page.
+
+    Args:
+        host: The configured frontend host.
+        redirect_path: The validated return path or native-app address the sign-in started with, or None.
+        error: The ``error`` code the login page shows.
+
+    Returns:
+        The native-app address, or the absolute URL of the web login page, to redirect the browser to.
+    """
+    params = {"error": error}
+    if redirect_path and is_native_redirect(redirect_path):
+        return append_query_params(redirect_path, params)
+    return f"{host}{append_query_params('/login', params)}"
+
+
 def build_step_up_result_url(host: str, redirect_path: str | None, result: dict[str, str]) -> str:
     """Build the redirect that hands a step-up's outcome back to the page that started it.
 

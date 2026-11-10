@@ -493,6 +493,19 @@ class TestBuildLinkResultUrl:
         )
 
 
+class TestBuildLoginErrorUrl:
+    def test_a_web_login_goes_to_the_login_page(self):
+        assert idp_utils.build_login_error_url(HOST, None, "sso_failed") == f"{HOST}/login?error=sso_failed"
+
+    def test_a_relative_return_path_is_ignored(self):
+        assert idp_utils.build_login_error_url(HOST, "/activities", "sso_failed") == f"{HOST}/login?error=sso_failed"
+
+    def test_a_native_address_gets_the_error_in_its_query(self):
+        assert idp_utils.build_login_error_url(
+            HOST, "com.endurain.endurain:/auth/sso/callback", "sso_account_disabled"
+        ) == ("com.endurain.endurain:/auth/sso/callback?error=sso_account_disabled")
+
+
 class TestBuildRedirectUri:
     """build_redirect_uri builds the public callback URL."""
 

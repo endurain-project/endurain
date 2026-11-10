@@ -208,7 +208,7 @@ class CallbackService:
         This is the browser leg of the flow, so it always ends in a redirect: a failure after the state was
         claimed (the provider refused the code, a user could not be created) must not leave the user on a JSON
         error. A failed link or step-up returns to the page that started it with an error flag, and a failed
-        login to the login page.
+        login to the native app that started it, or else to the login page.
 
         Args:
             idp: The provider the callback came from.
@@ -289,7 +289,7 @@ class CallbackService:
                 "SSO sign-in refused for IdP <name>: <detail>",
                 extra=core_logger.context(name=idp.name, detail=err.detail),
             )
-            return f"{self._frontend_host}/login?error={err.login_error}"
+            return self._login_error_url(oauth_state, err.login_error)
         except core_exceptions.ProcessingError as err:
             logger.error("Error in SSO callback: <err>", exc_info=err, extra=core_logger.context(err=err))
             return self._failure_url(oauth_state)
@@ -321,7 +321,19 @@ class CallbackService:
             return identity_provider_utils.build_link_result_url(
                 self._frontend_host, oauth_state.redirect_path, None, success=False
             )
-        return f"{self._frontend_host}/login?error=sso_failed"
+        return self._login_error_url(oauth_state, "sso_failed")
+
+    def _login_error_url(self, oauth_state: oauth_state_schema.OAuthStateRead, error: str) -> str:
+        """Return where a failed sign-in sends the browser: the native app that started it, else the login page.
+
+        Args:
+            oauth_state: The claimed OAuth state.
+            error: The ``error`` code the login page shows.
+
+        Returns:
+            The URL to redirect the browser to.
+        """
+        return identity_provider_utils.build_login_error_url(self._frontend_host, oauth_state.redirect_path, error)
 
     def handle_callback(
         self,
