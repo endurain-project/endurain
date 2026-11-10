@@ -42,6 +42,8 @@ class SignUpToken(Base):
     token_hash: Mapped[str] = mapped_column(
         String(128),
         nullable=False,
+        unique=True,
+        index=True,
         comment="Hashed sign up token",
     )
     created_at: Mapped[datetime_type] = mapped_column(

@@ -32,6 +32,8 @@ class PasswordResetToken(Base):
     token_hash: Mapped[str] = mapped_column(
         String(128),
         nullable=False,
+        unique=True,
+        index=True,
         comment="Hashed password reset token",
     )
     created_at: Mapped[datetime_type] = mapped_column(
