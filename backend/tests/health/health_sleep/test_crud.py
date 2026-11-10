@@ -52,6 +52,22 @@ class TestReads:
         assert "LIMIT 10 OFFSET 10" in compiled
         assert "health_sleep.date >=" in compiled
 
+    def test_the_resting_heart_rate_filter_bounds_the_count_and_the_page(self, mock_db):
+        mock_db.execute.return_value.scalar_one.return_value = 0
+        health_sleep_crud.get_health_sleep_number_by_user_id(1, mock_db, has_resting_heart_rate=True)
+        assert "health_sleep.resting_heart_rate IS NOT NULL" in str(mock_db.execute.call_args.args[0])
+
+        _returns_scalars(mock_db, [])
+        health_sleep_crud.get_health_sleep_by_user_id(1, mock_db, has_resting_heart_rate=False)
+        assert "health_sleep.resting_heart_rate IS NULL" in str(mock_db.execute.call_args.args[0])
+
+    def test_no_resting_heart_rate_filter_by_default(self, mock_db):
+        _returns_scalars(mock_db, [])
+
+        health_sleep_crud.get_health_sleep_by_user_id(1, mock_db)
+
+        assert "resting_heart_rate" not in str(mock_db.execute.call_args.args[0]).split("WHERE", 1)[1]
+
     def test_list_empty(self, mock_db):
         _returns_scalars(mock_db, [])
 

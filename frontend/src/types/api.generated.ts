@@ -1357,8 +1357,9 @@ export interface paths {
          * Read Health Sleep All Pagination
          * @description Retrieve health sleep records for the authenticated user.
          *
-         *     One page of records, newest first, optionally limited to an interval. Access is
-         *     restricted to users with the 'health:read' scope.
+         *     One page of records, newest first, optionally limited to an interval and to nights with or without a
+         *     resting heart rate; the total counts the same records. Access is restricted to users with the
+         *     'health:read' scope.
          */
         get: operations["read_health_sleep_all_pagination"];
         put?: never;
@@ -20545,6 +20546,8 @@ export interface operations {
             query?: {
                 /** @description Look back from today over this interval; ignored when `start_date` or `end_date` is given */
                 interval?: components["schemas"]["modules__health__constants__Interval"] | null;
+                /** @description Keep only nights with (`true`) or without (`false`) a resting heart rate */
+                has_resting_heart_rate?: boolean | null;
                 page_number?: number | null;
                 num_records?: number | null;
                 /** @description First day to include (inclusive, `YYYY-MM-DD`). */

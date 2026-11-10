@@ -199,6 +199,7 @@ def user_record_count_statement[ModelT: OwnedRecord](
     since_column: SQLColumnExpression[date],
     since: date | None,
     until: date | None,
+    conditions: Sequence[ColumnElement[bool]] = (),
 ) -> Select[tuple[int]]:
     """Build the query that counts a user's records.
 
@@ -208,6 +209,7 @@ def user_record_count_statement[ModelT: OwnedRecord](
         since_column: The column ``since`` and ``until`` are compared against.
         since: Count only records whose ``since_column`` is on or after this date.
         until: Count only records whose ``since_column`` is on or before this date.
+        conditions: Further conditions a counted record must meet.
 
     Returns:
         The unexecuted ``select`` of the count.
@@ -215,7 +217,7 @@ def user_record_count_statement[ModelT: OwnedRecord](
     return (
         select(func.count())
         .select_from(model)
-        .where(model.user_id == user_id, *date_bounds(since_column, since, until))
+        .where(model.user_id == user_id, *date_bounds(since_column, since, until), *conditions)
     )
 
 
@@ -228,6 +230,7 @@ def user_records_statement[ModelT: OwnedRecord](
     until: date | None,
     page_number: int | None,
     num_records: int | None,
+    conditions: Sequence[ColumnElement[bool]] = (),
 ) -> Select[tuple[ModelT]]:
     """Build the query for a user's records, newest first, optionally bounded and paginated.
 
@@ -240,11 +243,12 @@ def user_records_statement[ModelT: OwnedRecord](
         until: Select only records whose ``since_column`` is on or before this date.
         page_number: 1-based page; paginates only together with ``num_records``.
         num_records: Records per page.
+        conditions: Further conditions a selected record must meet.
 
     Returns:
         The unexecuted ``select``.
     """
-    stmt = select(model).where(model.user_id == user_id, *date_bounds(since_column, since, until))
+    stmt = select(model).where(model.user_id == user_id, *date_bounds(since_column, since, until), *conditions)
     stmt = stmt.order_by(desc(order_column))
     if page_number is not None and num_records is not None:
         stmt = stmt.offset((page_number - 1) * num_records).limit(num_records)

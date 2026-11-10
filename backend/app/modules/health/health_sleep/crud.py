@@ -2,7 +2,7 @@
 
 from datetime import date as date_type
 
-from sqlalchemy import SQLColumnExpression, func, select
+from sqlalchemy import ColumnElement, SQLColumnExpression, func, select
 from sqlalchemy.orm import Session
 
 import modules.health.computation as health_computation
@@ -20,8 +20,29 @@ SPEC = health_record_crud.RecordSpec(
 )
 
 
+def _resting_heart_rate_conditions(has_resting_heart_rate: bool | None) -> list[ColumnElement[bool]]:
+    """Build the condition that keeps nights with, or without, a resting heart rate.
+
+    Args:
+        has_resting_heart_rate: ``True`` keeps nights that record one, ``False`` nights that do not, ``None``
+            every night.
+
+    Returns:
+        The condition, or none.
+    """
+    if has_resting_heart_rate is None:
+        return []
+    column = health_sleep_models.HealthSleep.resting_heart_rate
+    return [column.is_not(None) if has_resting_heart_rate else column.is_(None)]
+
+
 def get_health_sleep_number_by_user_id(
-    user_id: int, db: Session, since: date_type | None = None, until: date_type | None = None
+    user_id: int,
+    db: Session,
+    since: date_type | None = None,
+    until: date_type | None = None,
+    *,
+    has_resting_heart_rate: bool | None = None,
 ) -> int:
     """Count a user's sleep records.
 
@@ -30,11 +51,20 @@ def get_health_sleep_number_by_user_id(
         db: Database session.
         since: Count only records on or after this date.
         until: Count only records on or before this date.
+        has_resting_heart_rate: Count only nights with (``True``) or without (``False``) a resting heart rate.
 
     Returns:
         The number of records.
     """
-    return health_record_crud.count(SPEC, user_id, health_sleep_models.HealthSleep.date, since, until, db)
+    return health_record_crud.count(
+        SPEC,
+        user_id,
+        health_sleep_models.HealthSleep.date,
+        since,
+        until,
+        db,
+        _resting_heart_rate_conditions(has_resting_heart_rate),
+    )
 
 
 def get_health_sleep_by_user_id(
@@ -44,6 +74,8 @@ def get_health_sleep_by_user_id(
     num_records: int | None = None,
     since: date_type | None = None,
     until: date_type | None = None,
+    *,
+    has_resting_heart_rate: bool | None = None,
 ) -> list[health_sleep_schema.HealthSleepRead]:
     """Retrieve a user's sleep records, optionally paginated and bounded.
 
@@ -54,6 +86,7 @@ def get_health_sleep_by_user_id(
         num_records: Records per page.
         since: Return only records on or after this date.
         until: Return only records on or before this date.
+        has_resting_heart_rate: Return only nights with (``True``) or without (``False``) a resting heart rate.
 
     Returns:
         The records ordered by date descending.
@@ -68,6 +101,7 @@ def get_health_sleep_by_user_id(
         page_number,
         num_records,
         db,
+        _resting_heart_rate_conditions(has_resting_heart_rate),
     )
 
 

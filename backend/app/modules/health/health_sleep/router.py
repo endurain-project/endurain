@@ -34,11 +34,16 @@ def read_health_sleep_all_pagination(
         health_constants.Interval | None,
         Query(description="Look back from today over this interval; ignored when `start_date` or `end_date` is given"),
     ] = None,
+    has_resting_heart_rate: Annotated[
+        bool | None,
+        Query(description="Keep only nights with (`true`) or without (`false`) a resting heart rate"),
+    ] = None,
 ) -> core_pagination.Page[health_sleep_schema.HealthSleepRead]:
     """Retrieve health sleep records for the authenticated user.
 
-    One page of records, newest first, optionally limited to an interval. Access is
-    restricted to users with the 'health:read' scope.
+    One page of records, newest first, optionally limited to an interval and to nights with or without a
+    resting heart rate; the total counts the same records. Access is restricted to users with the
+    'health:read' scope.
 
     Args:
         token_user_id: The ID of the authenticated user extracted from the access token.
@@ -46,9 +51,10 @@ def read_health_sleep_all_pagination(
         page: The requested page and page size.
         interval: Optional interval looking back from today; ignored when a date range is given.
         date_range: Optional inclusive start and end dates, which replace the interval.
+        has_resting_heart_rate: Optional filter on whether a night records a resting heart rate.
 
     Returns:
-        The page of records with the total matching the interval.
+        The page of records with the total matching the interval and the filter.
     """
     return health_sleep_service.list_health_sleep(
         token_user_id,
@@ -57,6 +63,7 @@ def read_health_sleep_all_pagination(
         num_records=page.num_records,
         interval=interval,
         date_range=date_range,
+        has_resting_heart_rate=has_resting_heart_rate,
     )
 
 

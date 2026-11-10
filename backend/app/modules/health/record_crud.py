@@ -6,13 +6,14 @@ check, and delete. It owns no table: the model and the schemas are the caller's.
 stages writes with ``flush`` and never commits.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from typing import Protocol
 
 from pydantic import BaseModel
-from sqlalchemy import SQLColumnExpression, func, select
+from sqlalchemy import ColumnElement, SQLColumnExpression, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, QueryableAttribute, Session, declared_attr
 
@@ -161,6 +162,7 @@ def count[ModelT: Row, ReadT: BaseModel](
     since: date | None,
     until: date | None,
     db: Session,
+    conditions: Sequence[ColumnElement[bool]] = (),
 ) -> int:
     """Count a user's records.
 
@@ -171,11 +173,12 @@ def count[ModelT: Row, ReadT: BaseModel](
         since: Count only records whose ``since_column`` is on or after this date.
         until: Count only records whose ``since_column`` is on or before this date.
         db: Database session.
+        conditions: Further conditions a counted record must meet.
 
     Returns:
         The number of records.
     """
-    stmt = health_computation.user_record_count_statement(spec.model, user_id, since_column, since, until)
+    stmt = health_computation.user_record_count_statement(spec.model, user_id, since_column, since, until, conditions)
     return db.execute(stmt).scalar_one()
 
 
@@ -189,6 +192,7 @@ def list_page[ModelT: Row, ReadT: BaseModel](
     page_number: int | None,
     num_records: int | None,
     db: Session,
+    conditions: Sequence[ColumnElement[bool]] = (),
 ) -> list[ReadT]:
     """Retrieve a user's records, newest first, optionally paginated and bounded.
 
@@ -202,12 +206,13 @@ def list_page[ModelT: Row, ReadT: BaseModel](
         page_number: 1-based page; paginates only together with ``num_records``.
         num_records: Records per page.
         db: Database session.
+        conditions: Further conditions a returned record must meet.
 
     Returns:
         The records as ``spec.read_schema``.
     """
     stmt = health_computation.user_records_statement(
-        spec.model, user_id, order_column, since_column, since, until, page_number, num_records
+        spec.model, user_id, order_column, since_column, since, until, page_number, num_records, conditions
     )
     return health_computation.to_read_schemas(spec.read_schema, list(db.execute(stmt).scalars().all()))
 

@@ -196,8 +196,8 @@ class TestListHealthSleep:
         )
 
         since = datetime_date(2023, 12, 16)
-        mock_number.assert_called_once_with(1, mock_db, since, None)
-        mock_list.assert_called_once_with(1, mock_db, 2, 10, since, None)
+        mock_number.assert_called_once_with(1, mock_db, since, None, has_resting_heart_rate=None)
+        mock_list.assert_called_once_with(1, mock_db, 2, 10, since, None, has_resting_heart_rate=None)
         assert (result.total, result.page, result.num_records) == (0, 2, 10)
 
     @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_by_user_id", return_value=[])
@@ -205,7 +205,15 @@ class TestListHealthSleep:
     def test_no_interval_means_no_lower_bound(self, mock_number, mock_list, mock_db):
         health_sleep_service.list_health_sleep(1, mock_db, date_range=_NO_RANGE)
 
-        mock_number.assert_called_once_with(1, mock_db, None, None)
+        mock_number.assert_called_once_with(1, mock_db, None, None, has_resting_heart_rate=None)
+
+    @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_by_user_id", return_value=[])
+    @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_number_by_user_id", return_value=0)
+    def test_the_resting_heart_rate_filter_reaches_the_count_and_the_page(self, mock_number, mock_list, mock_db):
+        health_sleep_service.list_health_sleep(1, mock_db, date_range=_NO_RANGE, has_resting_heart_rate=True)
+
+        assert mock_number.call_args.kwargs == {"has_resting_heart_rate": True}
+        assert mock_list.call_args.kwargs == {"has_resting_heart_rate": True}
 
 
 class TestMissingDate:

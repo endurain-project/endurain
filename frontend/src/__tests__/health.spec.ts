@@ -698,7 +698,7 @@ describe('resting heart rate service requests', () => {
     const page = await fetchRhrEntries({ page: 2, numRecords: 25, interval: 'last_30_days' })
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/health/sleep?page_number=2&num_records=25&interval=last_30_days',
+      '/health/sleep?page_number=2&num_records=25&interval=last_30_days&has_resting_heart_rate=true',
       { signal: undefined },
     )
     expect(page.total).toBe(2)
@@ -711,23 +711,18 @@ describe('resting heart rate service requests', () => {
     expect(page.records[1]).toMatchObject({ id: 6, restingHeartRate: 52, source: 'manual' })
   })
 
-  it('fetchRhrEntries drops sleep records without a resting heart rate but keeps the total', async () => {
+  it('fetchRhrEntries returns the page and total the server filtered', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
       total: 3,
-      page: 2,
-      num_records: 25,
-      items: [
-        makeSleepDto(),
-        makeSleepDto({ id: 6, resting_heart_rate: null }),
-        makeSleepDto({ id: 7, resting_heart_rate: undefined }),
-      ],
+      page: 1,
+      num_records: 2,
+      items: [makeSleepDto(), makeSleepDto({ id: 6, resting_heart_rate: 50 })],
     } satisfies Schemas['Page_HealthSleepRead_'])
 
-    const page = await fetchRhrEntries({ page: 1, numRecords: 25, interval: 'all_time' })
+    const page = await fetchRhrEntries({ page: 1, numRecords: 2, interval: 'all_time' })
 
-    // Only the record carrying an RHR survives, but the total stays the sleep total.
-    expect(page.records).toHaveLength(1)
-    expect(page.records[0]).toMatchObject({ id: 5, restingHeartRate: 52 })
+    // The server keeps only nights with a resting heart rate, so the page is full and the total is theirs.
+    expect(page.records.map((entry) => entry.id)).toEqual([5, 6])
     expect(page.total).toBe(3)
   })
 })

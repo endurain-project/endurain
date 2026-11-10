@@ -153,12 +153,17 @@ export interface HealthListParams<Interval extends string = HealthInterval> {
   interval: Interval
 }
 
-/** Builds the query string for a paginated health-history endpoint. */
-function buildHealthHistoryPath(resource: string, params: HealthHistoryParams): string {
+/** Builds the query string for a paginated health-history endpoint, plus any metric-specific filters. */
+function buildHealthHistoryPath(
+  resource: string,
+  params: HealthHistoryParams,
+  filters: Record<string, string>,
+): string {
   const search = new URLSearchParams({
     page_number: String(params.page),
     num_records: String(params.numRecords),
     interval: params.interval,
+    ...filters,
   })
   return `/health/${resource}?${search.toString()}`
 }
@@ -169,9 +174,10 @@ async function fetchHealthHistoryPage<Dto, Entry>(
   params: HealthHistoryParams,
   mapEntry: (dto: Dto) => Entry,
   signal?: AbortSignal,
+  filters: Record<string, string> = {},
 ): Promise<HealthHistoryPage<Entry>> {
   const response = await apiFetch<HealthHistoryResponse<Dto>>(
-    buildHealthHistoryPath(resource, params),
+    buildHealthHistoryPath(resource, params, filters),
     { signal },
   )
   return { records: response.items.map(mapEntry), total: response.total }
@@ -501,9 +507,8 @@ function mapRhrEntry(dto: HealthSleepDto): RestingHeartRateEntry {
  * Fetches one page of the authenticated user's resting-heart-rate history.
  *
  * RHR has no endpoint of its own: the backend records it as a field on each
- * sleep session, so this reads the sleep history and keeps only the records
- * that carry a resting heart rate. The page `total` stays the backend's sleep
- * total so pagination still walks the full sleep history.
+ * sleep session, so this reads the sleep history filtered to the nights that
+ * carry a resting heart rate. The page and its `total` count the same nights.
  *
  * @param params - Page number, size, and the interval filter.
  * @param signal - Optional abort signal for cancellation.
@@ -514,16 +519,9 @@ export async function fetchRhrEntries(
   { page, numRecords, interval }: HealthListParams,
   signal?: AbortSignal,
 ): Promise<RestingHeartRatePage> {
-  const response = await fetchHealthHistoryPage(
-    'sleep',
-    { page, numRecords, interval },
-    mapRhrEntry,
-    signal,
-  )
-  return {
-    records: response.records.filter((entry) => entry.restingHeartRate !== null),
-    total: response.total,
-  }
+  return fetchHealthHistoryPage('sleep', { page, numRecords, interval }, mapRhrEntry, signal, {
+    has_resting_heart_rate: 'true',
+  })
 }
 
 /** Maps a raw fasting DTO to the clean {@link FastingEntry} model. */

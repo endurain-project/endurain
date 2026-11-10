@@ -52,6 +52,16 @@ class TestReadHealthSleepAll:
         assert args.args[0] == 1
         assert (args.kwargs["page_number"], args.kwargs["num_records"]) == (2, 10)
         assert args.kwargs["interval"].value == "last_30_days"
+        assert args.kwargs["has_resting_heart_rate"] is None
+
+    @patch(f"{_SERVICE}.list_health_sleep")
+    def test_passes_the_resting_heart_rate_filter_through(self, mock_list, fast_api_client, fast_api_app):
+        mock_list.return_value = core_pagination.Page(items=[], total=0, page=1, num_records=25)
+
+        response = fast_api_client.get("/health_sleep?has_resting_heart_rate=true", headers=_HEADERS)
+
+        assert response.status_code == 200
+        assert mock_list.call_args.kwargs["has_resting_heart_rate"] is True
 
 
 class TestCreateHealthSleep:

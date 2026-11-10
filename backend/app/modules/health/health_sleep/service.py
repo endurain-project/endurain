@@ -90,6 +90,7 @@ def list_health_sleep(
     num_records: int = core_pagination.DEFAULT_NUM_RECORDS,
     interval: health_constants.Interval | None = None,
     date_range: core_date_range.DateRange = core_date_range.DateRange(),
+    has_resting_heart_rate: bool | None = None,
 ) -> core_pagination.Page[health_sleep_schema.HealthSleepRead]:
     """List one page of a user's sleep records with their total.
 
@@ -101,9 +102,10 @@ def list_health_sleep(
         interval: Return only records within this interval, looking back from today; ignored when
             ``date_range`` is set.
         date_range: Return only records within these inclusive dates instead of the interval.
+        has_resting_heart_rate: Return only nights with (``True``) or without (``False``) a resting heart rate.
 
     Returns:
-        The page of records; ``total`` counts every record within the window.
+        The page of records; ``total`` counts every record the window and the filter keep.
     """
     return health_record_service.list_page(
         user_id,
@@ -111,9 +113,11 @@ def list_health_sleep(
         date_range,
         page_number,
         num_records,
-        lambda since, until: health_sleep_crud.get_health_sleep_number_by_user_id(user_id, db, since, until),
+        lambda since, until: health_sleep_crud.get_health_sleep_number_by_user_id(
+            user_id, db, since, until, has_resting_heart_rate=has_resting_heart_rate
+        ),
         lambda since, until: health_sleep_crud.get_health_sleep_by_user_id(
-            user_id, db, page_number, num_records, since, until
+            user_id, db, page_number, num_records, since, until, has_resting_heart_rate=has_resting_heart_rate
         ),
         db,
     )
