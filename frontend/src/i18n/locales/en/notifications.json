@@ -97,11 +97,11 @@
       },
       "accountLocked": {
         "title": "Account locked",
-        "body": "Your account was locked after 100 failed sign-in attempts in a row. Browsers and apps you have signed in from before can still sign in. If these attempts weren't yours, change or reset your password, which also lifts the lock."
+        "body": "Your account was locked after 100 failed sign-in attempts in a row. Browsers and apps you have signed in from since your last security change can still sign in. If these attempts weren't yours, change or reset your password, which also lifts the lock."
       },
       "mfaLocked": {
         "title": "Two-step verification locked",
-        "body": "Your account was locked after 100 wrong two-step verification codes in a row, so someone knows your password. Browsers and apps you have signed in from before can still sign in. If these attempts weren't yours, change your password."
+        "body": "Your account was locked after 100 wrong two-step verification codes in a row, so someone knows your password. Browsers and apps you have signed in from since your last security change can still sign in. If these attempts weren't yours, change your password."
       },
       "unknown": {
         "title": "Account security changed",

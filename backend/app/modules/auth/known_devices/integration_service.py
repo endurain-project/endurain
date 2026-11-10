@@ -10,7 +10,10 @@ import modules.auth.known_devices.service as known_devices_service
 
 
 def is_known_device(user_id: int, device_id: str | None, db: Session) -> bool:
-    """Return whether the device id names a device the user signed in from before; it changes nothing."""
+    """Return whether the device id names a device the user signed in from since their last security change.
+
+    It changes nothing.
+    """
     return known_devices_service.is_known_device(user_id, device_id, db)
 
 

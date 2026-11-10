@@ -717,8 +717,8 @@ def login_for_access_token(
       * 20 failures: 24 hour lockout
     - Account lock: 100 failed password sign-ins in a row for one username, from any addresses, lock the account for
       30 days. The count restarts on a successful sign-in and expires after 30 days without a failure. A device the
-      account has signed in from before (its device id is known) is not held by this lock, only by the client-network
-      lockout and the password check. A successful sign-in, a completed password reset, a password change or an
+      account has signed in from since its last security change (its device id is known) is not held by this lock,
+      only by the client-network lockout and the password check. A successful sign-in, a completed password reset, a password change or an
       administrator setting the password lifts the lock. When it trips, the account's owner gets an email and an in-app notification.
 
     This endpoint authenticates a user using provided credentials, checks if the user is active,

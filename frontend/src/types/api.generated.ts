@@ -609,8 +609,8 @@ export interface paths {
          *       * 10 failures: 30 minute lockout
          *       * 20 failures: 24 hour lockout
          *     - Account lock: 100 failed password sign-ins in a row for one username, from any addresses, lock the account for
-         *       30 days. A device the account has signed in from before is not held by it. A successful sign-in, a completed
-         *       password reset, a password change or an administrator setting the password lifts it.
+         *       30 days. A device the account has signed in from since its last security change is not held by it. A successful
+         *       sign-in, a completed password reset, a password change or an administrator setting the password lifts it.
          *
          *     This endpoint authenticates a user using provided credentials, checks if the user is active,
          *     and determines if MFA is required. If MFA is enabled for the user, it stores the pending login

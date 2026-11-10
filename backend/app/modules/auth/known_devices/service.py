@@ -53,7 +53,7 @@ def _publish_new_device_sign_in(
 
 
 def is_known_device(user_id: int, device_id: str | None, db: Session) -> bool:
-    """Return whether a device id names a device the user signed in from before.
+    """Return whether a device id names a device the user signed in from since their last security change.
 
     Args:
         user_id: The user the device would belong to.
