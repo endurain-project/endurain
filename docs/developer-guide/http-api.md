@@ -31,10 +31,18 @@ A resource has a collection and an item:
 - An item that can be edited or deleted can also be read by id **(test)**. Not counted as items: revocations from a
   list (API keys, sessions), relationships (follows, linked identity providers) and items served only as files.
 - Paths are plural, kebab-case nouns. A resource has one item URL; a different view of it is a projection decided by
-  the caller's scope, not a second path.
+  the caller's scope, not a second path. Two second paths are allowed: a composite read
+  (`/activities/{activity_id}/detail`) that returns the item with the first page of the children a screen shows with
+  it, and the caller's own collection (`/activities`) beside the same collection for any user
+  (`/users/{user_id}/activities`).
 - Filtering and search are query parameters on the collection, never path segments: `<field>_contains` for text,
-  `active=<bool>` for a state, and `start_date`/`end_date` for an inclusive range of local dates.
-- A child collection sits under its parent (`/activities/{activity_id}/laps`).
+  `active=<bool>` or `has_<field>=<bool>` for a state, and `start_date`/`end_date` for an inclusive range of local
+  dates.
+- When at most one item can be in a state, that item is a named singleton (`/health/fasting/active`) that returns it
+  with its `ETag`, or `null`, rather than a filter that returns a page of one.
+- A child collection sits under its parent only when the child cannot exist without it
+  (`/activities/{activity_id}/laps`). A link between two top-level resources is a filter on one of them
+  (`gear_id=` on `/activities`), not a nested path.
 - A route that obtains, renews or ends a session (`/auth/login`, `/auth/mfa/verify`, `/auth/password-change`, `/auth/sessions/{session_id}/tokens`, `/auth/refresh`, `/auth/logout`) lives under `/auth`; every other route callable without signing in lives under `/public` **(test)**. The routes that stay outside, with the reason, are listed in the test.
 
 ## Methods
@@ -122,8 +130,14 @@ These rules are for new fields and parameters; existing names are not renamed to
 - A measurement states its unit in the field description: metres, seconds, metres per second, kilograms. A new field
   whose name can carry the unit does (`*_seconds`, `*_ml`). Money is a decimal string next to its currency.
 - A timestamp is UTC with an offset.
-- A list is a `Page`, or a `CursorPage` for a feed that grows at the head **(test)**. The only bare arrays are fixed
-  catalogues read whole, named in the test.
+- A list is a `Page` or a `CursorPage` **(test)**. A list a client scrolls without page numbers (a feed, a history)
+  is a `CursorPage`, because new rows at the head would shift an offset page; a list with page numbers or a sort the
+  client chooses is a `Page`. The only bare arrays are fixed catalogues read whole, named in the test.
+- A page's `total` counts exactly the rows its filters keep. A filter a client needs is a query parameter, so no
+  client has to drop rows from a page and correct the total.
+- A list item leaves out heavy fields (nested arrays, long text, per-sample data); the item read carries them.
+- A count a screen always shows is a field of the read that screen already makes, not a page of one record read for
+  its `total`.
 - Optional data that is not shown to a caller is `null` or absent for that caller; what a non-owner sees is decided
   in the serializer, not left to the client.
 
@@ -163,6 +177,12 @@ These rules are for new fields and parameters; existing names are not renamed to
 - A privacy or security default stated in `docs/features/` (visibility, session lifetime) is pinned by a test, so
   changing the default fails until the page changes too.
 
+## Incremental sync
+
+A client that keeps a local copy (a mobile app) refreshes it by asking what changed. A resource a client can edit
+carries `updated_at`, its collection takes `updated_since`, and a deletion stays visible to that query. No resource
+meets this yet; see below.
+
 ## Not yet met
 
 These rules are not met everywhere yet. Each is tracked in the test registers above, or here when no test covers it:
@@ -174,3 +194,8 @@ These rules are not met everywhere yet. Each is tracked in the test registers ab
 - Uploaded images are stored as received, with their metadata.
 - Some enums are integers and some request schemas accept server-owned fields.
 - Most endpoint docstrings still carry Google sections. The OpenAPI document cuts them, but the source should lose them.
+- No collection offers [incremental sync](#incremental-sync): `updated_at` exists only on activities, notifications and
+  users, and nothing reports deletions.
+- `GET /notifications` is a `Page`, and the home feed scrolls `GET /activities` without page numbers.
+- `GET /gears/{gear_id}/activities` nests a link between two top-level resources.
+- `GET /health/sleep` and the activity lists return their heavy fields on every row.
