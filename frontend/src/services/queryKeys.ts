@@ -234,13 +234,6 @@ export const queryKeys = {
     stats: (userId: number, timeframe: 'week' | 'month') =>
       ['activities', 'stats', userId, timeframe] as const,
     /**
-     * A user's activity count for the current month (public-profile header).
-     *
-     * @param userId - The user whose monthly count to key.
-     * @returns A query key for the user's this-month activity count.
-     */
-    monthCount: (userId: number) => ['activities', 'month-count', userId] as const,
-    /**
      * A user's activities for a configured week (public-profile week browser).
      * Under the `list` prefix so an `all()` invalidation refetches it.
      *
@@ -381,20 +374,6 @@ export const queryKeys = {
      * @returns A query key for a user's following list.
      */
     followingList: (userId: number) => ['followers', 'following', userId] as const,
-    /**
-     * A user's accepted-followers count (public-profile header).
-     *
-     * @param userId - The profile owner whose follower count to key.
-     * @returns A query key for a user's accepted-followers count.
-     */
-    followersCount: (userId: number) => ['followers', 'followers-count', userId] as const,
-    /**
-     * A user's accepted-following count (public-profile header).
-     *
-     * @param userId - The profile owner whose following count to key.
-     * @returns A query key for a user's accepted-following count.
-     */
-    followingCount: (userId: number) => ['followers', 'following-count', userId] as const,
     /**
      * The viewer → target follow relationship state, backing the follow button.
      *

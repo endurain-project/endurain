@@ -99,40 +99,6 @@ export async function fetchFollowing(userId: number, signal?: AbortSignal): Prom
 }
 
 /**
- * Fetches a user's accepted-followers count (public-profile header).
- *
- * @param userId - The profile owner whose follower count to load.
- * @param signal - Optional abort signal for cancellation.
- * @returns The number of accepted followers.
- * @throws {HttpError} When the request fails.
- */
-export async function fetchFollowersCount(userId: number, signal?: AbortSignal): Promise<number> {
-  // `total` on the page envelope describes the same filter, so the dedicated
-  // count endpoint (a bare JSON number, and a second round trip) is gone.
-  const page = await apiFetch<Schemas['FollowRelationshipPage']>(
-    `/users/${userId}/followers?accepted_only=true&num_records=1`,
-    { signal },
-  )
-  return page?.total ?? 0
-}
-
-/**
- * Fetches a user's accepted-following count (public-profile header).
- *
- * @param userId - The profile owner whose following count to load.
- * @param signal - Optional abort signal for cancellation.
- * @returns The number of users the profile owner follows (accepted).
- * @throws {HttpError} When the request fails.
- */
-export async function fetchFollowingCount(userId: number, signal?: AbortSignal): Promise<number> {
-  const page = await apiFetch<Schemas['FollowRelationshipPage']>(
-    `/users/${userId}/following?accepted_only=true&num_records=1`,
-    { signal },
-  )
-  return page?.total ?? 0
-}
-
-/**
  * Fetches the authenticated viewer's relationship with a target user, backing the follow
  * and block buttons. The backend's relationship endpoint reports both directions; the buttons
  * need the viewer's *outgoing* follow and whether the viewer blocked the target.

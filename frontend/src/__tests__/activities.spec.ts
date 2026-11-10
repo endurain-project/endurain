@@ -15,7 +15,6 @@ import {
   fetchFollowersActivities,
   fetchUserActivitiesPage,
   fetchUserActivityTypes,
-  fetchUserThisMonthActivityCount,
   fetchUserWeekActivities,
   mapActivity,
   mapActivityLap,
@@ -182,32 +181,23 @@ describe('mapActivityLap', () => {
 })
 
 describe('fetchActivity', () => {
-  it('uses the authenticated endpoint when logged in', async () => {
+  it('reads the authenticated endpoint', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(activityDto)
-    const activity = await fetchActivity(5, { authenticated: true })
-    expect(apiFetch).toHaveBeenCalledWith('/activities/5', expect.objectContaining({ auth: true }))
+    const activity = await fetchActivity(5)
+    expect(apiFetch).toHaveBeenCalledWith('/activities/5')
     expect(activity?.id).toBe(5)
-  })
-
-  it('uses the public endpoint when unauthenticated', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce(activityDto)
-    await fetchActivity(5, { authenticated: false })
-    expect(apiFetch).toHaveBeenCalledWith(
-      '/public/activities/5',
-      expect.objectContaining({ auth: false }),
-    )
   })
 
   it('returns null on a 404/422 response', async () => {
     const { HttpError } = await import('@/services/http')
     vi.mocked(apiFetch).mockRejectedValueOnce(new HttpError(404, 'Not Found'))
-    expect(await fetchActivity(5, { authenticated: true })).toBeNull()
+    expect(await fetchActivity(5)).toBeNull()
   })
 
   it('rethrows non-not-found errors', async () => {
     const { HttpError } = await import('@/services/http')
     vi.mocked(apiFetch).mockRejectedValueOnce(new HttpError(500, 'Server Error'))
-    await expect(fetchActivity(5, { authenticated: true })).rejects.toBeInstanceOf(HttpError)
+    await expect(fetchActivity(5)).rejects.toBeInstanceOf(HttpError)
   })
 })
 
@@ -708,19 +698,6 @@ describe('fetchFollowersActivities', () => {
     const slice = await fetchFollowersActivities(null, 25)
 
     expect(slice).toEqual({ items: [], nextCursor: null, owners: new Map() })
-  })
-})
-
-describe('fetchUserThisMonthActivityCount', () => {
-  it('reads the count from the page envelope without downloading the activities', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce({ items: [], total: 42, page: 1, num_records: 1 })
-
-    await expect(fetchUserThisMonthActivityCount(7)).resolves.toBe(42)
-
-    const url = vi.mocked(apiFetch).mock.calls[0]?.[0] as string
-    expect(url).toMatch(
-      /^\/users\/7\/activities\?start_date=\d{4}-\d{2}-01&end_date=\d{4}-\d{2}-\d{2}&num_records=1$/,
-    )
   })
 })
 

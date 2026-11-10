@@ -59,7 +59,6 @@ const AGGREGATE_KEYS = {
   stats: queryKeys.activities.stats(7, 'week'),
   search: queryKeys.activities.search('run'),
   types: queryKeys.activities.types(),
-  monthCount: queryKeys.activities.monthCount(7),
 }
 
 /** One activity's own data and static reference data: an activity write never changes these. */

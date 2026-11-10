@@ -20,7 +20,6 @@ import {
   fetchActivityStats,
   fetchFollowersActivities,
   fetchUserActivities,
-  fetchUserThisMonthActivityCount,
   fetchUserWeekActivities,
   refreshActivities,
 } from '@/features/activities/services/activities'
@@ -200,25 +199,6 @@ export function useActivityStatsQuery(
   return useQuery<ActivityStats>({
     queryKey: computed(() => queryKeys.activities.stats(id.value, timeframe)),
     queryFn: ({ signal }) => fetchActivityStats(id.value, timeframe, signal),
-    enabled: computed(() => isAuthenticated.value && id.value > 0),
-    staleTime: 5 * 60_000,
-  })
-}
-
-/**
- * A user's count of activities recorded this month, backing the public-profile
- * header's headline figure. Gated on a valid user id and authentication.
- *
- * @param userId - Reactive id of the user whose monthly count to load.
- * @returns The TanStack query result for the this-month activity count.
- */
-export function useUserMonthlyActivityCountQuery(userId: MaybeRefOrGetter<number | null>) {
-  const { isAuthenticated } = storeToRefs(useAuthStore())
-  const id = computed(() => resolveUserId(userId))
-
-  return useQuery<number>({
-    queryKey: computed(() => queryKeys.activities.monthCount(id.value)),
-    queryFn: ({ signal }) => fetchUserThisMonthActivityCount(id.value, signal),
     enabled: computed(() => isAuthenticated.value && id.value > 0),
     staleTime: 5 * 60_000,
   })

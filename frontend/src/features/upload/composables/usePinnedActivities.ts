@@ -63,7 +63,7 @@ export async function refreshPinnedActivities(): Promise<void> {
   await Promise.all(
     [...pinned.keys()].map(async (id) => {
       try {
-        const fresh = await fetchActivity(id, { authenticated: true })
+        const fresh = await fetchActivity(id)
         if (fresh === null) {
           unpinActivity(id)
         } else {

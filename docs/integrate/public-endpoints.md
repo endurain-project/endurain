@@ -13,6 +13,7 @@ These serve an activity that its owner made public. They work only when an admin
 | Method and path | Returns |
 | --------------- | ------- |
 | `GET /public/activities/{activity_id}` | The activity |
+| `GET /public/activities/{activity_id}/detail` | The activity with the first page of its laps, workout sets and workout steps in one read |
 | `GET /public/activities/{activity_id}/owner` | The owner's public profile: id, name, username, city and photo URL |
 | `GET /public/activities/{activity_id}/laps` | A page of laps |
 | `GET /public/activities/{activity_id}/sets` | A page of workout sets |

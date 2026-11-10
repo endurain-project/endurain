@@ -220,24 +220,15 @@ export function mapActivityLap(dto: ActivityLapDto): ActivityLap {
 }
 
 /**
- * Fetches a single activity by id. Uses the authenticated endpoint when the
- * viewer is logged in, otherwise the public shareable-link endpoint. Returns
- * `null` when the activity is missing or not publicly shareable.
+ * Fetches a single activity by id for the signed-in viewer. Returns `null`
+ * when the activity is missing or not visible to them.
  *
  * @param id - Activity identifier.
- * @param context - Auth + cancellation context.
  * @returns The activity, or `null` when not found/accessible.
  */
-export async function fetchActivity(
-  id: number,
-  context: ActivityFetchContext,
-): Promise<Activity | null> {
-  const path = resourcePath(context.authenticated, `/activities/${id}`, `/public/activities/${id}`)
+export async function fetchActivity(id: number): Promise<Activity | null> {
   try {
-    const dto = await apiFetch<ActivityDto | null>(path, {
-      auth: context.authenticated,
-      signal: context.signal,
-    })
+    const dto = await apiFetch<ActivityDto | null>(`/activities/${id}`)
     return dto ? mapActivity(dto) : null
   } catch (error) {
     if (error instanceof HttpError && (error.status === 404 || error.status === 422)) {
@@ -297,9 +288,7 @@ export async function fetchActivityDetail(
 }
 
 /**
- * Searches the viewer's activities whose name contains the given term. The
- * backend scopes the result to activities the caller may see (their own plus
- * any visible to them).
+ * Searches the viewer's own activities whose name contains the given term.
  *
  * @param name - The search term.
  * @param signal - Optional abort signal for cancellation.
@@ -384,26 +373,11 @@ export async function fetchFollowersActivities(
   }
 }
 
-/** Formats a `Date` as a `YYYY-MM-DD` string using its local calendar fields. */
-function isoDate(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
 /**
  * The week-browser bucket that holds everything older than the dated weeks: it
  * has no start date, only an end date just before the previous bucket begins.
  */
 export const OLDEST_WEEK_BUCKET = 51
-
-/** Computes the inclusive first-of-month → today date range in the viewer's local calendar. */
-function currentMonthRange(): { startDate: string; endDate: string } {
-  const now = new Date()
-  const first = new Date(now.getFullYear(), now.getMonth(), 1)
-  return { startDate: isoDate(first), endDate: isoDate(now) }
-}
 
 /**
  * Fetches a user's activities for a single week, newest first. Week `0` is the
@@ -579,33 +553,6 @@ export async function fetchActivityStats(
     { signal },
   )
   return stats ?? {}
-}
-
-/**
- * Fetches the number of activities a user recorded in the current month,
- * surfaced as the headline figure on the public-profile header.
- *
- * @param userId - The user whose monthly activity count to load.
- * @param signal - Optional abort signal for cancellation.
- * @returns The count of this-month activities (`0` when none).
- * @throws {HttpError} When the request fails.
- */
-export async function fetchUserThisMonthActivityCount(
-  userId: number,
-  signal?: AbortSignal,
-): Promise<number> {
-  const { startDate, endDate } = currentMonthRange()
-  const params = new URLSearchParams({
-    start_date: startDate,
-    end_date: endDate,
-    num_records: '1',
-  })
-  const page_ = await apiFetch<Schemas['Page_ActivityRead_']>(
-    `/users/${userId}/activities?${params.toString()}`,
-    { signal },
-  )
-  // The envelope's total is the match count, so a one-row page is enough.
-  return page_.total
 }
 
 /**

@@ -217,9 +217,7 @@ async function backfillMissingThumbnails(
     for (const delayMs of THUMBNAIL_RETRY_DELAYS_MS) {
       await new Promise((resolve) => setTimeout(resolve, delayMs))
       const refreshed = (
-        await Promise.all(
-          awaiting.map((id) => fetchActivity(id, { authenticated: true }).catch(() => null)),
-        )
+        await Promise.all(awaiting.map((id) => fetchActivity(id).catch(() => null)))
       ).filter((activity): activity is Activity => activity !== null)
 
       // Patch every re-read row, not only the ones with a map: the location is
@@ -288,11 +286,7 @@ export function useUploadActivityFileMutation() {
       // than refetching the whole feed. A failed fetch drops that one row from
       // the optimistic pin; the settle-time invalidation still corrects it.
       const created = (
-        await Promise.all(
-          job.activity_ids.map((id) =>
-            fetchActivity(id, { authenticated: true }).catch(() => null),
-          ),
-        )
+        await Promise.all(job.activity_ids.map((id) => fetchActivity(id).catch(() => null)))
       ).filter((activity): activity is Activity => activity !== null)
       if (created.length === 0) {
         return

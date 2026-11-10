@@ -13,9 +13,7 @@ import {
   blockUser,
   fetchBlockedUsers,
   fetchFollowers,
-  fetchFollowersCount,
   fetchFollowing,
-  fetchFollowingCount,
   fetchRelationship,
   followUser,
   removeFollower,
@@ -103,44 +101,6 @@ export function useFollowingQuery(
     },
     staleTime: FOLLOWER_QUERY_STALE_TIME_MS,
     enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value > 0),
-  })
-}
-
-/**
- * A user's accepted-followers count (public-profile header). Gated on a valid
- * user id and authentication.
- *
- * @param userId - Reactive id of the profile owner.
- * @returns The TanStack query result for the followers count.
- */
-export function useFollowersCountQuery(userId: MaybeRefOrGetter<number | null>) {
-  const { isAuthenticated } = storeToRefs(useAuthStore())
-  const id = computed(() => resolveUserId(userId))
-
-  return useQuery<number>({
-    queryKey: computed(() => queryKeys.followers.followersCount(id.value)),
-    queryFn: ({ signal }) => fetchFollowersCount(id.value, signal),
-    staleTime: FOLLOWER_QUERY_STALE_TIME_MS,
-    enabled: computed(() => isAuthenticated.value && id.value > 0),
-  })
-}
-
-/**
- * A user's accepted-following count (public-profile header). Gated on a valid
- * user id and authentication.
- *
- * @param userId - Reactive id of the profile owner.
- * @returns The TanStack query result for the following count.
- */
-export function useFollowingCountQuery(userId: MaybeRefOrGetter<number | null>) {
-  const { isAuthenticated } = storeToRefs(useAuthStore())
-  const id = computed(() => resolveUserId(userId))
-
-  return useQuery<number>({
-    queryKey: computed(() => queryKeys.followers.followingCount(id.value)),
-    queryFn: ({ signal }) => fetchFollowingCount(id.value, signal),
-    staleTime: FOLLOWER_QUERY_STALE_TIME_MS,
-    enabled: computed(() => isAuthenticated.value && id.value > 0),
   })
 }
 

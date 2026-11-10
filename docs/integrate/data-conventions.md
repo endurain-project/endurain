@@ -28,6 +28,8 @@ Every collection answers a page (`items`, `total`, `page`, `num_records`, `next`
 
 A collection that is not a child of another resource (`/gears`, `/gear-components`, `/activities`, `/activities/exercise-titles`) pages 25 records by default and at most 200. A child collection (`/activities/{activity_id}/laps`, `/gears/{gear_id}/components`) pages 200 by default.
 
+`GET /activities/{activity_id}/detail` returns the activity with the first page of its laps, workout sets and workout steps in one read. Each collection is the page its own route returns, so a `next` page continues on that route. Streams and media stay on their own routes. The `ETag` is the activity's.
+
 ## Activity types and sports
 
 Three vocabularies name activities, and they do not all mean the same thing:

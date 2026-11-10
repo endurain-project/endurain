@@ -6,9 +6,7 @@ import {
   blockUser,
   fetchBlockedUsers,
   fetchFollowers,
-  fetchFollowersCount,
   fetchFollowing,
-  fetchFollowingCount,
   fetchRelationship,
   followUser,
   mapFollowStatus,
@@ -122,28 +120,6 @@ describe('fetchFollowing', () => {
     const { profiles } = await fetchFollowing(9)
 
     expect(profiles.get(5)).toMatchObject({ id: 5, name: 'Grace', username: 'grace' })
-  })
-})
-
-describe('follower counts', () => {
-  it('reads the accepted-followers total off the page envelope', async () => {
-    // The dedicated /count endpoints are gone: `total` describes the same
-    // filter, so a second round trip for a bare number is not needed.
-    vi.mocked(apiFetch).mockResolvedValueOnce({ items: [], total: 12, page: 1, num_records: 1 })
-
-    expect(await fetchFollowersCount(9)).toBe(12)
-    expect(apiFetch).toHaveBeenCalledWith('/users/9/followers?accepted_only=true&num_records=1', {
-      signal: undefined,
-    })
-  })
-
-  it('reads the accepted-following total off the page envelope', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce({ items: [], total: 7, page: 1, num_records: 1 })
-
-    expect(await fetchFollowingCount(9)).toBe(7)
-    expect(apiFetch).toHaveBeenCalledWith('/users/9/following?accepted_only=true&num_records=1', {
-      signal: undefined,
-    })
   })
 })
 
