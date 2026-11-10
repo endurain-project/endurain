@@ -27,6 +27,12 @@ def test_get_token_selects_access_header_and_client_refresh_source():
     )
 
 
+def test_get_token_rejects_a_missing_mobile_refresh_token_naming_the_body():
+    with pytest.raises(core_exceptions.InvalidTokenError) as exc_info:
+        authentication_dependencies.get_token(None, None, "mobile", access_tokens_service.TokenType.REFRESH)
+    assert exc_info.value.detail == "Refresh token missing from request body"
+
+
 def test_get_token_rejects_missing_access_token():
     with pytest.raises(core_exceptions.DomainError) as exc_info:
         authentication_dependencies.get_token(None, None, "web", access_tokens_service.TokenType.ACCESS)
@@ -132,8 +138,8 @@ class TestGetLogoutTarget:
     """A logout names a session only from a usable refresh token; any other token names none."""
 
     @staticmethod
-    def _target(token_manager, *, cookie=None, bearer=None, client_type=ClientType.WEB):
-        return authentication_dependencies.get_logout_target(bearer, cookie, client_type, token_manager)
+    def _target(token_manager, *, cookie=None, body_token=None, client_type=ClientType.WEB):
+        return authentication_dependencies.get_logout_target(body_token, cookie, client_type, token_manager)
 
     def test_a_valid_web_token_names_its_session(self, token_manager, sample_user_read):
         _, token = token_manager.create_token(
@@ -144,7 +150,7 @@ class TestGetLogoutTarget:
             sample_user_read.id, "session-id", token
         )
 
-    def test_a_valid_mobile_token_is_read_from_the_authorization_header(self, token_manager, sample_user_read):
+    def test_a_valid_mobile_token_is_read_from_the_request_body(self, token_manager, sample_user_read):
         _, token = token_manager.create_token(
             "session-id",
             sample_user_read,
@@ -153,7 +159,7 @@ class TestGetLogoutTarget:
             timedelta(days=1),
         )
 
-        target = self._target(token_manager, bearer=token, client_type=ClientType.MOBILE)
+        target = self._target(token_manager, body_token=token, client_type=ClientType.MOBILE)
 
         assert target is not None
         assert target.session_id == "session-id"

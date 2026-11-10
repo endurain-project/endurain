@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 import core.config as core_config
 import core.database as core_database
 import core.exceptions as core_exceptions
+import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.access_tokens.service as auth_token_manager
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.failed_login_store as failed_login_store
@@ -2419,3 +2420,135 @@ class TestLogoutEndpoint:
         assert response.headers["cache-control"] == "no-store"
         assert not response.headers.get_list("set-cookie")
         mock_delete_session.assert_not_called()
+
+    @patch("modules.auth.authentication.service.sessions_integration.delete_session")
+    @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")
+    def test_mobile_logout_reads_the_refresh_token_from_the_body(
+        self,
+        mock_get_session,
+        mock_delete_session,
+        auth_client,
+        auth_app,
+        token_manager,
+        sample_user_read,
+        password_hasher,
+    ):
+        auth_app.state._client_type = "mobile"
+        auth_app.dependency_overrides[access_tokens_integration.get_token_manager] = lambda: token_manager
+        token = self._mobile_refresh_token(token_manager, sample_user_read)
+        mock_get_session.return_value = MagicMock(id="sid-1", refresh_token=password_hasher.hash_password(token))
+
+        response = auth_client.post("/auth/logout", json={"refresh_token": token})
+
+        assert response.status_code == 200
+        mock_delete_session.assert_called_once()
+
+    @patch("modules.auth.authentication.service.sessions_integration.delete_session")
+    def test_mobile_logout_ignores_a_refresh_token_in_the_authorization_header(
+        self, mock_delete_session, auth_client, auth_app, token_manager, sample_user_read
+    ):
+        auth_app.state._client_type = "mobile"
+        auth_app.dependency_overrides[access_tokens_integration.get_token_manager] = lambda: token_manager
+        token = self._mobile_refresh_token(token_manager, sample_user_read)
+
+        response = auth_client.post("/auth/logout", headers={"Authorization": f"Bearer {token}"})
+
+        assert response.status_code == 200
+        assert response.json() == {"idp_logout_url": None}
+        mock_delete_session.assert_not_called()
+
+    @patch("modules.auth.authentication.service.sessions_integration.delete_session")
+    def test_mobile_logout_with_an_unusable_body_token_succeeds(self, mock_delete_session, auth_client, auth_app):
+        auth_app.state._client_type = "mobile"
+
+        response = auth_client.post("/auth/logout", json={"refresh_token": "not-a-jwt"})
+
+        assert response.status_code == 200
+        assert response.json() == {"idp_logout_url": None}
+        mock_delete_session.assert_not_called()
+
+    @patch("modules.auth.authentication.service.sessions_integration.delete_session")
+    def test_web_logout_does_not_use_a_body_token(
+        self, mock_delete_session, auth_client, token_manager, sample_user_read
+    ):
+        token = self._refresh_token(token_manager, sample_user_read)
+
+        response = auth_client.post("/auth/logout", json={"refresh_token": token})
+
+        assert response.status_code == 200
+        assert response.json() == {"idp_logout_url": None}
+        assert self._cookie_is_cleared(response)
+        mock_delete_session.assert_not_called()
+
+    def test_logout_refuses_an_unknown_body_member(self, auth_client, auth_app):
+        auth_app.state._client_type = "mobile"
+
+        response = auth_client.post("/auth/logout", json={"refresh_token": "x", "extra": 1})
+
+        assert response.status_code == 422
+
+    @staticmethod
+    def _mobile_refresh_token(token_manager, sample_user_read):
+        return token_manager.create_token(
+            "sid-1",
+            sample_user_read,
+            auth_constants.ClientType.MOBILE,
+            auth_token_manager.TokenType.REFRESH,
+            timedelta(days=1),
+        )[1]
+
+
+# ------------------------------------------------------------------
+# POST /auth/refresh: where each client type sends its refresh token
+# ------------------------------------------------------------------
+
+
+class TestRefreshTokenSource:
+    """A mobile client sends its refresh token in the body; a web client only ever uses its cookie."""
+
+    @staticmethod
+    def _token(token_manager, sample_user_read, client_type):
+        return token_manager.create_token(
+            "sid-1", sample_user_read, client_type, auth_token_manager.TokenType.REFRESH, timedelta(days=1)
+        )[1]
+
+    def test_mobile_refresh_without_a_body_token_is_refused_as_a_missing_token(self, auth_client, auth_app):
+        auth_app.state._client_type = "mobile"
+
+        response = auth_client.post("/auth/refresh")
+
+        assert response.status_code == 401
+        assert response.json()["type"] == "urn:endurain:error:invalid-token"
+        assert response.json()["detail"] == "Refresh token missing from request body"
+
+    def test_mobile_refresh_ignores_a_refresh_token_in_the_authorization_header(
+        self, auth_client, auth_app, token_manager, sample_user_read
+    ):
+        auth_app.state._client_type = "mobile"
+        token = self._token(token_manager, sample_user_read, auth_constants.ClientType.MOBILE)
+
+        response = auth_client.post("/auth/refresh", headers={"Authorization": f"Bearer {token}"})
+
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Refresh token missing from request body"
+
+    def test_mobile_refresh_reads_the_token_from_the_body(self, auth_client, auth_app, token_manager, sample_user_read):
+        auth_app.state._client_type = "mobile"
+        auth_app.dependency_overrides[access_tokens_integration.get_token_manager] = lambda: token_manager
+        token = self._token(token_manager, sample_user_read, auth_constants.ClientType.MOBILE)
+
+        with patch(
+            "modules.auth.authentication.public_router.auth_refresh_service.refresh_token",
+            side_effect=core_exceptions.InvalidTokenError("stop here"),
+        ) as refresh:
+            auth_client.post("/auth/refresh", json={"refresh_token": token})
+
+        assert refresh.call_args.args[4] == token
+
+    def test_web_refresh_does_not_use_a_body_token(self, auth_client, token_manager, sample_user_read):
+        token = self._token(token_manager, sample_user_read, auth_constants.ClientType.MOBILE)
+
+        response = auth_client.post("/auth/refresh", json={"refresh_token": token})
+
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Refresh token missing from cookie"

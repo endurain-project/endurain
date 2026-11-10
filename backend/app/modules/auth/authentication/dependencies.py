@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Annotated, Any, Self
 
-from fastapi import Depends, Form, Header, Request, Response
+from fastapi import Body, Depends, Form, Header, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyCookie, HTTPAuthorizationCredentials, HTTPBearer
@@ -299,8 +299,7 @@ async def clear_refresh_token_cookie_exception_handler(
 logger = core_logger.get_logger(__name__)
 bearer_scheme = HTTPBearer(
     bearerFormat="JWT",
-    description="A JWT in the `Authorization: Bearer` header: the access token, or a mobile client's refresh token on "
-    "`/auth/refresh` and `/auth/logout`. The scopes an access token can carry:\n\n"
+    description="The access token, a JWT in the `Authorization: Bearer` header. The scopes it can carry:\n\n"
     + "\n".join(f"- `{scope}`: {description}" for scope, description in auth_constants.SCOPE_DICT.items()),
     auto_error=False,
 )
@@ -336,6 +335,23 @@ def get_csrf_token(
     return csrf_token
 
 
+def get_body_refresh_token(
+    body: Annotated[
+        auth_schema.RefreshTokenRequest | None,
+        Body(description="The refresh token of a mobile client. A web client sends no body and uses its cookie."),
+    ] = None,
+) -> str | None:
+    """Return the refresh token a request carries in its JSON body.
+
+    Args:
+        body: The parsed body, or ``None`` when the request has none.
+
+    Returns:
+        The token, or ``None`` when the request has no body.
+    """
+    return body.refresh_token if body is not None else None
+
+
 cookie_refresh_token_scheme = APIKeyCookie(
     name=REFRESH_TOKEN_COOKIE_NAME, scheme_name="RefreshTokenCookie", auto_error=False
 )
@@ -359,16 +375,14 @@ def get_token(
             return cookie_token
         if client_type == auth_constants.ClientType.MOBILE:
             if non_cookie_token is None:
-                raise core_exceptions.InvalidTokenError(
-                    "Refresh token missing from Authorization header", scheme="Bearer"
-                )
+                raise core_exceptions.InvalidTokenError("Refresh token missing from request body", scheme="Bearer")
             return non_cookie_token
     logger.warning("Token lookup refused: unsupported client type or token type")
     raise core_exceptions.PermissionDeniedError("Invalid client type or token type")
 
 
 def get_refresh_token(
-    non_cookie_refresh_token: Annotated[str | None, Depends(get_bearer_token)],
+    non_cookie_refresh_token: Annotated[str | None, Depends(get_body_refresh_token)],
     cookie_refresh_token: Annotated[str | None, Depends(cookie_refresh_token_scheme)],
     client_type: Annotated[auth_constants.ClientType, Depends(get_client_type)],
 ) -> str | None:
@@ -472,7 +486,7 @@ def get_and_return_refresh_token(
 
 
 def get_logout_target(
-    non_cookie_refresh_token: Annotated[str | None, Depends(get_bearer_token)],
+    non_cookie_refresh_token: Annotated[str | None, Depends(get_body_refresh_token)],
     cookie_refresh_token: Annotated[str | None, Depends(cookie_refresh_token_scheme)],
     client_type: Annotated[auth_constants.ClientType, Depends(get_client_type)],
     token_manager: Annotated[
@@ -486,7 +500,7 @@ def get_logout_target(
     refusal: there is no session to end.
 
     Args:
-        non_cookie_refresh_token: The refresh token of a mobile client, from the ``Authorization`` header.
+        non_cookie_refresh_token: The refresh token of a mobile client, from the request body.
         cookie_refresh_token: The refresh token of a web client, from its cookie.
         client_type: The client type.
         token_manager: Utility for validating and reading tokens.

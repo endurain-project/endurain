@@ -160,6 +160,18 @@ class TokenMobileRead(BaseModel):
     device_id: StrictStr | None = None
 
 
+class RefreshTokenRequest(BaseModel):
+    """Request body that carries a mobile client's refresh token (RFC 6749 section 6, RFC 7009).
+
+    Attributes:
+        refresh_token (str): The refresh token the client holds.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    refresh_token: StrictStr = Field(..., description="The refresh token of a mobile client")
+
+
 class TokenExchangeRequest(BaseModel):
     """Request schema for mobile PKCE token exchange.
 

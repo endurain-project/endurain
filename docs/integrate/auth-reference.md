@@ -98,6 +98,7 @@ All errors, including authentication and authorization failures, use one problem
 3. **Include required headers:**
     - `Authorization: Bearer {access_token}` for all authenticated requests
     - `X-Client-Type: mobile` for all requests
+    - The refresh token goes in the JSON body (`{"refresh_token": "..."}`) of `/auth/refresh` and `/auth/logout`, never in the `Authorization` header
 4. **Handle token refresh proactively** - Refresh before expiration
 5. **Implement secure token deletion** on logout, and open an `idp_logout_url` the logout answer carries in the system browser if the provider session should end too
 

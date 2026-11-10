@@ -654,6 +654,9 @@ export interface paths {
          *     Logout is idempotent. A refresh token that is missing, malformed, expired, revoked or whose session is gone ends
          *     nothing and gets the same 200 answer with a null idp_logout_url, and a web client's refresh cookie is cleared
          *     all the same.
+         *
+         *     A mobile client sends its refresh token in the JSON body as refresh_token (RFC 7009), never in the Authorization
+         *     header. A web client sends its refresh cookie and no body; a body token sent by a web client is not read.
          */
         post: operations["logout"];
         delete?: never;
@@ -731,7 +734,9 @@ export interface paths {
          * @description Handles the refresh token process for user sessions.
          *
          *     This endpoint validates the provided refresh token, checks session status,
-         *     validates the CSRF token (web clients only), and issues new tokens.
+         *     validates the CSRF token (web clients only), and issues new tokens. A web client sends its refresh cookie and no
+         *     body. A mobile client sends its refresh token in the JSON body as refresh_token (RFC 6749 section 6), never in
+         *     the Authorization header; a body token sent by a web client is not read.
          *
          *     OAuth 2.1 Bootstrap Pattern for Page Reload:
          *         On page reload, in-memory tokens are lost but httpOnly cookie persists.
@@ -10541,6 +10546,20 @@ export interface components {
          */
         ProviderType: "oidc" | "oauth2";
         /**
+         * RefreshTokenRequest
+         * @description Request body that carries a mobile client's refresh token (RFC 6749 section 6, RFC 7009).
+         *
+         *     Attributes:
+         *         refresh_token (str): The refresh token the client holds.
+         */
+        RefreshTokenRequest: {
+            /**
+             * Refresh Token
+             * @description The refresh token of a mobile client
+             */
+            refresh_token: string;
+        };
+        /**
          * RelationshipRead
          * @description The authenticated user's relationship with another user, both directions.
          *
@@ -16379,7 +16398,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RefreshTokenRequest"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -16416,6 +16439,15 @@ export interface operations {
             };
             /** @description The request conflicts with the current state. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The body is larger than the route accepts. */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -16704,7 +16736,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RefreshTokenRequest"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -16741,6 +16777,15 @@ export interface operations {
             };
             /** @description The request conflicts with the current state. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The body is larger than the route accepts. */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };

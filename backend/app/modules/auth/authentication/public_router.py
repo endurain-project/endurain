@@ -271,7 +271,9 @@ def refresh_token(
     r"""Handles the refresh token process for user sessions.
 
     This endpoint validates the provided refresh token, checks session status,
-    validates the CSRF token (web clients only), and issues new tokens.
+    validates the CSRF token (web clients only), and issues new tokens. A web client sends its refresh cookie and no
+    body. A mobile client sends its refresh token in the JSON body as refresh_token (RFC 6749 section 6), never in
+    the Authorization header; a body token sent by a web client is not read.
 
     OAuth 2.1 Bootstrap Pattern for Page Reload:
         On page reload, in-memory tokens are lost but httpOnly cookie persists.
@@ -352,6 +354,9 @@ def logout(
     Logout is idempotent. A refresh token that is missing, malformed, expired, revoked or whose session is gone ends
     nothing and gets the same 200 answer with a null idp_logout_url, and a web client's refresh cookie is cleared
     all the same.
+
+    A mobile client sends its refresh token in the JSON body as refresh_token (RFC 7009), never in the Authorization
+    header. A web client sends its refresh cookie and no body; a body token sent by a web client is not read.
 
     Args:
         response: The HTTP response object to modify cookies.

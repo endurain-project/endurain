@@ -137,7 +137,8 @@ The token refresh flow rotates the refresh token on every call:
 
 1. When access token expires, client calls `POST /auth/refresh`:
     - **Web clients:** Include `X-CSRF-Token` header with the current CSRF token, except bootstrap refresh after page reload may omit it
-    - **Mobile clients:** Include refresh token in request
+    - **Mobile clients:** Send the refresh token in the JSON body, `{"refresh_token": "<Refresh Token>"}`, never in the `Authorization` header (that header carries access tokens only). A missing token is `401`
+    - **Web clients** send no body: the refresh cookie is the only source, and a token in a web request's body is not read
 2. Backend validates refresh token and session, checks for token reuse
     - **If token reuse detected:** Entire token family is invalidated (security breach response)
     - **Retry within the grace period:** an already rotated refresh token presented again within 10 seconds is answered with the same replacement refresh token only for the client that rotated it (same IPv4 address or IPv6 /64, and same `User-Agent`). From any other client it counts as reuse and ends the session
@@ -228,10 +229,10 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 | What | Url | Expected Information | Rate Limit |
 | ---- | --- | -------------------- | ---------- |
 | **Authorize** | `/auth/login` | Header: `X-Client-Type: mobile`; `FORM` with fields: `username`, `password`, `code_challenge`, `code_challenge_method` (`S256`) and an optional `grant_type` (only `password`, ignored); the first four are required. HTTPS highly recommended | 10 requests/min |
-| **Refresh Token** | `/auth/refresh` | Header: `X-Client-Type: mobile`; Header: `Authorization: Bearer <Refresh Token>` | 30 requests/min |
+| **Refresh Token** | `/auth/refresh` | Header: `X-Client-Type: mobile`; JSON body: `{'refresh_token': <Refresh Token>}` | 30 requests/min |
 | **Verify MFA** | `/auth/mfa/verify` | Header: `X-Client-Type: mobile`; JSON body: `{'mfa_challenge': <mfa_challenge from /auth/login>, 'mfa_code': '123456'}`. No PKCE values: the challenge of the password step is kept with the MFA challenge | 10 requests/min |
 | **Change Password** | `/auth/password-change` | Header: `X-Client-Type: mobile`; JSON `{'password_change_challenge': <password_change_challenge from /auth/login or /auth/mfa/verify>, 'password': '<new password>'}`. The PKCE values of the sign-in are kept with the challenge | 10 requests/min |
-| **Logout** | `/auth/logout` | Header: `X-Client-Type: mobile`; Header: `Authorization: Bearer <Refresh Token>` | 30 requests/min |
+| **Logout** | `/auth/logout` | Header: `X-Client-Type: mobile`; JSON body: `{'refresh_token': <Refresh Token>}` | 30 requests/min |
 
 ### Logout
 
@@ -246,7 +247,7 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 - **Web client:** the session is already ended and the refresh cookie cleared when the answer arrives. When `idp_logout_url` is an `https:` URL, navigate the browser to it so the provider ends its session and sends the user back to the login page; otherwise show the login page.
 - **Mobile client:** the session is already ended. To also end the provider session, open `idp_logout_url` in the system browser (`ASWebAuthenticationSession` or Custom Tabs), as for sign-in. It has no `post_logout_redirect_uri`, so the provider shows its own signed-out page. A client that does not open it leaves the provider session in place.
 
-Logout is idempotent. A refresh token that is missing, malformed, expired, revoked, of the wrong kind, or whose session no longer exists ends nothing and gets the same `200` answer with `idp_logout_url: null`, so signing out twice is fine and `/auth/logout` never answers `401`. A web client's refresh cookie is cleared in every one of those answers, so the browser never keeps a dead cookie. A mobile client gets the same answer for a missing or invalid `Authorization` token, and should delete its stored tokens whatever the answer. A web logout without `X-CSRF-Token` is `403` (`urn:endurain:error:permission-denied`), checked before the token is read: no session is ended, so send the header and try again.
+Logout is idempotent. A refresh token that is missing, malformed, expired, revoked, of the wrong kind, or whose session no longer exists ends nothing and gets the same `200` answer with `idp_logout_url: null`, so signing out twice is fine and `/auth/logout` never answers `401`. A web client's refresh cookie is cleared in every one of those answers, so the browser never keeps a dead cookie. A mobile client gets the same answer for a missing or invalid `refresh_token` in the body, and should delete its stored tokens whatever the answer. A web logout without `X-CSRF-Token` is `403` (`urn:endurain:error:permission-denied`), checked before the token is read: no session is ended, so send the header and try again.
 
 The Endurain session is ended and committed before the provider is asked for its endpoint. If the provider cannot be reached for it, logout still succeeds with `idp_logout_url: null` and the provider session stays.
 
