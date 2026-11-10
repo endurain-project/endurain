@@ -54,7 +54,7 @@ Authentication and authorization failures use the same shape. Typical causes:
 
 | Status | Common causes |
 | ------ | ------------- |
-| `400` | Missing required fields, invalid client type, a wrong MFA or backup code (problem type `urn:endurain:error:invalid-mfa-code`, on a live sign-in challenge, the SSO token exchange and `POST /profile/mfa/enable`) |
+| `400` | Missing required fields, a wrong MFA or backup code (problem type `urn:endurain:error:invalid-mfa-code`, on a live sign-in challenge, the SSO token exchange and `POST /profile/mfa/enable`) |
 | `401` | Invalid credentials, an unknown, expired, used or mismatched sign-in challenge, or one started before a security change on the account such as a password, MFA or email change or a sign-out everywhere (an `mfa_challenge` also ends after 3 wrong codes and is accepted only from the client network and client type of the password step; a `password_change_challenge` is accepted only for its client type), expired or invalid token |
 | `403` | Insufficient permissions, missing required scope, a web write without `X-CSRF-Token` |
 | `404` | Invalid session ID, user not found |
@@ -143,7 +143,7 @@ Creating and the action endpoints (approve a user, change a password, link an ac
 ## Caching and correlation
 
 - A JSON response that sets no `Cache-Control` of its own is `Cache-Control: private, no-cache`: a browser may keep it but must ask the server before it reuses it. A response that carries a token or a secret is `no-store`.
-- The `ETag` of a record is its version, for `If-Match` on writes. It is not a cache validator: a `GET` never answers `304`, whatever `If-None-Match` says, because a response can carry data the version does not cover.
+- The `ETag` of a record is its version, for `If-Match` on writes. It is not a cache validator: a `GET` answers `304` to `If-None-Match` only on the two public image routes, `GET /public/idp/{slug}/icon` and `GET /public/server-settings/login-photo` (see [Public endpoints](public-endpoints.md)); every other `GET` ignores it, because a response can carry data the version does not cover.
 - Send `X-Request-ID` (letters, digits and hyphens, up to 64 characters) or a W3C `traceparent` header, and the server logs every line of the request under that id. Without `X-Request-ID` the trace id of a valid `traceparent` is the request id. The response repeats `X-Request-ID`, and `traceparent` and `tracestate` as sent. The server starts no spans of its own.
 
 ## Upload size limits

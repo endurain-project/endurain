@@ -54,7 +54,7 @@ A resource has a collection and an item:
   of the two it is **(test)**. A partial edit is a `PATCH`.
 - An action that is neither a replacement nor a partial edit is `POST /things/{thing_id}/<verb>` (`approve`,
   `revoke`, `read`, `complete`) **(test)**.
-- A `POST` that creates a resource answers `201`.
+- A `POST` that creates a resource answers `201`. The exception is the public sign-up request (`POST /public/sign-up/request`): it answers `200` with a `next_step`, because it answers from the server's policy alone and must not reveal whether the address is registered, so it has no resource to return.
 - Removing a thing that needs the caller's step-up in the body is `POST /things/{thing_id}/delete`, `.../unlink` or `.../revoke`, not `DELETE`, which carries no body: `POST /profile/delete-account`, `POST /profile/identity-providers/{idp_id}/unlink`, `POST /users/{user_id}/delete` and `POST /users/{user_id}/identity-providers/{idp_id}/unlink`, `POST /users/{user_id}/sessions/{session_id}/revoke` and `POST /users/{user_id}/sessions/revoke`. `POST /users/{user_id}/delete` keeps `If-Match` and the `202` status resource of a delete.
 
 ## Status codes

@@ -146,7 +146,7 @@ def enable_mfa(
 
     Raises:
         DomainError: 409 if no setup is in progress or MFA is already enabled; 400 if the TOTP
-            code is invalid; 401 if step-up verification fails.
+            code is invalid; 403 if step-up verification fails.
     """
     core_cache_control.set_no_store(response)
     return mfa_workflow_service.enable_mfa(
@@ -193,8 +193,8 @@ def disable_mfa(
         db: Database session.
 
     Raises:
-        DomainError: 401 if the current password is wrong or
-            the MFA code is invalid; 409 if MFA is not currently
+        DomainError: 403 if step-up verification fails (the current password
+            is wrong or the MFA code is invalid); 409 if MFA is not currently
             enabled.
     """
     mfa_workflow_service.disable_mfa(
@@ -249,7 +249,7 @@ def generate_mfa_backup_codes(
         Response with generated backup codes and timestamp.
 
     Raises:
-        DomainError: 401 if step-up verification fails, 404 if
+        DomainError: 403 if step-up verification fails, 404 if
             user not found, 409 if MFA is not enabled.
     """
     core_cache_control.set_no_store(response)

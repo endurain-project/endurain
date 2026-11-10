@@ -139,11 +139,16 @@ The lockout check happens **before** any password or MFA comparison, so the numb
 
 ```json
 {
-  "detail": "Too many failed step-up attempts. Try again later."
+  "type": "urn:endurain:error:too-many-requests",
+  "title": "Too Many Requests",
+  "status": 429,
+  "detail": "Too many failed step-up attempts. Try again later.",
+  "instance": "/api/v1/profile/mfa/disable",
+  "request_id": "5f0d3c1e8b7a4c9d"
 }
 ```
 
-The response also includes a `Retry-After` header indicating how many seconds remain before the lockout expires.
+The body is an [RFC 9457 problem document](errors-and-limits.md#error-responses). The response also includes a `Retry-After` header indicating how many seconds remain before the lockout expires.
 
 The counter resets automatically on a successful step-up verification.
 
@@ -422,7 +427,7 @@ X-Client-Type: web|mobile
 
 ## Responses that carry a secret
 
-A response that carries a secret is sent with `Cache-Control: no-store` and `Pragma: no-cache`, so no browser or proxy cache keeps it. These are the token responses, `POST /profile/api-keys`, `POST /profile/mfa/setup`, `POST /profile/mfa/enable`, `POST /profile/mfa/backup-codes`, `POST /ws/ticket` and the profile export download, `GET /profile/export/download`.
+A response that carries a secret is sent with `Cache-Control: no-store` and `Pragma: no-cache`, so no browser or proxy cache keeps it. These are the token responses, `POST /profile/api-keys`, `POST /profile/mfa/setup`, `POST /profile/mfa/enable`, `POST /profile/mfa/backup-codes`, `POST /auth/logout` (it answers the ID token hint), `POST /ws/ticket` and the profile export download, `GET /profile/export/download`.
 
 ## Profile export
 

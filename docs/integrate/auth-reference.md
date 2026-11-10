@@ -84,7 +84,7 @@ All errors, including authentication and authorization failures, use one problem
 3. **Handle concurrent refresh requests** - Use a refresh lock pattern to prevent race conditions
 4. **Always include required headers:**
     - `Authorization: Bearer {access_token}` for all authenticated requests
-    - `X-Client-Type: web` for all requests
+    - `X-Client-Type: web` on the session routes under `/auth` (required) and on every `POST`, `PUT`, `PATCH` and `DELETE` (the CSRF middleware reads it); not on `/public` routes
     - `X-CSRF-Token: {csrf_token}` for protected POST/PUT/DELETE/PATCH requests, except `/auth/refresh` bootstrap. Protected web writes require the header, though the server checks only that it is present; `/auth/refresh` also validates the token value when supplied and bound to the session
 5. **Handle page reload gracefully** - Call `/auth/refresh` on app initialization to restore in-memory tokens
 6. **Clear tokens on logout** - The httpOnly cookie is cleared by the backend, on every logout answer, even when the refresh token was already dead. When `POST /auth/logout` answers an `https:` `idp_logout_url`, navigate the browser to it to end the identity provider session too
@@ -97,7 +97,7 @@ All errors, including authentication and authorization failures, use one problem
 2. **Use PKCE for OAuth/SSO** - Required for OAuth/SSO flows
 3. **Include required headers:**
     - `Authorization: Bearer {access_token}` for all authenticated requests
-    - `X-Client-Type: mobile` for all requests
+    - `X-Client-Type: mobile` on the session routes under `/auth` (required); it is optional elsewhere and not sent on `/public` routes
     - The refresh token goes in the JSON body (`{"refresh_token": "..."}`) of `/auth/refresh` and `/auth/logout`, never in the `Authorization` header
 4. **Handle token refresh proactively** - Refresh before expiration
 5. **Implement secure token deletion** on logout, and open an `idp_logout_url` the logout answer carries in the system browser if the provider session should end too

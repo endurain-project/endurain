@@ -212,7 +212,7 @@ def edit_profile_email(
         The profile after the request; its ``version`` is also sent as the ETag.
 
     Raises:
-        HTTPException: 401 if step-up verification fails; 409 if another account uses the address and the server
+        HTTPException: 403 if step-up verification fails; 409 if another account uses the address and the server
             cannot send mail.
     """
     profile = profile_service.change_email(token_user_id, email_change, token_session_id, step_up_store, state, db)

@@ -191,7 +191,7 @@ def delete_my_identity_provider(
         None: Returns 204 No Content on successful deletion.
 
     Raises:
-        DomainError (401): If step-up verification fails.
+        DomainError (403): If step-up verification fails.
         DomainError (404): If the identity provider doesn't exist or
             is not linked to the user's account.
         DomainError (409): If attempting to unlink the last authentication method
