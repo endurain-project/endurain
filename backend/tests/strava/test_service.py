@@ -71,12 +71,6 @@ class TestOAuthState:
         assert len(states) == 5
         assert all(len(state) >= 32 for state in states)
 
-    def test_a_cleared_state_can_no_longer_be_used(self, oauth_states):
-        state = strava_service.begin_state(7, oauth_states)
-        strava_service.clear_state(7, oauth_states)
-
-        assert oauth_states.consume(7, state) is False
-
     def test_a_new_state_replaces_the_old_one(self, oauth_states):
         old = strava_service.begin_state(7, oauth_states)
         strava_service.begin_state(7, oauth_states)

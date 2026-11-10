@@ -1,5 +1,9 @@
 import type { ActivityIngestionJob } from '@/features/upload/types'
 import { apiFetch } from '@/services/http'
+import type { Schemas } from '@/types'
+
+/** The gear types a Strava export file carries, from the generated API client. */
+export type StravaGearImportType = Schemas['StravaGearImportType']
 
 /** Multipart form-field name every upload endpoint here expects. */
 const UPLOAD_FIELD = 'file'
@@ -60,25 +64,18 @@ export async function bulkImportFromArchive(
 }
 
 /**
- * Imports bikes from a Strava export's `bikes.csv` (completes synchronously).
+ * Imports gear from a Strava export's `bikes.csv` or `shoes.csv` (completes synchronously).
  *
  * @param file - The CSV file.
+ * @param gearType - Which export file it is.
  * @throws {HttpError} When the request fails (e.g. wrong headers).
  */
-export async function importStravaBikes(file: File): Promise<void> {
+export async function importStravaGear(file: File, gearType: StravaGearImportType): Promise<void> {
   const formData = new FormData()
   formData.append(UPLOAD_FIELD, file, file.name)
-  await apiFetch('/strava/import/bikes', { method: 'POST', body: formData, responseType: 'void' })
-}
-
-/**
- * Imports shoes from a Strava export's `shoes.csv` (completes synchronously).
- *
- * @param file - The CSV file.
- * @throws {HttpError} When the request fails (e.g. wrong headers).
- */
-export async function importStravaShoes(file: File): Promise<void> {
-  const formData = new FormData()
-  formData.append(UPLOAD_FIELD, file, file.name)
-  await apiFetch('/strava/import/shoes', { method: 'POST', body: formData, responseType: 'void' })
+  await apiFetch(`/strava/import/gear?gear_type=${gearType}`, {
+    method: 'POST',
+    body: formData,
+    responseType: 'void',
+  })
 }

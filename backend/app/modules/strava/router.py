@@ -1,8 +1,9 @@
 """Strava routes: account linking, activity and gear sync, and gear CSV import."""
 
 from datetime import date
+from typing import Annotated
 
-from fastapi import APIRouter, Request, Response, Security, UploadFile, status
+from fastapi import APIRouter, Query, Request, Response, Security, UploadFile, status
 
 import core.date_range as core_date_range
 import core.dependencies as core_dependencies
@@ -152,42 +153,23 @@ def strava_sync_status(
 
 
 @router.post(
-    "/import/bikes",
+    "/import/gear",
     status_code=status.HTTP_201_CREATED,
     response_model=strava_schema.StravaGearImportResult,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:write"])],
     openapi_extra=core_middleware_body_limit.upload_limit(strava_constants.GEAR_CSV_MAX_BYTES),
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
-def import_bikes_from_strava_export(
+def import_gear_from_strava_export(
     request: Request,
     file: UploadFile,
+    gear_type: Annotated[strava_schema.StravaGearImportType, Query(description="Which Strava export file is uploaded")],
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
 ) -> strava_schema.StravaGearImportResult:
-    """Create the bikes listed in an uploaded Strava ``bikes.csv`` and report how many."""
+    """Create the gear listed in an uploaded Strava ``bikes.csv`` or ``shoes.csv`` and report how many."""
     return strava_schema.StravaGearImportResult(
-        imported=strava_gear_service.import_gear(file, token_user_id, gears_schema.GearType.BIKE, db)
-    )
-
-
-@router.post(
-    "/import/shoes",
-    status_code=status.HTTP_201_CREATED,
-    response_model=strava_schema.StravaGearImportResult,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:write"])],
-    openapi_extra=core_middleware_body_limit.upload_limit(strava_constants.GEAR_CSV_MAX_BYTES),
-)
-@core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
-def import_shoes_from_strava_export(
-    request: Request,
-    file: UploadFile,
-    token_user_id: auth_dependencies.CurrentUserId,
-    db: core_dependencies.DbSession,
-) -> strava_schema.StravaGearImportResult:
-    """Create the shoes listed in an uploaded Strava ``shoes.csv`` and report how many."""
-    return strava_schema.StravaGearImportResult(
-        imported=strava_gear_service.import_gear(file, token_user_id, gears_schema.GearType.SHOES, db)
+        imported=strava_gear_service.import_gear(file, token_user_id, gears_schema.GearType[gear_type.name], db)
     )
 
 
@@ -239,22 +221,6 @@ def strava_begin_state(
     Replaces any state the user issued earlier.
     """
     return strava_schema.StravaState(state=strava_service.begin_state(token_user_id, oauth_states))
-
-
-@router.delete(
-    "/state",
-    response_model=None,
-    status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
-)
-@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
-def strava_clear_user_state(
-    request: Request,
-    token_user_id: auth_dependencies.CurrentUserId,
-    oauth_states: strava_dependencies.StravaOAuthStateStoreDep,
-) -> None:
-    """Forget the user's pending OAuth state."""
-    strava_service.clear_state(token_user_id, oauth_states)
 
 
 @router.delete(

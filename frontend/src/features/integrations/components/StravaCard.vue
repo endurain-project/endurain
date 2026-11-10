@@ -34,7 +34,6 @@ import {
   buildStravaAuthUrl,
   setStravaClient,
   beginStravaState,
-  clearStravaState,
 } from '@/features/integrations/services/strava'
 
 const props = defineProps<{
@@ -83,8 +82,6 @@ async function connectStrava(input: StravaClientInput): Promise<void> {
     } else {
       toasts.error(t('settings.integrations.strava.connectError'))
     }
-    // Best-effort: clear the half-set state so a retry starts clean.
-    void clearStravaState().catch(() => undefined)
   }
 }
 

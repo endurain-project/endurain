@@ -1,5 +1,7 @@
 """Strava request and response shapes."""
 
+from enum import StrEnum
+
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 import core.job_status as core_job_status
@@ -44,6 +46,18 @@ class StravaState(BaseModel):
     """
 
     state: str
+
+
+class StravaGearImportType(StrEnum):
+    """The gear types a Strava export file carries; the values are the ``GearType`` wire values.
+
+    Attributes:
+        BIKE: ``bikes.csv``.
+        SHOES: ``shoes.csv``.
+    """
+
+    BIKE = "bike"
+    SHOES = "shoes"
 
 
 class StravaGearImportResult(BaseModel):

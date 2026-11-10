@@ -30,8 +30,7 @@ def test_every_route_checks_a_scope():
 @pytest.mark.parametrize(
     ("path", "method", "scope"),
     [
-        ("/import/bikes", "POST", "gears:write"),
-        ("/import/shoes", "POST", "gears:write"),
+        ("/import/gear", "POST", "gears:write"),
         ("/gear", "POST", "gears:write"),
         ("/activities", "POST", "activities:write"),
         ("/link", "POST", "profile"),
@@ -54,7 +53,6 @@ def test_client_and_state_answer_with_their_bodies():
     with (
         patch.object(strava_router.strava_service, "set_client", return_value=4),
         patch.object(strava_router.strava_service, "begin_state", return_value="s" * 43),
-        patch.object(strava_router.strava_service, "clear_state"),
     ):
         client_result = strava_router.strava_set_user_client(
             request=MagicMock(),
@@ -65,11 +63,9 @@ def test_client_and_state_answer_with_their_bodies():
             if_match='"1"',
         )
         state = strava_router.strava_begin_state(request=MagicMock(), token_user_id=7, oauth_states=MagicMock())
-        cleared = strava_router.strava_clear_user_state(request=MagicMock(), token_user_id=7, oauth_states=MagicMock())
 
     assert client_result is None
     assert state.state == "s" * 43
-    assert cleared is None
 
 
 def test_client_credentials_are_validated():
@@ -97,26 +93,54 @@ def test_a_link_must_carry_a_state_as_long_as_the_server_issues():
 
 
 @pytest.mark.parametrize(
-    ("route", "gear_type"),
+    ("gear_type", "expected"),
     [
-        ("import_bikes_from_strava_export", gears_schema.GearType.BIKE),
-        ("import_shoes_from_strava_export", gears_schema.GearType.SHOES),
+        (strava_schema.StravaGearImportType.BIKE, gears_schema.GearType.BIKE),
+        (strava_schema.StravaGearImportType.SHOES, gears_schema.GearType.SHOES),
     ],
 )
-def test_a_gear_import_reports_how_many_gears_it_created(route, gear_type):
+def test_a_gear_import_reports_how_many_gears_it_created(gear_type, expected):
     with patch.object(strava_router.strava_gear_service, "import_gear", return_value=4) as import_gear:
-        result = getattr(strava_router, route)(request=MagicMock(), file=MagicMock(), token_user_id=7, db=MagicMock())
+        result = strava_router.import_gear_from_strava_export(
+            request=MagicMock(), file=MagicMock(), gear_type=gear_type, token_user_id=7, db=MagicMock()
+        )
 
     assert result == strava_schema.StravaGearImportResult(imported=4)
-    assert import_gear.call_args.args[2] is gear_type
+    assert import_gear.call_args.args[2] is expected
 
 
-@pytest.mark.parametrize("path", ["/import/bikes", "/import/shoes"])
-def test_a_gear_import_declares_its_result_and_still_answers_201(path):
-    route = _routes()[(path, ("POST",))]
+def test_a_gear_import_declares_its_result_and_still_answers_201():
+    route = _routes()[("/import/gear", ("POST",))]
 
     assert route.status_code == 201
     assert route.response_model is strava_schema.StravaGearImportResult
+
+
+def test_the_per_type_gear_imports_and_the_state_delete_are_gone():
+    routes = _routes()
+
+    assert ("/import/bikes", ("POST",)) not in routes
+    assert ("/import/shoes", ("POST",)) not in routes
+    assert ("/state", ("DELETE",)) not in routes
+
+
+@pytest.mark.parametrize("gear_type", ["wetsuit", "ski", "1", ""])
+def test_only_bikes_and_shoes_can_be_imported(gear_type):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    import core.exceptions as core_exceptions
+    import modules.auth.dependencies as auth_deps
+
+    app = FastAPI()
+    core_exceptions.register_exception_handlers(app)
+    app.include_router(strava_router.router, prefix="/strava")
+    app.dependency_overrides[auth_deps.check_scopes] = lambda: None
+    app.dependency_overrides[auth_deps.get_sub_from_access_token] = lambda: 1
+
+    response = TestClient(app).post(f"/strava/import/gear?gear_type={gear_type}", files={"file": ("g.csv", b"x")})
+
+    assert response.status_code == 422
 
 
 def test_setting_the_client_requires_the_version_that_was_read():
@@ -142,7 +166,3 @@ def test_setting_the_client_requires_the_version_that_was_read():
 
     assert response.status_code == 428
     set_client.assert_not_called()
-
-
-def test_clearing_the_state_answers_no_content():
-    assert _routes()[("/state", ("DELETE",))].status_code == 204

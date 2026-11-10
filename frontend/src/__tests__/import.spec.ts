@@ -4,8 +4,7 @@ import { apiFetch } from '@/services/http'
 import {
   bulkImportFromArchive,
   bulkImportFromFolder,
-  importStravaBikes,
-  importStravaShoes,
+  importStravaGear,
 } from '@/features/import/services/import'
 
 vi.mock('@/services/http', () => ({
@@ -47,20 +46,18 @@ describe('import service', () => {
     expect((body.get('file') as File).name).toBe('export.zip')
   })
 
-  it('importStravaBikes uploads the CSV to the bikes import path (void)', async () => {
-    await importStravaBikes(csv('bikes.csv'))
+  it.each([
+    ['bike', 'bikes.csv'],
+    ['shoes', 'shoes.csv'],
+  ] as const)(
+    'importStravaGear uploads the %s CSV to the gear import path (void)',
+    async (gearType, name) => {
+      await importStravaGear(csv(name), gearType)
 
-    const [path, options] = vi.mocked(apiFetch).mock.calls[0]!
-    expect(path).toBe('/strava/import/bikes')
-    expect(options).toMatchObject({ method: 'POST', responseType: 'void' })
-    expect(((options as { body: FormData }).body.get('file') as File).name).toBe('bikes.csv')
-  })
-
-  it('importStravaShoes uploads the CSV to the shoes import path (void)', async () => {
-    await importStravaShoes(csv('shoes.csv'))
-
-    const [path, options] = vi.mocked(apiFetch).mock.calls[0]!
-    expect(path).toBe('/strava/import/shoes')
-    expect(options).toMatchObject({ method: 'POST', responseType: 'void' })
-  })
+      const [path, options] = vi.mocked(apiFetch).mock.calls[0]!
+      expect(path).toBe(`/strava/import/gear?gear_type=${gearType}`)
+      expect(options).toMatchObject({ method: 'POST', responseType: 'void' })
+      expect(((options as { body: FormData }).body.get('file') as File).name).toBe(name)
+    },
+  )
 })

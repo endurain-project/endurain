@@ -42,10 +42,10 @@ def test_the_state_expires_with_its_ttl():
     assert state.set.call_args.kwargs["ttl_seconds"] == 600
 
 
-@pytest.mark.parametrize("call", [lambda s: s.begin(1, "a"), lambda s: s.consume(1, "a"), lambda s: s.clear(1)])
+@pytest.mark.parametrize("call", [lambda s: s.begin(1, "a"), lambda s: s.consume(1, "a")])
 def test_an_unreachable_state_store_is_reported_not_swallowed(call):
     state = MagicMock()
-    for method in ("set", "get_and_delete", "delete"):
+    for method in ("set", "get_and_delete"):
         getattr(state, method).side_effect = platform_providers.StateBackendUnavailableError("down")
 
     with pytest.raises(core_attempt_state.StateUnavailableError):

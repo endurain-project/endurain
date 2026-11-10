@@ -20,7 +20,6 @@ import {
   retrieveStravaGear,
   setStravaClient,
   beginStravaState,
-  clearStravaState,
   unlinkStrava,
 } from '@/features/integrations/services/strava'
 import { daysAgoRange } from '@/features/integrations/utils/dateRange'
@@ -59,14 +58,6 @@ describe('strava service', () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({ state: 'issued-by-server' })
     await expect(beginStravaState()).resolves.toBe('issued-by-server')
     expect(apiFetch).toHaveBeenCalledWith('/strava/state', { method: 'POST' })
-  })
-
-  it('clearStravaState DELETEs the state', async () => {
-    await clearStravaState()
-    expect(apiFetch).toHaveBeenCalledWith('/strava/state', {
-      method: 'DELETE',
-      responseType: 'void',
-    })
   })
 
   it('setStravaClient PUTs the client credentials with the version it read', async () => {

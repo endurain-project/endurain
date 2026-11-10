@@ -76,15 +76,6 @@ export async function beginStravaState(): Promise<string> {
 }
 
 /**
- * Forgets the user's pending OAuth state.
- *
- * @throws {HttpError} When the request fails.
- */
-export async function clearStravaState(): Promise<void> {
-  await apiFetch('/strava/state', { method: 'DELETE', responseType: 'void' })
-}
-
-/**
  * Stores the user's Strava API client id + secret ahead of the OAuth round-trip.
  *
  * @param input - The Strava application's client id and secret.

@@ -81,17 +81,6 @@ def begin_state(user_id: int, oauth_states: strava_oauth_state_store.StravaOAuth
     return state
 
 
-def clear_state(user_id: int, oauth_states: strava_oauth_state_store.StravaOAuthStateStore) -> None:
-    """Forget the user's pending OAuth state.
-
-    Args:
-        user_id: The authenticated user.
-        oauth_states: The one-time OAuth state store.
-    """
-    oauth_states.clear(user_id)
-    logger.debug("Strava state cleared", extra=core_logger.context(user_id=user_id))
-
-
 def unlink_account(user_id: int) -> bool:
     """Disconnect the user's Strava account and delete what was imported from it.
 

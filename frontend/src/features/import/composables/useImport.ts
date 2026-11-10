@@ -7,8 +7,7 @@ import {
   type BulkImportSource,
   bulkImportFromArchive,
   bulkImportFromFolder,
-  importStravaBikes,
-  importStravaShoes,
+  importStravaGear,
 } from '@/features/import/services/import'
 import { fetchIngestionJob } from '@/features/upload/services/upload'
 import { type ActivityIngestionJob, isTerminalIngestionJob } from '@/features/upload/types'
@@ -62,7 +61,7 @@ export function useBulkImportJobQuery(jobId: Ref<string | null>) {
 export function useImportStravaBikesMutation() {
   const client = useQueryClient()
   return useMutation<void, Error, File>({
-    mutationFn: (file) => importStravaBikes(file),
+    mutationFn: (file) => importStravaGear(file, 'bike'),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: queryKeys.gears.all() })
     },
@@ -73,7 +72,7 @@ export function useImportStravaBikesMutation() {
 export function useImportStravaShoesMutation() {
   const client = useQueryClient()
   return useMutation<void, Error, File>({
-    mutationFn: (file) => importStravaShoes(file),
+    mutationFn: (file) => importStravaGear(file, 'shoes'),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: queryKeys.gears.all() })
     },

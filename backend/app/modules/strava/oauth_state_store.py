@@ -9,7 +9,6 @@ Interface::
 
     begin(user_id, state)      - store the state, replacing any earlier one
     consume(user_id, state)    - True once for the stored state, then never again
-    clear(user_id)             - forget the state
 """
 
 import hmac
@@ -82,17 +81,3 @@ class StravaOAuthStateStore:
         except platform_providers.StateBackendUnavailableError as err:
             core_attempt_state.raise_unavailable("consume strava:oauth_state", err)
         return stored is not None and hmac.compare_digest(stored, state.encode())
-
-    def clear(self, user_id: int) -> None:
-        """Forget a user's stored state.
-
-        Args:
-            user_id: The authenticated user.
-
-        Raises:
-            StateUnavailableError: When storage is unavailable.
-        """
-        try:
-            self._state.delete(self._key(user_id))
-        except platform_providers.StateBackendUnavailableError as err:
-            core_attempt_state.raise_unavailable("clear strava:oauth_state", err)
