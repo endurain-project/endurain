@@ -60,8 +60,8 @@ class StepUpAction(StrEnum):
         ADMIN_IDP_DELETE: An administrator deletes an identity provider.
         ADMIN_SESSIONS_REVOKE: An administrator ends another user's sessions.
         ADMIN_MAIL_SETTINGS_EDIT: An administrator edits the mail server settings.
-        ADMIN_SERVER_SETTINGS_EDIT: An administrator changes a server setting that governs sign-up, sign-in, sessions
-            or the audit trail.
+        ADMIN_SERVER_SETTINGS_EDIT: An administrator changes a server setting that governs sign-up, sign-in, sessions,
+            the audit trail or the owner info on public links.
     """
 
     API_KEY_CREATE = "api_key_create"

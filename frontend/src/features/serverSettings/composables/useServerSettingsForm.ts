@@ -40,7 +40,8 @@ const RETENTION_DAYS_RANGE = { min: 0, max: 3650 } as const
 const AUDIT_RETENTION_DAYS_RANGE = { min: 30, max: 36500 } as const
 /**
  * The settings whose change needs the administrator's step-up: the ones that govern who can sign up or sign
- * in, how long a session or token lives and how long the audit trail is kept. Mirrors the backend's
+ * in, how long a session or token lives, how long the audit trail is kept and whether public links reveal
+ * their owner. Mirrors the backend's
  * `SECURITY_FIELDS`; the backend decides, so a field missing here only shows the dialog late.
  */
 const SECURITY_FIELDS = [
@@ -62,6 +63,7 @@ const SECURITY_FIELDS = [
   'apiKeyMaxLifetimeDays',
   'auditRetentionDays',
   'auditLegalHold',
+  'publicShareableLinksUserInfo',
 ] as const satisfies readonly (keyof ServerSettingsFormValues)[]
 /** The write-only API key fields; a draft kept across the identity-provider sign-in never holds them. */
 const SECRET_FIELDS = ['tileserverApiKey', 'geocodingApiKey'] as const

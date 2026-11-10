@@ -76,8 +76,8 @@ def edit_server_settings(
     """Update server settings.
 
     Requires admin authentication with server_settings:write scope. A change to a setting that governs
-    sign-up, sign-in, sessions or the audit trail also needs the administrator's own step-up verification in
-    `step_up`; any other change needs none. The body replaces
+    sign-up, sign-in, sessions, the audit trail or the owner info on public links also needs the administrator's
+    own step-up verification in `step_up`; any other change needs none. The body replaces
     the whole configuration; only the API keys may be omitted, which keeps the stored
     ones. Send ``If-Match`` with the ETag from the read to make the write conditional;
     a stale tag is refused with 412 rather than reverting an admin who saved in between.

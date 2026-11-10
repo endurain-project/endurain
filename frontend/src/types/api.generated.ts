@@ -3505,8 +3505,8 @@ export interface paths {
          * @description Update server settings.
          *
          *     Requires admin authentication with server_settings:write scope. A change to a setting that governs
-         *     sign-up, sign-in, sessions or the audit trail also needs the administrator's own step-up verification in
-         *     `step_up`; any other change needs none. The body replaces
+         *     sign-up, sign-in, sessions, the audit trail or the owner info on public links also needs the administrator's
+         *     own step-up verification in `step_up`; any other change needs none. The body replaces
          *     the whole configuration; only the API keys may be omitted, which keeps the stored
          *     ones. Send ``If-Match`` with the ETag from the read to make the write conditional;
          *     a stale tag is refused with 412 rather than reverting an admin who saved in between.
@@ -11191,8 +11191,8 @@ export interface components {
          *         ADMIN_IDP_DELETE: An administrator deletes an identity provider.
          *         ADMIN_SESSIONS_REVOKE: An administrator ends another user's sessions.
          *         ADMIN_MAIL_SETTINGS_EDIT: An administrator edits the mail server settings.
-         *         ADMIN_SERVER_SETTINGS_EDIT: An administrator changes a server setting that governs sign-up, sign-in, sessions
-         *             or the audit trail.
+         *         ADMIN_SERVER_SETTINGS_EDIT: An administrator changes a server setting that governs sign-up, sign-in, sessions,
+         *             the audit trail or the owner info on public links.
          * @enum {string}
          */
         StepUpAction: "api_key_create" | "idp_link" | "idp_unlink" | "email_change" | "account_delete" | "profile_export" | "profile_device_forget" | "mfa_enable" | "mfa_disable" | "mfa_backup_codes" | "admin_credential_reset" | "admin_mfa_reset" | "admin_credential_change_require" | "admin_user_edit" | "admin_user_delete" | "admin_idp_unlink" | "admin_user_create" | "admin_idp_create" | "admin_idp_edit" | "admin_idp_delete" | "admin_sessions_revoke" | "admin_mail_settings_edit" | "admin_server_settings_edit";

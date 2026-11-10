@@ -302,7 +302,7 @@
     "saveError": "Couldn't update the server settings. Please try again.",
     "staleError": "These settings were changed by someone else while you were editing. Your changes were not saved. Reload the page to see the current values.",
     "stepUpTitle": "Confirm your identity",
-    "stepUpDescription": "These changes affect who can sign up, sign in or keep a session on this server, or how long the audit trail is kept. Confirm it is you to continue.",
+    "stepUpDescription": "These changes affect who can sign up, sign in or keep a session on this server, how long the audit trail is kept, or whether public links show who shared them. Confirm it is you to continue.",
     "envLocked": "Set by {name}",
     "envSection": "Some settings here are set by environment variables ({names}). Remove them from the environment to edit those settings here.",
     "unsaved": "Unsaved changes",

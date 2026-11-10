@@ -69,10 +69,10 @@ SESSION_ENV_VARS: dict[str, str] = {
 AUDIT_RETENTION_MIN_DAYS = 30
 AUDIT_RETENTION_MAX_DAYS = 36500
 
-#: The settings that govern who can sign up or sign in, how long a session or token lives and how long the audit
-#: trail is kept. Changing the stored value of any of them needs the administrator's step-up, so a stolen access
-#: token cannot weaken authentication or shorten the evidence. Appearance, map, geocoding, paging, sharing and
-#: notification-retention settings are not here.
+#: The settings that govern who can sign up or sign in, how long a session or token lives, how long the audit
+#: trail is kept and whether public links reveal their owner. Changing the stored value of any of them needs the
+#: administrator's step-up, so a stolen access token cannot weaken authentication, shorten the evidence or expose
+#: users. Appearance, map, geocoding, paging, the public-links switch and notification-retention settings are not here.
 SECURITY_FIELDS: frozenset[str] = frozenset(
     {
         "signup_enabled",
@@ -93,6 +93,7 @@ SECURITY_FIELDS: frozenset[str] = frozenset(
         "api_key_max_lifetime_days",
         "audit_retention_days",
         "audit_legal_hold",
+        "public_shareable_links_user_info",
     }
 )
 

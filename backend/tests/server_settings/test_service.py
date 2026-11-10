@@ -191,6 +191,7 @@ _SECURITY_CHANGES = {
     "api_key_max_lifetime_days": 30,
     "audit_retention_days": 120,
     "audit_legal_hold": True,
+    "public_shareable_links_user_info": True,
 }
 
 

@@ -160,6 +160,17 @@ describe('GeneralTab audit trail retention', () => {
     })
   })
 
+  it('waits for the step-up when public links start showing the owner', async () => {
+    const { wrapper, form } = mountGeneralTab()
+
+    form.values.publicShareableLinksUserInfo = true
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(mutateAsync).not.toHaveBeenCalled()
+    expect(form.isStepUpOpen.value).toBe(true)
+  })
+
   it('saves a change to a setting that is not security-relevant without a step-up', async () => {
     const { wrapper, form } = mountGeneralTab()
 
