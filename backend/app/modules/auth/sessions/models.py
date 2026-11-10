@@ -42,6 +42,8 @@ class UsersSessions(Base):
         client_type: The client the session was created for (``ClientType``); its tokens name it as
             ``client_id`` and a refresh must declare it.
         auth_time: When the owner signed in; refresh and step-up leave it unchanged.
+        app_redirect_uri: The native-app redirect address an SSO sign-in handed the session to; null for a web
+            session and for a sign-in that carried no redirect.
         amr: How the owner proved themselves (RFC 8176 values); a session awaiting its SSO token exchange has
             only ``fed``, and the exchange adds the second factor.
     """
@@ -160,4 +162,9 @@ class UsersSessions(Base):
         JSON,
         nullable=False,
         comment="Authentication methods of the sign-in (RFC 8176 values): pwd, fed, otp, mfa",
+    )
+    app_redirect_uri: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+        comment="Native-app redirect address an SSO sign-in handed the session to",
     )

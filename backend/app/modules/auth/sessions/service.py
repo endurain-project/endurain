@@ -92,10 +92,12 @@ def create_session(
     csrf_token: str | None = None,
     *,
     amr: Sequence[str],
+    app_redirect_uri: str | None = None,
 ) -> sessions_contracts.SessionRead:
     """Stage a session with hashed tokens, its client type, the client's IP address and user agent.
 
-    ``amr`` records how the user signed in; ``auth_time`` is the moment the session is created. The caller commits.
+    ``amr`` records how the user signed in; ``auth_time`` is the moment the session is created.
+    ``app_redirect_uri`` names the native app an SSO sign-in handed the session to. The caller commits.
     """
     device = sessions_utils.parse_user_agent(user_agent)
     csrf_hash = _hash_csrf_token(csrf_token) if csrf_token else None
@@ -122,6 +124,7 @@ def create_session(
         client_type=client_type,
         auth_time=now,
         amr=list(amr),
+        app_redirect_uri=app_redirect_uri,
     )
     session = sessions_crud.create_session(session_data, db)
     logger.info(

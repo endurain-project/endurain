@@ -69,6 +69,7 @@ def create_session(
     csrf_token: str | None = None,
     *,
     amr: Sequence[str],
+    app_redirect_uri: str | None = None,
 ) -> sessions_contracts.SessionRead:
     """Stage a session."""
     return sessions_service.create_session(
@@ -84,6 +85,7 @@ def create_session(
         oauth_state_id,
         csrf_token,
         amr=amr,
+        app_redirect_uri=app_redirect_uri,
     )
 
 

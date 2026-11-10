@@ -74,6 +74,7 @@ class SessionRead(BaseModel):
     client_type: auth_constants.ClientType
     auth_time: datetime
     amr: list[str]
+    app_redirect_uri: str | None = None
 
 
 class DeviceType(Enum):

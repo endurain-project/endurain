@@ -29,6 +29,7 @@ class UserSessionsBase(BaseModel):
         created_at: Session creation timestamp.
         last_activity_at: Last activity timestamp.
         expires_at: Session expiration timestamp.
+        app_redirect_uri: The native-app redirect address the session was handed to, or null.
     """
 
     id: StrictStr = Field(..., description="Unique session identifier")
@@ -41,6 +42,11 @@ class UserSessionsBase(BaseModel):
     created_at: datetime = Field(..., description="Session creation timestamp")
     last_activity_at: datetime = Field(..., description="Last activity timestamp")
     expires_at: datetime = Field(..., description="Session expiration timestamp")
+    app_redirect_uri: StrictStr | None = Field(
+        None,
+        max_length=500,
+        description="Redirect address of the native app the session was signed in through, or null",
+    )
 
     model_config = ConfigDict(from_attributes=True)
 

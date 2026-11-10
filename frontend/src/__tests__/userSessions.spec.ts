@@ -49,7 +49,14 @@ describe('user sessions service', () => {
       createdAt: '2026-06-01T10:00:00Z',
       lastActivityAt: '2026-06-02T11:00:00Z',
       expiresAt: '2026-06-08T10:00:00Z',
+      appRedirectUri: null,
     })
+  })
+
+  it('mapUserSession carries the app the session was signed in through', () => {
+    const dto = makeSessionDto({ app_redirect_uri: 'com.example.app:/callback' })
+
+    expect(mapUserSession(dto).appRedirectUri).toBe('com.example.app:/callback')
   })
 
   it('fetchUserSessions calls the user-sessions endpoint and maps records', async () => {

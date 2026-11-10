@@ -97,6 +97,7 @@ export function mapSecuritySession(dto: SecuritySessionDto): SecuritySession {
     createdAt: dto.created_at,
     lastActivityAt: dto.last_activity_at,
     expiresAt: dto.expires_at,
+    appRedirectUri: dto.app_redirect_uri ?? null,
   }
 }
 

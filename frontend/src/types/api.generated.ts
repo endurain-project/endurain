@@ -13300,6 +13300,11 @@ export interface components {
          */
         UserSessionsRead: {
             /**
+             * App Redirect Uri
+             * @description Redirect address of the native app the session was signed in through, or null
+             */
+            app_redirect_uri?: string | null;
+            /**
              * Browser
              * @description Browser name
              */

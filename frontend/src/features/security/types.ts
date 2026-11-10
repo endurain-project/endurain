@@ -145,6 +145,7 @@ export interface BackupCodesResult {
  * @property createdAt - When the session was created (ISO).
  * @property lastActivityAt - When the session was last active (ISO).
  * @property expiresAt - When the session expires (ISO).
+ * @property appRedirectUri - Redirect address of the native app the session was signed in through, or null.
  */
 export interface SecuritySession {
   id: string
@@ -157,6 +158,7 @@ export interface SecuritySession {
   createdAt: string
   lastActivityAt: string
   expiresAt: string
+  appRedirectUri: string | null
 }
 
 /** Raw known-device payload (snake_case wire shape). */

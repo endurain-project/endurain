@@ -78,6 +78,50 @@ def test_create_session_hashes_secrets_and_stages(mock_db):
     mock_db.commit.assert_not_called()
 
 
+def test_create_session_records_the_app_redirect_uri(mock_db):
+    with (
+        _policy_patch(),
+        patch("modules.auth.sessions.service.sessions_crud.create_session", return_value=_session()) as create,
+    ):
+        sessions_service.create_session(
+            "session-id",
+            SimpleNamespace(id=7),
+            ClientType.MOBILE,
+            "127.0.0.1",
+            _FIREFOX_UA,
+            None,
+            MagicMock(),
+            datetime.now(UTC) + timedelta(days=1),
+            mock_db,
+            amr=["fed"],
+            app_redirect_uri="gadgetbridge://auth/sso/callback",
+        )
+    assert create.call_args.args[0].app_redirect_uri == "gadgetbridge://auth/sso/callback"
+
+
+def test_a_rotation_keeps_the_app_redirect_uri(mock_db):
+    session = _session(app_redirect_uri="gadgetbridge://auth/sso/callback")
+    hasher = MagicMock()
+    hasher.hash_password.return_value = "replacement-hash"
+    with (
+        _policy_patch(),
+        patch("modules.auth.sessions.service.sessions_crud.edit_session", return_value=session) as edit,
+    ):
+        sessions_service.edit_session(
+            session, "127.0.0.2", _FIREFOX_UA, "replacement", hasher, datetime.now(UTC) + timedelta(days=1), mock_db
+        )
+    assert edit.call_args.args[0].app_redirect_uri == "gadgetbridge://auth/sso/callback"
+
+
+def test_the_session_read_schema_shows_the_app_redirect_uri():
+    import modules.auth.sessions.schema as sessions_schema
+
+    read = sessions_schema.UserSessionsRead.model_validate(_session(app_redirect_uri="app:/cb"))
+
+    assert read.app_redirect_uri == "app:/cb"
+    assert sessions_schema.UserSessionsRead.model_validate(_session()).app_redirect_uri is None
+
+
 def test_edit_session_stages_rotation(mock_db):
     session = _session()
     hasher = MagicMock()

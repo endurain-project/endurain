@@ -877,7 +877,8 @@ class CallbackService:
     ) -> str:
         """Create the token-exchange session for a successful SSO login, with the provider tokens it signed in with.
 
-        The session is for the client type the OAuth state recorded when the sign-in started. The session and the
+        The session is for the client type the OAuth state recorded when the sign-in started, and a native-app
+        redirect is recorded on it as the app that holds the session. The session and the
         provider's sign-in are committed together. Until the token exchange claims the session
         it expires with the OAuth state, which is also when the exchange stops being possible; the exchange then
         gives it its real expiry.
@@ -924,6 +925,11 @@ class CallbackService:
             db,
             oauth_state_id=oauth_state.id,
             amr=[auth_constants.AuthMethod.FEDERATED],
+            app_redirect_uri=(
+                oauth_state.redirect_path
+                if identity_provider_utils.is_native_redirect(oauth_state.redirect_path)
+                else None
+            ),
         )
         self._tokens.store_session_tokens(session_id, user_read.id, idp_id, token_response, db, idp_sid=idp_sid)
         db.commit()

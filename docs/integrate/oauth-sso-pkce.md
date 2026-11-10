@@ -417,7 +417,11 @@ Any app on a device can register a custom scheme (RFC 8252 section 8.6), so an a
 
 - Prefer a claimed `https` address where the platform supports it. The operating system verifies the app against the domain, so another app cannot receive the link. The app side needs a hosted `/.well-known/assetlinks.json` (Android App Links) or `apple-app-site-association` file (iOS Universal Links) on the domain. A reliable `https` callback also needs the app to open the login with `ASWebAuthenticationSession` on iOS, or an Auth Tab or Custom Tab on Android. Endurain hosts neither file for you.
 - If you use a custom scheme, use a reverse-DNS scheme based on a domain you control, such as `org.endurain.app`, as RFC 8252 section 7.1 recommends. This reduces accidental collisions only; it does not stop an app that registers the same scheme on purpose. A short word such as `endurain` or `gadgetbridge` is easier to collide with.
-- Operators list only addresses of apps they trust.
+- Operators list only addresses of apps they trust with the whole account. An app listed in `ALLOWED_REDIRECT_URIS` receives tokens with every scope the signing-in user holds, administrator scopes included, because a redirect address selects the app, not a narrower set of scopes.
+
+#### The app a session belongs to
+
+When the SSO callback creates a session for a native-app `redirect`, the session records that address. `GET /profile/sessions` and the administrator's `GET /users/{user_id}/sessions` return it as `app_redirect_uri`, a read-only string that is `null` for a web session, for a mobile session signed in with a password or PKCE token exchange without SSO, and for a session created before it was recorded. A refresh keeps the value for the life of the session. No request accepts the field; the server sets it. The user and an administrator can use it to tell apart the sessions held by different apps.
 
 #### Redirect URL Validation Rules
 

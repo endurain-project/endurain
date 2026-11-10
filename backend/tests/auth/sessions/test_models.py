@@ -94,6 +94,8 @@ class TestUsersSessionsModel:
         assert model.oauth_state_id.nullable is True
         assert model.last_rotation_at.nullable is True
         assert model.csrf_token_hash.nullable is True
+        assert model.app_redirect_uri.nullable is True
+        assert model.app_redirect_uri.type.length == 500
 
     def test_users_sessions_model_column_types(self):
         """

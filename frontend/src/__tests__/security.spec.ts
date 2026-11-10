@@ -58,6 +58,7 @@ const mappedSession = {
   createdAt: '2026-01-01T00:00:00Z',
   lastActivityAt: '2026-01-02T00:00:00Z',
   expiresAt: '2026-02-01T00:00:00Z',
+  appRedirectUri: null,
 }
 
 describe('security mappers', () => {
@@ -86,6 +87,13 @@ describe('security mappers', () => {
 
   it('maps a session DTO to the clean model', () => {
     expect(mapSecuritySession(sessionDto)).toEqual(mappedSession)
+  })
+
+  it('maps the app a session was signed in through', () => {
+    expect(
+      mapSecuritySession({ ...sessionDto, app_redirect_uri: 'com.example.app:/callback' })
+        .appRedirectUri,
+    ).toBe('com.example.app:/callback')
   })
 })
 

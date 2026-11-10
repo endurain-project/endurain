@@ -192,7 +192,7 @@ Both switches act on an email address, so both are off for a new provider: turn 
 
 ## What Endurain does with the provider's tokens
 
-Each time you sign in through a provider, Endurain keeps the refresh token the provider issued for that sign-in, encrypted, together with the Endurain session it created. A second device signed in through the same provider has its own token. Linking a provider to an existing account does not sign you in, so it stores no token.
+Each time you sign in through a provider, Endurain keeps the refresh token the provider issued for that sign-in, encrypted, together with the Endurain session it created. A second device signed in through the same provider has its own token. When a native app started the sign-in, the sessions list in **Settings → Security** (and the administrator's list for the user) names the app's redirect address next to the session. Linking a provider to an existing account does not sign you in, so it stores no token.
 
 - **Refreshing.** The token is renewed in the background as your Endurain session is refreshed, never during a request. If the provider is unreachable or fails, the token is kept and the next refresh tries again.
 - **A refused refresh ends that sign-in.** When the provider refuses the refresh token (for example because you were removed from the provider or revoked the application there), Endurain signs out that one session and records it in the audit trail. Your other sessions are not affected. A token that Endurain can no longer decrypt, such as after a lost encryption key, is dropped without ending the session.

@@ -216,6 +216,9 @@ function confirmRevokeOthers(stepUp: StepUpInput): void {
                 })
               }}
             </p>
+            <p v-if="session.appRedirectUri" class="truncate text-hint">
+              {{ t('settings.users.sessions.viaApp', { address: session.appRedirectUri }) }}
+            </p>
           </div>
         </div>
         <Button

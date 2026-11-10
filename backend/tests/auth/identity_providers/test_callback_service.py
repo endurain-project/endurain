@@ -433,7 +433,9 @@ class TestHandleCallback:
         service._tokens.store_session_tokens.assert_not_called()
 
 
-_STATE = SimpleNamespace(id="state-id", expires_at=datetime(2026, 11, 6, 12, 10, tzinfo=UTC), client_type="mobile")
+_STATE = SimpleNamespace(
+    id="state-id", expires_at=datetime(2026, 11, 6, 12, 10, tzinfo=UTC), client_type="mobile", redirect_path=None
+)
 
 
 class TestCreateCallbackSession:
@@ -483,8 +485,45 @@ class TestCreateCallbackSession:
         assert create_session.call_args.args[7] == _STATE.expires_at
         assert create_session.call_args.kwargs["oauth_state_id"] == "state-id"
 
+    def test_a_native_redirect_is_recorded_on_the_session(self, service):
+        native = SimpleNamespace(
+            id="state-id",
+            expires_at=_STATE.expires_at,
+            client_type="mobile",
+            redirect_path="gadgetbridge://auth/sso/callback",
+        )
+        user = SimpleNamespace(id=7)
+        with (
+            patch.object(callback_service.users_integration, "require_active_user"),
+            patch.object(callback_service.users_schema.UserRead, "model_validate", return_value=SimpleNamespace(id=7)),
+            patch.object(callback_service.sessions_integration, "create_session") as create_session,
+        ):
+            service.create_callback_session(
+                user, "10.0.0.1", "agent", MagicMock(), native, 3, {}, MagicMock(), idp_sid=None
+            )
+
+        assert create_session.call_args.kwargs["app_redirect_uri"] == "gadgetbridge://auth/sso/callback"
+
+    def test_a_web_redirect_is_not_recorded_on_the_session(self, service):
+        web = SimpleNamespace(
+            id="state-id", expires_at=_STATE.expires_at, client_type="web", redirect_path="/activities"
+        )
+        user = SimpleNamespace(id=7)
+        with (
+            patch.object(callback_service.users_integration, "require_active_user"),
+            patch.object(callback_service.users_schema.UserRead, "model_validate", return_value=SimpleNamespace(id=7)),
+            patch.object(callback_service.sessions_integration, "create_session") as create_session,
+        ):
+            service.create_callback_session(
+                user, "10.0.0.1", "agent", MagicMock(), web, 3, {}, MagicMock(), idp_sid=None
+            )
+
+        assert create_session.call_args.kwargs["app_redirect_uri"] is None
+
     def test_an_exchange_window_without_a_timezone_is_read_as_utc(self, service):
-        naive = SimpleNamespace(id="state-id", expires_at=datetime(2026, 11, 6, 12, 0), client_type="web")
+        naive = SimpleNamespace(
+            id="state-id", expires_at=datetime(2026, 11, 6, 12, 0), client_type="web", redirect_path=None
+        )
         user = SimpleNamespace(id=7)
         with (
             patch.object(callback_service.users_integration, "require_active_user"),
@@ -499,7 +538,9 @@ class TestCreateCallbackSession:
 
     @pytest.mark.parametrize("client_type", list(ClientType))
     def test_the_session_is_for_the_client_type_the_sign_in_started_with(self, service, client_type):
-        state = SimpleNamespace(id="state-id", expires_at=_STATE.expires_at, client_type=client_type.value)
+        state = SimpleNamespace(
+            id="state-id", expires_at=_STATE.expires_at, client_type=client_type.value, redirect_path=None
+        )
         with (
             patch.object(callback_service.users_integration, "require_active_user"),
             patch.object(callback_service.users_schema.UserRead, "model_validate", return_value=SimpleNamespace(id=7)),

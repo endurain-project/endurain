@@ -249,7 +249,7 @@ describe('UserIdentityProvidersList unlink', () => {
 })
 
 describe('UserSessionsList revoke', () => {
-  function session(id: string): UserSession {
+  function session(id: string, appRedirectUri: string | null = null): UserSession {
     return {
       id,
       ipAddress: '203.0.113.5',
@@ -261,6 +261,7 @@ describe('UserSessionsList revoke', () => {
       createdAt: '2026-06-01T10:00:00Z',
       lastActivityAt: '2026-06-02T11:00:00Z',
       expiresAt: '2026-06-08T10:00:00Z',
+      appRedirectUri,
     }
   }
 
@@ -273,6 +274,18 @@ describe('UserSessionsList revoke', () => {
   }
 
   const stepUp = { currentPassword: 'admin-pw', mfaCode: null, idpReauth: null }
+
+  it('names the app a session was signed in through, only when it has one', () => {
+    mocks.sessions = [session('current'), session('other', 'com.example.app:/callback')]
+    const wrapper = mount(UserSessionsList, {
+      props: { userId: 7, resume: null },
+      global: { plugins: plugins(), stubs },
+    })
+    const rows = wrapper.findAll('ul > li')
+
+    expect(rows[0]!.text()).not.toContain('Signed in through app')
+    expect(rows[1]!.text()).toContain('Signed in through app: com.example.app:/callback')
+  })
 
   it('sends the administrator step-up when revoking one session', async () => {
     const wrapper = mountList()

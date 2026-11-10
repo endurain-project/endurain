@@ -168,6 +168,9 @@ function confirmSignOutEverywhere(): void {
                 })
               }}
             </p>
+            <p v-if="session.appRedirectUri" class="break-all text-hint">
+              {{ t('settings.security.sessions.viaApp', { address: session.appRedirectUri }) }}
+            </p>
           </div>
         </div>
         <Button
