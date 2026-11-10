@@ -17,8 +17,10 @@ from scripts.export_openapi import build_openapi
 import core.middleware as core_middleware
 
 # Headers supplied by the transport or by a security scheme rather than declared
-# as a route parameter, so they never appear as an OpenAPI header parameter.
-_NON_PARAMETER_HEADERS = {"authorization", "content-type"}
+# as a route parameter, so they never appear as an OpenAPI header parameter, and
+# the header only the native app sends: it is no browser, so it has no preflight
+# (a browser keeps its device id in a cookie).
+_NON_PARAMETER_HEADERS = {"authorization", "content-type", "x-device-id"}
 
 
 def _declared_header_parameters() -> set[str]:

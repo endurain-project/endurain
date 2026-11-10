@@ -26,7 +26,17 @@ _DEVICE_ID_PATTERN = re.compile(rf"[A-Za-z0-9_-]{{{math.ceil(known_devices_const
 
 def get_device_id(
     device_cookie: Annotated[str | None, Cookie(alias=DEVICE_COOKIE_NAME, include_in_schema=False)] = None,
-    device_header: Annotated[str | None, Header(alias=DEVICE_HEADER_NAME, include_in_schema=False)] = None,
+    device_header: Annotated[
+        str | None,
+        Header(
+            alias=DEVICE_HEADER_NAME,
+            description=(
+                "The device id the mobile app keeps, as the server returned it on an earlier sign-in: 43 characters"
+                " of `A-Z a-z 0-9 - _`. Optional: a missing or malformed value counts as none and the server mints"
+                " one. A browser sends its device cookie instead."
+            ),
+        ),
+    ] = None,
 ) -> str | None:
     """Return the device id the client sent, or None when it sent none or a malformed one.
 

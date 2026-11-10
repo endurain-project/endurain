@@ -260,6 +260,19 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         """
         return path in cls.EXEMPT_PATHS or path.startswith(cls.EXEMPT_PATH_PREFIXES)
 
+    @classmethod
+    def enforces(cls, method: str, path: str) -> bool:
+        """Return whether a web client must send ``X-CSRF-Token`` on a request.
+
+        Args:
+            method: The HTTP method, upper case.
+            path: The request path, with the ``/api/v1`` prefix.
+
+        Returns:
+            True for a state-changing method on a path that is not exempt.
+        """
+        return method in _CSRF_METHODS and not cls.is_exempt(path)
+
     async def dispatch(
         self,
         request: Request,
@@ -286,20 +299,14 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         if client_type != "web":
             return await call_next(request)
 
-        if self.is_exempt(request.url.path):
-            return await call_next(request)
-
-        if request.method in _CSRF_METHODS:
-            csrf_header = request.headers.get("X-CSRF-Token")
-
-            if not csrf_header:
-                return core_exceptions.build_problem_response(
-                    request=request,
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    code="permission-denied",
-                    title="Forbidden",
-                    detail="CSRF token required",
-                )
+        if self.enforces(request.method, request.url.path) and not request.headers.get("X-CSRF-Token"):
+            return core_exceptions.build_problem_response(
+                request=request,
+                status_code=status.HTTP_403_FORBIDDEN,
+                code="permission-denied",
+                title="Forbidden",
+                detail="CSRF token required",
+            )
 
         response = await call_next(request)
         return response

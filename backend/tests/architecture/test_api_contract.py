@@ -205,6 +205,11 @@ def _calls(function: ast.FunctionDef) -> set[str]:
     return names
 
 
+def _described(parameter: dict[str, Any] | None) -> bool:
+    """Return whether a header parameter is declared with a description."""
+    return parameter is not None and bool(parameter.get("description"))
+
+
 def _compare(kind: str, actual: set[str], register: dict[str, Any], fix: str) -> None:
     """Fail with every violation not in ``register`` and every ``register`` entry that no longer violates."""
     new = sorted(actual - register.keys())
@@ -786,6 +791,42 @@ class TestApiContract:
         }
 
         _compare("A server-owned response field is not readOnly", writable, {}, "Mark it in core.openapi_contract")
+
+    def test_the_headers_the_api_reads_are_declared_on_the_operations_that_read_them(self):
+        """``X-Device-Id``, ``X-Client-Type`` and ``X-CSRF-Token`` are described on every operation that reads them.
+
+        The device id is read by the sign-ins; the client type by the sign-ins and by the CSRF middleware, which
+        needs the CSRF token from a web client on every write it does not exempt.
+        """
+        import core.middleware as core_middleware
+
+        def headers(operation: dict[str, Any]) -> dict[str, dict[str, Any]]:
+            return {item["name"]: item for item in operation.get("parameters", []) if item["in"] == "header"}
+
+        device_routes = {
+            ("post", "/auth/login"),
+            ("post", "/auth/mfa/verify"),
+            ("post", "/auth/password-change"),
+            ("post", "/auth/sessions/{session_id}/tokens"),
+        }
+        wrong: set[str] = set()
+        for method, path, operation in _operations():
+            declared = headers(operation)
+            if (method, path) in device_routes and not _described(declared.get("X-Device-Id")):
+                wrong.add(f"{method.upper()} {path}: X-Device-Id")
+            if core_middleware.CSRFMiddleware.enforces(method.upper(), f"{_API_PREFIX}{path}"):
+                token, client_type = declared.get("X-CSRF-Token"), declared.get("X-Client-Type")
+                if not _described(token) or token["required"]:
+                    wrong.add(f"{method.upper()} {path}: X-CSRF-Token")
+                if not _described(client_type) or set(_resolve(client_type["schema"]).get("enum", [])) != {
+                    "web",
+                    "mobile",
+                }:
+                    wrong.add(f"{method.upper()} {path}: X-Client-Type")
+            elif method == "get" and "X-CSRF-Token" in declared:
+                wrong.add(f"{method.upper()} {path}: X-CSRF-Token is not read")
+
+        _compare("A header the API reads is not declared", wrong, {}, "Declare it in the OpenAPI document")
 
     def test_errors_are_problem_documents(self):
         """Outside ``core.exceptions`` and ``core.problem_details``, no 4xx/5xx is built with a response class.
