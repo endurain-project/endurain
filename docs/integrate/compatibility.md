@@ -17,6 +17,7 @@ These values are open: a release can add one. Handle a value you do not know as 
 | `next_step` in a sign-in or token answer (`/auth/login`, `/auth/mfa/verify`, `/auth/password-change`, `/auth/refresh`, `/auth/sessions/{session_id}/tokens`) | `mfa`, `password_change`, `exchange`, `tokens` | The client is not signed in. Tell the user that this client cannot finish the sign-in and should be updated. See [Sign-in steps](authentication.md#sign-in-steps). |
 | A problem document's `type` | The [error types](errors-and-limits.md#error-types) | Act on the `status`. |
 | The `error` query parameter of a failed SSO sign-in (`/login?error=<code>`) | The codes in [SSO failures](oauth-sso-pkce.md#sso-failures) | Show a general sign-in failure. |
+| The `type` of a step-up challenge (a `401` with `WWW-Authenticate: Bearer error="insufficient_user_authentication"`) | `urn:endurain:error:idp-reauth-required`. See [Step-up Refusal](account-security.md#step-up-refusal) | The client does not support that method. Stop, keep no partial state and tell the user to make the change in a client that does. |
 | The `X-Client-Type` header | `web`, `mobile` | Send one of the documented values. A value the server does not know is refused with `422`. |
 
 ## Refusals

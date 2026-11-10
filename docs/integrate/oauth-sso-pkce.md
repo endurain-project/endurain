@@ -381,7 +381,7 @@ A web client gets the web token body instead (`csrf_token`, no `refresh_token`, 
 | 409 | Tokens already exchanged | Replay attack prevention |
 | 429 | Rate limit exceeded | Max 10 requests/minute per IP, or the account is locked out after too many wrong MFA codes |
 
-**Accounts with MFA enabled:** signing in with an identity provider does not replace the account's own MFA. When the account has MFA enabled, the exchange is refused with `403` and the problem type `urn:endurain:error:mfa-required` until the request also carries `"mfa_code"` (a TOTP code or a backup code). The refusal does not use up the session: ask the user for a code and send the same request again with it. The verifier is checked first, so only the client that started the flow can try codes, and wrong codes count toward the same lockout as the password login.
+**Accounts with MFA enabled:** signing in with an identity provider does not replace the account's own MFA. When the account has MFA enabled, the exchange is refused with `403` and the problem type `urn:endurain:error:mfa-required` until the request also carries `"mfa_code"` (a TOTP code or a backup code). The refusal does not use up the session: ask the user for a code and send the same request again with it. A later release may add members to this `403` (for example the factors on offer) and optional proof fields to the exchange body next to `mfa_code`; see [Compatibility between releases](compatibility.md#responses-gain-members). Ignore a member you do not know, and send only the fields described here. The verifier is checked first, so only the client that started the flow can try codes, and wrong codes count toward the same lockout as the password login.
 
 #### Step 5: Store Tokens Securely
 
