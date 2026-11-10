@@ -268,7 +268,7 @@ The reverse also holds: signing out at a provider that supports back-channel log
 
 | What | Url | Expected Information |
 | ---- | --- | -------------------- |
-| **Get Own Sessions** | `/profile/sessions` | Headers: `Authorization: Bearer <Access Token>`, `X-Client-Type`; requires `profile:security` scope. Paged like the admin list |
+| **Get Own Sessions** | `/profile/sessions` | Headers: `Authorization: Bearer <Access Token>`, `X-Client-Type`; requires `profile:security` scope. Paged like the admin list. Each session carries `app_redirect_uri`: the native-app redirect address an SSO sign-in handed it to, or `null` |
 | **Delete Own Session** | `/profile/sessions/{session_id}` | Same headers and scope; web clients must also include `X-CSRF-Token` |
 | **Sign Out Everywhere** | `/profile/sessions/revoke` (`POST`) | Same headers and scope, no body and no step-up; optional query `keep_current` (default `false`). Without it, ends every session of the caller, the current one included, and clears the refresh-token cookie, so the client discards its tokens and shows the login page. With `keep_current=true`, ends every session except the current one and leaves the cookie alone. Answers `204`; records one `auth.session.revoke` audit row |
 | **Get User Sessions (admin)** | `/users/{user_id}/sessions` | Headers: `Authorization: Bearer <Access Token>`, `X-Client-Type`; requires `sessions:read` scope. Paged: optional `page_number` (default 1) and `num_records` (default 25, maximum 200); the response is `{items, total, page, num_records, next}` |
