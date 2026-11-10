@@ -15,6 +15,7 @@ import modules.auth.identity_provider_links.integration_service as identity_prov
 import modules.auth.identity_providers.audit_actions as idp_audit_actions
 import modules.auth.identity_providers.claim_mapping as claim_mapping
 import modules.auth.identity_providers.contracts as identity_provider_contracts
+import modules.auth.identity_providers.event_publishers as idp_event_publishers
 import modules.auth.lockout.integration_service as lockout_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
@@ -267,6 +268,7 @@ def find_or_create_user(
             # Link existing account to IdP
             identity_provider_links_integration.create_user_identity_provider(user.id, idp.id, subject, db)
             stage_identity_link(user.id, idp.id, db)
+            idp_event_publishers.publish_idp_linked(user.id, idp.id, db)
 
             logger.info(
                 "Linked existing user <username_log_id> to IdP <name>",

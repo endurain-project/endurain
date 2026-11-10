@@ -115,6 +115,29 @@ class TestFindOrCreateUserEmailLinking:
         assert result is existing_user
         mock_link.assert_called_once_with(existing_user.id, idp.id, "subject-123", mock_db)
 
+    def test_email_link_publishes_idp_linked(self):
+        """An automatic link by email tells the owner, as an explicit link does."""
+        idp = _make_idp()
+        mock_db = MagicMock(spec=Session)
+        existing_user = MagicMock()
+        existing_user.id = 7
+        existing_user.username = "legit"
+
+        with (
+            patch(
+                f"{_BASE}.identity_provider_links_integration.get_user_identity_provider_by_subject_and_idp_id",
+                return_value=None,
+            ),
+            patch(f"{_BASE}.users_integration.get_user_by_email", return_value=existing_user),
+            patch(f"{_BASE}.identity_provider_links_integration.create_user_identity_provider"),
+            patch(f"{_BASE}.idp_event_publishers.publish_idp_linked") as publish,
+        ):
+            user_provisioning_service.find_or_create_user(
+                idp, "subject-123", {"email": "legit@example.com", "email_verified": True}, mock_db
+            )
+
+        publish.assert_called_once_with(existing_user.id, idp.id, mock_db)
+
     def test_unverified_email_no_existing_account_creates_user(self):
         """Unverified email with no existing account still auto-creates."""
         idp = _make_idp()
@@ -161,6 +184,7 @@ class TestSsoSignUpGate:
             patch(f"{_BASE}.users_integration.require_active_user"),
             patch(f"{_BASE}.identity_provider_links_integration.create_user_identity_provider"),
             patch(f"{_BASE}.stage_identity_link"),
+            patch(f"{_BASE}.idp_event_publishers.publish_idp_linked"),
             patch(f"{_BASE}.update_user_from_idp", side_effect=lambda user, *_: user),
             patch(
                 f"{_BASE}.server_settings_integration.get_server_settings",
@@ -347,6 +371,7 @@ class TestLinkByEmail:
             patch(f"{_BASE}.users_integration.create_sso_user") as create_user,
             patch(f"{_BASE}.identity_provider_links_integration.create_user_identity_provider") as link,
             patch(f"{_BASE}.record_identity_link_refused") as refused,
+            patch(f"{_BASE}.idp_event_publishers.publish_idp_linked") as publish,
         ):
             get_link.return_value = None
             try:
@@ -354,7 +379,7 @@ class TestLinkByEmail:
                 error = None
             except core_exceptions.DomainError as exc:
                 result, error = None, exc
-        return result, error, link, create_user, refused
+        return result, error, link, create_user, refused, publish
 
     def test_off_refuses_an_email_match_and_tells_the_user_to_sign_in_locally(self):
         idp = _make_idp()
@@ -362,7 +387,7 @@ class TestLinkByEmail:
         existing = MagicMock(id=7, email_verified=True)
         existing.username = "alice"
 
-        _, error, link, create_user, refused = self._sign_in(
+        _, error, link, create_user, refused, publish = self._sign_in(
             idp, {"email": "alice@example.com", "email_verified": True}, existing_user=existing
         )
 
@@ -370,6 +395,7 @@ class TestLinkByEmail:
         assert error.status_code == 403
         assert error.login_error == "sso_link_by_email_disabled"
         link.assert_not_called()
+        publish.assert_not_called()
         create_user.assert_not_called()
         refused.assert_called_once_with(7, 1, idp_audit_actions.IdentityLinkRefusal.LINK_BY_EMAIL_DISABLED)
 
@@ -379,7 +405,8 @@ class TestLinkByEmail:
         existing = MagicMock(id=7, email_verified=False)
         existing.username = "alice"
 
-        _, error, _, _, refused = self._sign_in(idp, {"email": "alice@example.com"}, existing_user=existing)
+        _, error, _, _, refused, publish = self._sign_in(idp, {"email": "alice@example.com"}, existing_user=existing)
+        publish.assert_not_called()
 
         assert error.login_error == "sso_link_by_email_disabled"
         refused.assert_called_once_with(7, 1, idp_audit_actions.IdentityLinkRefusal.LINK_BY_EMAIL_DISABLED)
@@ -389,7 +416,7 @@ class TestLinkByEmail:
         existing = MagicMock(id=7, email_verified=True)
         existing.username = "alice"
 
-        result, error, link, _, refused = self._sign_in(
+        result, error, link, _, refused, _ = self._sign_in(
             idp, {"email": "alice@example.com", "email_verified": True}, existing_user=existing
         )
 
