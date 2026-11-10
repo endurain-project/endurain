@@ -10,7 +10,7 @@ from jasil.event_versioning import VersionedPayload
 from pydantic import ConfigDict
 
 # Published after a change to how a user proves who they are (a credential, a second factor, an API key or a
-# sign-in provider link) and after the account is locked by repeated failed sign-ins.
+# sign-in provider link) and after the account or its MFA sign-in is locked by repeated failed sign-ins.
 ACCOUNT_SECURITY_CHANGED = "auth.account_security_changed"
 
 
@@ -28,6 +28,7 @@ class AccountSecurityChange(StrEnum):
     API_KEY_CREATED = "api_key_created"
     IDENTITY_PROVIDER_UNLINKED = "identity_provider_unlinked"
     ACCOUNT_LOCKED = "account_locked"
+    MFA_LOCKED = "mfa_locked"
 
 
 class AccountSecurityChangedPayload(VersionedPayload):

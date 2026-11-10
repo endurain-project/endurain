@@ -46,3 +46,24 @@ def publish_account_locked(user_id: int, db: Session) -> None:
         db=db,
         schema_version=payload.SCHEMA_VERSION,
     )
+
+
+def publish_mfa_locked(user_id: int, db: Session) -> None:
+    """Publish ``auth.mfa_locked`` for an account that wrong MFA codes locked.
+
+    The lock is applied by a request that fails, so there is no transaction to stage the event in and it is
+    published on its own. The notices it triggers are advisory: a lost event leaves the lock in place and audited.
+
+    Args:
+        user_id: The user whose MFA sign-in was locked.
+        db: The producer's DB session.
+    """
+    payload = authentication_events.MfaLockedPayload(user_id=user_id)
+    platform_publisher.publish(
+        authentication_events.MFA_LOCKED,
+        payload.model_dump(),
+        source="api:mfa_verify",
+        metadata={core_event_metadata.META_USER_ID: user_id},
+        db=db,
+        schema_version=payload.SCHEMA_VERSION,
+    )

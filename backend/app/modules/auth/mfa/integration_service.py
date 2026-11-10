@@ -3,12 +3,18 @@
 from jasil.providers import StateProvider
 from sqlalchemy.orm import Session
 
+import core.dependencies as core_dependencies
+import core.logger as core_logger
 import modules.auth.credentials.contracts as credentials_contracts
+import modules.auth.lockout.contracts as lockout_contracts
 import modules.auth.mfa.contracts as mfa_contracts
 import modules.auth.mfa.crud as mfa_crud
+import modules.auth.mfa.pending_login_store as pending_login_store
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.mfa.service as mfa_service
 import modules.auth.mfa.totp_replay_store as mfa_totp_replay_store
+
+logger = core_logger.get_logger(__name__)
 
 
 def is_mfa_enabled_for_user(user_id: int, db: Session) -> bool:
@@ -54,6 +60,21 @@ def enable_user_mfa(
 def disable_user_mfa(user_id: int, db: Session) -> None:
     """Disable MFA and remove backup codes."""
     mfa_service.disable_user_mfa(user_id, db)
+
+
+def clear_mfa_account_lockout(username: str) -> None:
+    """Lift the account-wide MFA sign-in lock and wrong-code count of a username after its second factor changed.
+
+    A change that follows an outage of the shared state still succeeds; the lock then ends on its own or at the next
+    successful MFA sign-in.
+
+    Args:
+        username: The username whose account-wide wrong MFA codes are forgotten.
+    """
+    try:
+        pending_login_store.PendingMFALogin(core_dependencies.get_platform_state()).reset_account(username)
+    except lockout_contracts.AuthSecurityStoreUnavailableError:
+        logger.warning("Account MFA sign-in lock was not cleared because the shared state is unavailable")
 
 
 def get_mfa_enabled_for_users(user_ids: list[int], db: Session) -> dict[int, bool]:

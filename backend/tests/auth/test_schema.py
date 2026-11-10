@@ -15,6 +15,7 @@ from pydantic import ValidationError
 import core.exceptions as core_exceptions
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as auth_service
+import modules.auth.mfa.pending_login_store as pending_login_store
 from tests._helpers.auth import pending_login
 
 
@@ -87,7 +88,7 @@ class TestAuthRouterErrors:
         class PendingMFAStore:
             """Minimal pending MFA store for router testing."""
 
-            def is_locked_out(self, username):
+            def is_locked_out(self, username, *, known_device=False):
                 """Return unlocked for test user."""
                 return False
 
@@ -101,7 +102,7 @@ class TestAuthRouterErrors:
 
             def record_failed_attempt(self, username):
                 """Return a count that must stay server-side only."""
-                return 4
+                return pending_login_store.FailedMfaRecord(count=4, account_locked_now=False)
 
             def record_wrong_code(self, challenge):
                 """Leave the challenge live."""

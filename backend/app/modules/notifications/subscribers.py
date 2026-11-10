@@ -36,6 +36,7 @@ IDP_LINKED_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_idp_linked"
 ACCOUNT_SECURITY_CHANGED_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_account_security_changed"
 PASSWORD_RESET_COMPLETED_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_password_reset_completed"  # noqa: S105 (name matches the password-secret heuristic, not a secret)
 ACCOUNT_LOCKED_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_account_locked"
+MFA_LOCKED_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_mfa_locked"
 NEW_DEVICE_SIGN_IN_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_new_device_sign_in"
 ADMIN_SIGN_UP_APPROVAL_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_admin_sign_up_approval"
 
@@ -210,6 +211,21 @@ def notify_account_locked_for_event(event: Event) -> None:
         logger.debug("Created account-locked notification", extra=core_logger.context(user_id=payload.user_id))
 
 
+def notify_mfa_locked_for_event(event: Event) -> None:
+    """Notify the user that wrong two-step verification codes locked their sign-in."""
+    payload = platform_event_versioning.parse_payload(authentication_events.MfaLockedPayload, event)
+    change = account_security_events.AccountSecurityChange.MFA_LOCKED.value
+    created = _notify_and_push(
+        event,
+        payload.user_id,
+        lambda db: notifications_service.create_account_security_changed_notification(
+            payload.user_id, change, None, event.event_id, db
+        ),
+    )
+    if created:
+        logger.debug("Created MFA-locked notification", extra=core_logger.context(user_id=payload.user_id))
+
+
 def notify_new_device_sign_in_for_event(event: Event) -> None:
     """Notify the user that their account was signed in to from a new device."""
     payload = platform_event_versioning.parse_payload(known_devices_events.NewDeviceSignInPayload, event)
@@ -273,6 +289,7 @@ on_idp_linked_notify = best_effort(notify_idp_linked_for_event)
 on_account_security_changed_notify = best_effort(notify_account_security_changed_for_event)
 on_password_reset_completed_notify = best_effort(notify_password_reset_completed_for_event)
 on_account_locked_notify = best_effort(notify_account_locked_for_event)
+on_mfa_locked_notify = best_effort(notify_mfa_locked_for_event)
 on_new_device_sign_in_notify = best_effort(notify_new_device_sign_in_for_event)
 on_admin_sign_up_approval_notify = best_effort(notify_admin_sign_up_approval_for_event)
 
@@ -287,6 +304,7 @@ def register_bus_subscribers(events: EventBusProvider) -> None:
     events.subscribe(account_security_events.ACCOUNT_SECURITY_CHANGED, on_account_security_changed_notify)
     events.subscribe(password_reset_events.PASSWORD_RESET_COMPLETED, on_password_reset_completed_notify)
     events.subscribe(authentication_events.ACCOUNT_LOCKED, on_account_locked_notify)
+    events.subscribe(authentication_events.MFA_LOCKED, on_mfa_locked_notify)
     events.subscribe(known_devices_events.NEW_DEVICE_SIGN_IN, on_new_device_sign_in_notify)
     events.subscribe(sign_up_events.SIGN_UP_APPROVAL_REQUESTED, on_admin_sign_up_approval_notify)
 
@@ -332,6 +350,11 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
         authentication_events.ACCOUNT_LOCKED,
         ACCOUNT_LOCKED_NOTIFICATION_SUBSCRIBER_ID,
         notify_account_locked_for_event,
+    )
+    registry.register(
+        authentication_events.MFA_LOCKED,
+        MFA_LOCKED_NOTIFICATION_SUBSCRIBER_ID,
+        notify_mfa_locked_for_event,
     )
     registry.register(
         known_devices_events.NEW_DEVICE_SIGN_IN,

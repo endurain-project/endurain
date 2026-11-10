@@ -68,6 +68,22 @@ class TestGetAccountSecurityChangedEmail:
             assert "30 days" in body
             assert "Change or reset your password" in body
 
+    def test_a_locked_mfa_sign_in_says_who_is_refused_for_how_long_and_how_to_lift_it(self):
+        subject, html_body, text_body = email_messages.get_account_security_changed_email(
+            "Alice", "mfa_locked", None, HOST, "en"
+        )
+
+        assert subject == "Endurain - Two-step verification sign-in was locked"
+        assert "Two-step verification sign-in was locked" in html_body
+        for body in (html_body, text_body):
+            assert "100 wrong two-step verification codes in a row" in body
+            assert "Whoever entered them knew your password" in body
+            assert "30 days" in body
+            assert "turned off or set up again, or an administrator resets it" in body
+            assert "someone knows your password" in body
+            assert "Change your password right away from a signed-in device" in body
+        assert "security_change." not in html_body + text_body
+
     @pytest.mark.parametrize("change", ["identity_provider_unlinked", "identity_provider_linked"])
     def test_names_the_provider_when_it_exists(self, change):
         _, html_body, text_body = email_messages.get_account_security_changed_email(

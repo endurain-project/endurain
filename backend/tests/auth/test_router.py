@@ -21,6 +21,7 @@ import modules.auth.credentials.integration_service as auth_credentials_crud
 import modules.auth.credentials.password_hasher as auth_password_hasher
 import modules.auth.lockout.contracts as lockout_contracts
 import modules.auth.mfa.dependencies as auth_mfa_dependencies
+import modules.auth.mfa.pending_login_store as pending_login_store
 from tests._helpers.auth import pending_login
 
 
@@ -77,11 +78,11 @@ class FakePendingMFAStore:
         self._locked = False
         self._lockout_time = None
 
-    def is_locked_out(self, username: str) -> bool:
+    def is_locked_out(self, username: str, *, known_device: bool = False) -> bool:
         """Return locked state."""
         return self._locked
 
-    def get_lockout_time(self, username: str):
+    def get_lockout_time(self, username: str, *, known_device: bool = False):
         """Return lockout time."""
         return self._lockout_time
 
@@ -103,9 +104,9 @@ class FakePendingMFAStore:
         """Leave the challenge live."""
         return False
 
-    def record_failed_attempt(self, username: str) -> int:
+    def record_failed_attempt(self, username: str) -> pending_login_store.FailedMfaRecord:
         """Record failed MFA attempt."""
-        return 1
+        return pending_login_store.FailedMfaRecord(count=1, account_locked_now=False)
 
     def reset_attempts(self, username: str) -> None:
         """Reset MFA failed attempts."""
@@ -688,7 +689,9 @@ class TestMFAVerifyEndpoint:
         fake_pending_mfa_store,
     ):
         """An unknown challenge is a dead sign-in, not a wrong code, and counts against no account."""
-        fake_pending_mfa_store.record_failed_attempt = MagicMock(return_value=1)
+        fake_pending_mfa_store.record_failed_attempt = MagicMock(
+            return_value=pending_login_store.FailedMfaRecord(count=1, account_locked_now=False)
+        )
 
         response = auth_client.post(
             "/auth/mfa/verify",

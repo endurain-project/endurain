@@ -20,6 +20,7 @@ _NOTICE_KEYS = {
     account_security_events.AccountSecurityChange.MFA_RESET_BY_ADMIN.value: "security_notice_admin",
     account_security_events.AccountSecurityChange.PASSWORD_CHANGE_REQUIRED_BY_ADMIN.value: "security_notice_admin",
     account_security_events.AccountSecurityChange.ACCOUNT_LOCKED.value: "security_notice_account_locked",
+    account_security_events.AccountSecurityChange.MFA_LOCKED.value: "security_notice_mfa_locked",
 }
 _PROVIDER_CHANGES = frozenset(
     {IDENTITY_PROVIDER_LINKED, account_security_events.AccountSecurityChange.IDENTITY_PROVIDER_UNLINKED.value}

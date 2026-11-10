@@ -211,6 +211,38 @@ class TestAccountLockedHandler:
         )
 
 
+class TestMfaLockedHandler:
+    @patch(f"{SUBSCRIBERS}.core_mail.send_email", return_value=True)
+    @patch(f"{SUBSCRIBERS}.account_security_service.prepare_security_change_email")
+    @patch(f"{SUBSCRIBERS}.platform_runtime.get_active_platform")
+    @patch(f"{SUBSCRIBERS}.core_database.SessionLocal")
+    def test_sends_the_mfa_locked_notice(self, session_local, get_platform, prepare, send_email):
+        db = session_local.return_value.__enter__.return_value
+        prepare.return_value = ("alice@example.test", "subject", "html", "text")
+        event = platform_events.new_event(authentication_events.MFA_LOCKED, {"user_id": 4}, source="test")
+
+        account_security_subscribers.send_mfa_locked_email_for_event(event)
+
+        prepare.assert_called_once_with(
+            4, "mfa_locked", None, account_security_subscribers.core_config.settings.ENDURAIN_HOST, db
+        )
+        send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
+
+    def test_the_event_has_a_bus_subscriber_and_a_durable_handler(self):
+        events = MagicMock()
+        registry = MagicMock()
+
+        account_security_subscribers.register_bus_subscribers(events)
+        account_security_subscribers.register_durable_handlers(registry)
+
+        events.subscribe.assert_any_call(authentication_events.MFA_LOCKED, account_security_subscribers.on_mfa_locked)
+        registry.register.assert_any_call(
+            authentication_events.MFA_LOCKED,
+            "auth.send_mfa_locked_email",
+            account_security_subscribers.send_mfa_locked_email_for_event,
+        )
+
+
 class TestRegistration:
     def test_the_password_reset_completed_event_has_a_bus_subscriber_and_a_durable_handler(self):
         events = MagicMock()

@@ -16,6 +16,7 @@ import modules.auth.authentication.refresh_service as authentication_service_ref
 import modules.auth.authentication.service as authentication_service
 import modules.auth.constants as auth_constants
 import modules.auth.login_audit.audit_actions as login_audit_actions
+import modules.auth.mfa.pending_login_store as pending_login_store
 from tests._helpers.auth import pending_login
 
 _SERVICE = "modules.auth.authentication.service"
@@ -464,7 +465,9 @@ class TestLockoutAppliedByFailedCodes:
         self, mock_db, password_hasher
     ):
         store = MagicMock()
-        store.record_failed_attempt.return_value = 5
+        store.record_failed_attempt.return_value = pending_login_store.FailedMfaRecord(
+            count=5, account_locked_now=False
+        )
         with (
             patch(f"{_SERVICE}.mfa_integration.verify_user_mfa", return_value=False),
             jasil_testing.capture_audit() as audit,

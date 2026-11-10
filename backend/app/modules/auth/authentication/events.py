@@ -12,6 +12,8 @@ from pydantic import ConfigDict
 API_KEY_USED = "auth.api_key_used"
 # Published when 100 failed password sign-ins in a row lock an account, so its owner is told.
 ACCOUNT_LOCKED = "auth.account_locked"
+# Published when 100 wrong MFA codes in a row lock an account's MFA sign-in, so its owner is told.
+MFA_LOCKED = "auth.mfa_locked"
 
 
 class ApiKeyUsedPayload(VersionedPayload):
@@ -33,6 +35,20 @@ class AccountLockedPayload(VersionedPayload):
 
     Attributes:
         user_id: The user whose account was locked.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    SCHEMA_VERSION: ClassVar[int] = 1
+
+    user_id: int
+
+
+class MfaLockedPayload(VersionedPayload):
+    """Validated payload for the ``auth.mfa_locked`` event.
+
+    Attributes:
+        user_id: The user whose MFA sign-in was locked.
     """
 
     model_config = ConfigDict(extra="ignore")

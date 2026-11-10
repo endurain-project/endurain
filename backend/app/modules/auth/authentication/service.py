@@ -362,14 +362,20 @@ def refuse_while_mfa_locked_out(
     user_id: int,
     method: login_audit_actions.LoginMethod,
     pending_mfa_store: mfa_dependencies.PendingMFAStore,
+    device_id: str | None,
+    db: Session,
 ) -> None:
     """Refuse an MFA attempt while the account is locked out from too many failed codes.
+
+    A known device of the account is held by the tiered lock but not by the account-wide lock.
 
     Args:
         username: The account's username.
         user_id: The account's id.
         method: How the sign-in being completed started, for the audit trail.
         pending_mfa_store: Store for pending MFA logins and the MFA lockout.
+        device_id: The device id the client sent, or None when it sent no valid one.
+        db: Database session.
 
     Raises:
         TooManyRequestsError: If the account is locked out.
@@ -377,7 +383,8 @@ def refuse_while_mfa_locked_out(
     """
     try:
         if pending_mfa_store.is_locked_out(username):
-            lockout_until = pending_mfa_store.get_lockout_time(username)
+            known_device = known_devices_integration.is_known_device(user_id, device_id, db)
+            lockout_until = pending_mfa_store.get_lockout_time(username, known_device=known_device)
             if lockout_until:
                 seconds_remaining = int((lockout_until - datetime.now(UTC)).total_seconds())
                 logger.warning(
@@ -440,15 +447,25 @@ def require_valid_mfa_code(
     if not code_is_valid:
         # Record failed attempt and apply lockout if threshold exceeded
         try:
-            failed_count = pending_mfa_store.record_failed_attempt(username)
+            failure = pending_mfa_store.record_failed_attempt(username)
         except lockout_contracts.AuthSecurityStoreUnavailableError as err:
             raise_auth_security_store_unavailable(err)
         lockout_integration.report_lockout_applied(
-            "mfa", lockout_contracts.MFA_LOCKOUT_TIERS, failed_count, username=username, user_id=user_id
+            "mfa", lockout_contracts.MFA_LOCKOUT_TIERS, failure.count, username=username, user_id=user_id
         )
+        if failure.account_locked_now:
+            lockout_integration.report_lockout_applied(
+                "mfa_account",
+                lockout_contracts.ACCOUNT_MFA_LOCKOUT_TIERS,
+                lockout_contracts.ACCOUNT_MFA_LOCKOUT_TIERS[0][0],
+                username=username,
+                user_id=user_id,
+            )
+            # The request ends in a refusal, so the event is published on its own rather than staged for a commit.
+            authentication_event_publishers.publish_mfa_locked(user_id, db)
         logger.warning(
             "Invalid MFA code for <username_log_id>. Failed attempts: <failed_count>",
-            extra=core_logger.context(username_log_id=username_log_id, failed_count=failed_count),
+            extra=core_logger.context(username_log_id=username_log_id, failed_count=failure.count),
         )
         login_audit_integration.record_login_refusal(
             method,
@@ -930,7 +947,7 @@ def verify_mfa_and_login(
         _end_outdated_mfa_challenge(mfa_request.mfa_challenge, user_id, pending_mfa_store)
 
     password_method = login_audit_actions.LoginMethod.PASSWORD
-    refuse_while_mfa_locked_out(user.username, user_id, password_method, pending_mfa_store)
+    refuse_while_mfa_locked_out(user.username, user_id, password_method, pending_mfa_store, device_id, db)
     try:
         require_valid_mfa_code(
             user.username, user_id, password_method, mfa_request.mfa_code, pending_mfa_store, password_hasher, db

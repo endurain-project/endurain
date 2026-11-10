@@ -154,6 +154,8 @@ class TestEnableMfa:
                 "modules.auth.account_security.mfa_workflow_service.mfa_integration.enable_user_mfa",
                 return_value=["code-1", "code-2"],
             ) as mock_enable,
+            patch("modules.auth.account_security.mfa_workflow_service.users_integration.require_user"),
+            patch("modules.auth.account_security.mfa_workflow_service.mfa_integration.clear_mfa_account_lockout"),
             patch("modules.auth.account_security.mfa_workflow_service.logger") as mock_log,
         ):
             result = mfa_workflow.enable_mfa(
@@ -325,6 +327,8 @@ class TestDisableMfa:
             patch(
                 "modules.auth.account_security.mfa_workflow_service.mfa_integration.disable_user_mfa"
             ) as mock_disable,
+            patch("modules.auth.account_security.mfa_workflow_service.users_integration.require_user"),
+            patch("modules.auth.account_security.mfa_workflow_service.mfa_integration.clear_mfa_account_lockout"),
             patch("modules.auth.account_security.mfa_workflow_service.logger") as mock_log,
         ):
             result = mfa_workflow.disable_mfa(

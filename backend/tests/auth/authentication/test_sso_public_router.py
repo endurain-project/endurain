@@ -11,6 +11,7 @@ import core.database as core_db
 import core.exceptions as core_exceptions
 import modules.auth.authentication.sso_public_router as sso_public_router
 import modules.auth.mfa.dependencies as mfa_dependencies
+import modules.auth.mfa.pending_login_store as pending_login_store
 import modules.auth.oauth_state.constants as oauth_state_constants
 
 _VERIFIER = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
@@ -31,7 +32,7 @@ def _session_policy(session_policy):
 def _pending_mfa_store(*, locked_out: bool = False) -> MagicMock:
     store = MagicMock()
     store.is_locked_out.return_value = locked_out
-    store.record_failed_attempt.return_value = 1
+    store.record_failed_attempt.return_value = pending_login_store.FailedMfaRecord(count=1, account_locked_now=False)
     return store
 
 

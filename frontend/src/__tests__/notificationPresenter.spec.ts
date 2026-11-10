@@ -146,6 +146,7 @@ describe('presentNotification', () => {
     ['backup_codes_generated', 'backupCodesGenerated'],
     ['api_key_created', 'apiKeyCreated'],
     ['account_locked', 'accountLocked'],
+    ['mfa_locked', 'mfaLocked'],
   ])('presents the %s account-security change', (change, key) => {
     const result = presentNotification(make('account_security_changed', { change }))
 

@@ -15,6 +15,11 @@ ACCOUNT_LOGIN_LOCKOUT_TIERS: tuple[LockoutTier, ...] = ((100, 30 * 24 * 60 * 60,
 # How long the account-wide count survives without a new failure.
 ACCOUNT_LOGIN_ATTEMPTS_TTL_SECONDS = 30 * 24 * 60 * 60
 MFA_LOCKOUT_TIERS: tuple[LockoutTier, ...] = ((5, 300, "5 min"), (10, 1800, "30 min"), (15, 7200, "2 hours"))
+# Wrong MFA codes in a row from every address against one account. The lock lasts 30 days and, like the count, is
+# lifted by a successful MFA sign-in, the user turning MFA on or off, or an administrator resetting it.
+ACCOUNT_MFA_LOCKOUT_TIERS: tuple[LockoutTier, ...] = ((100, 30 * 24 * 60 * 60, "30 days"),)
+# How long the account-wide MFA count survives without a new wrong code.
+ACCOUNT_MFA_ATTEMPTS_TTL_SECONDS = 30 * 24 * 60 * 60
 STEP_UP_LOCKOUT_TIERS: tuple[LockoutTier, ...] = (
     (5, 300, "5 min"),
     (10, 1800, "30 min"),

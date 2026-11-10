@@ -197,7 +197,9 @@ def exchange_tokens_for_session(
             )
             raise core_exceptions.MfaRequiredError()
         sso_method = login_audit_actions.LoginMethod.IDENTITY_PROVIDER
-        authentication_service.refuse_while_mfa_locked_out(user.username, user.id, sso_method, pending_mfa_store)
+        authentication_service.refuse_while_mfa_locked_out(
+            user.username, user.id, sso_method, pending_mfa_store, device_id, db
+        )
         authentication_service.require_valid_mfa_code(
             user.username, user.id, sso_method, mfa_code, pending_mfa_store, password_hasher, db
         )

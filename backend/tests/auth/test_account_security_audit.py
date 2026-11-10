@@ -63,6 +63,7 @@ class TestPayloadAndPublisher:
             "api_key_created",
             "identity_provider_unlinked",
             "account_locked",
+            "mfa_locked",
         }
 
     def test_the_event_is_staged_on_the_callers_session(self, mock_db, published):
@@ -159,12 +160,16 @@ class TestAdministratorCredentialAudit:
     def test_admin_resets_mfa(self, mock_db, published):
         with (
             patch.object(account_security_service.mfa_integration, "disable_user_mfa") as disable,
+            patch.object(account_security_service.users_integration, "require_user") as require_user,
+            patch.object(account_security_service.mfa_integration, "clear_mfa_account_lockout") as clear_lock,
             self._sessions() as sessions,
             jasil_testing.capture_audit() as audit,
         ):
+            require_user.return_value.username = "alice"
             account_security_service.reset_managed_user_mfa(7, mock_db)
 
         disable.assert_called_once_with(7, mock_db)
+        clear_lock.assert_called_once_with("alice")
         sessions.assert_called_once_with(7, mock_db)
         entry = audit.assert_audited(
             account_security_audit_actions.MFA_RESET.id, target_type="user", target_id="7", target_owner_id="7"
@@ -246,9 +251,13 @@ class TestMfaAudit:
         with (
             patch.object(mfa_workflow.step_up_service, "verify_step_up_credentials", side_effect=step_up_error),
             patch.object(mfa_workflow.mfa_integration, "enable_user_mfa", return_value=["a"]),
+            patch.object(mfa_workflow.users_integration, "require_user") as require_user,
+            patch.object(mfa_workflow.mfa_integration, "clear_mfa_account_lockout") as clear_lock,
             jasil_testing.capture_audit() as audit,
         ):
+            require_user.return_value.username = "alice"
             mfa_workflow.enable_mfa(request, 7, "sid", MagicMock(), store, mock_db)
+        self.cleared = clear_lock
         return audit
 
     def _disable(self, mock_db, *, revoke=True):
@@ -256,9 +265,13 @@ class TestMfaAudit:
         with (
             patch.object(mfa_workflow.step_up_service, "verify_step_up_credentials"),
             patch.object(mfa_workflow.mfa_integration, "disable_user_mfa"),
+            patch.object(mfa_workflow.users_integration, "require_user") as require_user,
+            patch.object(mfa_workflow.mfa_integration, "clear_mfa_account_lockout") as clear_lock,
             jasil_testing.capture_audit() as audit,
         ):
+            require_user.return_value.username = "alice"
             mfa_workflow.disable_mfa(request, 7, "sid", MagicMock(), mock_db, revoke_other_sessions=revoke)
+        self.cleared = clear_lock
         return audit
 
     def _backup_codes(self, mock_db, *, revoke=True):
@@ -283,6 +296,7 @@ class TestMfaAudit:
         )
         assert entry.details == {"sessions_revoked": 3}
         assert_event(published, Change.MFA_ENABLED)
+        self.cleared.assert_called_once_with("alice")
 
     def test_enable_keeps_every_session_when_told_to(self, mock_db, published):
         with self._revoker(3) as delete:
@@ -308,6 +322,7 @@ class TestMfaAudit:
         )
         assert entry.details == {"sessions_revoked": 2}
         assert_event(published, Change.MFA_DISABLED)
+        self.cleared.assert_called_once_with("alice")
 
     def test_disable_keeps_every_session_when_told_to(self, mock_db, published):
         with self._revoker(2) as delete:

@@ -1,6 +1,7 @@
 """Tests for the provider-backed pending-MFA login store."""
 
 import json
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -186,3 +187,122 @@ def test_dependency_builds_store_from_provided_state():
 
     assert isinstance(store, pending_mfa.PendingMFALogin)
     assert store._state is state
+
+
+def _lock_account(store: pending_mfa.PendingMFALogin, username: str = "alice", *, keep_tiered: bool = False) -> None:
+    """Record the wrong codes that reach the account-wide cap, leaving the tiered lock open unless asked to keep it."""
+    for _ in range(100):
+        store.record_failed_attempt(username)
+    if not keep_tiered:
+        store._lockout.reset_attempts(username)
+
+
+class TestAccountWideLock:
+    def test_the_hundredth_wrong_code_locks_the_account_and_no_earlier_one_does(self):
+        store = pending_mfa.PendingMFALogin(MemoryState())
+
+        records = [store.record_failed_attempt("alice") for _ in range(100)]
+
+        assert [r.account_locked_now for r in records] == [False] * 99 + [True]
+
+    def test_the_tiered_count_is_reported_not_the_account_count(self):
+        store = pending_mfa.PendingMFALogin(MemoryState())
+
+        store.record_failed_attempt("alice")
+        store.reset_account("alice")
+        record = store.record_failed_attempt("alice")
+
+        assert record == pending_mfa.FailedMfaRecord(count=2, account_locked_now=False)
+
+    def test_the_lock_holds_an_unknown_device_for_thirty_days(self):
+        store = pending_mfa.PendingMFALogin(MemoryState())
+        _lock_account(store)
+
+        until = store.get_lockout_time("Alice")
+
+        assert store.is_locked_out("alice") is True
+        assert until is not None
+        assert abs((until - datetime.now(UTC)).total_seconds() - 30 * 24 * 60 * 60) < 60
+
+    def test_a_known_device_ignores_the_account_lock(self):
+        store = pending_mfa.PendingMFALogin(MemoryState())
+        _lock_account(store)
+
+        assert store.is_locked_out("alice", known_device=True) is False
+        assert store.get_lockout_time("alice", known_device=True) is None
+
+    def test_a_known_device_is_still_held_by_the_tiered_lock(self):
+        store = pending_mfa.PendingMFALogin(MemoryState())
+        for _ in range(5):
+            store.record_failed_attempt("alice")
+
+        assert store.is_locked_out("alice", known_device=True) is True
+        assert store.get_lockout_time("alice", known_device=True) is not None
+
+    def test_the_later_of_the_two_expiries_is_reported(self):
+        store = pending_mfa.PendingMFALogin(MemoryState())
+        _lock_account(store, keep_tiered=True)
+
+        tiered = store._lockout.get_lockout_time("alice")
+        account = store._by_account.get_lockout_time("alice")
+
+        assert tiered is not None
+        assert account is not None
+        assert tiered < account
+        assert store.get_lockout_time("alice") == account
+        assert store.get_lockout_time("alice", known_device=True) == tiered
+
+    def test_the_account_lock_is_keyed_on_the_normalized_username(self):
+        store = pending_mfa.PendingMFALogin(MemoryState())
+        _lock_account(store, "Alice")
+
+        assert store.is_locked_out("  alice ") is True
+
+    def test_reset_account_clears_only_the_account_counter(self):
+        store = pending_mfa.PendingMFALogin(MemoryState())
+        _lock_account(store, keep_tiered=True)
+
+        store.reset_account("alice")
+
+        assert store._by_account.get_lockout_time("alice") is None
+        assert store._lockout.get_lockout_time("alice") is not None
+        assert store.record_failed_attempt("alice").account_locked_now is False
+
+    def test_reset_attempts_clears_both_counters(self):
+        store = pending_mfa.PendingMFALogin(MemoryState())
+        _lock_account(store, keep_tiered=True)
+
+        store.reset_attempts("alice")
+
+        assert store.is_locked_out("alice") is False
+        assert store.record_failed_attempt("alice") == pending_mfa.FailedMfaRecord(count=1, account_locked_now=False)
+
+    def test_clear_all_clears_both_counters(self):
+        store = pending_mfa.PendingMFALogin(MemoryState())
+        _lock_account(store, keep_tiered=True)
+        _lock_account(store, "bob", keep_tiered=True)
+
+        store.clear_all()
+
+        assert store.is_locked_out("alice") is False
+        assert store.is_locked_out("bob") is False
+        assert store.record_failed_attempt("alice").count == 1
+
+    def test_the_account_count_is_remembered_for_thirty_days(self):
+        state = MagicMock()
+        state.record_tiered_failure.return_value = MagicMock(count=1, newly_locked=False)
+        store = pending_mfa.PendingMFALogin(state)
+
+        store.record_failed_attempt("alice")
+
+        ttls_by_tiers = {call.args[2]: call.args[3] for call in state.record_tiered_failure.call_args_list}
+        assert ttls_by_tiers[((100, 30 * 24 * 60 * 60),)] == 30 * 24 * 60 * 60
+        assert ttls_by_tiers[((5, 300), (10, 1800), (15, 7200))] == 2 * 60 * 60
+
+    def test_a_provider_outage_becomes_an_auth_store_error(self):
+        state = MagicMock()
+        state.record_tiered_failure.side_effect = StateBackendUnavailableError("down")
+        store = pending_mfa.PendingMFALogin(state)
+
+        with pytest.raises(pending_mfa.AuthSecurityStoreUnavailableError):
+            store.record_failed_attempt("alice")

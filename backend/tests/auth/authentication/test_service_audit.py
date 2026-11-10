@@ -16,6 +16,7 @@ import modules.auth.authentication.sso_exchange_service as authentication_servic
 import modules.auth.constants as auth_constants
 import modules.auth.known_devices.contracts as known_devices_contracts
 import modules.auth.login_audit.audit_actions as login_audit_actions
+import modules.auth.mfa.pending_login_store as pending_login_store
 from tests._helpers.auth import pending_login
 
 _SERVICE = "modules.auth.authentication.service"
@@ -206,7 +207,9 @@ class TestMfaSignIn:
         store.get_pending_login.return_value = pending_login(5)
         store.claim_pending_login.return_value = pending_login(5)
         store.is_locked_out.return_value = False
-        store.record_failed_attempt.return_value = 1
+        store.record_failed_attempt.return_value = pending_login_store.FailedMfaRecord(
+            count=1, account_locked_now=False
+        )
         store.record_wrong_code.return_value = False
         request = SimpleNamespace(mfa_challenge="challenge", mfa_code="123456")
         tokens = ("sid", datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")

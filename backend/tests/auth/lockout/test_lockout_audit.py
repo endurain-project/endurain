@@ -18,6 +18,7 @@ _ACTION = lockout_audit_actions.LOCKOUT_APPLY.id
     [
         ("login", lockout_contracts.LOGIN_LOCKOUT_TIERS),
         ("mfa", lockout_contracts.MFA_LOCKOUT_TIERS),
+        ("mfa_account", lockout_contracts.ACCOUNT_MFA_LOCKOUT_TIERS),
         ("step_up", lockout_contracts.STEP_UP_LOCKOUT_TIERS),
     ],
 )

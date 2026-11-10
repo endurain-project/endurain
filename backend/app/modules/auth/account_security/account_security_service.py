@@ -420,6 +420,7 @@ def reset_managed_user_mfa(user_id: int, db: Session) -> None:
         ConflictError: If MFA is not enabled for the user.
     """
     mfa_integration.disable_user_mfa(user_id, db)
+    mfa_integration.clear_mfa_account_lockout(users_integration.require_user(user_id, db).username)
     revoked = sessions_integration.delete_sessions_by_user(user_id, db)
     _stage_credential_changed(
         account_security_audit_actions.MFA_RESET,
