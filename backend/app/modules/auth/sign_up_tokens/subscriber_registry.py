@@ -36,6 +36,14 @@ DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
         ),
     ),
     DurableSubscriberNet(
+        sign_up_tokens_subscribers.EMAIL_CHANGE_REQUESTED_EMAIL_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "The notice is a courtesy to the current address, and the change it warns of is still pending and "
+            "confirmable only through the new address; a lost notice leaves the account as it was before."
+        ),
+    ),
+    DurableSubscriberNet(
         sign_up_tokens_subscribers.EMAIL_CHANGED_EMAIL_SUBSCRIBER_ID,
         None,
         exempt_reason="The notice is a courtesy to the previous address; the confirmed change is already applied.",

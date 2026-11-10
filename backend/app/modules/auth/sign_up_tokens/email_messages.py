@@ -145,6 +145,94 @@ def mask_email(email: str) -> str:
     return f"{local[:1]}***@{domain}"
 
 
+def get_email_change_requested_email(
+    user_name: str,
+    new_email: str,
+    cancel_link: str,
+    frontend_host: str,
+    locale: str | None = None,
+) -> tuple[str, str, str]:
+    """Build a localized notice, for the current address, that a change of the account's email was requested.
+
+    The new address is shown masked, so the notice does not disclose it in full to the current inbox. The link lets
+    the reader cancel the change and end the sessions of an account someone else may have access to.
+
+    Args:
+        user_name: The recipient's display name.
+        new_email: The address the change asks for.
+        cancel_link: The link of the page that cancels the change.
+        frontend_host: Base URL of the frontend, used in the footer.
+        locale: Preferred locale code for the recipient.
+
+    Returns:
+        A 3-tuple of (subject, html_content, text_content).
+    """
+    safe_name = html.escape(user_name)
+    masked_email = mask_email(new_email)
+
+    def tr(key: str, **kwargs: str) -> str:
+        return core_i18n.t(f"email_change_requested.{key}", locale, **kwargs)
+
+    subject = tr("subject")
+    heading = tr("heading")
+    intro = tr("intro", new_email=masked_email)
+    safe_intro = tr("intro", new_email=html.escape(masked_email))
+    cta = tr("cta")
+    security_label = tr("security_label")
+    security_notice = tr("security_notice")
+    ignore = tr("ignore")
+    copy_link = core_i18n.t("common.copy_link", locale)
+
+    color = core_email_templates.LINK_COLOR_PRIMARY
+    safe_link = html.escape(url_quote(cancel_link, safe=":/?=&%#@"), quote=True)
+
+    body_inner = f"""
+            <p>{tr("greeting", name=safe_name)}</p>
+            <p>{safe_intro}</p>
+            <div style="text-align: center; margin: 30px 0;">
+                <a
+                    href="{safe_link}"
+                    style="background-color: {color}; color: #ffffff;
+                    padding: 12px 30px; text-decoration: none;
+                    border-radius: 8px; display: inline-block;
+                    font-weight: 600;"
+                >{cta}</a>
+            </div>
+            <div
+                style="background-color: {core_email_templates.WARNING_BG};
+                border: 1px solid {core_email_templates.WARNING_BORDER};
+                color: {core_email_templates.WARNING_TEXT};
+                padding: 15px; border-radius: 8px; margin: 20px 0;"
+            >
+                <strong>{security_label}</strong> {security_notice}
+            </div>
+            <p>{ignore}</p>
+            <p>{copy_link}</p>
+            <p style="word-break: break-all; color: {color};">{safe_link}</p>"""
+
+    html_content = core_email_templates.wrap_email(
+        locale=locale,
+        subject=subject,
+        heading=heading,
+        body_inner=body_inner,
+        frontend_host=frontend_host,
+        link_color=color,
+    )
+
+    labels = core_i18n.common_labels(locale)
+    text_content = (
+        f"{tr('greeting', name=user_name)}\n\n"
+        f"{intro}\n\n"
+        f"{cta}: {cancel_link}\n\n"
+        f"{security_label} {security_notice}\n\n"
+        f"{ignore}\n\n"
+        f"{labels['best_regards']}\n"
+        f"{labels['team']}"
+    )
+
+    return subject, html_content, text_content
+
+
 def get_email_changed_email(
     user_name: str,
     new_email: str,

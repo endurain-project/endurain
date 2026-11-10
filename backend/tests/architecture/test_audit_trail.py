@@ -128,6 +128,7 @@ _AUDITED_WRITES: dict[tuple[str, str], tuple[str, ...]] = {
     ("auth/sessions/router.py", "revoke_sessions_user"): ("auth.session.revoke",),
     ("auth/sign_up_tokens/public_router.py", "signup"): ("users.user.create",),
     ("auth/sign_up_tokens/public_router.py", "verify_email"): ("auth.sign_up.confirm", "users.email.change"),
+    ("auth/sign_up_tokens/public_router.py", "cancel_email_change"): ("auth.email_change.cancel",),
     ("followers/blocks_router.py", "block_user"): ("followers.block.add",),
     ("followers/blocks_router.py", "unblock_user"): ("followers.block.remove",),
     ("followers/router.py", "accept_follow_request"): ("followers.follow.accept",),

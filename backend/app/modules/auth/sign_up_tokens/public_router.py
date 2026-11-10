@@ -1,6 +1,6 @@
 """Unauthenticated sign-up and email-verification endpoints."""
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, status
 
 import core.dependencies as core_dependencies
 import core.rate_limit as core_rate_limit
@@ -31,6 +31,26 @@ def signup(
 ) -> sign_up_schema.SignUpRead:
     """Create an account using the configured sign-up policy."""
     return sign_up_service.signup(user, state, db)
+
+
+@router.post(
+    "/email-change/cancel",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        400: {"description": "The token is malformed, expired or was issued before a security change of the account."},
+    },
+)
+@core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
+def cancel_email_change(
+    request: Request,
+    cancel_data: sign_up_schema.EmailChangeCancel,
+    db: core_dependencies.DbSession,
+) -> None:
+    """Report a requested email change as not made by its owner, with the link emailed to the current address.
+
+    The change is cancelled, every session of the account ends and its API keys are revoked.
+    """
+    sign_up_service.cancel_email_change(cancel_data.token, db)
 
 
 @router.post(

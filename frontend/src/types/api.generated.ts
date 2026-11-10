@@ -3051,6 +3051,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/email-change/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Email Change
+         * @description Report a requested email change as not made by its owner, with the link emailed to the current address.
+         *
+         *     The change is cancelled, every session of the account ends and its API keys are revoked.
+         */
+        post: operations["cancel_email_change"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/idp": {
         parameters: {
             query?: never;
@@ -5727,6 +5749,20 @@ export interface components {
             revoke_other_sessions: boolean;
             /** @description Step-up verification, required to change the email address */
             step_up: components["schemas"]["StepUpVerification"];
+        };
+        /**
+         * EmailChangeCancel
+         * @description Request schema for reporting an email change as not made by the account's owner.
+         *
+         *     Attributes:
+         *         token: The token of the link emailed to the account's current address.
+         */
+        EmailChangeCancel: {
+            /**
+             * Token
+             * @description The token of the link emailed to the account's current address
+             */
+            token: string;
         };
         /**
          * EmailStatus
@@ -29828,6 +29864,95 @@ export interface operations {
             };
             /** @description The resource does not exist, or is concealed from the caller. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    cancel_email_change: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailChangeCancel"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The token is malformed, expired or was issued before a security change of the account. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The request conflicts with the current state. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The body is larger than the route accepts. */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };

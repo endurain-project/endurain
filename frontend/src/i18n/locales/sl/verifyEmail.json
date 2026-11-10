@@ -23,5 +23,14 @@
   "resendSending": "Pošiljanje",
   "resendSent": "Če ta naslov čaka na potrditev, je nova e-pošta na poti.",
   "resendTooManyAttempts": "Preveč poskusov. Počakaj, preden poskusiš znova.",
-  "resendError": "E-pošte ni bilo mogoče poslati. Poskusi znova."
+  "resendError": "E-pošte ni bilo mogoče poslati. Poskusi znova.",
+  "cancelTitle": "Was this you?",
+  "cancelBody": "Someone asked to change the email address of your account. Nothing has changed yet. If it wasn't you, cancel the change: your account is signed out everywhere and its API keys are revoked.",
+  "cancelButton": "This wasn't me",
+  "cancelling": "Cancelling",
+  "cancelledTitle": "Email change cancelled",
+  "cancelledBody": "The change was cancelled, your account was signed out everywhere and its API keys were revoked. Someone else may know your password, so sign in and change it now, or use the forgotten password link.",
+  "cancelInvalidTitle": "This link no longer works",
+  "cancelInvalidBody": "The link is invalid or expired, or something about your account's security changed after it was sent. If you still think someone else has access, sign in and change your password.",
+  "cancelError": "We couldn't cancel the change. Please try again."
 }

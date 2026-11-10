@@ -116,6 +116,9 @@ export type SignUpResponse = Schemas['SignUpRead']
 /** Body of `POST /public/sign-up/confirm`; `password` is only sent for a sign-up link. */
 export type SignUpConfirm = Schemas['SignUpConfirm']
 
+/** Request body that reports an emailed email-change notice as not made by the account's owner. */
+export type EmailChangeCancel = Schemas['EmailChangeCancel']
+
 /** Body of `POST /public/sign-up/resend`. */
 export type SignUpResend = Schemas['SignUpResend']
 

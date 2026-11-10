@@ -360,3 +360,30 @@ class TestGetEmailChangeAddressTakenEmail:
             assert subject.startswith("Endurain")
             if locale != "en":
                 assert subject != english
+
+
+class TestGetEmailChangeRequestedEmail:
+    LINK = "https://app.example/cancel-email-change?token=7.123.abc"
+
+    def _build(self, name="Alice", new_email="secret.person@example.com"):
+        return email_messages.get_email_change_requested_email(name, new_email, self.LINK, "https://app.example", "en")
+
+    def test_carries_the_cancel_link_and_never_the_full_new_address(self):
+        subject, html_body, text_body = self._build()
+
+        assert subject.startswith("Endurain - ")
+        for body in (html_body, text_body):
+            assert self.LINK in body
+            assert "secret.person@example.com" not in body
+        assert "This wasn't me" in html_body
+
+    def test_says_that_the_change_has_not_happened_yet(self):
+        _, html_body, text_body = self._build()
+
+        assert "Nothing has changed yet" in html_body
+        assert "Nothing has changed yet" in text_body
+
+    def test_escapes_the_name(self):
+        _, html_body, _ = self._build(name="<script>alert(1)</script>")
+
+        assert "<script>" not in html_body

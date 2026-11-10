@@ -117,6 +117,26 @@ def publish_sign_up_existing_account(user_id: int, db: Session) -> None:
     )
 
 
+def publish_email_change_requested(user_id: int, db: Session) -> None:
+    """Stage ``auth.email_change_requested`` for the user whose email change was requested.
+
+    The payload carries the user id only: the pending address and the cancel link are read when the notice is sent.
+
+    Args:
+        user_id: The user whose address a change was requested for.
+        db: The producer's DB session (see :func:`publish_sign_up_verification_requested`).
+    """
+    payload = sign_up_tokens_events.SignUpUserPayload(user_id=user_id)
+    platform_publisher.publish_on_commit(
+        sign_up_tokens_events.EMAIL_CHANGE_REQUESTED,
+        payload.model_dump(),
+        source="api:change_email",
+        metadata={core_event_metadata.META_USER_ID: user_id},
+        db=db,
+        schema_version=payload.SCHEMA_VERSION,
+    )
+
+
 def publish_email_change_address_taken(user_id: int, db: Session) -> None:
     """Stage ``auth.email_change_address_taken`` for the holder of an address another account asked to move to.
 

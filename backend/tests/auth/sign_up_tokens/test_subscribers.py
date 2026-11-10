@@ -220,3 +220,21 @@ class TestAddressTakenPublisher:
             {"user_id": 8},
         )
         assert mock_publish.call_args.kwargs["db"] is db
+
+
+class TestRequestedNoticeHandler:
+    @patch("modules.auth.sign_up_tokens.subscribers.core_mail.send_email", return_value=True)
+    @patch("modules.auth.sign_up_tokens.subscribers.sign_up_service.prepare_email_change_requested_email")
+    @patch("modules.auth.sign_up_tokens.subscribers.platform_runtime.get_active_platform")
+    @patch("modules.auth.sign_up_tokens.subscribers.core_database.SessionLocal")
+    def test_the_notice_goes_to_the_current_address(self, _session_local, get_platform, prepare, send_email):
+        prepare.return_value = ("current@example.com", "subject", "<p>html</p>", "text")
+
+        sign_up_subscribers.send_email_change_requested_email_for_event(
+            _event(sign_up_events.EMAIL_CHANGE_REQUESTED, {"user_id": 7})
+        )
+
+        assert prepare.call_args.args[0] == 7
+        send_email.assert_called_once_with(
+            get_platform.return_value.mail, "current@example.com", "subject", "<p>html</p>", "text"
+        )

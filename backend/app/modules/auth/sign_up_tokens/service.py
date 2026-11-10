@@ -1,5 +1,6 @@
 """Sign-up token workflows and email preparation."""
 
+import hmac
 from collections.abc import Callable, Collection
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
@@ -14,6 +15,7 @@ import core.exceptions as core_exceptions
 import core.i18n as core_i18n
 import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as access_tokens_integration
+import modules.auth.api_keys.integration_service as api_keys_integration
 import modules.auth.computation as token_hashing
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
@@ -247,6 +249,7 @@ def request_self_service_email_change(
         db,
         security_generation=security_generation_integration.current_generation(user_id, db),
     )
+    sign_up_event_publishers.publish_email_change_requested(user_id, db)
     holder = _holder_of(email, user_id, db)
     if holder is None:
         sign_up_event_publishers.publish_email_change_verification_requested(user_id, db)
@@ -565,6 +568,115 @@ def prepare_sign_up_existing_account_email(
         user.email,
         *sign_up_email_messages.get_existing_account_email(user.name, frontend_host, locale),
     )
+
+
+def _cancel_mac(user_id: int, generation: int, expires_at: int) -> str:
+    """Return the proof, bound to an account's security generation, that a cancel link was issued by this server."""
+    return access_tokens_integration.derive_email_token(f"email-change-cancel:{user_id}:{generation}:{expires_at}")
+
+
+def prepare_email_change_requested_email(
+    user_id: int,
+    frontend_host: str,
+    db: Session,
+) -> tuple[str, str, str, str] | None:
+    """Return the notice, for the current address, that an email change was requested, with its cancel link.
+
+    The link carries the user, the instant the pending change expires and a proof derived from them and the account's
+    security generation. Nothing is stored: any security change, including the cancellation itself, ends the link, so
+    it works once. A retry of the event mails the same link.
+
+    Args:
+        user_id: The user whose address a change was requested for.
+        frontend_host: Base URL of the frontend.
+        db: Database session.
+
+    Returns:
+        The recipient (the current address), subject, HTML and text, or None when the user or a pending change is
+        missing, or a security change since the request has already ended it.
+    """
+    user = users_integration.get_user(user_id, db)
+    if user is None:
+        return None
+    pending = _find_pending_email_change(user_id, db)
+    if pending is None or pending.email is None:
+        return None
+    generation = security_generation_integration.current_generation(user_id, db)
+    if pending.security_generation != generation:
+        return None
+    expires_at = int(pending.expires_at.timestamp())
+    token = f"{user_id}.{expires_at}.{_cancel_mac(user_id, generation, expires_at)}"
+    locale = core_i18n.normalize_locale(user.preferred_language)
+    return (
+        user.email,
+        *sign_up_email_messages.get_email_change_requested_email(
+            user.name, pending.email, f"{frontend_host}/cancel-email-change?token={token}", frontend_host, locale
+        ),
+    )
+
+
+def _verified_cancel_token(token: str, db: Session) -> int | None:
+    """Return the user a cancel link names when it is genuine, unexpired and from the account's current generation.
+
+    On success the account's generation row is locked until the caller's transaction ends.
+
+    Args:
+        token: The token of the emailed link.
+        db: Database session.
+
+    Returns:
+        The user id, or None when the link is malformed, forged, expired, stale or names no user.
+    """
+    parts = token.split(".")
+    if (
+        len(parts) != 3
+        or not all(part.isascii() for part in parts)
+        or not (parts[0].isdecimal() and parts[1].isdecimal())
+    ):
+        return None
+    user_id, expires_at, mac = int(parts[0]), int(parts[1]), parts[2]
+    if expires_at <= datetime.now(UTC).timestamp() or users_integration.get_user(user_id, db) is None:
+        return None
+    generation = security_generation_integration.current_generation(user_id, db)
+    if not hmac.compare_digest(mac, _cancel_mac(user_id, generation, expires_at)):
+        return None
+    return user_id if security_generation_integration.matches_locked(user_id, generation, db) else None
+
+
+def cancel_email_change(token: str, db: Session) -> None:
+    """Cancel a requested email change reported as not made by the account's owner, and commit.
+
+    The person who asked knew the password and passed the step-up, so the account is treated as one that someone
+    else may reach: the pending change is voided, the security generation advances, every session ends and the API
+    keys are revoked. The password is not changed; the notice tells the owner to reset it.
+
+    Args:
+        token: The token of the link emailed to the account's current address.
+        db: Database session.
+
+    Raises:
+        InvalidInputError: If the link is malformed, expired, or from before a security change of the account.
+    """
+    user_id = _verified_cancel_token(token, db)
+    if user_id is None:
+        jasil_audit.record_detached(sign_up_audit_actions.EMAIL_CHANGE_CANCEL, outcome=jasil_audit.Outcome.FAILURE)
+        raise core_exceptions.InvalidInputError("Invalid or expired link")
+    security_generation_integration.stage_bump(user_id, db)
+    sign_up_crud.mark_user_sign_up_tokens_used(user_id, db)
+    sessions_revoked = sessions_integration.delete_sessions_by_user(user_id, db)
+    api_keys_revoked = api_keys_integration.revoke_user_api_keys(user_id, db)
+    jasil_audit.stage(
+        db,
+        sign_up_audit_actions.EMAIL_CHANGE_CANCEL,
+        target_type="user",
+        target_id=str(user_id),
+        target_owner_id=str(user_id),
+        details=sign_up_audit_actions.EmailChangeCancelDetails(
+            sessions_revoked=sessions_revoked, api_keys_revoked=api_keys_revoked
+        ),
+    )
+    db.commit()
+    logger.info("Email change cancelled by the account owner", extra=core_logger.context(user_id=user_id))
 
 
 def prepare_email_change_address_taken_email(

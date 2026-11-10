@@ -79,6 +79,12 @@ const router = createRouter({
       meta: { requiresAuth: false, bare: true },
     },
     {
+      path: '/cancel-email-change',
+      name: 'cancel-email-change',
+      component: () => import('@/features/auth/views/CancelEmailChangeView.vue'),
+      meta: { requiresAuth: false, bare: true },
+    },
+    {
       path: '/activities',
       name: 'activities',
       component: () => import('@/features/activities/views/ActivitiesView.vue'),

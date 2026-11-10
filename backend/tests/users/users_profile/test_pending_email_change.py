@@ -22,6 +22,7 @@ _OTHER_SESSIONS = "modules.auth.account_security.integration_service.delete_othe
 _ALL_SESSIONS = "modules.auth.account_security.integration_service.delete_all_user_sessions"
 _EVENT = "auth.email_change_verification_requested"
 _TAKEN_EVENT = "auth.email_change_address_taken"
+_REQUESTED_EVENT = "auth.email_change_requested"
 _PROFILE = "modules.users.users_profile.service.get_profile"
 
 
@@ -82,8 +83,10 @@ class TestSelfServiceEmailChange:
         assert (user.email, user.email_verified) == ("user7@example.com", True)
         tokens = _unused_tokens(db)
         assert [(t.email, t.previous_email) for t in tokens] == [("new@example.com", "user7@example.com")]
-        publish.assert_called_once()
-        assert (publish.call_args.args[0], publish.call_args.args[1]) == (_EVENT, {"user_id": 7})
+        assert [(call.args[0], call.args[1]) for call in publish.call_args_list] == [
+            (_REQUESTED_EVENT, {"user_id": 7}),
+            (_EVENT, {"user_id": 7}),
+        ]
 
     def test_the_change_is_shown_as_pending_in_the_profile(self, db, mail, publish):
         _change_email(db, "new@example.com")
@@ -149,8 +152,10 @@ class TestSelfServiceEmailChange:
         assert [(t.email, t.previous_email) for t in _unused_tokens(db)] == [("user8@example.com", "user7@example.com")]
         assert _user(db).email == "user7@example.com"
         assert _user(db, 8).email == "user8@example.com"
-        publish.assert_called_once()
-        assert (publish.call_args.args[0], publish.call_args.args[1]) == (_TAKEN_EVENT, {"user_id": 8})
+        assert [(call.args[0], call.args[1]) for call in publish.call_args_list] == [
+            (_REQUESTED_EVENT, {"user_id": 7}),
+            (_TAKEN_EVENT, {"user_id": 8}),
+        ]
 
     def test_a_second_attempt_inside_the_hour_answers_the_same(self, db, mail, publish):
         state = MemoryState()
@@ -159,7 +164,11 @@ class TestSelfServiceEmailChange:
         _change_email(db, "user8@example.com", state=state)
 
         assert [t.email for t in _unused_tokens(db)] == ["user8@example.com"]
-        publish.assert_called_once()
+        assert [call.args[0] for call in publish.call_args_list] == [
+            _REQUESTED_EVENT,
+            _TAKEN_EVENT,
+            _REQUESTED_EVENT,
+        ]
 
     def test_a_taken_address_without_mail_is_a_conflict(self, db, no_mail, publish):
         with pytest.raises(core_exceptions.ConflictError):

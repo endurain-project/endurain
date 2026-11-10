@@ -27,6 +27,22 @@ class SignUpConfirmDetails(VersionedPayload):
     reason: str | None = None
 
 
+class EmailChangeCancelDetails(VersionedPayload):
+    """Details of ``auth.email_change.cancel``.
+
+    Attributes:
+        sessions_revoked: How many of the user's sessions the cancellation ended.
+        api_keys_revoked: How many of the user's API keys it revoked.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    SCHEMA_VERSION: ClassVar[int] = 1
+
+    sessions_revoked: int = 0
+    api_keys_revoked: int = 0
+
+
 SIGN_UP_CONFIRM = jasil_audit.AuditAction(
     id="auth.sign_up.confirm",
     category=jasil_audit.Category.IDENTITY,
@@ -36,5 +52,14 @@ SIGN_UP_CONFIRM = jasil_audit.AuditAction(
     details_model=SignUpConfirmDetails,
 )
 
+EMAIL_CHANGE_CANCEL = jasil_audit.AuditAction(
+    id="auth.email_change.cancel",
+    category=jasil_audit.Category.IDENTITY,
+    severity=jasil_audit.Severity.HIGH,
+    description_key="audit.auth.email_change.cancel",
+    description_default="A requested email change was reported as not made by the account's owner",
+    details_model=EmailChangeCancelDetails,
+)
+
 #: Every action this package writes, registered by the composition root.
-ACTIONS: tuple[jasil_audit.AuditAction, ...] = (SIGN_UP_CONFIRM,)
+ACTIONS: tuple[jasil_audit.AuditAction, ...] = (SIGN_UP_CONFIRM, EMAIL_CHANGE_CANCEL)

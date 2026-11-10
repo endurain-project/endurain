@@ -23,6 +23,7 @@ SIGN_UP_APPROVAL_REQUEST_EMAIL_SUBSCRIBER_ID = "auth.send_sign_up_approval_reque
 SIGN_UP_APPROVED_EMAIL_SUBSCRIBER_ID = "auth.send_sign_up_approved_email"
 SIGN_UP_EXISTING_ACCOUNT_EMAIL_SUBSCRIBER_ID = "auth.send_sign_up_existing_account_email"
 EMAIL_CHANGE_ADDRESS_TAKEN_EMAIL_SUBSCRIBER_ID = "auth.send_email_change_address_taken_email"
+EMAIL_CHANGE_REQUESTED_EMAIL_SUBSCRIBER_ID = "auth.send_email_change_requested_email"
 
 
 def _deliver_email(
@@ -76,6 +77,20 @@ def send_email_change_verification_email_for_event(event: Event) -> None:
         )
     _deliver_email(mail, message, "email-change-verification")
     logger.debug("Email-change verification event processed", extra=core_logger.context(user_id=payload.user_id))
+
+
+def send_email_change_requested_email_for_event(event: Event) -> None:
+    """Send the current address a notice that a change of the account's email address was requested."""
+    payload = platform_event_versioning.parse_payload(sign_up_events.SignUpUserPayload, event)
+    mail = platform_runtime.get_active_platform().mail
+    with core_database.SessionLocal() as db:
+        message = sign_up_service.prepare_email_change_requested_email(
+            payload.user_id,
+            core_config.settings.ENDURAIN_HOST,
+            db,
+        )
+    _deliver_email(mail, message, "email-change-requested")
+    logger.debug("Email-change-requested event processed", extra=core_logger.context(user_id=payload.user_id))
 
 
 def send_email_changed_email_for_event(event: Event) -> None:
@@ -152,6 +167,7 @@ def send_email_change_address_taken_email_for_event(event: Event) -> None:
 
 on_sign_up_verification_requested = best_effort(send_verification_email_for_event)
 on_email_change_verification_requested = best_effort(send_email_change_verification_email_for_event)
+on_email_change_requested = best_effort(send_email_change_requested_email_for_event)
 on_email_changed = best_effort(send_email_changed_email_for_event)
 on_sign_up_approval_requested = best_effort(send_approval_request_email_for_event)
 on_sign_up_approved = best_effort(send_approved_email_for_event)
@@ -163,6 +179,7 @@ def register_bus_subscribers(events: EventBusProvider) -> None:
     """Register the sign-up bus subscribers."""
     events.subscribe(sign_up_events.SIGN_UP_VERIFICATION_REQUESTED, on_sign_up_verification_requested)
     events.subscribe(sign_up_events.EMAIL_CHANGE_VERIFICATION_REQUESTED, on_email_change_verification_requested)
+    events.subscribe(sign_up_events.EMAIL_CHANGE_REQUESTED, on_email_change_requested)
     events.subscribe(sign_up_events.EMAIL_CHANGED, on_email_changed)
     events.subscribe(sign_up_events.SIGN_UP_APPROVAL_REQUESTED, on_sign_up_approval_requested)
     events.subscribe(sign_up_events.SIGN_UP_APPROVED, on_sign_up_approved)
@@ -181,6 +198,11 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
         sign_up_events.EMAIL_CHANGE_VERIFICATION_REQUESTED,
         EMAIL_CHANGE_VERIFICATION_EMAIL_SUBSCRIBER_ID,
         send_email_change_verification_email_for_event,
+    )
+    registry.register(
+        sign_up_events.EMAIL_CHANGE_REQUESTED,
+        EMAIL_CHANGE_REQUESTED_EMAIL_SUBSCRIBER_ID,
+        send_email_change_requested_email_for_event,
     )
     registry.register(
         sign_up_events.EMAIL_CHANGED,

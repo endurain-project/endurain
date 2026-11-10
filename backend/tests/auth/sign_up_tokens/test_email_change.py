@@ -624,6 +624,7 @@ class TestSignUpPrehijack:
 
 _VERIFY_EVENT = "auth.email_change_verification_requested"
 _TAKEN_EVENT = "auth.email_change_address_taken"
+_REQUESTED_EVENT = "auth.email_change_requested"
 
 
 class TestSelfServiceEmailChange:
@@ -647,7 +648,7 @@ class TestSelfServiceEmailChange:
 
         assert result is True
         assert sign_up_service.get_pending_email_changes([7], db)[7].email == "free@example.com"
-        assert self._events(publish) == [(_VERIFY_EVENT, {"user_id": 7})]
+        assert self._events(publish) == [(_REQUESTED_EVENT, {"user_id": 7}), (_VERIFY_EVENT, {"user_id": 7})]
 
     def test_a_held_address_is_staged_the_same_way_and_only_its_holder_is_told(self, db, mail_configured):
         result, publish = self._request(db, "user8@example.com")
@@ -655,7 +656,7 @@ class TestSelfServiceEmailChange:
         assert result is True
         pending = sign_up_service.get_pending_email_changes([7], db)[7]
         assert pending.email == "user8@example.com"
-        assert self._events(publish) == [(_TAKEN_EVENT, {"user_id": 8})]
+        assert self._events(publish) == [(_REQUESTED_EVENT, {"user_id": 7}), (_TAKEN_EVENT, {"user_id": 8})]
 
     def test_a_second_attempt_inside_the_cooldown_answers_the_same_and_tells_nobody(self, db, mail_configured):
         state = MemoryState()
@@ -664,8 +665,8 @@ class TestSelfServiceEmailChange:
 
         assert first is second is True
         assert sign_up_service.get_pending_email_changes([7], db)[7].email == "user8@example.com"
-        assert len(first_publish.call_args_list) == 1
-        second_publish.assert_not_called()
+        assert self._events(first_publish) == [(_REQUESTED_EVENT, {"user_id": 7}), (_TAKEN_EVENT, {"user_id": 8})]
+        assert self._events(second_publish) == [(_REQUESTED_EVENT, {"user_id": 7})]
 
     def test_an_unreachable_state_store_answers_the_same_and_tells_nobody(self, db, mail_configured):
         broken = MagicMock()
@@ -675,7 +676,7 @@ class TestSelfServiceEmailChange:
 
         assert result is True
         assert sign_up_service.get_pending_email_changes([7], db)[7].email == "user8@example.com"
-        publish.assert_not_called()
+        assert self._events(publish) == [(_REQUESTED_EVENT, {"user_id": 7})]
 
     def test_without_mail_nothing_is_staged(self, db):
         with patch(f"{_SERVICE}.server_settings_integration.is_mail_configured", return_value=False):

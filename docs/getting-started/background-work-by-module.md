@@ -323,6 +323,7 @@ Every durable job is one subscriber reacting to one event. The **subscriber id**
 | `followers.clear_request_notification` | `follower.request_removed` | Bus | Nothing, by design | Nothing |
 | `auth.send_sign_up_verification_email` | `auth.sign_up_verification_requested` | Bus | The user signs up again, or an administrator helps | Nothing |
 | `auth.send_email_change_verification_email` | `auth.email_change_verification_requested` | Bus | The user resends the confirmation from Settings, or an administrator helps | Nothing |
+| `auth.send_email_change_requested_email` | `auth.email_change_requested` | Bus | Nothing: the notice is a courtesy, and the change stays unconfirmed | Nothing |
 | `auth.send_email_changed_email` | `auth.email_changed` | Bus | Nothing: the notice is a courtesy | Nothing |
 | `auth.send_email_change_address_taken_email` | `auth.email_change_address_taken` | Bus | Nothing: the notice is a courtesy | Nothing |
 | `auth.send_sign_up_approval_request_email` | `auth.sign_up_approval_requested` | Bus | Administrators also see the pending user | Nothing |

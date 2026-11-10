@@ -18,6 +18,9 @@ EMAIL_CHANGE_VERIFICATION_REQUESTED = "auth.email_change_verification_requested"
 # Published when someone asked to move an account to this user's email address, so its holder can be told.
 EMAIL_CHANGE_ADDRESS_TAKEN = "auth.email_change_address_taken"
 
+# Published after an email change was requested, so the current address can be told and can cancel it.
+EMAIL_CHANGE_REQUESTED = "auth.email_change_requested"
+
 # Published after a pending email change was confirmed, so the previous address can be told.
 EMAIL_CHANGED = "auth.email_changed"
 

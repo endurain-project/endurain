@@ -90,6 +90,23 @@ class SignUpConfirm(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class EmailChangeCancel(BaseModel):
+    """Request schema for reporting an email change as not made by the account's owner.
+
+    Attributes:
+        token: The token of the link emailed to the account's current address.
+    """
+
+    token: StrictStr = Field(
+        ...,
+        description="The token of the link emailed to the account's current address",
+        min_length=1,
+        max_length=256,
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class SignUpResend(BaseModel):
     """Request schema for sending a sign-up's verification email again.
 

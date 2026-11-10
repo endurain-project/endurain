@@ -700,3 +700,27 @@ class TestResendEndpoint:
         response = signup_client.post("/sign-up/sign-up/resend", json={"email": "nope"})
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+class TestCancelEmailChangeEndpoint:
+    @patch("modules.auth.sign_up_tokens.service.cancel_email_change")
+    def test_a_valid_link_answers_204_with_no_body(self, cancel, signup_client) -> None:
+        response = signup_client.post("/sign-up/email-change/cancel", json={"token": "7.1.abc"})
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert response.content == b""
+        assert cancel.call_args.args[0] == "7.1.abc"
+
+    @patch(
+        "modules.auth.sign_up_tokens.service.cancel_email_change",
+        side_effect=core_exceptions.InvalidInputError("Invalid or expired link"),
+    )
+    def test_a_refused_link_answers_400(self, _cancel, signup_client) -> None:
+        response = signup_client.post("/sign-up/email-change/cancel", json={"token": "bad"})
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_an_extra_field_is_refused(self, signup_client) -> None:
+        response = signup_client.post("/sign-up/email-change/cancel", json={"token": "x", "user_id": 7})
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT

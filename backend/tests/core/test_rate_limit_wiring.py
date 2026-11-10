@@ -117,6 +117,7 @@ _TIERED_ENDPOINTS = [
     pytest.param(onboarding_public_router.complete_onboarding, core_rate_limit.SENSITIVE, id="onboarding-complete"),
     pytest.param(sign_up_tokens_router.signup, core_rate_limit.SENSITIVE, id="signup"),
     pytest.param(sign_up_tokens_router.verify_email, core_rate_limit.SENSITIVE, id="verify-email"),
+    pytest.param(sign_up_tokens_router.cancel_email_change, core_rate_limit.SENSITIVE, id="cancel-email-change"),
     pytest.param(
         sign_up_tokens_router.resend_verification_email, core_rate_limit.SENSITIVE, id="resend-sign-up-verification"
     ),
