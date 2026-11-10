@@ -479,7 +479,6 @@
     "email": {
       "title": "E-Mail",
       "description": "Endurain versendet E-Mails zum Zurücksetzen des Passworts und zur Registrierung über den in der Umgebung konfigurierten SMTP-Server.",
-      "statusLoadError": "Die E-Mail-Konfiguration konnte nicht geprüft werden.",
       "configured": "E-Mail ist konfiguriert.",
       "notConfigured": "E-Mail ist nicht konfiguriert:",
       "send": "Test-E-Mail senden",

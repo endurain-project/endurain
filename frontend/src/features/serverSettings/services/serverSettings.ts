@@ -1,10 +1,8 @@
 import type { StepUpInput } from '@/features/security/types'
 import type {
-  EmailStatusDto,
   LogFilters,
   LoginPhotoDto,
   LogPage,
-  LogsStatusDto,
   MailSettings,
   MailSettingsDto,
   MailSettingsEditDto,
@@ -70,6 +68,7 @@ export function mapServerSettings(dto: ServerSettingsDto): ServerSettings {
     auditLegalHold: dto.audit_legal_hold,
     geocodingApiKeySet: dto.geocoding_api_key_set,
     envManaged: dto.env_managed,
+    logsViewerEnabled: dto.logs_viewer_enabled,
   }
   // A name the settings do not have cannot change from the form, so it is dropped.
   const stepUpFields = dto.step_up_fields
@@ -240,18 +239,6 @@ export async function deleteLoginPhoto(): Promise<void> {
 }
 
 /**
- * Fetches whether outgoing email is usable (admin scope `server_settings:read`).
- * When it is not, `problems` lists the invalid settings by name (never by value).
- *
- * @param signal - Optional abort signal for cancellation.
- * @returns The email status.
- * @throws {HttpError} When the request fails.
- */
-export async function fetchEmailStatus(signal?: AbortSignal): Promise<EmailStatusDto> {
-  return apiFetch<EmailStatusDto>('/server-settings/email', { signal })
-}
-
-/**
  * Sends a test email to the calling admin's own address (admin scope
  * `server_settings:write`). The send is synchronous, so a failure surfaces the
  * mail server's failure category and SMTP status code in the error detail.
@@ -279,6 +266,7 @@ export function mapMailSettings(dto: MailSettingsDto): MailSettings {
     fromAddress: dto.from_address,
     passwordSet: dto.password_set,
     envManaged: dto.env_managed,
+    emailStatus: dto.email_status,
   }
 }
 
@@ -341,19 +329,6 @@ export async function updateMailSettings(
     body: JSON.stringify(toMailSettingsWire(settings, stepUp)),
   })
   return mapMailSettings(dto)
-}
-
-/**
- * Fetches whether the server-log viewer is available (admin scope
- * `server_settings:logs`). It is off for the demo and for deployments that run
- * more than one process.
- *
- * @param signal - Optional abort signal for cancellation.
- * @returns The viewer status.
- * @throws {HttpError} When the request fails.
- */
-export async function fetchLogsStatus(signal?: AbortSignal): Promise<LogsStatusDto> {
-  return apiFetch<LogsStatusDto>('/server-settings/logs/status', { signal })
 }
 
 /**

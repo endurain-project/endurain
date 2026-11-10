@@ -10,9 +10,6 @@ export type ServerSettingsDto = Schemas['ServerSettingsAdminRead']
  */
 export type ServerSettingsEditDto = Schemas['ServerSettingsEditRequest']
 
-/** Whether the server-log viewer is available on this deployment. */
-export type LogsStatusDto = Schemas['LogsStatus']
-
 /** One record of the server log. */
 export type LogEntry = Schemas['LogEntry']
 
@@ -92,6 +89,7 @@ export type GeocodingService = Schemas['GeocodingService']
  * @property geocodingApiKeySet - Whether a geocoding API key is stored (the key itself is never returned).
  * @property envManaged - Field name (snake_case) to the environment variable that sets it; those fields are read-only.
  * @property stepUpFields - Keys (camelCase) of the settings whose change needs the administrator's step-up.
+ * @property logsViewerEnabled - Whether the server log can be read through the API on this deployment (read-only).
  */
 export interface ServerSettings {
   id: number
@@ -133,6 +131,7 @@ export interface ServerSettings {
   geocodingApiKeySet: boolean
   envManaged: Record<string, string>
   stepUpFields: (keyof ServerSettings)[]
+  logsViewerEnabled: boolean
 }
 
 /**
@@ -177,6 +176,7 @@ export type ServerSettingsFormValues = Omit<
   | 'geocodingApiKeySet'
   | 'envManaged'
   | 'stepUpFields'
+  | 'logsViewerEnabled'
   | 'geocodingHost'
   | 'geocodingRateLimit'
   | 'sessionIdleTimeoutHours'
@@ -208,7 +208,7 @@ export type ServerSettingsFormValues = Omit<
  */
 export type ServerSettingsUpdate = Omit<
   ServerSettings,
-  'tileserverApiKeySet' | 'geocodingApiKeySet' | 'envManaged' | 'stepUpFields'
+  'tileserverApiKeySet' | 'geocodingApiKeySet' | 'envManaged' | 'stepUpFields' | 'logsViewerEnabled'
 > & {
   tileserverApiKey?: string | null
   geocodingApiKey?: string | null
@@ -241,6 +241,7 @@ export type MailSecurity = Schemas['MailSecurity']
  * @property fromAddress - Sender address, or null when the username is used.
  * @property passwordSet - Whether a password is stored (the password itself is never returned).
  * @property envManaged - Field name to the environment variable that sets it; those fields are read-only.
+ * @property emailStatus - Whether outgoing email is usable with these settings, and why not when it is not (read-only).
  */
 export interface MailSettings {
   version: number
@@ -251,6 +252,7 @@ export interface MailSettings {
   fromAddress: string | null
   passwordSet: boolean
   envManaged: Record<string, string>
+  emailStatus: EmailStatusDto
 }
 
 /**
@@ -273,6 +275,9 @@ export interface MailSettingsFormValues {
  * Mail settings to persist. `password` is write-only: `undefined` keeps the
  * stored password, `null` removes it, a string replaces it.
  */
-export type MailSettingsUpdate = Omit<MailSettings, 'passwordSet' | 'envManaged'> & {
+export type MailSettingsUpdate = Omit<
+  MailSettings,
+  'passwordSet' | 'envManaged' | 'emailStatus'
+> & {
   password?: string | null
 }

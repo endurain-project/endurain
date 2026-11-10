@@ -479,7 +479,6 @@
     "email": {
       "title": "Email",
       "description": "Το Endurain στέλνει email επαναφοράς κωδικού και εγγραφής μέσω του διακομιστή SMTP που έχει ρυθμιστεί στο περιβάλλον.",
-      "statusLoadError": "Δεν ήταν δυνατός ο έλεγχος της ρύθμισης email.",
       "configured": "Το email έχει ρυθμιστεί.",
       "notConfigured": "Το email δεν έχει ρυθμιστεί:",
       "send": "Αποστολή δοκιμαστικού email",

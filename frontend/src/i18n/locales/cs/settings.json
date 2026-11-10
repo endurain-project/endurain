@@ -479,7 +479,6 @@
     "email": {
       "title": "E-mail",
       "description": "Endurain odesílá e-maily pro obnovení hesla a registraci přes SMTP server nakonfigurovaný v prostředí.",
-      "statusLoadError": "Nepodařilo se zkontrolovat konfiguraci e-mailu.",
       "configured": "E-mail je nakonfigurován.",
       "notConfigured": "E-mail není nakonfigurován:",
       "send": "Odeslat testovací e-mail",

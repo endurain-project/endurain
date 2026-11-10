@@ -36,6 +36,7 @@ const settings: MailSettings = {
   fromAddress: null,
   passwordSet: true,
   envManaged: {},
+  emailStatus: { configured: true, problems: [] },
 }
 
 const passthrough = { template: '<div><slot /></div>' }

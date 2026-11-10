@@ -73,6 +73,7 @@ function makeSettings(overrides: Partial<ServerSettings> = {}): ServerSettings {
     geocodingApiKeySet: false,
     envManaged: {},
     stepUpFields: ['publicShareableLinksUserInfo', 'auditRetentionDays', 'auditLegalHold'],
+    logsViewerEnabled: false,
     ...overrides,
   }
 }

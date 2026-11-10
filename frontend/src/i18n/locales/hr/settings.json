@@ -479,7 +479,6 @@
     "email": {
       "title": "E-pošta",
       "description": "Endurain šalje e-poruke za resetiranje zaporke i registraciju putem SMTP poslužitelja konfiguriranog u okruženju.",
-      "statusLoadError": "Konfiguraciju e-pošte nije bilo moguće provjeriti.",
       "configured": "E-pošta je konfigurirana.",
       "notConfigured": "E-pošta nije konfigurirana:",
       "send": "Pošalji probnu e-poruku",

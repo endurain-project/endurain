@@ -68,12 +68,22 @@ def _to_mail_admin_read(
         mail_settings: Settings as stored.
 
     Returns:
-        The settings with a flag saying whether a password is stored.
+        The settings with a flag saying whether a password is stored and whether mail is usable.
     """
+    try:
+        config = _mail_config_from_row(mail_settings)
+    except core_exceptions.ServiceUnavailableError as err:
+        # The read reports the undecryptable password as a problem, so the admin can still open the
+        # settings and enter it again.
+        logger.warning("The stored mail password cannot be decrypted")
+        email_status = server_settings_schema.EmailStatus(configured=False, problems=[str(err)])
+    else:
+        email_status = _email_status_for(config)
     return server_settings_schema.MailSettingsAdminRead(
         **mail_settings.model_dump(exclude={"password"}),
         password_set=bool(mail_settings.password),
         env_managed=mail_env_managed(),
+        email_status=email_status,
     )
 
 
@@ -293,21 +303,6 @@ def _email_status_for(config: core_mail.MailConfig | None) -> server_settings_sc
         return server_settings_schema.EmailStatus(configured=False, problems=["Host is not set"])
     problems = core_mail.mail_problems(config)
     return server_settings_schema.EmailStatus(configured=not problems, problems=problems)
-
-
-def get_email_status(db: Session) -> server_settings_schema.EmailStatus:
-    """Report whether outgoing email is usable and, if not, why.
-
-    Args:
-        db: Database session.
-
-    Returns:
-        The email status. When no host is set the only problem is that it is missing.
-
-    Raises:
-        ServiceUnavailableError: When the stored password cannot be decrypted.
-    """
-    return _email_status_for(get_mail_config(db))
 
 
 def send_test_email(admin: users_schema.UserRead, mail: platform_providers.MailProvider, db: Session) -> None:

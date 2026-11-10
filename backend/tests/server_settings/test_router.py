@@ -74,6 +74,7 @@ class TestReadServerSettings:
             geocoding_api_key_set=False,
             env_managed={},
             step_up_fields=["audit_legal_hold"],
+            logs_viewer_enabled=True,
         )
 
         mock_get_settings.return_value = mock_settings
@@ -91,6 +92,7 @@ class TestReadServerSettings:
         assert data["units"] == "metric"
         assert data["public_shareable_links"] is False
         assert data["step_up_fields"] == ["audit_legal_hold"]
+        assert data["logs_viewer_enabled"] is True
 
     @patch("modules.server_settings.router.server_settings_service.get_server_settings_for_admin")
     def test_read_server_settings_not_found(self, mock_get_settings, fast_api_client, fast_api_app):
@@ -156,6 +158,7 @@ class TestEditServerSettings:
             geocoding_api_key_set=False,
             env_managed={},
             step_up_fields=[],
+            logs_viewer_enabled=False,
         )
 
         mock_edit_settings.return_value = mock_updated_settings
@@ -317,6 +320,7 @@ class TestEditServerSettingsStepUp:
             geocoding_api_key_set=False,
             env_managed={},
             step_up_fields=[],
+            logs_viewer_enabled=False,
         )
 
     @staticmethod
@@ -412,7 +416,13 @@ class TestEditRejectsReadOnlyFields:
     """The edit body must not accept fields the route does not own."""
 
     @pytest.mark.parametrize(
-        "field,value", [("id", 2), ("login_photo_set", False), ("step_up_fields", ["audit_legal_hold"])]
+        "field,value",
+        [
+            ("id", 2),
+            ("login_photo_set", False),
+            ("step_up_fields", ["audit_legal_hold"]),
+            ("logs_viewer_enabled", True),
+        ],
     )
     def test_read_only_fields_are_a_422(self, field, value, fast_api_client, fast_api_app):
         body = _edit_body(**{field: value})
@@ -487,14 +497,10 @@ class TestDeleteLoginPhoto:
 class TestEmail:
     """Test suite for the email status and test-send endpoints."""
 
-    @patch("modules.server_settings.router.server_settings_mail_service.get_email_status")
-    def test_read_email_status(self, mock_status, fast_api_client):
-        mock_status.return_value = server_settings_schema.EmailStatus(configured=False, problems=["Host is not set"])
-
+    def test_the_separate_email_status_route_is_gone(self, fast_api_client):
         response = fast_api_client.get("/server_settings/email", headers={"Authorization": "Bearer mock_token"})
 
-        assert response.status_code == 200
-        assert response.json() == {"configured": False, "problems": ["Host is not set"]}
+        assert response.status_code == 404
 
     @patch("modules.server_settings.router.server_settings_mail_service.send_test_email")
     @patch("modules.server_settings.router.users_integration.get_user")
@@ -552,6 +558,7 @@ def _mail_admin_read(**overrides) -> server_settings_schema.MailSettingsAdminRea
         from_address=None,
         password_set=True,
         env_managed={},
+        email_status=server_settings_schema.EmailStatus(configured=True, problems=[]),
     )
     values.update(overrides)
     return server_settings_schema.MailSettingsAdminRead(**values)
@@ -584,6 +591,7 @@ class TestMailSettingsRoutes:
         assert response.json()["host"] == "mail.example.com"
         assert response.json()["env_managed"] == {"host": "SMTP_HOST"}
         assert response.json()["password_set"] is True
+        assert response.json()["email_status"] == {"configured": True, "problems": []}
         assert "password" not in response.json()
 
     @patch("modules.server_settings.router.server_settings_mail_service.edit_mail_settings")

@@ -479,7 +479,6 @@
     "email": {
       "title": "Correo electrónico",
       "description": "Endurain envía os correos de restablecemento de contrasinal e de rexistro a través do servidor SMTP configurado no contorno.",
-      "statusLoadError": "Non se puido comprobar a configuración do correo electrónico.",
       "configured": "O correo electrónico está configurado.",
       "notConfigured": "O correo electrónico non está configurado:",
       "send": "Enviar correo de proba",

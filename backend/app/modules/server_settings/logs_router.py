@@ -16,22 +16,6 @@ router = APIRouter()
 
 
 @router.get(
-    "/status",
-    response_model=logs_schema.LogsStatus,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["server_settings:logs"])],
-)
-def read_logs_status() -> logs_schema.LogsStatus:
-    """Get whether the log viewer is available.
-
-    Requires admin authentication with server_settings:logs scope.
-
-    Returns:
-        Whether the log can be read through the API on this deployment.
-    """
-    return logs_service.get_logs_status()
-
-
-@router.get(
     "",
     response_model=logs_schema.LogPage,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["server_settings:logs"])],

@@ -170,27 +170,6 @@ def delete_login_photo(
 
 
 @router.get(
-    "/email",
-    response_model=server_settings_schema.EmailStatus,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["server_settings:read"])],
-)
-def read_email_status(
-    db: core_dependencies.DbSession,
-) -> server_settings_schema.EmailStatus:
-    """Get whether outgoing email is usable.
-
-    Requires admin authentication with server_settings:read scope.
-
-    Args:
-        db: Database session.
-
-    Returns:
-        Whether email is configured and, when not, the reasons (setting names only).
-    """
-    return server_settings_mail_service.get_email_status(db)
-
-
-@router.get(
     "/email/settings",
     response_model=server_settings_schema.MailSettingsAdminRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["server_settings:read"])],

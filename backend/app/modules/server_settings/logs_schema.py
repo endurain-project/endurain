@@ -2,7 +2,7 @@
 
 from enum import StrEnum
 
-from pydantic import BaseModel, StrictBool, StrictStr
+from pydantic import BaseModel, StrictStr
 
 import core.pagination as core_pagination
 
@@ -15,16 +15,6 @@ class LogLevel(StrEnum):
     WARNING = "WARNING"
     ERROR = "ERROR"
     CRITICAL = "CRITICAL"
-
-
-class LogsStatus(BaseModel):
-    """Whether the log viewer is available on this deployment.
-
-    Attributes:
-        enabled: True when the application log can be read through the API.
-    """
-
-    enabled: StrictBool
 
 
 class LogEntry(BaseModel):

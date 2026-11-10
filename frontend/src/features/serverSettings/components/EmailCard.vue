@@ -10,7 +10,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToasts } from '@/composables/useToasts'
 import MailSettingsForm from '@/features/serverSettings/components/MailSettingsForm.vue'
 import {
-  useEmailStatusQuery,
   useMailSettingsQuery,
   useSendTestEmailMutation,
 } from '@/features/serverSettings/composables/useServerSettings'
@@ -23,11 +22,10 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const toasts = useToasts()
-const statusQuery = useEmailStatusQuery()
 const settingsQuery = useMailSettingsQuery()
 const testMutation = useSendTestEmailMutation()
 
-const emailStatus = computed(() => statusQuery.data.value ?? null)
+const emailStatus = computed(() => settingsQuery.data.value?.emailStatus ?? null)
 
 /**
  * The failure detail from the backend (the mail server's failure category and
@@ -65,13 +63,7 @@ function sendTest(): void {
       @dirty-change="emit('dirtyChange', $event)"
     />
 
-    <Skeleton v-if="statusQuery.isPending.value" class="h-9 w-full" />
-
-    <Alert v-else-if="statusQuery.isError.value" kind="error">
-      {{ t('settings.server.email.statusLoadError') }}
-    </Alert>
-
-    <template v-else-if="emailStatus">
+    <template v-if="emailStatus">
       <Alert v-if="emailStatus.configured" kind="success">
         {{ t('settings.server.email.configured') }}
       </Alert>

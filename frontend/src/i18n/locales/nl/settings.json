@@ -479,7 +479,6 @@
     "email": {
       "title": "E-mail",
       "description": "Endurain verstuurt e-mails voor het opnieuw instellen van het wachtwoord en voor registratie via de SMTP-server die in de omgeving is geconfigureerd.",
-      "statusLoadError": "De e-mailconfiguratie kon niet worden gecontroleerd.",
       "configured": "E-mail is geconfigureerd.",
       "notConfigured": "E-mail is niet geconfigureerd:",
       "send": "Test-e-mail verzenden",

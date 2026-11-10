@@ -479,7 +479,6 @@
     "email": {
       "title": "E-mail",
       "description": "Endurain sender e-mails til nulstilling af adgangskode og tilmelding via den SMTP-server, der er konfigureret i miljøet.",
-      "statusLoadError": "E-mailkonfigurationen kunne ikke kontrolleres.",
       "configured": "E-mail er konfigureret.",
       "notConfigured": "E-mail er ikke konfigureret:",
       "send": "Send test-e-mail",

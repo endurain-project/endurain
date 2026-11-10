@@ -479,7 +479,6 @@
     "email": {
       "title": "電子郵件",
       "description": "Endurain 透過環境中設定的 SMTP 伺服器寄送重設密碼與註冊郵件。",
-      "statusLoadError": "無法檢查電子郵件設定。",
       "configured": "電子郵件已設定。",
       "notConfigured": "電子郵件尚未設定：",
       "send": "寄送測試郵件",

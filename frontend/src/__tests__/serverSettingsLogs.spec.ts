@@ -5,7 +5,6 @@ import {
   clearLogs,
   downloadLogs,
   fetchLogs,
-  fetchLogsStatus,
 } from '@/features/serverSettings/services/serverSettings'
 
 vi.mock('@/services/http', () => ({
@@ -19,15 +18,6 @@ beforeEach(() => {
 })
 
 describe('server log services', () => {
-  it('reads the viewer status', async () => {
-    mockedApiFetch.mockResolvedValue({ enabled: true })
-
-    await expect(fetchLogsStatus()).resolves.toEqual({ enabled: true })
-    expect(mockedApiFetch).toHaveBeenCalledWith('/server-settings/logs/status', {
-      signal: undefined,
-    })
-  })
-
   it('asks for the newest records when no cursor is given', async () => {
     mockedApiFetch.mockResolvedValue({ items: [], num_records: 200, next_cursor: '0' })
 

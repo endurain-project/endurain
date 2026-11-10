@@ -479,7 +479,6 @@
     "email": {
       "title": "E-post",
       "description": "Endurain saadab parooli lähtestamise ja registreerimise e-kirjad keskkonnas seadistatud SMTP-serveri kaudu.",
-      "statusLoadError": "E-posti seadistust ei õnnestunud kontrollida.",
       "configured": "E-post on seadistatud.",
       "notConfigured": "E-post ei ole seadistatud:",
       "send": "Saada test-e-kiri",

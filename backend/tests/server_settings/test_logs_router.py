@@ -60,3 +60,7 @@ def test_the_old_names_are_ignored(client, query):
 def test_a_cursor_that_is_not_a_position_is_refused(client, cursor):
     with patch(_SERVICE, return_value=_page()):
         assert client.get(f"/server-settings/logs?cursor={cursor}").status_code == 422
+
+
+def test_the_separate_status_route_is_gone(client):
+    assert client.get("/server-settings/logs/status").status_code == 404

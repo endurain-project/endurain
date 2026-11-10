@@ -479,7 +479,6 @@
     "email": {
       "title": "E-mail",
       "description": "Endurain trimite e-mailurile de resetare a parolei și de înregistrare prin serverul SMTP configurat în mediu.",
-      "statusLoadError": "Configurarea e-mailului nu a putut fi verificată.",
       "configured": "E-mailul este configurat.",
       "notConfigured": "E-mailul nu este configurat:",
       "send": "Trimite e-mail de test",

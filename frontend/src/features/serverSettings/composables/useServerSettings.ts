@@ -4,11 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import type { StepUpInput } from '@/features/security/types'
 import type {
-  EmailStatusDto,
   LogFilters,
   LoginPhotoDto,
   LogPage,
-  LogsStatusDto,
   MailSettings,
   MailSettingsUpdate,
   ServerSettings,
@@ -21,9 +19,7 @@ import {
   clearLogs,
   deleteLoginPhoto,
   downloadLogs,
-  fetchEmailStatus,
   fetchLogs,
-  fetchLogsStatus,
   fetchMailSettings,
   fetchServerSettings,
   fetchTileMapsTemplates,
@@ -133,23 +129,6 @@ export function useDeleteLoginPhotoMutation() {
 }
 
 /**
- * Whether outgoing email is usable. Always refetched on mount so the admin sees
- * the current state.
- *
- * @returns The TanStack Query result for the email status.
- */
-export function useEmailStatusQuery() {
-  const { isAuthenticated } = storeToRefs(useAuthStore())
-
-  return useQuery<EmailStatusDto>({
-    queryKey: queryKeys.serverSettings.email(),
-    queryFn: ({ signal }) => fetchEmailStatus(signal),
-    enabled: isAuthenticated,
-    staleTime: 0,
-  })
-}
-
-/**
  * Sends a test email to the calling admin. Rejects with an `HttpError` whose
  * detail carries the failure.
  *
@@ -179,8 +158,8 @@ export function useMailSettingsQuery() {
 }
 
 /**
- * Update mutation for the mail server settings. Invalidates the settings and the
- * email status, since whether email is usable depends on the settings.
+ * Update mutation for the mail server settings. The saved settings, which carry the
+ * email status, replace the cached ones so the status follows the save.
  *
  * @returns The TanStack Query mutation for updating the mail settings.
  */
@@ -190,9 +169,9 @@ export function useUpdateMailSettingsMutation() {
   return useMutation<MailSettings, Error, { settings: MailSettingsUpdate; stepUp: StepUpInput }>({
     mutationKey: queryKeys.serverSettings.mail(),
     mutationFn: ({ settings, stepUp }) => updateMailSettings(settings, stepUp),
+    onSuccess: (saved) => client.setQueryData(queryKeys.serverSettings.mail(), saved),
     onSettled: () => {
       void client.invalidateQueries({ queryKey: queryKeys.serverSettings.mail() })
-      void client.invalidateQueries({ queryKey: queryKeys.serverSettings.email() })
     },
   })
 }
@@ -202,23 +181,6 @@ const MAX_LOG_ENTRIES = 1000
 
 /** How often a live tail asks for new records, in milliseconds. */
 const LOG_TAIL_INTERVAL_MS = 3000
-
-/**
- * Whether the server-log viewer is available. A failure (for example a token
- * that predates the logs scope) counts as unavailable.
- *
- * @returns The TanStack Query result for the viewer status.
- */
-export function useLogsStatusQuery() {
-  const { isAuthenticated } = storeToRefs(useAuthStore())
-
-  return useQuery<LogsStatusDto>({
-    queryKey: queryKeys.serverSettings.logsStatus(),
-    queryFn: ({ signal }) => fetchLogsStatus(signal),
-    enabled: isAuthenticated,
-    retry: false,
-  })
-}
 
 /**
  * The server-log tail for the given filters. The first fetch returns the

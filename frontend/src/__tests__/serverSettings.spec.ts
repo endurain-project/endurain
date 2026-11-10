@@ -9,7 +9,6 @@ import type {
 import { apiFetch } from '@/services/http'
 import {
   deleteLoginPhoto,
-  fetchEmailStatus,
   fetchMailSettings,
   fetchServerSettings,
   fetchTileMapsTemplates,
@@ -70,6 +69,7 @@ function makeSettingsDto(overrides: Partial<ServerSettingsDto> = {}): ServerSett
     geocoding_api_key_set: false,
     env_managed: {},
     step_up_fields: ['audit_legal_hold', 'sso_enabled'],
+    logs_viewer_enabled: true,
     ...overrides,
   }
 }
@@ -86,6 +86,7 @@ function makeMailDto(overrides: Partial<MailSettingsDto> = {}): MailSettingsDto 
     from_address: null,
     password_set: true,
     env_managed: { host: 'SMTP_HOST' },
+    email_status: { configured: false, problems: ['Host is not set'] },
     ...overrides,
   }
 }
@@ -146,6 +147,7 @@ describe('mapServerSettings', () => {
       geocodingApiKeySet: false,
       envManaged: {},
       stepUpFields: ['auditLegalHold', 'ssoEnabled'],
+      logsViewerEnabled: true,
     })
   })
 
@@ -211,6 +213,7 @@ describe('toServerSettingsWire', () => {
       geocoding_api_key_set: _geoKeySet,
       env_managed: _envManaged,
       step_up_fields: _stepUpFields,
+      logs_viewer_enabled: _logsViewerEnabled,
       ...editable
     } = makeSettingsDto()
     expect(toServerSettingsWire(settings, null)).toEqual({ ...editable, step_up: null })
@@ -378,15 +381,6 @@ describe('server settings service requests', () => {
     })
   })
 
-  it('fetchEmailStatus reads the email status endpoint', async () => {
-    vi.mocked(apiFetch).mockResolvedValue({ configured: false, problems: ['Host is not set'] })
-
-    const status = await fetchEmailStatus()
-
-    expect(apiFetch).toHaveBeenCalledWith('/server-settings/email', { signal: undefined })
-    expect(status).toEqual({ configured: false, problems: ['Host is not set'] })
-  })
-
   it('sendTestEmail POSTs to the test endpoint and expects no body', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
@@ -410,6 +404,7 @@ describe('mapMailSettings', () => {
       fromAddress: null,
       passwordSet: true,
       envManaged: { host: 'SMTP_HOST' },
+      emailStatus: { configured: false, problems: ['Host is not set'] },
     })
   })
 

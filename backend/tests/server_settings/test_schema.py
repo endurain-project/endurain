@@ -338,7 +338,13 @@ class TestServerSettingsEdit:
         assert settings.signup_require_email_verification is False
 
     @pytest.mark.parametrize(
-        "field,value", [("id", 1), ("login_photo_set", False), ("step_up_fields", ["audit_legal_hold"])]
+        "field,value",
+        [
+            ("id", 1),
+            ("login_photo_set", False),
+            ("step_up_fields", ["audit_legal_hold"]),
+            ("logs_viewer_enabled", True),
+        ],
     )
     def test_edit_rejects_fields_it_does_not_own(self, field, value):
         """The row id and the login-photo flag are not writable through the edit body."""

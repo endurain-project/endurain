@@ -479,7 +479,6 @@
     "email": {
       "title": "E-mail",
       "description": "Endurain wysyła e-maile z resetowaniem hasła i rejestracją przez serwer SMTP skonfigurowany w środowisku.",
-      "statusLoadError": "Nie udało się sprawdzić konfiguracji e-maila.",
       "configured": "E-mail jest skonfigurowany.",
       "notConfigured": "E-mail nie jest skonfigurowany:",
       "send": "Wyślij wiadomość testową",

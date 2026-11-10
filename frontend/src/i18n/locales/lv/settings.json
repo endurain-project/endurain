@@ -479,7 +479,6 @@
     "email": {
       "title": "E-pasts",
       "description": "Endurain paroles atiestatīšanas un reģistrācijas e-pastus sūta, izmantojot vidē konfigurēto SMTP serveri.",
-      "statusLoadError": "Neizdevās pārbaudīt e-pasta konfigurāciju.",
       "configured": "E-pasts ir konfigurēts.",
       "notConfigured": "E-pasts nav konfigurēts:",
       "send": "Nosūtīt testa e-pastu",

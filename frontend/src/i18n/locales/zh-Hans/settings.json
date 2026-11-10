@@ -479,7 +479,6 @@
     "email": {
       "title": "邮件",
       "description": "Endurain 通过环境中配置的 SMTP 服务器发送重置密码和注册邮件。",
-      "statusLoadError": "无法检查邮件配置。",
       "configured": "邮件已配置。",
       "notConfigured": "邮件未配置：",
       "send": "发送测试邮件",

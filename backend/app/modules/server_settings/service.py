@@ -59,7 +59,8 @@ def _to_admin_read(
 
     Returns:
         The settings with a flag per API key saying whether one is stored, and the
-        fields an environment variable sets, and the settings whose change needs the administrator's step-up.
+        fields an environment variable sets, the settings whose change needs the administrator's step-up, and
+        whether the log viewer is available.
     """
     return server_settings_schema.ServerSettingsAdminRead(
         **server_settings.model_dump(exclude=set(server_settings_constants.SECRET_FIELDS)),
@@ -67,6 +68,7 @@ def _to_admin_read(
         geocoding_api_key_set=bool(server_settings.geocoding_api_key),
         env_managed=server_settings_env_managed(),
         step_up_fields=sorted(server_settings_constants.SECURITY_FIELDS),
+        logs_viewer_enabled=core_config.settings.logs_viewer_enabled,
     )
 
 

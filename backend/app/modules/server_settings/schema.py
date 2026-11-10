@@ -484,6 +484,7 @@ class ServerSettingsAdminRead(
         signup_require_email_verification: Require email verification for new sign-ups.
         password_breach_check_enabled: Refuse a new password found in a known data breach.
         step_up_fields: The settings whose change needs the administrator's step-up; read-only.
+        logs_viewer_enabled: Whether the server log can be read through the API on this deployment; read-only.
     """
 
     id: StrictInt = Field(..., description="Unique identifier for server settings (always 1)")
@@ -520,6 +521,9 @@ class ServerSettingsAdminRead(
     )
     step_up_fields: list[StrictStr] = Field(
         ..., description="The settings whose change needs the administrator's step-up"
+    )
+    logs_viewer_enabled: StrictBool = Field(
+        ..., description="Can the server log be read through the API (true - yes, false - no)"
     )
 
 
@@ -690,6 +694,18 @@ class MailSettingsRead(MailSettingsEdit):
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter")
 
 
+class EmailStatus(BaseModel):
+    """Whether outgoing email is usable, and why not when it is not.
+
+    Attributes:
+        configured: True when the mail settings are valid and email can be sent.
+        problems: Reasons email is disabled. Names settings, never their values.
+    """
+
+    configured: bool
+    problems: list[str]
+
+
 class MailSettingsAdminRead(BaseModel):
     """Mail server settings response for admins; the password is never returned.
 
@@ -704,6 +720,7 @@ class MailSettingsAdminRead(BaseModel):
         password_set: Whether a password is stored.
         env_managed: Field name to the environment variable that sets it; those
             fields cannot be edited while the variable is set.
+        email_status: Whether outgoing email is usable with these settings; read-only.
     """
 
     id: StrictInt
@@ -717,17 +734,6 @@ class MailSettingsAdminRead(BaseModel):
     env_managed: dict[str, str] = Field(
         ..., description="Field name to the environment variable that sets it (not editable while set)"
     )
+    email_status: EmailStatus = Field(..., description="Whether outgoing email is usable with these settings")
 
     model_config = ConfigDict(use_enum_values=True)
-
-
-class EmailStatus(BaseModel):
-    """Whether outgoing email is usable, and why not when it is not.
-
-    Attributes:
-        configured: True when the mail settings are valid and email can be sent.
-        problems: Reasons email is disabled. Names settings, never their values.
-    """
-
-    configured: bool
-    problems: list[str]

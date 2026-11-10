@@ -479,7 +479,6 @@
     "email": {
       "title": "Correu electrònic",
       "description": "Endurain envia els correus de restabliment de contrasenya i de registre mitjançant el servidor SMTP configurat a l'entorn.",
-      "statusLoadError": "No s'ha pogut comprovar la configuració del correu electrònic.",
       "configured": "El correu electrònic està configurat.",
       "notConfigured": "El correu electrònic no està configurat:",
       "send": "Envia un correu de prova",

@@ -479,7 +479,6 @@
     "email": {
       "title": "E-mail",
       "description": "Endurain envoie les e-mails de réinitialisation du mot de passe et d'inscription via le serveur SMTP configuré dans l'environnement.",
-      "statusLoadError": "La configuration de l'e-mail n'a pas pu être vérifiée.",
       "configured": "L'e-mail est configuré.",
       "notConfigured": "L'e-mail n'est pas configuré :",
       "send": "Envoyer un e-mail de test",

@@ -34,15 +34,6 @@ _DEV_LINE = re.compile(
 _LEVEL_NUMBERS = logging.getLevelNamesMapping()
 
 
-def get_logs_status() -> logs_schema.LogsStatus:
-    """Report whether the log viewer is available.
-
-    Returns:
-        The status, enabled unless this is the demo or a multi-process deployment.
-    """
-    return logs_schema.LogsStatus(enabled=core_config.settings.logs_viewer_enabled)
-
-
 def get_log_file_path() -> Path:
     """Return the path of the log file for download.
 

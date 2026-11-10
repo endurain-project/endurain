@@ -479,7 +479,6 @@
     "email": {
       "title": "E-pošta",
       "description": "Endurain pošilja e-pošto za ponastavitev gesla in registracijo prek strežnika SMTP, nastavljenega v okolju.",
-      "statusLoadError": "Nastavitve e-pošte ni bilo mogoče preveriti.",
       "configured": "E-pošta je nastavljena.",
       "notConfigured": "E-pošta ni nastavljena:",
       "send": "Pošlji testno e-pošto",

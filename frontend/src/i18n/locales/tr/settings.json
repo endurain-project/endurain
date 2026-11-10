@@ -479,7 +479,6 @@
     "email": {
       "title": "E-posta",
       "description": "Endurain, parola sıfırlama ve kayıt e-postalarını ortamda yapılandırılan SMTP sunucusu üzerinden gönderir.",
-      "statusLoadError": "E-posta yapılandırması kontrol edilemedi.",
       "configured": "E-posta yapılandırılmış.",
       "notConfigured": "E-posta yapılandırılmamış:",
       "send": "Test e-postası gönder",

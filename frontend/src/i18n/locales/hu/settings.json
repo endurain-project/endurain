@@ -479,7 +479,6 @@
     "email": {
       "title": "E-mail",
       "description": "Az Endurain a jelszó-visszaállítási és regisztrációs e-maileket a környezetben beállított SMTP-szerveren keresztül küldi.",
-      "statusLoadError": "Az e-mail-beállítást nem sikerült ellenőrizni.",
       "configured": "Az e-mail be van állítva.",
       "notConfigured": "Az e-mail nincs beállítva:",
       "send": "Teszt e-mail küldése",

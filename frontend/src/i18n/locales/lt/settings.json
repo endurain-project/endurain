@@ -479,7 +479,6 @@
     "email": {
       "title": "El. paštas",
       "description": "Endurain slaptažodžio atkūrimo ir registracijos laiškus siunčia per aplinkoje sukonfigūruotą SMTP serverį.",
-      "statusLoadError": "Nepavyko patikrinti el. pašto konfigūracijos.",
       "configured": "El. paštas sukonfigūruotas.",
       "notConfigured": "El. paštas nesukonfigūruotas:",
       "send": "Siųsti bandomąjį laišką",

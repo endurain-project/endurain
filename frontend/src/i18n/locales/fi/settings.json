@@ -479,7 +479,6 @@
     "email": {
       "title": "Sähköposti",
       "description": "Endurain lähettää salasanan palautus- ja rekisteröitymisviestit ympäristössä määritetyn SMTP-palvelimen kautta.",
-      "statusLoadError": "Sähköpostin määrityksiä ei voitu tarkistaa.",
       "configured": "Sähköposti on määritetty.",
       "notConfigured": "Sähköpostia ei ole määritetty:",
       "send": "Lähetä testisähköposti",

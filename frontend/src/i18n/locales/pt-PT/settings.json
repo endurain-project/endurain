@@ -479,7 +479,6 @@
     "email": {
       "title": "E-mail",
       "description": "O Endurain envia os e-mails de redefinição de palavra-passe e de registo através do servidor SMTP configurado no ambiente.",
-      "statusLoadError": "Não foi possível verificar a configuração do e-mail.",
       "configured": "O e-mail está configurado.",
       "notConfigured": "O e-mail não está configurado:",
       "send": "Enviar e-mail de teste",

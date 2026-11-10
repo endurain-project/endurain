@@ -25,7 +25,6 @@ import GeneralTab from '@/features/serverSettings/components/tabs/GeneralTab.vue
 import LogsTab from '@/features/serverSettings/components/tabs/LogsTab.vue'
 import MapsTab from '@/features/serverSettings/components/tabs/MapsTab.vue'
 import UnsavedChangesBar from '@/features/serverSettings/components/UnsavedChangesBar.vue'
-import { useLogsStatusQuery } from '@/features/serverSettings/composables/useServerSettings'
 import {
   provideServerSettingsForm,
   useServerSettingsForm,
@@ -79,18 +78,14 @@ const returnedForMail = useMailStepUpResume().value !== null
 const mailDirty = ref(false)
 const hasUnsaved = computed(() => isDirty.value || mailDirty.value)
 
-const logsStatus = useLogsStatusQuery()
 // The logs tab exists only where the backend offers the viewer.
 const visibleTabs = computed(() =>
-  SETTINGS_TABS.filter((tab) => tab !== 'logs' || logsStatus.data.value?.enabled === true),
+  SETTINGS_TABS.filter((tab) => tab !== 'logs' || props.settings.logsViewerEnabled),
 )
 
 const activeTab = computed(() => {
   const tab = parseSettingsTab(route.query.tab)
-  // A linked ?tab=logs waits for the status before it is judged unavailable.
-  const unavailable =
-    tab === 'logs' && !logsStatus.isPending.value && !visibleTabs.value.includes(tab)
-  return unavailable ? DEFAULT_SETTINGS_TAB : tab
+  return visibleTabs.value.includes(tab) ? tab : DEFAULT_SETTINGS_TAB
 })
 
 /**

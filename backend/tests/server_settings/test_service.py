@@ -535,6 +535,18 @@ class TestAdminReadStepUpFields:
         assert result.step_up_fields == sorted(server_settings_constants.SECURITY_FIELDS)
 
 
+class TestAdminReadLogsViewer:
+    @pytest.mark.parametrize("enabled", [True, False])
+    def test_the_admin_read_says_whether_the_log_viewer_is_available(self, enabled):
+        with (
+            patch.object(server_settings_service, "server_settings_env_managed", return_value={}),
+            patch("core.config.Settings.logs_viewer_enabled", enabled),
+        ):
+            result = server_settings_service._to_admin_read(_stored())
+
+        assert result.logs_viewer_enabled is enabled
+
+
 class TestServerSettingsEnvManaged:
     def test_nothing_is_managed_without_a_geocoding_variable(self):
         with patch.object(server_settings_service, "env_var_is_set", return_value=False):
@@ -1348,10 +1360,10 @@ class TestMailConfig:
 
 
 class TestEmailStatus:
-    """Test suite for get_email_status."""
+    """Test suite for the email status the admin mail settings read carries."""
 
     def test_configured(self, mail_env):
-        result = server_settings_mail_service.get_email_status(MagicMock())
+        result = server_settings_mail_service.get_mail_settings_for_admin(MagicMock()).email_status
 
         assert result.configured is True
         assert result.problems == []
@@ -1359,7 +1371,7 @@ class TestEmailStatus:
     def test_unset_host_reports_missing_host(self, mail_env):
         mail_env.read.return_value = _mail_row(host=None)
 
-        result = server_settings_mail_service.get_email_status(MagicMock())
+        result = server_settings_mail_service.get_mail_settings_for_admin(MagicMock()).email_status
 
         assert result.configured is False
         assert result.problems == ["Host is not set"]
@@ -1367,10 +1379,31 @@ class TestEmailStatus:
     def test_invalid_settings_report_problems(self, mail_env):
         mail_env.problems.return_value = ["Username and password must be set together"]
 
-        result = server_settings_mail_service.get_email_status(MagicMock())
+        result = server_settings_mail_service.get_mail_settings_for_admin(MagicMock()).email_status
 
         assert result.configured is False
         assert result.problems == ["Username and password must be set together"]
+
+    def test_an_undecryptable_password_does_not_block_the_read(self, mail_env):
+        with patch.object(
+            core_cryptography, "decrypt_token_fernet", side_effect=core_exceptions.CryptographyError("x")
+        ):
+            result = server_settings_mail_service.get_mail_settings_for_admin(MagicMock())
+
+        assert result.email_status.configured is False
+        assert result.email_status.problems == [
+            "The stored SMTP password cannot be decrypted; enter it again in the server settings"
+        ]
+        assert result.password_set is True
+
+    def test_an_edit_returns_the_status_of_the_saved_settings(self, mail_env):
+        mail_env.problems.side_effect = [[], ["Username and password must be set together"]]
+
+        result = server_settings_mail_service.edit_mail_settings(
+            _mail_edit(mail_env.stored, port=465), _STEP_UP, _VERIFY, MagicMock(), if_match="*"
+        )
+
+        assert result.email_status.problems == ["Username and password must be set together"]
 
 
 class TestSendTestEmail:
@@ -1634,8 +1667,9 @@ class TestEditMailSettingsLocking:
                 _mail_edit(mail_env.stored, port=465), _STEP_UP, _VERIFY, MagicMock(), if_match="*"
             )
 
-        assert [name for name, _ in calls] == ["read", "dns", "read"]
-        assert calls[-1][1] == {"for_update": True}
+        # The last check is the one that builds the email status of the saved settings.
+        assert [name for name, _ in calls] == ["read", "dns", "read", "dns"]
+        assert calls[2][1] == {"for_update": True}
 
     def test_a_password_replaced_meanwhile_is_refused(self, mail_env):
         later = mail_env.stored.model_copy(update={"password": "enc-new"})

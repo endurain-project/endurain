@@ -479,7 +479,6 @@
     "email": {
       "title": "E-post",
       "description": "Endurain sender e-poster for tilbakestilling av passord og registrering via SMTP-serveren som er konfigurert i miljøet.",
-      "statusLoadError": "E-postkonfigurasjonen kunne ikke kontrolleres.",
       "configured": "E-post er konfigurert.",
       "notConfigured": "E-post er ikke konfigurert:",
       "send": "Send test-e-post",
