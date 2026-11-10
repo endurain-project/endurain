@@ -30,10 +30,10 @@ class TestVerifyUserMfaTotpReplay:
     _SECRET = "JBSWY3DPEHPK3PXP"
 
     def _verify(self, code, guard):
-        row = SimpleNamespace(mfa_enabled=True, mfa_secret="encrypted")
+        row = SimpleNamespace(id=1, credential="encrypted")
         with (
             patch("modules.auth.mfa.service.users_integration.require_user", return_value=SimpleNamespace(id=1)),
-            patch("modules.auth.mfa.service.auth_mfa_crud.get_user_mfa_row", return_value=row),
+            patch("modules.auth.mfa.service.auth_mfa_crud.get_totp_factor", return_value=row),
             patch("modules.auth.mfa.service.core_cryptography.decrypt_token_fernet", return_value=self._SECRET),
         ):
             return mfa_service.verify_user_mfa(1, code, MagicMock(), MagicMock(), replay_guard=guard)
@@ -178,7 +178,7 @@ class TestEnableUserMFA:
     @patch("modules.auth.mfa.service.mfa_backup_codes_integration.create_backup_codes")
     @patch("modules.auth.mfa.service.mfa_totp_replay_store.matching_totp_step")
     @patch("modules.auth.mfa.service.core_cryptography.encrypt_token_fernet")
-    @patch("modules.auth.mfa.service.auth_mfa_crud.update_user_mfa")
+    @patch("modules.auth.mfa.service.auth_mfa_crud.set_totp_factor")
     @patch("modules.auth.mfa.service.users_integration.require_user")
     def test_successful_enable(self, mock_get_user, mock_update_mfa, mock_encrypt, mock_verify, mock_create_backup):
         mock_user = MagicMock()
@@ -248,7 +248,7 @@ class TestEnableUserMFA:
 
         with (
             patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=False),
-            patch("modules.auth.mfa.service.auth_mfa_crud.update_user_mfa") as mock_update_mfa,
+            patch("modules.auth.mfa.service.auth_mfa_crud.set_totp_factor") as mock_update_mfa,
             pytest.raises(core_exceptions.InvalidMfaCodeError),
         ):
             mfa_service.enable_user_mfa(1, "secret", "123456", MagicMock(), MagicMock(), replay_guard=guard)
@@ -276,7 +276,7 @@ class TestDisableUserMFA:
     """Test suite for disable_user_mfa function."""
 
     @patch("modules.auth.mfa.service.mfa_backup_codes_integration.delete_user_backup_codes")
-    @patch("modules.auth.mfa.service.auth_mfa_crud.update_user_mfa")
+    @patch("modules.auth.mfa.service.auth_mfa_crud.delete_user_factors")
     @patch("modules.auth.mfa.service.users_integration.require_user")
     def test_successful_disable(self, mock_get_user, mock_update_mfa, mock_delete_codes):
         mock_user = MagicMock()
@@ -317,19 +317,21 @@ class TestVerifyUserMFA:
 
     @pytest.fixture(autouse=True)
     def _wire_mfa_row(self):
-        """Mirror auth_mfa_crud.get_user_mfa_row to the mocked user's auth_mfa.
+        """Mirror auth_mfa_crud.get_totp_factor to the mocked user's auth_mfa.
 
-        Production reads the ``users_mfa`` row via
-        ``auth_mfa_crud.get_user_mfa_row`` rather than a
+        Production reads the TOTP factor via
+        ``auth_mfa_crud.get_totp_factor`` rather than a
         ``UserRead.auth_mfa`` relationship (which the API schema does not
         expose), so resolve the row from the patched user mock.
         """
 
         def _row(_user_id, _db):
-            user = mfa_service.users_integration.require_user.return_value
-            return getattr(user, "auth_mfa", None)
+            auth_mfa = getattr(mfa_service.users_integration.require_user.return_value, "auth_mfa", None)
+            if auth_mfa is None or not auth_mfa.mfa_enabled or not auth_mfa.mfa_secret:
+                return None
+            return SimpleNamespace(id=1, credential=auth_mfa.mfa_secret)
 
-        with patch("modules.auth.mfa.service.auth_mfa_crud.get_user_mfa_row", side_effect=_row):
+        with patch("modules.auth.mfa.service.auth_mfa_crud.get_totp_factor", side_effect=_row):
             yield
 
     @patch("modules.auth.mfa.service.mfa_totp_replay_store.matching_totp_step")
@@ -507,19 +509,22 @@ class TestIsMFAEnabledForUser:
 
     @pytest.fixture(autouse=True)
     def _wire_mfa_row(self):
-        """Mirror auth_mfa_crud.get_user_mfa_row to the mocked user's auth_mfa.
+        """Mirror auth_mfa_crud.get_totp_factor to the mocked user's auth_mfa.
 
-        Production reads the ``users_mfa`` row via
-        ``auth_mfa_crud.get_user_mfa_row`` rather than a
+        Production reads the TOTP factor via
+        ``auth_mfa_crud.get_totp_factor`` rather than a
         ``UserRead.auth_mfa`` relationship (which the API schema does not
         expose), so resolve the row from the patched user mock.
         """
 
-        def _row(_user_id, _db):
+        def _enabled(user_ids, _db):
             user = mfa_service.users_integration.require_user.return_value
-            return getattr(user, "auth_mfa", None)
+            auth_mfa = getattr(user, "auth_mfa", None)
+            if auth_mfa is None or not auth_mfa.mfa_enabled or not auth_mfa.mfa_secret:
+                return {}
+            return {user.id: True}
 
-        with patch("modules.auth.mfa.service.auth_mfa_crud.get_user_mfa_row", side_effect=_row):
+        with patch("modules.auth.mfa.service.auth_mfa_crud.get_mfa_enabled_for_users", side_effect=_enabled):
             yield
 
     @patch("modules.auth.mfa.service.users_integration.require_user")
@@ -582,7 +587,7 @@ class TestSecurityGenerationBump:
             patch(self._PREFIX + "is_mfa_enabled_for_user", return_value=False),
             patch(self._PREFIX + "mfa_totp_replay_store.matching_totp_step", return_value=7),
             patch(self._PREFIX + "core_cryptography.encrypt_token_fernet", return_value="encrypted"),
-            patch(self._PREFIX + "auth_mfa_crud.update_user_mfa") as update_mfa,
+            patch(self._PREFIX + "auth_mfa_crud.set_totp_factor") as update_mfa,
             patch(self._PREFIX + "mfa_backup_codes_integration.create_backup_codes", return_value=["C1"]) as create,
             patch(self._PREFIX + "security_generation_integration.stage_bump") as bump,
         ):
@@ -612,7 +617,7 @@ class TestSecurityGenerationBump:
         with (
             patch(self._PREFIX + "users_integration.require_user"),
             patch(self._PREFIX + "is_mfa_enabled_for_user", return_value=True),
-            patch(self._PREFIX + "auth_mfa_crud.update_user_mfa") as update_mfa,
+            patch(self._PREFIX + "auth_mfa_crud.delete_user_factors") as update_mfa,
             patch(self._PREFIX + "mfa_backup_codes_integration.delete_user_backup_codes") as delete_codes,
             patch(self._PREFIX + "security_generation_integration.stage_bump") as bump,
         ):

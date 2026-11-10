@@ -38,9 +38,7 @@ def _build(session_policy, *, change_required: bool, mfa: bool):
             USER_ID, hasher.hash_password(PASSWORD), db, change_required=change_required
         )
         if mfa:
-            mfa_crud.update_user_mfa(
-                USER_ID, db, encrypted_secret=core_cryptography.encrypt_token_fernet(pyotp.random_base32())
-            )
+            mfa_crud.set_totp_factor(USER_ID, core_cryptography.encrypt_token_fernet(pyotp.random_base32()), db)
             backup_codes_crud.create_backup_codes(USER_ID, [hasher.hash_password(BACKUP_CODE)], db)
         db.commit()
 

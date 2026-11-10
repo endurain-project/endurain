@@ -69,6 +69,8 @@ with SessionLocal() as db:
             token_family_id=session_id,
             rotation_count=0,
             client_type="web",
+            auth_time=now,
+            amr=["pwd"],
         )
     )
     db.commit()

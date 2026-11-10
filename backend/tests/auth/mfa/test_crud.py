@@ -1,48 +1,74 @@
-"""Tests for ``modules.auth.mfa.crud.create_users_mfa_row``."""
+"""Tests for the factor persistence in ``modules.auth.mfa.crud``."""
 
-from unittest.mock import MagicMock, patch
+import pytest
 
 import modules.auth.mfa.crud as auth_mfa_crud
-import modules.auth.mfa.models as auth_mfa_models
+from tests._helpers.db import create_sqlite_session
 
 
-class TestCreateUsersMFARow:
-    """``create_users_mfa_row`` persists a disabled row for a user."""
+@pytest.fixture
+def db():
+    session = create_sqlite_session()
+    yield session
+    session.close()
 
-    def test_creates_disabled_row(self):
-        db = MagicMock()
-        fake_row = MagicMock(spec=auth_mfa_models.UsersMFA)
-        fake_row.user_id = 42
-        fake_row.mfa_enabled = False
-        fake_row.mfa_secret = None
 
-        with patch.object(
-            auth_mfa_crud.auth_mfa_models,
-            "UsersMFA",
-            return_value=fake_row,
-        ) as ctor:
-            row = auth_mfa_crud.create_users_mfa_row(42, db)
+class TestTotpFactor:
+    def test_a_user_without_one_has_none(self, db):
+        assert auth_mfa_crud.get_totp_factor(1, db) is None
 
-        ctor.assert_called_once_with(user_id=42, mfa_enabled=False, mfa_secret=None)
-        assert row.user_id == 42
-        assert row.mfa_enabled is False
-        assert row.mfa_secret is None
+    def test_setting_one_stores_it(self, db):
+        auth_mfa_crud.set_totp_factor(1, "cipher", db)
 
-    def test_persists_via_db(self):
-        db = MagicMock()
-        fake_row = MagicMock(spec=auth_mfa_models.UsersMFA)
-        fake_row.user_id = 7
-        fake_row.mfa_enabled = False
-        fake_row.mfa_secret = None
+        factor = auth_mfa_crud.get_totp_factor(1, db)
+        assert factor is not None
+        assert (factor.user_id, factor.type, factor.credential) == (1, "totp", "cipher")
 
-        with patch.object(
-            auth_mfa_crud.auth_mfa_models,
-            "UsersMFA",
-            return_value=fake_row,
-        ):
-            auth_mfa_crud.create_users_mfa_row(7, db)
+    def test_setting_another_replaces_it(self, db):
+        auth_mfa_crud.set_totp_factor(1, "first", db)
 
-        db.add.assert_called_once_with(fake_row)
-        db.flush.assert_called_once()
-        db.commit.assert_not_called()
-        db.refresh.assert_called_once_with(fake_row)
+        auth_mfa_crud.set_totp_factor(1, "second", db)
+
+        assert auth_mfa_crud.get_totp_factor(1, db).credential == "second"
+
+    def test_one_users_factor_is_not_anothers(self, db):
+        auth_mfa_crud.set_totp_factor(1, "one", db)
+        auth_mfa_crud.set_totp_factor(2, "two", db)
+
+        assert auth_mfa_crud.get_totp_factor(1, db).credential == "one"
+        assert auth_mfa_crud.get_totp_factor(2, db).credential == "two"
+
+
+class TestDeleteUserFactors:
+    def test_it_removes_every_factor_of_that_user_only(self, db):
+        auth_mfa_crud.set_totp_factor(1, "one", db)
+        auth_mfa_crud.set_totp_factor(2, "two", db)
+
+        auth_mfa_crud.delete_user_factors(1, db)
+
+        assert auth_mfa_crud.get_totp_factor(1, db) is None
+        assert auth_mfa_crud.get_totp_factor(2, db) is not None
+
+
+class TestMfaEnabledForUsers:
+    def test_no_users_is_an_empty_answer(self, db):
+        assert auth_mfa_crud.get_mfa_enabled_for_users([], db) == {}
+
+    def test_only_users_with_a_factor_are_enabled(self, db):
+        auth_mfa_crud.set_totp_factor(1, "one", db)
+
+        assert auth_mfa_crud.get_mfa_enabled_for_users([1, 2], db) == {1: True}
+
+
+class TestMarkFactorUsed:
+    def test_it_stamps_the_time_of_use(self, db):
+        auth_mfa_crud.set_totp_factor(1, "one", db)
+        factor = auth_mfa_crud.get_totp_factor(1, db)
+
+        auth_mfa_crud.mark_factor_used(factor.id, db)
+
+        from sqlalchemy import select
+
+        import modules.auth.mfa.models as mfa_models
+
+        assert db.scalar(select(mfa_models.MFAFactor.last_used_at)) is not None

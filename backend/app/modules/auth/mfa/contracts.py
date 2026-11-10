@@ -29,11 +29,12 @@ class SupportsClaimTotpStep(Protocol):
         ...
 
 
-class MFAStateRead(BaseModel):
-    """Internal MFA state returned by persistence operations."""
+class MFAFactorRead(BaseModel):
+    """Internal enrolled-factor state returned by persistence operations."""
 
     model_config = ConfigDict(from_attributes=True)
 
+    id: int
     user_id: int
-    mfa_enabled: bool
-    mfa_secret: str | None
+    type: str
+    credential: str

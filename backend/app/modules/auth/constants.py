@@ -11,6 +11,12 @@ class ClientType(StrEnum):
     MOBILE = "mobile"
 
 
+class MFAFactorType(StrEnum):
+    """Kinds of second factor a user can enrol in ``mfa_factors``; backup codes are stored apart."""
+
+    TOTP = "totp"
+
+
 class AuthMethod(StrEnum):
     """Authentication methods a session records in its ``amr`` (RFC 8176 values)."""
 

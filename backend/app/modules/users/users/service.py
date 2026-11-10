@@ -345,7 +345,6 @@ def _stage_default_data(user_id: int, db: Session) -> None:
     users_privacy_settings_integration.create_privacy_settings(user_id, db)
     users_contributor_registry.lifecycle_hooks().stage_new_user(user_id, db)
     users_default_gear_integration.create_default_gear(user_id, db)
-    mfa_integration.create_users_mfa_row(user_id, db)
 
 
 def _stage_user_create_audit(

@@ -657,8 +657,8 @@ class TestMFAVerifyEndpoint:
 
         with (
             patch(
-                "modules.auth.mfa.service.auth_mfa_crud.get_user_mfa_row",
-                return_value=MagicMock(mfa_enabled=True, mfa_secret="encrypted-secret"),
+                "modules.auth.mfa.service.auth_mfa_crud.get_totp_factor",
+                return_value=MagicMock(id=1, credential="encrypted-secret"),
             ),
             patch(
                 "modules.auth.mfa.service.mfa_backup_codes_integration.verify_and_consume_backup_code",

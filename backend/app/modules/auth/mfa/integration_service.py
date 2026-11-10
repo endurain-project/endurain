@@ -78,10 +78,5 @@ def clear_mfa_account_lockout(username: str) -> None:
 
 
 def get_mfa_enabled_for_users(user_ids: list[int], db: Session) -> dict[int, bool]:
-    """Return enabled MFA state for the supplied users in one query."""
+    """Return which of the supplied users have a second factor, in one query."""
     return mfa_crud.get_mfa_enabled_for_users(user_ids, db)
-
-
-def create_users_mfa_row(user_id: int, db: Session) -> mfa_contracts.MFAStateRead:
-    """Stage the default disabled MFA state for a new user."""
-    return mfa_crud.create_users_mfa_row(user_id, db)

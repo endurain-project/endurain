@@ -7,7 +7,7 @@ Module layering (where MFA logic lives):
   the pending setup-secret store, and response/schema shaping.
 - ``modules.auth.mfa.service``: pure TOTP/QR helpers plus the per-user state helpers
   (setup/enable/disable/verify) this module orchestrates.
-- ``modules.auth.mfa.crud``: persistence for the ``users_mfa`` table.
+- ``modules.auth.mfa.crud``: persistence for the ``mfa_factors`` table.
 
 Profile routes depend on this module, never on ``modules.auth.mfa.*`` directly.
 """

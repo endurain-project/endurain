@@ -7,7 +7,7 @@ Module layering (where MFA logic lives):
   MFA state (:func:`setup_user_mfa`, :func:`enable_user_mfa`,
   :func:`disable_user_mfa`, :func:`verify_user_mfa`,
   :func:`is_mfa_enabled_for_user`). No HTTP request/response shapes here.
-- ``modules.auth.mfa.crud``: persistence for the ``users_mfa`` table.
+- ``modules.auth.mfa.crud``: persistence for the ``mfa_factors`` table.
 - ``modules.auth.account_security.mfa_workflow_service``: route-facing orchestration (step-up
   verification, setup-secret store handling, response/schema shaping) that
   composes the helpers in this module. Profile routes call that module, not
@@ -161,7 +161,7 @@ def enable_user_mfa(
         raise core_exceptions.ProcessingError("Failed to encrypt MFA secret")
 
     security_generation_integration.stage_bump(user_id, db)
-    auth_mfa_crud.update_user_mfa(user_id, db, encrypted_secret=encrypted_secret)
+    auth_mfa_crud.set_totp_factor(user_id, encrypted_secret, db)
 
     return mfa_backup_codes_integration.create_backup_codes(user_id, password_hasher, db)
 
@@ -194,7 +194,7 @@ def disable_user_mfa(user_id: int, db: Session) -> None:
         raise core_exceptions.ConflictError("MFA is not enabled for this user")
 
     security_generation_integration.stage_bump(user_id, db)
-    auth_mfa_crud.update_user_mfa(user_id, db)
+    auth_mfa_crud.delete_user_factors(user_id, db)
     mfa_backup_codes_integration.delete_user_backup_codes(user_id, db)
 
 
@@ -228,8 +228,8 @@ def verify_user_mfa(
     """
     user = users_integration.require_user(user_id, db)
 
-    mfa_row = auth_mfa_crud.get_user_mfa_row(user.id, db)
-    if not mfa_row or not mfa_row.mfa_enabled or not mfa_row.mfa_secret:
+    totp_factor = auth_mfa_crud.get_totp_factor(user.id, db)
+    if totp_factor is None:
         return False
 
     # Normalize code (remove whitespaces in the beginning and end, uppercase)
@@ -238,7 +238,7 @@ def verify_user_mfa(
     # Try TOTP first (6 digits)
     if len(normalized_code) == 6 and normalized_code.isascii() and normalized_code.isdecimal():
         try:
-            secret = core_cryptography.decrypt_token_fernet(mfa_row.mfa_secret)
+            secret = core_cryptography.decrypt_token_fernet(totp_factor.credential)
             if not secret:
                 logger.error("Failed to decrypt MFA secret")
                 return False
@@ -248,6 +248,7 @@ def verify_user_mfa(
                 if not replay_guard.claim_totp_step(user_id, step):
                     logger.warning("Refused a replayed TOTP code", extra=core_logger.context(user_id=user_id))
                     return False
+                auth_mfa_crud.mark_factor_used(totp_factor.id, db)
                 logger.debug("User verified MFA with TOTP", extra=core_logger.context(user_id=user_id))
                 return True
         except ValueError as err:
@@ -293,8 +294,7 @@ def is_mfa_enabled_for_user(user_id: int, db: Session) -> bool:
 
     if not user:
         return False
-    mfa_row = auth_mfa_crud.get_user_mfa_row(user.id, db)
-    return bool(mfa_row and mfa_row.mfa_enabled and mfa_row.mfa_secret is not None)
+    return auth_mfa_crud.get_mfa_enabled_for_users([user.id], db).get(user.id, False)
 
 
 def reencrypt_stored_secrets(db: Session) -> None:

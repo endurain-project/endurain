@@ -30,9 +30,7 @@ def session_factory():
         credentials_integration.set_local_password_hash(
             _USER_ID, hasher.hash_password(_PASSWORD), db, change_required=False
         )
-        mfa_crud.update_user_mfa(
-            _USER_ID, db, encrypted_secret=core_cryptography.encrypt_token_fernet(pyotp.random_base32())
-        )
+        mfa_crud.set_totp_factor(_USER_ID, core_cryptography.encrypt_token_fernet(pyotp.random_base32()), db)
         backup_codes_crud.create_backup_codes(_USER_ID, [hasher.hash_password(_BACKUP_CODE)], db)
         db.commit()
     yield factory

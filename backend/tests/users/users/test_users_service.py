@@ -130,11 +130,6 @@ def _auth_integration_mocks(monkeypatch):
         "get_mfa_enabled_for_users",
         lambda ids, db: mock_call("get_mfa_enabled_for_users", ids),
     )
-    monkeypatch.setattr(
-        mfa_integration,
-        "create_users_mfa_row",
-        lambda user_id, db: mock_call("initialize_user_mfa", user_id),
-    )
     monkeypatch.setattr(credentials_integration, "reject_breached_password", lambda settings, password, db: None)
     monkeypatch.setattr(
         credentials_integration,
@@ -665,7 +660,6 @@ class TestAccountCreationIsOneUnit:
         order.attach_mock(identity.set_local_password_hash, "credential")
         order.attach_mock(mock_integrations.create_integrations, "integrations")
         order.attach_mock(mock_gear.create_default_gear, "gear")
-        order.attach_mock(identity.initialize_user_mfa, "mfa")
         order.attach_mock(mock_db.commit, "commit")
         user = users_schema.UserCreate(
             name="N", username="n", email="n@example.com", active=True, access_type="regular", password="password123"
@@ -676,7 +670,7 @@ class TestAccountCreationIsOneUnit:
         names = [call[0] for call in order.mock_calls]
         assert names[-1] == "commit"
         assert names.count("commit") == 1
-        assert {"user", "credential", "integrations", "gear", "mfa"} <= set(names[:-1])
+        assert {"user", "credential", "integrations", "gear"} <= set(names[:-1])
 
     @patch("modules.users.users.service._stage_default_data")
     @patch(_CRUD)
@@ -889,8 +883,6 @@ class TestStageDefaultData:
     def test_stages_every_default_row_without_committing(
         self, mock_integrations, mock_privacy, mock_targets, mock_gear, mock_db
     ):
-        identity = _identity()
-
         users_service._stage_default_data(5, mock_db)
 
         mock_integrations.create_integrations.assert_called_once_with(5, mock_db)
@@ -898,7 +890,6 @@ class TestStageDefaultData:
         mock_targets.lifecycle_hooks.return_value.stage_new_user.assert_called_once_with(5, mock_db)
         mock_gear.create_default_gear.assert_called_once_with(5, mock_db)
         mock_db.commit.assert_not_called()
-        identity.initialize_user_mfa.assert_called_once_with(5)
 
 
 @patch("modules.users.users.service.users_contributor_registry")

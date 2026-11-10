@@ -55,12 +55,12 @@ def rotating_keys(monkeypatch):
 
 
 def _add_mfa(db, secret):
-    db.execute(insert(mfa_models.UsersMFA).values(user_id=1, mfa_enabled=True, mfa_secret=secret))
+    db.execute(insert(mfa_models.MFAFactor).values(user_id=1, type="totp", credential=secret))
     db.commit()
 
 
 def _mfa_secret(db):
-    return db.execute(select(mfa_models.UsersMFA.mfa_secret)).scalar_one()
+    return db.execute(select(mfa_models.MFAFactor.credential)).scalar_one()
 
 
 class TestWalker:
@@ -94,15 +94,6 @@ class TestWalker:
         assert _mfa_secret(db) == token
         assert counts == core_key_rotation.RotationCounts(rotated=0, undecryptable=1)
 
-    def test_null_value_is_skipped(self, db, rotating_keys):
-        _add_mfa(db, None)
-
-        counts = core_key_rotation.reencrypt_in_batches(
-            "mfa", lambda after_id, limit: mfa_crud.stage_reencrypt_batch_mfa(after_id, limit, db), db
-        )
-
-        assert counts == core_key_rotation.RotationCounts()
-
     def test_nothing_happens_with_one_key(self, db, monkeypatch):
         monkeypatch.setenv("FERNET_KEY", NEW_KEY)
         token = _token(OLD_KEY, "totp-secret")
@@ -116,17 +107,17 @@ class TestWalker:
         monkeypatch.setattr(core_key_rotation, "BATCH_SIZE", 2)
         for user_id in range(1, 6):
             db.execute(
-                insert(mfa_models.UsersMFA).values(
-                    user_id=user_id, mfa_enabled=True, mfa_secret=_token(OLD_KEY, f"secret-{user_id}")
+                insert(mfa_models.MFAFactor).values(
+                    user_id=user_id, type="totp", credential=_token(OLD_KEY, f"secret-{user_id}")
                 )
             )
         db.commit()
 
         mfa_service.reencrypt_stored_secrets(db)
 
-        stored = db.execute(select(mfa_models.UsersMFA.mfa_secret).order_by(mfa_models.UsersMFA.user_id)).scalars()
+        stored = db.execute(select(mfa_models.MFAFactor.credential).order_by(mfa_models.MFAFactor.user_id)).scalars()
         assert [_plain(value) for value in stored] == [f"secret-{n}" for n in range(1, 6)]
-        for value in db.execute(select(mfa_models.UsersMFA.mfa_secret)).scalars():
+        for value in db.execute(select(mfa_models.MFAFactor.credential)).scalars():
             Fernet(NEW_KEY.encode()).decrypt(value.encode())
 
     def test_concurrent_change_is_not_overwritten(self, db, rotating_keys, monkeypatch):
@@ -136,7 +127,7 @@ class TestWalker:
 
         def reencrypt_after_concurrent_write(token):
             rewritten = original(token)
-            db.execute(update(mfa_models.UsersMFA).values(mfa_secret=concurrent))
+            db.execute(update(mfa_models.MFAFactor).values(credential=concurrent))
             return rewritten
 
         monkeypatch.setattr(core_cryptography, "reencrypt_to_primary_key", reencrypt_after_concurrent_write)

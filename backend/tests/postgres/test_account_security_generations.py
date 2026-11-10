@@ -110,6 +110,8 @@ def _add_session(db, session_id, user_id=1):
             expires_at=now + timedelta(days=1),
             token_family_id=f"family-{session_id}",
             client_type=auth_constants.ClientType.WEB,
+            auth_time=now,
+            amr=["pwd"],
         )
     )
     db.flush()

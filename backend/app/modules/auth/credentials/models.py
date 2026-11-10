@@ -2,7 +2,7 @@
 
 This module defines the auth-owned 1:1 companion table that stores a
 user's local password hash. It is the credential-ownership counterpart to
-the ``users_mfa`` table: auth owns the secret, ``users`` owns the profile.
+the ``mfa_factors`` table: auth owns the secret, ``users`` owns the profile.
 Rows are written and read through ``modules.auth.credentials.crud``.
 """
 
