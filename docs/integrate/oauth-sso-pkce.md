@@ -31,7 +31,7 @@ Identity providers are configured by an administrator with these parameters:
 The callback URL is not a setting. Endurain always uses `{frontend host}/api/v1/public/idp/callback/{idp_slug}`, so register exactly that URL as the redirect URI at the provider.
 
 ### SSO failures
-The callback always ends in a redirect, never a JSON error, once its state is accepted. When a login fails, the browser lands on the Endurain frontend at `/login?error=<code>`: `sso_email_missing` when the provider did not share an email address for a new account, `sso_email_unverified` when the server requires a verified address for a new account and the provider did not verify it, `sso_link_by_email_disabled` when an account has the provider's email and the provider does not link by email, `sso_approval_pending` when the account waits for an administrator's approval, `sso_account_disabled` when the account is otherwise inactive (deactivated or queued for deletion), and `sso_failed` for every other failure (the provider refused the code or answered with an error, or the account could not be created). A failed link returns to the page that started it (`/settings/security` by default) with `idp_link=error`. A failed step-up returns to its `redirect` with `#step_up_error=failed|not_fresh` in the fragment. An unknown, expired, reused or wrong-provider `state` is refused before that with `400`.
+The callback always ends in a redirect, never a JSON error, once its state is accepted. When a login fails, the browser lands on the Endurain frontend at `/login?error=<code>`: `sso_email_missing` when the provider did not share an email address for a new account, `sso_email_unverified` when the server requires a verified address for a new account and the provider did not verify it, `sso_link_by_email_disabled` when an account has the provider's email and the provider does not link by email, `sso_approval_pending` when the account waits for an administrator's approval, `sso_account_disabled` when the account is otherwise inactive (deactivated or queued for deletion), and `sso_failed` for every other failure (the provider refused the code or answered with an error, or the account could not be created). A failed link returns to the page that started it (`/settings/security` by default) with `idp_link=error`. A failed step-up returns to its `redirect` with `#step_up_error=failed|not_fresh` in the fragment. An unknown, expired, reused or wrong-provider `state`, or a login finished in a browser other than the one that started it, is refused before that with `400`.
 
 ### Linking Accounts
 Users can link their Endurain account to an OAuth provider:
@@ -303,11 +303,13 @@ code_challenge = BASE64URL(SHA256(code_verifier))
 
 #### Step 2: Open the System Browser
 
-Open the initiate URL in the system browser, with the app's custom scheme as `redirect`:
+Open the initiate URL in the system browser, with the app's redirect address as `redirect`:
 
 ```http
 https://your-endurain-instance.com/api/v1/public/idp/login/{idp_slug}?code_challenge={challenge}&code_challenge_method=S256&redirect={custom_scheme}://callback
 ```
+
+The route answers `307` to the identity provider and sets an httpOnly cookie (`endurain_idp_binding`, `__Secure-endurain_idp_binding` in production and demo, `SameSite=Lax`, path `/api/v1/public/idp/callback`, valid for the 10 minutes the OAuth state lives) that binds the sign-in to this browser. The callback refuses a sign-in that finishes in another browser or without the cookie, with the same `400` as an unknown `state`, and audits it as `auth.session.login` with the reason `browser_mismatch`. Open the URL in a browser that keeps cookies and finish the whole flow in that same browser: the system browser, Custom Tabs or `ASWebAuthenticationSession`. A WebView that drops cookies, or a flow that moves from one browser to another, cannot finish. The provider's callback always goes to `ENDURAIN_HOST`, so the app must start the login on the `ENDURAIN_HOST` origin, not a LAN IP or another host name, and over `https` in production and demo, where the cookie is `Secure` and a browser drops it over plain `http`. Otherwise the callback is refused as an unknown `state`.
 
 **Query Parameters:**
 
@@ -315,10 +317,10 @@ https://your-endurain-instance.com/api/v1/public/idp/login/{idp_slug}?code_chall
 | --------- | -------- | ----------- |
 | `code_challenge` | Yes (PKCE) | Base64url-encoded SHA256 hash of code_verifier |
 | `code_challenge_method` | Yes (PKCE) | Must be `S256` |
-| `redirect` | Yes for mobile | The app's custom-scheme URL, for example `org.endurain.app://callback`. The scheme must be allowed by the administrator (see [Redirect schemes](#redirect-schemes)) |
+| `redirect` | Yes for mobile | The app's callback address, a custom-scheme URL such as `org.endurain.app://callback` or a claimed `https` address. The administrator must list it exactly (see [Redirect schemes](#redirect-schemes)) |
 
 !!! note "What marks the flow as mobile"
-    A browser cannot attach custom headers, so Endurain decides the client type from the `redirect` alone and never reads `X-Client-Type` on this route: a validated custom-scheme redirect records the flow as `mobile`, and any other redirect, or none, records `web`.
+    A browser cannot attach custom headers, so Endurain decides the client type from the `redirect` alone and never reads `X-Client-Type` on this route: a validated redirect with a scheme (custom scheme or claimed `https`) records the flow as `mobile`, and any other redirect, or none, records `web`.
 
 #### Step 3: Receive the Deep Link
 
@@ -400,11 +402,22 @@ X-Client-Type: mobile
 
 ### Redirect schemes
 
-The `redirect` address must be listed in `ALLOWED_REDIRECT_URIS` (see [Configuration](auth-reference.md#configuration)), a comma-separated list of exact addresses. The default is the Endurain mobile app's callback, `endurain://auth/sso/callback`; setting the variable replaces it, so keep it in the list, for example `ALLOWED_REDIRECT_URIS=endurain://auth/sso/callback,nodomain.freeyourgadget.gadgetbridge://endurain/oauth/callback` to allow Gadgetbridge as well. As in RFC 3986, the scheme ends at the first `:` and the `//` after it is optional, so both `org.endurain.app:/oauth/callback` (the form RFC 8252 section 7.1 shows) and `org.endurain.app://oauth/callback` work. The scheme is matched case-insensitively and the rest of the address exactly. The app registers one fixed callback address and Endurain adds `session_id` to it, so a redirect with a different path, or with a query string or fragment the entry does not have, is refused with `400`. While `ALLOWED_REDIRECT_URIS` is not empty, `ALLOWED_REDIRECT_SCHEMES` is ignored.
+The `redirect` address must be listed in `ALLOWED_REDIRECT_URIS` (see [Configuration](auth-reference.md#configuration)), a comma-separated list of exact addresses. It is the only redirect allow-list: `ALLOWED_REDIRECT_SCHEMES` is removed and Endurain refuses to start while it is set. Relative paths need no entry. The default is `com.endurain.endurain:/auth/sso/callback`; setting the variable replaces it, so keep it in the list, for example `ALLOWED_REDIRECT_URIS=com.endurain.endurain:/auth/sso/callback,nodomain.freeyourgadget.gadgetbridge://endurain/oauth/callback` to allow Gadgetbridge as well.
 
-`ALLOWED_REDIRECT_SCHEMES` is deprecated, logs a warning at startup when set and will be removed in v0.22. Until then, when `ALLOWED_REDIRECT_SCHEMES` is set and `ALLOWED_REDIRECT_URIS` is not, the scheme of the `redirect` must be listed in `ALLOWED_REDIRECT_SCHEMES` (see [Configuration](auth-reference.md#configuration)). It is a comma-separated list, matched case-insensitively. The default is `endurain` only, and setting the variable replaces the default instead of adding to it. An operator who runs an app that uses another scheme must set it, for example `ALLOWED_REDIRECT_SCHEMES=org.endurain.app`, and restart Endurain. A redirect with a scheme that is not listed is refused with `400`.
+!!! warning "Breaking change for operators"
+    The current Endurain mobile app still sends `endurain://auth/sso/callback`, which is no longer in the default. Until an app release uses the new address, add `endurain://auth/sso/callback` to `ALLOWED_REDIRECT_URIS` to keep SSO in the app working, for example `ALLOWED_REDIRECT_URIS=com.endurain.endurain:/auth/sso/callback,endurain://auth/sso/callback`. An operator who set `ALLOWED_REDIRECT_SCHEMES` must replace it with the exact addresses of the apps they allow.
 
-App authors should register a reverse-DNS scheme based on a domain they control, such as `org.endurain.app`, as RFC 8252 section 7.1 recommends. A short word such as `endurain` or `gadgetbridge` can be claimed by any other app on the device, which could then receive the `session_id` (the PKCE verifier still stops it from getting tokens). `http`, `https`, `javascript`, `data`, `file`, `vbscript` and `blob` are never allowed, and Endurain refuses to start if one is listed.
+As in RFC 3986, the scheme ends at the first `:` and the `//` after it is optional, so both `org.endurain.app:/oauth/callback` (the form RFC 8252 section 7.1 shows) and `org.endurain.app://oauth/callback` work. The scheme is matched case-insensitively and the rest of the address exactly. The app registers one fixed callback address and Endurain adds `session_id` to it, so a redirect with a different path, or with a query string or fragment the entry does not have, is refused with `400`.
+
+An entry may also be an exact `https://host/path` address, an Android App Link or iOS Universal Link. Endurain treats it like a custom-scheme address: it is a native-app address, the flow is recorded as `mobile`, and `session_id` is added to it. An `https` entry needs a host, no user info (`user@`), a valid port, and no whitespace or backslash; otherwise startup fails. An `https` redirect that is not listed is refused, like any other unlisted address. `http` is never allowed, and neither are `javascript`, `data`, `file`, `vbscript` and `blob`; Endurain refuses to start if one is listed.
+
+#### Choosing the redirect address
+
+Any app on a device can register a custom scheme (RFC 8252 section 8.6), so an app that claims the scheme of a listed address also receives the `session_id` in the deep link. The PKCE verifier protects only a flow the legitimate app started. An app that starts the login itself, with its own verifier, and receives the `session_id` can exchange it for tokens. Endurain cannot tell the two apps apart.
+
+- Prefer a claimed `https` address where the platform supports it. The operating system verifies the app against the domain, so another app cannot receive the link. The app side needs a hosted `/.well-known/assetlinks.json` (Android App Links) or `apple-app-site-association` file (iOS Universal Links) on the domain. A reliable `https` callback also needs the app to open the login with `ASWebAuthenticationSession` on iOS, or an Auth Tab or Custom Tab on Android. Endurain hosts neither file for you.
+- If you use a custom scheme, use a reverse-DNS scheme based on a domain you control, such as `org.endurain.app`, as RFC 8252 section 7.1 recommends. This reduces accidental collisions only; it does not stop an app that registers the same scheme on purpose. A short word such as `endurain` or `gadgetbridge` is easier to collide with.
+- Operators list only addresses of apps they trust.
 
 #### Redirect URL Validation Rules
 
@@ -412,11 +425,12 @@ App authors should register a reverse-DNS scheme based on a domain they control,
 | -------------- | ------- | ----- |
 | `/dashboard` | ✅ | Relative paths always allowed |
 | `/settings?tab=devices` | ✅ | Query strings OK in relative paths |
-| `org.endurain.app:/callback` | ✅ | If it is listed in `ALLOWED_REDIRECT_URIS`, or, with that unset, if `org.endurain.app` is in `ALLOWED_REDIRECT_SCHEMES`; recorded as a mobile flow |
-| `org.endurain.app://callback` | ✅ | If it is listed in `ALLOWED_REDIRECT_URIS`, or, with that unset, if `org.endurain.app` is in `ALLOWED_REDIRECT_SCHEMES`; recorded as a mobile flow |
-| `myapp://callback` | ❌ | If the address (or, with `ALLOWED_REDIRECT_URIS` unset, the scheme) is not configured — 400 returned |
-| `https://evil.com` | ❌ | External HTTP URLs always rejected |
-| `http://localhost` | ❌ | External HTTP URLs always rejected |
+| `org.endurain.app:/callback` | ✅ | If it is listed in `ALLOWED_REDIRECT_URIS`; recorded as a mobile flow |
+| `org.endurain.app://callback` | ✅ | If it is listed in `ALLOWED_REDIRECT_URIS`; recorded as a mobile flow |
+| `https://app.example.com/endurain/callback` | ✅ | Only if that exact address is listed in `ALLOWED_REDIRECT_URIS`; recorded as a mobile flow |
+| `myapp://callback` | ❌ | The address is not listed in `ALLOWED_REDIRECT_URIS` — 400 returned |
+| `https://evil.com` | ❌ | An `https` address that is not listed is rejected |
+| `http://localhost` | ❌ | `http` is always rejected |
 | `/../etc/passwd` | ❌ | Path traversal rejected |
 | `//evil.com` | ❌ | Protocol-relative URLs rejected |
 
