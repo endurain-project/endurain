@@ -56,7 +56,7 @@ For web clients, the refresh token cookie is configured with:
 | **HttpOnly** | `true` | Prevents JavaScript access (XSS protection) |
 | **Secure** | `true` when `ENVIRONMENT=production` or `demo`; applies consistently to login, refresh, and OAuth/SSO token exchange | Only sent over HTTPS |
 | **SameSite** | `Strict` | The browser does not send the cookie on cross-site requests, which is the main CSRF defence for it |
-| **Path** | `/api/v1/auth` | Sent only to auth endpoints that need the refresh token |
+| **Path** | `/` | Required by the `__Host-` name prefix of a deployed environment, together with `Secure` and no `Domain` attribute |
 | **Expires** | 7 days (default) | Matches refresh token lifetime, or the time left before the absolute session timeout when that comes first |
 
 ## Security Scopes

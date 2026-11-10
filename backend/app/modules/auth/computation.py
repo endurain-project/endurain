@@ -162,3 +162,20 @@ def auth_cookie_name(name: str, environment: str) -> str:
         The name with the ``__Secure-`` prefix when the environment sets ``Secure``, else ``name``.
     """
     return f"__Secure-{name}" if secure_cookie(environment) else name
+
+
+def host_cookie_name(name: str, environment: str) -> str:
+    """Return the name a host-locked auth cookie is set and read under.
+
+    A deployed environment sets ``Secure`` on its auth cookies. The ``__Host-`` prefix adds that a browser stores
+    the cookie only with ``Path=/`` and no ``Domain`` attribute, so a sibling subdomain cannot plant a cookie of
+    the same name. Development serves plain HTTP and keeps the plain name.
+
+    Args:
+        name: The cookie's base name.
+        environment: The deployment environment name.
+
+    Returns:
+        The name with the ``__Host-`` prefix when the environment sets ``Secure``, else ``name``.
+    """
+    return f"__Host-{name}" if secure_cookie(environment) else name

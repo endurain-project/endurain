@@ -314,3 +314,16 @@ class TestAuthCookieName:
         for environment in ("production", "demo", "development"):
             prefixed = token_hashing.auth_cookie_name("x", environment).startswith("__Secure-")
             assert prefixed == token_hashing.secure_cookie(environment)
+
+
+class TestHostCookieName:
+    """The host-locked cookies carry the ``__Host-`` prefix wherever ``Secure`` is set."""
+
+    @pytest.mark.parametrize("environment", ["production", "demo"])
+    def test_a_deployed_environment_prefixes_the_name(self, environment):
+        assert token_hashing.host_cookie_name("endurain_refresh_token", environment) == (
+            "__Host-endurain_refresh_token"
+        )
+
+    def test_development_keeps_the_plain_name(self):
+        assert token_hashing.host_cookie_name("endurain_refresh_token", "development") == "endurain_refresh_token"

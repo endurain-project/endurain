@@ -100,4 +100,29 @@ def test_clear_cookie_handler_clears_refresh_cookies(monkeypatch):
     response = MagicMock()
     monkeypatch.setattr(authentication_dependencies.core_config.settings, "ENVIRONMENT", "development")
     authentication_dependencies.clear_refresh_token_cookies(response, environment="development")
-    assert response.delete_cookie.call_count == len(authentication_dependencies.REFRESH_TOKEN_COOKIE_CLEAR_PATHS)
+    response.delete_cookie.assert_called_once()
+
+
+def test_refresh_token_claim_readers_follow_validation():
+    """A route using a refresh-token claim reader declares ``validate_refresh_token`` before it.
+
+    The readers check only the signature, so they rely on the validating dependency having run first.
+    """
+    import modules.auth.authentication.public_router as public_router
+
+    readers = {
+        authentication_dependencies.get_sub_from_refresh_token,
+        authentication_dependencies.get_sid_from_refresh_token,
+        authentication_dependencies.get_exp_from_refresh_token,
+    }
+    checked = 0
+    for route in public_router.router.routes:
+        calls = [dependency.call for dependency in route.dependant.dependencies]
+        if not readers.intersection(calls):
+            continue
+        checked += 1
+        assert authentication_dependencies.validate_refresh_token in calls, route.path
+        validation_index = calls.index(authentication_dependencies.validate_refresh_token)
+        for reader in readers.intersection(calls):
+            assert validation_index < calls.index(reader), f"{route.path} reads claims before validating"
+    assert checked >= 2

@@ -393,8 +393,8 @@ class TestCompleteLogin:
 
         # Assert
         set_cookie_header = response.headers.get("set-cookie", "")
-        assert "secure" in set_cookie_header.lower().removeprefix("__secure-")
-        assert "__Secure-endurain_refresh_token=" in set_cookie_header
+        assert "secure" in set_cookie_header.lower().removeprefix("__host-")
+        assert "__Host-endurain_refresh_token=" in set_cookie_header
 
     def test_complete_login_omits_secure_cookie_for_development(
         self, password_hasher, token_manager, mock_db, sample_user_read, mock_request
@@ -453,10 +453,11 @@ class TestCompleteLogin:
         assert "endurain_refresh_token" in set_cookie_header
         assert "httponly" in set_cookie_header.lower()
         assert "samesite=strict" in set_cookie_header.lower()
-        assert "path=/api/v1/auth" in set_cookie_header.lower()
+        assert "path=/;" in f"{set_cookie_header.lower()};"
+        assert "domain" not in set_cookie_header.lower()
 
-    def test_set_refresh_token_cookie_clears_legacy_paths(self):
-        """Test setting a refresh cookie clears all known old paths."""
+    def test_set_refresh_token_cookie_clears_the_old_value(self):
+        """Test setting a refresh cookie first clears the cookie it replaces."""
         response = Response()
 
         auth_transport_dependencies.set_refresh_token_cookie(
@@ -468,16 +469,31 @@ class TestCompleteLogin:
             "endurain_refresh_token" in header and "max-age=0" in header and "path=/;" in header
             for header in set_cookie_headers
         )
-        assert any(
-            "endurain_refresh_token" in header and "max-age=0" in header and "path=/api/v1/auth" in header
-            for header in set_cookie_headers
-        )
         assert set_cookie_headers[-1].startswith("endurain_refresh_token=new-refresh-token")
-        assert "path=/api/v1/auth" in set_cookie_headers[-1]
+        assert "path=/;" in set_cookie_headers[-1]
+
+    @pytest.mark.parametrize("environment", ["production", "demo"])
+    def test_deployed_refresh_cookie_meets_host_prefix_rules(self, environment):
+        """The ``__Host-`` prefix needs Secure, Path=/ and no Domain on every cookie set under that name."""
+        response = Response()
+
+        auth_transport_dependencies.set_refresh_token_cookie(
+            response, "new-refresh-token", datetime.now(UTC) + timedelta(days=7), environment=environment
+        )
+
+        host_headers = [header for header in _set_cookie_headers(response) if header.startswith("__Host-")]
+        assert host_headers
+        for header in host_headers:
+            assert header.startswith("__Host-endurain_refresh_token=")
+            attributes = [part.strip().lower() for part in header.split(";")[1:]]
+            assert "secure" in attributes
+            assert "path=/" in attributes
+            assert not any(part.startswith("domain") for part in attributes)
+        assert not any(header.startswith("__Secure-") for header in _set_cookie_headers(response))
 
     @pytest.mark.asyncio
     async def test_clear_refresh_token_cookie_exception_handler(self):
-        """Test missing-claim errors clear all refresh cookie paths."""
+        """Test missing-claim errors clear the refresh cookie."""
         exc = auth_transport_dependencies.ClearRefreshTokenCookieError("Token is missing required claims.")
 
         request = MagicMock()
@@ -493,7 +509,6 @@ class TestCompleteLogin:
         assert response.headers["content-type"].startswith("application/problem+json")
         assert b"urn:endurain:error:invalid-token" in response.body
         assert any("max-age=0" in h and "path=/;" in h for h in set_cookie_headers)
-        assert any("max-age=0" in h and "path=/api/v1/auth" in h for h in set_cookie_headers)
 
     def test_complete_login_returns_different_tokens_on_each_call(
         self, password_hasher, token_manager, mock_db, sample_user_read, mock_request
@@ -567,15 +582,14 @@ class TestIsSecureCookieEnvironment:
 class TestClearRefreshTokenCookies:
     """Tests for clear_refresh_token_cookies."""
 
-    def test_clears_cookies_on_all_paths(self):
+    def test_clears_the_cookie_on_its_path(self):
         response = Response()
         authentication_dependencies.clear_refresh_token_cookies(response, environment="development")
-        expected_paths = auth_transport_dependencies.REFRESH_TOKEN_COOKIE_CLEAR_PATHS
+        path = auth_transport_dependencies.REFRESH_TOKEN_COOKIE_PATH
         set_cookie_headers = [v.decode().lower() for k, v in response.raw_headers if k == b"set-cookie"]
-        for path in expected_paths:
-            assert any(
-                "endurain_refresh_token" in h and "max-age=0" in h and f"path={path}" in h for h in set_cookie_headers
-            ), f"Missing clear for path {path}"
+        assert any(
+            "endurain_refresh_token" in h and "max-age=0" in h and f"path={path};" in h for h in set_cookie_headers
+        )
 
     def test_uses_secure_httponly_samesite_attributes(self):
         response = Response()

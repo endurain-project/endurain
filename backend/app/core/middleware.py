@@ -230,7 +230,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
     header makes a cross-origin browser request preflighted, so CORS decides whether it is sent. What actually keeps
     a cross-site page from acting as the user is that protected routes read the access token from the
     ``Authorization`` header, which a browser never attaches by itself, and that the refresh cookie is
-    ``SameSite=Strict`` and scoped to ``/api/v1/auth``. The token value is checked against the session only by
+    ``SameSite=Strict``. The token value is checked against the session only by
     ``/auth/refresh``.
 
     Attributes:

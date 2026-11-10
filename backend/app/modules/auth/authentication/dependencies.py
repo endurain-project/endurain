@@ -22,12 +22,11 @@ import modules.auth.known_devices.dependencies as known_devices_dependencies
 
 _REFRESH_TOKEN_COOKIE_BASE_NAME = "endurain_refresh_token"
 #: The name the browser sends the refresh cookie back under, fixed when the server starts.
-REFRESH_TOKEN_COOKIE_NAME = auth_computation.auth_cookie_name(
+REFRESH_TOKEN_COOKIE_NAME = auth_computation.host_cookie_name(
     _REFRESH_TOKEN_COOKIE_BASE_NAME, core_config.settings.ENVIRONMENT
 )
-REFRESH_TOKEN_COOKIE_PATH = "/api/v1/" + "auth"
-LEGACY_REFRESH_TOKEN_COOKIE_PATHS = ("/",)
-REFRESH_TOKEN_COOKIE_CLEAR_PATHS = (*LEGACY_REFRESH_TOKEN_COOKIE_PATHS, REFRESH_TOKEN_COOKIE_PATH)
+#: The ``__Host-`` prefix requires ``Path=/``; the cookie is set without a ``Domain`` attribute.
+REFRESH_TOKEN_COOKIE_PATH = "/"
 
 
 def get_client_type(
@@ -206,17 +205,19 @@ def set_refresh_token_cookie(
     refresh_token: str,
     expires_at: datetime,
     *,
-    cookie_path: str = REFRESH_TOKEN_COOKIE_PATH,
     environment: str,
 ) -> None:
-    """Set the refresh-token cookie with the configured attributes."""
+    """Set the refresh-token cookie.
+
+    In a deployed environment the cookie meets the ``__Host-`` rules: ``Secure``, ``Path=/`` and no ``Domain``.
+    """
     clear_refresh_token_cookies(response, environment=environment)
     response.set_cookie(
-        key=auth_computation.auth_cookie_name(_REFRESH_TOKEN_COOKIE_BASE_NAME, environment),
+        key=auth_computation.host_cookie_name(_REFRESH_TOKEN_COOKIE_BASE_NAME, environment),
         value=refresh_token,
         expires=expires_at,
         httponly=True,
-        path=cookie_path,
+        path=REFRESH_TOKEN_COOKIE_PATH,
         secure=auth_computation.secure_cookie(environment),
         samesite="strict",
     )
@@ -251,18 +252,16 @@ def deliver_auth_outcome[BodyT: BaseModel](response: Response, outcome: auth_sch
 def clear_refresh_token_cookies(
     response: Response,
     *,
-    cookie_paths: tuple[str, ...] = REFRESH_TOKEN_COOKIE_CLEAR_PATHS,
     environment: str,
 ) -> None:
-    """Clear the refresh-token cookie on all supported paths."""
-    for path in cookie_paths:
-        response.delete_cookie(
-            key=auth_computation.auth_cookie_name(_REFRESH_TOKEN_COOKIE_BASE_NAME, environment),
-            path=path,
-            secure=auth_computation.secure_cookie(environment),
-            httponly=True,
-            samesite="strict",
-        )
+    """Clear the refresh-token cookie."""
+    response.delete_cookie(
+        key=auth_computation.host_cookie_name(_REFRESH_TOKEN_COOKIE_BASE_NAME, environment),
+        path=REFRESH_TOKEN_COOKIE_PATH,
+        secure=auth_computation.secure_cookie(environment),
+        httponly=True,
+        samesite="strict",
+    )
 
 
 async def clear_refresh_token_cookie_exception_handler(
@@ -396,6 +395,9 @@ def validate_refresh_token(
         raise core_exceptions.ProcessingError("Internal server error during token validation") from err
 
 
+# The ``get_*_from_refresh_token`` readers below check only the token's signature and read a claim. A route that
+# uses one declares ``validate_refresh_token`` before it, so the token's expiry and type are already checked when a
+# reader runs; ``test_refresh_token_claim_readers_follow_validation`` pins that order.
 def get_sub_from_refresh_token(
     refresh_token: Annotated[str, Depends(get_refresh_token)],
     token_manager: Annotated[
@@ -403,7 +405,10 @@ def get_sub_from_refresh_token(
         Depends(access_tokens_integration.get_token_manager),
     ],
 ) -> int:
-    """Return the decimal subject claim from a refresh token."""
+    """Return the decimal subject claim from a refresh token.
+
+    Precondition: ``validate_refresh_token`` ran first; this reader checks only the signature.
+    """
     sub = token_manager.get_token_claim(refresh_token, "sub", access_tokens_integration.TokenType.REFRESH)
     if not isinstance(sub, str) or not sub.isascii() or not sub.isdecimal():
         raise core_exceptions.InvalidTokenError("Invalid token: 'sub' claim must be a decimal string")
@@ -417,7 +422,10 @@ def get_sid_from_refresh_token(
         Depends(access_tokens_integration.get_token_manager),
     ],
 ) -> str:
-    """Return the session identifier claim from a refresh token."""
+    """Return the session identifier claim from a refresh token.
+
+    Precondition: ``validate_refresh_token`` ran first; this reader checks only the signature.
+    """
     sid = token_manager.get_token_claim(refresh_token, "sid", access_tokens_integration.TokenType.REFRESH)
     if not isinstance(sid, str):
         raise core_exceptions.InvalidTokenError("Invalid token: 'sid' claim must be a string")
@@ -431,7 +439,10 @@ def get_exp_from_refresh_token(
         Depends(access_tokens_integration.get_token_manager),
     ],
 ) -> datetime:
-    """Return the expiry claim of a refresh token as a timezone-aware UTC instant."""
+    """Return the expiry claim of a refresh token as a timezone-aware UTC instant.
+
+    Precondition: ``validate_refresh_token`` ran first; this reader checks only the signature.
+    """
     exp = token_manager.get_token_claim(refresh_token, "exp", access_tokens_integration.TokenType.REFRESH)
     if not isinstance(exp, int):
         raise core_exceptions.InvalidTokenError("Invalid token: 'exp' claim must be an integer")
