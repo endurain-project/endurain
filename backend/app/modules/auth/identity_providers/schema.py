@@ -18,6 +18,7 @@ from pydantic import (
 import core.cryptography as core_cryptography
 import core.pagination as core_pagination
 import modules.auth.identity_providers.constants as idp_constants
+import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.schema as auth_schema
 
 
@@ -317,7 +318,12 @@ class StepUpStartRequest(BaseModel):
 
     code_challenge: StrictStr = Field(..., min_length=43, max_length=128, description="PKCE S256 challenge")
     action: idp_constants.StepUpAction = Field(..., description="Sensitive operation the step-up authorises")
-    redirect: StrictStr = Field(..., min_length=1, max_length=500, description="Relative path to return to")
+    redirect: StrictStr = Field(
+        ...,
+        min_length=1,
+        max_length=oauth_state_constants.REDIRECT_MAX_LENGTH,
+        description="Relative path to return to",
+    )
 
     model_config = ConfigDict(extra="forbid")
 

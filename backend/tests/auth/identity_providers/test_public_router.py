@@ -71,6 +71,19 @@ class TestInitiateLogin:
         params = {"code_challenge": CHALLENGE, "code_challenge_method": "S256", **overrides}
         return client.get(f"{PREFIX}/login/pocket-id", params=params, follow_redirects=False)
 
+    def test_a_redirect_longer_than_the_stored_column_is_unprocessable(self, client, service):
+        response = self._login(client, redirect="/" + "a" * oauth_state_constants.REDIRECT_MAX_LENGTH)
+
+        assert response.status_code == 422
+        service.begin_login.assert_not_called()
+
+    def test_a_redirect_of_the_column_length_is_accepted(self, client, service):
+        service.begin_login.return_value = _start("https://idp.example.com/authorize")
+
+        response = self._login(client, redirect="/" + "a" * (oauth_state_constants.REDIRECT_MAX_LENGTH - 1))
+
+        assert response.status_code == 307
+
     def test_redirects_to_the_authorization_url_the_service_built(self, client, service):
         service.begin_login.return_value = _start("https://provider.example/auth?state=abc")
 

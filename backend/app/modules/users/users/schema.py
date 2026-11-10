@@ -24,6 +24,7 @@ import core.pagination as core_pagination
 import core.partial_update as core_partial_update
 import core.types as core_types
 import modules.activities.activity.constants as activity_constants
+import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.schema as auth_schema
 import modules.server_settings.schema as server_settings_schema
 
@@ -751,7 +752,7 @@ class IdentityProviderLinkStart(BaseModel):
     redirect: StrictStr | None = Field(
         default=None,
         min_length=1,
-        max_length=500,
+        max_length=oauth_state_constants.REDIRECT_MAX_LENGTH,
         description="Frontend return path after linking (relative path or a configured native-app address)",
     )
     revoke_other_sessions: StrictBool = Field(

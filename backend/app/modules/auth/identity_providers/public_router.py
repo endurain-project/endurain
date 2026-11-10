@@ -25,6 +25,7 @@ import modules.auth.identity_providers.dependencies as idp_dependencies
 import modules.auth.identity_providers.icon_service as idp_icon_service
 import modules.auth.identity_providers.provider_service as idp_provider_service
 import modules.auth.identity_providers.schema as idp_schema
+import modules.auth.oauth_state.constants as oauth_state_constants
 
 # Define the API router
 router = APIRouter()
@@ -86,6 +87,7 @@ def initiate_login(
         str | None,
         Query(
             alias="redirect",
+            max_length=oauth_state_constants.REDIRECT_MAX_LENGTH,
             description="Frontend redirect path after successful login",
         ),
     ] = None,

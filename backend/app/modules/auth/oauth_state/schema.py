@@ -38,7 +38,9 @@ class OAuthStateCreate(BaseModel):
         None, pattern="^S256$", description="PKCE method (only S256 supported)"
     )
     nonce: StrictStr = Field(..., min_length=32, max_length=64, description="OIDC nonce")
-    redirect_path: StrictStr | None = Field(None, max_length=500, description="Frontend path after login")
+    redirect_path: StrictStr | None = Field(
+        None, max_length=oauth_state_constants.REDIRECT_MAX_LENGTH, description="Frontend path after login"
+    )
     client_type: StrictStr = Field(..., pattern="^(web|mobile)$", description="Client type: web or mobile")
     ip_address: StrictStr | None = Field(None, max_length=45, description="Client IP address")
     expires_at: datetime = Field(..., description="Expiry timestamp")

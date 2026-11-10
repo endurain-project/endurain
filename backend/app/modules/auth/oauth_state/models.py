@@ -6,6 +6,7 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import expression, func
 
+import modules.auth.oauth_state.constants as oauth_state_constants
 from core.database import Base
 
 
@@ -81,7 +82,7 @@ class OAuthState(Base):
     )
 
     redirect_path: Mapped[str | None] = mapped_column(
-        String(500),
+        String(oauth_state_constants.REDIRECT_MAX_LENGTH),
         nullable=True,
         comment="Frontend path after login",
     )

@@ -5,6 +5,9 @@ from enum import StrEnum
 #: How long a state, and anything bound to it in the browser, stays valid.
 STATE_TTL_SECONDS = 600
 
+#: Longest return path or address a flow may name; the size of the ``redirect_path`` column.
+REDIRECT_MAX_LENGTH = 500
+
 
 class OAuthStatePurpose(StrEnum):
     """What an OAuth state's flow is for, so the callback never infers it from which columns are set.
