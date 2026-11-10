@@ -513,8 +513,6 @@
       "title": "Provider verwijderen",
       "body": "Weet je zeker dat je \"{name}\" wilt verwijderen? Dit kan niet ongedaan worden gemaakt.",
       "confirm": "Verwijderen",
-      "cancel": "Annuleren",
-      "close": "Sluiten",
       "success": "Provider verwijderd",
       "error": "Provider kon niet worden verwijderd. Er zijn mogelijk nog gekoppelde gebruikers."
     },

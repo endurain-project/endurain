@@ -513,8 +513,6 @@
       "title": "Eliminar provedor",
       "body": "Tes a certeza de que queres eliminar \"{name}\"? Esta acción non se pode desfacer.",
       "confirm": "Eliminar",
-      "cancel": "Cancelar",
-      "close": "Pechar",
       "success": "Provedor eliminado",
       "error": "Non se puido eliminar o provedor. É posible que aínda teña usuarios vinculados."
     },

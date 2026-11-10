@@ -513,8 +513,6 @@
       "title": "Usuń dostawcę",
       "body": "Czy na pewno chcesz usunąć \"{name}\"? Tej operacji nie można cofnąć.",
       "confirm": "Usuń",
-      "cancel": "Anuluj",
-      "close": "Zamknij",
       "success": "Usunięto dostawcę",
       "error": "Nie udało się usunąć dostawcy. Może on nadal mieć powiązanych użytkowników."
     },

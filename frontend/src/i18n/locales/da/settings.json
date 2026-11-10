@@ -513,8 +513,6 @@
       "title": "Slet udbyder",
       "body": "Er du sikker på, at du vil slette \"{name}\"? Dette kan ikke fortrydes.",
       "confirm": "Slet",
-      "cancel": "Annullér",
-      "close": "Luk",
       "success": "Udbyder slettet",
       "error": "Kunne ikke slette udbyderen. Den har muligvis stadig tilknyttede brugere."
     },

@@ -8,7 +8,7 @@ export type ServerSettingsDto = Schemas['ServerSettingsAdminRead']
  * fields and replaces the whole record, so every column must round-trip — the
  * derived type makes a missing field a compile error in {@link toServerSettingsWire}.
  */
-export type ServerSettingsEditDto = Schemas['ServerSettingsEdit']
+export type ServerSettingsEditDto = Schemas['ServerSettingsEditRequest']
 
 /** Whether the server-log viewer is available on this deployment. */
 export type LogsStatusDto = Schemas['LogsStatus']

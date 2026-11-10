@@ -188,17 +188,17 @@ describe('toServerSettingsWire', () => {
       env_managed: _envManaged,
       ...editable
     } = makeSettingsDto()
-    expect(toServerSettingsWire(settings)).toEqual(editable)
+    expect(toServerSettingsWire(settings, null)).toEqual({ ...editable, step_up: null })
   })
 
   it('omits the API key to keep it, and sends null to remove it', () => {
     const settings = mapServerSettings(makeSettingsDto())
-    expect(toServerSettingsWire(settings)).not.toHaveProperty('tileserver_api_key')
-    expect(toServerSettingsWire({ ...settings, tileserverApiKey: null })).toHaveProperty(
+    expect(toServerSettingsWire(settings, null)).not.toHaveProperty('tileserver_api_key')
+    expect(toServerSettingsWire({ ...settings, tileserverApiKey: null }, null)).toHaveProperty(
       'tileserver_api_key',
       null,
     )
-    expect(toServerSettingsWire({ ...settings, tileserverApiKey: 'new-key' })).toHaveProperty(
+    expect(toServerSettingsWire({ ...settings, tileserverApiKey: 'new-key' }, null)).toHaveProperty(
       'tileserver_api_key',
       'new-key',
     )
@@ -206,12 +206,12 @@ describe('toServerSettingsWire', () => {
 
   it('omits the geocoding key to keep it, and sends null to remove it', () => {
     const settings = mapServerSettings(makeSettingsDto())
-    expect(toServerSettingsWire(settings)).not.toHaveProperty('geocoding_api_key')
-    expect(toServerSettingsWire({ ...settings, geocodingApiKey: null })).toHaveProperty(
+    expect(toServerSettingsWire(settings, null)).not.toHaveProperty('geocoding_api_key')
+    expect(toServerSettingsWire({ ...settings, geocodingApiKey: null }, null)).toHaveProperty(
       'geocoding_api_key',
       null,
     )
-    expect(toServerSettingsWire({ ...settings, geocodingApiKey: 'geo-key' })).toHaveProperty(
+    expect(toServerSettingsWire({ ...settings, geocodingApiKey: 'geo-key' }, null)).toHaveProperty(
       'geocoding_api_key',
       'geo-key',
     )
@@ -222,6 +222,7 @@ describe('toServerSettingsWire', () => {
       mapServerSettings(
         makeSettingsDto({ session_idle_timeout_enabled: true, access_token_expire_minutes: 30 }),
       ),
+      null,
     )
     expect(wire).toMatchObject({
       session_idle_timeout_enabled: true,
@@ -237,6 +238,7 @@ describe('toServerSettingsWire', () => {
   it('sends the breached-password check switch', () => {
     const wire = toServerSettingsWire(
       mapServerSettings(makeSettingsDto({ password_breach_check_enabled: true })),
+      null,
     )
     expect(wire).toHaveProperty('password_breach_check_enabled', true)
   })
@@ -244,6 +246,7 @@ describe('toServerSettingsWire', () => {
   it('sends the single sign-on sign-up switch', () => {
     const wire = toServerSettingsWire(
       mapServerSettings(makeSettingsDto({ signup_sso_enabled: true })),
+      null,
     )
     expect(wire).toHaveProperty('signup_sso_enabled', true)
   })
@@ -251,18 +254,19 @@ describe('toServerSettingsWire', () => {
   it('sends the audit trail retention and legal hold', () => {
     const wire = toServerSettingsWire(
       mapServerSettings(makeSettingsDto({ audit_retention_days: 0, audit_legal_hold: true })),
+      null,
     )
     expect(wire).toMatchObject({ audit_retention_days: 0, audit_legal_hold: true })
   })
 
   it('never sends the env-managed map or the key-stored flags', () => {
-    const wire = toServerSettingsWire(mapServerSettings(makeSettingsDto()))
+    const wire = toServerSettingsWire(mapServerSettings(makeSettingsDto()), null)
     expect(wire).not.toHaveProperty('env_managed')
     expect(wire).not.toHaveProperty('geocoding_api_key_set')
   })
 
   it('never sends the read-only id or login-photo flag', () => {
-    const wire = toServerSettingsWire(mapServerSettings(makeSettingsDto()))
+    const wire = toServerSettingsWire(mapServerSettings(makeSettingsDto()), null)
     expect(wire).not.toHaveProperty('id')
     expect(wire).not.toHaveProperty('login_photo_set')
   })
@@ -297,12 +301,25 @@ describe('server settings service requests', () => {
     vi.mocked(apiFetch).mockResolvedValue(makeSettingsDto())
     const settings = mapServerSettings(makeSettingsDto({ signup_enabled: true }))
 
-    await updateServerSettings(settings)
+    await updateServerSettings(settings, null)
 
     expect(apiFetch).toHaveBeenCalledWith('/server-settings', {
       method: 'PUT',
       headers: { 'If-Match': '"3"' },
-      body: JSON.stringify(toServerSettingsWire(settings)),
+      body: JSON.stringify(toServerSettingsWire(settings, null)),
+    })
+  })
+
+  it('updateServerSettings carries the administrator step-up in the body', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(makeSettingsDto())
+    const settings = mapServerSettings(makeSettingsDto({ signup_enabled: true }))
+
+    await updateServerSettings(settings, { currentPassword: 'admin-pw', mfaCode: null })
+
+    const body = vi.mocked(apiFetch).mock.calls[0]?.[1]?.body
+    expect((JSON.parse(body as string) as Record<string, unknown>).step_up).toEqual({
+      current_password: 'admin-pw',
+      mfa_code: null,
     })
   })
 

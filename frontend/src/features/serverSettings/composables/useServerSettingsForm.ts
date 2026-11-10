@@ -7,10 +7,15 @@ import type {
   ServerSettingsFormValues,
   TileMapsTemplate,
 } from '@/features/serverSettings/types'
+import type { IdpReauth, StepUpInput } from '@/features/security/types'
+import type { IdpStepUpResume } from '@/features/security/composables/useIdpStepUp'
 import type { Validator } from '@/utils/validators'
 
 import { useForm } from '@/composables/useForm'
 import { useToasts } from '@/composables/useToasts'
+import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
+import { useResumeOnce } from '@/features/security/composables/useAdminStepUp'
+import { useSettingsStepUpResume } from '@/features/serverSettings/composables/useMailStepUpResume'
 import { useUpdateServerSettingsMutation } from '@/features/serverSettings/composables/useServerSettings'
 import { FIELD_TABS, type SettingsTab } from '@/features/serverSettings/settingsTabs'
 import { HttpError } from '@/services/http'
@@ -33,6 +38,33 @@ const API_KEY_DAYS_RANGE = { min: 1, max: 3650 } as const
 const RETENTION_DAYS_RANGE = { min: 0, max: 3650 } as const
 /** Accepted audit trail retention besides 0 (keep everything): the database-side floor to the substrate maximum. */
 const AUDIT_RETENTION_DAYS_RANGE = { min: 30, max: 36500 } as const
+/**
+ * The settings whose change needs the administrator's step-up: the ones that govern who can sign up or sign
+ * in, how long a session or token lives and how long the audit trail is kept. Mirrors the backend's
+ * `SECURITY_FIELDS`; the backend decides, so a field missing here only shows the dialog late.
+ */
+const SECURITY_FIELDS = [
+  'signupEnabled',
+  'signupSsoEnabled',
+  'signupRequireAdminApproval',
+  'signupRequireEmailVerification',
+  'ssoEnabled',
+  'ssoAutoRedirect',
+  'localLoginEnabled',
+  'passwordLengthRegularUsers',
+  'passwordLengthAdminUsers',
+  'passwordBreachCheckEnabled',
+  'sessionIdleTimeoutEnabled',
+  'sessionIdleTimeoutHours',
+  'sessionAbsoluteTimeoutHours',
+  'accessTokenExpireMinutes',
+  'refreshTokenExpireDays',
+  'apiKeyMaxLifetimeDays',
+  'auditRetentionDays',
+  'auditLegalHold',
+] as const satisfies readonly (keyof ServerSettingsFormValues)[]
+/** The write-only API key fields; a draft kept across the identity-provider sign-in never holds them. */
+const SECRET_FIELDS = ['tileserverApiKey', 'geocodingApiKey'] as const
 /** Placeholders every valid tile URL template must contain. */
 const TILE_PLACEHOLDERS = ['{z}', '{x}', '{y}'] as const
 
@@ -162,8 +194,14 @@ export function useServerSettingsForm(props: {
   const { t } = useI18n()
   const toasts = useToasts()
   const updateMutation = useUpdateServerSettingsMutation()
+  const handleIdpChallenge = useIdpReauthChallenge()
 
   const initialValues = toFormValues(props.settings)
+
+  // A security-relevant change is confirmed with the administrator's own step-up, collected by a dialog.
+  const isStepUpOpen = ref(false)
+  const idpReauth = ref<IdpReauth | null>(null)
+  const pendingResume = useSettingsStepUpResume()
 
   /**
    * The environment variable that sets a field, or undefined when it is editable.
@@ -211,14 +249,54 @@ export function useServerSettingsForm(props: {
   }
 
   /**
-   * Persists the whole settings record, merging the form edits over the freshest
-   * server state so `id` and `loginPhotoSet` round-trip untouched. Outcomes are
-   * surfaced as toasts; the error is not rethrown, so no inline submit error
-   * banner appears.
+   * Whether the edits change a security-relevant setting, which needs the administrator's step-up.
+   *
+   * @param formValues - The form values.
+   * @returns True when one of the settings in {@link SECURITY_FIELDS} differs from the saved one.
+   */
+  function changesSecuritySetting(formValues: ServerSettingsFormValues): boolean {
+    const normalized = (value: unknown): unknown =>
+      typeof value === 'string' ? value.trim() : value
+    return SECURITY_FIELDS.some(
+      (field) => normalized(formValues[field]) !== normalized(initialValues[field]),
+    )
+  }
+
+  /**
+   * Saves the form, asking for the administrator's step-up first when a security-relevant setting changed.
    *
    * @param formValues - The validated form values.
    */
   async function submitForm(formValues: ServerSettingsFormValues): Promise<void> {
+    if (changesSecuritySetting(formValues)) {
+      isStepUpOpen.value = true
+      return
+    }
+    await save(formValues, null)
+  }
+
+  /**
+   * Saves the form with the step-up from the dialog.
+   *
+   * @param stepUp - The administrator's step-up from the dialog.
+   */
+  async function confirmStepUp(stepUp: StepUpInput): Promise<void> {
+    await save({ ...values }, stepUp)
+  }
+
+  /**
+   * Persists the whole settings record, merging the form edits over the freshest
+   * server state so `id` and `loginPhotoSet` round-trip untouched. Outcomes are
+   * surfaced as toasts; the error is not rethrown, so no inline submit error
+   * banner appears. A refused step-up keeps the dialog open for another try.
+   *
+   * @param formValues - The validated form values.
+   * @param stepUp - The administrator's step-up, or `null` when no security-relevant setting changed.
+   */
+  async function save(
+    formValues: ServerSettingsFormValues,
+    stepUp: StepUpInput | null,
+  ): Promise<void> {
     const {
       tileserverApiKey,
       removeTileserverApiKey,
@@ -240,22 +318,36 @@ export function useServerSettingsForm(props: {
     const geocodingKey = removeGeocodingApiKey ? null : geocodingApiKey.trim() || undefined
     try {
       await updateMutation.mutateAsync({
-        ...props.settings,
-        ...editable,
-        geocodingHost: geocodingHost.trim() || null,
-        geocodingRateLimit: Number(geocodingRateLimit.trim()),
-        sessionIdleTimeoutHours: Number(sessionIdleTimeoutHours.trim()),
-        sessionAbsoluteTimeoutHours: Number(sessionAbsoluteTimeoutHours.trim()),
-        accessTokenExpireMinutes: Number(accessTokenExpireMinutes.trim()),
-        refreshTokenExpireDays: Number(refreshTokenExpireDays.trim()),
-        apiKeyMaxLifetimeDays: Number(apiKeyMaxLifetimeDays.trim()),
-        readNotificationRetentionDays: Number(readNotificationRetentionDays.trim()),
-        auditRetentionDays: Number(auditRetentionDays.trim()),
-        tileserverApiKey: apiKey,
-        geocodingApiKey: geocodingKey,
+        settings: {
+          ...props.settings,
+          ...editable,
+          geocodingHost: geocodingHost.trim() || null,
+          geocodingRateLimit: Number(geocodingRateLimit.trim()),
+          sessionIdleTimeoutHours: Number(sessionIdleTimeoutHours.trim()),
+          sessionAbsoluteTimeoutHours: Number(sessionAbsoluteTimeoutHours.trim()),
+          accessTokenExpireMinutes: Number(accessTokenExpireMinutes.trim()),
+          refreshTokenExpireDays: Number(refreshTokenExpireDays.trim()),
+          apiKeyMaxLifetimeDays: Number(apiKeyMaxLifetimeDays.trim()),
+          readNotificationRetentionDays: Number(readNotificationRetentionDays.trim()),
+          auditRetentionDays: Number(auditRetentionDays.trim()),
+          tileserverApiKey: apiKey,
+          geocodingApiKey: geocodingKey,
+        },
+        stepUp,
       })
+      isStepUpOpen.value = false
       toasts.success(t('settings.server.saveSuccess'))
     } catch (error) {
+      if (handleIdpChallenge(error)) {
+        return
+      }
+      if (isStepUpFailed(error)) {
+        // Also when the form sent no step-up: the backend asked for one, so the dialog collects it.
+        isStepUpOpen.value = true
+        toasts.error(t('settings.security.linked.invalidCredentials'))
+        return
+      }
+      isStepUpOpen.value = false
       // 412 is a refusal to overwrite: another admin saved since this form was loaded.
       toasts.error(
         error instanceof HttpError && error.status === 412
@@ -263,6 +355,60 @@ export function useServerSettingsForm(props: {
           : t('settings.server.saveError'),
       )
     }
+  }
+
+  /**
+   * The form values that survive the identity-provider sign-in. The API keys are left out, so they never
+   * reach storage; `keysTyped` tells the resumed form that the administrator has to enter them again.
+   *
+   * @returns The draft entries and whether an API key was being set.
+   */
+  function draftValues(): Record<string, unknown> {
+    const draft: Record<string, unknown> = { ...values }
+    for (const field of SECRET_FIELDS) {
+      delete draft[field]
+    }
+    return { ...draft, keysTyped: SECRET_FIELDS.some((field) => values[field] !== '') }
+  }
+
+  /**
+   * Keeps the stored draft entries that have the type of the matching form field, except the API keys.
+   *
+   * @param raw - The draft stored when the sign-in started.
+   * @returns The entries that can be applied to the form.
+   */
+  function pickDraft(raw: unknown): Partial<ServerSettingsFormValues> {
+    const stored: Record<string, unknown> =
+      typeof raw === 'object' && raw !== null ? { ...raw } : {}
+    const picked: Record<string, unknown> = {}
+    for (const [key, base] of Object.entries(initialValues)) {
+      if (
+        !(SECRET_FIELDS as readonly string[]).includes(key) &&
+        typeof stored[key] === typeof base
+      ) {
+        picked[key] = stored[key]
+      }
+    }
+    return picked as Partial<ServerSettingsFormValues>
+  }
+
+  /**
+   * Restores the draft and the sign-in proof. An API key the administrator was setting is not stored, so then
+   * the form waits for it to be entered again instead of saving without it.
+   *
+   * @param resume - The sign-in the page returned from.
+   */
+  function reopen(resume: IdpStepUpResume): void {
+    pendingResume.value = null
+    Object.assign(values, pickDraft(resume.pending.draft))
+    idpReauth.value = resume.reauth
+    const draft = resume.pending.draft
+    const keysTyped =
+      typeof draft === 'object' &&
+      draft !== null &&
+      'keysTyped' in draft &&
+      draft.keysTyped === true
+    isStepUpOpen.value = !keysTyped
   }
 
   /**
@@ -319,6 +465,14 @@ export function useServerSettingsForm(props: {
     onSubmit: submitForm,
   })
   const { values } = form
+
+  // The form and the step-up come back once the identity-provider sign-in returns for the server settings.
+  useResumeOnce(
+    () => pendingResume.value,
+    'admin_server_settings_edit',
+    () => true,
+    (resume) => reopen(resume),
+  )
 
   const isGeocodeService = computed(() => values.geocodingService === 'geocode')
   const geocodingHostPlaceholder = computed(
@@ -385,6 +539,11 @@ export function useServerSettingsForm(props: {
     selectTemplate,
     dirtyTabs,
     discard,
+    isStepUpOpen,
+    idpReauth,
+    draftValues,
+    confirmStepUp,
+    isUpdating: computed(() => updateMutation.isPending.value),
   }
 }
 

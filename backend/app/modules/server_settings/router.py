@@ -67,29 +67,39 @@ def read_server_settings(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_server_settings(
     request: Request,
-    server_settings_attributes: server_settings_schema.ServerSettingsEdit,
+    server_settings_attributes: server_settings_schema.ServerSettingsEditRequest,
     db: core_dependencies.DbSession,
     response: Response,
     if_match: core_dependencies.IfMatch,
+    verify_step_up: auth_dependencies.StepUpVerifierDep,
 ) -> server_settings_schema.ServerSettingsAdminRead:
     """Update server settings.
 
-    Requires admin authentication with server_settings:write scope. The body replaces
+    Requires admin authentication with server_settings:write scope. A change to a setting that governs
+    sign-up, sign-in, sessions or the audit trail also needs the administrator's own step-up verification in
+    `step_up`; any other change needs none. The body replaces
     the whole configuration; only the API keys may be omitted, which keeps the stored
     ones. Send ``If-Match`` with the ETag from the read to make the write conditional;
     a stale tag is refused with 412 rather than reverting an admin who saved in between.
 
     Args:
         request: The HTTP request object.
-        server_settings_attributes: Settings to update.
+        server_settings_attributes: Settings to update, and the administrator's step-up.
         db: Database session.
         response: The response, which carries the new ETag.
         if_match: The ``If-Match`` precondition.
+        verify_step_up: Verifies the administrator's step-up.
 
     Returns:
         Updated server settings configuration, without the tile API key.
     """
-    updated = server_settings_service.edit_server_settings(server_settings_attributes, db, if_match=if_match)
+    updated = server_settings_service.edit_server_settings(
+        server_settings_attributes.to_edit(),
+        server_settings_attributes.step_up,
+        verify_step_up,
+        db,
+        if_match=if_match,
+    )
     # This process applies the new CSP tile domains at once; the other processes poll for them.
     request.app.state.allowed_tile_domains = server_settings_tile_service.allowed_tile_domains_for_url(
         updated.tileserver_url

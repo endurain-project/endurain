@@ -513,8 +513,6 @@
       "title": "Eliminar proveedor",
       "body": "¿Seguro que quieres eliminar \"{name}\"? No se puede deshacer.",
       "confirm": "Eliminar",
-      "cancel": "Cancelar",
-      "close": "Cerrar",
       "success": "Proveedor eliminado",
       "error": "No se pudo eliminar el proveedor. Es posible que todavía tenga usuarios vinculados."
     },

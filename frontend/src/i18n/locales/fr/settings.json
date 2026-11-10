@@ -513,8 +513,6 @@
       "title": "Supprimer le fournisseur",
       "body": "Êtes-vous sûr(e) de vouloir supprimer \"{name}\" ? Cette action est irréversible.",
       "confirm": "Supprimer",
-      "cancel": "Annuler",
-      "close": "Fermer",
       "success": "Fournisseur supprimé",
       "error": "Impossible de supprimer le fournisseur. Il peut encore avoir des utilisateurs liés."
     },

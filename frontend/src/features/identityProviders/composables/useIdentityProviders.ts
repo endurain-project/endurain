@@ -109,9 +109,9 @@ export function useUpdateIdentityProviderMutation() {
 export function useDeleteIdentityProviderMutation() {
   const client = useQueryClient()
 
-  return useMutation<void, Error, { id: number; version: number }>({
+  return useMutation<void, Error, { id: number; version: number; stepUp: StepUpInput }>({
     mutationKey: queryKeys.identityProviders.all(),
-    mutationFn: ({ id, version }) => deleteIdentityProvider(id, version),
+    mutationFn: ({ id, version, stepUp }) => deleteIdentityProvider(id, version, stepUp),
     onSettled: () => invalidateIdentityProviders(client),
   })
 }

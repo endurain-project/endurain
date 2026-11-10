@@ -293,26 +293,36 @@ def update_identity_provider(
 
 def delete_identity_provider(
     idp_id: int,
+    step_up: auth_schema.StepUpVerification,
+    verify_step_up: identity_provider_contracts.StepUpVerifier,
     storage: platform_providers.StorageProvider,
     oidc: oidc_client_service.OidcClientService,
     db: Session,
     *,
     if_match: str,
 ) -> None:
-    """Delete an unlinked provider, commit the change, drop its cached discovery document and remove its icon.
+    """Delete an unlinked provider after the administrator's step-up and remove its icon.
+
+    The change is committed first, then the provider's cached discovery document is dropped. Removing a
+    provider can lock out every user who signs in through it, so the step-up is verified before anything is
+    read or written.
 
     Args:
         idp_id: The provider to delete.
+        step_up: The administrator's step-up verification.
+        verify_step_up: Verifies the step-up for the calling administrator.
         storage: The platform storage provider.
         oidc: The identity-provider client whose cached discovery document for the provider is dropped.
         db: Database session.
         if_match: The ``If-Match`` precondition.
 
     Raises:
+        StepUpFailedError: If the step-up does not verify.
         NotFoundError: If the provider does not exist.
         ConflictError: If users are still linked to the provider.
         PreconditionFailedError: If the provider changed since the client read it.
     """
+    verify_step_up(step_up, identity_provider_constants.StepUpAction.ADMIN_IDP_DELETE)
     current = idp_crud.get_identity_provider(idp_id, db)
     if current is None:
         raise core_exceptions.NotFoundError("Identity provider not found")

@@ -301,6 +301,8 @@
     "saveSuccess": "Server settings updated",
     "saveError": "Couldn't update the server settings. Please try again.",
     "staleError": "These settings were changed by someone else while you were editing. Your changes were not saved. Reload the page to see the current values.",
+    "stepUpTitle": "Confirm your identity",
+    "stepUpDescription": "These changes affect who can sign up, sign in or keep a session on this server, or how long the audit trail is kept. Confirm it is you to continue.",
     "envLocked": "Set by {name}",
     "envSection": "Some settings here are set by environment variables ({names}). Remove them from the environment to edit those settings here.",
     "unsaved": "Unsaved changes",
@@ -541,8 +543,6 @@
       "title": "Delete provider",
       "body": "Are you sure you want to delete \"{name}\"? This can't be undone.",
       "confirm": "Delete",
-      "cancel": "Cancel",
-      "close": "Close",
       "success": "Provider deleted",
       "error": "Couldn't delete the provider. It may still have linked users."
     },

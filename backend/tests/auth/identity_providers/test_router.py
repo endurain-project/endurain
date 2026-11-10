@@ -186,20 +186,48 @@ def test_update_rejects_nonpositive_id(service):
     service.update_identity_provider.assert_not_called()
 
 
-def test_delete_identity_provider_delegates_to_service(service):
+def _delete(path: str = "/auth/identity_providers/1/delete", **kwargs):
+    headers = {"Authorization": "Bearer x", **kwargs.pop("headers", {})}
+    return _client().post(path, headers=headers, **kwargs)
 
-    response = _client().delete("/auth/identity_providers/1", headers={"Authorization": "Bearer x", "If-Match": '"2"'})
+
+def test_delete_identity_provider_delegates_to_service(service):
+    response = _delete(json={"step_up": STEP_UP}, headers={"If-Match": '"2"'})
 
     assert response.status_code == 204
     service.delete_identity_provider.assert_called_once()
-    assert service.delete_identity_provider.call_args.args[0] == 1
-    assert service.delete_identity_provider.call_args.args[2] is OIDC
+    args = service.delete_identity_provider.call_args.args
+    assert args[0] == 1
+    assert args[1] == auth_schema.StepUpVerification(current_password="admin-password")
+    assert args[2] is VERIFIER
+    assert args[4] is OIDC
     assert service.delete_identity_provider.call_args.kwargs == {"if_match": '"2"'}
 
 
-def test_delete_without_if_match_is_428(service):
+def test_delete_without_a_step_up_is_422_and_never_reaches_the_service(service):
+    response = _delete(json={}, headers={"If-Match": '"2"'})
 
-    response = _client().delete("/auth/identity_providers/1", headers={"Authorization": "Bearer x"})
+    assert response.status_code == 422
+    service.delete_identity_provider.assert_not_called()
+
+
+def test_delete_with_a_refused_step_up_is_403(service):
+    service.delete_identity_provider.side_effect = core_exceptions.StepUpFailedError()
+
+    response = _delete(json={"step_up": STEP_UP}, headers={"If-Match": '"2"'})
+
+    assert response.status_code == 403
+
+
+def test_the_old_delete_route_is_gone(service):
+    response = _client().delete("/auth/identity_providers/1", headers={"Authorization": "Bearer x", "If-Match": '"2"'})
+
+    assert response.status_code == 405
+    service.delete_identity_provider.assert_not_called()
+
+
+def test_delete_without_if_match_is_428(service):
+    response = _delete(json={"step_up": STEP_UP})
 
     assert response.status_code == 428
     service.delete_identity_provider.assert_not_called()
@@ -208,7 +236,7 @@ def test_delete_without_if_match_is_428(service):
 def test_delete_returns_precondition_failed_for_a_stale_etag(service):
     service.delete_identity_provider.side_effect = core_exceptions.PreconditionFailedError("stale")
 
-    response = _client().delete("/auth/identity_providers/1", headers={"Authorization": "Bearer x", "If-Match": '"1"'})
+    response = _delete(json={"step_up": STEP_UP}, headers={"If-Match": '"1"'})
 
     assert response.status_code == 412
 

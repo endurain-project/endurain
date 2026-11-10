@@ -513,8 +513,6 @@
       "title": "Poista tarjoaja",
       "body": "Haluatko varmasti poistaa tarjoajan \"{name}\"? Tätä ei voi kumota.",
       "confirm": "Poista",
-      "cancel": "Peruuta",
-      "close": "Sulje",
       "success": "Tarjoaja poistettu",
       "error": "Tarjoajaa ei voitu poistaa. Siihen voi olla yhä linkitettyjä käyttäjiä."
     },

@@ -513,8 +513,6 @@
       "title": "Kustuta pakkuja",
       "body": "Kas oled kindel, et soovid kustutada „{name}“? Seda ei saa tagasi võtta.",
       "confirm": "Kustuta",
-      "cancel": "Tühista",
-      "close": "Sulge",
       "success": "Pakkuja kustutatud",
       "error": "Pakkujat ei õnnestunud kustutada. Sellega võivad veel olla seotud kasutajad."
     },

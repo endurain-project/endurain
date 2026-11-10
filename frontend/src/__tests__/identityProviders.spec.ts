@@ -287,14 +287,15 @@ describe('identity providers service requests', () => {
     expect((JSON.parse(body as string) as Record<string, unknown>).client_secret).toBe('rotated')
   })
 
-  it('deleteIdentityProvider issues a DELETE', async () => {
+  it('deleteIdentityProvider POSTs the step-up to the delete route', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await deleteIdentityProvider(3, 5)
+    await deleteIdentityProvider(3, 5, stepUp)
 
-    expect(apiFetch).toHaveBeenCalledWith('/identity-providers/3', {
-      method: 'DELETE',
+    expect(apiFetch).toHaveBeenCalledWith('/identity-providers/3/delete', {
+      method: 'POST',
       headers: { 'If-Match': '"5"' },
+      body: JSON.stringify({ step_up: { current_password: 'admin-pw', mfa_code: null } }),
       responseType: 'void',
     })
   })

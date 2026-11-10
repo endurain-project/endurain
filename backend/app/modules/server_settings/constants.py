@@ -69,6 +69,33 @@ SESSION_ENV_VARS: dict[str, str] = {
 AUDIT_RETENTION_MIN_DAYS = 30
 AUDIT_RETENTION_MAX_DAYS = 36500
 
+#: The settings that govern who can sign up or sign in, how long a session or token lives and how long the audit
+#: trail is kept. Changing the stored value of any of them needs the administrator's step-up, so a stolen access
+#: token cannot weaken authentication or shorten the evidence. Appearance, map, geocoding, paging, sharing and
+#: notification-retention settings are not here.
+SECURITY_FIELDS: frozenset[str] = frozenset(
+    {
+        "signup_enabled",
+        "signup_sso_enabled",
+        "signup_require_admin_approval",
+        "signup_require_email_verification",
+        "sso_enabled",
+        "sso_auto_redirect",
+        "local_login_enabled",
+        "password_length_regular_users",
+        "password_length_admin_users",
+        "password_breach_check_enabled",
+        "session_idle_timeout_enabled",
+        "session_idle_timeout_hours",
+        "session_absolute_timeout_hours",
+        "access_token_expire_minutes",
+        "refresh_token_expire_days",
+        "api_key_max_lifetime_days",
+        "audit_retention_days",
+        "audit_legal_hold",
+    }
+)
+
 #: Read-notification retention field -> the deprecated environment variable that sets it.
 RETENTION_ENV_VARS: dict[str, str] = {"read_notification_retention_days": "READ_NOTIFICATION_RETENTION_DAYS"}
 

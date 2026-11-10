@@ -16,6 +16,7 @@ import modules.auth.identity_providers.dependencies as idp_dependencies
 import modules.auth.identity_providers.icon_service as idp_icon_service
 import modules.auth.identity_providers.provider_service as idp_provider_service
 import modules.auth.identity_providers.schema as idp_schema
+import modules.auth.schema as auth_schema
 
 router = APIRouter()
 
@@ -224,8 +225,8 @@ def update_identity_provider(
     return provider
 
 
-@router.delete(
-    "/{idp_id}",
+@router.post(
+    "/{idp_id}/delete",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:write"])],
@@ -233,28 +234,37 @@ def update_identity_provider(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_identity_provider(
     idp_id: core_dependencies.PositiveId,
+    body: auth_schema.StepUpRequest,
     request: Request,
     if_match: core_dependencies.IfMatch,
     db: core_dependencies.DbSession,
     storage: core_dependencies.Storage,
     oidc: idp_dependencies.OidcClientService,
+    verify_step_up: auth_dependencies.StepUpVerifierDep,
 ) -> None:
     """Delete an identity provider by ID.
 
+    Needs the administrator's own step-up verification in `step_up`, as removing a provider can lock out the users
+    who sign in through it. A provider with linked users is refused with 409.
+
     Args:
         idp_id: The unique identifier of the identity provider to delete.
+        body: The administrator's step-up verification.
         request: Incoming request.
         if_match: The ``If-Match`` precondition.
         db: SQLAlchemy database session dependency.
         storage: The platform storage provider.
         oidc: The identity-provider client, whose cached discovery document for the provider is dropped.
+        verify_step_up: Verifies the administrator's step-up.
 
     Raises:
-        HTTPException: 404 if the provider is not found, 409 if users
+        HTTPException: 403 if the step-up fails, 404 if the provider is not found, 409 if users
             are still linked to the provider, 412 if the provider changed
             since the client read it.
     """
-    idp_provider_service.delete_identity_provider(idp_id, storage, oidc, db, if_match=if_match)
+    idp_provider_service.delete_identity_provider(
+        idp_id, body.step_up, verify_step_up, storage, oidc, db, if_match=if_match
+    )
 
 
 @router.put(

@@ -413,6 +413,31 @@ class ServerSettingsEdit(
     )
 
 
+class ServerSettingsEditRequest(ServerSettingsEdit):
+    """The body of ``PUT /server-settings``: the settings and, when needed, the administrator's step-up.
+
+    Attributes:
+        step_up: The administrator's own step-up verification, or null when no security-relevant setting changes;
+            it is never a setting. The key is always sent, as a ``PUT`` body states the whole resource.
+    """
+
+    step_up: auth_schema.StepUpVerification | None = Field(
+        ...,
+        description=(
+            "The administrator's step-up verification, required when a security-relevant setting changes; "
+            "null otherwise"
+        ),
+    )
+
+    def to_edit(self) -> ServerSettingsEdit:
+        """Return the settings the client sent, without the step-up.
+
+        Returns:
+            The settings as a :class:`ServerSettingsEdit`, with the same fields set.
+        """
+        return ServerSettingsEdit.model_validate(self.model_dump(exclude={"step_up"}, exclude_unset=True))
+
+
 class ServerSettingsRead(ServerSettingsEdit):
     """The settings row as stored, for in-process use only.
 

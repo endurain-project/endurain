@@ -513,8 +513,6 @@
       "title": "Dzēst pakalpojumu sniedzēju",
       "body": "Vai tiešām vēlaties dzēst \"{name}\"? Šo nevar atsaukt.",
       "confirm": "Dzēst",
-      "cancel": "Atcelt",
-      "close": "Aizvērt",
       "success": "Pakalpojumu sniedzējs dzēsts",
       "error": "Neizdevās dzēst pakalpojumu sniedzēju. Tam joprojām var būt saistīti lietotāji."
     },

@@ -9,7 +9,10 @@ import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToasts } from '@/composables/useToasts'
 import { consumeIdpStepUpReturn } from '@/features/security/composables/useIdpStepUp'
-import { provideMailStepUpResume } from '@/features/serverSettings/composables/useMailStepUpResume'
+import {
+  provideMailStepUpResume,
+  provideSettingsStepUpResume,
+} from '@/features/serverSettings/composables/useMailStepUpResume'
 import {
   useServerSettingsQuery,
   useTileMapsTemplatesQuery,
@@ -19,9 +22,11 @@ const { t } = useI18n()
 const toasts = useToasts()
 
 // Returning from an identity-provider sign-in, the callback leaves its outcome in the URL fragment. It is
-// consumed once; the mail form reopens its step-up dialog, and a failure is reported once the page is shown.
+// consumed once; the mail form or the settings form reopens its step-up dialog, and a failure is reported once the page is shown.
 const stepUpReturn = consumeIdpStepUpReturn()
-provideMailStepUpResume(stepUpReturn && !stepUpReturn.error ? stepUpReturn : null)
+const resume = stepUpReturn && !stepUpReturn.error ? stepUpReturn : null
+provideMailStepUpResume(resume)
+provideSettingsStepUpResume(resume)
 onMounted(() => {
   if (stepUpReturn?.error === 'not_fresh') {
     toasts.error(t('settings.security.stepUp.notFresh'))

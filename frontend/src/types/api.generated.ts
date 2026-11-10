@@ -1821,11 +1821,7 @@ export interface paths {
         get: operations["read_identity_provider"];
         put?: never;
         post?: never;
-        /**
-         * Delete Identity Provider
-         * @description Delete an identity provider by ID.
-         */
-        delete: operations["delete_identity_provider"];
+        delete?: never;
         options?: never;
         head?: never;
         /**
@@ -1835,6 +1831,29 @@ export interface paths {
          *     Needs the administrator's own step-up verification in step_up.
          */
         patch: operations["update_identity_provider"];
+        trace?: never;
+    };
+    "/api/v1/identity-providers/{idp_id}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Delete Identity Provider
+         * @description Delete an identity provider by ID.
+         *
+         *     Needs the administrator's own step-up verification in `step_up`, as removing a provider can lock out the users
+         *     who sign in through it. A provider with linked users is refused with 409.
+         */
+        post: operations["delete_identity_provider"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/identity-providers/{idp_id}/icon": {
@@ -3485,7 +3504,9 @@ export interface paths {
          * Edit Server Settings
          * @description Update server settings.
          *
-         *     Requires admin authentication with server_settings:write scope. The body replaces
+         *     Requires admin authentication with server_settings:write scope. A change to a setting that governs
+         *     sign-up, sign-in, sessions or the audit trail also needs the administrator's own step-up verification in
+         *     `step_up`; any other change needs none. The body replaces
          *     the whole configuration; only the API keys may be omitted, which keeps the stored
          *     ones. Send ``If-Match`` with the ETag from the read to make the write conditional;
          *     a stale tag is refused with 412 rather than reverting an admin who saved in between.
@@ -10735,30 +10756,14 @@ export interface components {
             readonly version: number;
         };
         /**
-         * ServerSettingsEdit
-         * @description Request body for editing the server settings.
-         *
-         *     A full replacement: every setting except the tile API key is required. The row
-         *     id and the login-photo flag are not here: the id is fixed (singleton) and the
-         *     flag is set only by the login-photo upload and delete routes, so a stale form
-         *     can never reset it.
+         * ServerSettingsEditRequest
+         * @description The body of ``PUT /server-settings``: the settings and, when needed, the administrator's step-up.
          *
          *     Attributes:
-         *         tileserver_api_key: Plain-text API key for the tile server; stored encrypted
-         *             and never returned. Omit it to keep the stored key; send null or an
-         *             empty string to remove it.
-         *         signup_sso_enabled: Allow identity providers to create accounts at first sign-in
-         *             (true - yes, false - no).
-         *         signup_require_admin_approval: Require admin approval for new sign-ups
-         *             (true - yes, false - no).
-         *         signup_require_email_verification: Require email verification for new
-         *             sign-ups (true - yes, false - no).
-         *         password_breach_check_enabled: Refuse a new password found in a known data breach, checked against
-         *             the Have I Been Pwned range API (true - yes, false - no).
-         *         geocoding_api_key: Plain-text API key for the geocoding service; same
-         *             write-only semantics as ``tileserver_api_key``.
+         *         step_up: The administrator's own step-up verification, or null when no security-relevant setting changes;
+         *             it is never a setting. The key is always sent, as a ``PUT`` body states the whole resource.
          */
-        ServerSettingsEdit: {
+        ServerSettingsEditRequest: {
             /**
              * Access Token Expire Minutes
              * @description Access token lifetime in minutes
@@ -10898,6 +10903,8 @@ export interface components {
              * @description Enable SSO/IdP login (true - yes, false - no)
              */
             sso_enabled: boolean;
+            /** @description The administrator's step-up verification, required when a security-relevant setting changes; null otherwise */
+            step_up: components["schemas"]["StepUpVerification"] | null;
             /**
              * Tileserver Api Key
              * @description API key for the tile server (write-only); omit to keep, null or empty to remove
@@ -11181,11 +11188,14 @@ export interface components {
          *         ADMIN_USER_CREATE: An administrator creates an administrator account.
          *         ADMIN_IDP_CREATE: An administrator adds an identity provider.
          *         ADMIN_IDP_EDIT: An administrator edits an identity provider.
+         *         ADMIN_IDP_DELETE: An administrator deletes an identity provider.
          *         ADMIN_SESSIONS_REVOKE: An administrator ends another user's sessions.
          *         ADMIN_MAIL_SETTINGS_EDIT: An administrator edits the mail server settings.
+         *         ADMIN_SERVER_SETTINGS_EDIT: An administrator changes a server setting that governs sign-up, sign-in, sessions
+         *             or the audit trail.
          * @enum {string}
          */
-        StepUpAction: "api_key_create" | "idp_link" | "idp_unlink" | "email_change" | "account_delete" | "profile_export" | "mfa_enable" | "mfa_disable" | "mfa_backup_codes" | "admin_credential_reset" | "admin_mfa_reset" | "admin_credential_change_require" | "admin_user_edit" | "admin_user_delete" | "admin_idp_unlink" | "admin_user_create" | "admin_idp_create" | "admin_idp_edit" | "admin_sessions_revoke" | "admin_mail_settings_edit";
+        StepUpAction: "api_key_create" | "idp_link" | "idp_unlink" | "email_change" | "account_delete" | "profile_export" | "profile_device_forget" | "mfa_enable" | "mfa_disable" | "mfa_backup_codes" | "admin_credential_reset" | "admin_mfa_reset" | "admin_credential_change_require" | "admin_user_edit" | "admin_user_delete" | "admin_idp_unlink" | "admin_user_create" | "admin_idp_create" | "admin_idp_edit" | "admin_idp_delete" | "admin_sessions_revoke" | "admin_mail_settings_edit" | "admin_server_settings_edit";
         /**
          * StepUpRequest
          * @description Request body of an operation that needs nothing but a step-up verification.
@@ -23825,133 +23835,6 @@ export interface operations {
             };
         };
     };
-    delete_identity_provider: {
-        parameters: {
-            query?: never;
-            header: {
-                "If-Match": string;
-            };
-            path: {
-                idp_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The request is refused, for example `If-Match: *`. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The resource does not exist, or is concealed from the caller. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The request conflicts with the current state. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The `If-Match` tag is stale: the resource changed since it was read. */
-            412: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The `If-Match` header is missing. */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
     update_identity_provider: {
         parameters: {
             query?: never;
@@ -24055,6 +23938,146 @@ export interface operations {
                 };
             };
             /** @description If-Match is required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    delete_identity_provider: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                idp_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepUpRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request is refused, for example `If-Match: *`. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The resource does not exist, or is concealed from the caller. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The request conflicts with the current state. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The `If-Match` tag is stale: the resource changed since it was read. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The body is larger than the route accepts. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The `If-Match` header is missing. */
             428: {
                 headers: {
                     [name: string]: unknown;
@@ -31686,7 +31709,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ServerSettingsEdit"];
+                "application/json": components["schemas"]["ServerSettingsEditRequest"];
             };
         };
         responses: {

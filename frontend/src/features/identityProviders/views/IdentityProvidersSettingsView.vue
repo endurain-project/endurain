@@ -10,7 +10,6 @@ import IdentityProviderFormDialog from '@/features/identityProviders/components/
 import IdentityProviderListItem from '@/features/identityProviders/components/IdentityProviderListItem.vue'
 import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
 import { Button } from '@/components/ui/button'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ListPanel } from '@/components/ui/list-panel'
 import { useToasts } from '@/composables/useToasts'
@@ -77,30 +76,43 @@ function openEdit(provider: IdentityProvider): void {
   isFormOpen.value = true
 }
 
-// Delete confirmation state.
+// Delete state. Removing a provider needs the administrator's step-up, collected by the dialog.
 const isDeleteOpen = ref(false)
 const providerToDelete = ref<IdentityProvider | null>(null)
+const deleteReauth = ref<IdpReauth | null>(null)
 
-/** Opens the delete confirmation for the given provider. */
+/** Opens the delete step-up dialog for the given provider. */
 function openDelete(provider: IdentityProvider): void {
   providerToDelete.value = provider
   isDeleteOpen.value = true
 }
 
-/** Deletes the pending provider; the backend blocks deletion of linked providers. */
-function confirmDelete(): void {
+/**
+ * Deletes the pending provider with the administrator's step-up; the backend blocks deletion of linked
+ * providers, and a refused step-up keeps the dialog open for another try.
+ *
+ * @param stepUp - The administrator's step-up from the dialog.
+ */
+function confirmDelete(stepUp: StepUpInput): void {
   const provider = providerToDelete.value
   if (!provider) {
     return
   }
   deleteMutation.mutate(
-    { id: provider.id, version: provider.version },
+    { id: provider.id, version: provider.version, stepUp },
     {
       onSuccess: () => {
         isDeleteOpen.value = false
         toasts.success(t('settings.idp.delete.success'))
       },
       onError: (error) => {
+        if (handleIdpChallenge(error)) {
+          return
+        }
+        if (isStepUpFailed(error)) {
+          toasts.error(t('settings.security.linked.invalidCredentials'))
+          return
+        }
         if (isStaleWrite(error)) {
           isDeleteOpen.value = false
         }
@@ -183,13 +195,17 @@ let resumeHandled = false
 watch(
   providers,
   (list) => {
-    const idpId = resumeTargetId(resume, ['admin_idp_edit'], 'idpId')
+    const idpId = resumeTargetId(resume, ['admin_idp_edit', 'admin_idp_delete'], 'idpId')
     const provider = list.find((entry) => entry.id === idpId)
     if (resumeHandled || !resume || !provider) {
       return
     }
     resumeHandled = true
-    if (resume.pending.variant === 'toggle') {
+    if (resume.action === 'admin_idp_delete') {
+      providerToDelete.value = provider
+      deleteReauth.value = resume.reauth
+      isDeleteOpen.value = true
+    } else if (resume.pending.variant === 'toggle') {
       toggleTarget.value = { provider, enabled: resume.pending.enabled === true }
       toggleReauth.value = resume.reauth
       isToggleStepUpOpen.value = true
@@ -282,13 +298,18 @@ watch(
       @confirm="confirmToggle"
     />
 
-    <ConfirmDialog
+    <StepUpDialog
+      v-if="providerToDelete"
       v-model:open="isDeleteOpen"
+      v-model:reauth="deleteReauth"
+      action="admin_idp_delete"
       :title="t('settings.idp.delete.title')"
-      :description="t('settings.idp.delete.body', { name: providerToDelete?.name ?? '' })"
+      :description="t('settings.idp.delete.body', { name: providerToDelete.name })"
       :confirm-label="t('settings.idp.delete.confirm')"
-      :cancel-label="t('settings.idp.delete.cancel')"
-      :close-label="t('settings.idp.delete.close')"
+      :require-password="requirePassword"
+      :require-mfa="requireMfa"
+      :pending-context="{ idpId: providerToDelete.id }"
+      destructive
       :pending="deleteMutation.isPending.value"
       @confirm="confirmDelete"
     />

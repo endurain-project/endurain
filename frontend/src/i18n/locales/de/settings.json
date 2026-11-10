@@ -513,8 +513,6 @@
       "title": "Anbieter löschen",
       "body": "Bist du sicher, dass du \"{name}\" löschen möchtest? Dies kann nicht rückgängig gemacht werden.",
       "confirm": "Löschen",
-      "cancel": "Abbrechen",
-      "close": "Schließen",
       "success": "Anbieter gelöscht",
       "error": "Anbieter konnte nicht gelöscht werden. Er hat möglicherweise noch verknüpfte Benutzer."
     },

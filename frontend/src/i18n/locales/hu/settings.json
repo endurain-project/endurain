@@ -513,8 +513,6 @@
       "title": "Szolgáltató törlése",
       "body": "Biztosan törölni szeretnéd a(z) „{name}” szolgáltatót? Ezt nem lehet visszavonni.",
       "confirm": "Törlés",
-      "cancel": "Mégse",
-      "close": "Bezárás",
       "success": "Szolgáltató törölve",
       "error": "Nem sikerült törölni a szolgáltatót. Lehet, hogy még vannak hozzá kapcsolt felhasználók."
     },

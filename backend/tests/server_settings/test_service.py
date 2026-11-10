@@ -88,6 +88,7 @@ def _full_edit(stored: server_settings_schema.ServerSettingsRead, **overrides):
 
 
 _PNG = images.png_with_text()
+VERIFIER = MagicMock()
 
 
 @pytest.fixture
@@ -125,6 +126,8 @@ class TestTileServerUrlIsCheckedOnWrite:
         with pytest.raises(core_exceptions.InvalidInputError):
             server_settings_service.edit_server_settings(
                 _full_edit(edit_env.stored, tileserver_url="https://internal.example.com/{z}/{x}/{y}.png"),
+                None,
+                VERIFIER,
                 db,
                 if_match="*",
             )
@@ -136,6 +139,8 @@ class TestTileServerUrlIsCheckedOnWrite:
         """``{z}/{x}/{y}`` is not a parseable URL; the host is what matters."""
         server_settings_service.edit_server_settings(
             _full_edit(edit_env.stored, tileserver_url="https://other.example.com/{z}/{x}/{y}.png"),
+            None,
+            VERIFIER,
             MagicMock(),
             if_match="*",
         )
@@ -148,7 +153,7 @@ class TestTileServerUrlIsCheckedOnWrite:
     def test_every_builtin_template_can_be_saved(self, edit_env, template):
         """``{r}`` (Stadia retina) is dropped by the renderer, so it must not be a 400."""
         server_settings_service.edit_server_settings(
-            _full_edit(edit_env.stored, tileserver_url=template), MagicMock(), if_match="*"
+            _full_edit(edit_env.stored, tileserver_url=template), None, VERIFIER, MagicMock(), if_match="*"
         )
 
         assert "{" not in edit_env.dns.call_args.args[0]
@@ -158,6 +163,8 @@ class TestTileServerUrlIsCheckedOnWrite:
         with pytest.raises(core_exceptions.InvalidInputError):
             server_settings_service.edit_server_settings(
                 _full_edit(edit_env.stored, tileserver_url="https://tiles.example.com/{}/{z}/{x}/{y}.png"),
+                None,
+                VERIFIER,
                 MagicMock(),
                 if_match="*",
             )
@@ -165,12 +172,146 @@ class TestTileServerUrlIsCheckedOnWrite:
         edit_env.write.assert_not_called()
 
 
+_SECURITY_CHANGES = {
+    "signup_enabled": True,
+    "sso_enabled": True,
+    "local_login_enabled": False,
+    "sso_auto_redirect": True,
+    "signup_sso_enabled": True,
+    "signup_require_admin_approval": False,
+    "signup_require_email_verification": False,
+    "password_breach_check_enabled": True,
+    "password_length_regular_users": 10,
+    "password_length_admin_users": 14,
+    "session_idle_timeout_enabled": True,
+    "session_idle_timeout_hours": 2,
+    "session_absolute_timeout_hours": 48,
+    "access_token_expire_minutes": 30,
+    "refresh_token_expire_days": 14,
+    "api_key_max_lifetime_days": 30,
+    "audit_retention_days": 120,
+    "audit_legal_hold": True,
+}
+
+
+class TestSecurityFieldsNeedStepUp:
+    """A change to a field that governs sign-in, sessions or the audit trail needs the administrator's step-up."""
+
+    def test_every_security_field_is_covered_by_a_case(self):
+        assert set(_SECURITY_CHANGES) == server_settings_constants.SECURITY_FIELDS
+
+    @pytest.mark.parametrize(("field", "value"), _SECURITY_CHANGES.items())
+    def test_a_changed_security_field_without_a_step_up_is_refused_before_any_write(self, edit_env, field, value):
+        verifier = MagicMock(side_effect=core_exceptions.StepUpFailedError())
+        db = MagicMock()
+
+        with pytest.raises(core_exceptions.StepUpFailedError):
+            server_settings_service.edit_server_settings(
+                _full_edit(edit_env.stored, **{field: value}), None, verifier, db, if_match="*"
+            )
+
+        verifier.assert_called_once_with(
+            auth_schema.StepUpVerification(), idp_constants.StepUpAction.ADMIN_SERVER_SETTINGS_EDIT
+        )
+        edit_env.write.assert_not_called()
+        db.commit.assert_not_called()
+
+    def test_the_step_up_is_committed_before_the_dns_lookup(self, edit_env):
+        # A step-up stages the consumption of a backup code and its audit row; a rollback would let the code be reused.
+        calls = []
+        db = MagicMock()
+        db.rollback.side_effect = lambda: calls.append("rollback")
+        db.commit.side_effect = lambda: calls.append("commit")
+        verifier = MagicMock(side_effect=lambda *_: calls.append("step_up"))
+        edit_env.dns.side_effect = lambda *_, **__: calls.append("dns")
+
+        server_settings_service.edit_server_settings(
+            _full_edit(
+                edit_env.stored, signup_enabled=True, tileserver_url="https://other.example.com/{z}/{x}/{y}.png"
+            ),
+            auth_schema.StepUpVerification(current_password="admin-password"),
+            verifier,
+            db,
+            if_match="*",
+        )
+
+        assert calls[:3] == ["step_up", "commit", "dns"]
+
+    def test_without_a_step_up_the_read_transaction_is_rolled_back_before_the_dns_lookup(self, edit_env):
+        calls = []
+        db = MagicMock()
+        db.rollback.side_effect = lambda: calls.append("rollback")
+        db.commit.side_effect = lambda: calls.append("commit")
+        edit_env.dns.side_effect = lambda *_, **__: calls.append("dns")
+
+        server_settings_service.edit_server_settings(
+            _full_edit(edit_env.stored, tileserver_url="https://other.example.com/{z}/{x}/{y}.png"),
+            None,
+            MagicMock(),
+            db,
+            if_match="*",
+        )
+
+        assert calls[:2] == ["rollback", "dns"]
+
+    @pytest.mark.parametrize(("field", "value"), _SECURITY_CHANGES.items())
+    def test_a_changed_security_field_with_a_step_up_is_saved(self, edit_env, field, value):
+        verifier = MagicMock()
+        step_up = auth_schema.StepUpVerification(current_password="admin-password")
+
+        server_settings_service.edit_server_settings(
+            _full_edit(edit_env.stored, **{field: value}), step_up, verifier, MagicMock(), if_match="*"
+        )
+
+        verifier.assert_called_once_with(step_up, idp_constants.StepUpAction.ADMIN_SERVER_SETTINGS_EDIT)
+        edit_env.write.assert_called_once()
+
+    def test_a_non_security_change_needs_no_step_up(self, edit_env):
+        verifier = MagicMock()
+
+        server_settings_service.edit_server_settings(
+            _full_edit(edit_env.stored, currency="dollar", num_records_per_page=50),
+            None,
+            verifier,
+            MagicMock(),
+            if_match="*",
+        )
+
+        verifier.assert_not_called()
+        edit_env.write.assert_called_once()
+
+    def test_resending_the_unchanged_security_values_needs_no_step_up(self, edit_env):
+        verifier = MagicMock()
+
+        server_settings_service.edit_server_settings(
+            _full_edit(edit_env.stored, currency="dollar", access_token_expire_minutes=15),
+            None,
+            verifier,
+            MagicMock(),
+            if_match="*",
+        )
+
+        verifier.assert_not_called()
+
+    def test_a_stale_tag_is_refused_before_the_step_up_is_checked(self, edit_env):
+        verifier = MagicMock()
+
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            server_settings_service.edit_server_settings(
+                _full_edit(edit_env.stored, signup_enabled=True), None, verifier, MagicMock(), if_match='"99"'
+            )
+
+        verifier.assert_not_called()
+
+
 class TestOnlyRealChangesCount:
     def test_resending_the_unchanged_record_does_nothing(self, edit_env):
         """The frontend sends every field on every save; that must not look like a tile change."""
         db = MagicMock()
 
-        result = server_settings_service.edit_server_settings(_full_edit(edit_env.stored), db, if_match="*")
+        result = server_settings_service.edit_server_settings(
+            _full_edit(edit_env.stored), None, VERIFIER, db, if_match="*"
+        )
 
         edit_env.dns.assert_not_called()
         edit_env.write.assert_not_called()
@@ -182,7 +323,9 @@ class TestOnlyRealChangesCount:
     def test_a_non_tile_change_commits_without_publishing(self, edit_env):
         db = MagicMock()
 
-        server_settings_service.edit_server_settings(_full_edit(edit_env.stored, currency="dollar"), db, if_match="*")
+        server_settings_service.edit_server_settings(
+            _full_edit(edit_env.stored, currency="dollar"), None, VERIFIER, db, if_match="*"
+        )
 
         edit_env.dns.assert_not_called()
         edit_env.publish.assert_not_called()
@@ -190,7 +333,7 @@ class TestOnlyRealChangesCount:
 
     def test_a_tile_change_publishes_only_the_changed_map_fields(self, edit_env):
         server_settings_service.edit_server_settings(
-            _full_edit(edit_env.stored, map_background_color="#000000"), MagicMock(), if_match="*"
+            _full_edit(edit_env.stored, map_background_color="#000000"), None, VERIFIER, MagicMock(), if_match="*"
         )
 
         assert edit_env.publish.call_args.args[0] == {"map_background_color"}
@@ -198,7 +341,7 @@ class TestOnlyRealChangesCount:
 
     def test_an_unchanged_api_key_keeps_its_stored_token(self, edit_env):
         server_settings_service.edit_server_settings(
-            _full_edit(edit_env.stored, currency="dollar"), MagicMock(), if_match="*"
+            _full_edit(edit_env.stored, currency="dollar"), None, VERIFIER, MagicMock(), if_match="*"
         )
 
         written = edit_env.write.call_args.args[0]
@@ -206,7 +349,7 @@ class TestOnlyRealChangesCount:
 
     def test_a_changed_api_key_is_encrypted_and_never_returned(self, edit_env):
         result = server_settings_service.edit_server_settings(
-            _full_edit(edit_env.stored, tileserver_api_key="plain-new"), MagicMock(), if_match="*"
+            _full_edit(edit_env.stored, tileserver_api_key="plain-new"), None, VERIFIER, MagicMock(), if_match="*"
         )
 
         assert edit_env.write.call_args.args[0].tileserver_api_key == "enc-new"
@@ -216,7 +359,7 @@ class TestOnlyRealChangesCount:
 
     def test_clearing_the_api_key_stores_none(self, edit_env):
         result = server_settings_service.edit_server_settings(
-            _full_edit(edit_env.stored, tileserver_api_key=None), MagicMock(), if_match="*"
+            _full_edit(edit_env.stored, tileserver_api_key=None), None, VERIFIER, MagicMock(), if_match="*"
         )
 
         assert edit_env.write.call_args.args[0].tileserver_api_key is None
@@ -230,7 +373,7 @@ class TestOnlyRealChangesCount:
             side_effect=core_exceptions.UndecryptableError(),
         ):
             server_settings_service.edit_server_settings(
-                _full_edit(edit_env.stored, tileserver_api_key="plain-new"), MagicMock(), if_match="*"
+                _full_edit(edit_env.stored, tileserver_api_key="plain-new"), None, VERIFIER, MagicMock(), if_match="*"
             )
 
         assert edit_env.write.call_args.args[0].tileserver_api_key == "enc-new"
@@ -241,7 +384,7 @@ class TestOnlyRealChangesCount:
             server_settings_service.server_settings_crud, "get_server_settings", return_value=edit_env.stored
         ) as read:
             server_settings_service.edit_server_settings(
-                _full_edit(edit_env.stored, currency="dollar"), db, if_match="*"
+                _full_edit(edit_env.stored, currency="dollar"), None, VERIFIER, db, if_match="*"
             )
 
         assert [call.kwargs for call in read.call_args_list] == [{"for_update": False}, {"for_update": True}]
@@ -258,6 +401,8 @@ class TestOnlyRealChangesCount:
         with patch.object(server_settings_service.server_settings_crud, "get_server_settings", side_effect=read):
             server_settings_service.edit_server_settings(
                 _full_edit(edit_env.stored, tileserver_url="https://other.example.com/{z}/{x}/{y}.png"),
+                None,
+                VERIFIER,
                 MagicMock(),
                 if_match="*",
             )
@@ -267,14 +412,14 @@ class TestOnlyRealChangesCount:
     def test_a_stale_if_match_is_refused_and_writes_nothing(self, edit_env):
         with pytest.raises(core_exceptions.PreconditionFailedError):
             server_settings_service.edit_server_settings(
-                _full_edit(edit_env.stored, currency="dollar"), MagicMock(), if_match='"99"'
+                _full_edit(edit_env.stored, currency="dollar"), None, VERIFIER, MagicMock(), if_match='"99"'
             )
 
         edit_env.write.assert_not_called()
 
     def test_the_current_if_match_is_accepted(self, edit_env):
         server_settings_service.edit_server_settings(
-            _full_edit(edit_env.stored, currency="dollar"), MagicMock(), if_match='"1"'
+            _full_edit(edit_env.stored, currency="dollar"), None, VERIFIER, MagicMock(), if_match='"1"'
         )
 
         edit_env.write.assert_called_once()
@@ -295,14 +440,14 @@ class TestGeocodingSettingsOnWrite:
         geo_env.geo_dns.reset_mock()
 
         server_settings_service.edit_server_settings(
-            _full_edit(geo_env.stored, currency="dollar"), MagicMock(), if_match="*"
+            _full_edit(geo_env.stored, currency="dollar"), None, VERIFIER, MagicMock(), if_match="*"
         )
 
         geo_env.geo_dns.assert_not_called()
 
     def test_the_default_host_is_checked_when_none_is_set(self, geo_env):
         server_settings_service.edit_server_settings(
-            _full_edit(geo_env.stored, geocoding_service="photon"), MagicMock(), if_match="*"
+            _full_edit(geo_env.stored, geocoding_service="photon"), None, VERIFIER, MagicMock(), if_match="*"
         )
 
         assert geo_env.geo_dns.call_args.args[0] == "https://photon.komoot.io/reverse"
@@ -310,6 +455,8 @@ class TestGeocodingSettingsOnWrite:
     def test_a_custom_host_and_scheme_are_checked(self, geo_env):
         server_settings_service.edit_server_settings(
             _full_edit(geo_env.stored, geocoding_host="nominatim.lan:8080", geocoding_use_https=False),
+            None,
+            VERIFIER,
             MagicMock(),
             if_match="*",
         )
@@ -321,7 +468,7 @@ class TestGeocodingSettingsOnWrite:
 
         with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             server_settings_service.edit_server_settings(
-                _full_edit(geo_env.stored, geocoding_host="10.0.0.5"), MagicMock(), if_match="*"
+                _full_edit(geo_env.stored, geocoding_host="10.0.0.5"), None, VERIFIER, MagicMock(), if_match="*"
             )
 
         assert "SSRF_ALLOWED_HOSTS" in exc_info.value.detail
@@ -332,7 +479,7 @@ class TestGeocodingSettingsOnWrite:
         body = body.model_copy(update={"geocoding_api_key": None})
 
         with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
-            server_settings_service.edit_server_settings(body, MagicMock(), if_match="*")
+            server_settings_service.edit_server_settings(body, None, VERIFIER, MagicMock(), if_match="*")
 
         assert "API key" in exc_info.value.detail
         geo_env.geo_dns.assert_not_called()
@@ -340,6 +487,8 @@ class TestGeocodingSettingsOnWrite:
     def test_geocode_with_a_new_key_is_accepted_and_the_key_encrypted(self, geo_env):
         result = server_settings_service.edit_server_settings(
             _full_edit(geo_env.stored, geocoding_service="geocode", geocoding_api_key="plain-new"),
+            None,
+            VERIFIER,
             MagicMock(),
             if_match="*",
         )
@@ -354,14 +503,14 @@ class TestGeocodingSettingsOnWrite:
             server_settings_service.server_settings_crud, "get_server_settings", return_value=geo_env.stored
         ):
             server_settings_service.edit_server_settings(
-                _full_edit(geo_env.stored, geocoding_service="geocode"), MagicMock(), if_match="*"
+                _full_edit(geo_env.stored, geocoding_service="geocode"), None, VERIFIER, MagicMock(), if_match="*"
             )
 
         geo_env.write.assert_called_once()
 
     def test_the_two_keys_are_independent(self, geo_env):
         server_settings_service.edit_server_settings(
-            _full_edit(geo_env.stored, geocoding_api_key="plain-new"), MagicMock(), if_match="*"
+            _full_edit(geo_env.stored, geocoding_api_key="plain-new"), None, VERIFIER, MagicMock(), if_match="*"
         )
 
         written = geo_env.write.call_args.args[0]
@@ -411,7 +560,7 @@ class TestServerSettingsEnvManaged:
             pytest.raises(core_exceptions.ConflictError) as exc_info,
         ):
             server_settings_service.edit_server_settings(
-                _full_edit(edit_env.stored, geocoding_rate_limit=2.0), MagicMock(), if_match="*"
+                _full_edit(edit_env.stored, geocoding_rate_limit=2.0), None, VERIFIER, MagicMock(), if_match="*"
             )
 
         assert "REVERSE_GEO_RATE_LIMIT" in exc_info.value.detail
@@ -424,7 +573,7 @@ class TestServerSettingsEnvManaged:
             return_value={"geocoding_rate_limit": "REVERSE_GEO_RATE_LIMIT"},
         ):
             result = server_settings_service.edit_server_settings(
-                _full_edit(edit_env.stored, currency="dollar"), MagicMock(), if_match="*"
+                _full_edit(edit_env.stored, currency="dollar"), None, VERIFIER, MagicMock(), if_match="*"
             )
 
         assert result.currency == "dollar"
@@ -621,7 +770,7 @@ class TestSessionEnvManaged:
             pytest.raises(core_exceptions.ConflictError) as exc_info,
         ):
             server_settings_service.edit_server_settings(
-                _full_edit(edit_env.stored, access_token_expire_minutes=30), MagicMock(), if_match="*"
+                _full_edit(edit_env.stored, access_token_expire_minutes=30), None, VERIFIER, MagicMock(), if_match="*"
             )
 
         assert "ACCESS_TOKEN_EXPIRE_MINUTES" in exc_info.value.detail
@@ -729,7 +878,11 @@ class TestRetention:
             pytest.raises(core_exceptions.ConflictError) as exc_info,
         ):
             server_settings_service.edit_server_settings(
-                _full_edit(edit_env.stored, read_notification_retention_days=30), MagicMock(), if_match="*"
+                _full_edit(edit_env.stored, read_notification_retention_days=30),
+                None,
+                VERIFIER,
+                MagicMock(),
+                if_match="*",
             )
 
         assert "READ_NOTIFICATION_RETENTION_DAYS" in exc_info.value.detail
@@ -799,18 +952,23 @@ class TestAuditRetention:
         db = MagicMock()
 
         result = server_settings_service.edit_server_settings(
-            _full_edit(edit_env.stored, audit_retention_days=0, audit_legal_hold=True), db, if_match='"1"'
+            _full_edit(edit_env.stored, audit_retention_days=0, audit_legal_hold=True),
+            None,
+            VERIFIER,
+            db,
+            if_match='"1"',
         )
 
         written = edit_env.write.call_args.args[0]
         assert (written.audit_retention_days, written.audit_legal_hold) == (0, True)
         assert (result.audit_retention_days, result.audit_legal_hold) == (0, True)
-        db.commit.assert_called_once()
+        # Audit fields are security fields: the step-up is committed, then the write.
+        assert db.commit.call_count == 2
 
     def test_a_stale_edit_is_refused(self, edit_env):
         with pytest.raises(core_exceptions.PreconditionFailedError):
             server_settings_service.edit_server_settings(
-                _full_edit(edit_env.stored, audit_legal_hold=True), MagicMock(), if_match='"2"'
+                _full_edit(edit_env.stored, audit_legal_hold=True), None, VERIFIER, MagicMock(), if_match='"2"'
             )
 
         edit_env.write.assert_not_called()
@@ -1463,7 +1621,11 @@ class TestSettingsAudit:
         db = MagicMock()
         with jasil_testing.capture_audit() as audit:
             server_settings_service.edit_server_settings(
-                _full_edit(edit_env.stored, currency="dollar", tileserver_api_key="plain-new"), db, if_match="*"
+                _full_edit(edit_env.stored, currency="dollar", tileserver_api_key="plain-new"),
+                None,
+                VERIFIER,
+                db,
+                if_match="*",
             )
 
         entry = audit.assert_audited(server_settings_audit_actions.SETTINGS_UPDATE.id)
@@ -1472,7 +1634,11 @@ class TestSettingsAudit:
     def test_turning_the_breach_check_on_is_audited_by_field_name_only(self, edit_env):
         with jasil_testing.capture_audit() as audit:
             server_settings_service.edit_server_settings(
-                _full_edit(edit_env.stored, password_breach_check_enabled=True), MagicMock(), if_match="*"
+                _full_edit(edit_env.stored, password_breach_check_enabled=True),
+                None,
+                VERIFIER,
+                MagicMock(),
+                if_match="*",
             )
 
         entry = audit.assert_audited(server_settings_audit_actions.SETTINGS_UPDATE.id)
@@ -1482,7 +1648,7 @@ class TestSettingsAudit:
         db = MagicMock()
         with jasil_testing.capture_audit() as audit:
             server_settings_service.edit_server_settings(
-                _full_edit(edit_env.stored, map_background_color="#000000"), db, if_match="*"
+                _full_edit(edit_env.stored, map_background_color="#000000"), None, VERIFIER, db, if_match="*"
             )
 
         audit.assert_audited(server_settings_audit_actions.SETTINGS_UPDATE.id)
@@ -1490,7 +1656,9 @@ class TestSettingsAudit:
 
     def test_resending_the_unchanged_record_is_not_audited(self, edit_env):
         with jasil_testing.capture_audit() as audit:
-            server_settings_service.edit_server_settings(_full_edit(edit_env.stored), MagicMock(), if_match="*")
+            server_settings_service.edit_server_settings(
+                _full_edit(edit_env.stored), None, VERIFIER, MagicMock(), if_match="*"
+            )
 
         audit.assert_not_audited(server_settings_audit_actions.SETTINGS_UPDATE.id)
 

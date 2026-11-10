@@ -90,9 +90,13 @@ function invalidateServerSettings(client: ReturnType<typeof useQueryClient>): vo
 export function useUpdateServerSettingsMutation() {
   const client = useQueryClient()
 
-  return useMutation<ServerSettings, Error, ServerSettingsUpdate>({
+  return useMutation<
+    ServerSettings,
+    Error,
+    { settings: ServerSettingsUpdate; stepUp: StepUpInput | null }
+  >({
     mutationKey: queryKeys.serverSettings.all(),
-    mutationFn: (settings) => updateServerSettings(settings),
+    mutationFn: ({ settings, stepUp }) => updateServerSettings(settings, stepUp),
     onSettled: () => invalidateServerSettings(client),
   })
 }

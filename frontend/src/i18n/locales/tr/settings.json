@@ -513,8 +513,6 @@
       "title": "Sağlayıcıyı sil",
       "body": "\"{name}\" öğesini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
       "confirm": "Sil",
-      "cancel": "İptal",
-      "close": "Kapat",
       "success": "Sağlayıcı silindi",
       "error": "Sağlayıcı silinemedi. Hâlâ bağlı kullanıcıları olabilir."
     },

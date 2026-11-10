@@ -513,8 +513,6 @@
       "title": "Izbriši ponudnika",
       "body": "Ali si prepričan/a, da želiš izbrisati \"{name}\"? Tega ni mogoče razveljaviti.",
       "confirm": "Izbriši",
-      "cancel": "Prekliči",
-      "close": "Zapri",
       "success": "Ponudnik izbrisan",
       "error": "Ponudnika ni bilo mogoče izbrisati. Morda ima še povezane uporabnike."
     },

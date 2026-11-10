@@ -513,8 +513,6 @@
       "title": "Elimina provider",
       "body": "Sei sicuro di voler eliminare \"{name}\"? Non sarà possibile annullare l'operazione.",
       "confirm": "Elimina",
-      "cancel": "Annulla",
-      "close": "Chiudi",
       "success": "Provider eliminato",
       "error": "Impossibile eliminare il provider. Potrebbe avere ancora utenti collegati."
     },

@@ -57,8 +57,11 @@ class StepUpAction(StrEnum):
         ADMIN_USER_CREATE: An administrator creates an administrator account.
         ADMIN_IDP_CREATE: An administrator adds an identity provider.
         ADMIN_IDP_EDIT: An administrator edits an identity provider.
+        ADMIN_IDP_DELETE: An administrator deletes an identity provider.
         ADMIN_SESSIONS_REVOKE: An administrator ends another user's sessions.
         ADMIN_MAIL_SETTINGS_EDIT: An administrator edits the mail server settings.
+        ADMIN_SERVER_SETTINGS_EDIT: An administrator changes a server setting that governs sign-up, sign-in, sessions
+            or the audit trail.
     """
 
     API_KEY_CREATE = "api_key_create"
@@ -80,8 +83,10 @@ class StepUpAction(StrEnum):
     ADMIN_USER_CREATE = "admin_user_create"
     ADMIN_IDP_CREATE = "admin_idp_create"
     ADMIN_IDP_EDIT = "admin_idp_edit"
+    ADMIN_IDP_DELETE = "admin_idp_delete"
     ADMIN_SESSIONS_REVOKE = "admin_sessions_revoke"
     ADMIN_MAIL_SETTINGS_EDIT = "admin_mail_settings_edit"
+    ADMIN_SERVER_SETTINGS_EDIT = "admin_server_settings_edit"
 
 
 #: Scopes requested from a provider that configures none.

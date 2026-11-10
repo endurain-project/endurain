@@ -99,10 +99,15 @@ export function mapTileMapsTemplate(dto: TileMapsTemplateDto): TileMapsTemplate 
  * error instead of a runtime `422`.
  *
  * @param settings - The server settings (already merged with any edits).
+ * @param stepUp - The administrator's step-up credentials, or `null` when no security-relevant setting changes.
  * @returns The snake-cased editable body; it carries an API key only when one is being set or removed.
  */
-export function toServerSettingsWire(settings: ServerSettingsUpdate): ServerSettingsEditDto {
+export function toServerSettingsWire(
+  settings: ServerSettingsUpdate,
+  stepUp: StepUpInput | null,
+): ServerSettingsEditDto {
   return {
+    step_up: stepUp ? toStepUpWire(stepUp) : null,
     units: settings.units,
     currency: settings.currency,
     num_records_per_page: settings.numRecordsPerPage,
@@ -178,19 +183,21 @@ export async function fetchTileMapsTemplates(signal?: AbortSignal): Promise<Tile
 /**
  * Updates the server settings (admin scope `server_settings:write`). The whole
  * record is sent; the backend validates the tile-server URL and may reject the
- * change with a `422`.
+ * change with a `422`. A change to a security-relevant setting needs the administrator's own step-up.
  *
  * @param settings - The full settings to persist.
+ * @param stepUp - The administrator's step-up credentials, or `null` when no security-relevant setting changes.
  * @returns The updated server settings, mapped to the clean model.
- * @throws {HttpError} When the request fails (e.g. invalid tile-server URL), including 412 when the copy is stale.
+ * @throws {HttpError} When the request fails (e.g. invalid tile-server URL, `403` when the step-up is refused), including 412 when the copy is stale.
  */
 export async function updateServerSettings(
   settings: ServerSettingsUpdate,
+  stepUp: StepUpInput | null,
 ): Promise<ServerSettings> {
   const dto = await apiFetch<ServerSettingsDto>('/server-settings', {
     method: 'PUT',
     headers: ifMatchHeaders(settings.version),
-    body: JSON.stringify(toServerSettingsWire(settings)),
+    body: JSON.stringify(toServerSettingsWire(settings, stepUp)),
   })
   return mapServerSettings(dto)
 }

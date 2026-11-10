@@ -162,6 +162,7 @@ class TestEditServerSettings:
             "/server_settings",
             headers={**{"Authorization": "Bearer mock_token"}, "If-Match": '"1"'},
             json={
+                "step_up": None,
                 "units": "imperial",
                 "public_shareable_links": True,
                 "public_shareable_links_user_info": True,
@@ -220,6 +221,7 @@ class TestEditServerSettings:
             "/server_settings",
             headers={**{"Authorization": "Bearer mock_token"}, "If-Match": '"1"'},
             json={
+                "step_up": None,
                 "units": "imperial",
                 "public_shareable_links": True,
                 "public_shareable_links_user_info": True,
@@ -257,6 +259,101 @@ class TestEditServerSettings:
 
         # Assert
         assert response.status_code == 404
+
+
+class TestEditServerSettingsStepUp:
+    """The step-up rides in the body but is not a setting; the service decides whether it is needed."""
+
+    @staticmethod
+    def _body(**extra):
+        body = {
+            "step_up": None,
+            "units": "metric",
+            "public_shareable_links": False,
+            "public_shareable_links_user_info": False,
+            "currency": "euro",
+            "num_records_per_page": 25,
+            "signup_enabled": False,
+            "signup_require_admin_approval": True,
+            "signup_require_email_verification": True,
+            "password_breach_check_enabled": False,
+            "signup_sso_enabled": False,
+            "sso_enabled": False,
+            "local_login_enabled": True,
+            "sso_auto_redirect": False,
+            "tileserver_url": "https://tiles.example.com/{z}/{x}/{y}.png",
+            "tileserver_attribution": "Test",
+            "map_background_color": "#dddddd",
+            "tileserver_regenerate_thumbnails_on_change": False,
+            "password_length_regular_users": 8,
+            "password_length_admin_users": 12,
+            "geocoding_service": "nominatim",
+            "geocoding_host": None,
+            "geocoding_use_https": True,
+            "geocoding_rate_limit": 1.0,
+            "session_idle_timeout_enabled": False,
+            "session_idle_timeout_hours": 1,
+            "session_absolute_timeout_hours": 24,
+            "access_token_expire_minutes": 15,
+            "refresh_token_expire_days": 7,
+            "api_key_max_lifetime_days": 365,
+            "read_notification_retention_days": 90,
+            "audit_retention_days": 90,
+            "audit_legal_hold": False,
+        }
+        body.update(extra)
+        return body
+
+    def _admin_read(self) -> server_settings_schema.ServerSettingsAdminRead:
+        return server_settings_schema.ServerSettingsAdminRead(
+            **{k: v for k, v in self._body().items() if k != "step_up"},
+            id=1,
+            version=2,
+            login_photo_set=False,
+            tileserver_api_key_set=False,
+            geocoding_api_key_set=False,
+            env_managed={},
+        )
+
+    @staticmethod
+    def _put(client, body):
+        return client.put(
+            "/server_settings", json=body, headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'}
+        )
+
+    @patch("modules.server_settings.router.server_settings_service.edit_server_settings")
+    def test_the_service_gets_the_settings_without_the_step_up_then_the_step_up_and_verifier(
+        self, mock_edit, fast_api_client
+    ):
+        mock_edit.return_value = self._admin_read()
+
+        response = self._put(fast_api_client, self._body(signup_enabled=True, step_up=STEP_UP))
+
+        assert response.status_code == 200
+        attributes, step_up, verifier = mock_edit.call_args.args[:3]
+        assert type(attributes) is server_settings_schema.ServerSettingsEdit
+        assert "step_up" not in attributes.model_dump()
+        assert step_up == auth_schema.StepUpVerification(current_password="admin-password")
+        assert verifier is VERIFIER
+        assert "admin-password" not in response.text
+
+    @patch("modules.server_settings.router.server_settings_service.edit_server_settings")
+    def test_a_null_step_up_reaches_the_service_as_none(self, mock_edit, fast_api_client):
+        mock_edit.return_value = self._admin_read()
+
+        response = self._put(fast_api_client, self._body())
+
+        assert response.status_code == 200
+        assert mock_edit.call_args.args[1] is None
+
+    @patch("modules.server_settings.router.server_settings_service.edit_server_settings")
+    def test_a_refused_step_up_is_403_step_up_failed(self, mock_edit, fast_api_client):
+        mock_edit.side_effect = core_exceptions.StepUpFailedError()
+
+        response = self._put(fast_api_client, self._body(signup_enabled=True))
+
+        assert response.status_code == 403
+        assert response.json()["type"] == "urn:endurain:error:step-up-failed"
 
 
 class TestEditNeedsIfMatch:

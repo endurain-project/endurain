@@ -513,8 +513,6 @@
       "title": "Șterge furnizorul",
       "body": "Sigur dorești să ștergi „{name}”? Acțiunea nu poate fi anulată.",
       "confirm": "Șterge",
-      "cancel": "Anulează",
-      "close": "Închide",
       "success": "Furnizor șters",
       "error": "Nu am putut șterge furnizorul. Este posibil să aibă încă utilizatori asociați."
     },

@@ -130,10 +130,10 @@ A list of tags is accepted (`If-Match: "3", "4"`). A weak tag (`W/"3"`) never ma
 | Your goals | `PUT` and `DELETE /profile/goals/{id}` |
 | Users (administrators) | `PATCH /users/{id}` and `POST /users/{id}/delete`, which answers `202` because the account is erased by a [background job](background-operations.md#delete-a-user-administrators) |
 | Your Strava client credentials | `PUT /strava/client` (answers `204` with the new `ETag`), using `integrations_version` from `GET /profile` (the credentials hold a secret, so they have no read of their own) |
-| Identity providers (administrators) | `PATCH` and `DELETE /identity-providers/{idp_id}` |
+| Identity providers (administrators) | `PATCH /identity-providers/{idp_id}` and `POST /identity-providers/{idp_id}/delete` |
 | Server and mail settings (administrators) | `PUT /server-settings`, `PUT /server-settings/email/settings` |
 
-Creating and the action endpoints (approve a user, change a password, link an account) do not take `If-Match`, except the administrator's user deletion above. Neither does deleting anything not listed above, such as an API key, a session, an activity photo or the login photo. Deleting your own account (`POST /profile/delete-account`) is confirmed with step-up instead; see [Background operations](background-operations.md#delete-your-account).
+Creating and the action endpoints (approve a user, change a password, link an account) do not take `If-Match`, except the administrator's user and identity provider deletions above. Neither does deleting anything not listed above, such as an API key, a session, an activity photo or the login photo. Deleting your own account (`POST /profile/delete-account`) is confirmed with step-up instead; see [Background operations](background-operations.md#delete-your-account).
 
 `PATCH /profile` and `PATCH /profile/privacy` answer `200` with the updated record and its new `ETag`, so the next edit needs no extra read.
 

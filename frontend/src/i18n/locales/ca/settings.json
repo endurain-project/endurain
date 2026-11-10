@@ -513,8 +513,6 @@
       "title": "Elimina el proveïdor",
       "body": "Segur que vols eliminar \"{name}\"? Aquesta acció no es pot desfer.",
       "confirm": "Elimina",
-      "cancel": "Cancel·la",
-      "close": "Tanca",
       "success": "Proveïdor eliminat",
       "error": "No s'ha pogut eliminar el proveïdor. És possible que encara tingui usuaris vinculats."
     },

@@ -13,6 +13,9 @@ import core.geocoding as core_geocoding
 import core.key_rotation as core_key_rotation
 import core.logger as core_logger
 import core.network as core_network
+import modules.auth.identity_providers.constants as identity_providers_constants
+import modules.auth.identity_providers.contracts as identity_providers_contracts
+import modules.auth.schema as auth_schema
 import modules.server_settings.audit_actions as server_settings_audit_actions
 import modules.server_settings.change_utils as server_settings_change_utils
 import modules.server_settings.constants as server_settings_constants
@@ -243,6 +246,8 @@ def get_geocoding_config(db: Session) -> core_geocoding.GeocodingConfig | None:
 
 def edit_server_settings(
     attributes: server_settings_schema.ServerSettingsEdit,
+    step_up: auth_schema.StepUpVerification | None,
+    verify_step_up: identity_providers_contracts.StepUpVerifier,
     db: Session,
     *,
     if_match: str,
@@ -257,8 +262,14 @@ def edit_server_settings(
     tile-settings event, a thumbnail regeneration or a DNS lookup for settings it did
     not touch.
 
+    A change to a security-relevant setting (``SECURITY_FIELDS``) needs the administrator's step-up, verified
+    once the ``If-Match`` precondition holds, so the compared values are the stored ones, and before any other
+    check or write. A missing step-up is verified as empty credentials, so it counts as a failed attempt.
+
     Args:
         attributes: The settings to apply.
+        step_up: The administrator's step-up verification; verified as empty credentials when missing.
+        verify_step_up: Verifies the step-up for the calling administrator.
         db: Database session.
         if_match: The ``If-Match`` precondition.
 
@@ -266,18 +277,27 @@ def edit_server_settings(
         The updated settings, as an admin read returns them.
 
     Raises:
+        StepUpFailedError: If a security-relevant setting changes and the step-up does not verify.
         InvalidInputError: If the tile server URL cannot be dialled safely.
         ConflictError: If a changed field is set by an environment variable.
         PreconditionFailedError: If the settings changed since the client read them.
         ServiceUnavailableError: If the settings row does not exist.
     """
     snapshot = get_server_settings(db)
-    # End the read transaction: the network checks below must not pin a connection snapshot.
-    db.rollback()
     core_etag.require_if_match(if_match, snapshot.version, "server settings")
     snapshot_changes = server_settings_change_utils.changed_fields(
         attributes, snapshot, server_settings_constants.SECRET_FIELDS
     )
+    # End the transaction the reads above opened: the network checks below must not pin a connection snapshot.
+    if snapshot_changes & server_settings_constants.SECURITY_FIELDS:
+        verify_step_up(
+            step_up or auth_schema.StepUpVerification(),
+            identity_providers_constants.StepUpAction.ADMIN_SERVER_SETTINGS_EDIT,
+        )
+        # A verified step-up staged the use of a backup code and its audit row; commit them so the code is spent.
+        db.commit()
+    else:
+        db.rollback()
     if "tileserver_url" in snapshot_changes:
         server_settings_tile_service.reject_unsafe_tileserver(attributes.tileserver_url)
     if snapshot_changes & server_settings_constants.GEOCODING_FIELDS:

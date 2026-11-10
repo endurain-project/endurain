@@ -513,8 +513,6 @@
       "title": "Odstrániť poskytovateľa",
       "body": "Naozaj chcete odstrániť „{name}“? Túto akciu nie je možné vrátiť späť.",
       "confirm": "Odstrániť",
-      "cancel": "Zrušiť",
-      "close": "Zavrieť",
       "success": "Poskytovateľ odstránený",
       "error": "Poskytovateľa sa nepodarilo odstrániť. Možno má stále prepojených používateľov."
     },

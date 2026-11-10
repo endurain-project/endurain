@@ -513,8 +513,6 @@
       "title": "Smazat poskytovatele",
       "body": "Opravdu chcete smazat „{name}“? Tuto akci nelze vrátit zpět.",
       "confirm": "Smazat",
-      "cancel": "Zrušit",
-      "close": "Zavřít",
       "success": "Poskytovatel smazán",
       "error": "Nepodařilo se smazat poskytovatele. Stále může mít propojené uživatele."
     },

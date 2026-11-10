@@ -513,8 +513,6 @@
       "title": "Ištrinti teikėją",
       "body": "Ar tikrai norite ištrinti „{name}“? Šio veiksmo atšaukti negalima.",
       "confirm": "Ištrinti",
-      "cancel": "Atšaukti",
-      "close": "Uždaryti",
       "success": "Teikėjas ištrintas",
       "error": "Nepavyko ištrinti teikėjo. Jis vis dar gali turėti susietų naudotojų."
     },

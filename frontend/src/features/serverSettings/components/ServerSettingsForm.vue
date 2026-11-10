@@ -15,6 +15,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
+import { useAdminStepUp } from '@/features/security/composables/useAdminStepUp'
 import { useMailStepUpResume } from '@/features/serverSettings/composables/useMailStepUpResume'
 import EmailCard from '@/features/serverSettings/components/EmailCard.vue'
 import ServerSettingsSearch from '@/features/serverSettings/components/ServerSettingsSearch.vue'
@@ -56,7 +58,20 @@ const router = useRouter()
 
 const form = useServerSettingsForm(props)
 provideServerSettingsForm(form)
-const { isDirty, isValid, isSubmitting, dirtyTabs, handleSubmit, discard } = form
+const {
+  isDirty,
+  isValid,
+  isSubmitting,
+  dirtyTabs,
+  handleSubmit,
+  discard,
+  isStepUpOpen,
+  idpReauth,
+  draftValues,
+  confirmStepUp,
+  isUpdating,
+} = form
+const { requirePassword, requireMfa } = useAdminStepUp()
 
 const root = ref<HTMLElement | null>(null)
 // The sign-in the page returned from for the mail settings lands the user on the tab that holds them.
@@ -252,6 +267,20 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', warnBeforeUnloa
       :can-save="isValid"
       @save="handleSubmit"
       @discard="discard"
+    />
+
+    <StepUpDialog
+      v-model:open="isStepUpOpen"
+      v-model:reauth="idpReauth"
+      action="admin_server_settings_edit"
+      :title="t('settings.server.stepUpTitle')"
+      :description="t('settings.server.stepUpDescription')"
+      :confirm-label="t('settings.server.save')"
+      :require-password="requirePassword"
+      :require-mfa="requireMfa"
+      :pending-context="{ draft: draftValues() }"
+      :pending="isUpdating"
+      @confirm="confirmStepUp"
     />
 
     <ConfirmDialog

@@ -4,6 +4,8 @@ Administrators configure the instance in **Settings → Server settings**. The p
 
 If someone else changed the settings while you were editing, your save is refused with a message to reload, so you never overwrite their change by accident.
 
+Saving a change to a setting that decides who can sign up or sign in, how long a session or token lives or how long the audit trail is kept asks for your own password and MFA code (or a fresh identity-provider sign-in if your account has no password), so a stolen session cannot weaken them. These are the sign-up and sign-in switches (including **Allow local username and password login**, single sign-on and its auto-redirect), the password rules and breach check, the session and token lifetimes, the API key lifetime, and the audit trail retention and legal hold. Changing any other setting, such as units, maps or notification retention, needs no confirmation.
+
 ## Settings that an environment variable controls
 
 Some settings used to be environment variables and were moved into this page. As long as the old variable is still set on the container, the matching field is **read-only** here, and Endurain copies the variable's value into the database at each start. Remove the variable to edit the field in the page. The affected settings are:

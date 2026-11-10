@@ -513,8 +513,6 @@
       "title": "Ta bort leverantör",
       "body": "Är du säker på att du vill ta bort \"{name}\"? Det kan inte ångras.",
       "confirm": "Ta bort",
-      "cancel": "Avbryt",
-      "close": "Stäng",
       "success": "Leverantör borttagen",
       "error": "Kunde inte ta bort leverantören. Den kan fortfarande ha kopplade användare."
     },

@@ -217,16 +217,23 @@ export async function updateIdentityProvider(
 
 /**
  * Deletes an identity provider (admin scope `identity_providers:write`). The
- * backend returns `409` when users are still linked to the provider.
+ * backend returns `409` when users are still linked to the provider. The request
+ * carries the administrator's own step-up.
  *
  * @param id - The provider id.
  * @param version - The provider version the list item was read at, for `If-Match`.
- * @throws {HttpError} When the request fails (e.g. users still linked, or `412` when stale).
+ * @param stepUp - The administrator's step-up credentials.
+ * @throws {HttpError} When the request fails (e.g. users still linked, `403` when the step-up is refused, or `412` when stale).
  */
-export async function deleteIdentityProvider(id: number, version: number): Promise<void> {
-  await apiFetch(`/identity-providers/${id}`, {
-    method: 'DELETE',
+export async function deleteIdentityProvider(
+  id: number,
+  version: number,
+  stepUp: StepUpInput,
+): Promise<void> {
+  await apiFetch(`/identity-providers/${id}/delete`, {
+    method: 'POST',
     headers: ifMatchHeaders(version),
+    body: JSON.stringify({ step_up: toStepUpWire(stepUp) }),
     responseType: 'void',
   })
 }

@@ -7,6 +7,7 @@ from sqlalchemy.orm.exc import StaleDataError
 
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
+import modules.auth.identity_providers.constants as idp_constants
 import modules.auth.identity_providers.models as idp_models
 import modules.auth.identity_providers.provider_service as provider_service
 import modules.auth.identity_providers.schema as idp_schema
@@ -29,7 +30,9 @@ def test_a_delete_that_races_past_the_version_check_is_a_precondition_failure(mo
         patch.object(provider_service.idp_crud, "identity_provider_exists", return_value=True),
         pytest.raises(core_exceptions.PreconditionFailedError),
     ):
-        provider_service.delete_identity_provider(3, MagicMock(), MagicMock(), mock_db, if_match='"1"')
+        provider_service.delete_identity_provider(
+            3, STEP_UP, VERIFIER, MagicMock(), MagicMock(), mock_db, if_match='"1"'
+        )
 
     mock_db.commit.assert_not_called()
 
@@ -180,8 +183,44 @@ class TestDiscoveryCacheEviction:
         ):
             crud.get_identity_provider.return_value = MagicMock(icon_uploaded=False, provider_type="oidc")
             crud.delete_identity_provider.return_value = True
-            provider_service.delete_identity_provider(3, MagicMock(), oidc, mock_db, if_match='"1"')
+            provider_service.delete_identity_provider(3, STEP_UP, VERIFIER, MagicMock(), oidc, mock_db, if_match='"1"')
         assert order.mock_calls == [call.commit(), call.forget(3)]
+
+
+class TestDeleteStepUp:
+    """Deleting a provider needs the administrator's step-up, verified before anything is read or written."""
+
+    def test_a_refused_step_up_deletes_nothing(self, mock_db):
+        verifier = MagicMock(side_effect=core_exceptions.StepUpFailedError())
+        with (
+            patch.object(provider_service, "idp_crud") as crud,
+            pytest.raises(core_exceptions.StepUpFailedError),
+        ):
+            provider_service.delete_identity_provider(
+                3, STEP_UP, verifier, MagicMock(), MagicMock(), mock_db, if_match='"1"'
+            )
+
+        crud.get_identity_provider.assert_not_called()
+        crud.delete_identity_provider.assert_not_called()
+        mock_db.commit.assert_not_called()
+
+    def test_the_step_up_authorises_the_delete_action(self, mock_db):
+        verifier = MagicMock()
+        with (
+            patch.object(provider_service, "idp_crud") as crud,
+            patch.object(
+                provider_service.identity_provider_links_integration,
+                "check_user_identity_providers_by_idp_id",
+                return_value=False,
+            ),
+        ):
+            crud.get_identity_provider.return_value = MagicMock(icon_uploaded=False, provider_type="oidc")
+            crud.delete_identity_provider.return_value = True
+            provider_service.delete_identity_provider(
+                3, STEP_UP, verifier, MagicMock(), MagicMock(), mock_db, if_match='"1"'
+            )
+
+        verifier.assert_called_once_with(STEP_UP, idp_constants.StepUpAction.ADMIN_IDP_DELETE)
 
 
 class TestListProviders:

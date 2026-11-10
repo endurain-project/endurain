@@ -513,8 +513,6 @@
       "title": "Izbriši pružatelja",
       "body": "Jeste li sigurni da želite izbrisati „{name}”? To se ne može poništiti.",
       "confirm": "Izbriši",
-      "cancel": "Odustani",
-      "close": "Zatvori",
       "success": "Pružatelj je izbrisan",
       "error": "Nije moguće izbrisati pružatelja. Možda još ima povezane korisnike."
     },

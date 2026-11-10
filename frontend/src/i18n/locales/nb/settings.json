@@ -513,8 +513,6 @@
       "title": "Slett leverandør",
       "body": "Er du sikker på at du vil slette «{name}»? Dette kan ikke angres.",
       "confirm": "Slett",
-      "cancel": "Avbryt",
-      "close": "Lukk",
       "success": "Leverandør slettet",
       "error": "Kunne ikke slette leverandøren. Den kan fortsatt ha koblede brukere."
     },

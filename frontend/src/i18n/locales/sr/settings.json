@@ -513,8 +513,6 @@
       "title": "Obriši provajdera",
       "body": "Da li ste sigurni da želite da obrišete \"{name}\"? Ovo se ne može poništiti.",
       "confirm": "Obriši",
-      "cancel": "Otkaži",
-      "close": "Zatvori",
       "success": "Provajder je obrisan",
       "error": "Nije moguće obrisati provajdera. Možda još ima povezane korisnike."
     },

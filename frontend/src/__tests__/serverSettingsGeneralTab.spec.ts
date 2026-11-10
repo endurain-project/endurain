@@ -3,6 +3,7 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { StepUpInput } from '@/features/security/types'
 import type { ServerSettings, ServerSettingsUpdate } from '@/features/serverSettings/types'
 
 import i18n from '@/i18n'
@@ -14,7 +15,14 @@ import {
 } from '@/features/serverSettings/composables/useServerSettingsForm'
 import { HttpError } from '@/services/http'
 
-const mutateAsync = vi.fn<(settings: ServerSettingsUpdate) => Promise<ServerSettings>>()
+const mutateAsync =
+  vi.fn<
+    (variables: {
+      settings: ServerSettingsUpdate
+      stepUp: StepUpInput | null
+    }) => Promise<ServerSettings>
+  >()
+const STEP_UP: StepUpInput = { currentPassword: 'admin-pw', mfaCode: null, idpReauth: null }
 
 vi.mock('@/features/serverSettings/composables/useServerSettings', async (importOriginal) => ({
   ...(await importOriginal<
@@ -75,15 +83,21 @@ function makeSettings(overrides: Partial<ServerSettings> = {}): ServerSettings {
  * @returns The mounted wrapper.
  */
 function mountGeneralTab(settings: ServerSettings = makeSettings()) {
+  let form: ReturnType<typeof useServerSettingsForm> | undefined
   const Host = defineComponent({
     setup() {
-      provideServerSettingsForm(useServerSettingsForm({ settings, templates: [] }))
+      form = useServerSettingsForm({ settings, templates: [] })
+      provideServerSettingsForm(form)
       return () => h(GeneralTab)
     },
   })
-  return mount(Host, {
+  const wrapper = mount(Host, {
     global: { plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]] },
   })
+  if (!form) {
+    throw new Error('the form was not created')
+  }
+  return { wrapper, form }
 }
 
 describe('GeneralTab audit trail retention', () => {
@@ -93,7 +107,9 @@ describe('GeneralTab audit trail retention', () => {
   })
 
   it('shows the retention and legal hold with their hints', () => {
-    const wrapper = mountGeneralTab(makeSettings({ auditRetentionDays: 365, auditLegalHold: true }))
+    const { wrapper } = mountGeneralTab(
+      makeSettings({ auditRetentionDays: 365, auditLegalHold: true }),
+    )
 
     const retention = wrapper.get('[data-setting="retention-audit-trail"]')
     expect(retention.get('input').element.value).toBe('365')
@@ -105,7 +121,7 @@ describe('GeneralTab audit trail retention', () => {
   })
 
   it.each(['1', '29', '36501', 'abc'])('refuses %s and does not save', async (value) => {
-    const wrapper = mountGeneralTab()
+    const { wrapper } = mountGeneralTab()
 
     await wrapper.get('[data-setting="retention-audit-trail"] input').setValue(value)
     await wrapper.get('form').trigger('submit')
@@ -121,29 +137,66 @@ describe('GeneralTab audit trail retention', () => {
     ['0', 0],
     ['30', 30],
     ['36500', 36500],
-  ])('saves %s with the legal hold and the version it read', async (value, days) => {
-    const wrapper = mountGeneralTab()
+  ])('saves %s with the legal hold, the version it read and the step-up', async (value, days) => {
+    const { wrapper, form } = mountGeneralTab()
 
     await wrapper.get('[data-setting="retention-audit-trail"] input').setValue(value)
     await wrapper.get('[data-setting="retention-audit-legal-hold"] input').setValue(true)
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
+    // A security-relevant change waits for the administrator's step-up.
+    expect(mutateAsync).not.toHaveBeenCalled()
+    expect(form.isStepUpOpen.value).toBe(true)
+
+    await form.confirmStepUp(STEP_UP)
+
     expect(mutateAsync).toHaveBeenCalledOnce()
-    expect(mutateAsync.mock.calls[0]?.[0]).toMatchObject({
+    expect(mutateAsync.mock.calls[0]?.[0].stepUp).toEqual(STEP_UP)
+    expect(mutateAsync.mock.calls[0]?.[0].settings).toMatchObject({
       version: 3,
       auditRetentionDays: days,
       auditLegalHold: true,
     })
   })
 
-  it('reports a stale copy when the save is refused with 412', async () => {
-    mutateAsync.mockRejectedValue(new HttpError(412, 'Precondition Failed'))
-    const wrapper = mountGeneralTab()
+  it('saves a change to a setting that is not security-relevant without a step-up', async () => {
+    const { wrapper, form } = mountGeneralTab()
+
+    await wrapper.get('[data-setting="general-num-records"] select').setValue(50)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(form.isStepUpOpen.value).toBe(false)
+    expect(mutateAsync).toHaveBeenCalledOnce()
+    expect(mutateAsync.mock.calls[0]?.[0]).toMatchObject({
+      stepUp: null,
+      settings: { numRecordsPerPage: 50 },
+    })
+  })
+
+  it('keeps the step-up dialog open when the step-up is refused', async () => {
+    mutateAsync.mockRejectedValue(
+      new HttpError(403, 'Forbidden', undefined, 'urn:endurain:error:step-up-failed'),
+    )
+    const { wrapper, form } = mountGeneralTab()
 
     await wrapper.get('[data-setting="retention-audit-legal-hold"] input').setValue(true)
     await wrapper.get('form').trigger('submit')
     await flushPromises()
+    await form.confirmStepUp(STEP_UP)
+
+    expect(form.isStepUpOpen.value).toBe(true)
+  })
+
+  it('reports a stale copy when the save is refused with 412', async () => {
+    mutateAsync.mockRejectedValue(new HttpError(412, 'Precondition Failed'))
+    const { wrapper, form } = mountGeneralTab()
+
+    await wrapper.get('[data-setting="retention-audit-legal-hold"] input').setValue(true)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    await form.confirmStepUp(STEP_UP)
 
     const { toasts } = useToasts()
     expect(toasts.value[toasts.value.length - 1]).toMatchObject({

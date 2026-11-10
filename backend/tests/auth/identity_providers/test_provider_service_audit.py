@@ -135,7 +135,9 @@ def test_deleting_a_provider_is_audited_with_its_type_only(mock_db):
         crud.identity_provider_exists.return_value = True
         crud.delete_identity_provider.return_value = True
         linked.return_value = False
-        provider_service.delete_identity_provider(3, MagicMock(), MagicMock(), mock_db, if_match='"1"')
+        provider_service.delete_identity_provider(
+            3, MagicMock(), MagicMock(), MagicMock(), MagicMock(), mock_db, if_match='"1"'
+        )
 
     entry = audit.assert_audited(
         idp_audit_actions.IDENTITY_PROVIDER_DELETE.id, target_type="identity_provider", target_id="3"

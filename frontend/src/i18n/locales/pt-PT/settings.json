@@ -513,8 +513,6 @@
       "title": "Eliminar fornecedor",
       "body": "Tens a certeza que queres eliminar \"{name}\"? Esta ação não pode ser desfeita.",
       "confirm": "Eliminar",
-      "cancel": "Cancelar",
-      "close": "Fechar",
       "success": "Fornecedor eliminado",
       "error": "Não foi possível eliminar o fornecedor. Pode ainda ter utilizadores associados."
     },
