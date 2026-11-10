@@ -81,6 +81,10 @@
     "errorValidation": "Les informations ont été rejetées. Vérifiez-les et utilisez un mot de passe conforme aux exigences pour les administrateurs.",
     "errorTooManyAttempts": "Trop de tentatives. Patientez un instant et réessayez.",
     "errorUnavailable": "La configuration est temporairement indisponible. Réessayez dans quelques instants.",
-    "errorGeneral": "Impossible de créer l'administrateur. Veuillez réessayer."
+    "errorGeneral": "Impossible de créer l'administrateur. Veuillez réessayer.",
+    "mfaTitle": "Sécurisez votre compte",
+    "mfaSubtitle": "Ajoutez une deuxième étape de connexion avec une application d'authentification. Vous pouvez aussi le faire plus tard dans les Paramètres.",
+    "mfaSetup": "Configurer l'MFA",
+    "mfaSkip": "Passer pour l'instant"
   }
 }

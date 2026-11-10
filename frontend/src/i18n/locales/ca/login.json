@@ -81,6 +81,10 @@
     "errorValidation": "S'han rebutjat les dades. Revisa-les i utilitza una contrasenya que compleixi els requisits d'administrador.",
     "errorTooManyAttempts": "Massa intents. Espera un moment i torna-ho a provar.",
     "errorUnavailable": "La configuració no està disponible temporalment. Torna-ho a provar d'aquí a poc.",
-    "errorGeneral": "No s'ha pogut crear l'administrador. Torna-ho a intentar."
+    "errorGeneral": "No s'ha pogut crear l'administrador. Torna-ho a intentar.",
+    "mfaTitle": "Protegeix el teu compte",
+    "mfaSubtitle": "Afegeix un segon pas d'inici de sessió amb una aplicació d'autenticació. També ho pots fer més tard a Configuració.",
+    "mfaSetup": "Configura l'MFA",
+    "mfaSkip": "Omet per ara"
   }
 }

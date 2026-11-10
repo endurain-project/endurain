@@ -81,6 +81,10 @@
     "errorValidation": "Opplysningene ble avvist. Kontroller dem og bruk et passord som oppfyller kravene for administratorer.",
     "errorTooManyAttempts": "For mange forsøk. Vent litt og prøv igjen.",
     "errorUnavailable": "Oppsettet er midlertidig utilgjengelig. Prøv igjen om litt.",
-    "errorGeneral": "Kunne ikke opprette administratoren. Vennligst prøv igjen."
+    "errorGeneral": "Kunne ikke opprette administratoren. Vennligst prøv igjen.",
+    "mfaTitle": "Beskytt kontoen din",
+    "mfaSubtitle": "Legg til et ekstra innloggingstrinn med en autentiseringsapp. Du kan også gjøre det senere i Innstillinger.",
+    "mfaSetup": "Sett opp MFA",
+    "mfaSkip": "Hopp over for nå"
   }
 }

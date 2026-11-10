@@ -7,14 +7,16 @@ import i18n from '@/i18n'
 import OnboardingView from '@/features/auth/views/OnboardingView.vue'
 import { HttpError } from '@/services/http'
 
-const { replace, completeOnboarding, toastError } = vi.hoisted(() => ({
+const { replace, completeOnboarding, toastError, login } = vi.hoisted(() => ({
   replace: vi.fn<(to: unknown) => Promise<void>>(() => Promise.resolve()),
+  login: vi.fn<(username: string, password: string) => Promise<unknown>>(),
   completeOnboarding: vi.fn<(request: unknown) => Promise<void>>(),
   toastError: vi.fn<(message: string) => void>(),
 }))
 
 vi.mock('vue-router', () => ({ useRouter: () => ({ replace }) }))
 vi.mock('@/features/auth/services/onboarding', () => ({ completeOnboarding }))
+vi.mock('@/features/auth/stores/auth', () => ({ useAuthStore: () => ({ login }) }))
 vi.mock('@/composables/useToasts', () => ({ useToasts: () => ({ error: toastError }) }))
 vi.mock('@/features/config/composables/usePublicServerSettings', () => ({
   usePublicServerSettings: () => ({
@@ -31,7 +33,23 @@ vi.mock('@/features/config/composables/usePublicServerSettings', () => ({
  */
 async function mountFilled() {
   const wrapper = mount(OnboardingView, {
-    global: { plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]] },
+    global: {
+      plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]],
+      stubs: {
+        MfaSetupDialog: {
+          props: ['open'],
+          emits: ['enabled'],
+          template:
+            '<button v-if="open" data-test="enroll" @click="$emit(\'enabled\', [\'CODE-1\'])" />',
+        },
+        BackupCodesDialog: {
+          props: ['open', 'codes'],
+          emits: ['update:open'],
+          template:
+            '<button v-if="open" data-test="codes-done" @click="$emit(\'update:open\', false)" />',
+        },
+      },
+    },
   })
   await wrapper.get('input[name="setup-token"]').setValue(' tok ')
   await wrapper.get('input[name="name"]').setValue('Ada Lovelace')
@@ -46,6 +64,8 @@ describe('OnboardingView', () => {
   beforeEach(() => {
     replace.mockClear()
     completeOnboarding.mockReset()
+    login.mockReset()
+    login.mockResolvedValue({ status: 'authenticated' })
     toastError.mockClear()
   })
 
@@ -67,7 +87,7 @@ describe('OnboardingView', () => {
     expect(wrapper.text()).toContain(i18n.global.t('app.password.invalid'))
   })
 
-  it('submits normalised values and redirects to login with the success flag', async () => {
+  it('submits normalised values and signs the new administrator in', async () => {
     completeOnboarding.mockResolvedValue()
     const wrapper = await mountFilled()
 
@@ -81,6 +101,47 @@ describe('OnboardingView', () => {
       email: 'ada@example.com',
       password: 'long-enough-pass',
     })
+    expect(login).toHaveBeenCalledWith('ada', 'long-enough-pass')
+    expect(replace).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain(i18n.global.t('login.onboarding.mfaTitle'))
+  })
+
+  it('goes to the app when the administrator skips MFA', async () => {
+    completeOnboarding.mockResolvedValue()
+    const wrapper = await mountFilled()
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    await wrapper.get('[data-test="mfa-skip"]').trigger('click')
+
+    expect(replace).toHaveBeenCalledWith({ name: 'home' })
+  })
+
+  it('shows the backup codes after enrolment and goes to the app once they are closed', async () => {
+    completeOnboarding.mockResolvedValue()
+    const wrapper = await mountFilled()
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    await wrapper.get('[data-test="mfa-setup"]').trigger('click')
+    await wrapper.get('[data-test="enroll"]').trigger('click')
+    expect(replace).not.toHaveBeenCalled()
+
+    await wrapper.get('[data-test="codes-done"]').trigger('click')
+    expect(replace).toHaveBeenCalledWith({ name: 'home' })
+  })
+
+  it.each([
+    ['rejects', () => login.mockRejectedValue(new HttpError(500, 'err'))],
+    ['needs another step', () => login.mockResolvedValue({ status: 'mfa-required' })],
+  ])('falls back to the sign-in page when the automatic sign-in %s', async (_name, arrange) => {
+    completeOnboarding.mockResolvedValue()
+    arrange()
+    const wrapper = await mountFilled()
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
     expect(replace).toHaveBeenCalledWith({ name: 'login', query: { onboardingComplete: 'true' } })
   })
 

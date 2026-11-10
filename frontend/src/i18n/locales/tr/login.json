@@ -81,6 +81,10 @@
     "errorValidation": "Bilgiler reddedildi. Bunları kontrol edin ve yönetici gereksinimlerini karşılayan bir parola kullanın.",
     "errorTooManyAttempts": "Çok fazla deneme yapıldı. Biraz bekleyip tekrar deneyin.",
     "errorUnavailable": "Kurulum geçici olarak kullanılamıyor. Kısa süre sonra tekrar deneyin.",
-    "errorGeneral": "Yönetici oluşturulamadı. Lütfen tekrar deneyin."
+    "errorGeneral": "Yönetici oluşturulamadı. Lütfen tekrar deneyin.",
+    "mfaTitle": "Hesabınızı koruyun",
+    "mfaSubtitle": "Bir kimlik doğrulama uygulamasıyla ikinci bir oturum açma adımı ekleyin. Bunu daha sonra Ayarlar'dan da yapabilirsiniz.",
+    "mfaSetup": "MFA'yı kur",
+    "mfaSkip": "Şimdilik atla"
   }
 }

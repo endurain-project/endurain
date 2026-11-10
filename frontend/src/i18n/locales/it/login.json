@@ -81,6 +81,10 @@
     "errorValidation": "I dati sono stati rifiutati. Controllali e usa una password che soddisfi i requisiti per gli amministratori.",
     "errorTooManyAttempts": "Troppi tentativi. Attendi un momento e riprova.",
     "errorUnavailable": "La configurazione è temporaneamente non disponibile. Riprova a breve.",
-    "errorGeneral": "Impossibile creare l'amministratore. Riprova."
+    "errorGeneral": "Impossibile creare l'amministratore. Riprova.",
+    "mfaTitle": "Proteggi il tuo account",
+    "mfaSubtitle": "Aggiungi un secondo passaggio di accesso con un'app di autenticazione. Puoi farlo anche più tardi in Impostazioni.",
+    "mfaSetup": "Configura MFA",
+    "mfaSkip": "Salta per ora"
   }
 }

@@ -81,6 +81,10 @@
     "errorValidation": "Datele au fost respinse. Verifică-le și folosește o parolă care îndeplinește cerințele pentru administrator.",
     "errorTooManyAttempts": "Prea multe încercări. Așteaptă puțin și încearcă din nou.",
     "errorUnavailable": "Configurarea este temporar indisponibilă. Încearcă din nou în scurt timp.",
-    "errorGeneral": "Nu am putut crea administratorul. Te rugăm să încerci din nou."
+    "errorGeneral": "Nu am putut crea administratorul. Te rugăm să încerci din nou.",
+    "mfaTitle": "Protejează-ți contul",
+    "mfaSubtitle": "Adaugă un al doilea pas de autentificare cu o aplicație de autentificare. Poți face acest lucru și mai târziu, în Setări.",
+    "mfaSetup": "Configurează MFA",
+    "mfaSkip": "Omite deocamdată"
   }
 }

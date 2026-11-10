@@ -81,6 +81,10 @@
     "errorValidation": "Rexeitáronse os datos. Revísaos e usa un contrasinal que cumpra os requisitos de administrador.",
     "errorTooManyAttempts": "Demasiados intentos. Agarda un momento e téntao de novo.",
     "errorUnavailable": "A configuración non está dispoñible temporalmente. Téntao de novo en breve.",
-    "errorGeneral": "Non se puido crear o administrador. Por favor, téntao de novo."
+    "errorGeneral": "Non se puido crear o administrador. Por favor, téntao de novo.",
+    "mfaTitle": "Protexe a túa conta",
+    "mfaSubtitle": "Engade un segundo paso de inicio de sesión cunha aplicación de autenticación. Tamén podes facelo máis tarde en Axustes.",
+    "mfaSetup": "Configurar MFA",
+    "mfaSkip": "Omitir por agora"
   }
 }

@@ -81,6 +81,10 @@
     "errorValidation": "Die Angaben wurden abgelehnt. Prüfe sie und verwende ein Passwort, das die Anforderungen für Administratoren erfüllt.",
     "errorTooManyAttempts": "Zu viele Versuche. Warte einen Moment und versuche es erneut.",
     "errorUnavailable": "Die Einrichtung ist vorübergehend nicht verfügbar. Versuche es in Kürze erneut.",
-    "errorGeneral": "Der Administrator konnte nicht erstellt werden. Bitte versuche es erneut."
+    "errorGeneral": "Der Administrator konnte nicht erstellt werden. Bitte versuche es erneut.",
+    "mfaTitle": "Sichere dein Konto",
+    "mfaSubtitle": "Füge mit einer Authentifizierungs-App einen zweiten Anmeldeschritt hinzu. Du kannst das auch später in den Einstellungen tun.",
+    "mfaSetup": "MFA einrichten",
+    "mfaSkip": "Vorerst überspringen"
   }
 }

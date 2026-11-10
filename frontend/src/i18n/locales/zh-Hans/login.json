@@ -81,6 +81,10 @@
     "errorValidation": "信息被拒绝，请检查后使用符合管理员要求的密码。",
     "errorTooManyAttempts": "尝试次数过多，请稍候再试。",
     "errorUnavailable": "设置暂时不可用，请稍后再试。",
-    "errorGeneral": "无法创建管理员，请重试。"
+    "errorGeneral": "无法创建管理员，请重试。",
+    "mfaTitle": "保护您的账户",
+    "mfaSubtitle": "使用身份验证应用添加第二重登录验证。您也可以稍后在设置中进行。",
+    "mfaSetup": "设置 MFA",
+    "mfaSkip": "暂时跳过"
   }
 }

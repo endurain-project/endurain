@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { LoaderCircle } from '@lucide/vue'
@@ -14,7 +14,10 @@ import { useForm } from '@/composables/useForm'
 import { useInvalidatingMutation } from '@/composables/useInvalidatingMutation'
 import { useToasts } from '@/composables/useToasts'
 import { completeOnboarding } from '@/features/auth/services/onboarding'
+import { useAuthStore } from '@/features/auth/stores/auth'
 import { usePublicServerSettings } from '@/features/config/composables/usePublicServerSettings'
+import BackupCodesDialog from '@/features/security/components/BackupCodesDialog.vue'
+import MfaSetupDialog from '@/features/security/components/MfaSetupDialog.vue'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
 import PasswordStrengthMeter from '@/features/security/components/PasswordStrengthMeter.vue'
 import {
@@ -39,6 +42,18 @@ const router = useRouter()
 const { t } = useI18n()
 const { loginImageUrl, load } = usePublicServerSettings()
 const toasts = useToasts()
+const auth = useAuthStore()
+
+// After the account exists the owner is signed in and offered MFA before entering the app.
+const step = ref<'details' | 'mfa'>('details')
+const setupOpen = ref(false)
+const backupCodesOpen = ref(false)
+const backupCodes = ref<string[]>([])
+watch(backupCodesOpen, (isOpen) => {
+  if (!isOpen && backupCodes.value.length > 0) {
+    void finish()
+  }
+})
 
 const createAdmin = useInvalidatingMutation({
   mutationKey: queryKeys.public.onboarding(),
@@ -73,8 +88,9 @@ function getOnboardingErrorMessage(error: unknown): string {
 }
 
 /**
- * Creates the first administrator and sends the owner to sign in. When an
- * account already exists (409) it explains why and goes to sign in as well.
+ * Creates the first administrator and signs them in so they can set up MFA. When
+ * an account already exists (409) it explains why and goes to sign in instead,
+ * as it does when the automatic sign-in does not complete.
  * Throws a translated message on any other failure so `useForm` surfaces it.
  *
  * @param formValues - Validated form values.
@@ -96,7 +112,37 @@ async function submitForm(formValues: OnboardingFormValues): Promise<void> {
     }
     throw new Error(getOnboardingErrorMessage(error))
   }
+  if (await signInAdmin(formValues.username.trim().toLowerCase(), formValues.password)) {
+    step.value = 'mfa'
+    return
+  }
   await router.replace({ name: 'login', query: { onboardingComplete: 'true' } })
+}
+
+/**
+ * Signs the new administrator in with the credentials just chosen.
+ *
+ * @param username - Normalised username.
+ * @param password - The chosen password.
+ * @returns Whether a session was established.
+ */
+async function signInAdmin(username: string, password: string): Promise<boolean> {
+  try {
+    return (await auth.login(username, password)).status === 'authenticated'
+  } catch {
+    return false
+  }
+}
+
+/** Shows the one-time backup codes of the freshly enabled MFA. */
+function onMfaEnabled(codes: string[]): void {
+  backupCodes.value = codes
+  backupCodesOpen.value = true
+}
+
+/** Enters the app. */
+async function finish(): Promise<void> {
+  await router.replace({ name: 'home' })
 }
 
 const { values, errors, isValid, isSubmitting, submitError, handleSubmit, handleBlur } =
@@ -136,7 +182,36 @@ onMounted(() => {
 
 <template>
   <AuthScreenLayout :image-url="loginImageUrl" :image-alt="t('login.imageAlt')">
-    <form class="mx-auto flex w-full max-w-sm flex-col" novalidate @submit.prevent="handleSubmit">
+    <div v-if="step === 'mfa'" class="mx-auto flex w-full max-w-sm flex-col">
+      <AppLogo width="40" height="40" class="mx-auto mb-3 size-10" />
+      <h1 class="text-center text-page-title">
+        {{ t('login.onboarding.mfaTitle') }}
+      </h1>
+      <p class="mt-2 text-center text-body">
+        {{ t('login.onboarding.mfaSubtitle') }}
+      </p>
+      <div class="mt-5 flex flex-col gap-3">
+        <Button class="w-full" data-test="mfa-setup" @click="setupOpen = true">
+          {{ t('login.onboarding.mfaSetup') }}
+        </Button>
+        <Button class="w-full" variant="outline" data-test="mfa-skip" @click="finish">
+          {{ t('login.onboarding.mfaSkip') }}
+        </Button>
+      </div>
+      <MfaSetupDialog
+        v-model:open="setupOpen"
+        require-password
+        @enabled="onMfaEnabled"
+        @error="(message) => toasts.error(message)"
+      />
+      <BackupCodesDialog v-model:open="backupCodesOpen" :codes="backupCodes" />
+    </div>
+    <form
+      v-else
+      class="mx-auto flex w-full max-w-sm flex-col"
+      novalidate
+      @submit.prevent="handleSubmit"
+    >
       <AppLogo width="40" height="40" class="mx-auto mb-3 size-10" />
       <h1 class="text-center text-page-title">
         {{ t('login.onboarding.title') }}

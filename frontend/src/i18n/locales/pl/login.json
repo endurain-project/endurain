@@ -81,6 +81,10 @@
     "errorValidation": "Dane zostały odrzucone. Sprawdź je i użyj hasła spełniającego wymagania dla administratora.",
     "errorTooManyAttempts": "Zbyt wiele prób. Poczekaj chwilę i spróbuj ponownie.",
     "errorUnavailable": "Konfiguracja jest chwilowo niedostępna. Spróbuj ponownie za chwilę.",
-    "errorGeneral": "Nie udało się utworzyć administratora. Spróbuj ponownie."
+    "errorGeneral": "Nie udało się utworzyć administratora. Spróbuj ponownie.",
+    "mfaTitle": "Zabezpiecz swoje konto",
+    "mfaSubtitle": "Dodaj drugi krok logowania za pomocą aplikacji uwierzytelniającej. Możesz to zrobić także później w Ustawieniach.",
+    "mfaSetup": "Skonfiguruj MFA",
+    "mfaSkip": "Pomiń na razie"
   }
 }

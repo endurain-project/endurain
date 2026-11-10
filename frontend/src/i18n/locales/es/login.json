@@ -81,6 +81,10 @@
     "errorValidation": "Se rechazaron los datos. Revísalos y usa una contraseña que cumpla los requisitos de administrador.",
     "errorTooManyAttempts": "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
     "errorUnavailable": "La configuración no está disponible temporalmente. Inténtalo de nuevo en breve.",
-    "errorGeneral": "No se pudo crear el administrador. Inténtalo de nuevo."
+    "errorGeneral": "No se pudo crear el administrador. Inténtalo de nuevo.",
+    "mfaTitle": "Protege tu cuenta",
+    "mfaSubtitle": "Añade un segundo paso de inicio de sesión con una aplicación de autenticación. También puedes hacerlo más tarde en Ajustes.",
+    "mfaSetup": "Configurar MFA",
+    "mfaSkip": "Omitir por ahora"
   }
 }

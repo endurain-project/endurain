@@ -81,6 +81,10 @@
     "errorValidation": "Duomenys atmesti. Patikrinkite juos ir naudokite slaptažodį, atitinkantį administratoriaus reikalavimus.",
     "errorTooManyAttempts": "Per daug bandymų. Palaukite akimirką ir bandykite dar kartą.",
     "errorUnavailable": "Sąranka laikinai nepasiekiama. Netrukus bandykite dar kartą.",
-    "errorGeneral": "Nepavyko sukurti administratoriaus. Bandykite dar kartą."
+    "errorGeneral": "Nepavyko sukurti administratoriaus. Bandykite dar kartą.",
+    "mfaTitle": "Apsaugokite savo paskyrą",
+    "mfaSubtitle": "Pridėkite antrą prisijungimo žingsnį naudodami autentifikavimo programėlę. Tai galite padaryti ir vėliau nustatymuose.",
+    "mfaSetup": "Nustatyti MFA",
+    "mfaSkip": "Praleisti kol kas"
   }
 }

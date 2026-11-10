@@ -81,6 +81,10 @@
     "errorValidation": "Podatki so bili zavrnjeni. Preveri jih in uporabi geslo, ki izpolnjuje zahteve za skrbnika.",
     "errorTooManyAttempts": "Preveč poskusov. Počakaj trenutek in poskusi znova.",
     "errorUnavailable": "Namestitev je začasno nedostopna. Poskusi znova čez nekaj trenutkov.",
-    "errorGeneral": "Skrbnika ni bilo mogoče ustvariti. Poskusi znova."
+    "errorGeneral": "Skrbnika ni bilo mogoče ustvariti. Poskusi znova.",
+    "mfaTitle": "Zavarujte svoj račun",
+    "mfaSubtitle": "Dodajte drugi korak prijave z aplikacijo za overjanje. To lahko storite tudi pozneje v Nastavitvah.",
+    "mfaSetup": "Nastavi MFA",
+    "mfaSkip": "Zaenkrat preskoči"
   }
 }

@@ -81,6 +81,10 @@
     "errorValidation": "Uppgifterna avvisades. Kontrollera dem och använd ett lösenord som uppfyller kraven för administratörer.",
     "errorTooManyAttempts": "För många försök. Vänta en stund och försök igen.",
     "errorUnavailable": "Konfigurationen är tillfälligt otillgänglig. Försök igen om en stund.",
-    "errorGeneral": "Kunde inte skapa administratören. Försök igen."
+    "errorGeneral": "Kunde inte skapa administratören. Försök igen.",
+    "mfaTitle": "Skydda ditt konto",
+    "mfaSubtitle": "Lägg till ett andra inloggningssteg med en autentiseringsapp. Du kan också göra det senare i Inställningar.",
+    "mfaSetup": "Konfigurera MFA",
+    "mfaSkip": "Hoppa över för nu"
   }
 }

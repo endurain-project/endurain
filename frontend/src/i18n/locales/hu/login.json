@@ -81,6 +81,10 @@
     "errorValidation": "A megadott adatokat elutasítottuk. Ellenőrizd őket, és olyan jelszót használj, amely megfelel a rendszergazdai követelményeknek.",
     "errorTooManyAttempts": "Túl sok próbálkozás. Várj egy kicsit, majd próbáld újra.",
     "errorUnavailable": "A beállítás átmenetileg nem érhető el. Próbáld újra hamarosan.",
-    "errorGeneral": "Nem sikerült létrehozni a rendszergazdát. Kérjük, próbáld újra."
+    "errorGeneral": "Nem sikerült létrehozni a rendszergazdát. Kérjük, próbáld újra.",
+    "mfaTitle": "Védje fiókját",
+    "mfaSubtitle": "Adjon hozzá egy második bejelentkezési lépést hitelesítő alkalmazással. Ezt később a Beállításokban is megteheti.",
+    "mfaSetup": "MFA beállítása",
+    "mfaSkip": "Kihagyás egyelőre"
   }
 }

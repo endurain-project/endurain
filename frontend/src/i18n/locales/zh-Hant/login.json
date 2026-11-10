@@ -81,6 +81,10 @@
     "errorValidation": "資料遭到拒絕，請檢查後使用符合管理員要求的密碼。",
     "errorTooManyAttempts": "嘗試次數過多，請稍候再試。",
     "errorUnavailable": "設定暫時無法使用，請稍後再試。",
-    "errorGeneral": "無法建立管理員，請再試一次。"
+    "errorGeneral": "無法建立管理員，請再試一次。",
+    "mfaTitle": "保護您的帳戶",
+    "mfaSubtitle": "使用驗證應用程式新增第二道登入驗證。您也可以稍後在設定中進行。",
+    "mfaSetup": "設定 MFA",
+    "mfaSkip": "暫時略過"
   }
 }

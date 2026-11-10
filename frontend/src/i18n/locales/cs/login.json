@@ -81,6 +81,10 @@
     "errorValidation": "Údaje byly odmítnuty. Zkontrolujte je a použijte heslo, které splňuje požadavky pro správce.",
     "errorTooManyAttempts": "Příliš mnoho pokusů. Chvíli počkejte a zkuste to znovu.",
     "errorUnavailable": "Nastavení je dočasně nedostupné. Zkuste to znovu za chvíli.",
-    "errorGeneral": "Správce se nepodařilo vytvořit. Zkuste to prosím znovu."
+    "errorGeneral": "Správce se nepodařilo vytvořit. Zkuste to prosím znovu.",
+    "mfaTitle": "Zabezpečte svůj účet",
+    "mfaSubtitle": "Přidejte druhý krok přihlášení pomocí ověřovací aplikace. Můžete to udělat i později v Nastavení.",
+    "mfaSetup": "Nastavit MFA",
+    "mfaSkip": "Prozatím přeskočit"
   }
 }

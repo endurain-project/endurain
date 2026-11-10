@@ -81,6 +81,10 @@
     "errorValidation": "Tiedot hylättiin. Tarkista ne ja käytä salasanaa, joka täyttää ylläpitäjän vaatimukset.",
     "errorTooManyAttempts": "Liian monta yritystä. Odota hetki ja yritä uudelleen.",
     "errorUnavailable": "Asennus ei ole tilapäisesti käytettävissä. Yritä hetken kuluttua uudelleen.",
-    "errorGeneral": "Ylläpitäjää ei voitu luoda. Yritä uudelleen."
+    "errorGeneral": "Ylläpitäjää ei voitu luoda. Yritä uudelleen.",
+    "mfaTitle": "Suojaa tilisi",
+    "mfaSubtitle": "Lisää kirjautumiseen toinen vaihe todennussovelluksella. Voit tehdä sen myös myöhemmin asetuksissa.",
+    "mfaSetup": "Ota MFA käyttöön",
+    "mfaSkip": "Ohita toistaiseksi"
   }
 }

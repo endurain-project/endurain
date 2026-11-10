@@ -92,6 +92,10 @@
     "errorValidation": "The details were rejected. Check them and use a password that meets the administrator requirements.",
     "errorTooManyAttempts": "Too many attempts. Wait a moment and try again.",
     "errorUnavailable": "Setup is temporarily unavailable. Try again shortly.",
-    "errorGeneral": "Could not create the administrator. Please try again."
+    "errorGeneral": "Could not create the administrator. Please try again.",
+    "mfaTitle": "Secure your account",
+    "mfaSubtitle": "Add a second sign-in step with an authenticator app. You can also do this later in Settings.",
+    "mfaSetup": "Set up MFA",
+    "mfaSkip": "Skip for now"
   }
 }

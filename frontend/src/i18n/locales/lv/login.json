@@ -81,6 +81,10 @@
     "errorValidation": "Dati tika noraidīti. Pārbaudiet tos un izmantojiet paroli, kas atbilst administratora prasībām.",
     "errorTooManyAttempts": "Pārāk daudz mēģinājumu. Uzgaidiet brīdi un mēģiniet vēlreiz.",
     "errorUnavailable": "Iestatīšana īslaicīgi nav pieejama. Drīz mēģiniet vēlreiz.",
-    "errorGeneral": "Neizdevās izveidot administratoru. Lūdzu, mēģiniet vēlreiz."
+    "errorGeneral": "Neizdevās izveidot administratoru. Lūdzu, mēģiniet vēlreiz.",
+    "mfaTitle": "Aizsargājiet savu kontu",
+    "mfaSubtitle": "Pievienojiet otru pieteikšanās soli ar autentifikatora lietotni. To var izdarīt arī vēlāk iestatījumos.",
+    "mfaSetup": "Iestatīt MFA",
+    "mfaSkip": "Izlaist pagaidām"
   }
 }

@@ -81,6 +81,10 @@
     "errorValidation": "Oplysningerne blev afvist. Kontrollér dem, og brug en adgangskode, der opfylder kravene til administratorer.",
     "errorTooManyAttempts": "For mange forsøg. Vent et øjeblik, og prøv igen.",
     "errorUnavailable": "Opsætningen er midlertidigt utilgængelig. Prøv igen om lidt.",
-    "errorGeneral": "Kunne ikke oprette administratoren. Prøv venligst igen."
+    "errorGeneral": "Kunne ikke oprette administratoren. Prøv venligst igen.",
+    "mfaTitle": "Beskyt din konto",
+    "mfaSubtitle": "Tilføj et ekstra login-trin med en godkendelsesapp. Du kan også gøre det senere i Indstillinger.",
+    "mfaSetup": "Opsæt MFA",
+    "mfaSkip": "Spring over for nu"
   }
 }

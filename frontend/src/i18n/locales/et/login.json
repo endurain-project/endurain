@@ -81,6 +81,10 @@
     "errorValidation": "Andmed lükati tagasi. Kontrolli neid ja kasuta parooli, mis vastab administraatori nõuetele.",
     "errorTooManyAttempts": "Liiga palju katseid. Oota hetk ja proovi uuesti.",
     "errorUnavailable": "Seadistus pole ajutiselt saadaval. Proovi varsti uuesti.",
-    "errorGeneral": "Administraatorit ei õnnestunud luua. Palun proovi uuesti."
+    "errorGeneral": "Administraatorit ei õnnestunud luua. Palun proovi uuesti.",
+    "mfaTitle": "Kaitske oma kontot",
+    "mfaSubtitle": "Lisage sisselogimisele teine samm autentimisrakendusega. Seda saab teha ka hiljem seadetes.",
+    "mfaSetup": "Seadista MFA",
+    "mfaSkip": "Jäta praegu vahele"
   }
 }

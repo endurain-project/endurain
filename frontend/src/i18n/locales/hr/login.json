@@ -81,6 +81,10 @@
     "errorValidation": "Podaci su odbijeni. Provjerite ih i upotrijebite lozinku koja ispunjava zahtjeve za administratore.",
     "errorTooManyAttempts": "Previše pokušaja. Pričekajte trenutak i pokušajte ponovno.",
     "errorUnavailable": "Postavljanje je privremeno nedostupno. Pokušajte ponovno uskoro.",
-    "errorGeneral": "Administratora nije bilo moguće stvoriti. Pokušajte ponovno."
+    "errorGeneral": "Administratora nije bilo moguće stvoriti. Pokušajte ponovno.",
+    "mfaTitle": "Zaštitite svoj račun",
+    "mfaSubtitle": "Dodajte drugi korak prijave pomoću aplikacije za autentifikaciju. To možete učiniti i kasnije u Postavkama.",
+    "mfaSetup": "Postavi MFA",
+    "mfaSkip": "Preskoči za sada"
   }
 }

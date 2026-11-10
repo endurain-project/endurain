@@ -81,6 +81,10 @@
     "errorValidation": "De gegevens zijn afgewezen. Controleer ze en gebruik een wachtwoord dat voldoet aan de eisen voor beheerders.",
     "errorTooManyAttempts": "Te veel pogingen. Wacht even en probeer het opnieuw.",
     "errorUnavailable": "De installatie is tijdelijk niet beschikbaar. Probeer het zo meteen opnieuw.",
-    "errorGeneral": "De beheerder kon niet worden aangemaakt. Probeer het opnieuw."
+    "errorGeneral": "De beheerder kon niet worden aangemaakt. Probeer het opnieuw.",
+    "mfaTitle": "Beveilig je account",
+    "mfaSubtitle": "Voeg een tweede inlogstap toe met een authenticatie-app. Je kunt dit ook later doen in Instellingen.",
+    "mfaSetup": "MFA instellen",
+    "mfaSkip": "Nu overslaan"
   }
 }
