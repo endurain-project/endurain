@@ -192,6 +192,7 @@ class TestCreation:
             patch(f"{_SERVICE}._stage_default_data"),
         ):
             credentials.validate_and_hash_password_for_user.return_value = "hash"
+            crud.create_user.return_value = MagicMock(id=1)
             users_service.stage_signup_user(signup, settings, MagicMock())
 
         fields = crud.create_user.call_args.args[0]
