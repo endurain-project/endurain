@@ -81,15 +81,27 @@ class TestUsersApiKeyCreate:
             )
         assert "Unsupported API key scopes" in str(exc_info.value)
 
-    def test_create_profile_scope_fails(self):
+    @pytest.mark.parametrize("scope", ["account", "account:export", "account:security"])
+    def test_create_account_scope_fails(self, scope):
         """Test that JWT-only scopes are rejected for API keys."""
         with pytest.raises(ValidationError) as exc_info:
             users_api_keys_schema.UserApiKeyCreate(
                 step_up={"current_password": "pw"},
-                name="Profile Key",
-                scopes=["profile"],
+                name="Account Key",
+                scopes=[scope],
             )
         assert "Unsupported API key scopes" in str(exc_info.value)
+
+    @pytest.mark.parametrize("scope", ["profile", "profile:export", "profile:security"])
+    def test_create_with_a_former_scope_name_fails(self, scope):
+        """Test that the names the account scopes had before the rename are refused like any unknown scope."""
+        with pytest.raises(ValidationError) as exc_info:
+            users_api_keys_schema.UserApiKeyCreate(
+                step_up={"current_password": "pw"},
+                name="Old Key",
+                scopes=[scope],
+            )
+        assert f"Unsupported API key scopes: {scope}" in str(exc_info.value)
 
     def test_create_multiple_scopes_with_unsupported_fails(self):
         """Test that only activities:upload is accepted for API keys."""

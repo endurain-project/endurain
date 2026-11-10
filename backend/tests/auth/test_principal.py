@@ -38,7 +38,7 @@ def _make_principal(credential: AnyCredential) -> Principal:
         email="test@example.com",
         is_active=True,
         is_superuser=False,
-        scopes=frozenset({"profile", "users:read"}),
+        scopes=frozenset({"account", "users:read"}),
         credential=credential,
     )
 
@@ -115,7 +115,7 @@ class TestPrincipalConstruction:
             email="alice@example.com",
             is_active=True,
             is_superuser=True,
-            scopes=frozenset({"profile"}),
+            scopes=frozenset({"account"}),
             credential=cred,
         )
         assert p.user_id == 7
@@ -123,7 +123,7 @@ class TestPrincipalConstruction:
         assert p.email == "alice@example.com"
         assert p.is_active is True
         assert p.is_superuser is True
-        assert "profile" in p.scopes
+        assert "account" in p.scopes
         assert p.credential is cred
 
     def test_principal_is_frozen(self):

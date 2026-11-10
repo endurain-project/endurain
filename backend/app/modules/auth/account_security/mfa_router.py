@@ -20,7 +20,7 @@ router = APIRouter()
 @router.get(
     "/status",
     response_model=mfa_schema.MFAStatusRead,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
 )
 def get_mfa_status(
     token_user_id: auth_dependencies.CurrentUserId,
@@ -41,7 +41,7 @@ def get_mfa_status(
 @router.get(
     "/backup-codes/status",
     response_model=mfa_backup_codes_schema.MFABackupCodeStatusRead,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
 )
 def get_backup_code_status(
     token_user_id: auth_dependencies.CurrentUserId,
@@ -64,7 +64,7 @@ def get_backup_code_status(
     status_code=status.HTTP_201_CREATED,
     response_model=mfa_schema.MFASetupRead,
     responses={201: {"headers": core_openapi_contract.NO_STORE_RESPONSE_HEADERS}},
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def setup_mfa(
@@ -97,7 +97,7 @@ def setup_mfa(
     "/enable",
     response_model=mfa_backup_codes_schema.MFABackupCodesRead,
     responses={200: {"headers": core_openapi_contract.NO_STORE_RESPONSE_HEADERS}},
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def enable_mfa(
@@ -158,7 +158,7 @@ def enable_mfa(
     "/disable",
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def disable_mfa(
@@ -212,7 +212,7 @@ def disable_mfa(
     status_code=status.HTTP_201_CREATED,
     response_model=mfa_backup_codes_schema.MFABackupCodesRead,
     responses={201: {"headers": core_openapi_contract.NO_STORE_RESPONSE_HEADERS}},
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def generate_mfa_backup_codes(

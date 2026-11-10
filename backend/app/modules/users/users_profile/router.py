@@ -61,7 +61,7 @@ def _import_status(state: profile_import_state_store.ProfileImportState) -> prof
 @router.get(
     "",
     response_model=users_schema.UserMe,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 def read_users_me(
     token_user_id: auth_dependencies.CurrentUserId,
@@ -91,7 +91,7 @@ def read_users_me(
     status_code=status.HTTP_201_CREATED,
     response_model=users_schema.UserPhotoRead,
     responses=core_openapi_contract.replaced_response(users_schema.UserPhotoRead),
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
     openapi_extra=core_middleware_body_limit.upload_limit(
         core_file_uploads.max_bytes_for(core_file_uploads.UploadKind.IMAGE)
     ),
@@ -129,7 +129,7 @@ def put_profile_image(
 @router.patch(
     "",
     response_model=users_schema.UserMe,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_profile(
@@ -167,7 +167,7 @@ def edit_profile(
 @router.post(
     "/email/change",
     response_model=users_schema.UserMe,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def edit_profile_email(
@@ -224,7 +224,7 @@ def edit_profile_email(
     "/email/change/resend",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def resend_profile_email_change(
@@ -251,7 +251,7 @@ def resend_profile_email_change(
     "/email/change",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def cancel_profile_email_change(
@@ -272,7 +272,7 @@ def cancel_profile_email_change(
 @router.get(
     "/privacy",
     response_model=users_privacy_settings_schema.UserPrivacySettingsRead,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 def read_profile_privacy_settings(
     token_user_id: auth_dependencies.CurrentUserId,
@@ -291,7 +291,7 @@ def read_profile_privacy_settings(
 @router.patch(
     "/privacy",
     response_model=users_privacy_settings_schema.UserPrivacySettingsRead,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_profile_privacy_settings(
@@ -324,7 +324,7 @@ def edit_profile_privacy_settings(
     "/password/change",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def edit_profile_password(
@@ -376,7 +376,7 @@ def edit_profile_password(
     "/photo",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_profile_photo(
@@ -403,7 +403,7 @@ def delete_profile_photo(
     "/delete-account",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=users_schema.UserDeletionStatus,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def delete_my_account(
@@ -454,7 +454,7 @@ def delete_my_account(
     status_code=status.HTTP_202_ACCEPTED,
     response_model=profile_schema.ProfileExportStatus,
     responses=core_location.ACCEPTED_RESPONSE,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:export"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:export"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def export_profile_data(
@@ -502,7 +502,7 @@ def export_profile_data(
     "/export",
     response_model=profile_schema.ProfileExportStatus | None,
     responses={200: {"headers": core_location.POLLED_STATUS_HEADERS}},
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:export"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:export"])],
 )
 def read_profile_export_status(
     token_user_id: auth_dependencies.CurrentUserId,
@@ -536,7 +536,7 @@ def read_profile_export_status(
         description="The ZIP archive of the export.",
         headers=core_openapi_contract.NO_STORE_RESPONSE_HEADERS,
     ),
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:export"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:export"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def download_profile_export(
@@ -573,7 +573,7 @@ def download_profile_export(
     status_code=status.HTTP_202_ACCEPTED,
     response_model=profile_schema.ProfileImportStatus,
     responses=core_location.ACCEPTED_RESPONSE,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:export"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:export"])],
     openapi_extra=core_middleware_body_limit.upload_limit(
         core_file_uploads.max_bytes_for(core_file_uploads.UploadKind.ZIP)
     ),
@@ -622,7 +622,7 @@ def import_profile_data(
     "/import",
     response_model=profile_schema.ProfileImportStatus | None,
     responses={200: {"headers": core_location.POLLED_STATUS_HEADERS}},
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:export"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:export"])],
 )
 def read_profile_import_status(
     token_user_id: auth_dependencies.CurrentUserId,

@@ -16,7 +16,7 @@ router = APIRouter()
 @router.get(
     "",
     response_model=user_default_gear_schema.UserDefaultGearRead,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 def read_user_default_gear(
     token_user_id: auth_dependencies.CurrentUserId,
@@ -42,7 +42,7 @@ def read_user_default_gear(
 @router.patch(
     "",
     response_model=user_default_gear_schema.UserDefaultGearRead,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_user_default_gear(

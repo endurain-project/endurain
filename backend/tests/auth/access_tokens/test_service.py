@@ -11,6 +11,7 @@ from joserfc.errors import (
 
 import core.exceptions as core_exceptions
 import modules.auth.access_tokens.service as auth_token_manager
+import modules.auth.authentication.token_service as auth_token_service
 from modules.auth.constants import ClientType
 from modules.users.users.schema import UserAccessType, UserRead
 
@@ -595,6 +596,25 @@ class TestTokenManagerSecurity:
 
         # RFC 9068 section 2.2.3: a space-delimited string.
         assert isinstance(scope, str)
-        assert "profile" in scope.split()
+        assert {"account", "account:export", "account:security"} <= set(scope.split())
+        assert not {"profile", "profile:export", "profile:security"} & set(scope.split())
         assert "users:read" in scope.split()
         assert "users:write" not in scope.split()
+
+
+class TestRefreshIssuesAccountScopes:
+    """A refresh mints its access token from the user's role, so it carries the account scope names."""
+
+    def test_a_refreshed_access_token_carries_the_account_scopes_and_no_former_name(
+        self, token_manager, sample_user_read
+    ):
+        policy = MagicMock()
+        policy.access_token_ttl = timedelta(minutes=15)
+
+        _, token = auth_token_service.mint_access_token(
+            sample_user_read, ClientType.WEB, token_manager, "session-id", policy
+        )
+
+        scopes = set(token_manager.get_token_claim(token, "scope", auth_token_manager.TokenType.ACCESS).split())
+        assert {"account", "account:export", "account:security"} <= scopes
+        assert not {"profile", "profile:export", "profile:security"} & scopes

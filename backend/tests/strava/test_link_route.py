@@ -33,9 +33,9 @@ def test_every_route_checks_a_scope():
         ("/import/gear", "POST", "gears:write"),
         ("/gear", "POST", "gears:write"),
         ("/activities", "POST", "activities:write"),
-        ("/link", "POST", "profile"),
-        ("/link", "DELETE", "profile"),
-        ("/state", "POST", "profile"),
+        ("/link", "POST", "account"),
+        ("/link", "DELETE", "account"),
+        ("/state", "POST", "account"),
     ],
 )
 def test_routes_require_the_matching_scope(path, method, scope):

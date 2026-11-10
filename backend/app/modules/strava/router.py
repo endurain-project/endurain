@@ -50,7 +50,7 @@ def _set_sync_location(response: Response, request: Request, sync: strava_schema
     status_code=status.HTTP_202_ACCEPTED,
     response_model=strava_schema.StravaSyncStatus,
     responses=core_location.ACCEPTED_RESPONSE,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def strava_link(
@@ -133,7 +133,7 @@ def strava_retrieve_gear(
     "/sync/{kind}",
     response_model=strava_schema.StravaSyncStatus | None,
     responses={200: {"headers": core_location.POLLED_STATUS_HEADERS}},
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 def strava_sync_status(
     kind: strava_constants.SyncKind,
@@ -178,7 +178,7 @@ def import_gear_from_strava_export(
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
     responses={204: {"headers": core_openapi_contract.ETAG_HEADERS}},
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def strava_set_user_client(
@@ -208,7 +208,7 @@ def strava_set_user_client(
     "/state",
     status_code=status.HTTP_201_CREATED,
     response_model=strava_schema.StravaState,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def strava_begin_state(
@@ -228,7 +228,7 @@ def strava_begin_state(
     status_code=status.HTTP_202_ACCEPTED,
     response_model=strava_schema.StravaSyncStatus,
     responses=core_location.ACCEPTED_RESPONSE,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def strava_unlink(

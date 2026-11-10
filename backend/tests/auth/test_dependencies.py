@@ -79,10 +79,10 @@ class TestCheckScopes:
     @patch("modules.auth.dependencies._resolve_and_cache_principal")
     def test_checks_required_scope_on_resolved_principal(self, mock_resolve):
         principal = MagicMock()
-        principal.scopes = frozenset({"profile"})
+        principal.scopes = frozenset({"account"})
         mock_resolve.return_value = principal
         security_scopes = MagicMock()
-        security_scopes.scopes = ["profile"]
+        security_scopes.scopes = ["account"]
 
         check_scopes(MagicMock(), "token", MagicMock(), security_scopes)
 
@@ -119,7 +119,7 @@ class TestValidateAccessTokenOrApiKey:
             email="jwt@e.com",
             is_active=True,
             is_superuser=False,
-            scopes=frozenset({"profile"}),
+            scopes=frozenset({"account"}),
             credential=PasswordCred(username="jwtuser"),
         )
         result = validate_access_token_or_api_key(request, MagicMock())
@@ -236,33 +236,33 @@ class TestCheckAuthScopes:
     """Tests for check_auth_scopes."""
 
     def test_all_scopes_present_no_exception(self):
-        auth = AuthContext(user_id=1, scopes=["profile", "read"], auth_type="jwt")
+        auth = AuthContext(user_id=1, scopes=["account", "read"], auth_type="jwt")
         security_scopes = MagicMock()
-        security_scopes.scopes = ["profile"]
+        security_scopes.scopes = ["account"]
         check_auth_scopes(auth, security_scopes)
 
     def test_missing_scopes_raises_403(self):
-        auth = AuthContext(user_id=1, scopes=["profile"], auth_type="jwt")
+        auth = AuthContext(user_id=1, scopes=["account"], auth_type="jwt")
         security_scopes = MagicMock()
-        security_scopes.scopes = ["profile", "admin"]
+        security_scopes.scopes = ["account", "admin"]
         with pytest.raises(core_exceptions.PermissionDeniedError) as exc_info:
             check_auth_scopes(auth, security_scopes)
         assert exc_info.value.status_code == 403
 
     def test_the_challenge_names_the_scopes_the_route_requires_as_a_space_separated_list(self):
-        auth = AuthContext(user_id=1, scopes=["profile"], auth_type="jwt")
+        auth = AuthContext(user_id=1, scopes=["account"], auth_type="jwt")
         security_scopes = MagicMock()
-        security_scopes.scopes = ["profile", "activities:read", "activities:write"]
+        security_scopes.scopes = ["account", "activities:read", "activities:write"]
         with pytest.raises(core_exceptions.PermissionDeniedError) as exc_info:
             check_auth_scopes(auth, security_scopes)
         assert exc_info.value.headers == {
-            "WWW-Authenticate": 'Bearer error="insufficient_scope", scope="profile activities:read activities:write"'
+            "WWW-Authenticate": 'Bearer error="insufficient_scope", scope="account activities:read activities:write"'
         }
 
     def test_the_missing_scopes_are_an_extension_member_not_a_python_repr(self):
-        auth = AuthContext(user_id=1, scopes=["profile"], auth_type="jwt")
+        auth = AuthContext(user_id=1, scopes=["account"], auth_type="jwt")
         security_scopes = MagicMock()
-        security_scopes.scopes = ["profile", "users:write", "activities:read"]
+        security_scopes.scopes = ["account", "users:write", "activities:read"]
         with pytest.raises(core_exceptions.PermissionDeniedError) as exc_info:
             check_auth_scopes(auth, security_scopes)
         assert exc_info.value.extensions == {"missing_scopes": ["activities:read", "users:write"]}
@@ -387,14 +387,14 @@ class TestRequireScopesAudit:
         security_scopes = SecurityScopes(scopes=["users:write", "activities:read"])
 
         with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.PermissionDeniedError):
-            _require_scopes(["profile"], security_scopes)
+            _require_scopes(["account"], security_scopes)
 
         entry = audit.assert_audited("auth.scope.denied", outcome="denied")
         assert entry.details == {"missing_scopes": ["activities:read", "users:write"]}
 
     def test_a_granted_scope_writes_nothing(self):
         with jasil_testing.capture_audit() as audit:
-            _require_scopes(["profile"], SecurityScopes(scopes=["profile"]))
+            _require_scopes(["account"], SecurityScopes(scopes=["account"]))
 
         audit.assert_not_audited("auth.scope.denied")
 

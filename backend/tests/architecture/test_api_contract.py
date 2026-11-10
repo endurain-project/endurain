@@ -696,10 +696,10 @@ class TestApiContract:
         """A route that needs a scope names it in its ``HTTPBearer`` requirement."""
         operation = _openapi()["paths"][f"{_API_PREFIX}/profile/password/change"]["post"]
 
-        assert {"HTTPBearer": ["profile:security"]} in operation["security"]
+        assert {"HTTPBearer": ["account:security"]} in operation["security"]
 
     def test_the_profile_scopes_split_by_what_a_route_changes(self):
-        """Export and import need ``profile:export``; credentials, sessions and account closure ``profile:security``."""
+        """Export and import need ``account:export``; credentials, sessions and account closure ``account:security``."""
         security = (
             "/profile/password/change",
             "/profile/email/change",
@@ -713,16 +713,16 @@ class TestApiContract:
         for method, path, operation in _operations():
             requirement = next((r["HTTPBearer"] for r in operation.get("security", []) if "HTTPBearer" in r), [])
             if path.startswith(("/profile/export", "/profile/import")):
-                wanted = {"profile:export"}
+                wanted = {"account:export"}
             elif path.startswith(security):
-                wanted = {"profile:security"}
+                wanted = {"account:security"}
             else:
                 continue
-            other = {"profile:export", "profile:security"} - wanted
+            other = {"account:export", "account:security"} - wanted
             if not wanted <= set(requirement) or other & set(requirement):
                 wrong.add(f"{method.upper()} {path}: requires {sorted(requirement)}, wanted {sorted(wanted)}")
 
-        _compare("A profile route requires the wrong scope", wrong, {}, "Use profile:export or profile:security")
+        _compare("A profile route requires the wrong scope", wrong, {}, "Use account:export or account:security")
 
     def test_operation_ids_are_unique_handler_names(self):
         """An operation id is its handler's name, so it survives a route moving, and no two handlers share one."""

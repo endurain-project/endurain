@@ -39,7 +39,7 @@ def _set_sync_location(response: Response, request: Request, sync: garmin_schema
     status_code=status.HTTP_202_ACCEPTED,
     response_model=garmin_schema.GarminLinkStatus,
     responses=core_location.ACCEPTED_RESPONSE,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def garminconnect_link(
@@ -68,7 +68,7 @@ def garminconnect_link(
     "/link/status",
     response_model=garmin_schema.GarminLinkStatus | None,
     responses={200: {"headers": core_location.POLLED_STATUS_HEADERS}},
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 def garminconnect_link_status(
     token_user_id: auth_dependencies.CurrentUserId,
@@ -90,7 +90,7 @@ def garminconnect_link_status(
     "/mfa",
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def garminconnect_mfa_code(
@@ -193,7 +193,7 @@ def garminconnect_retrieve_health_days(
     "/sync/{kind}",
     response_model=garmin_schema.GarminSyncStatus | None,
     responses={200: {"headers": core_location.POLLED_STATUS_HEADERS}},
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 def garminconnect_sync_status(
     kind: garmin_constants.SyncKind,
@@ -216,7 +216,7 @@ def garminconnect_sync_status(
     "/link",
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def garminconnect_unlink(

@@ -217,11 +217,11 @@ def _route_scopes(path: str, method: str) -> set[str]:
 
 
 def test_each_route_requires_the_scope_of_what_it_touches():
-    assert _route_scopes("/link", "POST") == {"profile"}
-    assert _route_scopes("/link", "DELETE") == {"profile"}
-    assert _route_scopes("/mfa", "POST") == {"profile"}
-    assert _route_scopes("/link/status", "GET") == {"profile"}
-    assert _route_scopes("/sync/{kind}", "GET") == {"profile"}
+    assert _route_scopes("/link", "POST") == {"account"}
+    assert _route_scopes("/link", "DELETE") == {"account"}
+    assert _route_scopes("/mfa", "POST") == {"account"}
+    assert _route_scopes("/link/status", "GET") == {"account"}
+    assert _route_scopes("/sync/{kind}", "GET") == {"account"}
     assert _route_scopes("/activities", "POST") == {"activities:write"}
     assert _route_scopes("/gear", "POST") == {"gears:write"}
     assert _route_scopes("/health", "POST") == {"health:write"}

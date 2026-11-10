@@ -11,7 +11,7 @@ import modules.auth.dependencies as auth_dependencies
 from modules.auth.contracts import AccessTokenCred, Principal
 
 
-def _principal(scopes: frozenset[str] = frozenset({"profile"})) -> Principal:
+def _principal(scopes: frozenset[str] = frozenset({"account"})) -> Principal:
     return Principal(
         user_id=12,
         username="alice",
@@ -51,5 +51,5 @@ def test_scope_dependency_rejects_missing_scope():
 
 
 def test_unified_scope_dependency_accepts_declared_scope():
-    context = auth_dependencies.AuthContext(user_id=12, scopes=["profile"], auth_type="jwt")
-    auth_dependencies.check_auth_scopes(context, SecurityScopes(scopes=["profile"]))
+    context = auth_dependencies.AuthContext(user_id=12, scopes=["account"], auth_type="jwt")
+    auth_dependencies.check_auth_scopes(context, SecurityScopes(scopes=["account"]))

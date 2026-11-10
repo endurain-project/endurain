@@ -19,7 +19,7 @@ router = APIRouter()
 @router.get(
     "",
     response_model=auth_sessions_schema.UserSessionsPage,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
 )
 def read_sessions_me(
     token_user_id: auth_dependencies.CurrentUserId,
@@ -43,7 +43,7 @@ def read_sessions_me(
     "/revoke",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def revoke_profile_sessions(
@@ -88,7 +88,7 @@ def revoke_profile_sessions(
     "/{session_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_profile_session(

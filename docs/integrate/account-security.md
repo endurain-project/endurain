@@ -39,7 +39,7 @@ Removing an identity provider link, yourself or as an administrator, also ends e
 
 ### Scopes
 
-The routes of this page that change the account's credentials or close it need the `profile:security` scope: password and email change, account deletion, MFA, API keys, sessions, known devices and identity provider links. Profile export and import need `profile:export`. Both are held by every user's tokens, as `profile` is, and a token can be issued with fewer scopes: a route checks the scopes the token carries, never more than the user's role holds. See [Security scopes](auth-reference.md#security-scopes).
+The routes of this page that change the account's credentials or close it need the `account:security` scope: password and email change, account deletion, MFA, API keys, sessions, known devices and identity provider links. Profile export and import need `account:export`. Both are held by every user's tokens, as `account` is, and a token can be issued with fewer scopes: a route checks the scopes the token carries, never more than the user's role holds. See [Security scopes](auth-reference.md#security-scopes).
 
 ### Step-up Request Body
 
@@ -68,7 +68,7 @@ Account deletion, profile export, identity provider unlink and forgetting a know
 
 `GET /profile/devices` lists one page of the devices the account is known to sign in from, latest sign-in first, with the same `page` and `num_records` parameters and page envelope as `GET /profile/sessions`. Only devices known now are listed, so a security change empties the list until the devices sign in again. Each item has `id`, `browser`, `operating_system`, `device_type`, `created_at`, `last_seen_at` and `current`, which is true for the device the request names in its `endurain_device` cookie or `X-Device-Id` header. The three descriptions come from the user agent of the last sign-in and are `null` for a device registered before they were recorded. The device id itself is never returned.
 
-`POST /profile/devices/{device_id}/delete` forgets one device. It takes the `{ "step_up": { ... } }` body, verifies the step-up first (`403` when it fails, counted by the [lockout](#step-up-lockout-policy)), answers `204` and writes an `auth.device.forget` audit row. A device of another user, one that is no longer known and an unknown id answer `404`. The next sign-in from a forgotten device is announced as one from a new device. Both routes need the `profile:security` scope.
+`POST /profile/devices/{device_id}/delete` forgets one device. It takes the `{ "step_up": { ... } }` body, verifies the step-up first (`403` when it fails, counted by the [lockout](#step-up-lockout-policy)), answers `204` and writes an `auth.device.forget` audit row. A device of another user, one that is no longer known and an unknown id answer `404`. The next sign-in from a forgotten device is announced as one from a new device. Both routes need the `account:security` scope.
 
 ### Ending other sessions after a change of an authentication factor
 
@@ -155,8 +155,8 @@ A locked session can still end the user's other sessions, and the password can s
 
 | What | URL | Method | Description |
 | ---- | --- | ------ | ----------- |
-| **Resend Confirmation** | `/profile/email/change/resend` | POST | Sends the confirmation for the pending address, at most once an hour. Requires scope `profile:security`, no step-up. Answers `204` whether or not an email was sent |
-| **Cancel Pending Change** | `/profile/email/change` | DELETE | Cancels the pending change, so its confirmation link stops working. Requires scope `profile:security`, no step-up. Answers `204` |
+| **Resend Confirmation** | `/profile/email/change/resend` | POST | Sends the confirmation for the pending address, at most once an hour. Requires scope `account:security`, no step-up. Answers `204` whether or not an email was sent |
+| **Cancel Pending Change** | `/profile/email/change` | DELETE | Cancels the pending change, so its confirmation link stops working. Requires scope `account:security`, no step-up. Answers `204` |
 
 The profile (`GET /profile`) and the admin user reads (`GET /users/{user_id}`) include `pending_email`, the address awaiting confirmation, and `pending_email_expires_at`, when its link expires. Both are `null` when no change is pending.
 
@@ -205,7 +205,7 @@ The per-client counters key an IPv6 address by its /64 network and an IPv4 addre
 
 ## Managing MFA
 
-The routes under `/profile/mfa` manage the account's TOTP authenticator and its backup codes. They need the `profile:security` scope.
+The routes under `/profile/mfa` manage the account's TOTP authenticator and its backup codes. They need the `account:security` scope.
 
 | What | URL | Description |
 | ---- | --- | ----------- |

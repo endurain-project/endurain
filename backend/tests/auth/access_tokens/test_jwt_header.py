@@ -135,7 +135,7 @@ class TestScopeClaim:
         scope = token_manager.get_token_claim(_token(token_manager, user), "scope", _ACCESS)
 
         assert isinstance(scope, str)
-        assert "profile" in scope.split()
+        assert "account" in scope.split()
 
 
 class TestKeyRotation:

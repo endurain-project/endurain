@@ -64,12 +64,12 @@ Endurain uses OAuth-style scopes to control API access. Each scope controls acce
 
 ### Available Scopes
 
-A scope name is `resource:action` in snake_case (`health_targets:read`), plus the bare `profile`. The catalogue only grows: from v0.21.0 on, a scope's name and meaning do not change.
+A scope name is `resource:action` in snake_case (`health_targets:read`), plus the bare `account`. The catalogue only grows: from v0.21.0 on, a scope's name and meaning do not change.
 
 <!-- generated:scopes -->
 
 ### Scope Usage
-Scopes are assigned from the user's role and embedded in the `scope` claim of the JWT access token, a space-separated string. An endpoint checks its required scopes against the scopes the token carries, limited to the scopes the user's role holds when the request arrives: a token cannot name a scope its role lacks, and a demotion takes effect on the next request. A missing scope is `403` with `WWW-Authenticate: Bearer error="insufficient_scope"`. Tokens issued by a login carry every scope of the role. `profile` covers the account's own data; `profile:export` covers profile export and import, and `profile:security` covers the password, email, MFA, API keys, sessions, identity provider links and account deletion. Every user holds all three.
+Scopes are assigned from the user's role and embedded in the `scope` claim of the JWT access token, a space-separated string. An endpoint checks its required scopes against the scopes the token carries, limited to the scopes the user's role holds when the request arrives: a token cannot name a scope its role lacks, and a demotion takes effect on the next request. A missing scope is `403` with `WWW-Authenticate: Bearer error="insufficient_scope"`. Tokens issued by a login carry every scope of the role. `account` covers the account's own data; `account:export` covers profile export and import, and `account:security` covers the password, email, MFA, API keys, sessions, identity provider links and account deletion. Every user holds all three.
 
 ## Error responses
 

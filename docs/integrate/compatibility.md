@@ -34,6 +34,8 @@ Access tokens, refresh tokens, `session_id`, MFA and password-change challenges,
 
 Every response that carries a token or another secret is sent with `Cache-Control: no-store` and `Pragma: no-cache`, so no browser or proxy cache keeps it. The list is in [Responses that carry a secret](account-security.md#responses-that-carry-a-secret).
 
+The scopes `profile`, `profile:export` and `profile:security` were renamed `account`, `account:export` and `account:security` in v0.21.0, so they no longer clash with the OpenID Connect `profile` scope. The old names are refused like any unknown scope, and an access token issued before the upgrade lacks the new names until its next refresh, so those routes answer `403` for at most one access-token lifetime.
+
 ## Reserved paths
 
 These paths are reserved for planned features, such as third-party OAuth clients and passkeys. Endurain will not use them for anything else, and a client must not expect them to exist yet:

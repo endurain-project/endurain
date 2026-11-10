@@ -19,7 +19,7 @@ router = APIRouter()
 @router.get(
     "",
     response_model=known_devices_schema.KnownDevicePage,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
 )
 def list_user_devices(
     token_user_id: auth_dependencies.CurrentUserId,
@@ -39,7 +39,7 @@ def list_user_devices(
     "/{device_id}/delete",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def forget_user_device(

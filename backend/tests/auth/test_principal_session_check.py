@@ -101,9 +101,9 @@ def test_an_admin_has_the_admin_scopes():
 
 
 def test_a_token_narrower_than_the_role_holds_only_its_own_scopes():
-    principal, _ = _resolve(session=_session(), user=_user("admin"), scope="activities:read profile:export")
+    principal, _ = _resolve(session=_session(), user=_user("admin"), scope="activities:read account:export")
 
-    assert principal.scopes == frozenset({"activities:read", "profile:export"})
+    assert principal.scopes == frozenset({"activities:read", "account:export"})
 
 
 def test_a_token_cannot_claim_a_scope_its_users_role_lacks():

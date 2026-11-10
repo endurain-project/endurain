@@ -21,7 +21,7 @@ router = APIRouter()
 @router.get(
     "",
     response_model=user_goals_schema.UserGoalPage,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 def get_user_goals(
     token_user_id: auth_dependencies.CurrentUserId,
@@ -66,7 +66,7 @@ def get_user_goals(
 @router.get(
     "/results",
     response_model=user_goals_schema.UserGoalProgressPage,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.EXPENSIVE_READ)
 def get_user_goals_results(
@@ -92,7 +92,7 @@ def get_user_goals_results(
 @router.get(
     "/{goal_id}",
     response_model=user_goals_schema.UserGoalRead,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 def get_user_goal(
     goal_id: core_dependencies.PositiveId,
@@ -110,7 +110,7 @@ def get_user_goal(
     "",
     response_model=user_goals_schema.UserGoalRead,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def create_user_goal(
@@ -141,7 +141,7 @@ def create_user_goal(
 @router.put(
     "/{goal_id}",
     response_model=user_goals_schema.UserGoalRead,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def update_user_goal(
@@ -176,7 +176,7 @@ def update_user_goal(
     "/{goal_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_user_goal(

@@ -353,7 +353,7 @@ router.include_router(
     tags=["notifications"],
     dependencies=[
         Depends(auth_dependencies.validate_access_token),
-        Security(auth_dependencies.check_scopes, scopes=["profile"]),
+        Security(auth_dependencies.check_scopes, scopes=["account"]),
     ],
 )
 router.include_router(
@@ -363,7 +363,7 @@ router.include_router(
 )
 _PROFILE_SECURITY_DEPENDENCIES = [
     Depends(auth_dependencies.validate_access_token),
-    Security(auth_dependencies.check_scopes, scopes=["profile:security"]),
+    Security(auth_dependencies.check_scopes, scopes=["account:security"]),
 ]
 router.include_router(
     profile_router.router,

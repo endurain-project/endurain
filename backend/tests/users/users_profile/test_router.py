@@ -513,7 +513,7 @@ class TestReadProfilePrivacySettings:
         route = next(r for r in profile_router.router.routes if r.path == "/privacy" and "GET" in r.methods)
         scopes = {scope for dep in route.dependant.dependencies for scope in dep.own_oauth_scopes or []}
 
-        assert scopes == {"profile"}
+        assert scopes == {"account"}
 
 
 class TestEditProfilePrivacySettings:

@@ -31,10 +31,10 @@ class AuthMethod(StrEnum):
 
 
 # scope (immutable)
-# ``profile`` covers the account's own data (profile, photo, goals, privacy, provider links). Two narrower scopes
+# ``account`` covers the account's own data (profile, photo, goals, privacy, provider links). Two narrower scopes
 # split off what an integration token should not hold by default: taking the account's data out or in
-# (``profile:export``), and changing how the account is protected or closing it (``profile:security``).
-USERS_REGULAR_SCOPE: Final[tuple[str, ...]] = ("profile", "profile:export", "profile:security", "users:read")
+# (``account:export``), and changing how the account is protected or closing it (``account:security``).
+USERS_REGULAR_SCOPE: Final[tuple[str, ...]] = ("account", "account:export", "account:security", "users:read")
 USERS_ADMIN_SCOPE: Final[tuple[str, ...]] = (
     "users:read_all",
     "users:write",
@@ -50,7 +50,7 @@ ACTIVITIES_SCOPE: Final[tuple[str, ...]] = (
 # The full provider configuration (client ids, endpoints, user mapping, disabled providers) is for administrators;
 # regular users see the public listing instead.
 IDENTITY_PROVIDERS_ADMIN_SCOPE: Final[tuple[str, ...]] = ("identity_providers:read", "identity_providers:write")
-# The social graph gets its own scopes rather than riding the broad ``profile``
+# The social graph gets its own scopes rather than riding the broad ``account``
 # scope: following/unfollowing is a distinct, externally visible action, and an
 # integration token issued to edit a profile should not silently be able to
 # rearrange who the user follows (least privilege, OWASP A01).
@@ -77,9 +77,9 @@ SERVER_SETTINGS_ADMIN_SCOPE: Final[tuple[str, ...]] = (
 )
 
 SCOPE_DICT: Final[dict[str, str]] = {
-    "profile": "Privileges over user's own profile",
-    "profile:export": "Export and import the user's own profile data",
-    "profile:security": (
+    "account": "Privileges over user's own account data",
+    "account:export": "Export and import the user's own account data",
+    "account:security": (
         "Change the user's own password, email, MFA, API keys, sessions and identity links, and delete the account"
     ),
     "users:read": "Read privileges over users",

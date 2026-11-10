@@ -21,7 +21,7 @@ router = APIRouter()
 @router.post(
     "/{idp_id}/link",
     response_model=identity_providers_schema.BrowserFlowStartRead,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def start_idp_link(
@@ -73,7 +73,7 @@ def start_idp_link(
 @router.post(
     "/{idp_id}/step-up",
     response_model=identity_providers_schema.BrowserFlowStartRead,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def start_idp_step_up(
@@ -127,7 +127,7 @@ def start_idp_step_up(
 @router.get(
     "",
     response_model=auth_identity_links_schema.IdentityProviderLinkPage,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
 )
 def get_my_identity_providers(
     token_user_id: auth_dependencies.CurrentUserId,
@@ -153,7 +153,7 @@ def get_my_identity_providers(
     "/{idp_id}/unlink",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def delete_my_identity_provider(
