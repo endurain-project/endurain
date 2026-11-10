@@ -762,6 +762,20 @@ def _signup_response(server_settings: server_settings_schema.ServerSettingsRead)
     )
 
 
+def _require_username_free(username: str, db: Session) -> None:
+    """Raise when an account already holds the username, normalised as the users module does.
+
+    Args:
+        username: The username a sign-up asks for.
+        db: Database session.
+
+    Raises:
+        ConflictError: If the username is taken.
+    """
+    if users_integration.get_user_by_username(username, db) is not None:
+        raise core_exceptions.ConflictError("That username is already taken")
+
+
 def signup(
     user: users_schema.UserSignup,
     state: StateProvider,
@@ -774,8 +788,8 @@ def signup(
 
     A sign-up with an email address that already has an account answers exactly like a new
     account, so the endpoint does not reveal which addresses are registered; the address's owner
-    is told by email instead, at most once per cooldown. A taken username with a new address is refused, because usernames
-    are already visible to every signed-in user.
+    is told by email instead, at most once per cooldown. A taken username is refused whatever the address, because
+    usernames are already visible to every signed-in user and the address must not be probed through it.
 
     When the server requires email verification the password is chosen while the address is verified, so a sign-up
     request must not carry one: whoever knows an address could otherwise set the password of the account its owner
@@ -807,10 +821,14 @@ def signup(
     if user.password is not None:
         credentials_integration.reject_breached_password(server_settings, user.password, db)
 
+    # The username is checked first, so a refusal never depends on whether the email is registered.
+    _require_username_free(user.username, db)
     try:
         created_user = users_integration.stage_signup_user(user, server_settings, db)
     except core_exceptions.ConflictError:
         db.rollback()
+        # A sign-up that took the username after the check above is refused like one that found it taken.
+        _require_username_free(user.username, db)
         existing = users_integration.get_user_by_email(user.email, db)
         if existing is None:
             raise core_exceptions.ConflictError("That username is already taken") from None

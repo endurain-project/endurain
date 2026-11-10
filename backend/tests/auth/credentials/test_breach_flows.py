@@ -62,6 +62,7 @@ def _signup(settings, db):
     )
     with (
         patch.object(sign_up_service.server_settings_integration, "get_server_settings", return_value=settings),
+        patch.object(sign_up_service.users_integration, "get_user_by_username", return_value=None),
         patch.object(sign_up_service.users_integration, "stage_signup_user", side_effect=_ReachedError),
     ):
         sign_up_service.signup(user, MemoryState(), db)

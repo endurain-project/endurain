@@ -14,6 +14,8 @@ import modules.auth.sign_up_tokens.service as sign_up_service
 import modules.users.users.schema as users_schema
 
 _MODULE = "modules.auth.sign_up_tokens.service"
+#: Configures a patched users module so that no account holds the username a sign-up asks for.
+_FREE_USERNAME = {"get_user_by_username.return_value": None}
 
 
 def _settings(*, verification=False, approval=False):
@@ -52,7 +54,7 @@ class TestSignupWithATakenEmail:
         with (
             patch(f"{_MODULE}.server_settings_integration.get_server_settings", return_value=settings),
             patch(f"{_MODULE}.server_settings_integration.is_mail_configured", return_value=True),
-            patch(f"{_MODULE}.users_integration") as users,
+            patch(f"{_MODULE}.users_integration", **_FREE_USERNAME) as users,
             patch(f"{_MODULE}.sign_up_event_publishers"),
         ):
             body = _signup_user(with_password=not verification)
@@ -69,7 +71,7 @@ class TestSignupWithATakenEmail:
         with (
             patch(f"{_MODULE}.server_settings_integration.get_server_settings", return_value=_settings()),
             patch(f"{_MODULE}.server_settings_integration.is_mail_configured", return_value=True),
-            patch(f"{_MODULE}.users_integration") as users,
+            patch(f"{_MODULE}.users_integration", **_FREE_USERNAME) as users,
             patch(f"{_MODULE}.sign_up_event_publishers") as publishers,
         ):
             users.stage_signup_user.side_effect = core_exceptions.ConflictError("Unable to create user.")
@@ -87,7 +89,7 @@ class TestSignupWithATakenEmail:
         with (
             patch(f"{_MODULE}.server_settings_integration.get_server_settings", return_value=_settings()),
             patch(f"{_MODULE}.server_settings_integration.is_mail_configured", return_value=False),
-            patch(f"{_MODULE}.users_integration") as users,
+            patch(f"{_MODULE}.users_integration", **_FREE_USERNAME) as users,
             patch(f"{_MODULE}.sign_up_event_publishers") as publishers,
         ):
             users.stage_signup_user.side_effect = core_exceptions.ConflictError("Unable to create user.")
@@ -109,7 +111,7 @@ class TestSignupCommitsTheAccountAndItsEventTogether:
                 return_value=_settings(verification=verification),
             ),
             patch(f"{_MODULE}.server_settings_integration.is_mail_configured", return_value=True),
-            patch(f"{_MODULE}.users_integration") as users,
+            patch(f"{_MODULE}.users_integration", **_FREE_USERNAME) as users,
             patch(f"{_MODULE}.sign_up_event_publishers") as publishers,
         ):
             users.stage_signup_user.return_value = MagicMock(id=7)
@@ -140,7 +142,7 @@ class TestSignupAwaitingApproval:
                 return_value=_settings(verification=verification, approval=approval),
             ),
             patch(f"{_MODULE}.server_settings_integration.is_mail_configured", return_value=True),
-            patch(f"{_MODULE}.users_integration") as users,
+            patch(f"{_MODULE}.users_integration", **_FREE_USERNAME) as users,
             patch(f"{_MODULE}.sign_up_event_publishers") as publishers,
         ):
             users.stage_signup_user.return_value = MagicMock(id=7, pending_admin_approval=approval)
@@ -163,7 +165,7 @@ class TestSignUpVerificationResend:
                 return_value=_settings(verification=verification),
             ),
             patch(f"{_MODULE}.server_settings_integration.is_mail_configured", return_value=mail),
-            patch(f"{_MODULE}.users_integration") as users,
+            patch(f"{_MODULE}.users_integration", **_FREE_USERNAME) as users,
             patch(f"{_MODULE}.sign_up_event_publishers") as publishers,
             patch(f"{_MODULE}._stage_sign_up_token") as stage_token,
         ):
@@ -247,7 +249,7 @@ class TestExistingAccountNoticeCooldown:
         with (
             patch(f"{_MODULE}.server_settings_integration.get_server_settings", return_value=_settings()),
             patch(f"{_MODULE}.server_settings_integration.is_mail_configured", return_value=True),
-            patch(f"{_MODULE}.users_integration") as users,
+            patch(f"{_MODULE}.users_integration", **_FREE_USERNAME) as users,
             patch(f"{_MODULE}.sign_up_event_publishers") as publishers,
         ):
             users.stage_signup_user.side_effect = core_exceptions.ConflictError("Unable to create user.")
@@ -280,19 +282,64 @@ class TestExistingAccountNoticeCooldown:
 
 
 class TestSignupWithATakenUsername:
-    def test_a_new_email_with_a_taken_username_is_refused(self, mock_db, state):
+    @staticmethod
+    def _signup(state, db, *, username_holder, email_holder, insert_conflicts=True, username_holder_after_race=None):
+        """Run a sign-up against a mocked users module and return it, with the users mock and the publishers."""
         with (
             patch(f"{_MODULE}.server_settings_integration.get_server_settings", return_value=_settings()),
-            patch(f"{_MODULE}.users_integration") as users,
+            patch(f"{_MODULE}.server_settings_integration.is_mail_configured", return_value=True),
+            patch(f"{_MODULE}.users_integration", **_FREE_USERNAME) as users,
             patch(f"{_MODULE}.sign_up_event_publishers") as publishers,
+        ):
+            users.get_user_by_username.side_effect = [username_holder, username_holder_after_race]
+            users.get_user_by_email.return_value = email_holder
+            if insert_conflicts:
+                users.stage_signup_user.side_effect = core_exceptions.ConflictError("Unable to create user.")
+            else:
+                users.stage_signup_user.return_value = MagicMock(id=7)
+            try:
+                result = sign_up_service.signup(_signup_user(), state, db)
+            finally:
+                captured = (users, publishers)
+        return result, captured
+
+    def test_a_taken_username_is_refused_whatever_the_email(self, mock_db, state):
+        for email_holder in (None, MagicMock(id=3)):
+            with pytest.raises(core_exceptions.ConflictError, match="That username is already taken"):
+                self._signup(state, mock_db, username_holder=MagicMock(id=4), email_holder=email_holder)
+
+    def test_a_taken_username_does_not_tell_the_email_owner_or_create_anything(self, mock_db, state):
+        publishers = MagicMock()
+        with (
+            patch(f"{_MODULE}.server_settings_integration.get_server_settings", return_value=_settings()),
+            patch(f"{_MODULE}.server_settings_integration.is_mail_configured", return_value=True),
+            patch(f"{_MODULE}.users_integration", **_FREE_USERNAME) as users,
+            patch(f"{_MODULE}.sign_up_event_publishers", publishers),
             pytest.raises(core_exceptions.ConflictError),
         ):
-            users.stage_signup_user.side_effect = core_exceptions.ConflictError("Unable to create user.")
-            users.get_user_by_email.return_value = None
-
+            users.get_user_by_username.return_value = MagicMock(id=4)
+            users.get_user_by_email.return_value = MagicMock(id=3)
             sign_up_service.signup(_signup_user(), state, mock_db)
 
+        users.get_user_by_email.assert_not_called()
+        users.stage_signup_user.assert_not_called()
         publishers.publish_sign_up_existing_account.assert_not_called()
+
+    def test_a_free_username_with_a_registered_email_answers_200_and_stages_the_notice(self, mock_db, state):
+        result, (_users, publishers) = self._signup(state, mock_db, username_holder=None, email_holder=MagicMock(id=3))
+
+        assert result.message
+        publishers.publish_sign_up_existing_account.assert_called_once_with(3, mock_db)
+
+    def test_a_username_taken_while_the_insert_raced_is_refused(self, mock_db, state):
+        with pytest.raises(core_exceptions.ConflictError, match="That username is already taken"):
+            self._signup(
+                state,
+                mock_db,
+                username_holder=None,
+                email_holder=MagicMock(id=3),
+                username_holder_after_race=MagicMock(id=4),
+            )
 
 
 class TestExistingAccountEmail:
@@ -319,7 +366,7 @@ class TestSignupPasswordPolicy:
             patch(
                 f"{_MODULE}.server_settings_integration.get_server_settings", return_value=_settings(verification=True)
             ),
-            patch(f"{_MODULE}.users_integration") as users,
+            patch(f"{_MODULE}.users_integration", **_FREE_USERNAME) as users,
             pytest.raises(core_exceptions.InvalidInputError),
         ):
             sign_up_service.signup(_signup_user(), state, mock_db)
@@ -329,7 +376,7 @@ class TestSignupPasswordPolicy:
     def test_a_missing_password_is_refused_when_verification_is_off(self, mock_db, state):
         with (
             patch(f"{_MODULE}.server_settings_integration.get_server_settings", return_value=_settings()),
-            patch(f"{_MODULE}.users_integration") as users,
+            patch(f"{_MODULE}.users_integration", **_FREE_USERNAME) as users,
             pytest.raises(core_exceptions.PasswordRequiredError) as refused,
         ):
             sign_up_service.signup(_signup_user(with_password=False), state, mock_db)
@@ -353,7 +400,7 @@ class TestSignupPasswordPolicy:
             patch(
                 f"{_MODULE}.server_settings_integration.get_server_settings", return_value=_settings(verification=True)
             ),
-            patch(f"{_MODULE}.users_integration") as users,
+            patch(f"{_MODULE}.users_integration", **_FREE_USERNAME) as users,
             patch(f"{_MODULE}.request_sign_up_verification_email"),
         ):
             users.stage_signup_user.return_value = MagicMock(id=7)

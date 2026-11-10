@@ -98,6 +98,11 @@ def signup_client(signup_app: FastAPI) -> TestClient:
 class TestSignupEndpoint:
     """Tests for POST /sign-up/sign-up/request."""
 
+    @pytest.fixture(autouse=True)
+    def _free_username(self):
+        with patch("modules.auth.sign_up_tokens.service.users_integration.get_user_by_username", return_value=None):
+            yield
+
     @patch("modules.auth.sign_up_tokens.service.request_sign_up_verification_email")
     @patch("modules.auth.sign_up_tokens.service.users_integration.stage_signup_user")
     @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
