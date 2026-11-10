@@ -168,13 +168,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List Following Feed
-         * @description List a keyset slice of the authenticated user's following feed.
+         * List Feed
+         * @description List a keyset slice of the authenticated user's following feed, or of their own activities.
          *
+         *     With ``scope=mine`` the slice holds the caller's own activities of every visibility, newest first.
          *     The slice also carries the public profile of each owner on it in ``users`` (the projection
          *     ``GET /users/{user_id}`` returns), so a token with ``activities:read`` alone receives it too.
          */
-        get: operations["list_following_feed"];
+        get: operations["list_feed"];
         put?: never;
         post?: never;
         delete?: never;
@@ -362,7 +363,8 @@ export interface paths {
          * @description Return an activity with its laps, sets and workout steps in one read.
          *
          *     Equivalent to reading the activity and each collection separately, with the access decision made
-         *     once. Streams and media stay on their own routes. The ``ETag`` is the activity's, to echo in
+         *     once. The activity carries its ``media`` when the caller owns it, and ``owner`` is the owner's
+         *     public profile. Streams stay on their own route. The ``ETag`` is the activity's, to echo in
          *     ``If-Match`` when saving it.
          */
         get: operations["read_activity_detail"];
@@ -1089,26 +1091,6 @@ export interface paths {
          *     while the gear has components that are not valid for the new type; remove them first.
          */
         patch: operations["edit_gear"];
-        trace?: never;
-    };
-    "/api/v1/gears/{gear_id}/activities": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Gear Activities
-         * @description List the authenticated user's activities for a gear, with the matching total.
-         */
-        get: operations["list_gear_activities"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
         trace?: never;
     };
     "/api/v1/gears/{gear_id}/components": {
@@ -1904,7 +1886,11 @@ export interface paths {
         };
         /**
          * Read Notifications User Pagination
-         * @description Retrieve paginated notifications for the user.
+         * @description List a keyset slice of the caller's notifications, newest first.
+         *
+         *     Pass the `next_cursor` of a slice as `cursor` to get the following one; it is `null` on the last slice.
+         *     `unread_only=true` keeps only the notifications that have not been read, and must stay the same across the
+         *     slices of one walk.
          */
         get: operations["read_notifications_user_pagination"];
         put?: never;
@@ -2984,7 +2970,8 @@ export interface paths {
          * @description Return a shared activity with its laps, sets and workout steps in one read.
          *
          *     Answers 404 when the activity does not exist *or* is not public, so it cannot be used to
-         *     enumerate which ids exist. A collection the owner hides is an empty page.
+         *     enumerate which ids exist. A collection the owner hides is an empty page. ``owner`` is the owner's
+         *     public profile, or ``null`` when the server does not share user info publicly.
          */
         get: operations["read_public_activity_detail"];
         put?: never;
@@ -3007,30 +2994,6 @@ export interface paths {
          * @description Return one page of public laps for an activity exposed via shareable link.
          */
         get: operations["list_public_activity_laps"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/public/activities/{activity_id}/owner": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Public Activity Owner
-         * @description Return the owner of a public activity.
-         *
-         *     Answers 404 when the activity does not exist or is not public, or when the server does not
-         *     share user info publicly — the cases are deliberately indistinguishable, so this
-         *     unauthenticated endpoint cannot be used to enumerate users.
-         */
-        get: operations["read_public_activity_owner"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3549,28 +3512,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/server-settings/email": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Email Status
-         * @description Get whether outgoing email is usable.
-         *
-         *     Requires admin authentication with server_settings:read scope.
-         */
-        get: operations["read_email_status"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/server-settings/email/settings": {
         parameters: {
             query?: never;
@@ -3710,28 +3651,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/server-settings/logs/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Logs Status
-         * @description Get whether the log viewer is available.
-         *
-         *     Requires admin authentication with server_settings:logs scope.
-         */
-        get: operations["read_logs_status"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/strava/activities": {
         parameters: {
             query?: never;
@@ -3799,7 +3718,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/strava/import/bikes": {
+    "/api/v1/strava/import/gear": {
         parameters: {
             query?: never;
             header?: never;
@@ -3809,30 +3728,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Import Bikes From Strava Export
-         * @description Create the bikes listed in an uploaded Strava ``bikes.csv`` and report how many.
+         * Import Gear From Strava Export
+         * @description Create the gear listed in an uploaded Strava ``bikes.csv`` or ``shoes.csv`` and report how many.
          */
-        post: operations["import_bikes_from_strava_export"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/strava/import/shoes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Import Shoes From Strava Export
-         * @description Create the shoes listed in an uploaded Strava ``shoes.csv`` and report how many.
-         */
-        post: operations["import_shoes_from_strava_export"];
+        post: operations["import_gear_from_strava_export"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3888,11 +3787,7 @@ export interface paths {
          *     Replaces any state the user issued earlier.
          */
         post: operations["strava_begin_state"];
-        /**
-         * Strava Clear User State
-         * @description Forget the user's pending OAuth state.
-         */
-        delete: operations["strava_clear_user_state"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3947,29 +3842,6 @@ export interface paths {
          *     is enabled). A regular account needs no `step_up`.
          */
         post: operations["create_user"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/users/email/lookup": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Lookup User By Email
-         * @description Get a user by email address.
-         *
-         *     The address travels in the request body, so it never reaches access logs or proxy caches
-         *     through the URL.
-         */
-        post: operations["lookup_user_by_email"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4509,9 +4381,10 @@ export interface components {
         AccountNoticeNotificationRead: {
             /**
              * Created At
+             * Format: date-time
              * @description Timestamp of creation
              */
-            readonly created_at?: string | null;
+            readonly created_at: string;
             /**
              * Id
              * @description Unique notification ID
@@ -4568,9 +4441,10 @@ export interface components {
         AccountSecurityChangedNotificationRead: {
             /**
              * Created At
+             * Format: date-time
              * @description Timestamp of creation
              */
-            readonly created_at?: string | null;
+            readonly created_at: string;
             /**
              * Id
              * @description Unique notification ID
@@ -4647,7 +4521,11 @@ export interface components {
          *     is an empty page.
          *
          *     Attributes:
-         *         activity: The activity, masked as the viewer may see it.
+         *         activity: The activity, masked as the viewer may see it. Its ``media`` is filled for its owner
+         *             only, as in the list responses.
+         *         owner: The activity owner's public profile, the projection ``GET /users/{user_id}`` returns.
+         *             ``null`` for an anonymous viewer when the server does not share user info publicly, and
+         *             for an owner who is inactive or awaiting approval.
          *         laps: The activity's laps.
          *         sets: The activity's performed workout sets.
          *         workout_steps: The activity's planned workout steps.
@@ -4655,6 +4533,7 @@ export interface components {
         ActivityDetailRead: {
             activity: components["schemas"]["ActivityRead"];
             laps: components["schemas"]["Page_ActivityLapsRead_"];
+            owner: components["schemas"]["UserPublicRead"] | null;
             sets: components["schemas"]["Page_ActivitySetsRead_"];
             workout_steps: components["schemas"]["Page_ActivityWorkoutStepsRead_"];
         };
@@ -5089,9 +4968,10 @@ export interface components {
         ActivityNotificationRead: {
             /**
              * Created At
+             * Format: date-time
              * @description Timestamp of creation
              */
-            readonly created_at?: string | null;
+            readonly created_at: string;
             /**
              * Id
              * @description Unique notification ID
@@ -5558,18 +5438,13 @@ export interface components {
             /** File */
             file: string;
         };
-        /** Body_import_bikes_from_strava_export */
-        Body_import_bikes_from_strava_export: {
+        /** Body_import_gear_from_strava_export */
+        Body_import_gear_from_strava_export: {
             /** File */
             file: string;
         };
         /** Body_import_profile_data */
         Body_import_profile_data: {
-            /** File */
-            file: string;
-        };
-        /** Body_import_shoes_from_strava_export */
-        Body_import_shoes_from_strava_export: {
             /** File */
             file: string;
         };
@@ -5948,6 +5823,16 @@ export interface components {
          * @enum {string}
          */
         FastingType: "16:8" | "18:6" | "20:4" | "OMAD" | "24h" | "36h" | "48h" | "72h" | "custom";
+        /**
+         * FeedScope
+         * @description Whose activities the cursor feed lists.
+         *
+         *     Attributes:
+         *         FOLLOWING: The activities of the users the caller follows, as the caller may see them.
+         *         MINE: The caller's own activities, of every visibility.
+         * @enum {string}
+         */
+        FeedScope: "following" | "mine";
         /**
          * FieldError
          * @description One field of a request that failed validation.
@@ -8945,9 +8830,10 @@ export interface components {
         IdpLinkedNotificationRead: {
             /**
              * Created At
+             * Format: date-time
              * @description Timestamp of creation
              */
-            readonly created_at?: string | null;
+            readonly created_at: string;
             /**
              * Id
              * @description Unique notification ID
@@ -9277,17 +9163,6 @@ export interface components {
             idp_logout_url: string | null;
         };
         /**
-         * LogsStatus
-         * @description Whether the log viewer is available on this deployment.
-         *
-         *     Attributes:
-         *         enabled: True when the application log can be read through the API.
-         */
-        LogsStatus: {
-            /** Enabled */
-            enabled: boolean;
-        };
-        /**
          * MFABackupCodeStatusRead
          * @description Aggregate status of a user's MFA backup codes.
          *
@@ -9496,8 +9371,11 @@ export interface components {
          *         password_set: Whether a password is stored.
          *         env_managed: Field name to the environment variable that sets it; those
          *             fields cannot be edited while the variable is set.
+         *         email_status: Whether outgoing email is usable with these settings; read-only.
          */
         MailSettingsAdminRead: {
+            /** @description Whether outgoing email is usable with these settings */
+            email_status: components["schemas"]["EmailStatus"];
             /**
              * Env Managed
              * @description Field name to the environment variable that sets it (not editable while set)
@@ -9764,9 +9642,10 @@ export interface components {
         NewDeviceSignInNotificationRead: {
             /**
              * Created At
+             * Format: date-time
              * @description Timestamp of creation
              */
-            readonly created_at?: string | null;
+            readonly created_at: string;
             /**
              * Id
              * @description Unique notification ID
@@ -9797,19 +9676,17 @@ export interface components {
         NoNotificationOptions: Record<string, never>;
         /**
          * NotificationPage
-         * @description One page of the caller's notifications.
+         * @description One keyset slice of the caller's notifications.
+         *
+         *     The list takes inserts at the head, so offset paging would repeat and skip rows across requests.
          */
         NotificationPage: {
             /** Items */
             items: (components["schemas"]["ActivityNotificationRead"] | components["schemas"]["UserReferenceNotificationRead"] | components["schemas"]["AccountNoticeNotificationRead"] | components["schemas"]["StravaTokenExpiredNotificationRead"] | components["schemas"]["IdpLinkedNotificationRead"] | components["schemas"]["AccountSecurityChangedNotificationRead"] | components["schemas"]["NewDeviceSignInNotificationRead"])[];
-            /** Next */
-            next?: number | null;
+            /** Next Cursor */
+            next_cursor?: string | null;
             /** Num Records */
             num_records: number;
-            /** Page */
-            page: number;
-            /** Total */
-            total: number;
         };
         /**
          * NotificationUnreadCount
@@ -10628,6 +10505,7 @@ export interface components {
          *         signup_require_email_verification: Require email verification for new sign-ups.
          *         password_breach_check_enabled: Refuse a new password found in a known data breach.
          *         step_up_fields: The settings whose change needs the administrator's step-up; read-only.
+         *         logs_viewer_enabled: Whether the server log can be read through the API on this deployment; read-only.
          */
         ServerSettingsAdminRead: {
             /**
@@ -10696,6 +10574,11 @@ export interface components {
              * @description Is login photo set (true - yes, false - no)
              */
             login_photo_set: boolean;
+            /**
+             * Logs Viewer Enabled
+             * @description Can the server log be read through the API (true - yes, false - no)
+             */
+            logs_viewer_enabled: boolean;
             /**
              * Map Background Color
              * @description Background color for the map (hex format)
@@ -11357,6 +11240,16 @@ export interface components {
             imported: number;
         };
         /**
+         * StravaGearImportType
+         * @description The gear types a Strava export file carries; the values are the ``GearType`` wire values.
+         *
+         *     Attributes:
+         *         BIKE: ``bikes.csv``.
+         *         SHOES: ``shoes.csv``.
+         * @enum {string}
+         */
+        StravaGearImportType: "bike" | "shoes";
+        /**
          * StravaLinkRequest
          * @description The OAuth callback values that complete a Strava link.
          *
@@ -11438,9 +11331,10 @@ export interface components {
         StravaTokenExpiredNotificationRead: {
             /**
              * Created At
+             * Format: date-time
              * @description Timestamp of creation
              */
-            readonly created_at?: string | null;
+            readonly created_at: string;
             /**
              * Id
              * @description Unique notification ID
@@ -12340,20 +12234,6 @@ export interface components {
             revoke_other_sessions: boolean;
             /** @description Step-up verification, required to change the password */
             step_up: components["schemas"]["StepUpVerification"];
-        };
-        /**
-         * UserEmailLookup
-         * @description Schema for looking a user up by email address.
-         *
-         *     Attributes:
-         *         email: Email address to search for, case-insensitive.
-         */
-        UserEmailLookup: {
-            /**
-             * Email
-             * @description Email address to search for
-             */
-            email: string;
         };
         /**
          * UserGoalCreate
@@ -13317,9 +13197,10 @@ export interface components {
         UserReferenceNotificationRead: {
             /**
              * Created At
+             * Format: date-time
              * @description Timestamp of creation
              */
-            readonly created_at?: string | null;
+            readonly created_at: string;
             /**
              * Id
              * @description Unique notification ID
@@ -13831,6 +13712,8 @@ export interface operations {
                 name_contains?: string | null;
                 sort_by?: components["schemas"]["ActivitySortField"] | null;
                 sort_order?: components["schemas"]["ActivitySortOrder"] | null;
+                /** @description Keep only the activities recorded with this gear */
+                gear_id?: number | null;
                 page_number?: number | null;
                 num_records?: number | null;
                 /** @description First day to include (inclusive, `YYYY-MM-DD`). */
@@ -14408,11 +14291,13 @@ export interface operations {
             };
         };
     };
-    list_following_feed: {
+    list_feed: {
         parameters: {
             query?: {
                 cursor?: string | null;
                 num_records?: number | null;
+                /** @description `following` lists the users the caller follows; `mine` lists the caller's own activities */
+                scope?: components["schemas"]["FeedScope"];
             };
             header?: never;
             path?: never;
@@ -18962,100 +18847,6 @@ export interface operations {
             };
             /** @description The `If-Match` header is missing. */
             428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    list_gear_activities: {
-        parameters: {
-            query?: {
-                page_number?: number | null;
-                num_records?: number | null;
-            };
-            header?: never;
-            path: {
-                gear_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_ActivityRead_"];
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The resource does not exist, or is concealed from the caller. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -24663,9 +24454,9 @@ export interface operations {
     read_notifications_user_pagination: {
         parameters: {
             query?: {
-                unread_only?: boolean;
-                page_number?: number | null;
+                cursor?: string | null;
                 num_records?: number | null;
+                unread_only?: boolean;
             };
             header?: never;
             path?: never;
@@ -30384,77 +30175,6 @@ export interface operations {
             };
         };
     };
-    read_public_activity_owner: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                activity_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserPublicRead"];
-                };
-            };
-            /** @description The resource does not exist, or is concealed from the caller. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
     list_public_activity_sets: {
         parameters: {
             query?: {
@@ -32411,77 +32131,6 @@ export interface operations {
             };
         };
     };
-    read_email_status: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EmailStatus"];
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
     read_mail_settings: {
         parameters: {
             query?: never;
@@ -33226,77 +32875,6 @@ export interface operations {
             };
         };
     };
-    read_logs_status: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LogsStatus"];
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
     strava_retrieve_activities_days: {
         parameters: {
             query: {
@@ -33622,9 +33200,12 @@ export interface operations {
             };
         };
     };
-    import_bikes_from_strava_export: {
+    import_gear_from_strava_export: {
         parameters: {
-            query?: never;
+            query: {
+                /** @description Which Strava export file is uploaded */
+                gear_type: components["schemas"]["StravaGearImportType"];
+            };
             header?: {
                 /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
                 "X-Client-Type"?: "web" | "mobile";
@@ -33636,123 +33217,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_import_bikes_from_strava_export"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StravaGearImportResult"];
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The request conflicts with the current state. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The body is larger than the route accepts. */
-            413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The uploaded file is a type the route does not accept. */
-            415: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    import_shoes_from_strava_export: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_import_shoes_from_strava_export"];
+                "multipart/form-data": components["schemas"]["Body_import_gear_from_strava_export"];
             };
         };
         responses: {
@@ -34139,89 +33604,6 @@ export interface operations {
             };
         };
     };
-    strava_clear_user_state: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The request conflicts with the current state. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
     strava_sync_status: {
         parameters: {
             query?: never;
@@ -34436,115 +33818,6 @@ export interface operations {
                     ETag?: string;
                     /** @description Path of the new resource. */
                     Location?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserRead"];
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The request conflicts with the current state. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The body is larger than the route accepts. */
-            413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    lookup_user_by_email: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserEmailLookup"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    /** @description The version of the resource, to send back as `If-Match` on the next write. */
-                    ETag?: string;
                     [name: string]: unknown;
                 };
                 content: {
