@@ -22,6 +22,12 @@ class SignUpToken(Base):
         previous_email: Account email address when an email change was requested (email-change tokens only).
         security_generation: Account security generation the email change was requested under (email-change
             tokens only); the confirmation is refused once the account's generation has moved on.
+        change_id: Identifier of the email change the row belongs to (email-change tokens only): the id of the row
+            created when it was requested, copied to the rows that re-issue its confirmation link. The "this
+            wasn't me" link names it.
+        revert_until: End of the change's revert window (email-change tokens only); the row is kept until then.
+        confirmed_at: When the token was confirmed, or the change it records was applied.
+        reverted_at: When the "this wasn't me" link of the change was used (email-change tokens only).
     """
 
     __tablename__ = "sign_up_tokens"
@@ -68,4 +74,25 @@ class SignUpToken(Base):
         Integer,
         nullable=True,
         comment="Account security generation an email-change token was issued under (email-change tokens only)",
+    )
+    change_id: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        index=True,
+        comment="Identifier of the email change the token belongs to (email-change tokens only)",
+    )
+    revert_until: Mapped[datetime_type | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="End of the email change's revert window (email-change tokens only)",
+    )
+    confirmed_at: Mapped[datetime_type | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When the token was confirmed, or the email change it records was applied",
+    )
+    reverted_at: Mapped[datetime_type | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When the email change's revert link was used (email-change tokens only)",
     )

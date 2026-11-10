@@ -3062,9 +3062,12 @@ export interface paths {
         put?: never;
         /**
          * Cancel Email Change
-         * @description Report a requested email change as not made by its owner, with the link emailed to the current address.
+         * @description Report an email change as not made by its owner, with the link emailed to the account's address.
          *
-         *     The change is cancelled, every session of the account ends and its API keys are revoked.
+         *     The link works once, for seven days after the change was requested. A pending change is cancelled; a confirmed one
+         *     puts the previous address back unless another account holds it now. Every session of the account ends and its
+         *     API keys are revoked either way. The answer says whether the change had been confirmed and whether the previous
+         *     address was restored.
          */
         post: operations["cancel_email_change"];
         delete?: never;
@@ -5763,6 +5766,27 @@ export interface components {
              * @description The token of the link emailed to the account's current address
              */
             token: string;
+        };
+        /**
+         * EmailChangeCancelRead
+         * @description Response schema for the "this wasn't me" link of an email change.
+         *
+         *     Attributes:
+         *         change_applied: Whether the change had already been confirmed when the link was used.
+         *         email_restored: Whether the account's previous address was put back; false when the change was still pending,
+         *             or when another account holds the previous address now.
+         */
+        EmailChangeCancelRead: {
+            /**
+             * Change Applied
+             * @description Whether the change had been confirmed when the link was used
+             */
+            change_applied: boolean;
+            /**
+             * Email Restored
+             * @description Whether the account's previous email address was restored
+             */
+            email_restored: boolean;
         };
         /**
          * EmailStatus
@@ -29927,13 +29951,15 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EmailChangeCancelRead"];
+                };
             };
-            /** @description The token is malformed, expired or was issued before a security change of the account. */
+            /** @description The token is malformed, expired, already used, or names a change that a later change has replaced. */
             400: {
                 headers: {
                     [name: string]: unknown;

@@ -3,7 +3,7 @@
 from collections.abc import Collection
 from datetime import UTC, datetime
 
-from sqlalchemy import Select, select
+from sqlalchemy import Select, or_, select
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import update as sa_update
 from sqlalchemy.orm import Session
@@ -38,7 +38,7 @@ def get_usable_sign_up_token(token_hash: str, db: Session) -> sign_up_contracts.
 def claim_sign_up_token(token_hash: str, db: Session) -> sign_up_contracts.SignUpTokenClaim | None:
     """Stage an atomic claim of an unused, unexpired token and return what it proves.
 
-    One conditional ``UPDATE`` flips ``used``, so of two requests presenting the same link only one
+    One conditional ``UPDATE`` flips ``used`` and records the confirmation, so of two requests presenting the same link only one
     matches a row.
 
     Args:
@@ -56,7 +56,7 @@ def claim_sign_up_token(token_hash: str, db: Session) -> sign_up_contracts.SignU
             model.used.is_(False),
             model.expires_at > datetime.now(UTC),
         )
-        .values(used=True)
+        .values(used=True, confirmed_at=datetime.now(UTC))
         .returning(model.id, model.user_id, model.email, model.previous_email, model.security_generation)
     )
     row = db.execute(stmt).one_or_none()
@@ -87,6 +87,70 @@ def get_pending_email_change_tokens(
     return [sign_up_serializers.to_state(row) for row in db.execute(stmt).scalars().all()]
 
 
+def get_email_change_tokens(change_id: str, now: datetime, db: Session) -> list[sign_up_contracts.SignUpTokenState]:
+    """Return the rows of an email change whose revert window is still open.
+
+    Args:
+        change_id: The identifier of the change.
+        now: The instant the revert window must still be open at.
+        db: Database session.
+
+    Returns:
+        Every row of the change, the confirmation links that were mailed for it among them; empty when the change is
+        unknown or its window has closed.
+    """
+    model = sign_up_models.SignUpToken
+    stmt = select(model).where(model.change_id == change_id, model.revert_until > now)
+    return [sign_up_serializers.to_state(row) for row in db.execute(stmt).scalars().all()]
+
+
+def has_later_email_change(user_id: int, change_id: str, since: datetime, now: datetime, db: Session) -> bool:
+    """Return whether the user has an email change, other than the given one, that began after ``since``.
+
+    Args:
+        user_id: The user to look up.
+        change_id: The identifier of the change to compare against.
+        since: The instant the change began.
+        now: The instant a change's revert window must still be open at.
+        db: Database session.
+
+    Returns:
+        True when a different change has a row created after ``since`` and a revert window still open.
+    """
+    model = sign_up_models.SignUpToken
+    stmt = select(model.id).where(
+        model.user_id == user_id,
+        model.change_id.is_not(None),
+        model.change_id != change_id,
+        model.created_at > since,
+        model.revert_until > now,
+    )
+    return db.execute(stmt.limit(1)).first() is not None
+
+
+def mark_email_change_reverted(change_id: str, db: Session) -> int:
+    """Stage the use of an email change's revert link, once, and return how many rows it marked.
+
+    One conditional ``UPDATE`` sets ``reverted_at``, so of two requests presenting the same link only one matches rows.
+
+    Args:
+        change_id: The identifier of the change.
+        db: Database session.
+
+    Returns:
+        The number of rows marked; zero when the link was already used.
+    """
+    model = sign_up_models.SignUpToken
+    stmt = (
+        sa_update(model)
+        .where(model.change_id == change_id, model.reverted_at.is_(None))
+        .values(reverted_at=datetime.now(UTC))
+    )
+    matched = core_database.rowcount(db, stmt)
+    db.flush()
+    return matched
+
+
 def get_sign_up_token_by_id(token_id: str, db: Session) -> sign_up_contracts.SignUpTokenState | None:
     """Return a token by id, whether or not it has been used, or None when there is none."""
     row = db.get(sign_up_models.SignUpToken, token_id)
@@ -114,6 +178,9 @@ def create_sign_up_token(
         email=token.email,
         previous_email=token.previous_email,
         security_generation=token.security_generation,
+        change_id=token.change_id,
+        revert_until=token.revert_until,
+        confirmed_at=token.confirmed_at,
     )
     db.add(row)
     db.flush()
@@ -133,9 +200,17 @@ def mark_user_sign_up_tokens_used(user_id: int, db: Session) -> int:
 
 
 def delete_expired_sign_up_tokens(now: datetime, limit: int, db: Session) -> int:
-    """Stage deletion of up to ``limit`` sign-up tokens that expired before ``now`` and return the row count."""
+    """Stage deletion of up to ``limit`` expired sign-up tokens and return the row count.
+
+    An email-change row is kept until its revert window closes, so its "this wasn't me" link keeps working after
+    the confirmation link expired.
+    """
     model = sign_up_models.SignUpToken
-    expired = select(model.id).where(model.expires_at < now).limit(limit)
+    expired = (
+        select(model.id)
+        .where(model.expires_at < now, or_(model.revert_until.is_(None), model.revert_until < now))
+        .limit(limit)
+    )
     matched = core_database.rowcount(db, sa_delete(model).where(model.id.in_(expired)))
     db.flush()
     return matched

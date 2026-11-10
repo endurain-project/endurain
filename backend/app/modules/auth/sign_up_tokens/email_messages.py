@@ -238,16 +238,23 @@ def get_email_changed_email(
     new_email: str,
     frontend_host: str,
     locale: str | None = None,
+    revert_link: str | None = None,
+    revert_days: int | None = None,
 ) -> tuple[str, str, str]:
     """Build a localized notice, for the previous address, that the account's email address changed.
 
-    The new address is shown masked, so the notice does not disclose it in full to the old inbox.
+    The new address is shown masked, so the notice does not disclose it in full to the old inbox. With a revert link,
+    the reader can undo the change and end the sessions of an account someone else may have access to; without one, the
+    notice tells them to contact their administrator.
 
     Args:
         user_name: The recipient's display name.
         new_email: The address the account now uses.
         frontend_host: Base URL of the frontend, used in the footer.
         locale: Preferred locale code for the recipient.
+        revert_link: The link of the page that reports the change as not made by the owner; None when the change
+            cannot be reported that way.
+        revert_days: How many days after the request the link works; set with ``revert_link``.
 
     Returns:
         A 3-tuple of (subject, html_content, text_content).
@@ -260,13 +267,38 @@ def get_email_changed_email(
 
     subject = tr("subject")
     heading = tr("heading")
+    intro = tr("intro", new_email=masked_email)
     safe_intro = tr("intro", new_email=html.escape(masked_email))
     security_label = tr("security_label")
-    security_notice = tr("security_notice")
+    color = core_email_templates.LINK_COLOR_PRIMARY if revert_link else core_email_templates.LINK_COLOR_SUCCESS
+
+    link_block = ""
+    link_text = ""
+    copy_block = ""
+    if revert_link:
+        cta = tr("cta")
+        security_notice = tr("security_notice_revertible", days=str(revert_days))
+        safe_link = html.escape(url_quote(revert_link, safe=":/?=&%#@"), quote=True)
+        link_block = f"""
+            <div style="text-align: center; margin: 30px 0;">
+                <a
+                    href="{safe_link}"
+                    style="background-color: {color}; color: #ffffff;
+                    padding: 12px 30px; text-decoration: none;
+                    border-radius: 8px; display: inline-block;
+                    font-weight: 600;"
+                >{cta}</a>
+            </div>"""
+        copy_block = f"""
+            <p>{core_i18n.t("common.copy_link", locale)}</p>
+            <p style="word-break: break-all; color: {color};">{safe_link}</p>"""
+        link_text = f"{cta}: {revert_link}\n\n"
+    else:
+        security_notice = tr("security_notice")
 
     body_inner = f"""
             <p>{tr("greeting", name=safe_name)}</p>
-            <p>{safe_intro}</p>
+            <p>{safe_intro}</p>{link_block}
             <div
                 style="background-color: {core_email_templates.WARNING_BG};
                 border: 1px solid {core_email_templates.WARNING_BORDER};
@@ -274,7 +306,7 @@ def get_email_changed_email(
                 padding: 15px; border-radius: 8px; margin: 20px 0;"
             >
                 <strong>{security_label}</strong> {security_notice}
-            </div>"""
+            </div>{copy_block}"""
 
     html_content = core_email_templates.wrap_email(
         locale=locale,
@@ -282,13 +314,14 @@ def get_email_changed_email(
         heading=heading,
         body_inner=body_inner,
         frontend_host=frontend_host,
-        link_color=core_email_templates.LINK_COLOR_SUCCESS,
+        link_color=color,
     )
 
     labels = core_i18n.common_labels(locale)
     text_content = (
         f"{tr('greeting', name=user_name)}\n\n"
-        f"{tr('intro', new_email=masked_email)}\n\n"
+        f"{intro}\n\n"
+        f"{link_text}"
         f"{security_label} {security_notice}\n\n"
         f"{labels['best_regards']}\n"
         f"{labels['team']}"

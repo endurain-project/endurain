@@ -709,11 +709,13 @@ class TestResendEndpoint:
 
 class TestCancelEmailChangeEndpoint:
     @patch("modules.auth.sign_up_tokens.service.cancel_email_change")
-    def test_a_valid_link_answers_204_with_no_body(self, cancel, signup_client) -> None:
+    def test_a_valid_link_answers_200_with_what_happened(self, cancel, signup_client) -> None:
+        cancel.return_value = sign_up_schema.EmailChangeCancelRead(change_applied=True, email_restored=False)
+
         response = signup_client.post("/sign-up/email-change/cancel", json={"token": "7.1.abc"})
 
-        assert response.status_code == status.HTTP_204_NO_CONTENT
-        assert response.content == b""
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == {"change_applied": True, "email_restored": False}
         assert cancel.call_args.args[0] == "7.1.abc"
 
     @patch(

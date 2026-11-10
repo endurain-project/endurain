@@ -33,14 +33,18 @@ class EmailChangeCancelDetails(VersionedPayload):
     Attributes:
         sessions_revoked: How many of the user's sessions the cancellation ended.
         api_keys_revoked: How many of the user's API keys it revoked.
+        change_applied: Whether the change had been confirmed when the link was used.
+        email_restored: Whether the account's previous address was put back.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    SCHEMA_VERSION: ClassVar[int] = 1
+    SCHEMA_VERSION: ClassVar[int] = 2
 
     sessions_revoked: int = 0
     api_keys_revoked: int = 0
+    change_applied: bool = False
+    email_restored: bool = False
 
 
 SIGN_UP_CONFIRM = jasil_audit.AuditAction(

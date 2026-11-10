@@ -25,12 +25,16 @@
   "resendTooManyAttempts": "嘗試次數過多，請稍候再試。",
   "resendError": "我們無法寄出郵件，請再試一次。",
   "cancelTitle": "Was this you?",
-  "cancelBody": "Someone asked to change the email address of your account. Nothing has changed yet. If it wasn't you, cancel the change: your account is signed out everywhere and its API keys are revoked.",
+  "cancelBody": "Someone asked to change the email address of your account, or changed it. If it wasn't you, report it: the change is cancelled or undone, your account is signed out everywhere and its API keys are revoked.",
   "cancelButton": "This wasn't me",
   "cancelling": "Cancelling",
   "cancelledTitle": "Email change cancelled",
   "cancelledBody": "The change was cancelled, your account was signed out everywhere and its API keys were revoked. Someone else may know your password, so sign in and change it now, or use the forgotten password link.",
+  "restoredTitle": "Previous email address restored",
+  "restoredBody": "Your account uses its previous email address again, was signed out everywhere and its API keys were revoked. Someone else may know your password, so sign in and change it now, or use the forgotten password link.",
+  "notRestoredTitle": "Your previous email address could not be restored",
+  "notRestoredBody": "The change was reported, your account was signed out everywhere and its API keys were revoked. Another account uses your previous address now, so your account keeps the new one. Contact your Endurain administrator, and change your password.",
   "cancelInvalidTitle": "This link no longer works",
-  "cancelInvalidBody": "The link is invalid or expired, or something about your account's security changed after it was sent. If you still think someone else has access, sign in and change your password.",
+  "cancelInvalidBody": "The link is invalid, expired or already used, or the email address was changed again after it was sent. If you still think someone else has access, sign in and change your password.",
   "cancelError": "We couldn't cancel the change. Please try again."
 }

@@ -11,9 +11,16 @@ import { Button } from '@/components/ui/button'
 import { cancelEmailChange } from '@/features/auth/services/emailChange'
 import { HttpError } from '@/services/http'
 
-type Status = 'confirm' | 'working' | 'done' | 'invalid' | 'error'
+type Status = 'confirm' | 'working' | 'cancelled' | 'restored' | 'notRestored' | 'invalid' | 'error'
 
 const { t } = useI18n()
+
+/** The title and body messages of each outcome the server reported. */
+const outcomes = {
+  cancelled: { title: 'verifyEmail.cancelledTitle', body: 'verifyEmail.cancelledBody' },
+  restored: { title: 'verifyEmail.restoredTitle', body: 'verifyEmail.restoredBody' },
+  notRestored: { title: 'verifyEmail.notRestoredTitle', body: 'verifyEmail.notRestoredBody' },
+} as const
 
 /** Token from the emailed link; empty when absent or malformed. */
 const credential = useQueryCredential('token')
@@ -26,9 +33,10 @@ const status = ref<Status>(credential.value.length > 0 ? 'confirm' : 'invalid')
 async function cancel(): Promise<void> {
   status.value = 'working'
   try {
-    await cancelEmailChange({ token: credential.value })
+    const result = await cancelEmailChange({ token: credential.value })
     credential.clear()
-    status.value = 'done'
+    if (!result.change_applied) status.value = 'cancelled'
+    else status.value = result.email_restored ? 'restored' : 'notRestored'
   } catch (error) {
     if (error instanceof HttpError && error.status === 400) {
       credential.clear()
@@ -71,9 +79,12 @@ async function cancel(): Promise<void> {
         </Button>
       </div>
 
-      <div v-else-if="status === 'done'" class="flex flex-col items-center text-center">
-        <h1 class="text-card-heading">{{ t('verifyEmail.cancelledTitle') }}</h1>
-        <p class="mt-2 text-body">{{ t('verifyEmail.cancelledBody') }}</p>
+      <div
+        v-else-if="status === 'cancelled' || status === 'restored' || status === 'notRestored'"
+        class="flex flex-col items-center text-center"
+      >
+        <h1 class="text-card-heading">{{ t(outcomes[status].title) }}</h1>
+        <p class="mt-2 text-body">{{ t(outcomes[status].body) }}</p>
         <Button as-child class="mt-6">
           <RouterLink :to="{ name: 'login' }">{{ t('verifyEmail.continueButton') }}</RouterLink>
         </Button>

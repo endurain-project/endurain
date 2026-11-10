@@ -1,6 +1,6 @@
 """Unauthenticated sign-up and email-verification endpoints."""
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Request
 
 import core.dependencies as core_dependencies
 import core.rate_limit as core_rate_limit
@@ -35,9 +35,12 @@ def signup(
 
 @router.post(
     "/email-change/cancel",
-    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=sign_up_schema.EmailChangeCancelRead,
     responses={
-        400: {"description": "The token is malformed, expired or was issued before a security change of the account."},
+        400: {
+            "description": "The token is malformed, expired, already used, or names a change that a later change has "
+            "replaced."
+        },
     },
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
@@ -45,12 +48,15 @@ def cancel_email_change(
     request: Request,
     cancel_data: sign_up_schema.EmailChangeCancel,
     db: core_dependencies.DbSession,
-) -> None:
-    """Report a requested email change as not made by its owner, with the link emailed to the current address.
+) -> sign_up_schema.EmailChangeCancelRead:
+    """Report an email change as not made by its owner, with the link emailed to the account's address.
 
-    The change is cancelled, every session of the account ends and its API keys are revoked.
+    The link works once, for seven days after the change was requested. A pending change is cancelled; a confirmed one
+    puts the previous address back unless another account holds it now. Every session of the account ends and its
+    API keys are revoked either way. The answer says whether the change had been confirmed and whether the previous
+    address was restored.
     """
-    sign_up_service.cancel_email_change(cancel_data.token, db)
+    return sign_up_service.cancel_email_change(cancel_data.token, db)
 
 
 @router.post(

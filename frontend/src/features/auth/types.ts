@@ -119,6 +119,9 @@ export type SignUpConfirm = Schemas['SignUpConfirm']
 /** Request body that reports an emailed email-change notice as not made by the account's owner. */
 export type EmailChangeCancel = Schemas['EmailChangeCancel']
 
+/** What `POST /public/email-change/cancel` did: whether the change had been confirmed and the address restored. */
+export type EmailChangeCancelResult = Schemas['EmailChangeCancelRead']
+
 /** Body of `POST /public/sign-up/resend`. */
 export type SignUpResend = Schemas['SignUpResend']
 

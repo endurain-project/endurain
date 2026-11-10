@@ -187,7 +187,7 @@ Recurring jobs are declared by each module and run by the scheduler of the API p
 | Pull the last day of Garmin Connect health data | 4 h | yes | One sync per linked user |
 | Remove staged profile imports and exports | 6 h each | yes | Cleanup |
 | Purge read notifications past retention | 24 h | yes | Retention |
-| Authentication clean-ups (reset and sign-up tokens, OAuth states, sessions, rotated tokens) | 1 to 60 min | no | Delete what has expired |
+| Authentication clean-ups (reset and sign-up tokens, OAuth states, sessions, rotated tokens) | 1 to 60 min | no | Delete what has expired; an email change's rows stay 7 days, for its "this wasn't me" link |
 | Delete unverified sign-ups whose verification link expired | 60 min | no | Deletes the account row; each one is audited as `users.user.purge` |
 | Revoke identity provider tokens of ended sessions | 15 min | yes | Net for identity provider token revocation |
 | Prune known devices unseen for 400 days | 24 h | yes | Retention, in batches |

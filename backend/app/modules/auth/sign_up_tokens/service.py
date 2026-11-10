@@ -3,6 +3,7 @@
 import hmac
 from collections.abc import Callable, Collection
 from datetime import UTC, datetime, timedelta
+from typing import NoReturn
 from uuid import uuid4
 
 import jasil.audit as jasil_audit
@@ -43,6 +44,10 @@ EMAIL_CHANGE_TAKEN_NOTICE_COOLDOWN_SECONDS = 3600
 #: How long a verification token, and so a pending email change, stays valid.
 SIGN_UP_TOKEN_TTL = timedelta(hours=24)
 
+#: How long after it was requested an email change can be reported as not made by the owner, before or after it is
+#: confirmed.
+EMAIL_CHANGE_REVERT_WINDOW = timedelta(days=7)
+
 
 def _stage_sign_up_token(
     user_id: int,
@@ -53,6 +58,9 @@ def _stage_sign_up_token(
     token: str | None = None,
     used: bool = False,
     security_generation: int | None = None,
+    revertible: bool = False,
+    change_id: str | None = None,
+    revert_until: datetime | None = None,
 ) -> sign_up_contracts.SignUpTokenState:
     """Stage a user's new verification token, using up their earlier ones, and return its row.
 
@@ -62,9 +70,13 @@ def _stage_sign_up_token(
         previous_email: The account's address when an email change was requested.
         db: Database session.
         token: The raw token to store the hash of; a random one is generated when omitted.
-        used: Whether the row is stored already used, as the record of a change that was applied.
+        used: Whether the row is stored already used and confirmed, as the record of a change that was applied.
         security_generation: The account's security generation when an email change was requested; None on any
             other token.
+        revertible: Whether the row starts an email change the account's owner can report as not made by them, with
+            a new change identifier and a revert window of seven days from now.
+        change_id: The email change the token re-issues the confirmation link of; set only with ``previous_email``.
+        revert_until: The end of that change's revert window; set only with ``change_id``.
 
     Returns:
         The staged token row.
@@ -74,8 +86,12 @@ def _stage_sign_up_token(
     else:
         token_hash = token_hashing.sha256_hex(token)
     now = datetime.now(UTC)
+    token_id = str(uuid4())
+    if revertible:
+        change_id = token_id
+        revert_until = now + EMAIL_CHANGE_REVERT_WINDOW
     sign_up_token = sign_up_schema.SignUpToken(
-        id=str(uuid4()),
+        id=token_id,
         user_id=user_id,
         token_hash=token_hash,
         created_at=now,
@@ -84,6 +100,9 @@ def _stage_sign_up_token(
         email=email,
         previous_email=previous_email,
         security_generation=security_generation,
+        change_id=change_id,
+        revert_until=revert_until,
+        confirmed_at=now if used else None,
     )
     sign_up_crud.mark_user_sign_up_tokens_used(user_id, db)
     return sign_up_crud.create_sign_up_token(sign_up_token, db)
@@ -96,6 +115,8 @@ def create_sign_up_token(
     db: Session,
     previous_email: str | None = None,
     security_generation: int | None = None,
+    change_id: str | None = None,
+    revert_until: datetime | None = None,
 ) -> str:
     """Return the verification token for a mail event, replacing the user's earlier tokens and committing it.
 
@@ -111,6 +132,8 @@ def create_sign_up_token(
             token, which replaces that address with ``email`` once confirmed.
         security_generation: The generation the email change was requested under; set only on an email-change
             token.
+        change_id: The email change this token re-issues the confirmation link of; set only on an email-change token.
+        revert_until: The end of that change's revert window; set only on an email-change token.
 
     Returns:
         The raw token, which is not stored.
@@ -118,7 +141,16 @@ def create_sign_up_token(
     token = access_tokens_integration.derive_email_token(f"sign-up:{event_id}")
     if sign_up_crud.sign_up_token_exists(token_hashing.sha256_hex(token), db):
         return token
-    _stage_sign_up_token(user_id, email, previous_email, db, token=token, security_generation=security_generation)
+    _stage_sign_up_token(
+        user_id,
+        email,
+        previous_email,
+        db,
+        token=token,
+        security_generation=security_generation,
+        change_id=change_id,
+        revert_until=revert_until,
+    )
     db.commit()
     logger.info("Sign-up verification token created", extra=core_logger.context(user_id=user_id))
     return token
@@ -248,6 +280,7 @@ def request_self_service_email_change(
         previous_email,
         db,
         security_generation=security_generation_integration.current_generation(user_id, db),
+        revertible=True,
     )
     sign_up_event_publishers.publish_email_change_requested(user_id, db)
     holder = _holder_of(email, user_id, db)
@@ -423,11 +456,22 @@ def _issue_verification_email(
     frontend_host: str,
     build_email: Callable[[str, str, str, str], tuple[str, str, str]],
     db: Session,
-    security_generation: int | None = None,
+    pending_change: sign_up_contracts.SignUpTokenState | None = None,
 ) -> tuple[str, str, str, str]:
-    """Create a verification link for ``email`` and return the email ``build_email`` makes of it."""
+    """Create a verification link for ``email`` and return the email ``build_email`` makes of it.
+
+    ``pending_change`` is the email change the link confirms, whose generation, identifier and revert window the new
+    token keeps.
+    """
     token = create_sign_up_token(
-        user.id, email, event_id, db, previous_email=previous_email, security_generation=security_generation
+        user.id,
+        email,
+        event_id,
+        db,
+        previous_email=previous_email,
+        security_generation=pending_change.security_generation if pending_change else None,
+        change_id=pending_change.change_id if pending_change else None,
+        revert_until=pending_change.revert_until if pending_change else None,
     )
     link = f"{frontend_host}/verify-email?token={token}"
     locale = core_i18n.normalize_locale(user.preferred_language)
@@ -460,7 +504,8 @@ def prepare_email_change_verification_email(
 
     Only a token's hash is stored, so the link is made from the pending change and the event id and mailed to the
     pending address; a retry of the event gets the same link. The new token keeps the generation the change was
-    requested under, so a security change since then leaves the change unconfirmable and it is not mailed. An
+    requested under, and its change identifier and revert window, so a security change since then leaves the change
+    unconfirmable and it is not mailed, and the "this wasn't me" link already mailed keeps naming the change. An
     address another account holds gets none.
 
     Returns:
@@ -483,7 +528,7 @@ def prepare_email_change_verification_email(
         frontend_host,
         sign_up_email_messages.get_email_change_confirmation_email,
         db,
-        pending.security_generation,
+        pending,
     )
 
 
@@ -494,6 +539,9 @@ def prepare_email_changed_email(
     db: Session,
 ) -> tuple[str, str, str, str] | None:
     """Return the notice to a user's previous address that a confirmed email change took effect.
+
+    The notice of a change the owner requested carries the change's "this wasn't me" link, the one mailed when the
+    change was requested; the notice of a change an administrator or a sign-in provider applied has none.
 
     Args:
         user_id: The user whose address changed.
@@ -509,9 +557,19 @@ def prepare_email_changed_email(
     if user is None or token is None or token.user_id != user_id or token.email is None or token.previous_email is None:
         return None
     locale = core_i18n.normalize_locale(user.preferred_language)
+    revert_link = None
+    if token.change_id is not None and token.revert_until is not None:
+        revert_link = _revert_link(token.change_id, token.revert_until, frontend_host)
     return (
         token.previous_email,
-        *sign_up_email_messages.get_email_changed_email(user.name, token.email, frontend_host, locale),
+        *sign_up_email_messages.get_email_changed_email(
+            user.name,
+            token.email,
+            frontend_host,
+            locale,
+            revert_link=revert_link,
+            revert_days=EMAIL_CHANGE_REVERT_WINDOW.days if revert_link else None,
+        ),
     )
 
 
@@ -570,9 +628,16 @@ def prepare_sign_up_existing_account_email(
     )
 
 
-def _cancel_mac(user_id: int, generation: int, expires_at: int) -> str:
-    """Return the proof, bound to an account's security generation, that a cancel link was issued by this server."""
-    return access_tokens_integration.derive_email_token(f"email-change-cancel:{user_id}:{generation}:{expires_at}")
+def _revert_mac(change_id: str, revert_until: datetime) -> str:
+    """Return the proof, bound to an email change and the end of its revert window, that a link was issued by this server."""
+    return access_tokens_integration.derive_email_token(
+        f"email-change-revert:{change_id}:{int(revert_until.timestamp())}"
+    )
+
+
+def _revert_link(change_id: str, revert_until: datetime, frontend_host: str) -> str:
+    """Return the "this wasn't me" link of an email change; it works until ``revert_until``."""
+    return f"{frontend_host}/cancel-email-change?token={change_id}.{_revert_mac(change_id, revert_until)}"
 
 
 def prepare_email_change_requested_email(
@@ -580,11 +645,12 @@ def prepare_email_change_requested_email(
     frontend_host: str,
     db: Session,
 ) -> tuple[str, str, str, str] | None:
-    """Return the notice, for the current address, that an email change was requested, with its cancel link.
+    """Return the notice, for the current address, that an email change was requested, with its "this wasn't me" link.
 
-    The link carries the user, the instant the pending change expires and a proof derived from them and the account's
-    security generation. Nothing is stored: any security change, including the cancellation itself, ends the link, so
-    it works once. A retry of the event mails the same link.
+    The link carries the identifier of the stored change and a proof derived from it and the end of its revert window,
+    seven days after the request. Nothing else is stored for it, and it is bound to the change, not to the account's
+    security generation, so confirming the change does not end it. A retry of the event, and a resend of the
+    confirmation link, mail the same link.
 
     Args:
         user_id: The user whose address a change was requested for.
@@ -599,70 +665,108 @@ def prepare_email_change_requested_email(
     if user is None:
         return None
     pending = _find_pending_email_change(user_id, db)
-    if pending is None or pending.email is None:
+    if pending is None or pending.email is None or pending.change_id is None or pending.revert_until is None:
         return None
-    generation = security_generation_integration.current_generation(user_id, db)
-    if pending.security_generation != generation:
+    if pending.security_generation != security_generation_integration.current_generation(user_id, db):
         return None
-    expires_at = int(pending.expires_at.timestamp())
-    token = f"{user_id}.{expires_at}.{_cancel_mac(user_id, generation, expires_at)}"
     locale = core_i18n.normalize_locale(user.preferred_language)
     return (
         user.email,
         *sign_up_email_messages.get_email_change_requested_email(
-            user.name, pending.email, f"{frontend_host}/cancel-email-change?token={token}", frontend_host, locale
+            user.name,
+            pending.email,
+            _revert_link(pending.change_id, pending.revert_until, frontend_host),
+            frontend_host,
+            locale,
         ),
     )
 
 
-def _verified_cancel_token(token: str, db: Session) -> int | None:
-    """Return the user a cancel link names when it is genuine, unexpired and from the account's current generation.
+def _refuse_revert(db: Session) -> NoReturn:
+    """Discard what a refused "this wasn't me" link staged, audit the refusal and raise the generic answer."""
+    db.rollback()
+    jasil_audit.record_detached(sign_up_audit_actions.EMAIL_CHANGE_CANCEL, outcome=jasil_audit.Outcome.FAILURE)
+    raise core_exceptions.InvalidInputError("Invalid or expired link")
 
-    On success the account's generation row is locked until the caller's transaction ends.
+
+def _email_change_of_link(token: str, now: datetime, db: Session) -> tuple[str, int] | None:
+    """Return the change a link names and its owner when the link is genuine and inside its revert window.
 
     Args:
         token: The token of the emailed link.
+        now: The current instant.
         db: Database session.
 
     Returns:
-        The user id, or None when the link is malformed, forged, expired, stale or names no user.
+        The change's identifier and the user it belongs to, or None when the link is malformed, forged, expired or
+        names no change.
     """
-    parts = token.split(".")
-    if (
-        len(parts) != 3
-        or not all(part.isascii() for part in parts)
-        or not (parts[0].isdecimal() and parts[1].isdecimal())
-    ):
+    change_id, _, mac = token.partition(".")
+    if not change_id or not mac or not token.isascii():
         return None
-    user_id, expires_at, mac = int(parts[0]), int(parts[1]), parts[2]
-    if expires_at <= datetime.now(UTC).timestamp() or users_integration.get_user(user_id, db) is None:
+    rows = sign_up_crud.get_email_change_tokens(change_id, now, db)
+    if not rows or rows[0].revert_until is None:
         return None
-    generation = security_generation_integration.current_generation(user_id, db)
-    if not hmac.compare_digest(mac, _cancel_mac(user_id, generation, expires_at)):
+    if not hmac.compare_digest(mac, _revert_mac(change_id, rows[0].revert_until)):
         return None
-    return user_id if security_generation_integration.matches_locked(user_id, generation, db) else None
+    return change_id, rows[0].user_id
 
 
-def cancel_email_change(token: str, db: Session) -> None:
-    """Cancel a requested email change reported as not made by the account's owner, and commit.
+def cancel_email_change(token: str, db: Session) -> sign_up_schema.EmailChangeCancelRead:
+    """Report an email change as not made by the account's owner, with its "this wasn't me" link, and commit.
 
     The person who asked knew the password and passed the step-up, so the account is treated as one that someone
-    else may reach: the pending change is voided, the security generation advances, every session ends and the API
-    keys are revoked. The password is not changed; the notice tells the owner to reset it.
+    else may reach: the security generation advances, every session ends and the API keys are revoked. The password
+    is not changed; the notice tells the owner to reset it. The link works once, for seven days after the request.
+
+    Before the change is confirmed the pending change is voided. After it, the link applies only while the account
+    still uses the address the change moved to, and a later change of any kind ends it, and it puts the previous address back
+    unless another account holds that address now; the account is secured either way.
 
     Args:
-        token: The token of the link emailed to the account's current address.
+        token: The token of the link emailed to the account's address.
         db: Database session.
 
+    Returns:
+        Whether the change had been confirmed and whether the previous address was restored.
+
     Raises:
-        InvalidInputError: If the link is malformed, expired, or from before a security change of the account.
+        InvalidInputError: If the link is malformed, forged, expired, already used, or names a change that a later
+            change has replaced.
     """
-    user_id = _verified_cancel_token(token, db)
-    if user_id is None:
-        jasil_audit.record_detached(sign_up_audit_actions.EMAIL_CHANGE_CANCEL, outcome=jasil_audit.Outcome.FAILURE)
-        raise core_exceptions.InvalidInputError("Invalid or expired link")
+    now = datetime.now(UTC)
+    named = _email_change_of_link(token, now, db)
+    if named is None:
+        _refuse_revert(db)
+    change_id, user_id = named
+    # The generation row is the first lock taken, as in a confirmation, and the change is read again under it, so a
+    # confirmation that commits first is seen.
     security_generation_integration.stage_bump(user_id, db)
+    rows = sign_up_crud.get_email_change_tokens(change_id, now, db)
+    confirmed = next((row for row in rows if row.confirmed_at is not None), None)
+    user = users_integration.get_user(user_id, db)
+    if user is None or not rows or any(row.reverted_at is not None for row in rows):
+        _refuse_revert(db)
+    if sign_up_crud.has_later_email_change(user_id, change_id, min(row.created_at for row in rows), now, db):
+        _refuse_revert(db)
+    if confirmed is not None:
+        if confirmed.email is None or confirmed.previous_email is None or user.email != confirmed.email.lower():
+            _refuse_revert(db)
+    elif not any(
+        pending.change_id == change_id for pending in sign_up_crud.get_pending_email_change_tokens([user_id], now, db)
+    ):
+        _refuse_revert(db)
+    if sign_up_crud.mark_email_change_reverted(change_id, db) == 0:
+        _refuse_revert(db)
     sign_up_crud.mark_user_sign_up_tokens_used(user_id, db)
+
+    email_restored = False
+    if confirmed is not None and confirmed.previous_email is not None:
+        if _holder_of(confirmed.previous_email, user_id, db) is None:
+            users_integration.stage_confirmed_email_change(user_id, confirmed.previous_email, db)
+            email_restored = True
+        else:
+            logger.info("Previous email address not restored", extra=core_logger.context(user_id=user_id))
     sessions_revoked = sessions_integration.delete_sessions_by_user(user_id, db)
     api_keys_revoked = api_keys_integration.revoke_user_api_keys(user_id, db)
     jasil_audit.stage(
@@ -672,11 +776,15 @@ def cancel_email_change(token: str, db: Session) -> None:
         target_id=str(user_id),
         target_owner_id=str(user_id),
         details=sign_up_audit_actions.EmailChangeCancelDetails(
-            sessions_revoked=sessions_revoked, api_keys_revoked=api_keys_revoked
+            sessions_revoked=sessions_revoked,
+            api_keys_revoked=api_keys_revoked,
+            change_applied=confirmed is not None,
+            email_restored=email_restored,
         ),
     )
     db.commit()
-    logger.info("Email change cancelled by the account owner", extra=core_logger.context(user_id=user_id))
+    logger.info("Email change reported by the account owner", extra=core_logger.context(user_id=user_id))
+    return sign_up_schema.EmailChangeCancelRead(change_applied=confirmed is not None, email_restored=email_restored)
 
 
 def prepare_email_change_address_taken_email(
@@ -954,7 +1062,7 @@ def verify_email(token: str, password: str | None, db: Session) -> sign_up_schem
 
 
 def delete_expired_sign_up_tokens(db: Session) -> int:
-    """Delete expired verification tokens, one batch per commit."""
+    """Delete expired verification tokens, one batch per commit, keeping an email change's rows until its revert window ends."""
     now = datetime.now(UTC)
     return core_database.delete_in_batches(lambda limit: sign_up_crud.delete_expired_sign_up_tokens(now, limit, db), db)
 

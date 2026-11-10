@@ -312,20 +312,41 @@ class TestGetEmailChangedEmail:
 
     def test_shows_only_the_masked_new_address(self):
         subject, html_body, text_body = email_messages.get_email_changed_email(
-            "Alice", "alice@example.org", "https://endurain.example.com", locale="en"
+            "Alice",
+            "alice@example.org",
+            "https://endurain.example.com",
+            locale="en",
+            revert_link="https://endurain.example.com/cancel-email-change?token=c.m",
+            revert_days=7,
         )
 
         assert subject
         assert "a***@example.org" in html_body
         assert "a***@example.org" in text_body
         assert "alice@example.org" not in html_body + text_body
+        assert "https://endurain.example.com/cancel-email-change?token=c.m" in html_body
+        assert "https://endurain.example.com/cancel-email-change?token=c.m" in text_body
+        assert "within 7 days" in text_body
 
     def test_escapes_the_name(self):
         _, html_body, _ = email_messages.get_email_changed_email(
-            "<b>Al</b>", "alice@example.org", "https://endurain.example.com", locale="en"
+            "<b>Al</b>",
+            "alice@example.org",
+            "https://endurain.example.com",
+            locale="en",
+            revert_link="https://endurain.example.com/x?token=c.m",
+            revert_days=7,
         )
 
         assert "<b>Al</b>" not in html_body
+
+    def test_without_a_revert_link_the_notice_has_none_and_names_the_administrator(self):
+        _, html_body, text_body = email_messages.get_email_changed_email(
+            "Alice", "alice@example.org", "https://endurain.example.com", locale="en"
+        )
+
+        assert "cancel-email-change" not in html_body + text_body
+        assert "contact your Endurain administrator" in text_body
 
     def test_mask_keeps_the_first_character_and_the_domain(self):
         assert email_messages.mask_email("bob@mail.example.org") == "b***@mail.example.org"

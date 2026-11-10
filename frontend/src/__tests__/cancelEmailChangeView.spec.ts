@@ -8,7 +8,7 @@ import { HttpError } from '@/services/http'
 const { cancelEmailChange, routerReplace, route } = vi.hoisted(() => ({
   route: { path: '/cancel-email-change', query: {} as Record<string, unknown> },
   routerReplace: vi.fn<(to: unknown) => Promise<void>>(() => Promise.resolve()),
-  cancelEmailChange: vi.fn<(request: unknown) => Promise<void>>(),
+  cancelEmailChange: vi.fn<(request: unknown) => Promise<unknown>>(),
 }))
 
 vi.mock('vue-router', () => ({
@@ -46,7 +46,7 @@ describe('CancelEmailChangeView', () => {
   })
 
   it('cancels with the token from the link and says what ended', async () => {
-    cancelEmailChange.mockResolvedValue(undefined)
+    cancelEmailChange.mockResolvedValue({ change_applied: false, email_restored: false })
     const wrapper = await mountView()
 
     await wrapper.get('button').trigger('click')
@@ -55,6 +55,28 @@ describe('CancelEmailChangeView', () => {
     expect(cancelEmailChange).toHaveBeenCalledWith({ token: '7.123.abc' })
     expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.cancelledTitle'))
     expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.cancelledBody'))
+  })
+
+  it('says the previous address is back after a confirmed change is reverted', async () => {
+    cancelEmailChange.mockResolvedValue({ change_applied: true, email_restored: true })
+    const wrapper = await mountView()
+
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.restoredTitle'))
+    expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.restoredBody'))
+  })
+
+  it('says the address was kept when a confirmed change could not be reverted', async () => {
+    cancelEmailChange.mockResolvedValue({ change_applied: true, email_restored: false })
+    const wrapper = await mountView()
+
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.notRestoredTitle'))
+    expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.notRestoredBody'))
   })
 
   it('removes the token from the address bar', async () => {

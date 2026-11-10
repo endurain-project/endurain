@@ -134,7 +134,13 @@ class TestEmailPreparation:
         self, _get_user, _holder, pending, create_token, build_email, mock_db
     ):
         pending.return_value = [
-            MagicMock(email="new@example.test", previous_email="old@example.test", security_generation=0)
+            MagicMock(
+                email="new@example.test",
+                previous_email="old@example.test",
+                security_generation=0,
+                change_id="change-1",
+                revert_until="window-end",
+            )
         ]
         build_email.return_value = ("subject", "html", "text")
 
@@ -142,5 +148,12 @@ class TestEmailPreparation:
 
         assert result == ("new@example.test", "subject", "html", "text")
         create_token.assert_called_once_with(
-            1, "new@example.test", "event-1", mock_db, previous_email="old@example.test", security_generation=0
+            1,
+            "new@example.test",
+            "event-1",
+            mock_db,
+            previous_email="old@example.test",
+            security_generation=0,
+            change_id="change-1",
+            revert_until="window-end",
         )

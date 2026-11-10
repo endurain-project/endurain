@@ -62,6 +62,7 @@ def _add_token(
     security_generation=0,
 ):
     now = datetime.now(UTC)
+    is_change = previous_email is not None
     db.add(
         sign_up_models.SignUpToken(
             id=token_id,
@@ -73,6 +74,9 @@ def _add_token(
             email=email,
             previous_email=previous_email,
             security_generation=security_generation,
+            change_id=token_id if is_change else None,
+            revert_until=now + timedelta(days=7) if is_change else None,
+            confirmed_at=now if used else None,
         )
     )
     db.commit()

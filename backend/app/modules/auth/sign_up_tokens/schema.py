@@ -20,6 +20,9 @@ class SignUpToken(BaseModel):
         email: Email address the token proves.
         previous_email: Account email address a pending email change replaces.
         security_generation: Account security generation a pending email change was requested under.
+        change_id: Identifier of the email change the token belongs to.
+        revert_until: End of the email change's revert window.
+        confirmed_at: When the token was confirmed, or the email change it records was applied.
     """
 
     id: StrictStr = Field(
@@ -62,6 +65,19 @@ class SignUpToken(BaseModel):
         default=None,
         description="Account security generation a pending email change was requested under",
     )
+    change_id: StrictStr | None = Field(
+        default=None,
+        description="Identifier of the email change the token belongs to",
+        max_length=64,
+    )
+    revert_until: datetime | None = Field(
+        default=None,
+        description="End of the email change's revert window",
+    )
+    confirmed_at: datetime | None = Field(
+        default=None,
+        description="When the token was confirmed, or the email change it records was applied",
+    )
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -103,6 +119,21 @@ class EmailChangeCancel(BaseModel):
         min_length=1,
         max_length=256,
     )
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class EmailChangeCancelRead(BaseModel):
+    """Response schema for the "this wasn't me" link of an email change.
+
+    Attributes:
+        change_applied: Whether the change had already been confirmed when the link was used.
+        email_restored: Whether the account's previous address was put back; false when the change was still pending,
+            or when another account holds the previous address now.
+    """
+
+    change_applied: StrictBool = Field(..., description="Whether the change had been confirmed when the link was used")
+    email_restored: StrictBool = Field(..., description="Whether the account's previous email address was restored")
 
     model_config = ConfigDict(extra="forbid")
 

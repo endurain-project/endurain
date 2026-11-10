@@ -17,6 +17,10 @@ class SignUpTokenState(BaseModel):
     email: str | None
     previous_email: str | None
     security_generation: int | None
+    change_id: str | None
+    revert_until: datetime | None
+    confirmed_at: datetime | None
+    reverted_at: datetime | None
 
     model_config = ConfigDict(from_attributes=True, frozen=True)
 

@@ -52,6 +52,8 @@ def _pending(db, *, security_generation=0, expires_in=timedelta(hours=24), email
             email=email,
             previous_email="user7@example.com",
             security_generation=security_generation,
+            change_id="t1",
+            revert_until=now + timedelta(days=7),
         )
     )
     db.commit()
@@ -146,7 +148,12 @@ class TestCancel:
         delete_sessions.assert_called_once_with(7, db)
         revoke_keys.assert_called_once_with(7, db)
         entry = audit.assert_audited(_ACTION, target_type="user", target_id="7", target_owner_id="7")
-        assert entry.details == {"sessions_revoked": 2, "api_keys_revoked": 1}
+        assert entry.details == {
+            "sessions_revoked": 2,
+            "api_keys_revoked": 1,
+            "change_applied": False,
+            "email_restored": False,
+        }
         assert token not in repr(entry)
 
     def test_the_link_works_once(self, db):
@@ -157,7 +164,7 @@ class TestCancel:
         with pytest.raises(core_exceptions.InvalidInputError):
             self._cancel(db, token)
 
-    @pytest.mark.parametrize("token", ["", "garbage", "7.9999999999.deadbeef", "x.1.2", "7.notanumber.abc", "7.1"])
+    @pytest.mark.parametrize("token", ["", "garbage", "7.9999999999.deadbeef", "x.1.2", "t1.", ".abc", "t1.\u00e9"])
     def test_a_malformed_or_forged_token_is_refused_and_changes_nothing(self, db, security_generations, token):
         _pending(db)
 
@@ -167,26 +174,3 @@ class TestCancel:
         assert security_generations.bumps == []
         assert db.query(sign_up_models.SignUpToken).filter_by(used=False).count() == 1
         audit.assert_audited(_ACTION, outcome="failure")
-
-    def test_another_users_token_is_refused(self, db):
-        _pending(db)
-        _, expires, mac = _link_token(db).split(".")
-
-        with pytest.raises(core_exceptions.InvalidInputError):
-            self._cancel(db, f"8.{expires}.{mac}")
-
-    def test_an_expired_link_is_refused(self, db):
-        _pending(db)
-        token = _link_token(db)
-
-        with patch(f"{_SERVICE}.datetime") as clock, pytest.raises(core_exceptions.InvalidInputError):
-            clock.now.return_value = datetime.now(UTC) + timedelta(days=2)
-            self._cancel(db, token)
-
-    def test_a_link_made_stale_by_a_security_change_is_refused(self, db, security_generations):
-        _pending(db)
-        token = _link_token(db)
-        security_generations.stage_bump(7, db)
-
-        with pytest.raises(core_exceptions.InvalidInputError):
-            self._cancel(db, token)
