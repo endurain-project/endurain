@@ -14,14 +14,19 @@ REENCRYPT_LOCK_NAME = "auth_rotated_refresh_tokens_reencrypt"
 
 
 def delete_expired_rotated_tokens() -> None:
-    """Delete rotated-token rows whose refresh token has expired, one bounded batch per transaction.
+    """Clear ended grace windows' replacement tokens and delete expired rotated-token rows, in bounded batches.
+
+    A replacement token is needed only inside the grace window, so it is cleared once that has ended; the
+    record stays for reuse detection.
 
     A rotated token stays recorded until it could no longer be presented, so a replay after the grace
     window is still recognised as reuse. Each row carries its own token's expiry, so a change to the
     refresh-token lifetime neither drops a record early nor keeps one past its token.
     """
+    now = datetime.now(UTC)
     with core_database.SessionLocal() as db:
-        deleted_count = rotated_token_service.delete_expired_tokens(datetime.now(UTC), db)
+        rotated_token_service.clear_expired_replacements(now, db)
+        deleted_count = rotated_token_service.delete_expired_tokens(now, db)
     if deleted_count:
         logger.info("Cleaned up expired rotated refresh-token records", extra=core_logger.context(count=deleted_count))
 

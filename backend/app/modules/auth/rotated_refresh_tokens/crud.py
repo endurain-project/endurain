@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from datetime import datetime
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -60,6 +60,23 @@ def delete_expired_tokens(now: datetime, limit: int, db: Session) -> int:
     model = rotated_token_models.RotatedRefreshToken
     expired = select(model.id).where(model.refresh_token_exp < now).limit(limit)
     matched = core_database.rowcount(db, delete(model).where(model.id.in_(expired)))
+    db.flush()
+    return matched
+
+
+def clear_expired_replacements(now: datetime, limit: int, db: Session) -> int:
+    """Stage clearing the replacement token of up to ``limit`` records whose grace window ended before ``now``.
+
+    The record itself stays, so a replay of the rotated token is still recognised as reuse.
+    """
+    model = rotated_token_models.RotatedRefreshToken
+    expired = select(model.id).where(model.expires_at < now, model.replacement_refresh_token.is_not(None)).limit(limit)
+    matched = core_database.rowcount(
+        db,
+        update(model)
+        .where(model.id.in_(expired))
+        .values(replacement_refresh_token=None, replacement_refresh_token_exp=None),
+    )
     db.flush()
     return matched
 

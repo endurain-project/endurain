@@ -8,6 +8,7 @@ import pytest
 
 import core.exceptions as core_exceptions
 import modules.auth.rotated_refresh_tokens.crud as rotated_token_crud
+import modules.auth.rotated_refresh_tokens.models as rotated_token_models
 import modules.auth.rotated_refresh_tokens.schema as rotated_token_schema
 from tests._helpers.db import create_sqlite_session
 
@@ -103,5 +104,59 @@ def test_a_record_is_found_by_any_of_the_digests():
 
     assert rotated_token_crud.get_rotated_token_by_hashes(["z" * 64, "a" * 64], db) is not None
     assert rotated_token_crud.get_rotated_token_by_hashes(["y" * 64, "z" * 64], db) is None
+
+    db.close()
+
+
+def test_a_replacement_is_cleared_once_the_grace_window_has_passed_and_the_record_is_kept():
+    """The replacement is needed only inside the grace window; the hash stays for reuse detection."""
+    db = create_sqlite_session()
+    now = datetime.now(UTC)
+    _stage(db, "a" * 64, rotated_at=now - timedelta(minutes=1), refresh_token_exp=now + timedelta(days=1))
+    _stage(db, "b" * 64, rotated_at=now, refresh_token_exp=now + timedelta(days=1))
+    for digest, expires_at in (("a" * 64, now - timedelta(seconds=1)), ("b" * 64, now + timedelta(seconds=5))):
+        row = db.query(rotated_token_models.RotatedRefreshToken).filter_by(hashed_token=digest).one()
+        row.expires_at = expires_at
+    db.flush()
+
+    assert rotated_token_crud.clear_expired_replacements(now, 100, db) == 1
+    assert rotated_token_crud.clear_expired_replacements(now, 100, db) == 0
+
+    expired = rotated_token_crud.get_rotated_token_by_hashes(["a" * 64], db)
+    assert expired is not None
+    assert expired.replacement_refresh_token is None
+    assert expired.replacement_refresh_token_exp is None
+    live = rotated_token_crud.get_rotated_token_by_hashes(["b" * 64], db)
+    assert live is not None
+    assert live.replacement_refresh_token == "encrypted"
+
+    db.close()
+
+
+def test_clearing_replacements_is_bounded_by_the_limit():
+    db = create_sqlite_session()
+    now = datetime.now(UTC)
+    for digest in ("a" * 64, "b" * 64, "c" * 64):
+        _stage(db, digest, rotated_at=now - timedelta(minutes=1), refresh_token_exp=now + timedelta(days=1))
+    db.query(rotated_token_models.RotatedRefreshToken).update({"expires_at": now - timedelta(seconds=1)})
+    db.flush()
+
+    assert rotated_token_crud.clear_expired_replacements(now, 2, db) == 2
+    assert rotated_token_crud.clear_expired_replacements(now, 2, db) == 1
+
+    db.close()
+
+
+def test_reencryption_skips_a_cleared_replacement():
+    db = create_sqlite_session()
+    now = datetime.now(UTC)
+    _stage(db, "a" * 64, rotated_at=now - timedelta(minutes=1), refresh_token_exp=now + timedelta(days=1))
+    db.query(rotated_token_models.RotatedRefreshToken).update({"expires_at": now - timedelta(seconds=1)})
+    rotated_token_crud.clear_expired_replacements(now, 100, db)
+
+    result = rotated_token_crud.stage_reencrypt_batch_tokens(0, 100, db)
+
+    assert result.counts.rotated == 0
+    assert result.counts.undecryptable == 0
 
     db.close()

@@ -260,6 +260,13 @@ def delete_expired_tokens(now: datetime, db: Session) -> int:
     return core_database.delete_in_batches(lambda limit: rotated_token_crud.delete_expired_tokens(now, limit, db), db)
 
 
+def clear_expired_replacements(now: datetime, db: Session) -> int:
+    """Clear the replacement token of records whose grace window ended before ``now``, one batch per commit."""
+    return core_database.delete_in_batches(
+        lambda limit: rotated_token_crud.clear_expired_replacements(now, limit, db), db
+    )
+
+
 def reencrypt_stored_secrets(db: Session) -> None:
     """Re-encrypt this module's stored secrets under the first FERNET_KEY; does nothing while one key is configured.
 

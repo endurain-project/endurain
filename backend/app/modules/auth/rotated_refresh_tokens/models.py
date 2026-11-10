@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
@@ -29,6 +29,13 @@ class RotatedRefreshToken(Base):
     """
 
     __tablename__ = "rotated_refresh_tokens"
+    __table_args__ = (
+        Index(
+            "ix_rotated_refresh_tokens_expires_at_with_replacement",
+            "expires_at",
+            postgresql_where=text("replacement_refresh_token IS NOT NULL"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(
         primary_key=True,

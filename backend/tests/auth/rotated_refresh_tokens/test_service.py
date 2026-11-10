@@ -360,25 +360,43 @@ class TestCleanupExpiredRotatedTokens:
     """Tests for rotated-token cleanup scheduling."""
 
     @patch("modules.auth.rotated_refresh_tokens.scheduled_jobs.core_database.SessionLocal")
+    @patch("modules.auth.rotated_refresh_tokens.scheduled_jobs.rotated_token_service.clear_expired_replacements")
     @patch("modules.auth.rotated_refresh_tokens.scheduled_jobs.rotated_token_service.delete_expired_tokens")
-    def test_cleanup_hands_its_session_to_the_purge(self, mock_delete, mock_session_local):
+    def test_cleanup_hands_its_session_to_the_purge(self, mock_delete, mock_clear, mock_session_local):
         """The purge commits one batch at a time, so the job only opens the session."""
         db = MagicMock()
         mock_session_local.return_value.__enter__.return_value = db
         mock_delete.return_value = 10
         rotated_token_jobs.delete_expired_rotated_tokens()
         assert mock_delete.call_args.args[1] is db
+        assert mock_clear.call_args.args[1] is db
         db.commit.assert_not_called()
 
     @patch("modules.auth.rotated_refresh_tokens.scheduled_jobs.core_database.SessionLocal")
+    @patch("modules.auth.rotated_refresh_tokens.scheduled_jobs.rotated_token_service.clear_expired_replacements")
     @patch("modules.auth.rotated_refresh_tokens.scheduled_jobs.rotated_token_service.delete_expired_tokens")
-    def test_cleanup_removes_what_has_expired_by_now(self, mock_delete, mock_session_local):
+    def test_cleanup_removes_what_has_expired_by_now(self, mock_delete, mock_clear, mock_session_local):
         """Each record carries its own token's expiry, so the job asks only for what has passed."""
         mock_session_local.return_value.__enter__.return_value = MagicMock()
         mock_delete.return_value = 0
         before = datetime.now(UTC)
         rotated_token_jobs.delete_expired_rotated_tokens()
         assert before <= mock_delete.call_args.args[0] <= datetime.now(UTC)
+        assert before <= mock_clear.call_args.args[0] <= datetime.now(UTC)
+        assert mock_clear.call_args.args[0] == mock_delete.call_args.args[0]
+
+    @patch("modules.auth.rotated_refresh_tokens.scheduled_jobs.core_database.SessionLocal")
+    @patch("modules.auth.rotated_refresh_tokens.scheduled_jobs.rotated_token_service.clear_expired_replacements")
+    @patch("modules.auth.rotated_refresh_tokens.scheduled_jobs.rotated_token_service.delete_expired_tokens")
+    def test_cleanup_clears_replacements_before_deleting(self, mock_delete, mock_clear, mock_session_local):
+        mock_session_local.return_value.__enter__.return_value = MagicMock()
+        mock_clear.return_value = 0
+        mock_delete.return_value = 0
+        parent = MagicMock()
+        parent.attach_mock(mock_clear, "clear")
+        parent.attach_mock(mock_delete, "delete")
+        rotated_token_jobs.delete_expired_rotated_tokens()
+        assert [call[0] for call in parent.mock_calls] == ["clear", "delete"]
 
     def test_recurring_job_runs_every_minute(self):
         assert rotated_token_jobs.recurring_jobs()[0].minutes == 1
@@ -547,3 +565,39 @@ class TestKeyRotation:
 
         assert candidates[0] == first
         assert len(set(candidates)) == 2
+
+
+class TestReplayAfterReplacementCleared:
+    """A replacement cleared after the grace window must not weaken reuse detection."""
+
+    def test_replay_after_grace_is_still_reuse_and_replays_nothing(self):
+        from tests._helpers.db import create_sqlite_session
+
+        db = create_sqlite_session()
+        now = datetime.now(UTC)
+        with patch.object(rotated_token_utils.core_cryptography, "encrypt_token_fernet", return_value="x"):
+            rotated_token_utils.store_rotated_token(
+                "old-token",
+                "f" * 36,
+                1,
+                db,
+                ip_address=_IP,
+                user_agent=_UA,
+                refresh_token_exp=now + timedelta(days=1),
+                replacement_refresh_token="new-token",
+                replacement_refresh_token_exp=now + timedelta(days=1),
+            )
+        db.query(rotated_token_models.RotatedRefreshToken).update({"expires_at": now - timedelta(seconds=1)})
+        db.flush()
+
+        assert rotated_token_utils.clear_expired_replacements(now, db) == 1
+
+        # SQLite returns naive datetimes, so the service's clock is naive here too.
+        _FixedClock.current = now.replace(tzinfo=None)
+        with patch.object(rotated_token_utils, "datetime", _FixedClock):
+            assert rotated_token_utils.check_token_reuse("old-token", db, ip_address=_IP, user_agent=_UA) == (
+                True,
+                False,
+            )
+            assert rotated_token_utils.get_grace_replay_token("old-token", db, ip_address=_IP, user_agent=_UA) is None
+        db.close()
