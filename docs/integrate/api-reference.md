@@ -26,6 +26,6 @@ A notification's `options` depend on its `type`, and the schema names each shape
 | `account_security_changed` | `change`, and `idp_id` and `idp_name` for an unlink |
 | `new_device_sign_in` | `browser`, `operating_system`, `ip_address` |
 
-For authentication, scopes, errors and rate limits see the other pages in this section. Requests cannot be sent from this page; use your own Endurain instance's `/docs` for that.
+For authentication, scopes, errors and rate limits see the other pages in this section. Requests cannot be sent from this page. An Endurain instance serves the schema (`/openapi.json`) and its interactive pages (`/api/v1/docs`, `/api/v1/redoc`) only when `ENVIRONMENT` is `development` or `demo`; in `production` the schema is not served and this reference holds it.
 
 <swagger-ui src="./openapi.json"/>

@@ -354,6 +354,8 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
         docs_url=None,
         redoc_url=None,
+        # The schema is served where the documentation pages are, and the published API reference holds it otherwise.
+        openapi_url="/openapi.json" if is_development_or_demo else None,
         title="Endurain",
         summary="Endurain API for the Endurain app",
         servers=OPENAPI_SERVERS,
