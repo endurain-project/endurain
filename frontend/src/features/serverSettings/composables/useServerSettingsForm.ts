@@ -38,33 +38,6 @@ const API_KEY_DAYS_RANGE = { min: 1, max: 3650 } as const
 const RETENTION_DAYS_RANGE = { min: 0, max: 3650 } as const
 /** Accepted audit trail retention besides 0 (keep everything): the database-side floor to the substrate maximum. */
 const AUDIT_RETENTION_DAYS_RANGE = { min: 30, max: 36500 } as const
-/**
- * The settings whose change needs the administrator's step-up: the ones that govern who can sign up or sign
- * in, how long a session or token lives, how long the audit trail is kept and whether public links reveal
- * their owner. Mirrors the backend's
- * `SECURITY_FIELDS`; the backend decides, so a field missing here only shows the dialog late.
- */
-const SECURITY_FIELDS = [
-  'signupEnabled',
-  'signupSsoEnabled',
-  'signupRequireAdminApproval',
-  'signupRequireEmailVerification',
-  'ssoEnabled',
-  'ssoAutoRedirect',
-  'localLoginEnabled',
-  'passwordLengthRegularUsers',
-  'passwordLengthAdminUsers',
-  'passwordBreachCheckEnabled',
-  'sessionIdleTimeoutEnabled',
-  'sessionIdleTimeoutHours',
-  'sessionAbsoluteTimeoutHours',
-  'accessTokenExpireMinutes',
-  'refreshTokenExpireDays',
-  'apiKeyMaxLifetimeDays',
-  'auditRetentionDays',
-  'auditLegalHold',
-  'publicShareableLinksUserInfo',
-] as const satisfies readonly (keyof ServerSettingsFormValues)[]
 /** The write-only API key fields; a draft kept across the identity-provider sign-in never holds them. */
 const SECRET_FIELDS = ['tileserverApiKey', 'geocodingApiKey'] as const
 /** Placeholders every valid tile URL template must contain. */
@@ -254,13 +227,16 @@ export function useServerSettingsForm(props: {
    * Whether the edits change a security-relevant setting, which needs the administrator's step-up.
    *
    * @param formValues - The form values.
-   * @returns True when one of the settings in {@link SECURITY_FIELDS} differs from the saved one.
+   * @returns True when one of the settings the server lists in `stepUpFields` differs from the saved one.
    */
   function changesSecuritySetting(formValues: ServerSettingsFormValues): boolean {
     const normalized = (value: unknown): unknown =>
       typeof value === 'string' ? value.trim() : value
-    return SECURITY_FIELDS.some(
-      (field) => normalized(formValues[field]) !== normalized(initialValues[field]),
+    return props.settings.stepUpFields.some(
+      (field) =>
+        field in formValues &&
+        normalized(formValues[field as keyof ServerSettingsFormValues]) !==
+          normalized(initialValues[field as keyof ServerSettingsFormValues]),
     )
   }
 

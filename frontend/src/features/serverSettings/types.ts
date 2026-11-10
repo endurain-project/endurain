@@ -91,6 +91,7 @@ export type GeocodingService = Schemas['GeocodingService']
  * @property auditLegalHold - Whether all pruning of the audit trail is paused.
  * @property geocodingApiKeySet - Whether a geocoding API key is stored (the key itself is never returned).
  * @property envManaged - Field name (snake_case) to the environment variable that sets it; those fields are read-only.
+ * @property stepUpFields - Keys (camelCase) of the settings whose change needs the administrator's step-up.
  */
 export interface ServerSettings {
   id: number
@@ -131,6 +132,7 @@ export interface ServerSettings {
   auditLegalHold: boolean
   geocodingApiKeySet: boolean
   envManaged: Record<string, string>
+  stepUpFields: (keyof ServerSettings)[]
 }
 
 /**
@@ -174,6 +176,7 @@ export type ServerSettingsFormValues = Omit<
   | 'tileserverApiKeySet'
   | 'geocodingApiKeySet'
   | 'envManaged'
+  | 'stepUpFields'
   | 'geocodingHost'
   | 'geocodingRateLimit'
   | 'sessionIdleTimeoutHours'
@@ -205,7 +208,7 @@ export type ServerSettingsFormValues = Omit<
  */
 export type ServerSettingsUpdate = Omit<
   ServerSettings,
-  'tileserverApiKeySet' | 'geocodingApiKeySet' | 'envManaged'
+  'tileserverApiKeySet' | 'geocodingApiKeySet' | 'envManaged' | 'stepUpFields'
 > & {
   tileserverApiKey?: string | null
   geocodingApiKey?: string | null

@@ -69,6 +69,7 @@ function makeSettingsDto(overrides: Partial<ServerSettingsDto> = {}): ServerSett
     audit_legal_hold: false,
     geocoding_api_key_set: false,
     env_managed: {},
+    step_up_fields: ['audit_legal_hold', 'sso_enabled'],
     ...overrides,
   }
 }
@@ -144,6 +145,7 @@ describe('mapServerSettings', () => {
       auditLegalHold: false,
       geocodingApiKeySet: false,
       envManaged: {},
+      stepUpFields: ['auditLegalHold', 'ssoEnabled'],
     })
   })
 
@@ -159,6 +161,28 @@ describe('mapServerSettings', () => {
   it('carries the env-managed map', () => {
     const dto = makeSettingsDto({ env_managed: { geocoding_host: 'PHOTON_API_HOST' } })
     expect(mapServerSettings(dto).envManaged).toEqual({ geocoding_host: 'PHOTON_API_HOST' })
+  })
+})
+
+describe('mapServerSettings step-up fields', () => {
+  it('camel-cases the names the server lists', () => {
+    const dto = makeSettingsDto({
+      step_up_fields: ['signup_sso_enabled', 'api_key_max_lifetime_days'],
+    })
+    expect(mapServerSettings(dto).stepUpFields).toEqual([
+      'signupSsoEnabled',
+      'apiKeyMaxLifetimeDays',
+    ])
+  })
+
+  it('drops a name the settings do not have', () => {
+    const dto = makeSettingsDto({ step_up_fields: ['audit_legal_hold', 'not_a_setting'] })
+    expect(mapServerSettings(dto).stepUpFields).toEqual(['auditLegalHold'])
+  })
+
+  it('is not sent back with the edit', () => {
+    const wire = toServerSettingsWire(mapServerSettings(makeSettingsDto()), null)
+    expect(wire).not.toHaveProperty('step_up_fields')
   })
 })
 
@@ -186,6 +210,7 @@ describe('toServerSettingsWire', () => {
       tileserver_api_key_set: _keySet,
       geocoding_api_key_set: _geoKeySet,
       env_managed: _envManaged,
+      step_up_fields: _stepUpFields,
       ...editable
     } = makeSettingsDto()
     expect(toServerSettingsWire(settings, null)).toEqual({ ...editable, step_up: null })

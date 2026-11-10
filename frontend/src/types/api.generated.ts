@@ -10569,6 +10569,7 @@ export interface components {
          *         signup_require_admin_approval: Require admin approval for new sign-ups.
          *         signup_require_email_verification: Require email verification for new sign-ups.
          *         password_breach_check_enabled: Refuse a new password found in a known data breach.
+         *         step_up_fields: The settings whose change needs the administrator's step-up; read-only.
          */
         ServerSettingsAdminRead: {
             /**
@@ -10727,6 +10728,11 @@ export interface components {
              * @description Enable SSO/IdP login (true - yes, false - no)
              */
             sso_enabled: boolean;
+            /**
+             * Step Up Fields
+             * @description The settings whose change needs the administrator's step-up
+             */
+            step_up_fields: string[];
             /**
              * Tileserver Api Key Set
              * @description Is a tile server API key stored (true - yes, false - no)

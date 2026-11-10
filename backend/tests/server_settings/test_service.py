@@ -519,6 +519,22 @@ class TestGeocodingSettingsOnWrite:
         assert written.tileserver_api_key == "enc-old"
 
 
+class TestAdminReadStepUpFields:
+    def test_the_admin_read_lists_the_settings_that_need_the_step_up(self):
+        with patch.object(server_settings_service, "server_settings_env_managed", return_value={}):
+            result = server_settings_service._to_admin_read(_stored())
+
+        assert result.step_up_fields == sorted(server_settings_constants.SECURITY_FIELDS)
+
+    def test_the_saved_settings_list_them_too(self, edit_env):
+        with patch.object(server_settings_service, "server_settings_env_managed", return_value={}):
+            result = server_settings_service.edit_server_settings(
+                _full_edit(edit_env.stored, currency="dollar"), None, VERIFIER, MagicMock(), if_match="*"
+            )
+
+        assert result.step_up_fields == sorted(server_settings_constants.SECURITY_FIELDS)
+
+
 class TestServerSettingsEnvManaged:
     def test_nothing_is_managed_without_a_geocoding_variable(self):
         with patch.object(server_settings_service, "env_var_is_set", return_value=False):

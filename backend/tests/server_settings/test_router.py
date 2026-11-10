@@ -73,6 +73,7 @@ class TestReadServerSettings:
             audit_legal_hold=False,
             geocoding_api_key_set=False,
             env_managed={},
+            step_up_fields=["audit_legal_hold"],
         )
 
         mock_get_settings.return_value = mock_settings
@@ -89,6 +90,7 @@ class TestReadServerSettings:
         assert data["id"] == 1
         assert data["units"] == "metric"
         assert data["public_shareable_links"] is False
+        assert data["step_up_fields"] == ["audit_legal_hold"]
 
     @patch("modules.server_settings.router.server_settings_service.get_server_settings_for_admin")
     def test_read_server_settings_not_found(self, mock_get_settings, fast_api_client, fast_api_app):
@@ -153,6 +155,7 @@ class TestEditServerSettings:
             audit_legal_hold=False,
             geocoding_api_key_set=False,
             env_managed={},
+            step_up_fields=[],
         )
 
         mock_edit_settings.return_value = mock_updated_settings
@@ -313,6 +316,7 @@ class TestEditServerSettingsStepUp:
             tileserver_api_key_set=False,
             geocoding_api_key_set=False,
             env_managed={},
+            step_up_fields=[],
         )
 
     @staticmethod
@@ -407,7 +411,9 @@ def _edit_body(**overrides) -> dict:
 class TestEditRejectsReadOnlyFields:
     """The edit body must not accept fields the route does not own."""
 
-    @pytest.mark.parametrize("field,value", [("id", 2), ("login_photo_set", False)])
+    @pytest.mark.parametrize(
+        "field,value", [("id", 2), ("login_photo_set", False), ("step_up_fields", ["audit_legal_hold"])]
+    )
     def test_read_only_fields_are_a_422(self, field, value, fast_api_client, fast_api_app):
         body = _edit_body(**{field: value})
         response = fast_api_client.put(

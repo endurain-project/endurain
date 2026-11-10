@@ -21,7 +21,7 @@ const MESSAGE_KEY_BY_TYPE: Readonly<Record<string, string>> = {
  * @param field - The API field name.
  * @returns The camelCase name.
  */
-function snakeToCamel(field: string): string {
+export function snakeToCamel(field: string): string {
   return field.replace(/_([a-z0-9])/g, (_, char: string) => char.toUpperCase())
 }
 

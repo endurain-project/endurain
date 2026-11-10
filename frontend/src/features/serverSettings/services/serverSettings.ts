@@ -18,6 +18,7 @@ import type {
 } from '@/features/serverSettings/types'
 
 import { apiFetch } from '@/services/http'
+import { snakeToCamel } from '@/services/fieldErrors'
 import { ifMatchHeaders } from '@/services/ifMatch'
 import { toStepUpWire } from '@/features/security/services/security'
 
@@ -27,10 +28,10 @@ import { toStepUpWire } from '@/features/security/services/security'
  * normalized so components never see the raw DTO.
  *
  * @param dto - Raw server-settings payload from the backend.
- * @returns The normalized server-settings model.
+ * @returns The normalized server-settings model; `stepUpFields` keeps only the names the settings have.
  */
 export function mapServerSettings(dto: ServerSettingsDto): ServerSettings {
-  return {
+  const settings: Omit<ServerSettings, 'stepUpFields'> = {
     id: dto.id,
     version: dto.version,
     units: dto.units,
@@ -70,6 +71,11 @@ export function mapServerSettings(dto: ServerSettingsDto): ServerSettings {
     geocodingApiKeySet: dto.geocoding_api_key_set,
     envManaged: dto.env_managed,
   }
+  // A name the settings do not have cannot change from the form, so it is dropped.
+  const stepUpFields = dto.step_up_fields
+    .map(snakeToCamel)
+    .filter((field): field is keyof ServerSettings => field in settings)
+  return { ...settings, stepUpFields }
 }
 
 /**

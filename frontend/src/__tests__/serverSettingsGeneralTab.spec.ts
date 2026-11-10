@@ -72,6 +72,7 @@ function makeSettings(overrides: Partial<ServerSettings> = {}): ServerSettings {
     auditLegalHold: false,
     geocodingApiKeySet: false,
     envManaged: {},
+    stepUpFields: ['publicShareableLinksUserInfo', 'auditRetentionDays', 'auditLegalHold'],
     ...overrides,
   }
 }
@@ -169,6 +170,17 @@ describe('GeneralTab audit trail retention', () => {
 
     expect(mutateAsync).not.toHaveBeenCalled()
     expect(form.isStepUpOpen.value).toBe(true)
+  })
+
+  it('waits for the step-up only for the settings the server lists', async () => {
+    const { wrapper, form } = mountGeneralTab(makeSettings({ stepUpFields: ['auditLegalHold'] }))
+
+    form.values.publicShareableLinksUserInfo = true
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(form.isStepUpOpen.value).toBe(false)
+    expect(mutateAsync).toHaveBeenCalledOnce()
   })
 
   it('saves a change to a setting that is not security-relevant without a step-up', async () => {

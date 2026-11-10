@@ -483,6 +483,7 @@ class ServerSettingsAdminRead(
         signup_require_admin_approval: Require admin approval for new sign-ups.
         signup_require_email_verification: Require email verification for new sign-ups.
         password_breach_check_enabled: Refuse a new password found in a known data breach.
+        step_up_fields: The settings whose change needs the administrator's step-up; read-only.
     """
 
     id: StrictInt = Field(..., description="Unique identifier for server settings (always 1)")
@@ -516,6 +517,9 @@ class ServerSettingsAdminRead(
             "Refuse a new password found in a known data breach, checked against the Have I Been Pwned range API "
             "with a 5-character hash prefix; allowed when the service is unreachable (true - yes, false - no)"
         ),
+    )
+    step_up_fields: list[StrictStr] = Field(
+        ..., description="The settings whose change needs the administrator's step-up"
     )
 
 
