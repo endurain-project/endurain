@@ -52,7 +52,7 @@ describe('fetchFollowers', () => {
 
     // The endpoint is paginated, so the request asks for the largest page the
     // backend allows rather than relying on an unbounded response.
-    expect(apiFetch).toHaveBeenCalledWith('/users/9/followers?num_records=200', {
+    expect(apiFetch).toHaveBeenCalledWith('/users/9/followers?num_records=200&page_number=1', {
       signal: undefined,
     })
     expect(edges).toEqual([
@@ -82,6 +82,32 @@ describe('fetchFollowers', () => {
     expect(profiles.get(4)).toBeNull()
   })
 
+  it('follows every page and keeps the profiles of all of them', async () => {
+    vi.mocked(apiFetch)
+      .mockResolvedValueOnce({
+        items: [{ follower_id: 3, followee_id: 9, status: 'accepted' }],
+        next: 2,
+        users: { '3': { id: 3, name: 'Ada', username: 'ada', city: null, photo_path: null } },
+      })
+      .mockResolvedValueOnce({
+        items: [{ follower_id: 4, followee_id: 9, status: 'accepted' }],
+        next: null,
+        users: { '4': { id: 4, name: 'Bo', username: 'bo', city: null, photo_path: null } },
+      })
+
+    const { edges, profiles } = await fetchFollowers(9)
+
+    expect(apiFetch).toHaveBeenLastCalledWith('/users/9/followers?num_records=200&page_number=2', {
+      signal: undefined,
+    })
+    expect(edges).toEqual([
+      { userId: 3, isAccepted: true },
+      { userId: 4, isAccepted: true },
+    ])
+    expect(profiles.get(3)).toMatchObject({ username: 'ada' })
+    expect(profiles.get(4)).toMatchObject({ username: 'bo' })
+  })
+
   it('treats a null payload as an empty list', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(null)
     expect(await fetchFollowers(9)).toEqual({ edges: [], profiles: new Map() })
@@ -100,7 +126,7 @@ describe('fetchFollowing', () => {
 
     const { edges, profiles } = await fetchFollowing(9)
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/9/following?num_records=200', {
+    expect(apiFetch).toHaveBeenCalledWith('/users/9/following?num_records=200&page_number=1', {
       signal: undefined,
     })
     expect(edges).toEqual([{ userId: 5, isAccepted: true }])
@@ -155,7 +181,7 @@ describe('block list', () => {
 
     const users = await fetchBlockedUsers()
 
-    expect(apiFetch).toHaveBeenCalledWith('/profile/blocked-users?page_number=1', {
+    expect(apiFetch).toHaveBeenCalledWith('/profile/blocked-users?num_records=200&page_number=1', {
       signal: undefined,
     })
     expect(users.map((user) => user.username)).toEqual(['bob'])

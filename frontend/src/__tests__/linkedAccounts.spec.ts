@@ -83,9 +83,12 @@ describe('linked-accounts service requests', () => {
     vi.mocked(apiFetch).mockResolvedValue({ items: [linkedDto], next: null })
 
     expect(await fetchLinkedProviders()).toEqual([mappedLinked])
-    expect(apiFetch).toHaveBeenCalledWith('/profile/identity-providers?page_number=1', {
-      signal: undefined,
-    })
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/profile/identity-providers?num_records=200&page_number=1',
+      {
+        signal: undefined,
+      },
+    )
   })
 
   it('startProviderLink POSTs the step-up body and return path and returns the provider URL', async () => {

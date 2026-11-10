@@ -11,13 +11,11 @@ import type { Schemas } from '@/types'
 
 import { apiFetch, HttpError } from '@/services/http'
 import { ifMatchHeaders } from '@/services/ifMatch'
+import { fetchAllPages } from '@/services/pagination'
 import { moneyToNumber, numberToMoney } from '@/utils/number'
 
 /** Meters in a kilometre: the API's gear distances are meters, the gear model keeps kilometres. */
 const METERS_PER_KM = 1000
-
-/** Largest page the list endpoint serves; the filtered lookups fetch one such page. */
-const MAX_NUM_RECORDS = 200
 
 /** Pagination + filter input for a gears list request. */
 export interface GearsListParams {
@@ -122,7 +120,7 @@ export async function fetchGears(
 }
 
 /**
- * Fetches up to one maximum-size page of the user's gears matching the given list filters.
+ * Fetches every gear of the user matching the given list filters, following all pages.
  *
  * @param filters - Query-string filters (`gear_type`, `nickname_contains`).
  * @param signal - Optional abort signal for cancellation.
@@ -133,11 +131,10 @@ async function fetchGearsMatching(
   filters: Record<string, string>,
   signal?: AbortSignal,
 ): Promise<Gear[]> {
-  const params = new URLSearchParams({ num_records: String(MAX_NUM_RECORDS), ...filters })
-  const response = await apiFetch<Schemas['Page_GearRead_']>(`/gears?${params.toString()}`, {
+  const dtos = await fetchAllPages<Schemas['GearRead']>('/gears', new URLSearchParams(filters), {
     signal,
   })
-  return (response.items ?? []).map(mapGear)
+  return dtos.map(mapGear)
 }
 
 /**

@@ -57,7 +57,9 @@ describe('user sessions service', () => {
 
     const sessions = await fetchUserSessions(7)
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7/sessions?page_number=1', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/users/7/sessions?num_records=200&page_number=1', {
+      signal: undefined,
+    })
     expect(sessions[0]?.browser).toBe('Chrome')
   })
 
@@ -70,7 +72,7 @@ describe('user sessions service', () => {
 
     expect(apiFetch).toHaveBeenNthCalledWith(
       2,
-      '/users/7/sessions?page_number=2',
+      '/users/7/sessions?num_records=200&page_number=2',
       expect.anything(),
     )
     expect(sessions.map((session) => session.id)).toEqual(['sess-1', 'sess-2'])

@@ -108,7 +108,7 @@ describe('default gear service requests', () => {
       total: 1,
     })
     const gears = await fetchGearsByType('shoes')
-    expect(apiFetch).toHaveBeenCalledWith('/gears?num_records=200&gear_type=shoes', {
+    expect(apiFetch).toHaveBeenCalledWith('/gears?gear_type=shoes&num_records=200&page_number=1', {
       signal: undefined,
     })
     expect(gears).toHaveLength(1)

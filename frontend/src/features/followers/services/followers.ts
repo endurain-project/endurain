@@ -8,18 +8,9 @@ import type {
 import type { Schemas } from '@/types'
 
 import { apiFetch } from '@/services/http'
-import { fetchAllPages } from '@/services/pagination'
+import { fetchAllPageEnvelopes, fetchAllPages } from '@/services/pagination'
 import { mapEmbeddedUsers, mapPublicUser } from '@/features/users/services/publicUsers'
 import type { PublicUser } from '@/features/users/types'
-
-/**
- * Page size used when loading a full follower/following list.
- *
- * The endpoints are paginated (a popular account's list would otherwise be an
- * unbounded query and response); this matches the backend's per-request cap, so
- * a single call still covers every list the UI renders today.
- */
-const MAX_PAGE_SIZE = 200
 
 /**
  * Derives the viewer's {@link FollowStatus} from a raw follow-relationship
@@ -35,26 +26,36 @@ export function mapFollowStatus(dto: FollowerDto | null): FollowStatus {
   return dto.status === 'accepted' ? 'accepted' : 'pending'
 }
 
+type FollowPage = Schemas['FollowRelationshipPage']
+
 /**
- * Maps a follow-list page to its rows and the profile of each row's user.
+ * Reads every page of a follow list and maps it to its rows and the profile of
+ * each row's user.
  *
- * @param page - The page envelope, or `null` when the body was empty.
+ * @param path - The list endpoint path.
  * @param otherUserId - Picks the other user's id (the one to display) from a row.
- * @returns The list's edges and the profiles the response carried for them.
+ * @param signal - Optional abort signal for cancellation.
+ * @returns The list's edges and the profiles every page carried for them.
+ * @throws {HttpError} When a request fails.
  */
-function mapFollowList(
-  page: Schemas['FollowRelationshipPage'] | null,
+async function fetchFollowList(
+  path: string,
   otherUserId: (dto: FollowerDto) => number,
-): FollowList {
-  const edges = (page?.items ?? []).map((dto) => ({
-    userId: otherUserId(dto),
-    isAccepted: dto.status === 'accepted',
-  }))
+  signal?: AbortSignal,
+): Promise<FollowList> {
+  const pages = await fetchAllPageEnvelopes<FollowPage>(path, undefined, { signal })
+  const edges = pages
+    .flatMap((page) => page.items ?? [])
+    .map((dto) => ({
+      userId: otherUserId(dto),
+      isAccepted: dto.status === 'accepted',
+    }))
+  const users = Object.assign({}, ...pages.map((page) => page.users))
   return {
     edges,
     profiles: mapEmbeddedUsers(
       edges.map((edge) => edge.userId),
-      page?.users,
+      users,
       mapPublicUser,
     ),
   }
@@ -62,11 +63,7 @@ function mapFollowList(
 
 /**
  * Fetches the people who follow a user (the user's followers list). Each row's
- * *other* user is the follower (`follower_id`).
- *
- * The endpoint is paginated and returns a page envelope; this reads the first
- * page at the maximum size, which covers every follower count the UI renders
- * today without an unbounded response.
+ * *other* user is the follower (`follower_id`). Follows every page of the list.
  *
  * @param userId - The profile owner whose followers to load.
  * @param signal - Optional abort signal for cancellation.
@@ -74,16 +71,12 @@ function mapFollowList(
  * @throws {HttpError} When the request fails.
  */
 export async function fetchFollowers(userId: number, signal?: AbortSignal): Promise<FollowList> {
-  const page = await apiFetch<Schemas['FollowRelationshipPage'] | null>(
-    `/users/${userId}/followers?num_records=${MAX_PAGE_SIZE}`,
-    { signal },
-  )
-  return mapFollowList(page, (dto) => dto.follower_id)
+  return fetchFollowList(`/users/${userId}/followers`, (dto) => dto.follower_id, signal)
 }
 
 /**
  * Fetches the people a user follows (the user's following list). Each row's
- * *other* user is the followed user (`following_id`).
+ * *other* user is the followed user (`following_id`). Follows every page of the list.
  *
  * @param userId - The profile owner whose following list to load.
  * @param signal - Optional abort signal for cancellation.
@@ -91,11 +84,7 @@ export async function fetchFollowers(userId: number, signal?: AbortSignal): Prom
  * @throws {HttpError} When the request fails.
  */
 export async function fetchFollowing(userId: number, signal?: AbortSignal): Promise<FollowList> {
-  const page = await apiFetch<Schemas['FollowRelationshipPage'] | null>(
-    `/users/${userId}/following?num_records=${MAX_PAGE_SIZE}`,
-    { signal },
-  )
-  return mapFollowList(page, (dto) => dto.followee_id)
+  return fetchFollowList(`/users/${userId}/following`, (dto) => dto.followee_id, signal)
 }
 
 /**

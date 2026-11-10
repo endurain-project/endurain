@@ -63,7 +63,7 @@ describe('api key service', () => {
     const keys = await fetchApiKeys()
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/profile/api-keys?page_number=1',
+      '/profile/api-keys?num_records=200&page_number=1',
       expect.objectContaining({ signal: undefined }),
     )
     expect(keys).toHaveLength(1)

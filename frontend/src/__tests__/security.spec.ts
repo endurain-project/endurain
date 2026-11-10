@@ -238,12 +238,12 @@ describe('security service requests', () => {
     expect(await fetchSessions()).toEqual([mappedSession, mappedSession])
     expect(apiFetch).toHaveBeenNthCalledWith(
       1,
-      '/profile/sessions?page_number=1',
+      '/profile/sessions?num_records=200&page_number=1',
       expect.objectContaining({ signal: undefined }),
     )
     expect(apiFetch).toHaveBeenNthCalledWith(
       2,
-      '/profile/sessions?page_number=2',
+      '/profile/sessions?num_records=200&page_number=2',
       expect.objectContaining({ signal: undefined }),
     )
   })

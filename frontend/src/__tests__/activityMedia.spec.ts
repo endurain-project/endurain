@@ -42,7 +42,7 @@ describe('fetchActivityMedia', () => {
 
     const media = await fetchActivityMedia(5)
 
-    expect(apiFetch).toHaveBeenCalledWith('/activities/5/media?page_number=1', {
+    expect(apiFetch).toHaveBeenCalledWith('/activities/5/media?num_records=200&page_number=1', {
       auth: true,
       signal: undefined,
     })

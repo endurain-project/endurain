@@ -18,7 +18,7 @@ describe('fetchEnabledIdentityProviders', () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({ items: [provider], next: null })
 
     expect(await fetchEnabledIdentityProviders()).toEqual([provider])
-    expect(apiFetch).toHaveBeenCalledWith('/public/idp?page_number=1', {
+    expect(apiFetch).toHaveBeenCalledWith('/public/idp?num_records=200&page_number=1', {
       auth: false,
       retryOnUnauthorized: false,
     })

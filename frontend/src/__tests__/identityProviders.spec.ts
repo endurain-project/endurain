@@ -189,12 +189,20 @@ describe('identity providers service requests', () => {
       .mockResolvedValueOnce({ items: [makeProviderDto({ id: 4 })], next: null })
 
     expect((await fetchIdentityProviders()).map((provider) => provider.id)).toEqual([3, 4])
-    expect(apiFetch).toHaveBeenNthCalledWith(1, '/identity-providers?page_number=1', {
-      signal: undefined,
-    })
-    expect(apiFetch).toHaveBeenNthCalledWith(2, '/identity-providers?page_number=2', {
-      signal: undefined,
-    })
+    expect(apiFetch).toHaveBeenNthCalledWith(
+      1,
+      '/identity-providers?num_records=200&page_number=1',
+      {
+        signal: undefined,
+      },
+    )
+    expect(apiFetch).toHaveBeenNthCalledWith(
+      2,
+      '/identity-providers?num_records=200&page_number=2',
+      {
+        signal: undefined,
+      },
+    )
   })
 
   it('fetchIdentityProviderTemplates reads the templates endpoint', async () => {

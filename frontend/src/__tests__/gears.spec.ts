@@ -157,7 +157,7 @@ describe('gear service requests', () => {
     const result = await searchGearsByNickname('road bike')
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/gears?num_records=200&nickname_contains=road+bike',
+      '/gears?nickname_contains=road+bike&num_records=200&page_number=1',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toEqual([mappedGear])
@@ -174,7 +174,20 @@ describe('gear service requests', () => {
     await expect(fetchGearsByType('shoes')).resolves.toEqual([mappedGear])
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/gears?num_records=200&gear_type=shoes',
+      '/gears?gear_type=shoes&num_records=200&page_number=1',
+      expect.objectContaining({ signal: undefined }),
+    )
+  })
+
+  it('follows every page of a filtered lookup', async () => {
+    vi.mocked(apiFetch)
+      .mockResolvedValueOnce({ items: [gearDto], total: 2, next: 2 })
+      .mockResolvedValueOnce({ items: [gearDto], total: 2, next: null })
+
+    await expect(fetchGearsByType('shoes')).resolves.toEqual([mappedGear, mappedGear])
+
+    expect(apiFetch).toHaveBeenLastCalledWith(
+      '/gears?gear_type=shoes&num_records=200&page_number=2',
       expect.objectContaining({ signal: undefined }),
     )
   })

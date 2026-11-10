@@ -65,9 +65,12 @@ describe('user identity providers service', () => {
 
     const providers = await fetchUserIdentityProviders(7)
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7/identity-providers?page_number=1', {
-      signal: undefined,
-    })
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/users/7/identity-providers?num_records=200&page_number=1',
+      {
+        signal: undefined,
+      },
+    )
     expect(providers[0]?.name).toBe('Authelia')
   })
 

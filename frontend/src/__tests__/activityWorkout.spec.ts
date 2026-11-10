@@ -151,38 +151,50 @@ describe('workout fetchers', () => {
   it('fetches workout steps from the authenticated endpoint', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({ items: [], next: null })
     await fetchActivityWorkoutSteps(5, { authenticated: true })
-    expect(apiFetch).toHaveBeenCalledWith('/activities/5/workout-steps?page_number=1', {
-      auth: true,
-      signal: undefined,
-    })
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/activities/5/workout-steps?num_records=200&page_number=1',
+      {
+        auth: true,
+        signal: undefined,
+      },
+    )
   })
 
   it('fetches workout sets from the public endpoint when anonymous', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(null)
     const sets = await fetchActivitySets(5, { authenticated: false })
-    expect(apiFetch).toHaveBeenCalledWith('/public/activities/5/sets?page_number=1', {
-      auth: false,
-      signal: undefined,
-    })
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/public/activities/5/sets?num_records=200&page_number=1',
+      {
+        auth: false,
+        signal: undefined,
+      },
+    )
     expect(sets).toEqual([])
   })
 
   it('fetches the exercise-title catalogue (authenticated)', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({ items: [], next: null })
     await fetchActivityExerciseTitles({ authenticated: true })
-    expect(apiFetch).toHaveBeenCalledWith('/activities/exercise-titles?page_number=1', {
-      auth: true,
-      signal: undefined,
-    })
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/activities/exercise-titles?num_records=200&page_number=1',
+      {
+        auth: true,
+        signal: undefined,
+      },
+    )
   })
 
   it('fetches the public exercise-title catalogue when anonymous', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(null)
     const titles = await fetchActivityExerciseTitles({ authenticated: false })
-    expect(apiFetch).toHaveBeenCalledWith('/public/activities/exercise-titles?page_number=1', {
-      auth: false,
-      signal: undefined,
-    })
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/public/activities/exercise-titles?num_records=200&page_number=1',
+      {
+        auth: false,
+        signal: undefined,
+      },
+    )
     expect(titles).toEqual([])
   })
 })

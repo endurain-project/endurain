@@ -373,12 +373,12 @@ describe('fetchActivityStreams', () => {
     vi.mocked(apiFetch).mockResolvedValue({ items: [], next: null })
     await fetchActivityStreams(5, { authenticated: true })
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities/5/streams?page_number=1',
+      '/activities/5/streams?num_records=200&page_number=1',
       expect.objectContaining({ auth: true }),
     )
     await fetchActivityStreams(5, { authenticated: false })
     expect(apiFetch).toHaveBeenCalledWith(
-      '/public/activities/5/streams?page_number=1',
+      '/public/activities/5/streams?num_records=200&page_number=1',
       expect.objectContaining({ auth: false }),
     )
   })
@@ -394,12 +394,12 @@ describe('fetchActivityLaps', () => {
     vi.mocked(apiFetch).mockResolvedValue({ items: [], next: null })
     await fetchActivityLaps(5, { authenticated: true })
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities/5/laps?page_number=1',
+      '/activities/5/laps?num_records=200&page_number=1',
       expect.objectContaining({ auth: true }),
     )
     await fetchActivityLaps(5, { authenticated: false })
     expect(apiFetch).toHaveBeenCalledWith(
-      '/public/activities/5/laps?page_number=1',
+      '/public/activities/5/laps?num_records=200&page_number=1',
       expect.objectContaining({ auth: false }),
     )
   })
@@ -416,7 +416,7 @@ describe('fetchActivityLaps', () => {
 
     expect(laps).toHaveLength(2)
     expect(apiFetch).toHaveBeenLastCalledWith(
-      '/activities/5/laps?page_number=2',
+      '/activities/5/laps?num_records=200&page_number=2',
       expect.objectContaining({ auth: true }),
     )
   })

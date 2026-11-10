@@ -2,6 +2,7 @@ import type { Schemas } from '@/types'
 
 import { apiFetch, HttpError } from '@/services/http'
 import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
+import { fetchAllPages } from '@/services/pagination'
 import { mapEmbeddedUsers } from '@/features/users/services/publicUsers'
 import { pastWeekRange, todayIsoDate } from '@/utils/datetime'
 
@@ -48,45 +49,16 @@ function resourcePath(authenticated: boolean, authedPath: string, publicPath: st
   return authenticated ? authedPath : publicPath
 }
 
+/** Reads every row of an activity sub-collection on the authenticated or public endpoint. */
+function fetchAllChildRows<T>(path: string, context: ActivityFetchContext): Promise<T[]> {
+  return fetchAllPages<T>(path, undefined, { auth: context.authenticated, signal: context.signal })
+}
+
 /** One page of an activity child collection, as the API returns it. */
 interface ChildPage<T> {
   items: T[] | null
   /** Next page number, or `null`/absent on the last page. */
   next?: number | null
-}
-
-/**
- * Reads every page of an activity child collection (laps, sets, workout steps,
- * streams).
- *
- * These reads are paginated server-side so a single request cannot ask for an
- * unbounded number of rows. The views want the whole collection, so this walks
- * the pages the server advertises via `next` rather than silently rendering only
- * the first one — in practice a single request, since the default page size
- * covers any realistic activity.
- *
- * @param path - The collection path, without pagination query parameters.
- * @param context - Auth + cancellation context.
- * @returns Every row across all pages, in server order.
- */
-export async function fetchAllChildPages<T>(
-  path: string,
-  context: ActivityFetchContext,
-): Promise<T[]> {
-  const rows: T[] = []
-  let page: number | null = 1
-
-  while (page !== null) {
-    const separator = path.includes('?') ? '&' : '?'
-    const dto: ChildPage<T> = await apiFetch<ChildPage<T>>(
-      `${path}${separator}page_number=${page}`,
-      { auth: context.authenticated, signal: context.signal },
-    )
-    rows.push(...(dto?.items ?? []))
-    page = dto?.next ?? null
-  }
-
-  return rows
 }
 
 /**
@@ -587,7 +559,7 @@ export async function fetchActivityStreams(
     `/activities/${id}/streams`,
     `/public/activities/${id}/streams`,
   )
-  const dtos = await fetchAllChildPages<ActivityStreamDto>(path, context)
+  const dtos = await fetchAllChildRows<ActivityStreamDto>(path, context)
   return dtos.map(mapActivityStream)
 }
 
@@ -607,7 +579,7 @@ export async function fetchActivityLaps(
     `/activities/${id}/laps`,
     `/public/activities/${id}/laps`,
   )
-  const dtos = await fetchAllChildPages<ActivityLapDto>(path, context)
+  const dtos = await fetchAllChildRows<ActivityLapDto>(path, context)
   return dtos.map(mapActivityLap)
 }
 
@@ -680,7 +652,7 @@ export async function fetchActivityWorkoutSteps(
     `/activities/${id}/workout-steps`,
     `/public/activities/${id}/workout-steps`,
   )
-  const dtos = await fetchAllChildPages<ActivityWorkoutStepDto>(path, context)
+  const dtos = await fetchAllChildRows<ActivityWorkoutStepDto>(path, context)
   return dtos.map(mapActivityWorkoutStep)
 }
 
@@ -700,7 +672,7 @@ export async function fetchActivitySets(
     `/activities/${id}/sets`,
     `/public/activities/${id}/sets`,
   )
-  const dtos = await fetchAllChildPages<ActivitySetDto>(path, context)
+  const dtos = await fetchAllChildRows<ActivitySetDto>(path, context)
   return dtos.map(mapActivitySet)
 }
 
@@ -720,7 +692,7 @@ export async function fetchActivityExerciseTitles(
     `/activities/exercise-titles`,
     `/public/activities/exercise-titles`,
   )
-  const dtos = await fetchAllChildPages<ActivityExerciseTitleDto>(path, context)
+  const dtos = await fetchAllChildRows<ActivityExerciseTitleDto>(path, context)
   return dtos.map(mapActivityExerciseTitle)
 }
 

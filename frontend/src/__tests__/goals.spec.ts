@@ -113,7 +113,7 @@ describe('goal service requests', () => {
     const result = await fetchGoals()
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/profile/goals?page_number=1',
+      '/profile/goals?num_records=200&page_number=1',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toEqual([mappedGoal])
@@ -125,7 +125,7 @@ describe('goal service requests', () => {
     await fetchGoals({ interval: 'weekly', activityType: 'run', goalType: 'distance' })
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/profile/goals?interval=weekly&activity_type=run&goal_type=distance&page_number=1',
+      '/profile/goals?interval=weekly&activity_type=run&goal_type=distance&num_records=200&page_number=1',
       expect.objectContaining({ signal: undefined }),
     )
   })
@@ -136,7 +136,7 @@ describe('goal service requests', () => {
     await fetchGoals({ interval: null, activityType: 'bike', goalType: null })
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/profile/goals?activity_type=bike&page_number=1',
+      '/profile/goals?activity_type=bike&num_records=200&page_number=1',
       expect.objectContaining({ signal: undefined }),
     )
   })
@@ -153,7 +153,11 @@ describe('goal service requests', () => {
 
     const result = await fetchGoals()
 
-    expect(apiFetch).toHaveBeenNthCalledWith(2, '/profile/goals?page_number=2', expect.anything())
+    expect(apiFetch).toHaveBeenNthCalledWith(
+      2,
+      '/profile/goals?num_records=200&page_number=2',
+      expect.anything(),
+    )
     expect(result).toHaveLength(2)
   })
 
@@ -177,12 +181,12 @@ describe('goal service requests', () => {
 
     expect(apiFetch).toHaveBeenNthCalledWith(
       1,
-      '/profile/goals/results?page_number=1',
+      '/profile/goals/results?num_records=200&page_number=1',
       expect.anything(),
     )
     expect(apiFetch).toHaveBeenNthCalledWith(
       2,
-      '/profile/goals/results?page_number=2',
+      '/profile/goals/results?num_records=200&page_number=2',
       expect.anything(),
     )
     expect(result.map((progress) => progress.goalId)).toEqual([1, 2])
