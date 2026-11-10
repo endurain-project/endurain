@@ -14,6 +14,7 @@ import modules.auth.api_keys.integration_service as api_keys_integration
 import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.event_publishers as authentication_event_publishers
 import modules.auth.sessions.integration_service as sessions_integration
+import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
 from modules.auth.contracts import (
@@ -74,7 +75,7 @@ def resolve_from_access_token(
 
     Raises:
         InvalidTokenError: If the token is expired, invalid, or its session
-            or user no longer exists or is active.
+            or user no longer exists or is active, or the session passed its idle or absolute timeout.
     """
     token_manager.validate_access_expiration_logged(access_token)
 
@@ -103,6 +104,17 @@ def resolve_from_access_token(
             extra=core_logger.context(user_id=user.id),
         )
         raise core_exceptions.InvalidTokenError("Session is no longer valid")
+
+    # The access token can outlive the idle window, and a policy change reaches sessions that already exist, so the
+    # timeouts are checked against the current policy on every request, as a refresh does.
+    try:
+        sessions_integration.validate_session_timeout(session, server_settings_integration.get_session_policy(db))
+    except core_exceptions.UnauthenticatedError as err:
+        logger.warning(
+            "Access token refused: its session timed out for user <user_id>",
+            extra=core_logger.context(user_id=user.id),
+        )
+        raise core_exceptions.InvalidTokenError(err.detail) from err
 
     # A token holds the scopes it was issued with, and no more than the user's role holds now: a demotion takes
     # effect on the next request, and a token cannot name a scope its role lacks.

@@ -652,3 +652,51 @@ class TestBulkDeleteRemovesOAuthStates:
 
         assert self._state_ids(db) == {"st-kept", "st-other"}
         db.close()
+
+
+class TestStaleSessionPurge:
+    """A session ended by the cleanup jobs is announced like any other revoked session."""
+
+    _PUBLISH = "modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked"
+
+    def test_the_expired_purge_announces_each_ended_session_and_commits_each_batch(self):
+        db = MagicMock()
+        batches = [[(7, f"s{i}") for i in range(sessions_service.core_database.PURGE_BATCH_SIZE)], [(8, "last")]]
+        with (
+            patch("modules.auth.sessions.service.sessions_crud.delete_expired_sessions", side_effect=batches) as crud,
+            patch(self._PUBLISH) as publish,
+        ):
+            total = sessions_service.delete_expired_sessions(db)
+
+        assert total == sessions_service.core_database.PURGE_BATCH_SIZE + 1
+        assert crud.call_count == 2
+        assert db.commit.call_count == 2
+        assert publish.call_count == total
+        assert publish.call_args_list[-1].args == (8, db)
+        assert publish.call_args_list[-1].kwargs == {"session_id": "last"}
+
+    def test_the_idle_purge_announces_each_ended_session(self):
+        db = MagicMock()
+        policy = MagicMock(idle_timeout=timedelta(hours=1))
+        with (
+            patch("modules.auth.sessions.service.server_settings_integration.get_session_policy", return_value=policy),
+            patch(
+                "modules.auth.sessions.service.sessions_crud.delete_idle_sessions", return_value=[(7, "a"), (9, "b")]
+            ),
+            patch(self._PUBLISH) as publish,
+        ):
+            assert sessions_service.delete_idle_sessions(db) == 2
+
+        assert [(c.args[0], c.kwargs["session_id"]) for c in publish.call_args_list] == [(7, "a"), (9, "b")]
+
+    def test_no_idle_timeout_ends_nothing_and_announces_nothing(self):
+        policy = MagicMock(idle_timeout=None)
+        with (
+            patch("modules.auth.sessions.service.server_settings_integration.get_session_policy", return_value=policy),
+            patch("modules.auth.sessions.service.sessions_crud.delete_idle_sessions") as crud,
+            patch(self._PUBLISH) as publish,
+        ):
+            assert sessions_service.delete_idle_sessions(MagicMock()) == 0
+
+        crud.assert_not_called()
+        publish.assert_not_called()

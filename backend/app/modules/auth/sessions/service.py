@@ -1,5 +1,6 @@
 """Session lifecycle and transaction orchestration."""
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 
 import jasil.audit as jasil_audit
@@ -354,6 +355,29 @@ def delete_sessions_by_user_and_commit(
     return deleted_count
 
 
+def _purge_ended_sessions(stage_batch: Callable[[int], list[tuple[int, str]]], db: Session) -> int:
+    """Delete sessions one batch per commit, announcing each as revoked when its batch commits.
+
+    The announcement closes the session's sockets and revokes its identity-provider tokens, as any other
+    revocation does.
+
+    Args:
+        stage_batch: Stages the deletion of up to the given number of sessions and returns each one's owner and id.
+        db: Database session.
+
+    Returns:
+        The number of sessions deleted.
+    """
+
+    def stage(limit: int) -> int:
+        ended = stage_batch(limit)
+        for user_id, session_id in ended:
+            sessions_event_publishers.publish_sessions_revoked(user_id, db, session_id=session_id)
+        return len(ended)
+
+    return core_database.delete_in_batches(stage, db)
+
+
 def delete_expired_sessions(db: Session) -> int:
     """Delete sessions past their expiry, one batch per commit.
 
@@ -361,7 +385,7 @@ def delete_expired_sessions(db: Session) -> int:
     removed; its rotated refresh-token records go with it.
     """
     now = datetime.now(UTC)
-    return core_database.delete_in_batches(lambda limit: sessions_crud.delete_expired_sessions(now, limit, db), db)
+    return _purge_ended_sessions(lambda limit: sessions_crud.delete_expired_sessions(now, limit, db), db)
 
 
 def delete_idle_sessions(db: Session) -> int:
@@ -370,7 +394,7 @@ def delete_idle_sessions(db: Session) -> int:
     if policy.idle_timeout is None:
         return 0
     cutoff_time = datetime.now(UTC) - policy.idle_timeout
-    return core_database.delete_in_batches(lambda limit: sessions_crud.delete_idle_sessions(cutoff_time, limit, db), db)
+    return _purge_ended_sessions(lambda limit: sessions_crud.delete_idle_sessions(cutoff_time, limit, db), db)
 
 
 def validate_session_timeout(

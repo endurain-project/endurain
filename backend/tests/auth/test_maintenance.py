@@ -115,6 +115,11 @@ _PURGES: list[tuple[str, type, Callable[[str, datetime], Any], Callable[..., int
 ]
 
 
+def _staged(result):
+    """Return how many rows a purge staged: a count, or the rows it names."""
+    return result if isinstance(result, int) else len(result)
+
+
 @pytest.mark.parametrize(("model", "row", "purge"), [p[1:] for p in _PURGES], ids=[p[0] for p in _PURGES])
 def test_a_purge_deletes_at_most_one_batch_of_past_rows(model, row, purge):
     """Each call stages one bounded batch, so the job's transaction never holds a long lock."""
@@ -129,9 +134,9 @@ def test_a_purge_deletes_at_most_one_batch_of_past_rows(model, row, purge):
     )
     db.commit()
 
-    assert purge(now, 1, db) == 1
-    assert purge(now, 1, db) == 1
-    assert purge(now, 1, db) == 0
+    assert _staged(purge(now, 1, db)) == 1
+    assert _staged(purge(now, 1, db)) == 1
+    assert _staged(purge(now, 1, db)) == 0
     assert db.execute(select(func.count()).select_from(model)).scalar_one() == 1
     db.close()
 
@@ -151,11 +156,6 @@ _SERVICE_PURGES = [
         sign_up_service,
         "sign_up_crud.delete_expired_sign_up_tokens",
         lambda db: sign_up_service.delete_expired_sign_up_tokens(db),
-    ),
-    (
-        sessions_service,
-        "sessions_crud.delete_expired_sessions",
-        lambda db: sessions_service.delete_expired_sessions(db),
     ),
     (
         rotated_token_service,
@@ -182,10 +182,11 @@ class TestSessionPurge:
     @patch("modules.auth.sessions.service.sessions_crud")
     def test_expired_sessions_go_with_the_idle_timeout_off(self, mock_crud, mock_policy):
         mock_policy.return_value = MagicMock(idle_timeout=None)
-        mock_crud.delete_expired_sessions.return_value = 2
+        mock_crud.delete_expired_sessions.return_value = [(7, "a"), (8, "b")]
         db = MagicMock()
 
-        assert sessions_service.delete_expired_sessions(db) == 2
+        with patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked"):
+            assert sessions_service.delete_expired_sessions(db) == 2
         assert sessions_service.delete_idle_sessions(db) == 0
         mock_crud.delete_idle_sessions.assert_not_called()
         db.commit.assert_called_once()
@@ -194,10 +195,11 @@ class TestSessionPurge:
     @patch("modules.auth.sessions.service.sessions_crud")
     def test_idle_sessions_go_past_the_configured_timeout(self, mock_crud, mock_policy):
         mock_policy.return_value = MagicMock(idle_timeout=timedelta(minutes=30))
-        mock_crud.delete_idle_sessions.return_value = 4
+        mock_crud.delete_idle_sessions.return_value = [(7, f"s{i}") for i in range(4)]
         before = datetime.now(UTC)
 
-        assert sessions_service.delete_idle_sessions(MagicMock()) == 4
+        with patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked"):
+            assert sessions_service.delete_idle_sessions(MagicMock()) == 4
         cutoff = mock_crud.delete_idle_sessions.call_args.args[0]
         assert before - timedelta(minutes=30, seconds=5) < cutoff <= datetime.now(UTC) - timedelta(minutes=30)
 

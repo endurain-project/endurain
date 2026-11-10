@@ -219,19 +219,27 @@ def delete_session(session_id: str, user_id: int, db: Session) -> sessions_contr
     return session
 
 
-def delete_expired_sessions(now: datetime, limit: int, db: Session) -> int:
-    """Stage deletion of up to ``limit`` sessions that expired before ``now``."""
+def delete_expired_sessions(now: datetime, limit: int, db: Session) -> list[tuple[int, str]]:
+    """Stage deletion of up to ``limit`` sessions that expired before ``now``.
+
+    Returns:
+        The owner and id of each session staged for deletion.
+    """
     model = sessions_models.UsersSessions
     return _delete_sessions(select(model.id).where(model.expires_at < now).limit(limit), db)
 
 
-def delete_idle_sessions(cutoff_time: datetime, limit: int, db: Session) -> int:
-    """Stage deletion of up to ``limit`` sessions last active before an idle cutoff."""
+def delete_idle_sessions(cutoff_time: datetime, limit: int, db: Session) -> list[tuple[int, str]]:
+    """Stage deletion of up to ``limit`` sessions last active before an idle cutoff.
+
+    Returns:
+        The owner and id of each session staged for deletion.
+    """
     model = sessions_models.UsersSessions
     return _delete_sessions(select(model.id).where(model.last_activity_at < cutoff_time).limit(limit), db)
 
 
-def _delete_sessions(session_ids: Select[tuple[str]], db: Session) -> int:
+def _delete_sessions(session_ids: Select[tuple[str]], db: Session) -> list[tuple[int, str]]:
     """Stage deletion of the sessions a query selects.
 
     Args:
@@ -239,11 +247,11 @@ def _delete_sessions(session_ids: Select[tuple[str]], db: Session) -> int:
         db: Database session.
 
     Returns:
-        The number of sessions staged for deletion.
+        The owner and id of each session staged for deletion.
     """
-    return core_database.rowcount(
-        db, delete(sessions_models.UsersSessions).where(sessions_models.UsersSessions.id.in_(session_ids))
-    )
+    model = sessions_models.UsersSessions
+    rows = db.execute(delete(model).where(model.id.in_(session_ids)).returning(model.user_id, model.id)).all()
+    return [(user_id, session_id) for user_id, session_id in rows]
 
 
 def list_session_owners_by_family(token_family_id: str, db: Session) -> list[tuple[int, str]]:

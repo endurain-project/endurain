@@ -157,8 +157,6 @@ def test_delete_session_hides_missing_or_unowned_row(mock_db):
 @pytest.mark.parametrize(
     "operation,args",
     [
-        (sessions_crud.delete_idle_sessions, (datetime.now(UTC), 100)),
-        (sessions_crud.delete_expired_sessions, (datetime.now(UTC), 100)),
         (sessions_crud.delete_sessions_by_family, ("family-id",)),
         (sessions_crud.delete_sessions_by_user, (7,)),
     ],
@@ -166,6 +164,15 @@ def test_delete_session_hides_missing_or_unowned_row(mock_db):
 def test_bulk_deletes_stage_and_return_count(operation, args, mock_db):
     mock_db.execute.return_value = _result(rowcount=3)
     assert operation(*args, mock_db) == 3
+    mock_db.commit.assert_not_called()
+
+
+@pytest.mark.parametrize("purge", [sessions_crud.delete_idle_sessions, sessions_crud.delete_expired_sessions])
+def test_a_purge_stages_the_delete_and_names_the_ended_sessions(purge, mock_db):
+    mock_db.execute.return_value.all.return_value = [(7, "a"), (8, "b")]
+
+    assert purge(datetime.now(UTC), 100, mock_db) == [(7, "a"), (8, "b")]
+    assert "RETURNING" in str(mock_db.execute.call_args.args[0].compile(dialect=postgresql.dialect()))
     mock_db.commit.assert_not_called()
 
 
@@ -261,7 +268,7 @@ class TestUnexchangedSessions:
 
         removed = sessions_crud.delete_expired_sessions(datetime.now(UTC), 100, db)
 
-        assert removed == 1
+        assert removed == [(7, "expired-pending")]
         assert sessions_crud.get_session_by_id("expired-pending", db) is None
         assert sessions_crud.get_session_by_id("live-pending", db) is not None
 

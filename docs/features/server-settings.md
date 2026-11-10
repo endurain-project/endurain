@@ -63,7 +63,7 @@ A minimum length for regular users and for administrators, from 8 to 128 charact
 | Idle timeout | 1 to 8760 hours of inactivity, 72 for new installs, an existing install keeps its setting |
 | Absolute timeout | 1 to 8760 hours, 720 (30 days) by default, not below the idle timeout |
 
-The refresh token lifetime is how long a login on a device stays valid. When the absolute timeout ends a session before its refresh token expires, the client is told the earlier time. The absolute timeout always applies; the idle timeout applies only when enforced.
+The refresh token lifetime is how long a login on a device stays valid. When the absolute timeout ends a session before its refresh token expires, the client is told the earlier time. The absolute timeout always applies; the idle timeout applies only when enforced. Both are checked on every request, so a change to these settings applies to signed-in sessions at their next request, not only when they are renewed.
 
 A session that is not used also ends when its refresh token expires (7 days by default). The defaults meet the NIST SP 800-63B reauthentication rule for AAL1: sign in again at least every 30 days. They do not meet AAL2, which asks for a new sign-in at least every 24 hours and after 1 hour of inactivity, even for accounts with MFA. To meet AAL2, set the absolute timeout to 24 hours or less and enforce an idle timeout of 1 hour or less. Users then sign in more often.
 
