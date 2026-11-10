@@ -39,8 +39,14 @@ describe('unit-bearing formatters', () => {
     expect(formatSkinTempDeviation(-1.24, 'metric', label)).toBe('-1.2 <celsius>')
   })
 
+  it('formatSkinTempDeviation signs a positive deviation but not zero or a rounded-to-zero one', () => {
+    expect(formatSkinTempDeviation(0.4, 'metric', label)).toBe('+0.4 <celsius>')
+    expect(formatSkinTempDeviation(0.04, 'metric', label)).toBe('0.0 <celsius>')
+    expect(formatSkinTempDeviation(0, 'metric', label)).toBe('0.0 <celsius>')
+  })
+
   it('formatSkinTempDeviation scales a delta to Fahrenheit without the +32 offset', () => {
-    expect(formatSkinTempDeviation(1, 'imperial', label)).toBe('1.8 <fahrenheit>')
+    expect(formatSkinTempDeviation(1, 'imperial', label)).toBe('+1.8 <fahrenheit>')
     expect(formatSkinTempDeviation(-0.5, 'imperial', label)).toBe('-0.9 <fahrenheit>')
   })
 

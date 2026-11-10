@@ -71,17 +71,17 @@ export function formatRestingHeartRate(bpm: number, unitLabel: UnitLabel): strin
  * @param celsius - Deviation in degrees Celsius (may be negative).
  * @param units - The unit system the user reads temperatures in.
  * @param unitLabel - The unit symbol resolver.
- * @returns The formatted deviation (`-1.2 °C` or `-2.2 °F`).
+ * @returns The formatted deviation (`-1.2 °C`, `+0.4 °C` or `-2.2 °F`; positive values carry a `+`).
  */
 export function formatSkinTempDeviation(
   celsius: number,
   units: Units,
   unitLabel: UnitLabel,
 ): string {
-  if (units === 'imperial') {
-    return `${formatFixed((celsius * 9) / 5, 1)} ${unitLabel('fahrenheit')}`
-  }
-  return `${formatFixed(celsius, 1)} ${unitLabel('celsius')}`
+  const imperial = units === 'imperial'
+  const value = imperial ? (celsius * 9) / 5 : celsius
+  const sign = Math.round(value * 10) > 0 ? '+' : ''
+  return `${sign}${formatFixed(value, 1)} ${unitLabel(imperial ? 'fahrenheit' : 'celsius')}`
 }
 
 /**
