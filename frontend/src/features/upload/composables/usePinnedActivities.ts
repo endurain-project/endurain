@@ -2,7 +2,7 @@ import { shallowReactive } from 'vue'
 import type { InfiniteData } from '@tanstack/vue-query'
 
 import { fetchActivity } from '@/features/activities/services/activities'
-import type { Activity } from '@/features/activities/types'
+import type { Activity, ActivityFeedSlice } from '@/features/activities/types'
 
 /**
  * Activities uploaded in this session, kept at the top of the viewer's home feed.
@@ -89,13 +89,18 @@ export async function refreshPinnedActivities(): Promise<void> {
  * @returns The feed with the pins on top, or `data` itself when nothing is pinned.
  */
 export function floatPinnedActivities(
-  data: InfiniteData<Activity[]> | undefined,
-): InfiniteData<Activity[]> | undefined {
+  data: InfiniteData<ActivityFeedSlice> | undefined,
+): InfiniteData<ActivityFeedSlice> | undefined {
   if (!data || data.pages.length === 0 || pinned.size === 0) {
     return data
   }
-  const fresh = new Map(data.pages.flat().map((activity) => [activity.id, activity]))
+  const fresh = new Map(
+    data.pages.flatMap((slice) => slice.items).map((activity) => [activity.id, activity]),
+  )
   const top = [...pinned.values()].reverse().map((activity) => fresh.get(activity.id) ?? activity)
-  const pages = data.pages.map((page) => page.filter((activity) => !pinned.has(activity.id)))
-  return { ...data, pages: [[...top, ...(pages[0] ?? [])], ...pages.slice(1)] }
+  const [first, ...rest] = data.pages.map((slice) => ({
+    ...slice,
+    items: slice.items.filter((activity) => !pinned.has(activity.id)),
+  }))
+  return first ? { ...data, pages: [{ ...first, items: [...top, ...first.items] }, ...rest] } : data
 }

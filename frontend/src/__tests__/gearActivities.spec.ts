@@ -75,7 +75,7 @@ describe('fetchGearActivities', () => {
     // One request: the total arrives with the page.
     expect(apiFetch).toHaveBeenCalledTimes(1)
     expect(apiFetch).toHaveBeenCalledWith(
-      '/gears/5/activities?page_number=1&num_records=25',
+      '/activities?gear_id=5&page_number=1&num_records=25',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toEqual({ records: [mappedActivity], total: 1 })

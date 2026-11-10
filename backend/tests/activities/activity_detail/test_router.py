@@ -46,6 +46,7 @@ def _detail() -> ActivityDetailRead:
     )
     return ActivityDetailRead(
         activity=activity,
+        owner=None,
         laps=ActivityLapsPage.build([], 0, 1, 200),
         sets=ActivitySetsPage.build([], 0, 1, 200),
         workout_steps=ActivityWorkoutStepsPage.build([], 0, 1, 200),
@@ -62,8 +63,9 @@ class TestAuthenticatedDetail:
         assert response.status_code == 200
         body = response.json()
         assert body["activity"]["id"] == 5
-        assert set(body) == {"activity", "laps", "sets", "workout_steps"}
+        assert set(body) == {"activity", "owner", "laps", "sets", "workout_steps"}
         assert body["laps"]["total"] == 0
+        assert body["owner"] is None
         mock_get.assert_called_once_with(5, 1, mock_db)
 
     @patch("modules.activities.activity_detail.router.activity_detail_service.get_activity_detail")

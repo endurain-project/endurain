@@ -28,7 +28,8 @@ def read_activity_detail(
     """Return an activity with its laps, sets and workout steps in one read.
 
     Equivalent to reading the activity and each collection separately, with the access decision made
-    once. Streams and media stay on their own routes. The ``ETag`` is the activity's, to echo in
+    once. The activity carries its ``media`` when the caller owns it, and ``owner`` is the owner's
+    public profile. Streams stay on their own route. The ``ETag`` is the activity's, to echo in
     ``If-Match`` when saving it.
     """
     detail = activity_detail_service.get_activity_detail(activity_id, token_user_id, db)

@@ -352,6 +352,7 @@ export interface ActivityDetail {
   laps: ActivityLap[] | null
   sets: ActivityWorkoutSet[] | null
   workoutSteps: ActivityWorkoutStep[] | null
+  owner: ActivityOwner | null
 }
 
 /**

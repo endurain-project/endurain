@@ -416,18 +416,24 @@ class TestDistinctTypes:
         assert r == [ActivityType.RUN, ActivityType.TRAIL_RUN]
 
 
-class TestGearActivities:
-    def test_count(self, mock_db):
+class TestGearFilter:
+    """``gear_id`` narrows the page and its total alike, so the two cannot disagree."""
+
+    def test_the_page_filters_on_the_gear(self, mock_db):
+        sql = _listed_page_sql(mock_db, owner=True, gear_id=5)
+
+        assert "activities.gear_id = 5" in _where_of(sql)
+
+    def test_the_total_filters_on_the_gear(self, mock_db):
         import modules.activities.activity.crud as crud
 
-        mock_db.execute.return_value.scalar.return_value = 5
-        assert crud.get_gear_activities_count_by_user_id(user_id=1, gear_id=1, db=mock_db) == 5
+        mock_db.execute.return_value.scalar.return_value = 0
+        crud.count_user_activities(1, mock_db, gear_id=5, user_is_owner=True)
 
-    def test_count_none(self, mock_db):
-        import modules.activities.activity.crud as crud
+        assert "activities.gear_id = 5" in _where_of(_compiled(mock_db.execute.call_args.args[0]))
 
-        mock_db.execute.return_value.scalar.return_value = None
-        assert crud.get_gear_activities_count_by_user_id(user_id=1, gear_id=1, db=mock_db) == 0
+    def test_no_gear_means_no_gear_condition(self, mock_db):
+        assert "gear_id" not in _where_of(_listed_page_sql(mock_db, owner=True))
 
 
 class TestCountUserActivities:
@@ -646,49 +652,6 @@ class TestGetUserActivitiesPerTimeframeAndTypes:
                 end=datetime(2024, 1, 31, tzinfo=UTC),
                 db=mock_db,
                 user_is_owner=True,
-            )
-            == []
-        )
-
-
-class TestGetUserActivitiesByGearId:
-    @patch("modules.activities.activity.crud.activity_serializers.to_read_schema")
-    def test_success(self, mock_ser, mock_db):
-        import modules.activities.activity.crud as crud
-        import modules.activities.activity.models as am
-
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=1, user_id=1)])
-        mock_ser.return_value = MagicMock()
-        r = crud.get_user_activities_by_gear_id_and_user_id(user_id=1, gear_id=5, db=mock_db)
-        assert r is not None and len(r) == 1
-
-    def test_empty(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        setup_mock_execute(mock_db, return_scalars_all=[])
-        assert crud.get_user_activities_by_gear_id_and_user_id(user_id=1, gear_id=5, db=mock_db) == []
-
-
-class TestGetUserActivitiesByGearIdWithPagination:
-    @patch("modules.activities.activity.crud.activity_serializers.to_read_schema")
-    def test_success(self, mock_ser, mock_db):
-        import modules.activities.activity.crud as crud
-        import modules.activities.activity.models as am
-
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=1, user_id=1)])
-        mock_ser.return_value = MagicMock()
-        r = crud.get_user_activities_by_gear_id_and_user_id_with_pagination(
-            user_id=1, gear_id=5, page_number=1, num_records=10, db=mock_db
-        )
-        assert r is not None and len(r) == 1
-
-    def test_empty(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        setup_mock_execute(mock_db, return_scalars_all=[])
-        assert (
-            crud.get_user_activities_by_gear_id_and_user_id_with_pagination(
-                user_id=1, gear_id=5, page_number=1, num_records=10, db=mock_db
             )
             == []
         )
@@ -1785,3 +1748,24 @@ class TestFollowingFeedOrder:
             [entry] = crud.get_following_feed_after([2], None, 10, mock_db)
 
         assert (entry.cursor_sort_value, entry.cursor_id) == (recorded, 7)
+
+    def test_the_own_feed_reads_every_visibility_of_one_user_in_the_same_order(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.return_value.all.return_value = []
+        crud.get_own_feed_after(3, None, 10, mock_db)
+        sql = _compiled(mock_db.execute.call_args.args[0])
+
+        assert _order_by_of(sql).lstrip().startswith(f"{self._FEED_KEY} DESC")
+        assert "activities.user_id = 3" in _where_of(sql)
+        assert "visibility" not in _where_of(sql)
+
+    def test_the_own_feed_masks_nothing_for_its_owner(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.return_value.all.return_value = [(SimpleNamespace(id=7), datetime(2024, 1, 20, tzinfo=UTC))]
+
+        with patch.object(crud.activity_serializers, "serialize_and_mask", return_value=[MagicMock()]) as serialize:
+            crud.get_own_feed_after(3, None, 10, mock_db)
+
+        assert serialize.call_args.kwargs == {"requester_user_id": 3, "force_non_owner": False}

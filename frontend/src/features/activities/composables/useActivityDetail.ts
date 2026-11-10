@@ -1,6 +1,12 @@
 import { computed, type ComputedRef, type MaybeRefOrGetter, toValue } from 'vue'
 import { storeToRefs } from 'pinia'
-import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import {
+  type QueryClient,
+  skipToken,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/vue-query'
 
 import type {
   Activity,
@@ -20,7 +26,6 @@ import {
 } from '@/features/config/services/serverSettings'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import { fetchGearsByType } from '@/features/gears/services/gears'
-import { fetchActivityOwner } from '@/features/activities/services/activityOwner'
 import { unpinActivity } from '@/features/upload/composables/usePinnedActivities'
 import {
   deleteActivity,
@@ -50,9 +55,11 @@ function resolveId(id: MaybeRefOrGetter<number | null>): number {
  * the public shareable-link endpoint otherwise, so the same route serves owners
  * and public viewers. Gated on a valid id.
  *
- * The response also carries the activity's laps, sets and workout steps, which are seeded into the
- * caches of their own queries, so those make no request. A collection that did not arrive in full
- * is left to its own query, which reads every page.
+ * The response also carries the activity's laps, sets and workout steps, its media and its owner,
+ * which are seeded into the caches of their own queries, so those make no request. A collection
+ * that did not arrive in full is left to its own query, which reads every page. The media is
+ * seeded for a signed-in viewer only (the media query is disabled for anonymous ones); it is empty
+ * unless the viewer owns the activity, which is also what the media route answers.
  *
  * @param id - Reactive activity id from the route.
  * @returns The TanStack query result; data is `null` when not found/accessible.
@@ -72,6 +79,10 @@ export function useActivityQuery(id: MaybeRefOrGetter<number | null>) {
       if (!detail) {
         return null
       }
+      client.setQueryData(queryKeys.activities.owner(detail.activity.userId ?? 0), detail.owner)
+      if (auth.isAuthenticated) {
+        client.setQueryData(queryKeys.activities.media(activityId), detail.activity.media)
+      }
       if (detail.laps) {
         client.setQueryData(queryKeys.activities.laps(activityId), detail.laps)
       }
@@ -88,37 +99,20 @@ export function useActivityQuery(id: MaybeRefOrGetter<number | null>) {
 }
 
 /**
- * Loads the activity owner's public-facing identity (name + avatar). The owner
- * viewing their own activity is resolved from the cached current user, so this
- * only fetches for other viewers — authenticated viewers via the authed user
- * endpoint, anonymous viewers via the public activity owner one (which the backend gates on the
- * "show user info on public links" setting, returning `null` when disabled).
+ * Reads the activity owner's public-facing identity (name + avatar) from the cache the activity
+ * detail and the feeds seed; it makes no request of its own. The owner viewing their own activity
+ * is resolved by the callers from the cached current user.
  *
  * @param activity - Reactive activity supplying the owner's user id.
- * @returns The TanStack query result; data is `null` when the owner is hidden.
+ * @returns The TanStack query result; data is `null` when the owner is hidden and `undefined`
+ *   until a response that carries it has been read.
  */
 export function useActivityOwnerQuery(activity: MaybeRefOrGetter<Activity | null | undefined>) {
-  const auth = useAuthStore()
-  const { data: currentUser } = useCurrentUser()
-  const activityId = computed(() => toValue(activity)?.id ?? null)
   const ownerId = computed(() => toValue(activity)?.userId ?? null)
 
   return useQuery<ActivityOwner | null>({
     queryKey: computed(() => queryKeys.activities.owner(ownerId.value ?? 0)),
-    queryFn: ({ signal }) =>
-      fetchActivityOwner(
-        activityId.value as number,
-        ownerId.value as number,
-        auth.isAuthenticated,
-        signal,
-      ),
-    enabled: computed(
-      () =>
-        activityId.value !== null &&
-        ownerId.value !== null &&
-        currentUser.value?.id !== ownerId.value,
-    ),
-    staleTime: 5 * 60_000,
+    queryFn: skipToken,
   })
 }
 

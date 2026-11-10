@@ -40,7 +40,6 @@ import modules.followers.integration_service as followers_integration
 import modules.gears.gear.integration_service as gears_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
-import modules.users.users.schema as users_schema
 
 logger = core_logger.get_logger(__name__)
 
@@ -383,7 +382,7 @@ def _with_thumbnail_urls(
     return activities
 
 
-def _with_media(
+def with_media(
     activities: list[activity_schema.ActivityRead],
     requester_user_id: int,
     db: Session,
@@ -409,47 +408,6 @@ def _with_media(
     return activities
 
 
-def list_gear_activities(
-    user_id: int,
-    gear_id: int,
-    db: Session,
-    *,
-    page_number: int | None = None,
-    num_records: int | None = None,
-) -> list[activity_schema.ActivityRead]:
-    """List a user's activities for a gear (paginated when page/size are given).
-
-    Args:
-        user_id: ID of the user.
-        gear_id: ID of the gear.
-        page_number: 1-based page number, or None for every row.
-        num_records: Page size, or None for every row.
-        db: Database session.
-
-    Returns:
-        The gear's activities, or None when none can be read.
-    """
-    if page_number is not None and num_records is not None:
-        return activity_crud.get_user_activities_by_gear_id_and_user_id_with_pagination(
-            user_id, gear_id, page_number, num_records, db
-        )
-    return activity_crud.get_user_activities_by_gear_id_and_user_id(user_id, gear_id, db)
-
-
-def _count_gear_activities(user_id: int, gear_id: int, db: Session) -> int:
-    """Count a user's activities for a gear.
-
-    Args:
-        user_id: ID of the user.
-        gear_id: ID of the gear.
-        db: Database session.
-
-    Returns:
-        The number of the gear's activities.
-    """
-    return activity_crud.get_gear_activities_count_by_user_id(user_id, gear_id, db)
-
-
 def list_user_activities_paginated(
     user_id: int,
     requester_user_id: int,
@@ -463,6 +421,7 @@ def list_user_activities_paginated(
     name_search: str | None = None,
     sort_by: str | None = None,
     sort_order: str | None = None,
+    gear_id: int | None = None,
 ) -> list[activity_schema.ActivityRead]:
     """List a user's activities (filtered, paginated) scoped to the requester.
 
@@ -482,6 +441,7 @@ def list_user_activities_paginated(
         name_search: Case-insensitive name fragment to filter by, or None.
         sort_by: Field to sort by, or None.
         sort_order: Sort direction, or None.
+        gear_id: Gear to filter by, or None.
 
     Returns:
         The visible activities on this page, or None when none can be read.
@@ -497,6 +457,7 @@ def list_user_activities_paginated(
         name_search=name_search,
         sort_by=sort_by,
         sort_order=sort_order,
+        gear_id=gear_id,
         user_is_owner=(user_id == requester_user_id),
         followee_ids=_followees_of(requester_user_id, db),
     )
@@ -534,6 +495,7 @@ def page_user_activities(
     name_search: str | None = None,
     sort_by: str | None = None,
     sort_order: str | None = None,
+    gear_id: int | None = None,
 ) -> activity_schema.ActivityPage:
     """Return one page of a user's activities together with the matching total.
 
@@ -549,6 +511,7 @@ def page_user_activities(
         name_search: Optional case-insensitive name search.
         sort_by: Optional sort field.
         sort_order: Optional sort direction.
+        gear_id: Gear to filter by, or None.
 
     Returns:
         The page envelope. ``total`` carries the same filters and the same
@@ -570,6 +533,7 @@ def page_user_activities(
         name_search=name_search,
         sort_by=sort_by,
         sort_order=sort_order,
+        gear_id=gear_id,
     )
     total = activity_crud.count_user_activities(
         user_id=user_id,
@@ -578,82 +542,61 @@ def page_user_activities(
         start_date=start_date,
         end_date=end_date,
         name_search=name_search,
+        gear_id=gear_id,
         user_is_owner=(user_id == requester_user_id),
         followee_ids=_followees_of(requester_user_id, db),
     )
     return activity_schema.ActivityPage.build(
-        _with_media(_with_thumbnail_urls(items), requester_user_id, db), total, page_number, num_records
+        with_media(_with_thumbnail_urls(items), requester_user_id, db), total, page_number, num_records
     )
 
 
-def scroll_following_feed(
+def scroll_feed(
     requester_user_id: int,
     cursor: str | None,
     num_records: int,
     db: Session,
+    scope: activity_constants.FeedScope = activity_constants.FeedScope.FOLLOWING,
 ) -> activity_schema.ActivityFeedPage:
-    """Return one keyset slice of the requester's following feed.
+    """Return one keyset slice of the requester's following feed or of their own activities.
 
     Args:
         requester_user_id: The authenticated caller, whose feed is returned.
         cursor: Opaque cursor from the previous slice, or ``None`` to start.
         num_records: Slice size.
         db: Database session.
+        scope: Whose activities the feed lists.
 
     Returns:
         The slice, the cursor for the next one and the public profile of each owner on the slice.
     """
-    followee_ids = followers_integration.list_accepted_followee_ids(requester_user_id, db)
     after = core_pagination.decode_cursor(cursor) if cursor else None
     # Over-fetch by one: the extra row proves another slice exists without a
     # second query, and is dropped before serialising.
-    entries = activity_crud.get_following_feed_after(followee_ids, after, num_records + 1, db)
+    if scope is activity_constants.FeedScope.MINE:
+        entries = activity_crud.get_own_feed_after(requester_user_id, after, num_records + 1, db)
+    else:
+        followee_ids = followers_integration.list_accepted_followee_ids(requester_user_id, db)
+        entries = activity_crud.get_following_feed_after(followee_ids, after, num_records + 1, db)
     has_more = len(entries) > num_records
     page_entries = entries[:num_records]
-    items = _with_media(_with_thumbnail_urls([entry.activity for entry in page_entries]), requester_user_id, db)
+    items = with_media(_with_thumbnail_urls([entry.activity for entry in page_entries]), requester_user_id, db)
     next_cursor = (
         core_pagination.encode_cursor(page_entries[-1].cursor_sort_value, page_entries[-1].cursor_id)
         if has_more and page_entries
         else None
     )
     logger.debug(
-        "Built following feed slice",
+        "Built feed slice",
         extra=core_logger.context(
             requester_user_id=requester_user_id,
-            followee_count=len(followee_ids) if followee_ids else 0,
+            scope=scope.value,
             returned=len(items),
             has_more=has_more,
         ),
     )
     owners = users_integration.list_public_profiles({item.user_id for item in items if item.user_id is not None}, db)
     return activity_schema.ActivityFeedPage(items=items, num_records=num_records, next_cursor=next_cursor, users=owners)
-
-
-def page_gear_activities(
-    user_id: int,
-    gear_id: int,
-    db: Session,
-    *,
-    page_number: int,
-    num_records: int,
-) -> activity_schema.ActivityPage:
-    """Return one page of a user's activities for a gear with the matching total.
-
-    Args:
-        user_id: The owner whose activities to list.
-        gear_id: The gear to filter by.
-        page_number: 1-based page number.
-        num_records: Page size.
-        db: Database session.
-
-    Returns:
-        The page envelope.
-    """
-    items = list_gear_activities(user_id, gear_id, db, page_number=page_number, num_records=num_records)
-    total = _count_gear_activities(user_id, gear_id, db)
-    return activity_schema.ActivityPage.build(
-        _with_media(_with_thumbnail_urls(items), user_id, db), total, page_number, num_records
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -740,29 +683,6 @@ def get_public_activity(activity_id: int, db: Session) -> activity_schema.Activi
         NotFoundError: When the activity does not exist or is not public.
     """
     return _with_thumbnail_urls([_require_public_activity(activity_id, db)])[0]
-
-
-def get_public_activity_owner(activity_id: int, db: Session) -> users_schema.UserPublicRead:
-    """Return the owner of a publicly shared activity.
-
-    Args:
-        activity_id: The shared activity.
-        db: Database session.
-
-    Returns:
-        The owner's public projection.
-
-    Raises:
-        NotFoundError: When the activity is not publicly readable or its owner is not shown, all
-            answered alike so a viewer cannot tell which check refused.
-    """
-    try:
-        activity = _require_public_activity(activity_id, db)
-        if activity.user_id is None:
-            raise core_exceptions.NotFoundError("Activity owner not found")
-        return users_integration.get_public_user(activity.user_id, db)
-    except core_exceptions.NotFoundError:
-        raise core_exceptions.NotFoundError("Activity owner not found") from None
 
 
 def _is_visibility_field(field: str) -> bool:

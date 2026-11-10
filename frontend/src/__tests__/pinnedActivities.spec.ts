@@ -3,9 +3,9 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { type InfiniteData, QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { Activity } from '@/features/activities/types'
+import type { Activity, ActivityFeedSlice } from '@/features/activities/types'
 import { queryKeys } from '@/services/queryKeys'
-import { fetchActivity, fetchUserActivities } from '@/features/activities/services/activities'
+import { fetchActivity, fetchFollowersActivities } from '@/features/activities/services/activities'
 import { useUserActivitiesFeed } from '@/features/home/composables/useHome'
 import {
   pinActivities,
@@ -22,9 +22,14 @@ vi.mock('pinia', async (importOriginal) => ({
 }))
 vi.mock('@/features/auth/stores/auth', () => ({ useAuthStore: () => ({}) }))
 vi.mock('@/features/activities/services/activities', () => ({
-  fetchUserActivities: vi.fn<() => void>(),
+  fetchFollowersActivities: vi.fn<() => void>(),
   fetchActivity: vi.fn<() => void>(),
 }))
+
+/** A last slice of the feed holding the given activities. */
+function slice(items: Activity[]): ActivityFeedSlice {
+  return { items, nextCursor: null, owners: new Map() }
+}
 
 describe('useUserActivitiesFeed with pinned uploads', () => {
   beforeEach(() => {
@@ -41,7 +46,7 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
   it('keeps an uploaded activity on top when a refetch returns the server ordering', async () => {
     const newest = makeActivity({ id: 1 })
     const uploaded = makeActivity({ id: 2, name: 'Old ride' })
-    vi.mocked(fetchUserActivities).mockResolvedValue([newest])
+    vi.mocked(fetchFollowersActivities).mockResolvedValue(slice([newest]))
 
     const client = new QueryClient()
     let ids: () => number[] = () => []
@@ -50,8 +55,10 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
       defineComponent({
         setup() {
           const feed = useUserActivitiesFeed(7)
-          ids = () => feed.data.value?.pages.flat().map((activity) => activity.id) ?? []
-          thumbnail = () => feed.data.value?.pages[0]?.[0]?.mapThumbnailUrl ?? null
+          ids = () =>
+            feed.data.value?.pages.flatMap((page) => page.items).map((activity) => activity.id) ??
+            []
+          thumbnail = () => feed.data.value?.pages[0]?.items[0]?.mapThumbnailUrl ?? null
           return () => h('div')
         },
       }),
@@ -60,7 +67,7 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
     await flushPromises()
 
     pinActivities([uploaded])
-    vi.mocked(fetchUserActivities).mockResolvedValue([newest, uploaded])
+    vi.mocked(fetchFollowersActivities).mockResolvedValue(slice([newest, uploaded]))
     await client.invalidateQueries({ queryKey: ['activities'] })
     await flushPromises()
 
@@ -69,7 +76,7 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
     // The thumbnail backfill updates the pin and then writes the feed cache.
     const withThumbnail = { ...uploaded, mapThumbnailUrl: 'thumb' }
     updatePinnedActivities([withThumbnail])
-    client.setQueriesData<InfiniteData<Activity[]>>(
+    client.setQueriesData<InfiniteData<ActivityFeedSlice>>(
       { queryKey: queryKeys.activities.userFeed(7, 25) },
       (data) => replaceActivitiesInFeed(data, [withThumbnail]),
     )
@@ -82,7 +89,9 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
   it('prefers a newer copy from the refetch over the stored pin', async () => {
     const uploaded = makeActivity({ id: 12 })
     pinActivities([uploaded])
-    vi.mocked(fetchUserActivities).mockResolvedValue([{ ...uploaded, mapThumbnailUrl: 'late' }])
+    vi.mocked(fetchFollowersActivities).mockResolvedValue(
+      slice([{ ...uploaded, mapThumbnailUrl: 'late' }]),
+    )
 
     const client = new QueryClient()
     let thumbnail: () => string | null = () => null
@@ -90,7 +99,7 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
       defineComponent({
         setup() {
           const feed = useUserActivitiesFeed(7)
-          thumbnail = () => feed.data.value?.pages[0]?.[0]?.mapThumbnailUrl ?? null
+          thumbnail = () => feed.data.value?.pages[0]?.items[0]?.mapThumbnailUrl ?? null
           return () => h('div')
         },
       }),
@@ -105,7 +114,7 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
     const kept = makeActivity({ id: 21 })
     const deleted = makeActivity({ id: 22 })
     pinActivities([deleted])
-    vi.mocked(fetchUserActivities).mockResolvedValue([kept, deleted])
+    vi.mocked(fetchFollowersActivities).mockResolvedValue(slice([kept, deleted]))
 
     const client = new QueryClient()
     let ids: () => number[] = () => []
@@ -113,7 +122,9 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
       defineComponent({
         setup() {
           const feed = useUserActivitiesFeed(7)
-          ids = () => feed.data.value?.pages.flat().map((activity) => activity.id) ?? []
+          ids = () =>
+            feed.data.value?.pages.flatMap((page) => page.items).map((activity) => activity.id) ??
+            []
           return () => h('div')
         },
       }),
@@ -123,7 +134,7 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
     expect(ids()).toEqual([22, 21])
 
     unpinActivity(22)
-    vi.mocked(fetchUserActivities).mockResolvedValue([kept])
+    vi.mocked(fetchFollowersActivities).mockResolvedValue(slice([kept]))
     await client.invalidateQueries({ queryKey: ['activities'] })
     await flushPromises()
 
@@ -133,7 +144,7 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
   it('refreshes a pinned activity the feed pages do not carry when the feed refetches', async () => {
     const stale = makeActivity({ id: 22, city: null, mapThumbnailUrl: null })
     pinActivities([stale])
-    vi.mocked(fetchUserActivities).mockResolvedValue([makeActivity({ id: 21 })])
+    vi.mocked(fetchFollowersActivities).mockResolvedValue(slice([makeActivity({ id: 21 })]))
 
     const client = new QueryClient()
     let top: () => Activity | undefined = () => undefined
@@ -141,7 +152,7 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
       defineComponent({
         setup() {
           const feed = useUserActivitiesFeed(7)
-          top = () => feed.data.value?.pages[0]?.[0]
+          top = () => feed.data.value?.pages[0]?.items[0]
           return () => h('div')
         },
       }),

@@ -250,6 +250,7 @@ export async function fetchActivityDetail(
       laps: completeRows(dto.laps, mapActivityLap),
       sets: completeRows(dto.sets, mapActivitySet),
       workoutSteps: completeRows(dto.workout_steps, mapActivityWorkoutStep),
+      owner: dto.owner ? mapActivityOwner(dto.owner) : null,
     }
   } catch (error) {
     if (error instanceof HttpError && (error.status === 404 || error.status === 422)) {
@@ -282,33 +283,8 @@ export async function searchActivitiesByName(
 export type ActivityStatsTimeframe = Schemas['StatsPeriod']
 
 /**
- * Fetches one page of the authenticated viewer's own activities for the home
- * feed, newest first.
- *
- * @param page - 1-based page number.
- * @param numRecords - Page size.
- * @param signal - Optional abort signal for cancellation.
- * @returns The page's activities, mapped to the clean model.
- * @throws {HttpError} When the request fails.
- */
-export async function fetchUserActivities(
-  page: number,
-  numRecords: number,
-  signal?: AbortSignal,
-): Promise<Activity[]> {
-  const params = new URLSearchParams({
-    page_number: String(page),
-    num_records: String(numRecords),
-  })
-  const page_ = await apiFetch<Schemas['Page_ActivityRead_']>(`/activities?${params.toString()}`, {
-    signal,
-  })
-  return (page_.items ?? []).map(mapActivity)
-}
-
-/**
- * Fetches one slice of activities from the people the viewer follows (the
- * following feed), newest first. Authenticated-only.
+ * Fetches one slice of the activity feed, newest first: the activities of the people the viewer
+ * follows, or the viewer's own. Authenticated-only.
  *
  * Keyset- rather than offset-paginated: the feed takes inserts at the head
  * continuously, so paging by offset would repeat the boundary activity and skip
@@ -316,6 +292,7 @@ export async function fetchUserActivities(
  *
  * @param cursor - Opaque cursor from the previous slice, or null to start.
  * @param numRecords - Slice size.
+ * @param scope - `following` for the followed users' activities, `mine` for the viewer's own.
  * @param signal - Optional abort signal for cancellation.
  * @returns The slice's activities, the cursor for the next one, and each owner's profile.
  * @throws {HttpError} When the request fails.
@@ -323,9 +300,10 @@ export async function fetchUserActivities(
 export async function fetchFollowersActivities(
   cursor: string | null,
   numRecords: number,
+  scope: Schemas['FeedScope'],
   signal?: AbortSignal,
 ): Promise<ActivityFeedSlice> {
-  const params = new URLSearchParams({ num_records: String(numRecords) })
+  const params = new URLSearchParams({ num_records: String(numRecords), scope })
   if (cursor) {
     params.set('cursor', cursor)
   }

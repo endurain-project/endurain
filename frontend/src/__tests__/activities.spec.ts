@@ -217,7 +217,20 @@ describe('fetchActivityDetail', () => {
     laps: page([lapDto]),
     sets: page([setDto]),
     workout_steps: page([stepDto]),
+    owner: null,
   }
+
+  it('maps the owner the detail carries, and keeps a hidden one null', async () => {
+    const owner = { id: 7, name: 'Jane Runner', username: 'jane', photo_path: null }
+    vi.mocked(apiFetch).mockResolvedValueOnce({ ...detailDto, owner })
+    vi.mocked(apiFetch).mockResolvedValueOnce(detailDto)
+
+    const shown = await fetchActivityDetail(5, { authenticated: false })
+    const hidden = await fetchActivityDetail(5, { authenticated: false })
+
+    expect(shown?.owner).toMatchObject({ name: 'Jane Runner', username: 'jane' })
+    expect(hidden?.owner).toBeNull()
+  })
 
   it('reads the activity and its collections in one request', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(detailDto)
@@ -671,19 +684,32 @@ describe('fetchFollowersActivities', () => {
   it('requests the feed with the cursor and maps the slice', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(feedPage)
 
-    const slice = await fetchFollowersActivities('cursor-1', 25)
+    const slice = await fetchFollowersActivities('cursor-1', 25, 'following')
 
-    expect(apiFetch).toHaveBeenCalledWith('/activities/feed?num_records=25&cursor=cursor-1', {
-      signal: undefined,
-    })
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/activities/feed?num_records=25&scope=following&cursor=cursor-1',
+      {
+        signal: undefined,
+      },
+    )
     expect(slice.items.map((activity) => activity.id)).toEqual([1, 2, 3])
     expect(slice.nextCursor).toBe('cursor-2')
+  })
+
+  it("asks for the viewer's own activities with scope=mine", async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(feedPage)
+
+    await fetchFollowersActivities(null, 25, 'mine')
+
+    expect(apiFetch).toHaveBeenCalledWith('/activities/feed?num_records=25&scope=mine', {
+      signal: undefined,
+    })
   })
 
   it('returns each distinct owner once, from the same response', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(feedPage)
 
-    const { owners } = await fetchFollowersActivities(null, 25)
+    const { owners } = await fetchFollowersActivities(null, 25, 'following')
 
     expect(apiFetch).toHaveBeenCalledOnce()
     expect([...owners.keys()].sort()).toEqual([7, 8])
@@ -695,7 +721,7 @@ describe('fetchFollowersActivities', () => {
   it('returns no owners for an empty slice', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({ items: [], num_records: 25, next_cursor: null })
 
-    const slice = await fetchFollowersActivities(null, 25)
+    const slice = await fetchFollowersActivities(null, 25, 'following')
 
     expect(slice).toEqual({ items: [], nextCursor: null, owners: new Map() })
   })

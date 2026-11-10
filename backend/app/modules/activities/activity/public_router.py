@@ -10,7 +10,6 @@ import core.rate_limit as core_rate_limit
 import modules.activities.activity.dependencies as activity_dependencies
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity.service as activity_service
-import modules.users.users.schema as users_schema
 
 # Define the API router
 router = APIRouter()
@@ -33,22 +32,3 @@ def read_public_activity(
     used to enumerate which activity ids exist.
     """
     return activity_service.get_public_activity(activity_id, db)
-
-
-@router.get(
-    "/{activity_id}/owner",
-    response_model=users_schema.UserPublicRead,
-)
-@core_rate_limit.limiter.limit(core_rate_limit.PUBLIC_READ)
-def read_public_activity_owner(
-    request: Request,
-    activity_id: activity_dependencies.ActivityId,
-    db: core_dependencies.DbSession,
-) -> users_schema.UserPublicRead:
-    """Return the owner of a public activity.
-
-    Answers 404 when the activity does not exist or is not public, or when the server does not
-    share user info publicly — the cases are deliberately indistinguishable, so this
-    unauthenticated endpoint cannot be used to enumerate users.
-    """
-    return activity_service.get_public_activity_owner(activity_id, db)

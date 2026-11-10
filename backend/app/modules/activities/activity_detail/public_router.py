@@ -24,6 +24,7 @@ def read_public_activity_detail(
     """Return a shared activity with its laps, sets and workout steps in one read.
 
     Answers 404 when the activity does not exist *or* is not public, so it cannot be used to
-    enumerate which ids exist. A collection the owner hides is an empty page.
+    enumerate which ids exist. A collection the owner hides is an empty page. ``owner`` is the owner's
+    public profile, or ``null`` when the server does not share user info publicly.
     """
     return activity_detail_service.get_public_activity_detail(activity_id, db)

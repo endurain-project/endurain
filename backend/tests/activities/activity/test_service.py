@@ -1,6 +1,6 @@
 """Tests for the activities read/stats/feed service orchestration."""
 
-from datetime import date
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 from unittest.mock import ANY, MagicMock, patch
 
@@ -413,9 +413,9 @@ class TestCrossModuleWrites:
         mock_publishers.publish_activities_deleted.assert_called_once_with([1, 2], 7, db, source="api:test")
 
 
-class TestScrollFollowingFeed:
+class TestScrollFeed:
     def test_reads_only_the_callers_followees(self):
-        from modules.activities.activity.service import scroll_following_feed
+        from modules.activities.activity.service import scroll_feed
 
         with (
             patch(
@@ -426,12 +426,50 @@ class TestScrollFollowingFeed:
                 "modules.activities.activity.service.activity_crud.get_following_feed_after", return_value=[]
             ) as feed,
         ):
-            page = scroll_following_feed(7, None, 25, MagicMock())
+            page = scroll_feed(7, None, 25, MagicMock())
 
         followees.assert_called_once_with(7, ANY)
         assert feed.call_args.args[0] == [9, 10]
         assert page.items == []
         assert page.next_cursor is None
+
+
+class TestScrollOwnFeed:
+    def test_reads_the_callers_own_activities_and_never_the_followees(self):
+        import modules.activities.activity.constants as activity_constants
+        from modules.activities.activity.service import scroll_feed
+
+        entries = [
+            SimpleNamespace(
+                activity=SimpleNamespace(id=i, user_id=7, map_thumbnail_path=None, media=[]),
+                cursor_sort_value=datetime(2024, 1, i, tzinfo=UTC),
+                cursor_id=i,
+            )
+            for i in (3, 2, 1)
+        ]
+        with (
+            patch("modules.activities.activity.service.followers_integration") as followers,
+            patch("modules.activities.activity.service.activity_crud.get_following_feed_after") as following,
+            patch("modules.activities.activity.service.activity_crud.get_own_feed_after", return_value=entries) as own,
+            patch("modules.activities.activity.service.activities_contributor_registry") as registry,
+            patch("modules.activities.activity.service.users_integration.list_public_profiles") as profiles,
+            patch("modules.activities.activity.service.activity_schema.ActivityFeedPage") as build,
+        ):
+            registry.resolve_thumbnail_url.return_value = None
+            registry.resolve_media.return_value = {}
+            profiles.return_value = {7: "me"}
+            scroll_feed(7, None, 2, MagicMock(), scope=activity_constants.FeedScope.MINE)
+        page = build.call_args.kwargs
+
+        own.assert_called_once_with(7, None, 3, ANY)
+        followers.list_accepted_followee_ids.assert_not_called()
+        following.assert_not_called()
+        assert [item.id for item in page["items"]] == [3, 2]
+        assert page["next_cursor"] is not None
+        assert profiles.call_args.args[0] == {7}
+        assert page["users"] == {7: "me"}
+        # The owner's media is looked up for the page, as in the following feed.
+        assert registry.resolve_media.call_args.args[0] == [3, 2]
 
 
 class TestWithThumbnailUrls:
@@ -473,7 +511,7 @@ class TestWithMedia:
         other = SimpleNamespace(id=9, user_id=4, media=[])
         db = MagicMock()
 
-        result = service._with_media([own, also_own, other], 3, db)
+        result = service.with_media([own, also_own, other], 3, db)
 
         mock_registry.resolve_media.assert_called_once_with([7, 8], db)
         assert result[0].media == [photo]
@@ -487,6 +525,6 @@ class TestWithMedia:
         mock_registry.resolve_media.return_value = {}
         other = SimpleNamespace(id=9, user_id=4, media=[])
 
-        service._with_media([other], 3, MagicMock())
+        service.with_media([other], 3, MagicMock())
 
         mock_registry.resolve_media.assert_called_once_with([], ANY)

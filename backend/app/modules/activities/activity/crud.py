@@ -196,6 +196,7 @@ def _apply_user_activity_filters[RowT: tuple[object, ...]](
     name_search: str | None,
     user_is_owner: bool,
     followee_ids: Sequence[int] | None,
+    gear_id: int | None = None,
 ) -> Select[RowT]:
     """Apply the filters shared by the activity list, page and count queries.
 
@@ -210,11 +211,14 @@ def _apply_user_activity_filters[RowT: tuple[object, ...]](
         user_is_owner: Whether the requester owns all candidate rows.
         followee_ids: The requester's accepted-followee user ids, resolved by
             the caller.
+        gear_id: Optional gear filter.
 
     Returns:
         The filtered statement.
     """
     stmt = _apply_activity_visibility_filter(stmt, user_is_owner=user_is_owner, followee_ids=followee_ids)
+    if gear_id is not None:
+        stmt = stmt.where(activity_models.Activity.gear_id == gear_id)
     if activity_type:
         stmt = stmt.where(activity_models.Activity.activity_type == activity_type.stored)
     # Date filters are evaluated in each activity's own timezone, so a
@@ -337,6 +341,7 @@ def count_user_activities(
     end_date: date | None = None,
     name_search: str | None = None,
     user_is_owner: bool,
+    gear_id: int | None = None,
     followee_ids: Sequence[int] | None = None,
 ) -> int:
     """Count activities owned by a user (with optional filters).
@@ -353,6 +358,7 @@ def count_user_activities(
         name_search: Optional case-insensitive name search.
         user_is_owner: When False, private (visibility=private) and
             hidden activities are excluded from the count.
+        gear_id: Optional gear filter.
         followee_ids: The requester's accepted-followee user ids, resolved
             by the caller; ``None`` for an owner-only or anonymous read.
 
@@ -367,6 +373,7 @@ def count_user_activities(
         end_date=end_date,
         name_search=name_search,
         user_is_owner=user_is_owner,
+        gear_id=gear_id,
         followee_ids=followee_ids,
     )
     count = db.execute(stmt).scalar()
@@ -423,6 +430,7 @@ def get_user_activities_with_pagination(
     sort_by: str | None = None,
     sort_order: str | None = None,
     user_is_owner: bool,
+    gear_id: int | None = None,
     followee_ids: Sequence[int] | None = None,
 ) -> list[activity_schema.ActivityRead]:
     """Get a page of user activities with filters and sorting.
@@ -440,6 +448,7 @@ def get_user_activities_with_pagination(
         sort_order: ``asc`` or ``desc``.
         user_is_owner: When False, private/hidden activities
             are excluded.
+        gear_id: Optional gear filter.
         followee_ids: The requester's accepted-followee user ids, resolved
             by the caller; ``None`` for an owner-only or anonymous read.
 
@@ -456,6 +465,7 @@ def get_user_activities_with_pagination(
         end_date=end_date,
         name_search=name_search,
         user_is_owner=user_is_owner,
+        gear_id=gear_id,
         followee_ids=followee_ids,
     )
 
@@ -651,13 +661,16 @@ def get_user_activities_per_timeframe_and_activity_types(
     )
 
 
-def get_following_feed_after(
-    followee_ids: list[int],
+def _feed_slice(
+    conditions: Sequence[ColumnElement[bool]],
     after: tuple[datetime, int] | None,
     num_records: int,
     db: Session,
+    *,
+    requester_user_id: int | None = None,
+    force_non_owner: bool = False,
 ) -> list[activity_contracts.ActivityFeedEntry]:
-    """Get the next keyset slice of the following feed.
+    """Read one keyset slice of the activities matching ``conditions``, newest first.
 
     Ordered by ``(sort value DESC, id DESC)``. The sort value is the start time, or the creation time
     where the owner hid the start: a hidden start ordered among the visible ones would be pinned between
@@ -665,6 +678,51 @@ def get_following_feed_after(
     an activity tells a reader nothing the activity's id does not. ``id`` is part of the key because the
     sort value is not unique — two activities sharing one would otherwise straddle the boundary and one of
     them would be skipped or repeated.
+
+    Args:
+        conditions: What the slice's activities must satisfy.
+        after: The ``(sort value, id)`` position to resume strictly after, or ``None`` for the first slice.
+        num_records: Maximum records to return.
+        db: Database session.
+        requester_user_id: The reading owner, whose own activities are left unmasked.
+        force_non_owner: Mask every activity as a non-owner would see it.
+
+    Returns:
+        The slice, newest first (empty when there is nothing more).
+    """
+    activity = activity_models.Activity
+    sort_value = case((activity.hide_start_time.is_(True), activity.created_at), else_=activity.start_time)
+    stmt = select(activity, sort_value).where(*conditions)
+    if after is not None:
+        last_sort_value, last_id = after
+        # Row-value comparison: strictly older, or the same sort value with a lower id.
+        stmt = stmt.where(tuple_(sort_value, activity.id) < tuple_(literal(last_sort_value), literal(last_id)))
+    stmt = stmt.order_by(sort_value.desc(), activity.id.desc()).limit(num_records)
+    rows = db.execute(stmt).all()
+    if not rows:
+        return []
+    masked = activity_serializers.serialize_and_mask(
+        [orm_activity for orm_activity, _ in rows],
+        requester_user_id=requester_user_id,
+        force_non_owner=force_non_owner,
+    )
+    return [
+        activity_contracts.ActivityFeedEntry(
+            activity=item,
+            cursor_sort_value=row_sort_value,
+            cursor_id=orm_activity.id,
+        )
+        for (orm_activity, row_sort_value), item in zip(rows, masked, strict=True)
+    ]
+
+
+def get_following_feed_after(
+    followee_ids: list[int],
+    after: tuple[datetime, int] | None,
+    num_records: int,
+    db: Session,
+) -> list[activity_contracts.ActivityFeedEntry]:
+    """Get the next keyset slice of the following feed.
 
     Args:
         followee_ids: The requester's accepted-followee user ids.
@@ -679,8 +737,7 @@ def get_following_feed_after(
     if not followee_ids:
         return []
     activity = activity_models.Activity
-    sort_value = case((activity.hide_start_time.is_(True), activity.created_at), else_=activity.start_time)
-    stmt = select(activity, sort_value).where(
+    conditions = [
         activity.user_id.in_(followee_ids),
         activity.visibility.in_(
             [
@@ -690,119 +747,31 @@ def get_following_feed_after(
         ),
         activity.is_hidden.is_(False),
         _is_not_live_strava_api_activity(),
-    )
-    if after is not None:
-        last_sort_value, last_id = after
-        # Row-value comparison: strictly older, or the same sort value with a lower id.
-        stmt = stmt.where(tuple_(sort_value, activity.id) < tuple_(literal(last_sort_value), literal(last_id)))
-    stmt = stmt.order_by(sort_value.desc(), activity.id.desc()).limit(num_records)
-    rows = db.execute(stmt).all()
-    if not rows:
-        return []
-    masked = activity_serializers.serialize_and_mask([orm_activity for orm_activity, _ in rows], force_non_owner=True)
-    return [
-        activity_contracts.ActivityFeedEntry(
-            activity=item,
-            cursor_sort_value=row_sort_value,
-            cursor_id=orm_activity.id,
-        )
-        for (orm_activity, row_sort_value), item in zip(rows, masked, strict=True)
     ]
+    return _feed_slice(conditions, after, num_records, db, force_non_owner=True)
 
 
-def get_gear_activities_count_by_user_id(
+def get_own_feed_after(
     user_id: int,
-    gear_id: int,
-    db: Session,
-) -> int:
-    """Count activities for a gear owned by user.
-
-    Args:
-        user_id: Owner user ID.
-        gear_id: Gear ID.
-        db: Database session.
-
-    Returns:
-        Number of activities for the gear.
-    """
-    stmt = (
-        select(func.count())
-        .select_from(activity_models.Activity)
-        .where(
-            activity_models.Activity.user_id == user_id,
-            activity_models.Activity.gear_id == gear_id,
-        )
-    )
-    count = db.execute(stmt).scalar()
-    return count or 0
-
-
-def get_user_activities_by_gear_id_and_user_id(
-    user_id: int, gear_id: int, db: Session
-) -> list[activity_schema.ActivityRead]:
-    """Get all activities for a gear owned by a user.
-
-    Args:
-        user_id: Owner user ID.
-        gear_id: Gear ID.
-        db: Database session.
-
-    Returns:
-        The matching activity schemas, empty when there are none.
-    """
-    stmt = (
-        select(activity_models.Activity)
-        .where(
-            activity_models.Activity.user_id == user_id,
-            activity_models.Activity.gear_id == gear_id,
-        )
-        .order_by(desc(activity_models.Activity.start_time))
-    )
-    activities = db.execute(stmt).scalars().all()
-    if not activities:
-        return []
-    return activity_serializers.serialize_and_mask(
-        list(activities),
-        requester_user_id=user_id,
-    )
-
-
-def get_user_activities_by_gear_id_and_user_id_with_pagination(
-    user_id: int,
-    gear_id: int,
-    page_number: int,
+    after: tuple[datetime, int] | None,
     num_records: int,
     db: Session,
-) -> list[activity_schema.ActivityRead]:
-    """Get a page of activities for a gear owned by a user.
+) -> list[activity_contracts.ActivityFeedEntry]:
+    """Get the next keyset slice of a user's own activities, in the order of the following feed.
+
+    Every visibility and hidden activity is included, masked as the owner sees them.
 
     Args:
-        user_id: Owner user ID.
-        gear_id: Gear ID.
-        page_number: 1-based page number.
-        num_records: Records per page.
+        user_id: The owner, who is also the reader.
+        after: The ``(sort value, id)`` position to resume strictly after, or
+            ``None`` for the first slice.
+        num_records: Maximum records to return.
         db: Database session.
 
     Returns:
-        The matching activity schemas, empty when there are none.
+        The slice, newest first (empty when there is nothing more).
     """
-    stmt = (
-        select(activity_models.Activity)
-        .where(
-            activity_models.Activity.user_id == user_id,
-            activity_models.Activity.gear_id == gear_id,
-        )
-        .order_by(desc(activity_models.Activity.start_time))
-        .offset((page_number - 1) * num_records)
-        .limit(num_records)
-    )
-    activities = db.execute(stmt).scalars().all()
-    if not activities:
-        return []
-    return activity_serializers.serialize_and_mask(
-        list(activities),
-        requester_user_id=user_id,
-    )
+    return _feed_slice([activity_models.Activity.user_id == user_id], after, num_records, db, requester_user_id=user_id)
 
 
 def sum_gear_usage(gear_id: int, user_id: int, db: Session) -> gears_contracts.UsageTotals:

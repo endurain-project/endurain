@@ -23,7 +23,7 @@ import {
   type ActivityIngestionJob,
   UploadValidationError,
 } from '@/features/upload/types'
-import type { Activity } from '@/features/activities/types'
+import type { Activity, ActivityFeedSlice } from '@/features/activities/types'
 import * as realtime from '@/composables/useRealtime'
 
 import { makeActivity } from './fixtures/activity'
@@ -296,8 +296,11 @@ describe('pollIngestionJob', () => {
  * @param pages - The feed pages, newest-first.
  * @returns An {@link InfiniteData} value keyed by 1-based page number.
  */
-function feed(pages: Activity[][]): InfiniteData<Activity[]> {
-  return { pages, pageParams: pages.map((_, index) => index + 1) }
+function feed(pages: Activity[][]): InfiniteData<ActivityFeedSlice> {
+  return {
+    pages: pages.map((items) => ({ items, nextCursor: null, owners: new Map() })),
+    pageParams: pages.map((_, index) => index + 1),
+  }
 }
 
 describe('prependActivitiesToFeed', () => {
@@ -306,7 +309,7 @@ describe('prependActivitiesToFeed', () => {
       makeActivity({ id: 2 }),
     ])
 
-    expect(result?.pages[0]?.map((activity) => activity.id)).toEqual([2, 1])
+    expect(result?.pages[0]?.items.map((activity) => activity.id)).toEqual([2, 1])
   })
 
   it('removes an existing copy from any page before pinning it to the top', () => {
@@ -314,8 +317,8 @@ describe('prependActivitiesToFeed', () => {
 
     const result = prependActivitiesToFeed(data, [makeActivity({ id: 2 })])
 
-    expect(result?.pages[0]?.map((activity) => activity.id)).toEqual([2, 1])
-    expect(result?.pages[1]).toEqual([])
+    expect(result?.pages[0]?.items.map((activity) => activity.id)).toEqual([2, 1])
+    expect(result?.pages[1]?.items).toEqual([])
   })
 
   it('returns the value untouched when there is nothing cached', () => {
@@ -337,8 +340,8 @@ describe('replaceActivitiesInFeed', () => {
       makeActivity({ id: 2, mapThumbnailUrl: '/api/v1/activities/2/thumbnail?t=x' }),
     ])
 
-    expect(result?.pages[0]?.map((activity) => activity.id)).toEqual([1])
-    expect(result?.pages[1]?.[0]?.mapThumbnailUrl).toBe('/api/v1/activities/2/thumbnail?t=x')
+    expect(result?.pages[0]?.items.map((activity) => activity.id)).toEqual([1])
+    expect(result?.pages[1]?.items[0]?.mapThumbnailUrl).toBe('/api/v1/activities/2/thumbnail?t=x')
   })
 
   it('leaves rows it has no replacement for untouched', () => {
@@ -348,8 +351,8 @@ describe('replaceActivitiesInFeed', () => {
       makeActivity({ id: 2, mapThumbnailUrl: '/api/v1/activities/2/thumbnail?t=x' }),
     ])
 
-    expect(result?.pages[0]?.[0]?.mapThumbnailUrl).toBeNull()
-    expect(result?.pages[0]?.[1]?.mapThumbnailUrl).toBe('/api/v1/activities/2/thumbnail?t=x')
+    expect(result?.pages[0]?.items[0]?.mapThumbnailUrl).toBeNull()
+    expect(result?.pages[0]?.items[1]?.mapThumbnailUrl).toBe('/api/v1/activities/2/thumbnail?t=x')
   })
 
   it('returns the value untouched when there is nothing cached', () => {

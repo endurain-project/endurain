@@ -34,7 +34,7 @@ export function mapGearActivity(dto: GearActivityDto): GearActivity {
 }
 
 /**
- * Fetches one page of the activities recorded against a gear.
+ * Fetches one page of the viewer's own activities recorded against a gear.
  *
  * @param gearId - The parent gear id.
  * @param params - Page number and size.
@@ -49,13 +49,13 @@ export async function fetchGearActivities(
   signal?: AbortSignal,
 ): Promise<GearActivitiesPage> {
   const params = new URLSearchParams({
+    gear_id: String(gearId),
     page_number: String(page),
     num_records: String(numRecords),
   })
-  const page_ = await apiFetch<Schemas['Page_ActivityRead_']>(
-    `/gears/${gearId}/activities?${params.toString()}`,
-    { signal },
-  )
+  const page_ = await apiFetch<Schemas['Page_ActivityRead_']>(`/activities?${params.toString()}`, {
+    signal,
+  })
   return {
     records: (page_.items ?? []).map((dto) => mapGearActivity(dto as GearActivityDto)),
     total: page_.total,

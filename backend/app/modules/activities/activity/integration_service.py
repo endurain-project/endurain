@@ -561,6 +561,22 @@ def get_readable_activity(activity_id: int, requester_user_id: int, db: Session)
     return activity_service.get_activity(activity_id, requester_user_id, db)
 
 
+def with_media(
+    activity: activity_schema.ActivityRead, requester_user_id: int, db: Session
+) -> activity_schema.ActivityRead:
+    """Set an activity's media as list responses do: the requester's own photos, empty for anyone else's.
+
+    Args:
+        activity: A masked activity about to be returned to a client.
+        requester_user_id: The authenticated caller.
+        db: Database session.
+
+    Returns:
+        The same activity, with ``media`` set when the requester owns it and it has photos.
+    """
+    return activity_service.with_media([activity], requester_user_id, db)[0]
+
+
 def get_public_activity(activity_id: int, db: Session) -> activity_schema.ActivityRead:
     """Return a publicly shared activity, masked as an anonymous viewer may see it.
 

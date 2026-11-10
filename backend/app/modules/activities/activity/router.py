@@ -26,6 +26,7 @@ import core.exceptions as core_exceptions
 import core.location as core_location
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
+import core.types as core_types
 import modules.activities.activity.bulk_edit_constants as bulk_edit_constants
 import modules.activities.activity.bulk_edit_job_service as activity_bulk_edit_job_service
 import modules.activities.activity.constants as activity_constants
@@ -55,6 +56,10 @@ def list_own_activities(
     ] = None,
     sort_by: activity_dependencies.SortBy = None,
     sort_order: activity_dependencies.SortOrder = None,
+    gear_id: Annotated[
+        int | None,
+        Query(gt=0, le=core_types.INT32_MAX, description="Keep only the activities recorded with this gear"),
+    ] = None,
 ) -> activity_schema.ActivityPage:
     """List the authenticated user's activities, with the matching total."""
     return activity_service.page_user_activities(
@@ -69,6 +74,7 @@ def list_own_activities(
         name_search=name_contains,
         sort_by=sort_by,
         sort_order=sort_order,
+        gear_id=gear_id,
     )
 
 
@@ -90,22 +96,28 @@ def list_activity_types(
     response_model=activity_schema.ActivityFeedPage,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
 )
-def list_following_feed(
+def list_feed(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     cursor: Annotated[str | None, Query()] = None,
     num_records: Annotated[int | None, Query(ge=1, le=core_pagination.MAX_NUM_RECORDS)] = None,
+    scope: Annotated[
+        activity_constants.FeedScope,
+        Query(description="`following` lists the users the caller follows; `mine` lists the caller's own activities"),
+    ] = activity_constants.FeedScope.FOLLOWING,
 ) -> activity_schema.ActivityFeedPage:
-    """List a keyset slice of the authenticated user's following feed.
+    """List a keyset slice of the authenticated user's following feed, or of their own activities.
 
+    With ``scope=mine`` the slice holds the caller's own activities of every visibility, newest first.
     The slice also carries the public profile of each owner on it in ``users`` (the projection
     ``GET /users/{user_id}`` returns), so a token with ``activities:read`` alone receives it too.
     """
-    return activity_service.scroll_following_feed(
+    return activity_service.scroll_feed(
         token_user_id,
         cursor,
         num_records or core_pagination.DEFAULT_NUM_RECORDS,
         db,
+        scope,
     )
 
 

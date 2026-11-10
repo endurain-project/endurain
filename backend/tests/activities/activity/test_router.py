@@ -13,7 +13,6 @@ from modules.activities.activity.constants import ActivityType
 
 def _build_app(mock_db):
     import core.database as core_db
-    import modules.activities.activity.gear_router as activity_gear_router
     import modules.activities.activity.router as activity_router
     import modules.activities.activity.user_router as activity_user_router
     import modules.auth.dependencies as auth_deps
@@ -24,7 +23,6 @@ def _build_app(mock_db):
     core_exceptions.register_exception_handlers(app)
     app.include_router(activity_router.router, prefix="/activities")
     app.include_router(activity_user_router.router, prefix="/users")
-    app.include_router(activity_gear_router.router, prefix="/gears")
 
     def _mock():
         return None
@@ -197,6 +195,45 @@ class TestFeed:
             assert resp.status_code == 200
             assert len(resp.json()["items"]) == 1
 
+    def test_scope_defaults_to_following(self, mock_db):
+        with (
+            patch("modules.activities.activity.service.followers_integration") as f,
+            patch("modules.activities.activity.service.activity_crud.get_following_feed_after", return_value=[]) as m,
+            patch("modules.activities.activity.service.activity_crud.get_own_feed_after") as own,
+        ):
+            f.list_accepted_followee_ids.return_value = [5]
+            resp = TestClient(_build_app(mock_db)).get("/activities/feed", headers={"Authorization": "Bearer x"})
+
+        assert resp.status_code == 200
+        m.assert_called_once()
+        own.assert_not_called()
+
+    def test_scope_mine_lists_the_callers_own_activities(self, mock_db):
+        from modules.users.users.schema import UserPublicRead
+
+        with (
+            patch("modules.activities.activity.service.followers_integration") as f,
+            patch("modules.activities.activity.service.activity_crud.get_following_feed_after") as following,
+            patch("modules.activities.activity.service.activity_crud.get_own_feed_after") as own,
+            patch("modules.activities.activity.service.users_integration.list_public_profiles") as profiles,
+        ):
+            own.return_value = [_feed_entry(id=4, user_id=1)]
+            profiles.return_value = {1: UserPublicRead(id=1, name="Me", username="me")}
+            resp = TestClient(_build_app(mock_db)).get(
+                "/activities/feed?scope=mine", headers={"Authorization": "Bearer x"}
+            )
+
+        assert resp.status_code == 200
+        assert [item["id"] for item in resp.json()["items"]] == [4]
+        assert list(resp.json()["users"]) == ["1"]
+        own.assert_called_once()
+        following.assert_not_called()
+        f.list_accepted_followee_ids.assert_not_called()
+
+    def test_an_unknown_scope_is_rejected(self, mock_db):
+        resp = TestClient(_build_app(mock_db)).get("/activities/feed?scope=all", headers={"Authorization": "Bearer x"})
+        assert resp.status_code == 422
+
     def test_users_carries_each_distinct_owner_once(self, mock_db):
         from modules.users.users.schema import UserPublicRead
 
@@ -273,35 +310,54 @@ class TestFeed:
         assert resp.status_code == 404
 
 
-class TestGear:
-    def test_list(self, mock_db):
-        with patch("modules.activities.activity.service.activity_crud.get_user_activities_by_gear_id_and_user_id") as m:
-            m.return_value = [_valid_activity()]
-            with patch(
-                "modules.activities.activity.service.activity_crud.get_gear_activities_count_by_user_id",
-                return_value=1,
-            ):
-                resp = TestClient(_build_app(mock_db)).get("/gears/1/activities", headers={"Authorization": "Bearer x"})
-            assert resp.status_code == 200
-            assert resp.json()["total"] == 1
+class TestGearFilter:
+    def test_gear_id_filters_the_callers_own_list(self, mock_db):
+        with (
+            patch("modules.activities.activity.service.activity_crud.get_user_activities_with_pagination") as page,
+            patch("modules.activities.activity.service.activity_crud.count_user_activities", return_value=0) as count,
+        ):
+            page.return_value = []
+            resp = TestClient(_build_app(mock_db)).get("/activities?gear_id=5", headers={"Authorization": "Bearer x"})
 
-    def test_list_paginated(self, mock_db):
-        with patch(
-            "modules.activities.activity.service.activity_crud.get_user_activities_by_gear_id_and_user_id_with_pagination"
-        ) as m:
-            m.return_value = [_valid_activity()]
-            with patch(
-                "modules.activities.activity.service.activity_crud.get_gear_activities_count_by_user_id",
-                return_value=1,
-            ):
-                resp = TestClient(_build_app(mock_db)).get(
-                    "/gears/1/activities?page_number=1&num_records=10", headers={"Authorization": "Bearer x"}
-                )
-            assert resp.status_code == 200
+        assert resp.status_code == 200
+        assert page.call_args.kwargs["gear_id"] == 5
+        assert count.call_args.kwargs["gear_id"] == 5
 
-    def test_count_endpoint_is_gone(self, mock_db):
-        resp = TestClient(_build_app(mock_db)).get("/gears/1/activities/count", headers={"Authorization": "Bearer x"})
-        assert resp.status_code == 404
+    def test_no_gear_id_leaves_the_list_unfiltered(self, mock_db):
+        with (
+            patch("modules.activities.activity.service.activity_crud.get_user_activities_with_pagination") as page,
+            patch("modules.activities.activity.service.activity_crud.count_user_activities", return_value=0),
+        ):
+            page.return_value = []
+            TestClient(_build_app(mock_db)).get("/activities", headers={"Authorization": "Bearer x"})
+
+        assert page.call_args.kwargs["gear_id"] is None
+
+    def test_a_non_positive_gear_id_is_rejected(self, mock_db):
+        resp = TestClient(_build_app(mock_db)).get("/activities?gear_id=0", headers={"Authorization": "Bearer x"})
+        assert resp.status_code == 422
+
+    def test_another_users_list_has_no_gear_filter(self, mock_db):
+        """Filtering by gear there would reveal a gear its owner hides."""
+        with (
+            patch("modules.activities.activity.service.activity_crud.get_user_activities_with_pagination") as page,
+            patch("modules.activities.activity.service.activity_crud.count_user_activities", return_value=0),
+            patch("modules.activities.activity.service._require_visible_owner"),
+        ):
+            page.return_value = []
+            TestClient(_build_app(mock_db)).get("/users/2/activities?gear_id=5", headers={"Authorization": "Bearer x"})
+
+        assert page.call_args.kwargs["gear_id"] is None
+
+    def test_the_gear_activities_route_is_gone(self):
+        from fastapi import FastAPI
+
+        from api import router
+
+        app = FastAPI()
+        app.include_router(router)
+
+        assert not any(path.endswith("/gears/{gear_id}/activities") for path in app.openapi()["paths"])
 
 
 class TestUserStats:

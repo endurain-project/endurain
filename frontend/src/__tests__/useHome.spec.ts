@@ -3,20 +3,11 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import type {
-  Activity,
-  ActivityFeedSlice,
-  ActivityMedia,
-  ActivityOwner,
-} from '@/features/activities/types'
+import type { ActivityFeedSlice, ActivityMedia, ActivityOwner } from '@/features/activities/types'
 
 import { queryKeys } from '@/services/queryKeys'
-import {
-  fetchFollowersActivities,
-  fetchUserActivities,
-} from '@/features/activities/services/activities'
+import { fetchFollowersActivities } from '@/features/activities/services/activities'
 import { fetchActivityMedia } from '@/features/activities/services/activityMedia'
-import { fetchActivityOwner } from '@/features/activities/services/activityOwner'
 import {
   useActivityMediaQuery,
   useActivityOwnerQuery,
@@ -41,8 +32,9 @@ vi.mock('@/features/auth/composables/useCurrentUser', () => ({
 vi.mock('@/features/activities/services/activities', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/activities/services/activities')>()),
   fetchFollowersActivities:
-    vi.fn<(cursor: string | null, numRecords: number) => Promise<ActivityFeedSlice>>(),
-  fetchUserActivities: vi.fn<(page: number, numRecords: number) => Promise<Activity[]>>(),
+    vi.fn<
+      (cursor: string | null, numRecords: number, scope: string) => Promise<ActivityFeedSlice>
+    >(),
 }))
 
 vi.mock('@/features/activities/services/activityMedia', async (importOriginal) => ({
@@ -53,11 +45,6 @@ vi.mock('@/features/activities/services/activityMedia', async (importOriginal) =
 vi.mock('@/features/upload/composables/usePinnedActivities', () => ({
   floatPinnedActivities: <T>(data: T) => data,
   refreshPinnedActivities: vi.fn<() => Promise<void>>(),
-}))
-
-vi.mock('@/features/activities/services/activityOwner', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/features/activities/services/activityOwner')>()),
-  fetchActivityOwner: vi.fn<(userId: number) => Promise<ActivityOwner | null>>(),
 }))
 
 const jane: ActivityOwner = { name: 'Jane Runner', username: 'jane', avatarUrl: null }
@@ -123,7 +110,7 @@ describe('useFollowersActivitiesFeed', () => {
     await flushPromises()
 
     expect(owner?.data.value).toEqual(jane)
-    expect(fetchActivityOwner).not.toHaveBeenCalled()
+    expect(owner?.fetchStatus.value).toBe('idle')
   })
 
   it('pages with the cursor, unaffected by the owners riding along', async () => {
@@ -147,14 +134,52 @@ describe('useFollowersActivitiesFeed', () => {
   })
 })
 
+describe('useUserActivitiesFeed', () => {
+  it('reads the own-activities cursor feed, walking next_cursor', async () => {
+    vi.mocked(fetchFollowersActivities)
+      .mockResolvedValueOnce({ ...slice, nextCursor: 'next' })
+      .mockResolvedValueOnce(slice)
+    let feed: ReturnType<typeof useUserActivitiesFeed> | undefined
+    mountWith(new QueryClient(), () => {
+      feed = useUserActivitiesFeed(1)
+    })
+    await flushPromises()
+    expect(feed?.hasNextPage.value).toBe(true)
+
+    await feed?.fetchNextPage()
+    await flushPromises()
+
+    expect(vi.mocked(fetchFollowersActivities).mock.calls.map(([cursor]) => cursor)).toEqual([
+      null,
+      'next',
+    ])
+    expect(vi.mocked(fetchFollowersActivities).mock.calls.map(([, , scope]) => scope)).toEqual([
+      'mine',
+      'mine',
+    ])
+    expect(feed?.hasNextPage.value).toBe(false)
+  })
+
+  it('seeds the owners of the slice, the caller included', async () => {
+    vi.mocked(fetchFollowersActivities).mockResolvedValue(slice)
+    const queryClient = new QueryClient()
+    mountWith(queryClient, () => {
+      useUserActivitiesFeed(1)
+    })
+    await flushPromises()
+
+    expect(queryClient.getQueryData(queryKeys.activities.owner(7))).toEqual(jane)
+  })
+})
+
 describe('embedded activity media', () => {
   const photo: ActivityMedia = { id: 5, activityId: 1, url: '/media/1/5?t=abc' }
 
   it('seeds the media of each activity on the home feed, so no card requests /media', async () => {
-    vi.mocked(fetchUserActivities).mockResolvedValue([
-      makeActivity({ id: 1, media: [photo] }),
-      makeActivity({ id: 2 }),
-    ])
+    vi.mocked(fetchFollowersActivities).mockResolvedValue({
+      ...slice,
+      items: [makeActivity({ id: 1, media: [photo] }), makeActivity({ id: 2 })],
+    })
     const queryClient = new QueryClient()
     mountWith(queryClient, () => {
       useUserActivitiesFeed(1)

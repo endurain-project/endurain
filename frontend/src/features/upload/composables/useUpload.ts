@@ -6,7 +6,7 @@ import {
 } from '@tanstack/vue-query'
 
 import { fetchActivity } from '@/features/activities/services/activities'
-import type { Activity } from '@/features/activities/types'
+import type { Activity, ActivityFeedSlice } from '@/features/activities/types'
 import {
   pinActivities,
   updatePinnedActivities,
@@ -136,18 +136,25 @@ function activityListScope(queryKey: readonly unknown[]): string | undefined {
  * @returns The updated feed value, or `undefined` when there was nothing cached.
  */
 export function prependActivitiesToFeed(
-  data: InfiniteData<Activity[]> | undefined,
+  data: InfiniteData<ActivityFeedSlice> | undefined,
   activities: Activity[],
-): InfiniteData<Activity[]> | undefined {
-  if (!data || data.pages.length === 0 || activities.length === 0) {
+): InfiniteData<ActivityFeedSlice> | undefined {
+  const [first, ...rest] = data?.pages ?? []
+  if (!data || !first || activities.length === 0) {
     return data
   }
   const newIds = new Set(activities.map((activity) => activity.id))
-  const dedupedPages = data.pages.map((page) => page.filter((activity) => !newIds.has(activity.id)))
-  const firstPage = dedupedPages[0] ?? []
+  const withoutNew = (slice: ActivityFeedSlice): ActivityFeedSlice => ({
+    ...slice,
+    items: slice.items.filter((activity) => !newIds.has(activity.id)),
+  })
+  const firstSlice = withoutNew(first)
   return {
     ...data,
-    pages: [[...activities, ...firstPage], ...dedupedPages.slice(1)],
+    pages: [
+      { ...firstSlice, items: [...activities, ...firstSlice.items] },
+      ...rest.map(withoutNew),
+    ],
   }
 }
 
@@ -161,16 +168,19 @@ export function prependActivitiesToFeed(
  * @returns The updated feed value, or `undefined` when there was nothing cached.
  */
 export function replaceActivitiesInFeed(
-  data: InfiniteData<Activity[]> | undefined,
+  data: InfiniteData<ActivityFeedSlice> | undefined,
   activities: Activity[],
-): InfiniteData<Activity[]> | undefined {
+): InfiniteData<ActivityFeedSlice> | undefined {
   if (!data || activities.length === 0) {
     return data
   }
   const byId = new Map(activities.map((activity) => [activity.id, activity]))
   return {
     ...data,
-    pages: data.pages.map((page) => page.map((activity) => byId.get(activity.id) ?? activity)),
+    pages: data.pages.map((slice) => ({
+      ...slice,
+      items: slice.items.map((activity) => byId.get(activity.id) ?? activity),
+    })),
   }
 }
 
@@ -183,7 +193,7 @@ export function replaceActivitiesInFeed(
  */
 function patchUserFeed(queryClient: QueryClient, activities: Activity[]): void {
   updatePinnedActivities(activities)
-  queryClient.setQueriesData<InfiniteData<Activity[]>>(
+  queryClient.setQueriesData<InfiniteData<ActivityFeedSlice>>(
     {
       queryKey: queryKeys.activities.lists(),
       predicate: (query) => activityListScope(query.queryKey) === 'user-feed',
@@ -296,7 +306,7 @@ export function useUploadActivityFileMutation() {
       // pin outlives the cache write: the feed query floats pinned activities
       // above whatever a refetch returns (see `floatPinnedActivities`).
       pinActivities(created)
-      queryClient.setQueriesData<InfiniteData<Activity[]>>(
+      queryClient.setQueriesData<InfiniteData<ActivityFeedSlice>>(
         {
           queryKey: queryKeys.activities.lists(),
           predicate: (query) => activityListScope(query.queryKey) === 'user-feed',

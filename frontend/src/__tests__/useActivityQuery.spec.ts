@@ -12,8 +12,11 @@ import {
   fetchActivitySets,
   fetchActivityWorkoutSteps,
 } from '@/features/activities/services/activities'
+import { fetchActivityMedia } from '@/features/activities/services/activityMedia'
 import {
   useActivityLapsQuery,
+  useActivityMediaQuery,
+  useActivityOwnerQuery,
   useActivityQuery,
   useActivitySetsQuery,
   useActivityWorkoutStepsQuery,
@@ -27,6 +30,11 @@ vi.mock('pinia', async (importOriginal) => ({
 }))
 
 vi.mock('@/features/auth/stores/auth', () => ({ useAuthStore: () => ({ isAuthenticated: true }) }))
+
+vi.mock('@/features/activities/services/activityMedia', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/activities/services/activityMedia')>()),
+  fetchActivityMedia: vi.fn<(id: number) => Promise<unknown[]>>(),
+}))
 
 vi.mock('@/features/activities/services/activities', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/activities/services/activities')>()),
@@ -43,6 +51,7 @@ const detail: ActivityDetail = {
   laps: [lap],
   sets: [],
   workoutSteps: [],
+  owner: null,
 }
 
 let wrapper: ReturnType<typeof mount> | undefined
@@ -110,6 +119,50 @@ describe('useActivityQuery', () => {
     expect(fetchActivityLaps).not.toHaveBeenCalled()
     expect(fetchActivitySets).not.toHaveBeenCalled()
     expect(fetchActivityWorkoutSteps).not.toHaveBeenCalled()
+  })
+
+  it('seeds the media and the owner it carried, so the detail page makes no request for them', async () => {
+    const photo = { id: 9, activityId: 5, url: '/media/5/9?t=abc' }
+    const jane = { name: 'Jane Runner', username: 'jane', avatarUrl: null }
+    vi.mocked(fetchActivityDetail).mockResolvedValue({
+      ...detail,
+      activity: makeActivity({ id: 5, userId: 7, media: [photo] }),
+      owner: jane,
+    })
+    const queryClient = new QueryClient()
+    mountWith(queryClient, () => {
+      useActivityQuery(5)
+    })
+    await flushPromises()
+    wrapper?.unmount()
+
+    let media: ReturnType<typeof useActivityMediaQuery> | undefined
+    let owner: ReturnType<typeof useActivityOwnerQuery> | undefined
+    mountWith(queryClient, () => {
+      media = useActivityMediaQuery(5)
+      owner = useActivityOwnerQuery(makeActivity({ id: 5, userId: 7 }))
+    })
+    await flushPromises()
+
+    expect(media?.data.value).toEqual([photo])
+    expect(owner?.data.value).toEqual(jane)
+    expect(media?.fetchStatus.value).toBe('idle')
+    expect(owner?.fetchStatus.value).toBe('idle')
+    expect(fetchActivityMedia).not.toHaveBeenCalled()
+  })
+
+  it('keeps a hidden owner as null rather than looking it up', async () => {
+    vi.mocked(fetchActivityDetail).mockResolvedValue({
+      ...detail,
+      activity: makeActivity({ id: 5, userId: 7 }),
+    })
+    const queryClient = new QueryClient()
+    mountWith(queryClient, () => {
+      useActivityQuery(5)
+    })
+    await flushPromises()
+
+    expect(queryClient.getQueryData(queryKeys.activities.owner(7))).toBeNull()
   })
 
   it('leaves an incomplete collection to its own query, which reads every page', async () => {

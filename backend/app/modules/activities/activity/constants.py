@@ -151,6 +151,18 @@ def is_running_cadence_type(activity_type_id: int | None) -> bool:
     return activity_type_id in RUNNING_CADENCE_TYPE_IDS
 
 
+class FeedScope(StrEnum):
+    """Whose activities the cursor feed lists.
+
+    Attributes:
+        FOLLOWING: The activities of the users the caller follows, as the caller may see them.
+        MINE: The caller's own activities, of every visibility.
+    """
+
+    FOLLOWING = "following"
+    MINE = "mine"
+
+
 class StatsPeriod(StrEnum):
     """The periods the per-sport stats cover.
 

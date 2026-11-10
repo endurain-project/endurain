@@ -6,7 +6,6 @@ import core.config as core_config
 import core.router as core_router
 
 # Alphabetized router imports
-import modules.activities.activity.gear_router as activity_gear_router
 import modules.activities.activity.public_router as activity_public_router
 import modules.activities.activity.router as activity_router
 import modules.activities.activity.summary_router as activity_summary_router
@@ -286,12 +285,6 @@ router.include_router(
     gears_router.router,
     prefix=core_config.ROOT_PATH + "/gears",
     tags=["gears"],
-    dependencies=[Depends(auth_dependencies.validate_access_token)],
-)
-router.include_router(
-    activity_gear_router.router,
-    prefix=core_config.ROOT_PATH + "/gears",
-    tags=["activities"],
     dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
 router.include_router(

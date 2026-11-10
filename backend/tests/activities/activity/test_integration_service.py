@@ -130,6 +130,19 @@ class TestDerivedArtifactWritesStageOnly:
         db.commit.assert_not_called()
 
 
+class TestWithMedia:
+    @patch("modules.activities.activity.integration_service.activity_service")
+    def test_fills_the_media_the_list_responses_carry(self, mock_service):
+        from modules.activities.activity import integration_service
+
+        db = MagicMock()
+        activity = MagicMock()
+        mock_service.with_media.return_value = [activity]
+
+        assert integration_service.with_media(activity, 1, db) is activity
+        mock_service.with_media.assert_called_once_with([activity], 1, db)
+
+
 class TestReadableActivity:
     @patch("modules.activities.activity.integration_service.activity_service")
     def test_the_requesters_activity_reads_through_the_service(self, mock_service):

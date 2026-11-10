@@ -348,9 +348,6 @@ _TIERED_ENDPOINTS = [
         id="public-workout-steps",
     ),
     pytest.param(
-        activity_public_router.read_public_activity_owner, core_rate_limit.PUBLIC_READ, id="public-activity-owner"
-    ),
-    pytest.param(
         activity_exercise_titles_public_router.list_public_activity_exercise_titles,
         core_rate_limit.PUBLIC_READ,
         id="public-exercise-titles",

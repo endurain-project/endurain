@@ -19,7 +19,6 @@ import {
   type ActivityStatsTimeframe,
   fetchActivityStats,
   fetchFollowersActivities,
-  fetchUserActivities,
   fetchUserWeekActivities,
   refreshActivities,
 } from '@/features/activities/services/activities'
@@ -55,10 +54,24 @@ export function seedActivityMedia(client: QueryClient, activities: Activity[]): 
 }
 
 /**
- * The home dashboard's infinite feed of the viewer's own activities. Follows the
- * canonical infinite-query pattern (see `useInfiniteNotificationsQuery`): keyed
- * on page size only so every page shares one cache entry, and gated on a valid
- * user id and authentication so it never fires for a logged-out viewer.
+ * Seeds the caches the cards of one feed slice read: each activity's media and each owner's
+ * public profile, both of which arrive with the slice.
+ *
+ * @param client - The query client holding the media and owner queries.
+ * @param slice - One slice of an activity feed.
+ */
+function seedFeedSlice(client: QueryClient, slice: ActivityFeedSlice): void {
+  seedActivityMedia(client, slice.items)
+  for (const [ownerId, owner] of slice.owners) {
+    client.setQueryData(queryKeys.activities.owner(ownerId), owner)
+  }
+}
+
+/**
+ * The home dashboard's infinite feed of the viewer's own activities, read from the cursor feed with
+ * `scope=mine` like {@link useFollowersActivitiesFeed}. Keyed on page size only so every page shares
+ * one cache entry, and gated on a valid user id and authentication so it never fires for a
+ * logged-out viewer.
  *
  * @param userId - Reactive id of the feed owner (the authenticated viewer).
  * @param pageSize - Records per page.
@@ -78,16 +91,15 @@ export function useUserActivitiesFeed(
   const query = useInfiniteQuery({
     queryKey: computed(() => queryKeys.activities.userFeed(id.value, pageSize)),
     queryFn: async ({ pageParam, signal }) => {
-      const page = await fetchUserActivities(pageParam, pageSize, signal)
-      seedActivityMedia(client, page)
-      if (pageParam === 1) {
+      const slice = await fetchFollowersActivities(pageParam, pageSize, 'mine', signal)
+      seedFeedSlice(client, slice)
+      if (pageParam === null) {
         await refreshPinnedActivities()
       }
-      return page
+      return slice
     },
-    initialPageParam: 1,
-    getNextPageParam: (lastPage: Activity[], _allPages, lastPageParam: number) =>
-      lastPage.length < pageSize ? undefined : lastPageParam + 1,
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastSlice: ActivityFeedSlice) => lastSlice.nextCursor ?? undefined,
     enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value > 0),
   })
 
@@ -165,11 +177,8 @@ export function useFollowersActivitiesFeed(
   return useInfiniteQuery({
     queryKey: computed(() => queryKeys.activities.followersFeed(id.value, pageSize)),
     queryFn: async ({ pageParam, signal }) => {
-      const slice = await fetchFollowersActivities(pageParam, pageSize, signal)
-      seedActivityMedia(client, slice.items)
-      for (const [ownerId, owner] of slice.owners) {
-        client.setQueryData(queryKeys.activities.owner(ownerId), owner)
-      }
+      const slice = await fetchFollowersActivities(pageParam, pageSize, 'following', signal)
+      seedFeedSlice(client, slice)
       return slice
     },
     // Keyset, not offset: the server hands back the position of the last row it
