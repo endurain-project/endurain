@@ -174,23 +174,8 @@ class TestReadUsers:
     def test_the_old_lookup_paths_are_gone(self, path, client):
         assert client.get(path).status_code == 404
 
-    @patch(f"{_SERVICE}.require_user_by_email")
-    def test_email_not_found_is_404(self, mock_get, client):
-        mock_get.side_effect = core_exceptions.NotFoundError("User not found")
-
-        response = client.post("/users/email/lookup", json={"email": "nobody@example.com"})
-
-        assert response.status_code == 404
-
-    @patch(f"{_SERVICE}.require_user_by_email")
-    def test_email_found(self, mock_get, client):
-        mock_get.return_value = _user(1, email="test@example.com")
-
-        response = client.post("/users/email/lookup", json={"email": "test@example.com"})
-
-        assert response.json()["email"] == "test@example.com"
-        mock_get.assert_called_once()
-        assert mock_get.call_args.args[0] == "test@example.com"
+    def test_the_email_lookup_route_is_gone(self, client):
+        assert client.post("/users/email/lookup", json={"email": "test@example.com"}).status_code in (404, 405)
 
     def test_the_email_is_not_a_path_segment(self, client):
         assert client.get("/users/email/test@example.com").status_code in (404, 405)
@@ -693,20 +678,15 @@ class TestLookupParametersAreBounded:
             settings.return_value = MagicMock(num_records_per_page=20)
             assert client.get(f"/users?{name}=" + "a" * 251).status_code == 422
 
-    def test_an_email_longer_than_the_column_is_refused(self, client):
-        assert client.post("/users/email/lookup", json={"email": "a" * 251}).status_code == 422
-
     def test_a_value_at_the_limit_reaches_the_service(self, client):
         with (
             patch("modules.users.users.dependencies.server_settings_integration.get_server_settings") as settings,
             patch(
                 f"{_SERVICE}.list_users", return_value=core_pagination.Page(items=[], total=0, page=1, num_records=20)
             ),
-            patch(f"{_SERVICE}.require_user_by_email", return_value=_user(1)),
         ):
             settings.return_value = MagicMock(num_records_per_page=20)
             assert client.get("/users?username=" + "a" * 250).status_code == 200
-            assert client.post("/users/email/lookup", json={"email": "a" * 250}).status_code == 200
 
 
 class TestReadScopes:
@@ -722,13 +702,6 @@ class TestReadScopes:
     @pytest.mark.parametrize("path", ["/{user_id}/identity-providers"])
     def test_full_records_need_the_admin_read_scope(self, path):
         assert self._scopes(path) == {"users:read_all"}
-
-    def test_the_email_lookup_needs_the_admin_read_scope(self):
-        from modules.users.users.router import router
-
-        route = next(r for r in router.routes if r.path == "/email/lookup" and "POST" in r.methods)
-        scopes = {scope for dep in route.dependant.dependencies for scope in dep.own_oauth_scopes or []}
-        assert scopes == {"users:read_all"}
 
     @pytest.mark.parametrize("path", ["", "/{user_id}"])
     def test_reads_that_serve_both_projections_need_only_the_regular_read_scope(self, path):
@@ -770,14 +743,6 @@ class TestReadScopeEnforcement:
         assert response.status_code == 403
         assert "users:read_all" in response.json()["detail"]
 
-    def test_regular_token_cannot_look_up_an_email(self):
-        response = self._client(auth_constants.REGULAR_ACCESS_SCOPE).post(
-            "/users/email/lookup", json={"email": "admin@example.com"}
-        )
-
-        assert response.status_code == 403
-        assert "users:read_all" in response.json()["detail"]
-
     @pytest.mark.parametrize(
         ("path", "target"),
         [
@@ -795,15 +760,6 @@ class TestReadScopeEnforcement:
 
         assert response.status_code != 403
         mock_target.assert_called_once()
-
-    def test_admin_token_passes_the_email_lookup_scope_check(self):
-        with patch(f"{_SERVICE}.require_user_by_email", side_effect=core_exceptions.NotFoundError("stop")) as target:
-            response = self._client(auth_constants.ADMIN_ACCESS_SCOPE).post(
-                "/users/email/lookup", json={"email": "admin@example.com"}
-            )
-
-        assert response.status_code == 404
-        target.assert_called_once()
 
     @patch(f"{_SERVICE}.get_public_profile")
     def test_regular_token_reads_only_the_public_projection(self, mock_get):
@@ -837,11 +793,5 @@ class TestReadSendsTheETag:
     def test_a_full_record_carries_its_version(self, path, service, client):
         with patch(f"{_SERVICE}.{service}", return_value=_user(42, version=7)):
             response = client.get(path)
-
-        assert response.headers["ETag"] == '"7"'
-
-    def test_an_email_lookup_carries_the_version(self, client):
-        with patch(f"{_SERVICE}.require_user_by_email", return_value=_user(42, version=7)):
-            response = client.post("/users/email/lookup", json={"email": "someone@example.com"})
 
         assert response.headers["ETag"] == '"7"'

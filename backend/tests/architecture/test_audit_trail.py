@@ -225,7 +225,6 @@ _UNAUDITED_WRITES: dict[tuple[str, str], str] = {
     ): "stores a one-time OAuth correlation state; the link it starts is audited by strava_link",
     ("strava/router.py", "strava_retrieve_activities_days"): _ROUTINE,
     ("strava/router.py", "strava_retrieve_gear"): _ROUTINE,
-    ("users/users/router.py", "lookup_user_by_email"): "read-only lookup by email address; changes nothing",
     (
         "users/users_profile/router.py",
         "cancel_profile_email_change",

@@ -91,40 +91,6 @@ def read_users(
     return users_service.list_public_users(page, db, username=username, username_contains=username_contains)
 
 
-@router.post(
-    "/email/lookup",
-    response_model=users_schema.UserRead,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:read_all"])],
-)
-@core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
-def lookup_user_by_email(
-    request: Request,
-    lookup: users_schema.UserEmailLookup,
-    db: core_dependencies.DbSession,
-    response: Response,
-) -> users_schema.UserRead:
-    """Get a user by email address.
-
-    The address travels in the request body, so it never reaches access logs or proxy caches
-    through the URL.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        lookup: The email address to search for.
-        db: Database session dependency.
-        response: The response, which carries the user's ETag.
-
-    Returns:
-        The user.
-
-    Raises:
-        NotFoundError: If there is no such user.
-    """
-    user = users_service.require_user_by_email(lookup.email, db)
-    core_etag.set_etag(response, user.version)
-    return user
-
-
 @router.get(
     "/{user_id}",
     response_model=users_schema.UserRead | users_schema.UserPublicRead,

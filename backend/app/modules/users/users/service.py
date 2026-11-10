@@ -215,25 +215,6 @@ def list_public_users(
     )
 
 
-def require_user_by_email(email: str, db: Session) -> users_schema.UserRead:
-    """Return a user by email address, who must exist.
-
-    Args:
-        email: Email address to search for.
-        db: Database session.
-
-    Returns:
-        The user.
-
-    Raises:
-        NotFoundError: If there is no such user.
-    """
-    user = users_crud.get_user_by_email(email, db)
-    if user is None:
-        raise core_exceptions.NotFoundError("User not found")
-    return user
-
-
 def _set_pending_email_changes(users: Collection[users_schema.UserRead], db: Session) -> None:
     """Set each user's unconfirmed email change, in one query for all of them.
 
