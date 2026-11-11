@@ -386,6 +386,37 @@ def create_admin_sign_up_approval_notification(
     )
 
 
+def create_admin_user_promoted_notification(
+    user_id: int,
+    admin_user_id: int,
+    source_event_id: str,
+    db: Session,
+) -> tuple[notifications_schema.NotificationRead, str, bool]:
+    """Record the notification telling an admin that a user was given administrator access.
+
+    Args:
+        user_id: The user who was promoted, named in the notification.
+        admin_user_id: The admin to notify, who owns the notification row.
+        source_event_id: Stable durable event identifier.
+        db: Database session.
+
+    Returns:
+        The notification, the websocket message type the caller should push, and
+        whether this call created it.
+
+    Raises:
+        NotFoundError: When the promoted user no longer exists.
+    """
+    return _create_user_reference_notification(
+        user_id,
+        admin_user_id,
+        notifications_constants.NotificationType.ADMIN_USER_PROMOTED,
+        notifications_constants.ADMIN_USER_PROMOTED_WS_MESSAGE,
+        source_event_id,
+        db,
+    )
+
+
 def remove_follow_request_notifications(requester_user_id: int, target_user_id: int, db: Session) -> bool:
     """Delete the "wants to follow you" notifications a removed follow request left behind.
 
@@ -454,6 +485,9 @@ def create_account_security_changed_notification(
     idp_id: int | None,
     source_event_id: str,
     db: Session,
+    *,
+    access_type: str | None = None,
+    backup_codes_remaining: int | None = None,
 ) -> tuple[notifications_schema.NotificationRead, str, bool]:
     """Record the notification that a security setting of the account changed.
 
@@ -466,6 +500,8 @@ def create_account_security_changed_notification(
         idp_id: The identity provider concerned, for an unlink.
         source_event_id: Stable durable event identifier.
         db: Database session.
+        access_type: The access type the account now has, for a role change.
+        backup_codes_remaining: How many unused backup codes are left, for a backup code that was used.
 
     Returns:
         The notification, the websocket message type the caller should push, and
@@ -480,6 +516,10 @@ def create_account_security_changed_notification(
     if idp_id is not None:
         idp = idp_integration.get_identity_provider(idp_id, db)
         options |= {"idp_id": idp_id, "idp_name": idp.name if idp is not None else None}
+    if access_type is not None:
+        options["access_type"] = access_type
+    if backup_codes_remaining is not None:
+        options["backup_codes_remaining"] = backup_codes_remaining
     return _record_event_notification(
         user_id,
         notifications_constants.NotificationType.ACCOUNT_SECURITY_CHANGED,

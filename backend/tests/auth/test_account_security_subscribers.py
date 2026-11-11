@@ -100,7 +100,12 @@ class TestSecurityChangedHandler:
         )
 
         prepare.assert_called_once_with(
-            4, "identity_provider_unlinked", 7, account_security_subscribers.core_config.settings.ENDURAIN_HOST, db
+            4,
+            "identity_provider_unlinked",
+            7,
+            account_security_subscribers.core_config.settings.ENDURAIN_HOST,
+            db,
+            access_type=None,
         )
         session_local.return_value.__exit__.assert_called_once()
         send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)

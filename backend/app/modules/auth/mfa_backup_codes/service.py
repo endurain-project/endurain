@@ -11,6 +11,7 @@ import core.exceptions as core_exceptions
 import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.mfa_backup_codes.audit_actions as mfa_backup_codes_audit_actions
 import modules.auth.mfa_backup_codes.crud as mfa_backup_codes_crud
+import modules.auth.mfa_backup_codes.event_publishers as mfa_backup_codes_event_publishers
 
 # Backup-code alphabet: uppercase ASCII + digits with visually ambiguous
 # characters removed (0, O, 1, I) to reduce user transcription errors.
@@ -52,7 +53,8 @@ def verify_and_consume_backup_code(
 
     Verifies the supplied code against every one of the user's unused backup
     code hashes and, on a match, marks that code as consumed via
-    ``mark_backup_code_as_used``, and stages the use in the audit trail with the number of codes left.
+    ``mark_backup_code_as_used``, and stages the use in the audit trail and as an event that tells the owner, both
+    with the number of codes left.
 
     The loop deliberately does **not** short-circuit on the first match: it
     runs a verification for every stored hash so that the number of (slow,
@@ -97,6 +99,7 @@ def verify_and_consume_backup_code(
             target_owner_id=str(user_id),
             details=mfa_backup_codes_audit_actions.BackupCodeUseDetails(remaining_codes=len(unused_codes) - 1),
         )
+        mfa_backup_codes_event_publishers.publish_backup_code_used(user_id, len(unused_codes) - 1, db)
         return True
 
     # No matching code found

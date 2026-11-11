@@ -178,7 +178,7 @@ Every enumerated value is a string. The API refuses the number the database stor
 | ----- | ------ |
 | `visibility` of an activity, the `visibility` of the bulk edit and `default_activity_visibility` of the profile | `public`, `followers`, `private` |
 | `media_type` of an activity photo | `photo` |
-| `type` of a notification | `new_activity`, `duplicate_activity`, `new_follower_request`, `new_follower_request_accepted`, `garmin_token_expired`, `strava_token_expired`, `strava_data_deleted`, `idp_linked`, `account_security_changed`, `new_device_sign_in`, `admin_new_sign_up_approval_request` |
+| `type` of a notification | `new_activity`, `duplicate_activity`, `new_follower_request`, `new_follower_request_accepted`, `garmin_token_expired`, `strava_token_expired`, `strava_data_deleted`, `idp_linked`, `account_security_changed`, `new_device_sign_in`, `admin_new_sign_up_approval_request`, `admin_user_promoted` |
 | `bristol_type` of a bowel movement | `type_1` to `type_7` |
 | `stage_type` of a sleep stage | `deep`, `light`, `rem`, `awake` |
 | `period` of `GET /users/{user_id}/activities/stats` | `week`, `month` |

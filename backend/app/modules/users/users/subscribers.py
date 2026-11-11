@@ -36,6 +36,8 @@ def process_deletion_requested_for_event(event: Event) -> None:
         payload,
         users_deletion_state_store.UserDeletionStateStore(platform.state),
         platform.storage,
+        platform.mail,
+        first_pass=event.attempt == 1 and event.continuation_count == 0,
         will_retry=not event.is_last_attempt,
         time_budget=users_deletion_job_service.durable_pass_seconds(),
     )

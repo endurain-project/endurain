@@ -66,4 +66,28 @@ DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
             "the time, so nothing is left to backfill."
         ),
     ),
+    DurableSubscriberNet(
+        account_security_subscribers.BACKUP_CODE_USED_EMAIL_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "A use notice is a one-off reaction to a use that is already stored and audited; "
+            "nothing is left to backfill once the code is used."
+        ),
+    ),
+    DurableSubscriberNet(
+        account_security_subscribers.REFRESH_REUSE_EMAIL_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "A reuse notice is a one-off reaction to a reuse that is already audited; "
+            "nothing is left to backfill once the session is ended."
+        ),
+    ),
+    DurableSubscriberNet(
+        account_security_subscribers.ADMIN_PROMOTED_EMAIL_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "A promotion notice is a one-off reaction to a role that is already stored and audited; "
+            "nothing is left to backfill once the user is promoted."
+        ),
+    ),
 )

@@ -114,4 +114,28 @@ DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
             "a transient reaction with no independently reconcilable state."
         ),
     ),
+    DurableSubscriberNet(
+        notification_subscribers.BACKUP_CODE_USED_NOTIFICATION_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "The use is audited at its source; its notification is a transient reaction "
+            "with no independently reconcilable state."
+        ),
+    ),
+    DurableSubscriberNet(
+        notification_subscribers.REFRESH_REUSE_NOTIFICATION_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "The reuse is audited at its source; its notification is a transient reaction "
+            "with no independently reconcilable state."
+        ),
+    ),
+    DurableSubscriberNet(
+        notification_subscribers.ADMIN_USER_PROMOTED_NOTIFICATION_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "The promotion is stored and audited at its source; its notification is a transient "
+            "reaction with no independently reconcilable state."
+        ),
+    ),
 )

@@ -20,6 +20,7 @@ class NotificationType(StoredStrEnum):
         NEW_DEVICE_SIGN_IN: The account was signed in to from a new device.
         ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST: Admin sign-up approval request
             notification.
+        ADMIN_USER_PROMOTED: A user was given administrator access; sent to the other active administrators.
     """
 
     NEW_ACTIVITY = ("new_activity", 1)
@@ -33,6 +34,7 @@ class NotificationType(StoredStrEnum):
     ACCOUNT_SECURITY_CHANGED = ("account_security_changed", 32)
     NEW_DEVICE_SIGN_IN = ("new_device_sign_in", 33)
     ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST = ("admin_new_sign_up_approval_request", 101)
+    ADMIN_USER_PROMOTED = ("admin_user_promoted", 102)
 
 
 # Websocket message types pushed to the browser alongside a stored notification.
@@ -48,3 +50,4 @@ IDP_LINKED_WS_MESSAGE = "IDP_LINKED_NOTIFICATION"
 ACCOUNT_SECURITY_CHANGED_WS_MESSAGE = "ACCOUNT_SECURITY_CHANGED_NOTIFICATION"
 NEW_DEVICE_SIGN_IN_WS_MESSAGE = "NEW_DEVICE_SIGN_IN_NOTIFICATION"
 ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST_WS_MESSAGE = "ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST_NOTIFICATION"
+ADMIN_USER_PROMOTED_WS_MESSAGE = "ADMIN_USER_PROMOTED_NOTIFICATION"

@@ -19,6 +19,7 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
 import core.timezone as core_timezone
+import modules.auth.account_security.events as account_security_events
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
@@ -34,6 +35,7 @@ import modules.users.contributor_registry as users_contributor_registry
 import modules.users.users.audit_actions as users_audit_actions
 import modules.users.users.constants as users_constants
 import modules.users.users.crud as users_crud
+import modules.users.users.event_publishers as users_event_publishers
 import modules.users.users.schema as users_schema
 import modules.users.users_default_gear.integration_service as users_default_gear_integration
 import modules.users.users_integrations.integration_service as user_integrations_integration
@@ -750,6 +752,34 @@ def _stage_user_update_audit(
         )
 
 
+def _stage_access_change_notices(before: users_schema.UserRead, after: users_schema.UserRead, db: Session) -> None:
+    """Stage the notices of an administrator's change to a user's role or active flag; the caller commits.
+
+    A user who stays active is told of a new role; one the edit deactivates is told of that. When the new role is
+    administrator, every other active administrator is told too.
+
+    Args:
+        before: The user before the edit.
+        after: The user after the edit.
+        db: Database session.
+    """
+    change = account_security_events.AccountSecurityChange
+    if before.active and not after.active:
+        account_security_integration.stage_account_change_notice(after.id, change.ACCOUNT_DEACTIVATED_BY_ADMIN, db)
+    old_access_type = users_schema.normalize_access_type(before.access_type)
+    new_access_type = users_schema.normalize_access_type(after.access_type)
+    if old_access_type == new_access_type:
+        return
+    if after.active:
+        account_security_integration.stage_account_change_notice(
+            after.id, change.ROLE_CHANGED_BY_ADMIN, db, access_type=new_access_type
+        )
+    if new_access_type == users_schema.UserAccessType.ADMIN.value:
+        for admin in users_crud.get_users_admin(db):
+            if admin.active and admin.id != after.id:
+                users_event_publishers.publish_admin_promoted(after.id, admin.id, db)
+
+
 def _edit_ends_sessions(before: users_schema.UserRead, requested: users_schema.UserEdit) -> bool:
     """Whether an administrative edit changes who the user is or what they may do.
 
@@ -887,6 +917,7 @@ def edit_user(
         if user_id != actor_id and _edit_ends_sessions(existing, user):
             # Revoked in the edit's own transaction, so a user whose role or address changed cannot keep a session.
             account_security_integration.delete_all_user_sessions(user_id, db)
+            _stage_access_change_notices(existing, updated, db)
         db.commit()
     if applied_unverified:
         logger.warning(

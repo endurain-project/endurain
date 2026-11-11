@@ -106,3 +106,7 @@ def get_mail() -> platform_providers.MailProvider:
         The mail provider.
     """
     return platform_runtime.get_active_platform().mail
+
+
+#: The active platform's outbound-mail provider, injected into a route or dependency.
+Mail = Annotated[platform_providers.MailProvider, Depends(get_mail)]

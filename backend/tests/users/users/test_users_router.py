@@ -554,7 +554,7 @@ class TestDeleteUser:
         assert args[3] == auth_schema.StepUpVerification(current_password="admin-password")
         assert args[4] is _STEP_UP_STORE
         assert args[5] is not None
-        assert args[7] == mock_db
+        assert args[8] == mock_db
         assert mock_request.call_args.kwargs == {"if_match": '"3"'}
 
     @patch("modules.users.users.router.users_deletion_job_service.request_deletion_by_administrator")

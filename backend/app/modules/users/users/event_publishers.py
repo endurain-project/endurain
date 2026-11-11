@@ -31,3 +31,22 @@ def publish_deletion_requested(user_id: int, db: Session, *, commit: Callable[[]
         metadata={core_event_metadata.META_USER_ID: user_id},
         schema_version=payload.SCHEMA_VERSION,
     )
+
+
+def publish_admin_promoted(user_id: int, admin_user_id: int, db: Session) -> None:
+    """Stage ``users.admin_promoted`` for one administrator in the caller's transaction.
+
+    Args:
+        user_id: The user who was given administrator access.
+        admin_user_id: The administrator who is told.
+        db: The producer's DB session; the event is published when it commits.
+    """
+    payload = users_events.AdminPromotedPayload(user_id=user_id, admin_user_id=admin_user_id)
+    platform_publisher.publish_on_commit(
+        users_events.USERS_ADMIN_PROMOTED,
+        payload.model_dump(),
+        source="api:users",
+        metadata={core_event_metadata.META_USER_ID: user_id},
+        db=db,
+        schema_version=payload.SCHEMA_VERSION,
+    )

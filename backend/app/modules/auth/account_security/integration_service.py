@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 import core.dependencies as core_dependencies
 import core.pagination as core_pagination
 import modules.auth.account_security.account_security_service as account_security_service
+import modules.auth.account_security.events as account_security_events
 import modules.auth.account_security.identity_link_service as identity_link_service
 import modules.auth.account_security.mfa_workflow_service as mfa_workflow_service
 import modules.auth.account_security.step_up_service as step_up_service
@@ -84,6 +85,22 @@ def reset_managed_user_mfa(user_id: int, db: Session) -> None:
 def require_managed_user_password_change(user_id: int, db: Session) -> None:
     """Stage the requirement that a managed user replace their password at the next sign-in."""
     account_security_service.require_managed_user_password_change(user_id, db)
+
+
+def stage_account_change_notice(
+    user_id: int,
+    change: account_security_events.AccountSecurityChange,
+    db: Session,
+    *,
+    access_type: str | None = None,
+) -> None:
+    """Stage the event that tells a user of a change to their account, such as a new role or a deletion request."""
+    account_security_service.stage_account_change_notice(user_id, change, db, access_type=access_type)
+
+
+def prepare_account_deletion_email(user_id: int, frontend_host: str, db: Session) -> tuple[str, str, str, str] | None:
+    """Return the notice that a user's account erasure starts, or None when the user is gone."""
+    return account_security_service.prepare_account_deletion_email(user_id, frontend_host, db)
 
 
 def delete_all_user_sessions(user_id: int, db: Session) -> None:

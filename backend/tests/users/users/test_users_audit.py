@@ -213,6 +213,6 @@ class TestDeletion:
             patch(f"{_JOBS}._deletion_pool"),
             jasil_testing.capture_audit() as audit,
         ):
-            job_service.request_deletion(4, states, MagicMock(), mock_db, if_match="*")
+            job_service.request_deletion(4, states, MagicMock(), MagicMock(), mock_db, if_match="*")
 
         audit.assert_audited(users_audit_actions.USER_DELETE.id, target_type="user", target_id="4", target_owner_id="4")

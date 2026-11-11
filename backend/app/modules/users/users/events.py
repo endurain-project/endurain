@@ -9,6 +9,9 @@ from pydantic import ConfigDict
 # runs it on a worker. Durable-delivery only: without durable jobs the deletion runs on the module's
 # in-process pool, so no best-effort bus subscriber exists for it.
 USERS_DELETION_REQUESTED = "users.deletion_requested"
+# Published once per other active administrator when an administrator gives a user administrator access, so each is
+# told.
+USERS_ADMIN_PROMOTED = "users.admin_promoted"
 
 
 class DeletionRequestedPayload(VersionedPayload):
@@ -23,3 +26,19 @@ class DeletionRequestedPayload(VersionedPayload):
     SCHEMA_VERSION: ClassVar[int] = 1
 
     user_id: int
+
+
+class AdminPromotedPayload(VersionedPayload):
+    """Validated payload for the ``users.admin_promoted`` event.
+
+    Attributes:
+        user_id: The user who was given administrator access.
+        admin_user_id: The administrator who is told.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    SCHEMA_VERSION: ClassVar[int] = 1
+
+    user_id: int
+    admin_user_id: int

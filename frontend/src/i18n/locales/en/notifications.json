@@ -103,6 +103,26 @@
         "title": "Two-step verification locked",
         "body": "Your account was locked after 100 wrong two-step verification codes in a row, so someone knows your password. Browsers and apps you have signed in from since your last security change can still sign in. If these attempts weren't yours, change your password."
       },
+      "backupCodeUsed": {
+        "title": "Backup code used",
+        "body": "A backup code was used for two-step verification on your account. If this wasn't you, change your password and generate new backup codes.",
+        "bodyRemaining": "A backup code was used for two-step verification on your account. Unused backup codes left: {count}. If this wasn't you, change your password and generate new backup codes.",
+        "bodyNone": "A backup code was used for two-step verification on your account. You have no unused backup codes left, so generate new ones in your security settings. If this wasn't you, change your password."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Session ended",
+        "body": "A sign-in session of your account was ended because a token that had already been used was presented again, which can mean the session was copied. Your other sessions were not affected. If you didn't expect this, change your password."
+      },
+      "roleChangedByAdmin": {
+        "title": "Access changed by an administrator",
+        "body": "An administrator changed the access of your account and signed you out of all devices. If you didn't expect this, contact your administrator.",
+        "bodyAdmin": "An administrator changed the access of your account to administrator and signed you out of all devices. If you didn't expect this, contact your administrator.",
+        "bodyRegular": "An administrator changed the access of your account to regular user and signed you out of all devices. If you didn't expect this, contact your administrator."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Account deactivated by an administrator",
+        "body": "An administrator deactivated your account and signed you out of all devices. You can't sign in until an administrator reactivates it."
+      },
       "unknown": {
         "title": "Account security changed",
         "body": "A security setting of your account changed. If this wasn't you, reset your password and review your security settings."
@@ -115,6 +135,10 @@
     "adminSignUpApproval": {
       "title": "New sign-up needs approval",
       "body": "{name} ({'@'}{username}) is waiting for account approval."
+    },
+    "adminUserPromoted": {
+      "title": "User promoted to administrator",
+      "body": "{name} ({'@'}{username}) was given administrator access."
     },
     "unknown": {
       "title": "Notification",

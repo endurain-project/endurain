@@ -344,6 +344,12 @@ Every durable job is one subscriber reacting to one event. The **subscriber id**
 | `auth.send_mfa_locked_email` | `auth.mfa_locked` | Bus | Nothing: the lock is audited | Nothing |
 | `auth.notify_new_device_sign_in` | `auth.new_device_sign_in` | Bus | Nothing, by design | Nothing |
 | `auth.send_new_device_sign_in_email` | `auth.new_device_sign_in` | Bus | Nothing: the sign-in is audited | Nothing |
+| `auth.notify_backup_code_used` | `auth.backup_code_used` | Bus | Nothing, by design | Nothing |
+| `auth.send_backup_code_used_email` | `auth.backup_code_used` | Bus | Nothing: the use is audited | Nothing |
+| `auth.notify_refresh_reuse` | `auth.refresh_reuse_detected` | Bus | Nothing, by design | Nothing |
+| `auth.send_refresh_reuse_email` | `auth.refresh_reuse_detected` | Bus | Nothing: the reuse is audited | Nothing |
+| `users.notify_admin_user_promoted` | `users.admin_promoted` | Bus | Nothing, by design | Nothing |
+| `users.send_admin_promoted_email` | `users.admin_promoted` | Bus | Nothing: the promotion is stored and audited | Nothing |
 | `users.profile_import_requested` | `users.profile_import_requested` | Bus, then the profile transfer pool | The user starts again | Import state closed as failed |
 | `users.profile_export_requested` | `users.profile_export_requested` | Bus, then the profile transfer pool | The user starts again | Export state closed as failed |
 | `activity_ingestion.uploaded_file` | `activity.file_uploaded` | Ingestion command pool | The user uploads again | Job marked failed |

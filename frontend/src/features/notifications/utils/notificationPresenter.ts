@@ -37,6 +37,10 @@ const ACCOUNT_SECURITY_CHANGE_KEY: Record<string, string> = {
   identity_provider_unlinked: 'identityProviderUnlinked',
   account_locked: 'accountLocked',
   mfa_locked: 'mfaLocked',
+  backup_code_used: 'backupCodeUsed',
+  refresh_token_reuse_detected: 'refreshTokenReuseDetected',
+  role_changed_by_admin: 'roleChangedByAdmin',
+  account_deactivated_by_admin: 'accountDeactivatedByAdmin',
 }
 
 /**
@@ -179,15 +183,24 @@ export function presentNotification(
       const changeKey = ACCOUNT_SECURITY_CHANGE_KEY[notification.options.change]
       const prefix = `${base}.accountSecurityChanged.${changeKey ?? 'unknown'}`
       const name = notification.options.idp_name ?? ''
+      const remaining = notification.options.backup_codes_remaining ?? null
+      const accessType = notification.options.access_type ?? null
+      let bodyKey = `${prefix}.body`
+      if (changeKey === 'identityProviderUnlinked' && !name) {
+        // A provider deleted since the unlink has no name, so the generic body applies.
+        bodyKey = `${prefix}.bodyGeneric`
+      } else if (changeKey === 'backupCodeUsed' && remaining !== null) {
+        bodyKey = remaining > 0 ? `${prefix}.bodyRemaining` : `${prefix}.bodyNone`
+      } else if (changeKey === 'roleChangedByAdmin' && accessType === 'admin') {
+        bodyKey = `${prefix}.bodyAdmin`
+      } else if (changeKey === 'roleChangedByAdmin' && accessType === 'regular') {
+        bodyKey = `${prefix}.bodyRegular`
+      }
       return {
         icon: LockKeyhole,
         titleKey: `${prefix}.title`,
-        // A provider deleted since the unlink has no name, so the generic body applies.
-        bodyKey:
-          changeKey === 'identityProviderUnlinked' && !name
-            ? `${prefix}.bodyGeneric`
-            : `${prefix}.body`,
-        bodyParams: { name },
+        bodyKey,
+        bodyParams: { name, ...(remaining !== null && { count: String(remaining) }) },
         to: { name: 'settings-security' },
       }
     }
@@ -209,6 +222,18 @@ export function presentNotification(
         icon: ShieldAlert,
         titleKey: `${base}.adminSignUpApproval.title`,
         bodyKey: `${base}.adminSignUpApproval.body`,
+        bodyParams: {
+          name: notification.options.user_name,
+          username: notification.options.user_username,
+        },
+        to: { name: 'settings-user-detail', params: { id: String(notification.options.user_id) } },
+      }
+    }
+    case 'admin_user_promoted': {
+      return {
+        icon: ShieldAlert,
+        titleKey: `${base}.adminUserPromoted.title`,
+        bodyKey: `${base}.adminUserPromoted.body`,
         bodyParams: {
           name: notification.options.user_name,
           username: notification.options.user_username,

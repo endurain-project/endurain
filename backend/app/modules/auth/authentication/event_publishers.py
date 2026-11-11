@@ -67,3 +67,21 @@ def publish_mfa_locked(user_id: int, db: Session) -> None:
         db=db,
         schema_version=payload.SCHEMA_VERSION,
     )
+
+
+def publish_refresh_reuse_detected(user_id: int, db: Session) -> None:
+    """Stage ``auth.refresh_reuse_detected`` in the caller's transaction.
+
+    Args:
+        user_id: The user whose session was ended by a reused refresh token.
+        db: The producer's DB session; the event is published when it commits.
+    """
+    payload = authentication_events.RefreshReuseDetectedPayload(user_id=user_id)
+    platform_publisher.publish_on_commit(
+        authentication_events.REFRESH_REUSE_DETECTED,
+        payload.model_dump(),
+        source="api:refresh",
+        metadata={core_event_metadata.META_USER_ID: user_id},
+        db=db,
+        schema_version=payload.SCHEMA_VERSION,
+    )

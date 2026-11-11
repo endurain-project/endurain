@@ -32,6 +32,8 @@ Some edits end the user's sessions, so a session issued under the old values can
 
 Endurain always keeps at least one active administrator. You cannot delete, deactivate or demote the only active administrator; make someone else an administrator first.
 
+Changing another user's access type or deactivating their account tells that user, by email and by a notification in the app (see [Security notifications](accounts-and-sign-in.md#security-notifications)). Making a user an administrator also tells every other active administrator, naming the user. Editing your own account sends neither.
+
 ## Your own account
 
 The administrative actions that change how an account is secured, resetting the password, requiring a password change, resetting MFA, unlinking an identity provider, deleting the account and changing the email, are refused for your own account (`403`). Use your own account settings instead, which ask for your current password and MFA code first. The same actions on another user's account ask for your own password and MFA code too.
@@ -67,7 +69,7 @@ A user's detail page shows their sessions, which you can revoke, and the identit
 
 ## Deleting a user
 
-Deleting a user asks for your own password and MFA code (or a fresh identity-provider sign-in if your account has no password). It deletes the account and everything it owns: activities, their laps, streams, photos, thumbnails and stored source files, gear, health records, goals, notifications and the profile photo. The user is signed out and deactivated at once, and a background job erases their data, so a large account does not hold up the server; the request answers `202`, and `GET /users/{user_id}/deletion` reports the job's progress. If the job fails, the account stays deactivated and signed out, and Endurain queues the deletion again every hour, up to five times. After that, delete the account again yourself. Reactivating the account cancels a deletion that has not finished. It cannot be undone, so ask users to [export their data](export-import.md) first if they want a copy.
+Deleting a user asks for your own password and MFA code (or a fresh identity-provider sign-in if your account has no password). It deletes the account and everything it owns: activities, their laps, streams, photos, thumbnails and stored source files, gear, health records, goals, notifications and the profile photo. The user is signed out and deactivated at once, and a background job erases their data, so a large account does not hold up the server; the request answers `202`, and `GET /users/{user_id}/deletion` reports the job's progress. If the job fails, the account stays deactivated and signed out, and Endurain queues the deletion again every hour, up to five times. After that, delete the account again yourself. Reactivating the account cancels a deletion that has not finished. There is no grace period, and once the job finishes the data cannot be recovered, so ask users to [export their data](export-import.md) first if they want a copy. When the erasure starts, the job emails the account's owner at the address on the account, if the server has mail configured. It is an email only, with no in-app notification, since the account is erased; it is sent once, not again when Endurain queues the deletion again, and a failure to send it does not stop the deletion.
 
 ## For the person editing at the same time
 

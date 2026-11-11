@@ -42,6 +42,13 @@ import modules.users.users.schema as users_schema
 
 logger = core_logger.get_logger(__name__)
 
+# The changes whose notice goes to an account that the change itself made inactive.
+_INACTIVE_RECIPIENT_CHANGES = frozenset(
+    {
+        account_security_events.AccountSecurityChange.ACCOUNT_DEACTIVATED_BY_ADMIN.value,
+    }
+)
+
 if TYPE_CHECKING:
     import modules.auth.account_security.step_up_store as account_security_step_up_store
 
@@ -176,6 +183,26 @@ def delete_other_user_sessions(
         extra=core_logger.context(token_user_id=token_user_id, revoked=revoked),
     )
     return revoked
+
+
+def stage_account_change_notice(
+    user_id: int,
+    change: account_security_events.AccountSecurityChange,
+    db: Session,
+    *,
+    access_type: str | None = None,
+) -> None:
+    """Stage the event that tells a user of a change to their account that another module made; the caller commits.
+
+    The change is audited by the module that made it, so no audit row is staged here.
+
+    Args:
+        user_id: The user whose account changed.
+        change: What changed.
+        db: SQLAlchemy session.
+        access_type: The access type the user now has, for a role change.
+    """
+    account_security_event_publishers.publish_account_security_changed(user_id, change, db, access_type=access_type)
 
 
 def end_other_sessions(user_id: int, current_session_id: str | None, db: Session) -> int:
@@ -625,8 +652,14 @@ def prepare_security_change_email(
     idp_id: int | None,
     frontend_host: str,
     db: Session,
+    *,
+    access_type: str | None = None,
+    backup_codes_remaining: int | None = None,
 ) -> tuple[str, str, str, str] | None:
     """Return the notice of an account-security change for delivery after the database session closes.
+
+    The owner of an account an administrator deactivated is told although the account is inactive, since the change
+    is what made it so. A sign-up that never became active is not.
 
     Args:
         user_id: The user whose account security changed.
@@ -634,19 +667,92 @@ def prepare_security_change_email(
         idp_id: The identity provider concerned by a link or unlink.
         frontend_host: Base URL of the frontend.
         db: Database session.
+        access_type: The access type the account now has, for a role change.
+        backup_codes_remaining: How many unused backup codes are left, for a backup code that was used.
 
     Returns:
-        The recipient, subject, HTML and text, or None when the user is missing or inactive.
+        The recipient, subject, HTML and text, or None when the user is missing or cannot be told.
     """
     user = users_integration.get_user(user_id, db)
-    if user is None or not user.active:
+    if user is None:
+        return None
+    if not user.active and not (
+        change in _INACTIVE_RECIPIENT_CHANGES and users_integration.is_deactivated(user_id, db)
+    ):
         return None
     idp = identity_providers_integration.get_identity_provider(idp_id, db) if idp_id is not None else None
     locale = core_i18n.normalize_locale(user.preferred_language)
     return (
         user.email,
         *account_security_email_messages.get_account_security_changed_email(
-            user.name, change, idp.name if idp is not None else None, frontend_host, locale
+            user.name,
+            change,
+            idp.name if idp is not None else None,
+            frontend_host,
+            locale,
+            access_type=access_type,
+            backup_codes_remaining=backup_codes_remaining,
+        ),
+    )
+
+
+def prepare_account_deletion_email(
+    user_id: int,
+    frontend_host: str,
+    db: Session,
+) -> tuple[str, str, str, str] | None:
+    """Return the notice that an account's erasure starts, for delivery after the database session closes.
+
+    The account is deactivated by then, so no active check applies.
+
+    Args:
+        user_id: The user whose account is erased.
+        frontend_host: Base URL of the frontend.
+        db: Database session.
+
+    Returns:
+        The recipient, subject, HTML and text, or None when the user is missing.
+    """
+    user = users_integration.get_user(user_id, db)
+    if user is None:
+        return None
+    return (
+        user.email,
+        *account_security_email_messages.get_account_security_changed_email(
+            user.name,
+            account_security_events.AccountSecurityChange.ACCOUNT_DELETION_REQUESTED.value,
+            None,
+            frontend_host,
+            core_i18n.normalize_locale(user.preferred_language),
+        ),
+    )
+
+
+def prepare_admin_promoted_email(
+    user_id: int,
+    admin_user_id: int,
+    frontend_host: str,
+    db: Session,
+) -> tuple[str, str, str, str] | None:
+    """Return the notice to an administrator that a user was promoted, for delivery after the session closes.
+
+    Args:
+        user_id: The user who was given administrator access.
+        admin_user_id: The administrator to tell.
+        frontend_host: Base URL of the frontend.
+        db: Database session.
+
+    Returns:
+        The recipient, subject, HTML and text, or None when either user is missing or the administrator is inactive.
+    """
+    user = users_integration.get_user(user_id, db)
+    admin = users_integration.get_user(admin_user_id, db)
+    if user is None or admin is None or not admin.active:
+        return None
+    return (
+        admin.email,
+        *account_security_email_messages.get_admin_promoted_email(
+            admin.name, user.name, user.username, frontend_host, core_i18n.normalize_locale(admin.preferred_language)
         ),
     )
 

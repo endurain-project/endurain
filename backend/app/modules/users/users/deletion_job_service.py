@@ -28,11 +28,13 @@ import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.local_pool as core_local_pool
 import core.logger as core_logger
+import core.mail as core_mail
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.schema as auth_schema
 import modules.auth.security_generation.integration_service as security_generation_integration
 import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
+import modules.server_settings.integration_service as server_settings_integration
 import modules.users.contributor_registry as users_contributor_registry
 import modules.users.users.audit_actions as users_audit_actions
 import modules.users.users.constants as users_constants
@@ -76,6 +78,7 @@ def request_deletion(
     user_id: int,
     states: users_deletion_state_store.UserDeletionStateStore,
     storage: platform_providers.StorageProvider,
+    mail: platform_providers.MailProvider,
     db: Session,
     *,
     if_match: str,
@@ -89,6 +92,7 @@ def request_deletion(
         user_id: The user to delete.
         states: Shared store of the deletion's state.
         storage: The platform storage provider, for the in-process pool.
+        mail: The platform mail provider, for the in-process pool.
         db: Database session.
         if_match: The ``If-Match`` precondition.
 
@@ -125,7 +129,7 @@ def request_deletion(
             target_id=str(user_id),
             target_owner_id=str(user_id),
         )
-        _dispatch(user_id, states, storage, db, source=users_constants.DELETION_SOURCE_API)
+        _dispatch(user_id, states, storage, mail, db, source=users_constants.DELETION_SOURCE_API)
     except BaseException:
         # The deletion never started, so nothing else would finish its claim.
         states.set_status(user_id, _Kind.ACCOUNT, _Status.FAILED)
@@ -143,6 +147,7 @@ def request_deletion_by_administrator(
     step_up_store: account_security_integration.StepUpStore,
     states: users_deletion_state_store.UserDeletionStateStore,
     storage: platform_providers.StorageProvider,
+    mail: platform_providers.MailProvider,
     db: Session,
     *,
     if_match: str,
@@ -157,6 +162,7 @@ def request_deletion_by_administrator(
         step_up_store: Step-up lockout store.
         states: Shared store of the deletion's state.
         storage: The platform storage provider, for the in-process pool.
+        mail: The platform mail provider, for the in-process pool.
         db: Database session.
         if_match: The ``If-Match`` precondition.
 
@@ -179,13 +185,14 @@ def request_deletion_by_administrator(
     with core_etag.refuse_stale_write(
         db, "user", lambda: users_crud.get_user_by_id(user_id, db) is not None, "User not found"
     ):
-        return request_deletion(user_id, states, storage, db, if_match=if_match)
+        return request_deletion(user_id, states, storage, mail, db, if_match=if_match)
 
 
 def _dispatch(
     user_id: int,
     states: users_deletion_state_store.UserDeletionStateStore,
     storage: platform_providers.StorageProvider,
+    mail: platform_providers.MailProvider,
     db: Session,
     *,
     source: str,
@@ -196,6 +203,7 @@ def _dispatch(
         user_id: The user to delete.
         states: Shared store of the deletion's state.
         storage: The platform storage provider, for the in-process pool.
+        mail: The platform mail provider, for the in-process pool.
         db: Database session holding the caller's staged writes.
         source: Who asked for the deletion, as recorded on the event.
 
@@ -207,7 +215,14 @@ def _dispatch(
         logger.debug("Account deletion queued for a worker", extra=core_logger.context(user_id=user_id, source=source))
         return
     db.commit()
-    _deletion_pool.submit(run_deletion, users_events.DeletionRequestedPayload(user_id=user_id), states, storage)
+    _deletion_pool.submit(
+        run_deletion,
+        users_events.DeletionRequestedPayload(user_id=user_id),
+        states,
+        storage,
+        mail,
+        first_pass=True,
+    )
     logger.debug(
         "Account deletion queued on the in-process pool", extra=core_logger.context(user_id=user_id, source=source)
     )
@@ -244,11 +259,16 @@ def run_deletion(
     payload: users_events.DeletionRequestedPayload,
     states: users_deletion_state_store.UserDeletionStateStore,
     storage: platform_providers.StorageProvider,
+    mail: platform_providers.MailProvider,
     *,
+    first_pass: bool,
     will_retry: bool = False,
     time_budget: float | None = None,
 ) -> bool:
     """Erase one account and record the outcome. Blocking; call it from a worker, never a request.
+
+    On its first pass, and only when the sweep has not queued the deletion again, the job first mails the owner
+    that the erasure starts (see :func:`_send_deletion_notice`).
 
     A deletion that raised and will be retried by a durable worker stays ``QUEUED`` with its claim held:
     releasing the claim would let a second deletion start beside the retry. One nothing will retry,
@@ -262,6 +282,8 @@ def run_deletion(
         payload: Whose account to erase.
         states: Shared store of the deletion's state.
         storage: The platform storage provider.
+        mail: The platform mail provider, for the notice to the owner.
+        first_pass: Whether this is the job's first delivery, not a retry or a continuation of it.
         will_retry: Whether a durable worker runs this again if it raises.
         time_budget: Seconds after which the activity erasure stops for the caller to continue, or ``None`` to
             run to the end.
@@ -278,6 +300,8 @@ def run_deletion(
         logger.debug("Skipped an account deletion that is not pending", extra=core_logger.context(user_id=user_id))
         return False
 
+    if first_pass:
+        _send_deletion_notice(user_id, mail)
     states.set_status(user_id, _Kind.ACCOUNT, _Status.RUNNING)
     try:
         activities, activities_left = _erase_activities(user_id, time_budget)
@@ -306,6 +330,34 @@ def run_deletion(
     states.set_status(user_id, _Kind.ACCOUNT, _Status.SUCCEEDED)
     logger.info("User deleted", extra=core_logger.context(user_id=user_id, activities=activities))
     return False
+
+
+def _send_deletion_notice(user_id: int, mail: platform_providers.MailProvider) -> None:
+    """Mail the owner, at the address on the row about to be erased, that the account's erasure starts.
+
+    Nothing is sent when the sweep has queued the deletion again, since an earlier pass already sent it, or when
+    mail is not configured. The session is closed before the mail call. A mail failure is logged without the
+    address and the deletion goes on: the erasure must not wait on mail, and the row, with the address, is gone
+    once it finishes.
+
+    Args:
+        user_id: The user whose account is erased.
+        mail: The platform mail provider.
+    """
+    with core_database.SessionLocal() as db:
+        if users_crud.get_deletion_attempts(user_id, db) != 0 or not server_settings_integration.is_mail_configured(db):
+            return
+        message = account_security_integration.prepare_account_deletion_email(
+            user_id, core_config.settings.ENDURAIN_HOST, db
+        )
+    if message is None:
+        return
+    try:
+        core_mail.send_email(mail, *message)
+    except platform_providers.MailError as err:
+        logger.warning(
+            "Account deletion notice not sent", extra=core_logger.context(user_id=user_id, error=type(err).__name__)
+        )
 
 
 def _erase_activities(user_id: int, time_budget: float | None) -> tuple[int, bool]:
@@ -464,6 +516,7 @@ def close_dead_lettered_deletion(
 def requeue_stalled_deletions(
     states: users_deletion_state_store.UserDeletionStateStore,
     storage: platform_providers.StorageProvider,
+    mail: platform_providers.MailProvider,
     clock: platform_providers.ClockProvider,
 ) -> int:
     """Queue again the deletions that never finished, up to ``DELETION_SWEEP_MAX_ATTEMPTS`` times each.
@@ -476,6 +529,7 @@ def requeue_stalled_deletions(
     Args:
         states: Shared store of the deletion's state.
         storage: The platform storage provider, for the in-process pool.
+        mail: The platform mail provider, for the in-process pool.
         clock: The platform clock.
 
     Returns:
@@ -498,7 +552,7 @@ def requeue_stalled_deletions(
         after_id = user_ids[-1]
         for user_id in user_ids:
             try:
-                queued += _requeue(user_id, states, storage)
+                queued += _requeue(user_id, states, storage, mail)
             except core_local_pool.PoolFullError:
                 logger.warning("The deletion pool is full; the sweep stops until its next pass")
                 return queued
@@ -513,6 +567,7 @@ def _requeue(
     user_id: int,
     states: users_deletion_state_store.UserDeletionStateStore,
     storage: platform_providers.StorageProvider,
+    mail: platform_providers.MailProvider,
 ) -> int:
     """Queue one stalled deletion again unless a job still holds it.
 
@@ -522,6 +577,7 @@ def _requeue(
         user_id: The user to delete.
         states: Shared store of the deletion's state.
         storage: The platform storage provider, for the in-process pool.
+        mail: The platform mail provider, for the in-process pool.
 
     Returns:
         1 when the deletion was queued again, otherwise 0.
@@ -548,7 +604,7 @@ def _requeue(
                     "this fails",
                     extra=core_logger.context(user_id=user_id, attempts=attempts),
                 )
-            _dispatch(user_id, states, storage, db, source=users_constants.DELETION_SOURCE_SWEEP)
+            _dispatch(user_id, states, storage, mail, db, source=users_constants.DELETION_SOURCE_SWEEP)
     except core_local_pool.PoolFullError:
         states.set_status(user_id, _Kind.ACCOUNT, _Status.FAILED)
         raise

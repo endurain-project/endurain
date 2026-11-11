@@ -38,7 +38,12 @@ def published():
 def assert_event(publish, change, user_id=7, idp_id=None):
     publish.assert_called_once()
     assert publish.call_args.args[0] == account_security_events.ACCOUNT_SECURITY_CHANGED
-    assert publish.call_args.args[1] == {"user_id": user_id, "change": change.value, "idp_id": idp_id}
+    assert publish.call_args.args[1] == {
+        "user_id": user_id,
+        "change": change.value,
+        "idp_id": idp_id,
+        "access_type": None,
+    }
 
 
 class TestPayloadAndPublisher:
@@ -47,7 +52,12 @@ class TestPayloadAndPublisher:
             user_id=7, change=Change.PASSWORD_CHANGED, extra="dropped"
         )
 
-        assert payload.model_dump() == {"user_id": 7, "change": "password_changed", "idp_id": None}
+        assert payload.model_dump() == {
+            "user_id": 7,
+            "change": "password_changed",
+            "idp_id": None,
+            "access_type": None,
+        }
         assert payload.SCHEMA_VERSION == 1
 
     def test_the_change_values(self):
@@ -64,6 +74,11 @@ class TestPayloadAndPublisher:
             "identity_provider_unlinked",
             "account_locked",
             "mfa_locked",
+            "backup_code_used",
+            "refresh_token_reuse_detected",
+            "role_changed_by_admin",
+            "account_deactivated_by_admin",
+            "account_deletion_requested",
         }
 
     def test_the_event_is_staged_on_the_callers_session(self, mock_db, published):

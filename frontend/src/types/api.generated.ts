@@ -4420,8 +4420,20 @@ export interface components {
          *         change: The kind of change.
          *         idp_id: The identity provider concerned, for an unlink.
          *         idp_name: Its name, or None when it was deleted since.
+         *         access_type: The access type the account now has, for a role change.
+         *         backup_codes_remaining: How many unused backup codes are left, for a backup code that was used.
          */
         AccountSecurityChangedNotificationOptions: {
+            /**
+             * Access Type
+             * @description Access type the account now has
+             */
+            access_type?: string | null;
+            /**
+             * Backup Codes Remaining
+             * @description Unused backup codes left
+             */
+            backup_codes_remaining?: number | null;
             /**
              * Change
              * @description Kind of security change
@@ -13207,7 +13219,7 @@ export interface components {
         };
         /**
          * UserReferenceNotificationRead
-         * @description A follow-request, follow-accepted or sign-up-approval notification, which names a user.
+         * @description A follow-request, follow-accepted, sign-up-approval or admin-promoted notification, which names a user.
          */
         UserReferenceNotificationRead: {
             /**
@@ -13232,7 +13244,7 @@ export interface components {
              * @description Type of the notification (enum property replaced by openapi-typescript)
              * @enum {string}
              */
-            type: "admin_new_sign_up_approval_request" | "new_follower_request" | "new_follower_request_accepted";
+            type: "admin_new_sign_up_approval_request" | "admin_user_promoted" | "new_follower_request" | "new_follower_request_accepted";
             /**
              * User Id
              * @description FK to user

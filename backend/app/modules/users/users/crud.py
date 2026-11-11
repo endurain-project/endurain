@@ -659,6 +659,20 @@ def record_deletion_attempt(user_id: int, db: Session) -> int | None:
     return db_user.deletion_attempts
 
 
+def get_deletion_attempts(user_id: int, db: Session) -> int | None:
+    """Return how many times the sweep has queued a user's deletion again.
+
+    Args:
+        user_id: ID of the user being deleted.
+        db: Database session.
+
+    Returns:
+        The count, or None when the user does not exist.
+    """
+    stmt = select(users_models.Users.deletion_attempts).where(users_models.Users.id == user_id)
+    return db.execute(stmt).scalar_one_or_none()
+
+
 def is_deletion_cancelled(user_id: int, db: Session) -> bool:
     """Tell whether an administrator reactivated a user whose deletion was queued.
 

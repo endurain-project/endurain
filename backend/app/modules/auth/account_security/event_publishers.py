@@ -13,6 +13,7 @@ def publish_account_security_changed(
     db: Session,
     *,
     idp_id: int | None = None,
+    access_type: str | None = None,
 ) -> None:
     """Stage ``auth.account_security_changed`` in the caller's transaction.
 
@@ -21,8 +22,11 @@ def publish_account_security_changed(
         change: What changed.
         db: The producer's DB session; the event is published when it commits.
         idp_id: The identity provider concerned, for an unlink.
+        access_type: The access type the user now has, for a role change.
     """
-    payload = account_security_events.AccountSecurityChangedPayload(user_id=user_id, change=change, idp_id=idp_id)
+    payload = account_security_events.AccountSecurityChangedPayload(
+        user_id=user_id, change=change, idp_id=idp_id, access_type=access_type
+    )
     platform_publisher.publish_on_commit(
         account_security_events.ACCOUNT_SECURITY_CHANGED,
         payload.model_dump(mode="json"),

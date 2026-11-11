@@ -1,4 +1,4 @@
-"""Consume activity, follower, identity-provider, sign-up and sign-in events to create user notifications."""
+"""Consume activity, follower, identity-provider, sign-up, sign-in, MFA and user events to create user notifications."""
 
 from collections.abc import Callable
 
@@ -17,6 +17,7 @@ import modules.auth.account_security.events as account_security_events
 import modules.auth.authentication.events as authentication_events
 import modules.auth.identity_providers.events as idp_events
 import modules.auth.known_devices.events as known_devices_events
+import modules.auth.mfa_backup_codes.events as backup_codes_events
 import modules.auth.password_reset_tokens.events as password_reset_events
 import modules.auth.sign_up_tokens.events as sign_up_events
 import modules.followers.events as followers_events
@@ -24,6 +25,7 @@ import modules.notifications.constants as notifications_constants
 import modules.notifications.integration_service as notifications_integration
 import modules.notifications.schema as notifications_schema
 import modules.notifications.service as notifications_service
+import modules.users.users.events as users_events
 import modules.websocket.integration_service as websocket_integration
 
 logger = core_logger.get_logger(__name__)
@@ -39,6 +41,9 @@ ACCOUNT_LOCKED_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_account_locked"
 MFA_LOCKED_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_mfa_locked"
 NEW_DEVICE_SIGN_IN_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_new_device_sign_in"
 ADMIN_SIGN_UP_APPROVAL_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_admin_sign_up_approval"
+BACKUP_CODE_USED_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_backup_code_used"
+REFRESH_REUSE_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_refresh_reuse"
+ADMIN_USER_PROMOTED_NOTIFICATION_SUBSCRIBER_ID = "users.notify_admin_user_promoted"
 
 
 def _notify_and_push(
@@ -169,7 +174,12 @@ def notify_account_security_changed_for_event(event: Event) -> None:
         event,
         payload.user_id,
         lambda db: notifications_service.create_account_security_changed_notification(
-            payload.user_id, payload.change.value, payload.idp_id, event.event_id, db
+            payload.user_id,
+            payload.change.value,
+            payload.idp_id,
+            event.event_id,
+            db,
+            access_type=payload.access_type,
         ),
     )
     if created:
@@ -257,6 +267,58 @@ def notify_admin_sign_up_approval_for_event(event: Event) -> None:
         )
 
 
+def notify_backup_code_used_for_event(event: Event) -> None:
+    """Notify the user that a backup code was used on their account and how many are left."""
+    payload = platform_event_versioning.parse_payload(backup_codes_events.BackupCodeUsedPayload, event)
+    change = account_security_events.AccountSecurityChange.BACKUP_CODE_USED.value
+    created = _notify_and_push(
+        event,
+        payload.user_id,
+        lambda db: notifications_service.create_account_security_changed_notification(
+            payload.user_id,
+            change,
+            None,
+            event.event_id,
+            db,
+            backup_codes_remaining=payload.backup_codes_remaining,
+        ),
+    )
+    if created:
+        logger.debug("Created backup-code-used notification", extra=core_logger.context(user_id=payload.user_id))
+
+
+def notify_refresh_reuse_for_event(event: Event) -> None:
+    """Notify the user that a reused refresh token ended one of their sessions."""
+    payload = platform_event_versioning.parse_payload(authentication_events.RefreshReuseDetectedPayload, event)
+    change = account_security_events.AccountSecurityChange.REFRESH_TOKEN_REUSE_DETECTED.value
+    created = _notify_and_push(
+        event,
+        payload.user_id,
+        lambda db: notifications_service.create_account_security_changed_notification(
+            payload.user_id, change, None, event.event_id, db
+        ),
+    )
+    if created:
+        logger.debug("Created refresh-reuse notification", extra=core_logger.context(user_id=payload.user_id))
+
+
+def notify_admin_user_promoted_for_event(event: Event) -> None:
+    """Notify an admin that a user was given administrator access."""
+    payload = platform_event_versioning.parse_payload(users_events.AdminPromotedPayload, event)
+    created = _notify_and_push(
+        event,
+        payload.admin_user_id,
+        lambda db: notifications_service.create_admin_user_promoted_notification(
+            payload.user_id, payload.admin_user_id, event.event_id, db
+        ),
+    )
+    if created:
+        logger.debug(
+            "Created admin-promoted notification",
+            extra=core_logger.context(user_id=payload.user_id, admin_user_id=payload.admin_user_id),
+        )
+
+
 def clear_follower_request_notification_for_event(event: Event) -> None:
     """Take back the follow-request notification once the request is gone unaccepted.
 
@@ -292,6 +354,9 @@ on_account_locked_notify = best_effort(notify_account_locked_for_event)
 on_mfa_locked_notify = best_effort(notify_mfa_locked_for_event)
 on_new_device_sign_in_notify = best_effort(notify_new_device_sign_in_for_event)
 on_admin_sign_up_approval_notify = best_effort(notify_admin_sign_up_approval_for_event)
+on_backup_code_used_notify = best_effort(notify_backup_code_used_for_event)
+on_refresh_reuse_notify = best_effort(notify_refresh_reuse_for_event)
+on_admin_user_promoted_notify = best_effort(notify_admin_user_promoted_for_event)
 
 
 def register_bus_subscribers(events: EventBusProvider) -> None:
@@ -307,6 +372,9 @@ def register_bus_subscribers(events: EventBusProvider) -> None:
     events.subscribe(authentication_events.MFA_LOCKED, on_mfa_locked_notify)
     events.subscribe(known_devices_events.NEW_DEVICE_SIGN_IN, on_new_device_sign_in_notify)
     events.subscribe(sign_up_events.SIGN_UP_APPROVAL_REQUESTED, on_admin_sign_up_approval_notify)
+    events.subscribe(backup_codes_events.BACKUP_CODE_USED, on_backup_code_used_notify)
+    events.subscribe(authentication_events.REFRESH_REUSE_DETECTED, on_refresh_reuse_notify)
+    events.subscribe(users_events.USERS_ADMIN_PROMOTED, on_admin_user_promoted_notify)
 
 
 def register_durable_handlers(registry: JobHandlerRegistry) -> None:
@@ -365,4 +433,19 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
         sign_up_events.SIGN_UP_APPROVAL_REQUESTED,
         ADMIN_SIGN_UP_APPROVAL_NOTIFICATION_SUBSCRIBER_ID,
         notify_admin_sign_up_approval_for_event,
+    )
+    registry.register(
+        backup_codes_events.BACKUP_CODE_USED,
+        BACKUP_CODE_USED_NOTIFICATION_SUBSCRIBER_ID,
+        notify_backup_code_used_for_event,
+    )
+    registry.register(
+        authentication_events.REFRESH_REUSE_DETECTED,
+        REFRESH_REUSE_NOTIFICATION_SUBSCRIBER_ID,
+        notify_refresh_reuse_for_event,
+    )
+    registry.register(
+        users_events.USERS_ADMIN_PROMOTED,
+        ADMIN_USER_PROMOTED_NOTIFICATION_SUBSCRIBER_ID,
+        notify_admin_user_promoted_for_event,
     )

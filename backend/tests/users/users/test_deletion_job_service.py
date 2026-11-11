@@ -3,6 +3,7 @@
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
+import jasil.providers as platform_providers
 import pytest
 from jasil.backends.state_memory import MemoryState
 from sqlalchemy.orm.exc import StaleDataError
@@ -63,7 +64,7 @@ class TestRequestDeletion:
             patch(f"{_MODULE}._deletion_pool") as pool,
             patch(f"{_MODULE}.security_generation_integration.stage_bump") as bump,
         ):
-            result = job_service.request_deletion(1, states, MagicMock(), db, if_match='"1"')
+            result = job_service.request_deletion(1, states, MagicMock(), MagicMock(), db, if_match='"1"')
         self.revoke_tokens = revoke_tokens
         self.bump = bump
         return result, identity, users_service, users_crud, publishers, pool
@@ -107,7 +108,7 @@ class TestRequestDeletion:
             patch(f"{_MODULE}.users_event_publishers"),
             patch(f"{_MODULE}.security_generation_integration.stage_bump", side_effect=_record("bump")),
         ):
-            job_service.request_deletion(1, states, MagicMock(), mock_db, if_match='"1"')
+            job_service.request_deletion(1, states, MagicMock(), MagicMock(), mock_db, if_match='"1"')
 
         names = [call.args[0] for call in order.record.call_args_list]
         assert names[:3] == ["require_user", "bump", "lock_admins"]
@@ -148,7 +149,7 @@ class TestRequestDeletion:
         ):
             pool.require_capacity.side_effect = core_exceptions.ServiceUnavailableError("full")
             with pytest.raises(core_exceptions.ServiceUnavailableError):
-                job_service.request_deletion(1, states, MagicMock(), mock_db, if_match='"1"')
+                job_service.request_deletion(1, states, MagicMock(), MagicMock(), mock_db, if_match='"1"')
 
         assert states.get(1, _Kind) is None
 
@@ -160,7 +161,7 @@ class TestRequestDeletion:
         ):
             users_service.require_deletable_user.side_effect = core_exceptions.ConflictError("only admin")
             with pytest.raises(core_exceptions.ConflictError):
-                job_service.request_deletion(1, states, MagicMock(), mock_db, if_match='"1"')
+                job_service.request_deletion(1, states, MagicMock(), MagicMock(), mock_db, if_match='"1"')
 
         identity.delete_all_user_sessions.assert_not_called()
         users_crud.stage_deletion_request.assert_not_called()
@@ -177,6 +178,7 @@ class TestRequestDeletionByAdministrator:
             store or MagicMock(),
             states,
             storage or MagicMock(),
+            MagicMock(),
             mock_db,
             if_match='"4"',
         )
@@ -210,7 +212,7 @@ class TestRequestDeletionByAdministrator:
         account_security.verify_step_up.assert_called_once_with(
             step_up, 9, "sid-9", identity_providers_constants.StepUpAction.ADMIN_USER_DELETE, store, mock_db
         )
-        request.assert_called_once_with(1, states, storage, mock_db, if_match='"4"')
+        request.assert_called_once_with(1, states, storage, request.call_args.args[3], mock_db, if_match='"4"')
         assert result is request.return_value
 
     def test_a_failed_step_up_queues_nothing(self, states, mock_db):
@@ -259,7 +261,7 @@ class TestRunDeletion:
             users_crud.is_deletion_cancelled.side_effect = _repeat_last(cancelled)
             photos.delete_photo_files.side_effect = photo_error
             storage = MagicMock()
-            job_service.run_deletion(_payload(), states, storage, will_retry=will_retry)
+            job_service.run_deletion(_payload(), states, storage, MagicMock(), first_pass=False, will_retry=will_retry)
         return erasers, users_crud, photos, session_local, storage
 
     def test_erases_in_batches_then_the_photo_then_the_row_then_the_staged_files(self, states):
@@ -292,7 +294,7 @@ class TestRunDeletion:
                 patch(f"{_MODULE}.users_contributor_registry.erasers") as erasers,
             ):
                 erasers.return_value.delete_activities.return_value = 0
-                job_service.run_deletion(_payload(), states, MagicMock())
+                job_service.run_deletion(_payload(), states, MagicMock(), MagicMock(), first_pass=False)
 
         assert order == ["photo", "row"]
 
@@ -394,7 +396,9 @@ class TestRunDeletionInPasses:
         ):
             users_crud.get_user_by_id.return_value = MagicMock()
             users_crud.is_deletion_cancelled.return_value = cancelled
-            more = job_service.run_deletion(_payload(), states, MagicMock(), time_budget=time_budget)
+            more = job_service.run_deletion(
+                _payload(), states, MagicMock(), MagicMock(), first_pass=False, time_budget=time_budget
+            )
         return more, users_crud, photos
 
     def test_a_pass_that_spends_its_budget_with_activities_left_asks_to_continue(self, states):
@@ -512,7 +516,7 @@ class TestRequeueStalledDeletions:
             users_crud.list_stalled_deletion_ids.side_effect = [*pages, []]
             users_crud.record_deletion_attempt.return_value = attempts
             publishers.publish_deletion_requested.side_effect = publish_error
-            queued = job_service.requeue_stalled_deletions(states, MagicMock(), clock)
+            queued = job_service.requeue_stalled_deletions(states, MagicMock(), MagicMock(), clock)
         return queued, users_crud, publishers, pool
 
     def test_queues_each_stalled_deletion_again_with_the_sweep_as_source(self, states):
@@ -571,8 +575,95 @@ class TestRequeueStalledDeletions:
             users_crud.list_stalled_deletion_ids.side_effect = [[1, 2], []]
             pool.require_capacity.side_effect = core_local_pool.PoolFullError("full")
 
-            queued = job_service.requeue_stalled_deletions(states, MagicMock(), clock)
+            queued = job_service.requeue_stalled_deletions(states, MagicMock(), MagicMock(), clock)
 
         assert queued == 0
         users_crud.record_deletion_attempt.assert_not_called()
         assert states.get(1, _Kind) is None
+
+
+class TestDeletionNotice:
+    """The job mails the owner the address on the row it is about to erase, once, before erasing."""
+
+    def _run(self, states, *, first_pass=True, attempts=0, mail_configured=True, message="default", send_error=None):
+        order = []
+        erasers = MagicMock()
+        erasers.delete_activities.side_effect = lambda *a, **k: order.append("erase") or 0
+        mail = MagicMock()
+
+        def send(*_args, **_kwargs):
+            order.append("mail")
+            if send_error is not None:
+                raise send_error
+            return True
+
+        message = ("owner@example.test", "subject", "html", "text") if message == "default" else message
+        with (
+            patch(f"{_MODULE}.core_database.SessionLocal"),
+            patch(f"{_MODULE}.users_contributor_registry.erasers", return_value=erasers),
+            patch(f"{_MODULE}.users_crud") as users_crud,
+            patch(f"{_MODULE}.users_photo_service"),
+            patch(f"{_MODULE}.server_settings_integration.is_mail_configured", return_value=mail_configured),
+            patch(
+                f"{_MODULE}.account_security_integration.prepare_account_deletion_email", return_value=message
+            ) as prepare,
+            patch(f"{_MODULE}.core_mail.send_email", side_effect=send) as send_email,
+        ):
+            users_crud.get_user_by_id.return_value = MagicMock()
+            users_crud.is_deletion_cancelled.return_value = False
+            users_crud.get_deletion_attempts.return_value = attempts
+            job_service.run_deletion(_payload(), states, MagicMock(), mail, first_pass=first_pass)
+        return order, prepare, send_email, mail
+
+    def test_the_first_attempt_sends_one_email_to_the_row_before_erasing(self, states):
+        states.begin(1, _Kind)
+
+        order, prepare, send_email, mail = self._run(states)
+
+        prepare.assert_called_once()
+        assert prepare.call_args.args[0] == 1
+        send_email.assert_called_once_with(mail, "owner@example.test", "subject", "html", "text")
+        assert order[0] == "mail"
+        assert "erase" in order
+
+    def test_a_later_delivery_of_the_job_does_not_send_again(self, states):
+        states.begin(1, _Kind)
+
+        _, _, send_email, _ = self._run(states, first_pass=False)
+
+        send_email.assert_not_called()
+        assert states.get(1, _Kind).status == _Status.SUCCEEDED
+
+    def test_a_requeue_by_the_sweep_does_not_send_again(self, states):
+        states.begin(1, _Kind)
+
+        _, _, send_email, _ = self._run(states, attempts=1)
+
+        send_email.assert_not_called()
+
+    def test_without_mail_configured_nothing_is_prepared_or_sent(self, states):
+        states.begin(1, _Kind)
+
+        _, prepare, send_email, _ = self._run(states, mail_configured=False)
+
+        prepare.assert_not_called()
+        send_email.assert_not_called()
+        assert states.get(1, _Kind).status == _Status.SUCCEEDED
+
+    def test_a_missing_row_sends_nothing_and_the_deletion_goes_on(self, states):
+        states.begin(1, _Kind)
+
+        _, _, send_email, _ = self._run(states, message=None)
+
+        send_email.assert_not_called()
+        assert states.get(1, _Kind).status == _Status.SUCCEEDED
+
+    def test_a_mail_failure_is_logged_without_the_address_and_the_deletion_proceeds(self, states, caplog):
+        states.begin(1, _Kind)
+
+        order, _, _, _ = self._run(states, send_error=platform_providers.MailError("refused owner@example.test"))
+
+        assert "erase" in order
+        assert states.get(1, _Kind).status == _Status.SUCCEEDED
+        assert "owner@example.test" not in caplog.text
+        assert any(record.levelname == "WARNING" for record in caplog.records)

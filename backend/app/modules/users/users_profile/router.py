@@ -418,6 +418,7 @@ def delete_my_account(
     ],
     state: core_dependencies.PlatformState,
     storage: core_dependencies.Storage,
+    mail: core_dependencies.Mail,
     db: core_dependencies.DbSession,
 ) -> users_schema.UserDeletionStatus:
     """Queue the deletion of the authenticated user's account and all of their data.
@@ -437,13 +438,14 @@ def delete_my_account(
         step_up_store: Step-up lockout store.
         state: The platform state provider.
         storage: The platform storage provider.
+        mail: The platform mail provider.
         db: Database session.
 
     Returns:
         The deletion's initial status.
     """
     deletion = profile_service.delete_account(
-        token_user_id, token_session_id, body.step_up, step_up_store, state, storage, db
+        token_user_id, token_session_id, body.step_up, step_up_store, state, storage, mail, db
     )
     authentication_dependencies.clear_refresh_token_cookies(response, environment=core_config.settings.ENVIRONMENT)
     return deletion

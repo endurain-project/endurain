@@ -134,11 +134,15 @@ class AccountSecurityChangedNotificationOptions(NotificationOptions):
         change: The kind of change.
         idp_id: The identity provider concerned, for an unlink.
         idp_name: Its name, or None when it was deleted since.
+        access_type: The access type the account now has, for a role change.
+        backup_codes_remaining: How many unused backup codes are left, for a backup code that was used.
     """
 
     change: StrictStr = Field(..., description="Kind of security change")
     idp_id: StrictInt | None = Field(default=None, description="ID of the identity provider concerned")
     idp_name: StrictStr | None = Field(default=None, description="Name of the provider, when it still exists")
+    access_type: StrictStr | None = Field(default=None, description="Access type the account now has")
+    backup_codes_remaining: StrictInt | None = Field(default=None, description="Unused backup codes left")
 
 
 class NewDeviceSignInNotificationOptions(NotificationOptions):
@@ -207,10 +211,13 @@ class ActivityNotificationRead(_NotificationReadBase):
 
 
 class UserReferenceNotificationRead(_NotificationReadBase):
-    """A follow-request, follow-accepted or sign-up-approval notification, which names a user."""
+    """A follow-request, follow-accepted, sign-up-approval or admin-promoted notification, which names a user."""
 
     type: Literal[
-        _Type.NEW_FOLLOWER_REQUEST, _Type.NEW_FOLLOWER_REQUEST_ACCEPTED, _Type.ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST
+        _Type.NEW_FOLLOWER_REQUEST,
+        _Type.NEW_FOLLOWER_REQUEST_ACCEPTED,
+        _Type.ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST,
+        _Type.ADMIN_USER_PROMOTED,
     ] = Field(..., description="Type of the notification")
     options: UserReferenceNotificationOptions
 

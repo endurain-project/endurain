@@ -12,6 +12,7 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.authentication.audit_actions as authentication_audit_actions
+import modules.auth.authentication.event_publishers as authentication_event_publishers
 import modules.auth.authentication.refusal_audit as authentication_refusal_audit
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.token_service as authentication_token_service
@@ -30,7 +31,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def _end_session_on_reuse(token_user_id: int, token_family_id: str, db: Session) -> NoReturn:
-    """End the session of a refresh token that was reused outside its rotating client or its grace window.
+    """End the session of a refresh token that was reused outside its rotating client or its grace window, and tell its owner.
 
     Args:
         token_user_id: User ID extracted from the refresh token.
@@ -49,6 +50,7 @@ def _end_session_on_reuse(token_user_id: int, token_family_id: str, db: Session)
             outcome=jasil_audit.Outcome.DENIED,
             **login_audit_integration.user_target(token_user_id),
         )
+    authentication_event_publishers.publish_refresh_reuse_detected(token_user_id, db)
     db.commit()
     logger.warning(
         "Refresh token reuse detected for user <token_user_id>; token family invalidated",

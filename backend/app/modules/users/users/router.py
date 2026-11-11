@@ -424,6 +424,7 @@ def delete_user(
     ],
     states: users_dependencies.UserDeletionStateStoreDep,
     storage: core_dependencies.Storage,
+    mail: core_dependencies.Mail,
     if_match: core_dependencies.IfMatch,
     db: core_dependencies.DbSession,
 ) -> users_schema.UserDeletionStatus:
@@ -444,6 +445,7 @@ def delete_user(
         step_up_store: Step-up lockout store.
         states: Shared store of the deletion's state.
         storage: The platform storage provider.
+        mail: The platform mail provider.
         if_match: The ``If-Match`` precondition.
         db: Database session dependency.
 
@@ -458,7 +460,16 @@ def delete_user(
         ConflictError: If a deletion is already pending.
     """
     deletion = users_deletion_job_service.request_deletion_by_administrator(
-        user_id, token_user_id, token_session_id, body.step_up, step_up_store, states, storage, db, if_match=if_match
+        user_id,
+        token_user_id,
+        token_session_id,
+        body.step_up,
+        step_up_store,
+        states,
+        storage,
+        mail,
+        db,
+        if_match=if_match,
     )
     core_location.set_status_location(
         response,

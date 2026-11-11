@@ -1,4 +1,4 @@
-"""Event subscribers for account-security change, password-reset, account-lock, MFA-lock and new-device sign-in emails."""
+"""Event subscribers for the account-security, sign-in and administrator-promotion notice emails."""
 
 from collections.abc import Callable
 
@@ -21,7 +21,9 @@ import modules.auth.account_security.events as account_security_events
 import modules.auth.authentication.events as authentication_events
 import modules.auth.identity_providers.events as idp_events
 import modules.auth.known_devices.events as known_devices_events
+import modules.auth.mfa_backup_codes.events as backup_codes_events
 import modules.auth.password_reset_tokens.events as password_reset_events
+import modules.users.users.events as users_events
 
 logger = core_logger.get_logger(__name__)
 ACCOUNT_SECURITY_CHANGED_EMAIL_SUBSCRIBER_ID = "auth.send_account_security_changed_email"
@@ -29,6 +31,9 @@ ACCOUNT_LOCKED_EMAIL_SUBSCRIBER_ID = "auth.send_account_locked_email"
 MFA_LOCKED_EMAIL_SUBSCRIBER_ID = "auth.send_mfa_locked_email"
 IDP_LINKED_EMAIL_SUBSCRIBER_ID = "auth.send_idp_linked_email"
 NEW_DEVICE_SIGN_IN_EMAIL_SUBSCRIBER_ID = "auth.send_new_device_sign_in_email"
+BACKUP_CODE_USED_EMAIL_SUBSCRIBER_ID = "auth.send_backup_code_used_email"
+REFRESH_REUSE_EMAIL_SUBSCRIBER_ID = "auth.send_refresh_reuse_email"
+ADMIN_PROMOTED_EMAIL_SUBSCRIBER_ID = "users.send_admin_promoted_email"
 PASSWORD_RESET_COMPLETED_EMAIL_SUBSCRIBER_ID = "auth.send_password_reset_completed_email"  # noqa: S105 (name matches the password-secret heuristic, not a secret)
 
 
@@ -78,7 +83,12 @@ def send_security_changed_email_for_event(event: Event) -> None:
         payload.user_id,
         payload.change.value,
         lambda db: account_security_service.prepare_security_change_email(
-            payload.user_id, payload.change.value, payload.idp_id, core_config.settings.ENDURAIN_HOST, db
+            payload.user_id,
+            payload.change.value,
+            payload.idp_id,
+            core_config.settings.ENDURAIN_HOST,
+            db,
+            access_type=payload.access_type,
         ),
         mail,
     )
@@ -174,12 +184,70 @@ def send_new_device_sign_in_email_for_event(event: Event) -> None:
     logger.debug("New-device sign-in event processed", extra=core_logger.context(user_id=payload.user_id))
 
 
+def send_backup_code_used_email_for_event(event: Event) -> None:
+    """Send the user an email saying a backup code was used on their account and how many are left."""
+    payload = platform_event_versioning.parse_payload(backup_codes_events.BackupCodeUsedPayload, event)
+    mail = platform_runtime.get_active_platform().mail
+    change = account_security_events.AccountSecurityChange.BACKUP_CODE_USED.value
+    _send_security_email(
+        payload.user_id,
+        change,
+        lambda db: account_security_service.prepare_security_change_email(
+            payload.user_id,
+            change,
+            None,
+            core_config.settings.ENDURAIN_HOST,
+            db,
+            backup_codes_remaining=payload.backup_codes_remaining,
+        ),
+        mail,
+    )
+    logger.debug("Backup-code-used event processed", extra=core_logger.context(user_id=payload.user_id))
+
+
+def send_refresh_reuse_email_for_event(event: Event) -> None:
+    """Send the user an email saying a reused refresh token ended one of their sessions."""
+    payload = platform_event_versioning.parse_payload(authentication_events.RefreshReuseDetectedPayload, event)
+    mail = platform_runtime.get_active_platform().mail
+    change = account_security_events.AccountSecurityChange.REFRESH_TOKEN_REUSE_DETECTED.value
+    _send_security_email(
+        payload.user_id,
+        change,
+        lambda db: account_security_service.prepare_security_change_email(
+            payload.user_id, change, None, core_config.settings.ENDURAIN_HOST, db
+        ),
+        mail,
+    )
+    logger.debug("Refresh-reuse event processed", extra=core_logger.context(user_id=payload.user_id))
+
+
+def send_admin_promoted_email_for_event(event: Event) -> None:
+    """Send an administrator an email saying a user was given administrator access."""
+    payload = platform_event_versioning.parse_payload(users_events.AdminPromotedPayload, event)
+    mail = platform_runtime.get_active_platform().mail
+    _send_security_email(
+        payload.admin_user_id,
+        users_events.USERS_ADMIN_PROMOTED,
+        lambda db: account_security_service.prepare_admin_promoted_email(
+            payload.user_id, payload.admin_user_id, core_config.settings.ENDURAIN_HOST, db
+        ),
+        mail,
+    )
+    logger.debug(
+        "Admin-promoted event processed",
+        extra=core_logger.context(user_id=payload.user_id, admin_user_id=payload.admin_user_id),
+    )
+
+
 on_security_changed = best_effort(send_security_changed_email_for_event)
 on_idp_linked = best_effort(send_idp_linked_email_for_event)
 on_password_reset_completed = best_effort(send_password_reset_completed_email_for_event)
 on_account_locked = best_effort(send_account_locked_email_for_event)
 on_mfa_locked = best_effort(send_mfa_locked_email_for_event)
 on_new_device_sign_in = best_effort(send_new_device_sign_in_email_for_event)
+on_backup_code_used = best_effort(send_backup_code_used_email_for_event)
+on_refresh_reuse = best_effort(send_refresh_reuse_email_for_event)
+on_admin_promoted = best_effort(send_admin_promoted_email_for_event)
 
 
 def register_bus_subscribers(events: EventBusProvider) -> None:
@@ -190,6 +258,9 @@ def register_bus_subscribers(events: EventBusProvider) -> None:
     events.subscribe(authentication_events.ACCOUNT_LOCKED, on_account_locked)
     events.subscribe(authentication_events.MFA_LOCKED, on_mfa_locked)
     events.subscribe(known_devices_events.NEW_DEVICE_SIGN_IN, on_new_device_sign_in)
+    events.subscribe(backup_codes_events.BACKUP_CODE_USED, on_backup_code_used)
+    events.subscribe(authentication_events.REFRESH_REUSE_DETECTED, on_refresh_reuse)
+    events.subscribe(users_events.USERS_ADMIN_PROMOTED, on_admin_promoted)
 
 
 def register_durable_handlers(registry: JobHandlerRegistry) -> None:
@@ -223,4 +294,19 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
         known_devices_events.NEW_DEVICE_SIGN_IN,
         NEW_DEVICE_SIGN_IN_EMAIL_SUBSCRIBER_ID,
         send_new_device_sign_in_email_for_event,
+    )
+    registry.register(
+        backup_codes_events.BACKUP_CODE_USED,
+        BACKUP_CODE_USED_EMAIL_SUBSCRIBER_ID,
+        send_backup_code_used_email_for_event,
+    )
+    registry.register(
+        authentication_events.REFRESH_REUSE_DETECTED,
+        REFRESH_REUSE_EMAIL_SUBSCRIBER_ID,
+        send_refresh_reuse_email_for_event,
+    )
+    registry.register(
+        users_events.USERS_ADMIN_PROMOTED,
+        ADMIN_PROMOTED_EMAIL_SUBSCRIBER_ID,
+        send_admin_promoted_email_for_event,
     )

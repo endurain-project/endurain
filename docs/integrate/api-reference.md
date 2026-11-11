@@ -19,11 +19,11 @@ A notification's `options` depend on its `type`, and the schema names each shape
 | `type` | `options` |
 | ------ | --------- |
 | `new_activity`, `duplicate_activity` | `activity_id` |
-| `new_follower_request`, `new_follower_request_accepted`, `admin_new_sign_up_approval_request` | `user_id`, `user_name`, `user_username` |
+| `new_follower_request`, `new_follower_request_accepted`, `admin_new_sign_up_approval_request`, `admin_user_promoted` | `user_id`, `user_name`, `user_username` |
 | `garmin_token_expired`, `strava_data_deleted` | none (an empty object) |
 | `strava_token_expired` | `delete_on` (a date), only when Strava access was revoked |
 | `idp_linked` | `idp_id`, `idp_name` (null when the provider was deleted since) |
-| `account_security_changed` | `change`, and `idp_id` and `idp_name` for an unlink |
+| `account_security_changed` | `change`, and `idp_id` and `idp_name` for an unlink, `backup_codes_remaining` for a used backup code, `access_type` for a role change |
 | `new_device_sign_in` | `browser`, `operating_system`, `ip_address` |
 
 For authentication, scopes, errors and rate limits see the other pages in this section. Requests cannot be sent from this page. An Endurain instance serves the schema (`/openapi.json`) and its interactive pages (`/api/v1/docs`, `/api/v1/redoc`) only when `ENVIRONMENT` is `development` or `demo`; in `production` the schema is not served and this reference holds it.

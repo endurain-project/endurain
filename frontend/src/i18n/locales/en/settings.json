@@ -866,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Delete my account",
-      "subtitle": "Permanently delete your account and all of your data, including activities and their files, health records, gear, goals, integrations and sessions. This can't be undone. Export your data first if you want to keep a copy.",
+      "subtitle": "Delete your account and all of your data, including activities and their files, health records, gear, goals, integrations and sessions. You are signed out of all devices and the account is deactivated at once, then your data is erased in the background. There is no grace period: only an administrator can stop it, by reactivating the account before the erasure finishes. Export your data first if you want to keep a copy.",
       "action": "Delete my account",
       "dialogTitle": "Delete your account?",
-      "dialogDescription": "This permanently deletes your account and all of your data. Confirm your identity to continue.",
+      "dialogDescription": "This signs you out of all devices, deactivates your account and starts erasing all of your data. Only an administrator can stop it before it finishes. Confirm your identity to continue.",
       "confirm": "Delete my account",
       "error": "Couldn't delete your account. Please try again.",
       "onlyAdminError": "You are the only administrator. Make another user an administrator before deleting your account.",

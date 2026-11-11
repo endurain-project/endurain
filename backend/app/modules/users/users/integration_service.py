@@ -439,6 +439,7 @@ def request_user_deletion(
     user_id: int,
     state: platform_providers.StateProvider,
     storage: platform_providers.StorageProvider,
+    mail: platform_providers.MailProvider,
     db: Session,
 ) -> users_schema.UserDeletionStatus:
     """Queue the erasure of a user's account and data, and commit.
@@ -449,6 +450,7 @@ def request_user_deletion(
         user_id: The user to delete.
         state: The platform state provider.
         storage: The platform storage provider.
+        mail: The platform mail provider.
         db: Database session.
 
     Returns:
@@ -461,7 +463,7 @@ def request_user_deletion(
     """
     # The account owner confirmed with step-up and names no version, so the wildcard overwrites whatever is there.
     return users_deletion_job_service.request_deletion(
-        user_id, users_deletion_state_store.UserDeletionStateStore(state), storage, db, if_match="*"
+        user_id, users_deletion_state_store.UserDeletionStateStore(state), storage, mail, db, if_match="*"
     )
 
 

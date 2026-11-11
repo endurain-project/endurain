@@ -20,7 +20,10 @@ def requeue_stalled_deletions() -> None:
     """
     platform = platform_runtime.get_active_platform()
     users_deletion_job_service.requeue_stalled_deletions(
-        users_deletion_state_store.UserDeletionStateStore(platform.state), platform.storage, platform.clock
+        users_deletion_state_store.UserDeletionStateStore(platform.state),
+        platform.storage,
+        platform.mail,
+        platform.clock,
     )
 
 

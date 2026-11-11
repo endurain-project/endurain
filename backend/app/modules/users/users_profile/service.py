@@ -387,6 +387,7 @@ def delete_account(
     step_up_store: "auth_dependencies.StepUpStore",
     state: platform_providers.StateProvider,
     storage: platform_providers.StorageProvider,
+    mail: platform_providers.MailProvider,
     db: Session,
 ) -> users_schema.UserDeletionStatus:
     """Queue the deletion of the authenticated user's account and all of their data.
@@ -404,6 +405,7 @@ def delete_account(
         step_up_store: Step-up lockout store.
         state: The platform state provider.
         storage: The platform storage provider.
+        mail: The platform mail provider.
         db: Database session.
 
     Returns:
@@ -417,7 +419,7 @@ def delete_account(
     account_security_integration.verify_step_up(
         step_up, user_id, session_id, identity_providers_constants.StepUpAction.ACCOUNT_DELETE, step_up_store, db
     )
-    status = users_integration.request_user_deletion(user_id, state, storage, db)
+    status = users_integration.request_user_deletion(user_id, state, storage, mail, db)
     logger.info("Account deletion requested by its owner", extra=core_logger.context(user_id=user_id))
     return status
 

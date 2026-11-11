@@ -155,6 +155,8 @@ describe('presentNotification', () => {
     ['api_key_created', 'apiKeyCreated'],
     ['account_locked', 'accountLocked'],
     ['mfa_locked', 'mfaLocked'],
+    ['refresh_token_reuse_detected', 'refreshTokenReuseDetected'],
+    ['account_deactivated_by_admin', 'accountDeactivatedByAdmin'],
   ])('presents the %s account-security change', (change, key) => {
     const result = presentNotification(make('account_security_changed', { change }))
 
@@ -206,6 +208,59 @@ describe('presentNotification', () => {
     )
   })
 
+  it.each([
+    [3, 'bodyRemaining', { name: '', count: '3' }],
+    [0, 'bodyNone', { name: '', count: '0' }],
+  ])(
+    'tells the user how many backup codes are left when %s remain',
+    (remaining, bodyKey, params) => {
+      const result = presentNotification(
+        make('account_security_changed', {
+          change: 'backup_code_used',
+          backup_codes_remaining: remaining,
+        }),
+      )
+
+      expect(result.icon).toBe(LockKeyhole)
+      expect(result.titleKey).toBe(
+        'notifications.types.accountSecurityChanged.backupCodeUsed.title',
+      )
+      expect(result.bodyKey).toBe(
+        `notifications.types.accountSecurityChanged.backupCodeUsed.${bodyKey}`,
+      )
+      expect(result.bodyParams).toEqual(params)
+      expect(result.to).toEqual({ name: 'settings-security' })
+    },
+  )
+
+  it('falls back to the plain backup-code body when the count is unknown', () => {
+    const result = presentNotification(
+      make('account_security_changed', { change: 'backup_code_used' }),
+    )
+
+    expect(result.bodyKey).toBe('notifications.types.accountSecurityChanged.backupCodeUsed.body')
+  })
+
+  it.each([
+    ['admin', 'bodyAdmin'],
+    ['regular', 'bodyRegular'],
+    [null, 'body'],
+  ])('names the new access %s of a role change', (accessType, bodyKey) => {
+    const result = presentNotification(
+      make('account_security_changed', {
+        change: 'role_changed_by_admin',
+        access_type: accessType,
+      }),
+    )
+
+    expect(result.titleKey).toBe(
+      'notifications.types.accountSecurityChanged.roleChangedByAdmin.title',
+    )
+    expect(result.bodyKey).toBe(
+      `notifications.types.accountSecurityChanged.roleChangedByAdmin.${bodyKey}`,
+    )
+  })
+
   it('degrades to a generic security message for an unknown change', () => {
     const result = presentNotification(
       make('account_security_changed', { change: 'something_new' }),
@@ -243,6 +298,18 @@ describe('presentNotification', () => {
     )
 
     expect(result.icon).toBe(ShieldAlert)
+    expect(result.bodyParams).toEqual({ name: 'Ada', username: 'ada' })
+    expect(result.to).toEqual({ name: 'settings-user-detail', params: { id: '7' } })
+  })
+
+  it('tells an admin which user was promoted and links to them', () => {
+    const result = presentNotification(
+      make('admin_user_promoted', { user_id: 7, user_name: 'Ada', user_username: 'ada' }),
+    )
+
+    expect(result.icon).toBe(ShieldAlert)
+    expect(result.titleKey).toBe('notifications.types.adminUserPromoted.title')
+    expect(result.bodyKey).toBe('notifications.types.adminUserPromoted.body')
     expect(result.bodyParams).toEqual({ name: 'Ada', username: 'ada' })
     expect(result.to).toEqual({ name: 'settings-user-detail', params: { id: '7' } })
   })

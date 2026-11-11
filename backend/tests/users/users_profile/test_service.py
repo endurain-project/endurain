@@ -252,6 +252,7 @@ class TestDeleteAccount:
         store = MagicMock()
         state = MagicMock()
         storage = MagicMock()
+        mail = MagicMock()
         order = MagicMock()
         order.attach_mock(identity.verify_step_up, "step_up")
         order.attach_mock(mock_users.request_user_deletion, "delete")
@@ -262,13 +263,13 @@ class TestDeleteAccount:
                 value, user_id, session_id, action, step_up_store
             ),
         ):
-            result = profile_service.delete_account(1, "sid-1", step_up, store, state, storage, mock_db)
+            result = profile_service.delete_account(1, "sid-1", step_up, store, state, storage, mail, mock_db)
 
         assert [call[0] for call in order.mock_calls] == ["step_up", "delete"]
         identity.verify_step_up.assert_called_once_with(
             step_up, 1, "sid-1", identity_providers_constants.StepUpAction.ACCOUNT_DELETE, store
         )
-        mock_users.request_user_deletion.assert_called_once_with(1, state, storage, mock_db)
+        mock_users.request_user_deletion.assert_called_once_with(1, state, storage, mail, mock_db)
         assert result is mock_users.request_user_deletion.return_value
 
     @patch(f"{_MODULE}.users_integration")
@@ -285,7 +286,9 @@ class TestDeleteAccount:
                 ),
             ),
         ):
-            profile_service.delete_account(1, "sid-1", MagicMock(), MagicMock(), MagicMock(), MagicMock(), mock_db)
+            profile_service.delete_account(
+                1, "sid-1", MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock(), mock_db
+            )
 
         mock_users.request_user_deletion.assert_not_called()
 
