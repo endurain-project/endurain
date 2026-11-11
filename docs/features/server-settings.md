@@ -4,7 +4,7 @@ Administrators configure the instance in **Settings → Server settings**. The p
 
 If someone else changed the settings while you were editing, your save is refused with a message to reload, so you never overwrite their change by accident.
 
-Saving a change to a setting that decides who can sign up or sign in, how long a session or token lives, how long the audit trail is kept or whether public links show who shared them asks for your own password and MFA code (or a fresh identity-provider sign-in if your account has no password), so a stolen session cannot weaken them. These are the sign-up and sign-in switches (including **Allow local username and password login**, single sign-on and its auto-redirect), the password rules and breach check, the session and token lifetimes, the API key lifetime, the audit trail retention and legal hold, and showing the owner's info on public links. Changing any other setting, such as units, maps or notification retention, needs no confirmation.
+Saving a change to a setting that decides who can sign up or sign in, whether two-step verification is required, how long a session or token lives, how long the audit trail is kept or whether public links show who shared them asks for your own password and MFA code (or a fresh identity-provider sign-in if your account has no password), so a stolen session cannot weaken them. These are the sign-up and sign-in switches (including **Allow local username and password login**, single sign-on and its auto-redirect), the two-step verification requirement, the password rules and breach check, the session and token lifetimes, the API key lifetime, the audit trail retention and legal hold, and showing the owner's info on public links. Changing any other setting, such as units, maps or notification retention, needs no confirmation.
 
 ## Settings that an environment variable controls
 
@@ -45,6 +45,14 @@ How these work together is in [Accounts, sign-up and password reset](accounts-an
 | Enable SSO | Shows the configured identity providers on the login page. Providers are managed under **Settings → Identity providers**; see [Single Sign-On](single-sign-on.md) |
 | Allow local username and password login | Turn it off to force SSO. Turning it off locks out password sign-in for everyone, including administrators, so make sure SSO works first |
 | Auto-redirect to SSO | Skip the login page when one provider is configured and local login is off |
+
+### Two-step verification
+
+| Setting | Notes |
+| --- | --- |
+| Require two-step verification | **Not required** by default. **Administrators only** or **Everyone** makes the accounts it covers set up two-step verification (a TOTP authenticator app) before they can do anything else. See [required two-step verification](accounts-and-sign-in.md#required-two-step-verification) |
+
+The requirement is checked on every request, so it applies to a signed-in account at its next request, you included: an account it covers without two-step verification is sent to set it up at once, and an administrator who turns it on without two-step verification of their own is too. Changing it asks for your own password and MFA code, or a fresh identity-provider sign-in if your account has no password, so an administrator without two-step verification can still turn it on. It never signs anyone out, and an account that already has two-step verification is not affected.
 
 ### Password policy
 

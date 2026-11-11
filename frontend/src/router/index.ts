@@ -91,6 +91,13 @@ const router = createRouter({
       meta: { requiresAuth: false, bare: true },
     },
     {
+      path: '/mfa-enrolment',
+      name: 'mfa-enrolment',
+      component: () => import('@/features/security/views/MfaEnrolmentView.vue'),
+      // Bare: the app chrome would fetch data the server refuses until the account has MFA.
+      meta: { requiresAuth: true, bare: true },
+    },
+    {
       path: '/activities',
       name: 'activities',
       component: () => import('@/features/activities/views/ActivitiesView.vue'),
@@ -316,7 +323,8 @@ async function isOnboardingRequired(): Promise<boolean> {
 
 /**
  * Global navigation guard. Restores the session on first navigation, sends visitors to
- * first-run onboarding while no account exists, enforces
+ * first-run onboarding while no account exists, keeps an account the server requires MFA of on the
+ * enrolment page until it has enrolled, enforces
  * feature-flag gating, and applies auth/guest-only access rules.
  *
  * @param to - The target route being navigated to.
@@ -344,6 +352,11 @@ export async function authGuard(to: RouteLocationNormalized) {
     if (!onboardingRequired && to.name === 'onboarding') {
       return { name: 'login' }
     }
+  }
+
+  // While the server requires MFA of this account and it has none, the enrolment page is the only place to go.
+  if (auth.isAuthenticated && auth.mfaEnrolmentRequired && to.name !== 'mfa-enrolment') {
+    return { name: 'mfa-enrolment' }
   }
 
   if (to.meta.feature && !isEnabled(to.meta.feature)) {

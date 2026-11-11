@@ -50,7 +50,12 @@ def _resolve(*, session, user, scope=None, policy=None):
     with (
         patch(f"{_MODULE}.users_integration.get_user", return_value=user),
         patch(f"{_MODULE}.sessions_integration.get_session_by_id_not_expired", return_value=session) as lookup,
-        patch(f"{_MODULE}.server_settings_integration.get_session_policy", return_value=policy or _policy()),
+        patch(
+            f"{_MODULE}.server_settings_integration.get_access_policy",
+            return_value=server_settings_contracts.AccessPolicy(
+                session=policy or _policy(), require_mfa=server_settings_contracts.RequireMfa.OFF
+            ),
+        ),
     ):
         principal = principal_service.resolve_from_access_token("token", _token_manager(scope), MagicMock())
     return principal, lookup

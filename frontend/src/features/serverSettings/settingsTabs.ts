@@ -40,6 +40,7 @@ export const FIELD_TABS: Record<keyof ServerSettingsFormValues, SettingsTab> = {
   passwordLengthRegularUsers: 'access',
   passwordLengthAdminUsers: 'access',
   passwordBreachCheckEnabled: 'access',
+  requireMfa: 'access',
   sessionIdleTimeoutEnabled: 'access',
   sessionIdleTimeoutHours: 'access',
   sessionAbsoluteTimeoutHours: 'access',

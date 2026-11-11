@@ -17,6 +17,8 @@ const { values, errors, isSubmitting, handleSubmit, handleBlur, envVar, envHint,
 
 /** Minimum-length options for both access tiers: 8–128 (the backend bounds). */
 const PASSWORD_LENGTHS = Array.from({ length: 121 }, (_, index) => index + 8)
+/** The values of the MFA requirement, in the order they are offered. */
+const REQUIRE_MFA_OPTIONS = ['off', 'administrators', 'everyone'] as const
 /** The session-policy fields an environment variable can lock. */
 const SESSION_ENV_FIELDS = [
   'session_idle_timeout_enabled',
@@ -81,6 +83,31 @@ const SESSION_ENV_FIELDS = [
       >
         {{ t('settings.server.signup.emailVerification') }}
       </Switch>
+    </Card>
+
+    <Card class="flex flex-col gap-3" data-setting="section-mfa">
+      <h2 class="text-card-heading">{{ t('settings.server.mfa.title') }}</h2>
+      <FormField
+        data-setting="require-mfa"
+        :label="t('settings.server.mfa.require')"
+        :hint="t('settings.server.mfa.requireHint')"
+      >
+        <template #default="{ fieldId, describedBy }">
+          <Select
+            :id="fieldId"
+            v-model="values.requireMfa"
+            :aria-describedby="describedBy"
+            :disabled="isSubmitting"
+          >
+            <option v-for="option in REQUIRE_MFA_OPTIONS" :key="option" :value="option">
+              {{ t(`settings.server.mfa.options.${option}`) }}
+            </option>
+          </Select>
+        </template>
+      </FormField>
+      <Alert v-if="values.requireMfa !== 'off'" kind="warning">
+        {{ t('settings.server.mfa.enabledWarning') }}
+      </Alert>
     </Card>
 
     <Card class="flex flex-col gap-3" data-setting="section-password">

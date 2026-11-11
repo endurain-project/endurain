@@ -57,6 +57,7 @@ function makeSettings(overrides: Partial<ServerSettings> = {}): ServerSettings {
     passwordLengthRegularUsers: 15,
     passwordLengthAdminUsers: 15,
     passwordBreachCheckEnabled: false,
+    requireMfa: 'off',
     geocodingService: 'nominatim',
     geocodingHost: null,
     geocodingUseHttps: true,
@@ -72,7 +73,12 @@ function makeSettings(overrides: Partial<ServerSettings> = {}): ServerSettings {
     auditLegalHold: false,
     geocodingApiKeySet: false,
     envManaged: {},
-    stepUpFields: ['publicShareableLinksUserInfo', 'auditRetentionDays', 'auditLegalHold'],
+    stepUpFields: [
+      'publicShareableLinksUserInfo',
+      'auditRetentionDays',
+      'auditLegalHold',
+      'requireMfa',
+    ],
     logsViewerEnabled: false,
     ...overrides,
   }
@@ -160,6 +166,22 @@ describe('GeneralTab audit trail retention', () => {
       auditRetentionDays: days,
       auditLegalHold: true,
     })
+  })
+
+  it('waits for the step-up, then saves it, when the MFA requirement changes', async () => {
+    const { wrapper, form } = mountGeneralTab()
+
+    form.values.requireMfa = 'everyone'
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(mutateAsync).not.toHaveBeenCalled()
+    expect(form.isStepUpOpen.value).toBe(true)
+
+    await form.confirmStepUp(STEP_UP)
+
+    expect(mutateAsync.mock.calls[0]?.[0].stepUp).toEqual(STEP_UP)
+    expect(mutateAsync.mock.calls[0]?.[0].settings).toMatchObject({ requireMfa: 'everyone' })
   })
 
   it('waits for the step-up when public links start showing the owner', async () => {

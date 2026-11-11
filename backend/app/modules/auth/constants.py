@@ -30,6 +30,22 @@ class AuthMethod(StrEnum):
     MULTI_FACTOR = "mfa"  # more than one factor was used
 
 
+#: The requests an account that must enrol MFA but has not may still make, as ``(method, route template)`` below the
+#: API root. They are what the web app's enrolment page needs and nothing more: the account itself (to show who is
+#: signed in), the MFA status, the setup and enable calls that enrol it, and, for an account without a local
+#: password, the linked identity providers and the identity-provider step-up that enable call asks for. Signing out
+#: is not an authenticated request and needs no exemption.
+MFA_ENROLMENT_ROUTES: Final[frozenset[tuple[str, str]]] = frozenset(
+    {
+        ("GET", "/profile"),
+        ("GET", "/profile/mfa/status"),
+        ("POST", "/profile/mfa/setup"),
+        ("POST", "/profile/mfa/enable"),
+        ("GET", "/profile/identity-providers"),
+        ("POST", "/profile/identity-providers/{idp_id}/step-up"),
+    }
+)
+
 # scope (immutable)
 # ``account`` covers the account's own data (profile, photo, goals, privacy, provider links). Two narrower scopes
 # split off what an integration token should not hold by default: taking the account's data out or in

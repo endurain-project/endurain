@@ -150,6 +150,8 @@ class Principal:
             scope strings.
         credential: Typed record of how this
             principal was authenticated.
+        mfa_enrolment_required: Whether the server requires MFA of this account and it has not enrolled one, so
+            the account may only make the requests enrolment needs.
     """
 
     user_id: int
@@ -159,6 +161,7 @@ class Principal:
     is_superuser: bool
     scopes: frozenset[str]
     credential: AnyCredential
+    mfa_enrolment_required: bool = False
 
     # ------------------------------------------------------------------
     # Helper methods

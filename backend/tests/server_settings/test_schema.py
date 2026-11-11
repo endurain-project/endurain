@@ -304,6 +304,7 @@ class TestServerSettingsEdit:
             signup_require_admin_approval=True,
             signup_require_email_verification=False,
             password_breach_check_enabled=False,
+            require_mfa="off",
             signup_sso_enabled=False,
             sso_enabled=False,
             local_login_enabled=True,
@@ -622,3 +623,25 @@ class TestSsoSignUpField:
     def test_the_admin_read_carries_it_and_the_public_read_does_not(self):
         assert "signup_sso_enabled" in server_settings_schema.ServerSettingsAdminRead.model_fields
         assert "signup_sso_enabled" not in server_settings_schema.ServerSettingsReadPublic.model_fields
+
+
+class TestRequireMfaField:
+    def test_edit_requires_the_setting(self):
+        values = TestServerSettingsEdit._values()
+        del values["require_mfa"]
+        with pytest.raises(ValidationError):
+            server_settings_schema.ServerSettingsEdit(**values)
+
+    @pytest.mark.parametrize("value", ["off", "administrators", "everyone"])
+    def test_edit_accepts_each_of_the_three_values(self, value):
+        edit = server_settings_schema.ServerSettingsEdit(**TestServerSettingsEdit._values(require_mfa=value))
+        assert edit.require_mfa == value
+
+    @pytest.mark.parametrize("value", ["admins", "", True, None])
+    def test_edit_rejects_any_other_value(self, value):
+        with pytest.raises(ValidationError):
+            server_settings_schema.ServerSettingsEdit(**TestServerSettingsEdit._values(require_mfa=value))
+
+    def test_the_admin_read_carries_it_and_the_public_read_does_not(self):
+        assert "require_mfa" in server_settings_schema.ServerSettingsAdminRead.model_fields
+        assert "require_mfa" not in server_settings_schema.ServerSettingsReadPublic.model_fields

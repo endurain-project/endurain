@@ -53,6 +53,7 @@ function makeSettingsDto(overrides: Partial<ServerSettingsDto> = {}): ServerSett
     password_length_regular_users: 8,
     password_length_admin_users: 12,
     password_breach_check_enabled: false,
+    require_mfa: 'off',
     geocoding_service: 'nominatim',
     geocoding_host: null,
     geocoding_use_https: true,
@@ -131,6 +132,7 @@ describe('mapServerSettings', () => {
       passwordLengthRegularUsers: 8,
       passwordLengthAdminUsers: 12,
       passwordBreachCheckEnabled: false,
+      requireMfa: 'off',
       geocodingService: 'nominatim',
       geocodingHost: null,
       geocodingUseHttps: true,
@@ -269,6 +271,14 @@ describe('toServerSettingsWire', () => {
       null,
     )
     expect(wire).toHaveProperty('password_breach_check_enabled', true)
+  })
+
+  it('sends the MFA requirement', () => {
+    const wire = toServerSettingsWire(
+      mapServerSettings(makeSettingsDto({ require_mfa: 'administrators' })),
+      null,
+    )
+    expect(wire).toHaveProperty('require_mfa', 'administrators')
   })
 
   it('sends the single sign-on sign-up switch', () => {

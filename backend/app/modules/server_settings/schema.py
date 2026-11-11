@@ -19,6 +19,7 @@ import core.mail as core_mail
 import core.sanitization as core_sanitization
 import modules.auth.schema as auth_schema
 import modules.server_settings.constants as server_settings_constants
+import modules.server_settings.contracts as server_settings_contracts
 
 
 class Units(Enum):
@@ -374,6 +375,7 @@ class ServerSettingsEdit(
             sign-ups (true - yes, false - no).
         password_breach_check_enabled: Refuse a new password found in a known data breach, checked against
             the Have I Been Pwned range API (true - yes, false - no).
+        require_mfa: Which accounts must have MFA (off, administrators, everyone).
         geocoding_api_key: Plain-text API key for the geocoding service; same
             write-only semantics as ``tileserver_api_key``.
     """
@@ -409,6 +411,13 @@ class ServerSettingsEdit(
         description=(
             "Refuse a new password found in a known data breach, checked against the Have I Been Pwned range API "
             "with a 5-character hash prefix; allowed when the service is unreachable (true - yes, false - no)"
+        ),
+    )
+    require_mfa: server_settings_contracts.RequireMfa = Field(
+        ...,
+        description=(
+            "Which accounts must have MFA: off, administrators or everyone. An account it covers without MFA can "
+            "only enrol it and sign out"
         ),
     )
 
@@ -483,6 +492,7 @@ class ServerSettingsAdminRead(
         signup_require_admin_approval: Require admin approval for new sign-ups.
         signup_require_email_verification: Require email verification for new sign-ups.
         password_breach_check_enabled: Refuse a new password found in a known data breach.
+        require_mfa: Which accounts must have MFA (off, administrators, everyone).
         step_up_fields: The settings whose change needs the administrator's step-up; read-only.
         logs_viewer_enabled: Whether the server log can be read through the API on this deployment; read-only.
     """
@@ -517,6 +527,13 @@ class ServerSettingsAdminRead(
         description=(
             "Refuse a new password found in a known data breach, checked against the Have I Been Pwned range API "
             "with a 5-character hash prefix; allowed when the service is unreachable (true - yes, false - no)"
+        ),
+    )
+    require_mfa: server_settings_contracts.RequireMfa = Field(
+        ...,
+        description=(
+            "Which accounts must have MFA: off, administrators or everyone. An account it covers without MFA can "
+            "only enrol it and sign out"
         ),
     )
     step_up_fields: list[StrictStr] = Field(

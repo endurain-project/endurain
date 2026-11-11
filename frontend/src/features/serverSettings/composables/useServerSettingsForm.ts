@@ -75,6 +75,7 @@ function toFormValues(settings: ServerSettings): ServerSettingsFormValues {
     passwordLengthRegularUsers: settings.passwordLengthRegularUsers,
     passwordLengthAdminUsers: settings.passwordLengthAdminUsers,
     passwordBreachCheckEnabled: settings.passwordBreachCheckEnabled,
+    requireMfa: settings.requireMfa,
     geocodingService: settings.geocodingService,
     geocodingHost: settings.geocodingHost ?? '',
     geocodingUseHttps: settings.geocodingUseHttps,

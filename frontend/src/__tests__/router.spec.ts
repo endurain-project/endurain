@@ -150,6 +150,62 @@ describe('authGuard', () => {
     expect(result).toEqual({ name: 'home' })
   })
 
+  describe('MFA enrolment', () => {
+    /**
+     * Builds a named route location, so the guard can tell the enrolment route apart.
+     *
+     * @param name - Route name.
+     * @returns A route location accepted by {@link authGuard}.
+     */
+    function namedRoute(name: string): RouteLocationNormalized {
+      return { ...routeTo({ requiresAuth: true }, `/${name}`), name }
+    }
+
+    it('sends a signed-in user the server requires to enrol to the enrolment page, from anywhere', async () => {
+      const auth = useAuthStore()
+      auth.isReady = true
+      auth.isAuthenticated = true
+      auth.requireMfaEnrolment()
+
+      const result = await authGuard(namedRoute('activities'))
+
+      expect(result).toEqual({ name: 'mfa-enrolment' })
+    })
+
+    it('lets the user open the enrolment page', async () => {
+      const auth = useAuthStore()
+      auth.isReady = true
+      auth.isAuthenticated = true
+      auth.requireMfaEnrolment()
+
+      const result = await authGuard(namedRoute('mfa-enrolment'))
+
+      expect(result).toBe(true)
+    })
+
+    it('lets the user go anywhere again once enrolment is complete', async () => {
+      const auth = useAuthStore()
+      auth.isReady = true
+      auth.isAuthenticated = true
+      auth.requireMfaEnrolment()
+      auth.completeMfaEnrolment()
+
+      const result = await authGuard(namedRoute('activities'))
+
+      expect(result).toBe(true)
+    })
+
+    it('does not trap a visitor who is not signed in', async () => {
+      const auth = useAuthStore()
+      auth.isReady = true
+      auth.requireMfaEnrolment()
+
+      const result = await authGuard({ ...namedRoute('login'), meta: { requiresAuth: false } })
+
+      expect(result).toBe(true)
+    })
+  })
+
   describe('first-run onboarding', () => {
     const onboardingRoute = { requiresAuth: false, guestOnly: true }
 

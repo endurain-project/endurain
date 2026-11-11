@@ -39,6 +39,9 @@ export type Units = Schemas['Units']
 /** Currency, mirrored from the backend enum (`euro` | `dollar` | `pound`). */
 export type Currency = Schemas['Currency']
 
+/** Which accounts the server requires to have MFA, mirrored from the backend enum. */
+export type RequireMfa = Schemas['RequireMfa']
+
 /** Reverse-geocoding service, mirrored from the backend enum (`nominatim` | `photon` | `geocode`). */
 export type GeocodingService = Schemas['GeocodingService']
 
@@ -73,6 +76,7 @@ export type GeocodingService = Schemas['GeocodingService']
  * @property passwordLengthRegularUsers - Minimum password length for regular users.
  * @property passwordLengthAdminUsers - Minimum password length for admin users.
  * @property passwordBreachCheckEnabled - Whether a new password found in a known data breach is refused.
+ * @property requireMfa - Which accounts must have MFA: none, the administrators or everyone.
  * @property geocodingService - Reverse-geocoding service.
  * @property geocodingHost - Host (and optional port) of the geocoding service, or null for its default host.
  * @property geocodingUseHttps - Whether the geocoding host is addressed over HTTPS.
@@ -115,6 +119,7 @@ export interface ServerSettings {
   passwordLengthRegularUsers: number
   passwordLengthAdminUsers: number
   passwordBreachCheckEnabled: boolean
+  requireMfa: RequireMfa
   geocodingService: GeocodingService
   geocodingHost: string | null
   geocodingUseHttps: boolean

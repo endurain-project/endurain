@@ -13,7 +13,9 @@ import modules.auth.access_tokens.integration_service as access_tokens_integrati
 import modules.auth.api_keys.integration_service as api_keys_integration
 import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.event_publishers as authentication_event_publishers
+import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.sessions.integration_service as sessions_integration
+import modules.server_settings.contracts as server_settings_contracts
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
@@ -29,10 +31,34 @@ from modules.auth.contracts import (
 logger = core_logger.get_logger(__name__)
 
 
+def _must_enrol_mfa(
+    user: users_schema.UserRead, require_mfa: server_settings_contracts.RequireMfa, db: Session
+) -> bool:
+    """Tell whether the server requires MFA of an account that has none.
+
+    Read at every resolution, from the user and settings rows it already reads, so enrolling MFA or changing the
+    setting takes effect on the next request and no token carries a stale answer. An account the setting does not
+    cover costs no query; a covered one costs one indexed lookup.
+
+    Args:
+        user: The user read model.
+        require_mfa: Which accounts must have MFA.
+        db: Database session.
+
+    Returns:
+        True when the setting covers the account and it has not enrolled a second factor.
+    """
+    if not require_mfa.covers(is_admin=user.access_type == "admin"):
+        return False
+    return not mfa_integration.get_mfa_enabled_for_users([user.id], db).get(user.id, False)
+
+
 def _build_principal(
     user: users_schema.UserRead,
     scopes: list[str],
     credential: (PasswordCred | AccessTokenCred | ApiKeyCred | SessionCookieCred | OAuthCred),
+    *,
+    mfa_enrolment_required: bool,
 ) -> Principal:
     """Build a ``Principal`` from a user read model.
 
@@ -40,6 +66,7 @@ def _build_principal(
         user: The user read model.
         scopes: List of granted OAuth2 scope strings.
         credential: Typed credential variant.
+        mfa_enrolment_required: Whether the server requires MFA of the account and it has none.
 
     Returns:
         Principal: Frozen principal ready to cache on
@@ -53,6 +80,7 @@ def _build_principal(
         is_superuser=user.access_type == "admin",
         scopes=frozenset(scopes),
         credential=credential,
+        mfa_enrolment_required=mfa_enrolment_required,
     )
 
 
@@ -107,8 +135,9 @@ def resolve_from_access_token(
 
     # The access token can outlive the idle window, and a policy change reaches sessions that already exist, so the
     # timeouts are checked against the current policy on every request, as a refresh does.
+    policy = server_settings_integration.get_access_policy(db)
     try:
-        sessions_integration.validate_session_timeout(session, server_settings_integration.get_session_policy(db))
+        sessions_integration.validate_session_timeout(session, policy.session)
     except core_exceptions.UnauthenticatedError as err:
         logger.warning(
             "Access token refused: its session timed out for user <user_id>",
@@ -125,6 +154,7 @@ def resolve_from_access_token(
             & set(access_tokens_integration.scopes_for_access_type(user.access_type))
         ),
         AccessTokenCred(session_id=sid),
+        mfa_enrolment_required=_must_enrol_mfa(user, policy.require_mfa, db),
     )
 
 
@@ -278,4 +308,5 @@ def resolve_from_api_key(
             api_key_id=db_key.id,
             key_prefix=db_key.key_prefix,
         ),
+        mfa_enrolment_required=_must_enrol_mfa(user, server_settings_integration.get_access_policy(db).require_mfa, db),
     )

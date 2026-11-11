@@ -39,6 +39,7 @@ class ServerSettings(Base):
         password_length_admin_users: Min password length for
             admin users.
         password_breach_check_enabled: Refuse new passwords found in a known data breach.
+        require_mfa: Which accounts must have MFA (off, administrators, everyone).
         geocoding_service: Reverse-geocoding service.
         geocoding_host: Geocoding service host (NULL - default host).
         geocoding_use_https: Address the geocoding host over HTTPS.
@@ -175,6 +176,13 @@ class ServerSettings(Base):
         nullable=False,
         comment="Refuse new passwords found in a known data breach (true - yes, false - no)",
     )
+    require_mfa: Mapped[str] = mapped_column(
+        String(20),
+        default="off",
+        server_default="off",
+        nullable=False,
+        comment="Require MFA of accounts without it (off, administrators, everyone)",
+    )
 
     geocoding_service: Mapped[str] = mapped_column(
         String(20),
@@ -299,6 +307,7 @@ class ServerSettings(Base):
         ),
         CheckConstraint("geocoding_rate_limit BETWEEN 0 AND 100", name="geocoding_rate_limit_check"),
         CheckConstraint("geocoding_service IN ('nominatim', 'photon', 'geocode')", name="geocoding_service_check"),
+        CheckConstraint("require_mfa IN ('off', 'administrators', 'everyone')", name="require_mfa_check"),
     )
 
 

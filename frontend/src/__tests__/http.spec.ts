@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { clearAuthTokens, getAccessToken, getCsrfToken, setAuthTokens } from '@/services/authTokens'
 import { apiFetch, HttpError } from '@/services/http'
+import { onMfaEnrolmentRequired } from '@/services/mfaEnrolment'
 import { onSessionExpired } from '@/services/sessionExpiry'
 
 vi.mock('@/services/runtime', () => ({
@@ -56,6 +57,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals()
   onSessionExpired(null)
+  onMfaEnrolmentRequired(null)
 })
 
 describe('apiFetch', () => {
@@ -433,5 +435,37 @@ describe('RFC 9457 problem documents', () => {
       type: null,
       requestId: null,
     })
+  })
+})
+
+describe('apiFetch when the server requires MFA enrolment', () => {
+  const ENROLMENT_REQUIRED = 'urn:endurain:error:mfa-enrolment-required'
+
+  it('signals once and still rejects with the problem type', async () => {
+    const onRequired = vi.fn<() => void>()
+    onMfaEnrolmentRequired(onRequired)
+    fetchMock.mockResolvedValue(jsonResponse({ type: ENROLMENT_REQUIRED, detail: 'Set up' }, 403))
+
+    await expect(apiFetch('/data')).rejects.toMatchObject({ status: 403, type: ENROLMENT_REQUIRED })
+    expect(onRequired).toHaveBeenCalledTimes(1)
+    // It is not a token problem: nothing is refreshed.
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not signal for any other 403', async () => {
+    const onRequired = vi.fn<() => void>()
+    onMfaEnrolmentRequired(onRequired)
+    fetchMock.mockResolvedValue(
+      jsonResponse({ type: 'urn:endurain:error:permission-denied', detail: 'no' }, 403),
+    )
+
+    await expect(apiFetch('/data')).rejects.toMatchObject({ status: 403 })
+    expect(onRequired).not.toHaveBeenCalled()
+  })
+
+  it('does nothing when no handler is registered', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ type: ENROLMENT_REQUIRED, detail: 'Set up' }, 403))
+
+    await expect(apiFetch('/data')).rejects.toBeInstanceOf(HttpError)
   })
 })

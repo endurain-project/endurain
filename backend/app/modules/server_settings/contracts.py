@@ -7,6 +7,7 @@ apart also keeps the generated OpenAPI free of internal types.
 
 from dataclasses import dataclass
 from datetime import timedelta
+from enum import StrEnum
 
 
 @dataclass(frozen=True)
@@ -56,3 +57,43 @@ class AuditRetention:
 
     retention_days: int
     legal_hold: bool
+
+
+class RequireMfa(StrEnum):
+    """Which accounts the server requires to have MFA.
+
+    Attributes:
+        OFF: No account is required to.
+        ADMINISTRATORS: Administrators are.
+        EVERYONE: Every account is.
+    """
+
+    OFF = "off"
+    ADMINISTRATORS = "administrators"
+    EVERYONE = "everyone"
+
+    def covers(self, *, is_admin: bool) -> bool:
+        """Return whether the requirement applies to an account.
+
+        Args:
+            is_admin: Whether the account is an administrator.
+
+        Returns:
+            True when the account must have MFA.
+        """
+        if self is RequireMfa.EVERYONE:
+            return True
+        return self is RequireMfa.ADMINISTRATORS and is_admin
+
+
+@dataclass(frozen=True)
+class AccessPolicy:
+    """What the server decides about a request's credential, read once per request.
+
+    Attributes:
+        session: How long tokens and sessions live.
+        require_mfa: Which accounts must have MFA.
+    """
+
+    session: SessionPolicy
+    require_mfa: RequireMfa

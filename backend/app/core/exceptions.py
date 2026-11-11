@@ -209,6 +209,18 @@ class MfaRequiredError(PermissionDeniedError):
     default_detail = "MFA verification required"
 
 
+class MfaEnrolmentRequiredError(PermissionDeniedError):
+    """The server requires MFA of this account, which has not enrolled a second factor.
+
+    Renders as ``403``. Clients branch on the ``mfa-enrolment-required`` problem type to send the user to enrol; the
+    account may still make the requests enrolment needs, and sign out. It is not the ``mfa-required`` problem, which
+    asks for a code from an account that has MFA.
+    """
+
+    code = "mfa-enrolment-required"
+    default_detail = "Set up two-step verification to continue"
+
+
 class EmailVerificationDisabledError(PermissionDeniedError):
     """A sign-up confirmation arrived while email verification is turned off on this server.
 

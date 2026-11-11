@@ -20,6 +20,7 @@ import modules.auth.account_security.integration_service as account_security_int
 import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.integration_service as authentication_integration
+import modules.auth.constants as auth_constants
 import modules.auth.contracts as auth_contracts
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.identity_providers.contracts as identity_providers_contracts
@@ -72,12 +73,63 @@ def _require_scopes(granted: Iterable[str], required: SecurityScopes) -> None:
         raise error
 
 
+def _matches_template(template: list[str], segments: list[str]) -> bool:
+    """Tell whether a path's segments fit a route template's, a ``{...}`` segment fitting any non-empty one."""
+    return len(template) == len(segments) and all(
+        wanted == actual or (wanted.startswith("{") and bool(actual))
+        for wanted, actual in zip(template, segments, strict=True)
+    )
+
+
+def _is_mfa_enrolment_request(request: Request) -> bool:
+    """Tell whether a request is one an account that must enrol MFA may make.
+
+    The request is matched on its method and path, not on the matched route, whose template does not carry the
+    prefix its router is included under. A ``{...}`` segment of a template matches any one segment.
+
+    Args:
+        request: The request.
+
+    Returns:
+        True when the request is one of ``auth_constants.MFA_ENROLMENT_ROUTES``.
+    """
+    root_path = request.scope.get("root_path", "")
+    path = request.scope["path"].removeprefix(root_path).removeprefix(core_config.ROOT_PATH)
+    segments = path.split("/")
+    return any(
+        method == request.method and _matches_template(template.split("/"), segments)
+        for method, template in auth_constants.MFA_ENROLMENT_ROUTES
+    )
+
+
+def _require_mfa_enrolment_exempt(principal: auth_contracts.Principal, request: Request) -> None:
+    """Refuse a request from an account that must enrol MFA, unless enrolment needs it.
+
+    Every authenticated request passes here, so the refusal is stated once rather than per route.
+
+    Args:
+        principal: The resolved caller.
+        request: The request, whose method and path say what it is for.
+
+    Raises:
+        MfaEnrolmentRequiredError: When the server requires MFA of the account, it has none and the request is not
+            one enrolment needs.
+    """
+    if not principal.mfa_enrolment_required or _is_mfa_enrolment_request(request):
+        return
+    logger.warning(
+        "Request refused: user <user_id> must enrol MFA", extra=core_logger.context(user_id=principal.user_id)
+    )
+    raise core_exceptions.MfaEnrolmentRequiredError()
+
+
 def _resolve_and_cache_principal(access_token: str, request: Request, db: Session) -> auth_contracts.Principal:
-    """Resolve the request principal once and cache it on request state."""
+    """Resolve the request principal once and cache it on request state, and refuse it while it must enrol MFA."""
     principal = getattr(request.state, "principal", None)
     if principal is None:
         principal = authentication_integration.resolve_from_access_token(access_token, db)
         request.state.principal = principal
+    _require_mfa_enrolment_exempt(principal, request)
     return principal
 
 
@@ -156,6 +208,7 @@ def validate_access_token_or_api_key(
     """Resolve a JWT or API key, preserving request-level principal caching."""
     cached = getattr(request.state, "principal", None)
     if cached is not None:
+        _require_mfa_enrolment_exempt(cached, request)
         return AuthContext(cached.user_id, list(cached.scopes), "api_key" if cached.is_api_key() else "jwt")
     if access_token is not None:
         principal = authentication_integration.resolve_from_access_token(access_token, db)
@@ -176,6 +229,7 @@ def validate_access_token_or_api_key(
         principal = authentication_integration.resolve_from_api_key(raw_key, request, db)
         auth_type = "api_key"
     request.state.principal = principal
+    _require_mfa_enrolment_exempt(principal, request)
     return AuthContext(principal.user_id, list(principal.scopes), auth_type)
 
 

@@ -73,6 +73,21 @@ class TestServerSettingsModel:
         assert str(column.server_default.arg) == "false"
         assert column.nullable is False
 
+    def test_require_mfa_is_off_by_default(self):
+        """No install forces MFA on its users until an administrator opts in (docs/features/server-settings.md)."""
+        column = server_settings_models.ServerSettings.require_mfa
+        assert column.default.arg == "off"
+        assert str(column.server_default.arg) == "off"
+        assert column.nullable is False
+
+    def test_require_mfa_is_restricted_to_its_three_values_by_a_check_constraint(self):
+        checks = {
+            constraint.name: str(constraint.sqltext)
+            for constraint in server_settings_models.ServerSettings.__table__.constraints
+            if constraint.name
+        }
+        assert checks["require_mfa_check"] == "require_mfa IN ('off', 'administrators', 'everyone')"
+
     def test_sso_sign_up_is_off_by_default(self):
         """A public identity provider must not open registration until an administrator opts in
         (docs/features/single-sign-on.md)."""
@@ -111,6 +126,7 @@ class TestServerSettingsModel:
             "api_key_max_lifetime_days_check",
             "read_notification_retention_days_check",
             "audit_retention_days_check",
+            "require_mfa_check",
         }
 
 

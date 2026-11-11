@@ -10488,6 +10488,17 @@ export interface components {
             outgoing?: components["schemas"]["FollowRelationshipRead"] | null;
         };
         /**
+         * RequireMfa
+         * @description Which accounts the server requires to have MFA.
+         *
+         *     Attributes:
+         *         OFF: No account is required to.
+         *         ADMINISTRATORS: Administrators are.
+         *         EVERYONE: Every account is.
+         * @enum {string}
+         */
+        RequireMfa: "off" | "administrators" | "everyone";
+        /**
          * ServerSettingsAdminRead
          * @description Complete server settings response for admins; API keys are never returned.
          *
@@ -10503,6 +10514,7 @@ export interface components {
          *         signup_require_admin_approval: Require admin approval for new sign-ups.
          *         signup_require_email_verification: Require email verification for new sign-ups.
          *         password_breach_check_enabled: Refuse a new password found in a known data breach.
+         *         require_mfa: Which accounts must have MFA (off, administrators, everyone).
          *         step_up_fields: The settings whose change needs the administrator's step-up; read-only.
          *         logs_viewer_enabled: Whether the server log can be read through the API on this deployment; read-only.
          */
@@ -10623,6 +10635,8 @@ export interface components {
              * @description Refresh token lifetime in days
              */
             refresh_token_expire_days: number;
+            /** @description Which accounts must have MFA: off, administrators or everyone. An account it covers without MFA can only enrol it and sign out */
+            require_mfa: components["schemas"]["RequireMfa"];
             /**
              * Session Absolute Timeout Hours
              * @description Hours after which a session ends whatever its activity
@@ -10804,6 +10818,8 @@ export interface components {
              * @description Refresh token lifetime in days
              */
             refresh_token_expire_days: number;
+            /** @description Which accounts must have MFA: off, administrators or everyone. An account it covers without MFA can only enrol it and sign out */
+            require_mfa: components["schemas"]["RequireMfa"];
             /**
              * Session Absolute Timeout Hours
              * @description Hours after which a session ends whatever its activity

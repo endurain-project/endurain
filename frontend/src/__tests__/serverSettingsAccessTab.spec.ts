@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 
 import i18n from '@/i18n'
+import { SETTINGS_SEARCH_ENTRIES } from '@/features/serverSettings/searchIndex'
 import AccessTab from '@/features/serverSettings/components/tabs/AccessTab.vue'
 import {
   provideServerSettingsForm,
@@ -21,6 +22,7 @@ function mountAccessTab(idleEnabled: boolean) {
       passwordLengthRegularUsers: 15,
       passwordLengthAdminUsers: 15,
       passwordBreachCheckEnabled: false,
+      requireMfa: 'off',
       sessionIdleTimeoutEnabled: idleEnabled,
       sessionIdleTimeoutHours: '24',
       sessionAbsoluteTimeoutHours: '720',
@@ -90,5 +92,29 @@ describe('AccessTab password policy', () => {
 
     expect(wrapper.find('[data-setting="password-breach-check"]').exists()).toBe(true)
     expect(wrapper.get('[data-setting="section-password"]').text()).toContain('haveibeenpwned.com')
+  })
+})
+
+describe('AccessTab MFA requirement', () => {
+  it('offers off, administrators and everyone, starting from the saved value', () => {
+    const wrapper = mountAccessTab(false)
+
+    const select = wrapper.get('[data-setting="require-mfa"] select')
+    expect(
+      wrapper.findAll('[data-setting="require-mfa"] option').map((o) => o.attributes('value')),
+    ).toEqual(['off', 'administrators', 'everyone'])
+    expect((select.element as HTMLSelectElement).value).toBe('off')
+  })
+
+  it('says what the requirement does to an account without MFA', () => {
+    const wrapper = mountAccessTab(false)
+
+    expect(wrapper.get('[data-setting="section-mfa"]').text()).toContain(
+      'set up two-step verification',
+    )
+  })
+
+  it('can be searched', () => {
+    expect(SETTINGS_SEARCH_ENTRIES.some((entry) => entry.id === 'require-mfa')).toBe(true)
   })
 })

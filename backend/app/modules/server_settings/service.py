@@ -93,6 +93,25 @@ def get_server_settings(db: Session, *, for_update: bool = False) -> server_sett
     return server_settings
 
 
+def _session_policy(settings: server_settings_schema.ServerSettingsRead) -> server_settings_contracts.SessionPolicy:
+    """Build the session policy from the stored settings.
+
+    Args:
+        settings: Settings as stored.
+
+    Returns:
+        The session policy. The idle timeout is None while it is disabled; the absolute timeout always applies.
+    """
+    idle_timeout_enabled = settings.session_idle_timeout_enabled
+    return server_settings_contracts.SessionPolicy(
+        access_token_ttl=timedelta(minutes=settings.access_token_expire_minutes),
+        refresh_token_ttl=timedelta(days=settings.refresh_token_expire_days),
+        idle_timeout=timedelta(hours=settings.session_idle_timeout_hours) if idle_timeout_enabled else None,
+        absolute_timeout=timedelta(hours=settings.session_absolute_timeout_hours),
+        api_key_max_lifetime=timedelta(days=settings.api_key_max_lifetime_days),
+    )
+
+
 def get_session_policy(db: Session) -> server_settings_contracts.SessionPolicy:
     """Return how long tokens and sessions live.
 
@@ -106,14 +125,24 @@ def get_session_policy(db: Session) -> server_settings_contracts.SessionPolicy:
     Raises:
         ServiceUnavailableError: If the settings row does not exist.
     """
+    return _session_policy(get_server_settings(db))
+
+
+def get_access_policy(db: Session) -> server_settings_contracts.AccessPolicy:
+    """Return what the server decides about a request's credential, from one read of the settings.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        The session policy and the MFA requirement.
+
+    Raises:
+        ServiceUnavailableError: If the settings row does not exist.
+    """
     settings = get_server_settings(db)
-    idle_timeout_enabled = settings.session_idle_timeout_enabled
-    return server_settings_contracts.SessionPolicy(
-        access_token_ttl=timedelta(minutes=settings.access_token_expire_minutes),
-        refresh_token_ttl=timedelta(days=settings.refresh_token_expire_days),
-        idle_timeout=timedelta(hours=settings.session_idle_timeout_hours) if idle_timeout_enabled else None,
-        absolute_timeout=timedelta(hours=settings.session_absolute_timeout_hours),
-        api_key_max_lifetime=timedelta(days=settings.api_key_max_lifetime_days),
+    return server_settings_contracts.AccessPolicy(
+        session=_session_policy(settings), require_mfa=server_settings_contracts.RequireMfa(settings.require_mfa)
     )
 
 

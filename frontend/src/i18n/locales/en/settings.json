@@ -345,6 +345,17 @@
       "currencyPound": "Pound (£)",
       "numRecords": "Records per page"
     },
+    "mfa": {
+      "title": "Two-step verification",
+      "require": "Require two-step verification",
+      "requireHint": "An account this covers that has not set up two-step verification must set up two-step verification before it can do anything else. Until then it can only set it up and sign out. The requirement applies from the account's next request.",
+      "options": {
+        "off": "Not required",
+        "administrators": "Administrators only",
+        "everyone": "Everyone"
+      },
+      "enabledWarning": "Accounts covered by this setting that have not set up two-step verification, possibly including yours, are sent to set it up on their next request."
+    },
     "password": {
       "title": "Password policy",
       "lengthRegular": "Minimum length regular users",
@@ -703,6 +714,13 @@
     "mfaCode": "Authentication code",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "Type {phrase} to confirm",
+    "mfaEnrolment": {
+      "title": "Set up two-step verification",
+      "description": "This server requires two-step verification. Set it up to continue using Endurain, or sign out.",
+      "done": "Two-step verification is set up. You can continue.",
+      "continue": "Continue",
+      "signOut": "Sign out"
+    },
     "loadError": {
       "title": "Couldn't load your security settings",
       "description": "Something went wrong. You can try again."

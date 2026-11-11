@@ -49,6 +49,7 @@ def _stored(**overrides) -> server_settings_schema.ServerSettingsRead:
         signup_require_admin_approval=True,
         signup_require_email_verification=True,
         password_breach_check_enabled=False,
+        require_mfa="off",
         signup_sso_enabled=False,
         sso_enabled=False,
         local_login_enabled=True,
@@ -181,6 +182,7 @@ _SECURITY_CHANGES = {
     "signup_require_admin_approval": False,
     "signup_require_email_verification": False,
     "password_breach_check_enabled": True,
+    "require_mfa": "administrators",
     "password_length_regular_users": 10,
     "password_length_admin_users": 14,
     "session_idle_timeout_enabled": True,
@@ -1602,6 +1604,7 @@ class TestGetServerSettingsForPublic:
             signup_require_admin_approval=True,
             signup_require_email_verification=True,
             password_breach_check_enabled=False,
+            require_mfa="off",
             signup_sso_enabled=False,
             sso_enabled=False,
             local_login_enabled=True,
@@ -1710,6 +1713,19 @@ class TestSettingsAudit:
 
         entry = audit.assert_audited(server_settings_audit_actions.SETTINGS_UPDATE.id)
         assert entry.details == {"changed_fields": ["password_breach_check_enabled"]}
+
+    def test_changing_the_mfa_requirement_is_audited_by_field_name_only(self, edit_env):
+        with jasil_testing.capture_audit() as audit:
+            server_settings_service.edit_server_settings(
+                _full_edit(edit_env.stored, require_mfa="everyone"),
+                auth_schema.StepUpVerification(current_password="admin-password"),
+                MagicMock(),
+                MagicMock(),
+                if_match="*",
+            )
+
+        entry = audit.assert_audited(server_settings_audit_actions.SETTINGS_UPDATE.id)
+        assert entry.details == {"changed_fields": ["require_mfa"]}
 
     def test_the_row_is_staged_before_the_commit_of_a_tile_change(self, edit_env):
         db = MagicMock()
@@ -1901,3 +1917,39 @@ class TestMailSettingsStepUp:
         mail_env.problems.assert_not_called()
         mail_env.write.assert_not_called()
         db.commit.assert_not_called()
+
+
+class TestGetAccessPolicy:
+    """The per-request read that resolves a principal: the session policy and the MFA requirement, in one read."""
+
+    @pytest.mark.parametrize("value", ["off", "administrators", "everyone"])
+    def test_it_carries_the_session_policy_and_the_mfa_requirement(self, value):
+        with patch.object(
+            server_settings_service.server_settings_crud, "get_server_settings", return_value=_stored(require_mfa=value)
+        ) as read:
+            policy = server_settings_service.get_access_policy(MagicMock())
+
+        read.assert_called_once()
+        assert policy.require_mfa == server_settings_contracts.RequireMfa(value)
+        assert policy.session.access_token_ttl == timedelta(minutes=15)
+
+    def test_a_missing_settings_row_is_a_service_error(self):
+        with (
+            patch.object(server_settings_service.server_settings_crud, "get_server_settings", return_value=None),
+            pytest.raises(core_exceptions.ServiceUnavailableError),
+        ):
+            server_settings_service.get_access_policy(MagicMock())
+
+
+class TestRequireMfaCoverage:
+    """Who the setting covers."""
+
+    @pytest.mark.parametrize(
+        ("value", "admin", "regular"),
+        [("off", False, False), ("administrators", True, False), ("everyone", True, True)],
+    )
+    def test_each_value_covers_its_accounts(self, value, admin, regular):
+        policy_value = server_settings_contracts.RequireMfa(value)
+
+        assert policy_value.covers(is_admin=True) is admin
+        assert policy_value.covers(is_admin=False) is regular

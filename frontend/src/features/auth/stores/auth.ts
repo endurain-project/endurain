@@ -108,6 +108,8 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = ref(false)
   /** Set when the page-load restore failed for a reason other than a refused session. */
   const restoreFailed = ref(false)
+  /** Set while the server requires MFA of this account and it has none: the app shows only the enrolment page. */
+  const mfaEnrolmentRequired = ref(false)
 
   /**
    * Completes a token response by storing tokens and hydrating the profile.
@@ -253,11 +255,22 @@ export const useAuthStore = defineStore('auth', () => {
    */
   function clearLocalSession(): void {
     isAuthenticated.value = false
+    mfaEnrolmentRequired.value = false
     sessionId.value = null
     clearAuthTokens()
     clearUserScopedStorage()
     useRealtime().disconnect()
     queryClient.clear()
+  }
+
+  /** Records that the server requires MFA of this account, so navigation is limited to the enrolment page. */
+  function requireMfaEnrolment(): void {
+    mfaEnrolmentRequired.value = true
+  }
+
+  /** Records that the account has MFA now, so the whole app is open to it again. */
+  function completeMfaEnrolment(): void {
+    mfaEnrolmentRequired.value = false
   }
 
   /**
@@ -320,6 +333,9 @@ export const useAuthStore = defineStore('auth', () => {
     isReady,
     isAuthenticated,
     restoreFailed,
+    mfaEnrolmentRequired,
+    requireMfaEnrolment,
+    completeMfaEnrolment,
     completeTokenLogin,
     login,
     verifyMfa,

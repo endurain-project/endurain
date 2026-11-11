@@ -1,6 +1,7 @@
 import type { AuthTokenResponse, Schemas } from '@/types'
 
 import { clearAuthTokens, getAccessToken, getCsrfToken, setAuthTokens } from './authTokens'
+import { emitMfaEnrolmentRequired } from './mfaEnrolment'
 import { getApiBaseUrl } from './runtime'
 import { emitSessionExpired } from './sessionExpiry'
 
@@ -13,6 +14,9 @@ const REFRESH_PATH = '/auth/refresh'
 
 /** Problem type of a 401 caused by the bearer token itself (missing, expired, malformed, session ended). */
 const INVALID_TOKEN_PROBLEM = 'urn:endurain:error:invalid-token'
+
+/** Problem type of a 403 saying the server requires MFA of this account, which has none yet. */
+const MFA_ENROLMENT_REQUIRED_PROBLEM = 'urn:endurain:error:mfa-enrolment-required'
 
 /**
  * Default per-request timeout. Caps a hung backend so requests fail fast
@@ -255,6 +259,9 @@ async function rawApiFetch<T>(path: string, init: ApiFetchOptions = {}): Promise
 
   if (!response.ok) {
     const parsed = await parseError(response)
+    if (parsed.type === MFA_ENROLMENT_REQUIRED_PROBLEM) {
+      emitMfaEnrolmentRequired()
+    }
     throw new HttpError(
       response.status,
       response.statusText,
@@ -300,6 +307,9 @@ async function rawApiFetch<T>(path: string, init: ApiFetchOptions = {}): Promise
  * missing, expired, malformed or its session ended) refreshes the tokens once and replays the
  * request. Any other 401, such as a wrong step-up password, is thrown as-is. Opt out with
  * `auth: false` or `retryOnUnauthorized: false`; `/auth/refresh` never retries.
+ *
+ * A 403 whose problem type is `urn:endurain:error:mfa-enrolment-required` (the server requires MFA of this
+ * account, which has none) signals the handler registered with `onMfaEnrolmentRequired`, then is thrown as-is.
  *
  * @typeParam T - Expected shape of the parsed JSON response.
  * @param path - Path relative to {@link API_BASE_URL} (e.g. `/config`).

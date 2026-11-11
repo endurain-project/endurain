@@ -158,6 +158,21 @@ def get_session_policy(db: Session) -> server_settings_contracts.SessionPolicy:
     return server_settings_service.get_session_policy(db)
 
 
+def get_access_policy(db: Session) -> server_settings_contracts.AccessPolicy:
+    """Return what the server decides about a request's credential, from one read of the settings.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        The session policy and the MFA requirement.
+
+    Raises:
+        ServiceUnavailableError: If the settings row does not exist.
+    """
+    return server_settings_service.get_access_policy(db)
+
+
 def get_read_notification_retention_days(db: Session) -> int:
     """Return the age in days after which read notifications are purged.
 

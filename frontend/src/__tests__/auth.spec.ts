@@ -341,4 +341,32 @@ describe('auth store', () => {
     // Already cleared — a second signal reports no active session.
     expect(auth.handleSessionExpired()).toBe(false)
   })
+
+  describe('MFA enrolment', () => {
+    it('starts without an enrolment to complete', () => {
+      expect(useAuthStore().mfaEnrolmentRequired).toBe(false)
+    })
+
+    it('remembers that the server requires it until it is completed', () => {
+      const auth = useAuthStore()
+
+      auth.requireMfaEnrolment()
+      expect(auth.mfaEnrolmentRequired).toBe(true)
+
+      auth.completeMfaEnrolment()
+      expect(auth.mfaEnrolmentRequired).toBe(false)
+    })
+
+    it('forgets it with the session', async () => {
+      vi.mocked(loginWithPassword).mockResolvedValue(tokenResponse)
+      vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
+      const auth = useAuthStore()
+      await auth.login('demo', 'password123')
+      auth.requireMfaEnrolment()
+
+      auth.clearLocalSession()
+
+      expect(auth.mfaEnrolmentRequired).toBe(false)
+    })
+  })
 })

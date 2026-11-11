@@ -17,6 +17,7 @@ import modules.auth.authentication.service as authentication_service
 import modules.auth.constants as auth_constants
 import modules.auth.login_audit.audit_actions as login_audit_actions
 import modules.auth.mfa.pending_login_store as pending_login_store
+import modules.server_settings.contracts as server_settings_contracts
 from tests._helpers.auth import pending_login
 
 _SERVICE = "modules.auth.authentication.service"
@@ -47,6 +48,10 @@ def _resolve(db_key, *, user=_USER):
         patch(f"{_PRINCIPAL}.api_keys_integration.hash_api_key", return_value=_KEY_HASH),
         patch(f"{_PRINCIPAL}.api_keys_integration.get_api_key_by_hash", return_value=db_key),
         patch(f"{_PRINCIPAL}.users_integration.require_user", return_value=user),
+        patch(
+            f"{_PRINCIPAL}.server_settings_integration.get_access_policy",
+            return_value=MagicMock(require_mfa=server_settings_contracts.RequireMfa.OFF),
+        ),
     ):
         return principal_service.resolve_from_api_key("raw-secret-key", "/api/v1/x", "127.0.0.1", MagicMock())
 

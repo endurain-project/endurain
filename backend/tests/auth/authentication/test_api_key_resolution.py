@@ -1,7 +1,7 @@
 """An API key stored in the database resolves to its owner's principal."""
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -10,6 +10,7 @@ import modules.auth.api_keys.crud as api_keys_crud
 import modules.auth.api_keys.schema as api_keys_schema
 import modules.auth.api_keys.utils as api_keys_utils
 import modules.auth.authentication.principal_service as principal_service
+import modules.server_settings.contracts as server_settings_contracts
 from tests._helpers.db import create_sqlite_session_factory, ensure_user
 
 _USER_ID = 5
@@ -26,6 +27,16 @@ class _NaiveUtcDatetime(datetime):
 @pytest.fixture(autouse=True)
 def _sqlite_naive_clock():
     with patch.object(principal_service, "datetime", _NaiveUtcDatetime):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def _mfa_not_required():
+    with patch.object(
+        principal_service.server_settings_integration,
+        "get_access_policy",
+        return_value=MagicMock(require_mfa=server_settings_contracts.RequireMfa.OFF),
+    ):
         yield
 
 
@@ -64,6 +75,22 @@ class TestResolveFromApiKey:
         assert principal.user_id == _USER_ID
         assert principal.credential.api_key_id == stored.id
         assert principal.scopes == frozenset({"activities:upload"})
+
+    def test_a_key_of_an_account_that_must_enrol_mfa_carries_it(self, session_factory):
+        raw_key = api_keys_utils.generate_api_key()
+        _store_key(session_factory, raw_key)
+
+        with (
+            session_factory() as db,
+            patch.object(
+                principal_service.server_settings_integration,
+                "get_access_policy",
+                return_value=MagicMock(require_mfa=server_settings_contracts.RequireMfa.EVERYONE),
+            ),
+        ):
+            principal = principal_service.resolve_from_api_key(raw_key, "/api/v1/x", "127.0.0.1", db)
+
+        assert principal.mfa_enrolment_required is True
 
     def test_a_key_holds_no_scope_its_owners_role_lacks(self, session_factory):
         raw_key = api_keys_utils.generate_api_key()

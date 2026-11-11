@@ -47,6 +47,7 @@ class TestReadServerSettings:
             signup_require_admin_approval=True,
             signup_require_email_verification=True,
             password_breach_check_enabled=False,
+            require_mfa="off",
             signup_sso_enabled=False,
             sso_enabled=False,
             local_login_enabled=True,
@@ -131,6 +132,7 @@ class TestEditServerSettings:
             signup_require_admin_approval=False,
             signup_require_email_verification=True,
             password_breach_check_enabled=False,
+            require_mfa="off",
             signup_sso_enabled=False,
             sso_enabled=False,
             local_login_enabled=True,
@@ -178,6 +180,7 @@ class TestEditServerSettings:
                 "signup_require_admin_approval": False,
                 "signup_require_email_verification": True,
                 "password_breach_check_enabled": False,
+                "require_mfa": "off",
                 "signup_sso_enabled": False,
                 "sso_enabled": False,
                 "local_login_enabled": True,
@@ -237,6 +240,7 @@ class TestEditServerSettings:
                 "signup_require_admin_approval": False,
                 "signup_require_email_verification": True,
                 "password_breach_check_enabled": False,
+                "require_mfa": "off",
                 "signup_sso_enabled": False,
                 "sso_enabled": False,
                 "local_login_enabled": True,
@@ -283,6 +287,7 @@ class TestEditServerSettingsStepUp:
             "signup_require_admin_approval": True,
             "signup_require_email_verification": True,
             "password_breach_check_enabled": False,
+            "require_mfa": "off",
             "signup_sso_enabled": False,
             "sso_enabled": False,
             "local_login_enabled": True,
@@ -346,6 +351,23 @@ class TestEditServerSettingsStepUp:
         assert "admin-password" not in response.text
 
     @patch("modules.server_settings.router.server_settings_service.edit_server_settings")
+    def test_the_mfa_requirement_reaches_the_service_and_comes_back(self, mock_edit, fast_api_client):
+        mock_edit.return_value = self._admin_read().model_copy(update={"require_mfa": "everyone"})
+
+        response = self._put(fast_api_client, self._body(require_mfa="everyone", step_up=STEP_UP))
+
+        assert response.status_code == 200
+        assert mock_edit.call_args.args[0].require_mfa == "everyone"
+        assert response.json()["require_mfa"] == "everyone"
+
+    @patch("modules.server_settings.router.server_settings_service.edit_server_settings")
+    def test_an_unknown_mfa_requirement_is_a_validation_failure(self, mock_edit, fast_api_client):
+        response = self._put(fast_api_client, self._body(require_mfa="admins", step_up=STEP_UP))
+
+        assert response.status_code == 422
+        mock_edit.assert_not_called()
+
+    @patch("modules.server_settings.router.server_settings_service.edit_server_settings")
     def test_a_null_step_up_reaches_the_service_as_none(self, mock_edit, fast_api_client):
         mock_edit.return_value = self._admin_read()
 
@@ -384,6 +406,7 @@ def _edit_body(**overrides) -> dict:
         "signup_require_admin_approval": False,
         "signup_require_email_verification": True,
         "password_breach_check_enabled": False,
+        "require_mfa": "off",
         "signup_sso_enabled": False,
         "sso_enabled": False,
         "local_login_enabled": True,
