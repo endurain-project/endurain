@@ -12,6 +12,7 @@ import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.api_keys.integration_service as api_keys_integration
 import modules.auth.authentication.audit_actions as authentication_audit_actions
+import modules.auth.authentication.constants as authentication_constants
 import modules.auth.authentication.event_publishers as authentication_event_publishers
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.sessions.integration_service as sessions_integration
@@ -273,7 +274,8 @@ def resolve_from_api_key(
         )
         raise core_exceptions.UnauthenticatedError("API key has been revoked", scheme="ApiKey")
 
-    if datetime.now(UTC) > db_key.expires_at:
+    now = datetime.now(UTC)
+    if now > db_key.expires_at:
         _refuse_api_key(
             authentication_audit_actions.ApiKeyRefusalReason.EXPIRED,
             jasil_audit.Outcome.FAILURE,
@@ -288,7 +290,9 @@ def resolve_from_api_key(
         )
         raise core_exceptions.UnauthenticatedError("API key has expired", scheme="ApiKey")
 
-    authentication_event_publishers.publish_api_key_used(db_key.id, db)
+    # Stamped at most once per interval: a key reading data would otherwise write a row on every request.
+    if db_key.last_used_at is None or now - db_key.last_used_at >= authentication_constants.API_KEY_LAST_USED_INTERVAL:
+        authentication_event_publishers.publish_api_key_used(db_key.id, db)
 
     logger.debug(
         "API key authenticated",

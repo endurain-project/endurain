@@ -6,6 +6,42 @@ import pytest
 from pydantic import ValidationError
 
 import modules.auth.api_keys.schema as users_api_keys_schema
+import modules.auth.constants as auth_constants
+
+#: The scopes an API key may hold: the account's own data.
+_ALLOWED = {
+    "account",
+    "activities:read",
+    "activities:write",
+    "activities:upload",
+    "followers:read",
+    "followers:write",
+    "gears:read",
+    "gears:write",
+    "health:read",
+    "health:write",
+    "health-targets:read",
+    "health-targets:write",
+    "notifications:read",
+    "notifications:write",
+    "users:read",
+}
+#: The scopes an API key never holds.
+_EXCLUDED = {
+    "account:export",
+    "account:integrations",
+    "account:security",
+    "identity-providers:read",
+    "identity-providers:write",
+    "server-settings:logs",
+    "server-settings:logs-clear",
+    "server-settings:read",
+    "server-settings:write",
+    "sessions:read",
+    "sessions:write",
+    "users:read-all",
+    "users:write",
+}
 
 
 class TestUsersApiKeyCreate:
@@ -72,66 +108,55 @@ class TestUsersApiKeyCreate:
             )
 
     def test_create_unknown_scope_fails(self):
-        """Test that an unsupported scope string raises a ValueError."""
+        """An unknown scope is refused on the scope it names."""
         with pytest.raises(ValidationError) as exc_info:
             users_api_keys_schema.UserApiKeyCreate(
                 step_up={"current_password": "pw"},
                 name="Test Key",
-                scopes=["totally:invalid_scope"],
+                scopes=["activities:upload", "totally:invalid-scope"],
             )
-        assert "Unsupported API key scopes" in str(exc_info.value)
+        assert [error["loc"] for error in exc_info.value.errors()] == [("scopes", 1)]
 
-    @pytest.mark.parametrize("scope", ["account", "account:export", "account:security"])
-    def test_create_account_scope_fails(self, scope):
-        """Test that JWT-only scopes are rejected for API keys."""
+    @pytest.mark.parametrize("scope", sorted(_ALLOWED))
+    def test_create_accepts_each_allowed_scope(self, scope):
+        """A key may hold any scope over the account's own data."""
+        key = users_api_keys_schema.UserApiKeyCreate(
+            step_up={"current_password": "pw"}, name="Data Key", scopes=[scope]
+        )
+
+        assert key.scopes == [scope]
+
+    def test_create_accepts_every_allowed_scope_at_once(self):
+        """A key may hold every allowed scope together."""
+        key = users_api_keys_schema.UserApiKeyCreate(
+            step_up={"current_password": "pw"}, name="Full Key", scopes=sorted(_ALLOWED)
+        )
+
+        assert set(key.scopes) == _ALLOWED
+
+    @pytest.mark.parametrize("scope", sorted(_EXCLUDED))
+    def test_create_refuses_each_excluded_scope(self, scope):
+        """A key never holds the account's security, export or provider links, nor any administrator scope."""
         with pytest.raises(ValidationError) as exc_info:
             users_api_keys_schema.UserApiKeyCreate(
-                step_up={"current_password": "pw"},
-                name="Account Key",
-                scopes=[scope],
+                step_up={"current_password": "pw"}, name="Escalating Key", scopes=["gears:read", scope]
             )
-        assert "Unsupported API key scopes" in str(exc_info.value)
+        assert [error["loc"] for error in exc_info.value.errors()] == [("scopes", 1)]
 
-    @pytest.mark.parametrize("scope", ["profile", "profile:export", "profile:security"])
+    def test_every_scope_is_decided_as_allowed_or_excluded(self):
+        """A new scope must be placed deliberately: on keys, or kept off them."""
+        assert _ALLOWED.isdisjoint(_EXCLUDED)
+        assert set(auth_constants.SCOPE_DICT) == _ALLOWED | _EXCLUDED
+
+    @pytest.mark.parametrize("scope", ["profile", "profile:export", "profile:security", "health_targets:read"])
     def test_create_with_a_former_scope_name_fails(self, scope):
-        """Test that the names the account scopes had before the rename are refused like any unknown scope."""
-        with pytest.raises(ValidationError) as exc_info:
+        """The names scopes had before their renames are refused like any unknown scope."""
+        with pytest.raises(ValidationError):
             users_api_keys_schema.UserApiKeyCreate(
                 step_up={"current_password": "pw"},
                 name="Old Key",
                 scopes=[scope],
             )
-        assert f"Unsupported API key scopes: {scope}" in str(exc_info.value)
-
-    def test_create_multiple_scopes_with_unsupported_fails(self):
-        """Test that only activities:upload is accepted for API keys."""
-        with pytest.raises(ValidationError) as exc_info:
-            users_api_keys_schema.UserApiKeyCreate(
-                step_up={"current_password": "pw"},
-                name="Multi-scope Key",
-                scopes=["activities:read", "activities:upload", "gears:read"],
-            )
-        assert "Unsupported API key scopes" in str(exc_info.value)
-
-    def test_create_partial_invalid_scope_fails(self):
-        """Test that a mix of valid and invalid scopes fails validation."""
-        with pytest.raises(ValidationError):
-            users_api_keys_schema.UserApiKeyCreate(
-                step_up={"current_password": "pw"},
-                name="Mixed Key",
-                scopes=["activities:upload", "fake:scope"],
-            )
-
-    def test_create_unsupported_scope_message_names_scopes_without_set_repr(self):
-        """The error lists the scope names, not the Python repr of a set."""
-        with pytest.raises(ValidationError) as exc_info:
-            users_api_keys_schema.UserApiKeyCreate(
-                step_up={"current_password": "pw"}, name="Test Key", scopes=["bogus:scope"]
-            )
-        message = str(exc_info.value)
-        assert "bogus:scope" in message
-        assert "activities:upload" in message
-        assert "frozenset" not in message
 
     def test_create_past_expiry_fails(self):
         """An expiry that has already passed is refused."""

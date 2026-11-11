@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from typing import Annotated
 
 import jasil.audit as jasil_audit
-from fastapi import Depends, Path, Query, Request
+from fastapi import Depends, Path, Request
 from fastapi.security import APIKeyHeader, SecurityScopes
 from sqlalchemy.orm import Session
 
@@ -33,20 +33,10 @@ logger = core_logger.get_logger(__name__)
 
 get_bearer_token = authentication_dependencies.get_bearer_token
 header_api_key_scheme = APIKeyHeader(name="X-API-Key", scheme_name="ApiKey", auto_error=False)
-AuthContext = auth_contracts.AuthContext
 ApiKeyId = Annotated[str, Path(min_length=1)]
 IdentityProviderSlug = Annotated[str, Path(min_length=1)]
 AuthSessionId = Annotated[str, Path(min_length=1)]
 set_idp_browser_binding_cookie = identity_providers_dependencies.set_browser_binding_cookie
-
-
-def get_access_token(
-    access_token: Annotated[str | None, Depends(get_bearer_token)],
-) -> str:
-    """Require an access token from the Authorization header."""
-    if access_token is None:
-        raise core_exceptions.InvalidTokenError("Access token missing from Authorization header", scheme="Bearer")
-    return access_token
 
 
 def _require_scopes(granted: Iterable[str], required: SecurityScopes) -> None:
@@ -123,23 +113,81 @@ def _require_mfa_enrolment_exempt(principal: auth_contracts.Principal, request: 
     raise core_exceptions.MfaEnrolmentRequiredError()
 
 
-def _resolve_and_cache_principal(access_token: str, request: Request, db: Session) -> auth_contracts.Principal:
-    """Resolve the request principal once and cache it on request state, and refuse it while it must enrol MFA."""
+def _resolve_principal(
+    request: Request,
+    db: Session,
+    access_token: str | None,
+    api_key_header: str | None,
+) -> auth_contracts.Principal:
+    """Resolve the access token, or else the API key, a request carries.
+
+    The ``?api_key=`` query parameter is read from the request rather than declared, so it is not a parameter of
+    every operation: it is used only when the server allows it and no header is sent.
+
+    Args:
+        request: The request.
+        db: Database session.
+        access_token: The ``Authorization: Bearer`` token, if any. It wins over an API key.
+        api_key_header: The ``X-API-Key`` header, if any.
+
+    Returns:
+        The caller.
+
+    Raises:
+        InvalidTokenError: When the request carries no credential.
+    """
+    if access_token is not None:
+        return authentication_integration.resolve_from_access_token(access_token, db)
+    raw_key = api_key_header
+    api_key_query = request.query_params.get("api_key")
+    if raw_key is None and api_key_query is not None and core_config.settings.ALLOW_API_KEY_QUERY_PARAM:
+        logger.warning(
+            "API key supplied via query string (?api_key=). "
+            "This is a security risk: credentials appear in access logs and browser history. "
+            "Set X-API-Key header instead."
+        )
+        raw_key = api_key_query
+    if raw_key is None:
+        raise core_exceptions.InvalidTokenError(
+            "Not authenticated. Provide a Bearer token or an API key.", scheme="Bearer"
+        )
+    return authentication_integration.resolve_from_api_key(raw_key, request, db)
+
+
+def get_principal(
+    request: Request,
+    db: core_dependencies.DbSession,
+    access_token: Annotated[str | None, Depends(get_bearer_token)],
+    api_key_header: Annotated[str | None, Depends(header_api_key_scheme)],
+) -> auth_contracts.Principal:
+    """Resolve the caller's access token or API key once per request, and refuse it while it must enrol MFA.
+
+    Every authenticated route reaches its caller through here, so an API key is accepted wherever its scopes
+    are: a route's scope check is the only thing that decides what a key reaches.
+
+    Args:
+        request: The request; the resolved caller is cached on its state for the audit trail.
+        db: Database session.
+        access_token: The ``Authorization: Bearer`` token, if any.
+        api_key_header: The ``X-API-Key`` header, if any.
+
+    Returns:
+        The caller.
+    """
     principal = getattr(request.state, "principal", None)
     if principal is None:
-        principal = authentication_integration.resolve_from_access_token(access_token, db)
+        principal = _resolve_principal(request, db, access_token, api_key_header)
         request.state.principal = principal
     _require_mfa_enrolment_exempt(principal, request)
     return principal
 
 
-def validate_access_token(
-    request: Request,
-    access_token: Annotated[str, Depends(get_access_token)],
-    db: core_dependencies.DbSession,
-) -> None:
-    """Resolve an access token and require an active user."""
-    _resolve_and_cache_principal(access_token, request, db)
+#: The resolved caller: a signed-in session's access token or an API key.
+CurrentPrincipal = Annotated[auth_contracts.Principal, Depends(get_principal)]
+
+
+def authenticate(principal: CurrentPrincipal) -> None:
+    """Require an authenticated caller, by access token or API key."""
 
 
 def require_scopes(granted: Iterable[str], *scopes: str) -> None:
@@ -157,95 +205,41 @@ def require_scopes(granted: Iterable[str], *scopes: str) -> None:
     _require_scopes(granted, SecurityScopes(scopes=list(scopes)))
 
 
-def check_scopes(
-    request: Request,
-    access_token: Annotated[str, Depends(get_access_token)],
-    db: core_dependencies.DbSession,
-    security_scopes: SecurityScopes,
-) -> None:
-    """Resolve an access token and require all declared scopes."""
-    principal = _resolve_and_cache_principal(access_token, request, db)
+def check_scopes(principal: CurrentPrincipal, security_scopes: SecurityScopes) -> None:
+    """Require every scope the route declares of the caller."""
     _require_scopes(principal.scopes, security_scopes)
 
 
-def get_sub_from_access_token(
-    request: Request,
-    access_token: Annotated[str, Depends(get_access_token)],
-    db: core_dependencies.DbSession,
-) -> int:
-    """Return the authenticated user's id after resolving the access token."""
-    return _resolve_and_cache_principal(access_token, request, db).user_id
+def get_current_user_id(principal: CurrentPrincipal) -> int:
+    """Return the authenticated user's id."""
+    return principal.user_id
 
 
-def get_scopes_from_access_token(
-    request: Request,
-    access_token: Annotated[str, Depends(get_access_token)],
-    db: core_dependencies.DbSession,
-) -> frozenset[str]:
+def get_current_scopes(principal: CurrentPrincipal) -> frozenset[str]:
     """Return the scopes granted to the authenticated caller."""
-    return _resolve_and_cache_principal(access_token, request, db).scopes
+    return principal.scopes
 
 
-def get_sid_from_access_token(
-    request: Request,
-    access_token: Annotated[str, Depends(get_access_token)],
-    db: core_dependencies.DbSession,
-) -> str:
-    """Return the session id carried by a validated access token."""
-    principal = _resolve_and_cache_principal(access_token, request, db)
+def get_sid_from_access_token(principal: CurrentPrincipal) -> str:
+    """Return the session id carried by the caller's access token.
+
+    Args:
+        principal: The caller.
+
+    Returns:
+        The session id.
+
+    Raises:
+        PermissionDeniedError: When the caller is an API key, which has no session: the route acts for a signed-in
+            session (a step-up, a WebSocket ticket bound to the session), not for a key.
+    """
     if not isinstance(principal.credential, auth_contracts.AccessTokenCred):
-        raise core_exceptions.UnauthenticatedError("Invalid credential type for session ID")
+        logger.warning(
+            "Request refused: user <user_id> called a session-only route with an API key",
+            extra=core_logger.context(user_id=principal.user_id),
+        )
+        raise core_exceptions.PermissionDeniedError("This operation needs a signed-in session; an API key cannot do it")
     return principal.credential.session_id
-
-
-def validate_access_token_or_api_key(
-    request: Request,
-    db: core_dependencies.DbSession,
-    access_token: str | None = Depends(get_bearer_token),
-    api_key_header: str | None = Depends(header_api_key_scheme),
-    api_key_query: str | None = Query(None, alias="api_key", include_in_schema=False),
-) -> AuthContext:
-    """Resolve a JWT or API key, preserving request-level principal caching."""
-    cached = getattr(request.state, "principal", None)
-    if cached is not None:
-        _require_mfa_enrolment_exempt(cached, request)
-        return AuthContext(cached.user_id, list(cached.scopes), "api_key" if cached.is_api_key() else "jwt")
-    if access_token is not None:
-        principal = authentication_integration.resolve_from_access_token(access_token, db)
-        auth_type = "jwt"
-    else:
-        raw_key = api_key_header
-        if raw_key is None and api_key_query is not None and core_config.settings.ALLOW_API_KEY_QUERY_PARAM:
-            logger.warning(
-                "API key supplied via query string (?api_key=). "
-                "This is a security risk: credentials appear in access logs and browser history. "
-                "Set X-API-Key header instead."
-            )
-            raw_key = api_key_query
-        if raw_key is None:
-            raise core_exceptions.InvalidTokenError(
-                "Not authenticated. Provide a Bearer token or an API key.", scheme="Bearer"
-            )
-        principal = authentication_integration.resolve_from_api_key(raw_key, request, db)
-        auth_type = "api_key"
-    request.state.principal = principal
-    _require_mfa_enrolment_exempt(principal, request)
-    return AuthContext(principal.user_id, list(principal.scopes), auth_type)
-
-
-def get_user_id_from_auth(
-    auth: Annotated[AuthContext, Depends(validate_access_token_or_api_key)],
-) -> int:
-    """Return the user id from resolved JWT or API-key authentication."""
-    return auth.user_id
-
-
-def check_auth_scopes(
-    auth: Annotated[AuthContext, Depends(validate_access_token_or_api_key)],
-    security_scopes: SecurityScopes,
-) -> None:
-    """Require all declared scopes from a JWT or API-key context."""
-    _require_scopes(auth.scopes, security_scopes)
 
 
 def audit_context_from_request() -> jasil_audit.AuditContext:
@@ -279,11 +273,11 @@ def audit_context_from_request() -> jasil_audit.AuditContext:
     )
 
 
-#: Authenticated user id extracted from a resolved access token.
-CurrentUserId = Annotated[int, Depends(get_sub_from_access_token)]
+#: Authenticated user id, by access token or API key.
+CurrentUserId = Annotated[int, Depends(get_current_user_id)]
 #: Scopes granted to the authenticated caller.
-CurrentScopes = Annotated[frozenset[str], Depends(get_scopes_from_access_token)]
-#: Session id carried by a resolved access token.
+CurrentScopes = Annotated[frozenset[str], Depends(get_current_scopes)]
+#: Session id carried by the caller's access token; an API key is refused.
 CurrentSessionId = Annotated[str, Depends(get_sid_from_access_token)]
 StepUpStore = account_security_integration.StepUpStore
 get_step_up_attempts = account_security_integration.get_step_up_attempts
@@ -346,7 +340,7 @@ def get_session_revoke_verifier(verify_step_up: StepUpVerifierDep) -> sessions_c
 SessionRevokeVerifierDep = Annotated[sessions_contracts.SessionRevokeVerifier, Depends(get_session_revoke_verifier)]
 
 __all__ = [
-    "AuthContext",
+    "CurrentPrincipal",
     "CurrentScopes",
     "CurrentSessionId",
     "CurrentUserId",
@@ -355,18 +349,15 @@ __all__ = [
     "StepUpStore",
     "StepUpVerifierDep",
     "audit_context_from_request",
-    "check_auth_scopes",
+    "authenticate",
     "check_scopes",
-    "get_access_token",
+    "get_current_scopes",
+    "get_current_user_id",
     "get_mfa_secret_store",
-    "get_scopes_from_access_token",
+    "get_principal",
     "get_session_revoke_verifier",
     "get_sid_from_access_token",
     "get_step_up_attempts",
     "get_step_up_verifier",
-    "get_sub_from_access_token",
-    "get_user_id_from_auth",
     "require_scopes",
-    "validate_access_token",
-    "validate_access_token_or_api_key",
 ]

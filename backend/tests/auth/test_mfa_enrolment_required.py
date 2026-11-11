@@ -134,15 +134,14 @@ def client():
     def _ok():
         return {}
 
-    protected = [Depends(auth_dependencies.validate_access_token)]
+    protected = [Depends(auth_dependencies.authenticate)]
     scoped = [Depends(auth_dependencies.check_scopes)]
-    either = [Depends(auth_dependencies.validate_access_token_or_api_key)]
     for method, path in auth_constants.MFA_ENROLMENT_ROUTES:
         app.add_api_route(root + path, _ok, methods=[method], dependencies=protected)
     app.add_api_route(root + "/profile/mfa/disable", _ok, methods=["POST"], dependencies=scoped)
     app.add_api_route(root + "/profile/mfa/status", _ok, methods=["POST"], dependencies=protected)
     app.add_api_route(root + "/profile/password/change", _ok, methods=["POST"], dependencies=protected)
-    app.add_api_route(root + "/server_settings", _ok, methods=["GET"], dependencies=either)
+    app.add_api_route(root + "/server_settings", _ok, methods=["GET"], dependencies=protected)
     return TestClient(app, headers={"Authorization": "Bearer token"})
 
 
@@ -169,13 +168,6 @@ class TestTheRefusal:
     def test_a_scope_checked_route_is_refused_the_same_way(self, client):
         with _resolving(_principal(enrolment_required=True)):
             response = client.post(core_config.ROOT_PATH + "/profile/mfa/disable")
-
-        assert response.status_code == 403
-        assert response.json()["type"] == _ENROLMENT_REQUIRED
-
-    def test_a_route_shared_with_api_keys_is_refused_the_same_way(self, client):
-        with _resolving(_principal(enrolment_required=True)):
-            response = client.get(core_config.ROOT_PATH + "/server_settings")
 
         assert response.status_code == 403
         assert response.json()["type"] == _ENROLMENT_REQUIRED

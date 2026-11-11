@@ -19,8 +19,8 @@ def _client() -> TestClient:
     app.include_router(sync_router.router, prefix="/sync")
     core_exceptions.register_exception_handlers(app)
     app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
-    app.dependency_overrides[auth_dependencies.get_sub_from_access_token] = lambda: 7
-    app.dependency_overrides[auth_dependencies.get_scopes_from_access_token] = lambda: frozenset({"health:read"})
+    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: 7
+    app.dependency_overrides[auth_dependencies.get_current_scopes] = lambda: frozenset({"health:read"})
     app.dependency_overrides[core_database.get_db] = lambda: MagicMock()
     return TestClient(app)
 

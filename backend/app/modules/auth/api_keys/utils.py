@@ -2,6 +2,7 @@
 
 import json
 import secrets
+from collections.abc import Sequence
 
 import modules.auth.computation as token_hashing
 
@@ -36,16 +37,16 @@ def hash_api_key(raw_key: str) -> str:
     return token_hashing.sha256_hex(raw_key)
 
 
-def scopes_to_json(scopes: list[str]) -> str:
-    """Serialize a list of scope strings to a JSON string.
+def scopes_to_json(scopes: Sequence[str]) -> str:
+    """Serialize scope strings to a JSON array.
 
     Args:
-        scopes: List of scope strings.
+        scopes: The scopes, plain strings or ``ApiKeyScope`` members, which are stored as their values.
 
     Returns:
         JSON-encoded string representation.
     """
-    return json.dumps(scopes)
+    return json.dumps(list(scopes))
 
 
 def json_to_scopes(scopes_json: str) -> list[str]:

@@ -125,7 +125,7 @@ All errors, including authentication and authorization failures, use one problem
 
 1. **Store the key securely** — use a secrets manager, environment variable, or encrypted config file. Never hardcode it in source code
 2. **Use the `X-API-Key` header** rather than the `?api_key=` query parameter to avoid key exposure in logs. The query parameter is disabled by default and must be explicitly enabled with `ALLOW_API_KEY_QUERY_PARAM=true`
-3. **Grant only supported scopes** — API keys currently accept only `activities:upload`
+3. **Grant only the scopes the integration needs** — a key can hold the scopes over the account's own data listed in [API keys](api-keys.md#scopes), never the account's security, export, provider links or an administrator scope
 4. **Set an expiry date** when creating keys for temporary or one-off integrations
 5. **Rotate keys periodically** — delete the old key and create a new one; update any dependent services before deleting
 6. **Revoke immediately** if a key is suspected to be compromised — revocation takes effect instantly

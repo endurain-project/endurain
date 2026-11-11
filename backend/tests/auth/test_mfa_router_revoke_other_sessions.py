@@ -24,7 +24,7 @@ def client() -> TestClient:
     core_exceptions.register_exception_handlers(app)
     app.dependency_overrides[core_database.get_db] = lambda: MagicMock()
     app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
-    app.dependency_overrides[auth_dependencies.get_sub_from_access_token] = lambda: 1
+    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: 1
     app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = lambda: "sid"
     app.dependency_overrides[auth_dependencies.get_step_up_attempts] = lambda: MagicMock()
     app.dependency_overrides[auth_dependencies.get_mfa_secret_store] = lambda: MagicMock()

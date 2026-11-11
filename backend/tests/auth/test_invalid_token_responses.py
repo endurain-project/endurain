@@ -41,12 +41,8 @@ def client():
     core_exceptions.register_exception_handlers(app)
     app.dependency_overrides[core_database.get_db] = lambda: MagicMock()
 
-    @app.get("/protected", dependencies=[Depends(auth_dependencies.validate_access_token)])
+    @app.get("/protected", dependencies=[Depends(auth_dependencies.authenticate)])
     def _protected():
-        return {}
-
-    @app.get("/protected-or-key", dependencies=[Depends(auth_dependencies.validate_access_token_or_api_key)])
-    def _protected_or_key():
         return {}
 
     @app.post("/step-up")
@@ -67,9 +63,8 @@ def test_bad_access_token_is_an_invalid_token(client, token):
     assert response.headers["www-authenticate"] == 'Bearer error="invalid_token"'
 
 
-@pytest.mark.parametrize("path", ["/protected", "/protected-or-key"])
-def test_missing_credentials_are_an_invalid_token_with_a_bare_challenge(client, path):
-    response = client.get(path)
+def test_missing_credentials_are_an_invalid_token_with_a_bare_challenge(client):
+    response = client.get("/protected")
 
     assert response.status_code == 401
     assert response.json()["type"] == INVALID_TOKEN

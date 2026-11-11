@@ -7,8 +7,10 @@ import pytest
 
 import core.exceptions as core_exceptions
 import modules.auth.api_keys.crud as api_keys_crud
+import modules.auth.api_keys.models as api_keys_models
 import modules.auth.api_keys.schema as api_keys_schema
 import modules.auth.api_keys.utils as api_keys_utils
+import modules.auth.authentication.constants as authentication_constants
 import modules.auth.authentication.principal_service as principal_service
 import modules.server_settings.contracts as server_settings_contracts
 from tests._helpers.db import create_sqlite_session_factory, ensure_user
@@ -109,3 +111,46 @@ class TestResolveFromApiKey:
 
         with session_factory() as db, pytest.raises(core_exceptions.UnauthenticatedError):
             principal_service.resolve_from_api_key(api_keys_utils.generate_api_key(), "/api/v1/x", "127.0.0.1", db)
+
+
+def _set_last_used(factory, api_key_id: str, last_used_at: datetime) -> None:
+    with factory() as db:
+        db.get(api_keys_models.UsersApiKeys, api_key_id).last_used_at = last_used_at
+        db.commit()
+
+
+class TestLastUsedStamp:
+    """A key's use is stamped at most once per interval, so reading data does not write a row on every request."""
+
+    _PUBLISH = "modules.auth.authentication.principal_service.authentication_event_publishers.publish_api_key_used"
+
+    def test_a_key_never_used_is_stamped(self, session_factory):
+        raw_key = api_keys_utils.generate_api_key()
+        stored = _store_key(session_factory, raw_key)
+
+        with session_factory() as db, patch(self._PUBLISH) as publish:
+            principal_service.resolve_from_api_key(raw_key, "/api/v1/x", "127.0.0.1", db)
+
+        publish.assert_called_once_with(stored.id, db)
+
+    def test_a_key_stamped_within_the_interval_is_not_stamped_again(self, session_factory):
+        raw_key = api_keys_utils.generate_api_key()
+        stored = _store_key(session_factory, raw_key)
+        recent = _NaiveUtcDatetime.now() - authentication_constants.API_KEY_LAST_USED_INTERVAL / 2
+        _set_last_used(session_factory, stored.id, recent)
+
+        with session_factory() as db, patch(self._PUBLISH) as publish:
+            principal_service.resolve_from_api_key(raw_key, "/api/v1/x", "127.0.0.1", db)
+
+        publish.assert_not_called()
+
+    def test_a_key_stamped_longer_ago_than_the_interval_is_stamped(self, session_factory):
+        raw_key = api_keys_utils.generate_api_key()
+        stored = _store_key(session_factory, raw_key)
+        stale = _NaiveUtcDatetime.now() - authentication_constants.API_KEY_LAST_USED_INTERVAL - timedelta(seconds=1)
+        _set_last_used(session_factory, stored.id, stale)
+
+        with session_factory() as db, patch(self._PUBLISH) as publish:
+            principal_service.resolve_from_api_key(raw_key, "/api/v1/x", "127.0.0.1", db)
+
+        publish.assert_called_once_with(stored.id, db)

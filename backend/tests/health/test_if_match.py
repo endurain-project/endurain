@@ -33,7 +33,7 @@ def _client(router_module) -> TestClient:
     core_exceptions.register_exception_handlers(app)
     app.include_router(router_module.router, prefix="/health")
     app.dependency_overrides[auth_deps.check_scopes] = lambda: None
-    app.dependency_overrides[auth_deps.get_sub_from_access_token] = lambda: 1
+    app.dependency_overrides[auth_deps.get_current_user_id] = lambda: 1
     app.dependency_overrides[core_db.get_db] = lambda: MagicMock()
     return TestClient(app)
 

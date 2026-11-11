@@ -13,6 +13,8 @@ from sqlalchemy.orm import Session
 import core.exceptions as core_exceptions
 import modules.auth.access_tokens.service as auth_token_manager
 import modules.auth.authentication.dependencies as authentication_dependencies
+import modules.auth.constants as auth_constants
+import modules.auth.contracts as auth_contracts
 import modules.auth.credentials.integration_service as auth_password_hasher
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.mfa.dependencies as auth_mfa_dependencies
@@ -403,9 +405,17 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
         """Mock validation that always passes"""
         return None
 
-    def _mock_get_access_token():
-        """Return mock access token"""
-        return app.state.mock_access_token
+    def _mock_get_principal():
+        """Return a signed-in caller holding every scope"""
+        return auth_contracts.Principal(
+            user_id=app.state.mock_user_id,
+            username="mock-user",
+            email="mock-user@example.com",
+            is_active=True,
+            is_superuser=False,
+            scopes=frozenset(auth_constants.ADMIN_ACCESS_SCOPE),
+            credential=auth_contracts.AccessTokenCred(session_id=app.state.mock_session_id),
+        )
 
     def _mock_get_refresh_token():
         """Return mock refresh token"""
@@ -444,9 +454,9 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
 
     # Override auth-internal dependencies for auth router endpoint tests.
     app.dependency_overrides[authentication_dependencies.validate_refresh_token] = _mock_validate_refresh_token
-    app.dependency_overrides[auth_dependencies.get_access_token] = _mock_get_access_token
+    app.dependency_overrides[auth_dependencies.get_principal] = _mock_get_principal
     app.dependency_overrides[authentication_dependencies.get_refresh_token] = _mock_get_refresh_token
-    app.dependency_overrides[auth_dependencies.get_sub_from_access_token] = _mock_get_sub_from_access_token
+    app.dependency_overrides[auth_dependencies.get_current_user_id] = _mock_get_sub_from_access_token
     app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = _mock_get_sid_from_access_token
     app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = _mock_get_sub_from_refresh_token
     app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = _mock_get_sid_from_refresh_token
@@ -457,20 +467,7 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
     app.dependency_overrides[auth_dependencies.check_scopes] = _mock_check_scopes
 
     # Override public auth dependencies used by non-auth routers
-    with contextlib.suppress(Exception):
-        app.dependency_overrides[auth_dependencies.get_sub_from_access_token] = _mock_get_sub_from_access_token
-        app.dependency_overrides[auth_dependencies.check_scopes] = _mock_check_scopes
-        app.dependency_overrides[auth_dependencies.get_sub_from_access_token] = _mock_get_sub_from_access_token
-        app.dependency_overrides[auth_dependencies.validate_access_token] = _mock_validate_access_token
-        app.dependency_overrides[auth_dependencies.validate_access_token_or_api_key] = lambda: (
-            auth_dependencies.AuthContext(
-                user_id=app.state.mock_user_id,
-                scopes=["*"],
-                auth_type="jwt",
-            )
-        )
-        app.dependency_overrides[auth_dependencies.get_user_id_from_auth] = _mock_get_sub_from_access_token
-        app.dependency_overrides[auth_dependencies.check_auth_scopes] = _mock_check_scopes
+    app.dependency_overrides[auth_dependencies.authenticate] = _mock_validate_access_token
 
     # Generic overrides
     _override_if_exists(

@@ -47,7 +47,6 @@ def client() -> TestClient:
     app = FastAPI()
     core_exceptions.register_exception_handlers(app)
     app.include_router(ingestion_router.router, prefix="/activities")
-    app.include_router(ingestion_router.api_upload_router, prefix="/activities")
     app.include_router(activity_router.router, prefix="/activities")
     app.include_router(garmin_router.router, prefix="/garmin")
     app.include_router(strava_router.router, prefix="/strava")
@@ -56,10 +55,8 @@ def client() -> TestClient:
     app.include_router(jobs_router.router, prefix="/jobs")
     app.dependency_overrides[core_database.get_db] = lambda: MagicMock()
     app.dependency_overrides[core_dependencies.get_storage] = lambda: "storage"
-    app.dependency_overrides[auth_dependencies.get_user_id_from_auth] = lambda: 7
-    app.dependency_overrides[auth_dependencies.get_sub_from_access_token] = lambda: 7
+    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: 7
     app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = lambda: "session"
-    app.dependency_overrides[auth_dependencies.check_auth_scopes] = lambda: None
     app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
     app.dependency_overrides[core_dependencies.require_if_match_header] = lambda: '"1"'
     return TestClient(app)

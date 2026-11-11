@@ -285,7 +285,7 @@ Require JWT authentication with the standard `X-Client-Type` requirement; state-
 
 | What | Url | Expected Information |
 | ---- | --- | -------------------- |
-| **Activity Upload** | `POST /activities/upload` | .gpx, .tcx, .gz or .fit file. Accepts JWT **or** API key (`X-API-Key` header, or `?api_key=` query param only when `ALLOW_API_KEY_QUERY_PARAM=true`) with `activities:upload` scope. Answers `202` with an ingestion job. This unified-auth endpoint does not require `X-Client-Type` |
-| **Job** | `GET /jobs/{job_id}` | Poll the job returned by the upload. Accepts JWT or API key with the `activities:upload` scope |
+| **Activity Upload** | `POST /activities/upload` | .gpx, .tcx, .gz or .fit file. Accepts JWT **or** [API key](api-keys.md) (`X-API-Key` header, or `?api_key=` query param only when `ALLOW_API_KEY_QUERY_PARAM=true`) with `activities:upload` scope, as every authenticated endpoint does. Answers `202` with an ingestion job |
+| **Job** | `GET /jobs/{job_id}` | Poll the job returned by the upload. Needs the `activities:upload` scope |
 | **Set Weight** | `/health/weight` | JSON `{'weight': <number>, 'created_at': 'yyyy-MM-dd'}` |
 

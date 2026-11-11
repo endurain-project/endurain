@@ -138,7 +138,7 @@ def test_only_bikes_and_shoes_can_be_imported(gear_type):
     core_exceptions.register_exception_handlers(app)
     app.include_router(strava_router.router, prefix="/strava")
     app.dependency_overrides[auth_deps.check_scopes] = lambda: None
-    app.dependency_overrides[auth_deps.get_sub_from_access_token] = lambda: 1
+    app.dependency_overrides[auth_deps.get_current_user_id] = lambda: 1
 
     response = TestClient(app).post(f"/strava/import/gear?gear_type={gear_type}", files={"file": ("g.csv", b"x")})
 
@@ -158,7 +158,7 @@ def test_setting_the_client_requires_the_version_that_was_read():
     core_exceptions.register_exception_handlers(app)
     app.include_router(strava_router.router, prefix="/strava")
     app.dependency_overrides[auth_deps.check_scopes] = lambda: None
-    app.dependency_overrides[auth_deps.get_sub_from_access_token] = lambda: 1
+    app.dependency_overrides[auth_deps.get_current_user_id] = lambda: 1
     app.dependency_overrides[core_db.get_db] = lambda: MagicMock()
 
     with patch.object(strava_router.strava_service, "set_client") as set_client:

@@ -2,7 +2,12 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { ApiKeyCreateInput, ApiKeyDraft, IdpReauth } from '@/features/security/types'
+import type {
+  ApiKeyCreateInput,
+  ApiKeyDraft,
+  ApiKeyScope,
+  IdpReauth,
+} from '@/features/security/types'
 
 import IdpStepUpSection from '@/features/security/components/IdpStepUpSection.vue'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
@@ -12,7 +17,11 @@ import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { Label } from '@/components/ui/label'
 import { normalizeMfaCode } from '@/features/auth/utils/mfaCode'
 import { Switch } from '@/components/ui/switch'
-import { API_KEY_SCOPES } from '@/features/security/services/security'
+import {
+  API_KEY_SCOPE_GROUPS,
+  apiKeyScopeLabelKey,
+  apiKeyScopesOf,
+} from '@/features/security/services/security'
 
 const open = defineModel<boolean>('open', { required: true })
 // The identity-provider sign-in proof, used when the account has no password.
@@ -42,10 +51,10 @@ const name = ref('')
 const expiresAt = ref('')
 const password = ref('')
 const mfaCode = ref('')
-const selectedScopes = ref<string[]>([])
+const selectedScopes = ref<ApiKeyScope[]>([])
 
 /** Adds or removes a scope from the granted set. */
-function toggleScope(scope: string, granted: boolean): void {
+function toggleScope(scope: ApiKeyScope, granted: boolean): void {
   selectedScopes.value = granted
     ? [...selectedScopes.value, scope]
     : selectedScopes.value.filter((value) => value !== scope)
@@ -130,15 +139,25 @@ function onSubmit(): void {
 
       <div class="flex flex-col gap-2">
         <Label>{{ t('settings.security.apiKeys.scopes') }}</Label>
-        <Switch
-          v-for="scope in API_KEY_SCOPES"
-          :key="scope"
-          :model-value="selectedScopes.includes(scope)"
-          :disabled="pending"
-          @update:model-value="(granted) => toggleScope(scope, granted)"
-        >
-          <span class="font-mono text-sm">{{ scope }}</span>
-        </Switch>
+        <div v-for="group in API_KEY_SCOPE_GROUPS" :key="group" class="flex flex-col gap-2">
+          <h4 class="text-sm font-medium text-muted-foreground">
+            {{ t(`settings.security.apiKeys.scopeGroups.${group}`) }}
+          </h4>
+          <Switch
+            v-for="scope in apiKeyScopesOf(group)"
+            :key="scope"
+            :model-value="selectedScopes.includes(scope)"
+            :disabled="pending"
+            @update:model-value="(granted) => toggleScope(scope, granted)"
+          >
+            <span class="flex flex-col">
+              <span class="text-sm">
+                {{ t(`settings.security.apiKeys.scopeLabels.${apiKeyScopeLabelKey(scope)}`) }}
+              </span>
+              <span class="font-mono text-xs text-muted-foreground">{{ scope }}</span>
+            </span>
+          </Switch>
+        </div>
         <p class="text-hint">{{ t('settings.security.apiKeys.scopesHint') }}</p>
       </div>
 

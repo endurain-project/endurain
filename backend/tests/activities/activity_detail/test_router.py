@@ -25,7 +25,7 @@ def _build_app(mock_db):
     app.include_router(router.router, prefix="/activities/{activity_id}")
     app.include_router(public_router.router, prefix="/public/activities/{activity_id}")
     app.dependency_overrides[auth_deps.check_scopes] = lambda: None
-    app.dependency_overrides[auth_deps.get_sub_from_access_token] = lambda: 1
+    app.dependency_overrides[auth_deps.get_current_user_id] = lambda: 1
     app.dependency_overrides[core_db.get_db] = lambda: mock_db
     return app
 

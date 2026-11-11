@@ -13,7 +13,6 @@ from typing import Annotated
 
 from fastapi import (
     APIRouter,
-    Depends,
     Query,
     Request,
     Response,
@@ -34,25 +33,15 @@ import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.activities.activity_ingestion.service as activity_ingestion_service
 import modules.auth.dependencies as auth_dependencies
 
-# Bulk import endpoint (JWT auth)
 router = APIRouter()
 
-# Separate router for upload endpoint that supports
-# both JWT and API key authentication
-api_upload_router = APIRouter()
 
-
-@api_upload_router.post(
+@router.post(
     "/upload",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=activity_ingestion_schema.ActivityIngestionJobRead,
     responses=core_location.ACCEPTED_RESPONSE,
-    dependencies=[
-        Security(
-            auth_dependencies.check_auth_scopes,
-            scopes=["activities:upload"],
-        )
-    ],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:upload"])],
     openapi_extra=core_middleware_body_limit.upload_limit(
         max(
             core_file_uploads.max_bytes_for(core_file_uploads.UploadKind.ACTIVITY),
@@ -63,10 +52,7 @@ api_upload_router = APIRouter()
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def create_activity_with_uploaded_file(
     request: Request,
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_user_id_from_auth),
-    ],
+    token_user_id: auth_dependencies.CurrentUserId,
     file: UploadFile,
     response: Response,
     db: core_dependencies.DbSession,

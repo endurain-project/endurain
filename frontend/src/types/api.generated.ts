@@ -1826,8 +1826,9 @@ export interface paths {
          *     the job is not finished. A job the caller did not start, or one whose record has expired, is ``404``; an
          *     account deletion is also readable by any holder of ``users:read-all``. Reading a job needs the scope its kind
          *     asks for: ``activities:upload`` for an activity upload, refresh or bulk import, ``activities:read`` for a bulk
-         *     edit, ``account`` for a Garmin Connect or Strava link or sync, ``account:export`` for a profile export or
-         *     import and ``users:read-all`` for an account deletion.
+         *     edit, ``account:integrations`` for a Garmin Connect link or a Strava link or unlink, ``account`` for a Garmin
+         *     Connect or Strava gear or health sync, ``account:export`` for a profile export or import and
+         *     ``users:read-all`` for an account deletion.
          */
         get: operations["read_job"];
         put?: never;
@@ -5571,6 +5572,17 @@ export interface components {
             /** Weight Display Unit */
             weight_display_unit?: string | null;
         };
+        /**
+         * ApiKeyScope
+         * @description Scopes an API key may be granted: the account's own data.
+         *
+         *     A key never holds ``account:security``, ``account:export``, ``account:integrations`` or an administrator scope:
+         *     it is a long-lived credential used without a second factor, so it may read and change the account's data but
+         *     not how the account is protected, take all of it out, hand a provider's credentials to the server, or
+         *     administer the server.
+         * @enum {string}
+         */
+        ApiKeyScope: "account" | "activities:read" | "activities:write" | "activities:upload" | "followers:read" | "followers:write" | "gears:read" | "gears:write" | "health:read" | "health:write" | "health-targets:read" | "health-targets:write" | "notifications:read" | "notifications:write" | "users:read";
         /** Body_backchannel_logout */
         Body_backchannel_logout: {
             /**
@@ -12571,7 +12583,7 @@ export interface components {
          *
          *     Attributes:
          *         name: User-friendly label for the key.
-         *         scopes: List containing the supported API key scope.
+         *         scopes: The scopes to grant, each one an API key may hold.
          *         expires_at: Optional expiration datetime, at most the server's maximum API key lifetime from now. When
          *             omitted the key expires at that maximum.
          *         step_up: The caller's step-up verification.
@@ -12589,9 +12601,9 @@ export interface components {
             name: string;
             /**
              * Scopes
-             * @description List of scope strings to grant
+             * @description Scopes to grant: the account's own data, never its security, export, provider links or administration
              */
-            scopes: string[];
+            scopes: components["schemas"]["ApiKeyScope"][];
             /** @description Step-up verification, required to create an API key */
             step_up: components["schemas"]["StepUpVerification"];
         };

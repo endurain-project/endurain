@@ -30,7 +30,7 @@ def _client(user_id: int = 1):
     core_exceptions.register_exception_handlers(app)
     app.include_router(router.router, prefix="/garmin")
     app.add_api_route("/jobs/{job_id}", lambda job_id: None, name="read_job")
-    app.dependency_overrides[auth_deps.get_sub_from_access_token] = lambda: user_id
+    app.dependency_overrides[auth_deps.get_current_user_id] = lambda: user_id
     app.dependency_overrides[auth_deps.check_scopes] = lambda: None
     app.dependency_overrides[garmin_dependencies.get_garmin_link_state_store] = lambda: link_states
     app.dependency_overrides[garmin_dependencies.get_garmin_mfa_code_store] = lambda: mfa_code_store.GarminMFACodeStore(

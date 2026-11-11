@@ -30,9 +30,7 @@ def _build_app(mock_db):
 
     for dep in [
         auth_deps.check_scopes,
-        auth_deps.get_sub_from_access_token,
-        auth_deps.get_user_id_from_auth,
-        auth_deps.check_auth_scopes,
+        auth_deps.get_current_user_id,
     ]:
         app.dependency_overrides[dep] = _mock
     app.dependency_overrides[core_db.get_db] = lambda: mock_db

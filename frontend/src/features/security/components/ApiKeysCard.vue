@@ -96,6 +96,15 @@ function refusedField(error: unknown, field: string): boolean {
   )
 }
 
+/** Whether the server refused the scope list (`body.scopes`) or one entry of it (`body.scopes.<index>`). */
+function refusedScope(error: unknown): boolean {
+  return (
+    error instanceof HttpError &&
+    error.status === 422 &&
+    error.errors.some((e) => e.field === 'body.scopes' || e.field.startsWith('body.scopes.'))
+  )
+}
+
 /** Creates the key, then opens the one-time reveal dialog with the raw key. */
 function onCreate(input: ApiKeyCreateInput): void {
   createMutation.mutate(input, {
@@ -126,7 +135,7 @@ function onCreate(input: ApiKeyCreateInput): void {
               : 'settings.security.apiKeys.expiryTooLate',
           ),
         )
-      } else if (refusedField(error, 'body.scopes')) {
+      } else if (refusedScope(error)) {
         toasts.error(t('settings.security.apiKeys.invalidScopes'))
       } else {
         toasts.error(t('settings.security.apiKeys.createError'))

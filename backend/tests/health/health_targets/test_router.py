@@ -304,10 +304,12 @@ class TestTargetsScopes:
         app = FastAPI()
         core_exceptions.register_exception_handlers(app)
         app.include_router(targets_router.router, prefix="/health/targets")
-        app.dependency_overrides[auth_deps.get_access_token] = lambda: "token"
         app.dependency_overrides[core_db.get_db] = lambda: mock_db
-        principal = MagicMock(user_id=1, scopes=frozenset(scopes))
-        return TestClient(app), patch.object(auth_deps, "_resolve_and_cache_principal", return_value=principal)
+        principal = MagicMock(user_id=1, scopes=frozenset(scopes), mfa_enrolment_required=False)
+        return (
+            TestClient(app, headers={"Authorization": "Bearer token"}),
+            patch.object(auth_deps.authentication_integration, "resolve_from_access_token", return_value=principal),
+        )
 
     @patch("modules.health.health_targets.router.health_targets_service.get_health_targets", return_value=None)
     def test_read_with_only_health_read_is_refused(self, _get, mock_db):

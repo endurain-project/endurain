@@ -31,25 +31,20 @@ def test_resolver_caches_principal_for_request():
     with patch.object(
         auth_dependencies.authentication_integration, "resolve_from_access_token", return_value=principal
     ) as resolve:
-        assert auth_dependencies._resolve_and_cache_principal("token", request, db) is principal
-        assert auth_dependencies._resolve_and_cache_principal("token", request, db) is principal
+        assert auth_dependencies.get_principal(request, db, "token", None) is principal
+        assert auth_dependencies.get_principal(request, db, "token", None) is principal
     resolve.assert_called_once_with("token", db)
 
 
-def test_sid_dependency_requires_an_access_token_credential():
-    request = MagicMock()
-    request.state = SimpleNamespace(principal=_principal())
-    assert auth_dependencies.get_sid_from_access_token(request, "token", MagicMock()) == "sid-12"
+def test_sid_dependency_returns_the_session_of_an_access_token():
+    assert auth_dependencies.get_sid_from_access_token(_principal()) == "sid-12"
 
 
 def test_scope_dependency_rejects_missing_scope():
-    request = MagicMock()
-    request.state = SimpleNamespace(principal=_principal())
     with pytest.raises(core_exceptions.PermissionDeniedError) as exc_info:
-        auth_dependencies.check_scopes(request, "token", MagicMock(), SecurityScopes(scopes=["users:write"]))
+        auth_dependencies.check_scopes(_principal(), SecurityScopes(scopes=["users:write"]))
     assert exc_info.value.status_code == 403
 
 
-def test_unified_scope_dependency_accepts_declared_scope():
-    context = auth_dependencies.AuthContext(user_id=12, scopes=["account"], auth_type="jwt")
-    auth_dependencies.check_auth_scopes(context, SecurityScopes(scopes=["account"]))
+def test_scope_dependency_accepts_declared_scope():
+    auth_dependencies.check_scopes(_principal(), SecurityScopes(scopes=["account"]))

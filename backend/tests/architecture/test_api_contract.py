@@ -683,6 +683,45 @@ class TestApiContract:
 
         _compare("An operation lists the wrong credentials", wrong, {}, "Fix the dependency that declares it")
 
+    def test_an_api_key_is_offered_wherever_a_bearer_token_is(self):
+        """Every authenticated operation takes an API key too; the scopes it names decide what a key reaches."""
+        wrong: set[str] = set()
+        for method, path, operation in _operations():
+            requirements = {
+                name: scopes for requirement in operation.get("security", []) for name, scopes in requirement.items()
+            }
+            if "HTTPBearer" in requirements and requirements.get("ApiKey") != requirements["HTTPBearer"]:
+                wrong.add(f"{method.upper()} {path}")
+
+        _compare(
+            "An operation does not offer the API key", wrong, {}, "Authenticate through auth_dependencies.get_principal"
+        )
+
+    def test_the_only_session_bound_route_a_key_can_hold_the_scopes_of_is_the_websocket_ticket(self):
+        """A route that acts for a signed-in session needs a scope no API key holds, so a key never reaches it.
+
+        The exception is the WebSocket ticket: ``notifications:read`` is a key's to hold, but the ticket is bound
+        to the session that asked for it, so a key reaches the route and is refused there with ``403``.
+        """
+        import modules.auth.api_keys.constants as api_keys_constants
+        import modules.auth.dependencies as auth_dependencies
+
+        def tree(dependant):
+            yield dependant
+            for dependency in dependant.dependencies:
+                yield from tree(dependency)
+
+        reachable: set[str] = set()
+        for route in _api_routes():
+            nodes = list(tree(route.dependant))
+            if not any(node.call is auth_dependencies.get_sid_from_access_token for node in nodes):
+                continue
+            scopes = {scope for node in nodes for scope in node.own_oauth_scopes or []}
+            if scopes <= set(api_keys_constants.ApiKeyScope):
+                reachable.add(route.name)
+
+        assert reachable == {"issue_ws_ticket"}
+
     def test_the_bearer_scheme_is_http_bearer_and_lists_the_scope_catalogue(self):
         """The access token is a plain HTTP bearer JWT, not an OAuth2 flow, and its description names every scope."""
         import modules.auth.constants as auth_constants

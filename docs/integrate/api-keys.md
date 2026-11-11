@@ -1,6 +1,6 @@
 # API key authentication
 
-API keys provide a stateless authentication mechanism for programmatic access and third-party integrations. Unlike JWT sessions, API keys do not require a login flow or token refresh, and are scoped to specific operations.
+API keys provide a stateless authentication mechanism for programmatic access and third-party integrations. Unlike JWT sessions, API keys do not require a login flow or token refresh, and are scoped to the account's own data.
 
 !!! warning "Security Notice"
     API keys are powerful credentials. Treat them like passwords: store them securely and never expose them in client-side code, public repositories, or logs.
@@ -21,11 +21,11 @@ The raw key is shown **once** at creation time and is never stored by the server
 
 ## Scopes
 
-API keys are granted one or more API-key scopes at creation time. Currently only `activities:upload` is accepted; JWT-only scopes such as `account`, `account:export`, `account:security`, `activities:read`, or `users:write` cannot be granted to API keys, so a key never reaches the credential, session, API-key or export routes.
+API keys are granted one or more scopes at creation time, from the list below: the account's own data. A key never holds `account:security`, `account:export`, `account:integrations` or an administrator scope, even when its owner is an administrator. So a key never reaches the password, email, MFA, session, API key or identity provider routes, cannot export or import the account or link a Garmin Connect or Strava account, and administers nothing.
 
 A key holds no more than its owner's role grants at the time of the request, as an access token does, so a scope the role no longer has stops working at once.
 
-The key-management API rejects any requested scope outside the API-key allow-list. This keeps long-lived API keys limited to the endpoint that currently supports API-key authentication.
+The key-management API refuses any other scope with `422`.
 
 <!-- generated:api-key-scopes -->
 
@@ -61,12 +61,13 @@ If both the `X-API-Key` header and the `?api_key=` query parameter are present, 
 
 ## Endpoints That Accept API Keys
 
-| Method | Endpoint | Required Scope | Description |
-| ------ | -------- | -------------- | ----------- |
-| `POST` | `/activities/upload` | `activities:upload` | Upload a .gpx, .tcx, .fit, or .gz activity file. Answers `202` with an ingestion job |
-| `GET` | `/jobs/{job_id}`, `/jobs` | `activities:upload` | Poll an upload, import or refresh job you started, or list them |
+Every authenticated endpoint accepts an API key in place of a bearer token, and a key reaches the ones whose scopes it holds. Each operation in the [API reference](api-reference.md) names its scopes under both its `HTTPBearer` and `ApiKey` requirements. A missing scope is `403` with `WWW-Authenticate: Bearer error="insufficient_scope"`, as for a token. A request that sends both a bearer token and a key is authenticated by the token.
 
-Both endpoints also accept JWT authentication through the same unified-auth dependency. JWT requests still require `Authorization: Bearer <access token>` and the `activities:upload` scope, but these endpoints do not require `X-Client-Type`. No other endpoint accepts an API key. The upload may carry an `Idempotency-Key` header so a retry does not import the file twice, and so may the [bulk import](background-operations.md#bulk-import).
+A key needs no `X-Client-Type` and no `X-CSRF-Token`. A write to a versioned resource still sends `If-Match`, and an upload may carry an `Idempotency-Key` header so a retry does not import the file twice, and so may the [bulk import](background-operations.md#bulk-import).
+
+A few endpoints act for a signed-in session and refuse a key with `403` whatever its scopes. Nearly all of them already need a scope a key never holds. The one a key's scopes would reach is the WebSocket ticket (`POST /ws/ticket`), which is bound to the session that asked for it, so a key cannot open the [realtime](realtime.md) connection.
+
+Rate limits count key requests per client address, not per user as for bearer tokens, so keys used from one address share a limit.
 
 ## Managing API Keys
 
@@ -174,7 +175,7 @@ Permanently removes the key from the database. Returns HTTP 204 on success.
 | **Lookup** | The server hashes the presented key with SHA-256 and finds the row by an indexed equality match on the digest. The 256-bit random key cannot be guessed from timing differences in that lookup |
 | **Revocation** | Immediate — revoked keys are rejected at validation time |
 | **Expiry** | Every key expires, at most the server's maximum API key lifetime (365 days by default) after creation; expired keys are rejected at validation time with timezone-aware comparison |
-| **Audit and usage tracking** | A successful authentication stamps `last_used_at` on the key and writes a debug log line with key prefix, user ID, endpoint and client IP; it is not an audit row. Every refusal (unknown, revoked or expired key, inactive owner) is audited as `auth.api_key.authenticate` without the key, its prefix or its hash |
-| **No self-escalation** | An API key cannot create, list, or revoke other API keys (JWT required) |
+| **Audit and usage tracking** | A successful authentication stamps `last_used_at` on the key, at most once every 5 minutes, and writes a debug log line with key prefix, user ID, endpoint and client IP; it is not an audit row. Every refusal (unknown, revoked or expired key, inactive owner) is audited as `auth.api_key.authenticate` without the key, its prefix or its hash |
+| **No self-escalation** | An API key never holds `account:security`, so it cannot create, list, or revoke API keys (JWT required) |
 | **Minimum privilege** | Keys carry only the scopes explicitly granted at creation time |
 

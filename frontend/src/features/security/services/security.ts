@@ -4,6 +4,7 @@ import type {
   ApiKeyCreatedDto,
   ApiKeyCreateInput,
   ApiKeyDto,
+  ApiKeyScope,
   BackupCodeStatus,
   BackupCodeStatusDto,
   BackupCodesDto,
@@ -50,8 +51,62 @@ export function apiKeyExpiryInstant(date: string): Date {
   return new Date(`${date}T00:00`)
 }
 
-/** The scopes an API key can be granted (mirrors the backend allow-list). */
-export const API_KEY_SCOPES = ['activities:upload'] as const
+/** The resource groups the scope switches are listed under, in display order. */
+export const API_KEY_SCOPE_GROUPS = [
+  'account',
+  'activities',
+  'followers',
+  'gears',
+  'health',
+  'healthTargets',
+  'notifications',
+  'users',
+] as const
+
+/**
+ * The group each API key scope belongs to, in display order. Typed over every `ApiKeyScope`, so a scope the
+ * backend adds and this map misses fails the type check.
+ */
+const API_KEY_SCOPE_GROUP: Record<ApiKeyScope, (typeof API_KEY_SCOPE_GROUPS)[number]> = {
+  account: 'account',
+  'activities:read': 'activities',
+  'activities:write': 'activities',
+  'activities:upload': 'activities',
+  'followers:read': 'followers',
+  'followers:write': 'followers',
+  'gears:read': 'gears',
+  'gears:write': 'gears',
+  'health:read': 'health',
+  'health:write': 'health',
+  'health-targets:read': 'healthTargets',
+  'health-targets:write': 'healthTargets',
+  'notifications:read': 'notifications',
+  'notifications:write': 'notifications',
+  'users:read': 'users',
+}
+
+/** The scopes an API key can be granted, in display order. */
+export const API_KEY_SCOPES = Object.keys(API_KEY_SCOPE_GROUP) as ApiKeyScope[]
+
+/**
+ * Lists the scopes of one group.
+ *
+ * @param group - A member of {@link API_KEY_SCOPE_GROUPS}.
+ * @returns The group's scopes, in display order.
+ */
+export function apiKeyScopesOf(group: (typeof API_KEY_SCOPE_GROUPS)[number]): ApiKeyScope[] {
+  return API_KEY_SCOPES.filter((scope) => API_KEY_SCOPE_GROUP[scope] === group)
+}
+
+/**
+ * Names the locale key segment of a scope's label, e.g. `health-targets:read` is `healthTargetsRead`.
+ *
+ * @param scope - The API key scope.
+ * @returns The camelCase key segment under `settings.security.apiKeys.scopeLabels`.
+ */
+export function apiKeyScopeLabelKey(scope: ApiKeyScope): string {
+  return scope.replace(/[:-](\w)/g, (_match, char: string) => char.toUpperCase())
+}
 
 /** Maps a raw MFA-status payload to the clean model. */
 export function mapMfaStatus(dto: MfaStatusDto): MfaStatus {

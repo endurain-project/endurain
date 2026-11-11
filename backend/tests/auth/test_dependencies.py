@@ -15,158 +15,76 @@ import core.exceptions as core_exceptions
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_providers.contracts as idp_contracts
 import modules.auth.schema as auth_schema
-from modules.auth.contracts import ApiKeyCred, PasswordCred, Principal
+from modules.auth.contracts import AccessTokenCred, ApiKeyCred, PasswordCred, Principal
 from modules.auth.dependencies import (
-    AuthContext,
     _require_scopes,
-    check_auth_scopes,
+    authenticate,
     check_scopes,
-    get_access_token,
-    get_sub_from_access_token,
-    get_user_id_from_auth,
-    validate_access_token,
-    validate_access_token_or_api_key,
+    get_current_scopes,
+    get_current_user_id,
+    get_principal,
+    get_sid_from_access_token,
 )
 from modules.auth.identity_providers.constants import StepUpAction
 
 
-class TestGetAccessToken:
-    """Tests for get_access_token."""
-
-    def test_valid_token_returns_token_string(self):
-        result = get_access_token("my-token")
-        assert result == "my-token"
-
-    def test_none_token_raises_401(self):
-        with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
-            get_access_token(None)
-        assert exc_info.value.status_code == 401
-        assert "Access token missing" in exc_info.value.detail
+def _principal(credential=None, scopes: frozenset[str] = frozenset({"account"}), user_id: int = 5) -> Principal:
+    return Principal(
+        user_id=user_id,
+        username="u",
+        email="u@e.com",
+        is_active=True,
+        is_superuser=False,
+        scopes=scopes,
+        credential=credential or PasswordCred(username="u"),
+    )
 
 
-class TestValidateAccessToken:
-    """Tests for validate_access_token."""
-
-    @patch("modules.auth.dependencies._resolve_and_cache_principal")
-    def test_calls_resolve_and_cache_principal(self, mock_resolve):
-        request = MagicMock()
-        validate_access_token(request, "token", MagicMock())
-        mock_resolve.assert_called_once()
+def _request(query: dict[str, str] | None = None) -> MagicMock:
+    request = MagicMock()
+    request.state = SimpleNamespace()
+    request.query_params = query or {}
+    return request
 
 
-class TestGetSubFromAccessToken:
-    """Tests for get_sub_from_access_token."""
-
-    @patch("modules.auth.dependencies._resolve_and_cache_principal")
-    def test_returns_user_id(self, mock_resolve):
-        principal = Principal(
-            user_id=5,
-            username="u",
-            email="u@e.com",
-            is_active=True,
-            is_superuser=False,
-            scopes=frozenset(),
-            credential=PasswordCred(username="u"),
-        )
-        mock_resolve.return_value = principal
-        result = get_sub_from_access_token(MagicMock(), "token", MagicMock())
-        assert result == 5
-
-
-class TestCheckScopes:
-    """Tests for check_scopes."""
-
-    @patch("modules.auth.dependencies._resolve_and_cache_principal")
-    def test_checks_required_scope_on_resolved_principal(self, mock_resolve):
-        principal = MagicMock()
-        principal.scopes = frozenset({"account"})
-        mock_resolve.return_value = principal
-        security_scopes = MagicMock()
-        security_scopes.scopes = ["account"]
-
-        check_scopes(MagicMock(), "token", MagicMock(), security_scopes)
-
-
-class TestValidateAccessTokenOrApiKey:
-    """Tests for validate_access_token_or_api_key."""
+class TestGetPrincipal:
+    """Tests for get_principal, the one resolver of an access token or API key."""
 
     def test_is_sync_so_blocking_lookups_run_in_the_threadpool(self):
-        assert not inspect.iscoroutinefunction(validate_access_token_or_api_key)
+        assert not inspect.iscoroutinefunction(get_principal)
 
-    def test_cached_principal_api_key_returns_auth_context(self):
-        request = MagicMock()
-        request.state = SimpleNamespace()
-        request.state.principal = Principal(
-            user_id=3,
-            username="apiuser",
-            email="api@e.com",
-            is_active=True,
-            is_superuser=False,
-            scopes=frozenset({"read"}),
-            credential=ApiKeyCred(api_key_id=1, key_prefix="test"),
-        )
-        result = validate_access_token_or_api_key(request, MagicMock())
-        assert isinstance(result, AuthContext)
-        assert result.user_id == 3
-        assert result.auth_type == "api_key"
-
-    def test_cached_principal_jwt_returns_auth_context(self):
-        request = MagicMock()
-        request.state = SimpleNamespace()
-        request.state.principal = Principal(
-            user_id=4,
-            username="jwtuser",
-            email="jwt@e.com",
-            is_active=True,
-            is_superuser=False,
-            scopes=frozenset({"account"}),
-            credential=PasswordCred(username="jwtuser"),
-        )
-        result = validate_access_token_or_api_key(request, MagicMock())
-        assert result.auth_type == "jwt"
+    def test_a_cached_principal_is_returned_without_resolving_again(self):
+        request = _request()
+        request.state.principal = _principal()
+        with patch("modules.auth.dependencies.authentication_integration.resolve_from_access_token") as resolve:
+            assert get_principal(request, MagicMock(), "token", None) is request.state.principal
+        resolve.assert_not_called()
 
     @patch("modules.auth.dependencies.authentication_integration.resolve_from_access_token")
-    def test_access_token_provided_resolves_via_integration(self, mock_resolve):
-        request = MagicMock()
-        request.state = SimpleNamespace()
+    def test_an_access_token_resolves_via_integration_and_is_cached(self, mock_resolve):
+        request = _request()
         db = MagicMock()
-        mock_resolve.return_value = Principal(
-            user_id=7,
-            username="tokenuser",
-            email="t@e.com",
-            is_active=True,
-            is_superuser=False,
-            scopes=frozenset({"admin"}),
-            credential=PasswordCred(username="tokenuser"),
-        )
-        result = validate_access_token_or_api_key(request, db, access_token="bearer-token")
+        mock_resolve.return_value = _principal(user_id=7)
+
+        result = get_principal(request, db, "bearer-token", None)
+
         assert result.user_id == 7
-        assert result.auth_type == "jwt"
+        assert request.state.principal is result
         mock_resolve.assert_called_once_with("bearer-token", db)
 
     @patch("modules.auth.dependencies.authentication_integration.resolve_from_api_key")
-    def test_api_key_header_provided_resolves_via_integration(self, mock_resolve):
-        request = MagicMock()
-        request.state = SimpleNamespace()
+    def test_an_api_key_header_resolves_via_integration(self, mock_resolve):
+        request = _request()
         db = MagicMock()
-        mock_resolve.return_value = Principal(
-            user_id=8,
-            username="keyuser",
-            email="k@e.com",
-            is_active=True,
-            is_superuser=False,
-            scopes=frozenset({"read"}),
-            credential=ApiKeyCred(api_key_id=2, key_prefix="sk"),
-        )
-        result = validate_access_token_or_api_key(request, db, access_token=None, api_key_header="sk-123")
+        mock_resolve.return_value = _principal(ApiKeyCred(api_key_id="2", key_prefix="sk"), user_id=8)
+
+        result = get_principal(request, db, None, "sk-123")
+
         assert result.user_id == 8
-        assert result.auth_type == "api_key"
+        assert result.is_api_key()
         mock_resolve.assert_called_once_with("sk-123", request, db)
 
-    def test_api_key_query_string_ignored_when_disabled(self):
-        request = MagicMock()
-        request.state = SimpleNamespace()
-        db = MagicMock()
+    def test_the_api_key_query_string_is_ignored_when_disabled(self):
         mock_settings = MagicMock()
         mock_settings.ALLOW_API_KEY_QUERY_PARAM = False
         with (
@@ -174,129 +92,73 @@ class TestValidateAccessTokenOrApiKey:
             patch("modules.auth.dependencies.authentication_integration.resolve_from_api_key") as mock_resolve,
             pytest.raises(core_exceptions.UnauthenticatedError) as exc_info,
         ):
-            validate_access_token_or_api_key(
-                request, db, access_token=None, api_key_header=None, api_key_query="qk-456"
-            )
+            get_principal(_request({"api_key": "qk-456"}), MagicMock(), None, None)
         assert exc_info.value.status_code == 401
         mock_resolve.assert_not_called()
 
     @patch("modules.auth.dependencies.authentication_integration.resolve_from_api_key")
-    def test_api_key_query_string_accepted_when_enabled(self, mock_resolve):
-        request = MagicMock()
-        request.state = SimpleNamespace()
+    def test_the_api_key_query_string_is_accepted_when_enabled(self, mock_resolve):
+        request = _request({"api_key": "qk-456"})
         db = MagicMock()
-        mock_resolve.return_value = Principal(
-            user_id=9,
-            username="quser",
-            email="q@e.com",
-            is_active=True,
-            is_superuser=False,
-            scopes=frozenset({"read"}),
-            credential=ApiKeyCred(api_key_id=3, key_prefix="qk"),
-        )
+        mock_resolve.return_value = _principal(ApiKeyCred(api_key_id="3", key_prefix="qk"), user_id=9)
         mock_settings = MagicMock()
         mock_settings.ALLOW_API_KEY_QUERY_PARAM = True
         with patch("modules.auth.dependencies.core_config.settings", mock_settings):
-            result = validate_access_token_or_api_key(
-                request, db, access_token=None, api_key_header=None, api_key_query="qk-456"
-            )
+            result = get_principal(request, db, None, None)
         assert result.user_id == 9
-        assert result.auth_type == "api_key"
         mock_resolve.assert_called_once_with("qk-456", request, db)
 
     def test_no_credentials_raises_401(self):
-        request = MagicMock()
-        request.state = SimpleNamespace()
-        mock_settings = MagicMock()
-        mock_settings.ALLOW_API_KEY_QUERY_PARAM = False
-        with (
-            patch("modules.auth.dependencies.core_config.settings", mock_settings),
-            pytest.raises(core_exceptions.UnauthenticatedError) as exc_info,
-        ):
-            validate_access_token_or_api_key(
-                request,
-                MagicMock(),
-                access_token=None,
-                api_key_header=None,
-                api_key_query=None,
-            )
+        with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
+            get_principal(_request(), MagicMock(), None, None)
         assert exc_info.value.status_code == 401
 
 
-class TestGetUserIdFromAuth:
-    """Tests for get_user_id_from_auth."""
+class TestCallerDependencies:
+    """The dependencies a route reads its caller through all take it from the resolved principal."""
 
-    def test_returns_user_id(self):
-        auth = AuthContext(user_id=10, scopes=[], auth_type="jwt")
-        result = get_user_id_from_auth(auth)
-        assert result == 10
+    def test_authenticate_accepts_any_resolved_caller(self):
+        assert authenticate(_principal(ApiKeyCred(api_key_id="1", key_prefix="k"))) is None
+
+    def test_get_current_user_id_returns_the_callers_id(self):
+        assert get_current_user_id(_principal(user_id=5)) == 5
+
+    def test_get_current_scopes_returns_the_callers_scopes(self):
+        assert get_current_scopes(_principal(scopes=frozenset({"gears:read"}))) == frozenset({"gears:read"})
+
+    def test_the_session_id_of_an_access_token_is_returned(self):
+        assert get_sid_from_access_token(_principal(AccessTokenCred(session_id="sid-1"))) == "sid-1"
+
+    def test_an_api_key_has_no_session_and_is_refused_with_403(self):
+        with pytest.raises(core_exceptions.PermissionDeniedError) as exc_info:
+            get_sid_from_access_token(_principal(ApiKeyCred(api_key_id="1", key_prefix="k")))
+        assert exc_info.value.status_code == 403
+        assert "signed-in session" in exc_info.value.detail
 
 
-class TestCheckAuthScopes:
-    """Tests for check_auth_scopes."""
+class TestCheckScopes:
+    """Tests for check_scopes."""
 
     def test_all_scopes_present_no_exception(self):
-        auth = AuthContext(user_id=1, scopes=["account", "read"], auth_type="jwt")
-        security_scopes = MagicMock()
-        security_scopes.scopes = ["account"]
-        check_auth_scopes(auth, security_scopes)
+        check_scopes(_principal(scopes=frozenset({"account", "read"})), SecurityScopes(scopes=["account"]))
 
     def test_missing_scopes_raises_403(self):
-        auth = AuthContext(user_id=1, scopes=["account"], auth_type="jwt")
-        security_scopes = MagicMock()
-        security_scopes.scopes = ["account", "admin"]
         with pytest.raises(core_exceptions.PermissionDeniedError) as exc_info:
-            check_auth_scopes(auth, security_scopes)
+            check_scopes(_principal(), SecurityScopes(scopes=["account", "admin"]))
         assert exc_info.value.status_code == 403
 
     def test_the_challenge_names_the_scopes_the_route_requires_as_a_space_separated_list(self):
-        auth = AuthContext(user_id=1, scopes=["account"], auth_type="jwt")
-        security_scopes = MagicMock()
-        security_scopes.scopes = ["account", "activities:read", "activities:write"]
         with pytest.raises(core_exceptions.PermissionDeniedError) as exc_info:
-            check_auth_scopes(auth, security_scopes)
+            check_scopes(_principal(), SecurityScopes(scopes=["account", "activities:read", "activities:write"]))
         assert exc_info.value.headers == {
             "WWW-Authenticate": 'Bearer error="insufficient_scope", scope="account activities:read activities:write"'
         }
 
     def test_the_missing_scopes_are_an_extension_member_not_a_python_repr(self):
-        auth = AuthContext(user_id=1, scopes=["account"], auth_type="jwt")
-        security_scopes = MagicMock()
-        security_scopes.scopes = ["account", "users:write", "activities:read"]
         with pytest.raises(core_exceptions.PermissionDeniedError) as exc_info:
-            check_auth_scopes(auth, security_scopes)
+            check_scopes(_principal(), SecurityScopes(scopes=["account", "users:write", "activities:read"]))
         assert exc_info.value.extensions == {"missing_scopes": ["activities:read", "users:write"]}
         assert exc_info.value.detail == "Missing permissions: activities:read, users:write"
-
-
-class TestResolveAndCachePrincipal:
-    """Tests for _resolve_and_cache_principal."""
-
-    def test_returns_cached_principal(self):
-        principal = Principal(
-            user_id=1,
-            username="u",
-            email="u@e.com",
-            is_active=True,
-            is_superuser=False,
-            scopes=frozenset(),
-            credential=PasswordCred(username="u"),
-        )
-        request = MagicMock()
-        request.state = SimpleNamespace()
-        request.state.principal = principal
-
-        result = auth_dependencies._resolve_and_cache_principal("token", request, MagicMock())
-        assert result == principal
-
-
-class TestAuthContextIdentity:
-    """Assert that dependencies.AuthContext is the same type as internal_dependencies.AuthContext."""
-
-    def test_auth_context_is_same_type_as_security(self):
-        import modules.auth.dependencies as auth_security
-
-        assert auth_dependencies.AuthContext is auth_security.AuthContext
 
 
 class TestAuditContextFromRequest:

@@ -230,6 +230,9 @@ export type ApiKeyCreatedDto = Schemas['UserApiKeyCreatedRead']
 /** Create-API-key request body. */
 export type ApiKeyCreateDto = Schemas['UserApiKeyCreate']
 
+/** A permission an API key can be granted. */
+export type ApiKeyScope = Schemas['ApiKeyScope']
+
 /**
  * A clean, camel-cased API-key model for the security zone. Mapped from
  * {@link ApiKeyDto} at the service boundary.
@@ -262,7 +265,7 @@ export interface ApiKey {
  */
 export interface ApiKeyCreateInput {
   name: string
-  scopes: string[]
+  scopes: ApiKeyScope[]
   expiresAt: string | null
   currentPassword: string | null
   mfaCode: string | null

@@ -66,12 +66,16 @@ class TestHashApiKey:
         assert auth_api_keys_utils.hash_api_key(raw) == expected
 
 
-class TestSupportedApiKeyScopes:
-    """Test suite for the API-key scope allow-list."""
+class TestApiKeyScopesAreStoredByName:
+    """A key's scopes are stored as their names, so a stored key reads back the same strings."""
 
-    def test_supported_api_key_scopes_constant(self):
-        """Test that the API-key scope allow-list is centralized."""
-        assert frozenset({"activities:upload"}) == auth_api_keys_constants.SUPPORTED_API_KEY_SCOPES
+    def test_scope_members_are_stored_as_their_values(self):
+        scopes = [auth_api_keys_constants.ApiKeyScope.GEARS_READ, auth_api_keys_constants.ApiKeyScope.ACCOUNT]
+
+        stored = auth_api_keys_utils.scopes_to_json(scopes)
+
+        assert stored == '["gears:read", "account"]'
+        assert auth_api_keys_utils.json_to_scopes(stored) == ["gears:read", "account"]
 
 
 class TestScopesJsonRoundTrip:

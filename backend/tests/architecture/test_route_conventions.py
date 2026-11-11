@@ -22,7 +22,7 @@ _APP = pathlib.Path("app")
 #: ``Annotated[..., Depends(<dependency>)]``.
 _DEPENDENCY_ALIASES = {
     "core_database.get_db": "core_dependencies.DbSession",
-    "auth_dependencies.get_sub_from_access_token": "auth_dependencies.CurrentUserId",
+    "auth_dependencies.get_current_user_id": "auth_dependencies.CurrentUserId",
     "core_dependencies.get_storage": "core_dependencies.Storage",
     "core_dependencies.get_platform_state": "core_dependencies.PlatformState",
 }
@@ -208,7 +208,7 @@ class TestRouteConventions:
         credentialed_by_url = {
             "photo_router.py": "the signed token in the URL is the credential (an <img> cannot send a header)",
         }
-        scope_checks = {"check_scopes", "check_auth_scopes"}
+        scope_checks = {"check_scopes"}
         offenders = []
         for path, function in router_functions():
             if role_of(path.stem) != "router" or path.name in credentialed_by_url:

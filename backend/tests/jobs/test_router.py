@@ -37,8 +37,14 @@ def _client(state, scopes=("account",), user_id=1) -> TestClient:
             user_id, strava_constants.SyncKind.GEAR, conflict="A Strava gear sync is already in progress"
         )
 
-    app.dependency_overrides[auth_dependencies.validate_access_token_or_api_key] = lambda: auth_contracts.AuthContext(
-        user_id=user_id, scopes=list(scopes), auth_type="jwt"
+    app.dependency_overrides[auth_dependencies.get_principal] = lambda: auth_contracts.Principal(
+        user_id=user_id,
+        username="runner",
+        email="runner@example.com",
+        is_active=True,
+        is_superuser=False,
+        scopes=frozenset(scopes),
+        credential=auth_contracts.AccessTokenCred(session_id="sid"),
     )
     app.dependency_overrides[core_dependencies.get_platform_state] = lambda: state
     app.dependency_overrides[core_database.get_db] = lambda: MagicMock()

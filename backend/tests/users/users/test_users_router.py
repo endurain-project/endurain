@@ -37,10 +37,10 @@ def _app_client(mock_db, scopes: frozenset[str]) -> TestClient:
     app.add_api_route("/jobs/{job_id}", lambda job_id: None, name="read_job")
     core_exceptions.register_exception_handlers(app)
     app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
-    app.dependency_overrides[auth_dependencies.get_sub_from_access_token] = lambda: 9
+    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: 9
     app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = lambda: "sid-9"
     app.dependency_overrides[auth_dependencies.get_step_up_attempts] = lambda: _STEP_UP_STORE
-    app.dependency_overrides[auth_dependencies.get_scopes_from_access_token] = lambda: scopes
+    app.dependency_overrides[auth_dependencies.get_current_scopes] = lambda: scopes
     app.dependency_overrides[core_database.get_db] = lambda: mock_db
     app.dependency_overrides[core_dependencies.get_storage] = lambda: MagicMock()
     app.dependency_overrides[users_dependencies.get_user_deletion_state_store] = lambda: MagicMock()
@@ -712,7 +712,7 @@ class TestReadScopeEnforcement:
                 raise HTTPException(status_code=403, detail=f"Missing permissions: {missing}")
 
         app.dependency_overrides[auth_dependencies.check_scopes] = check_scopes
-        app.dependency_overrides[auth_dependencies.get_scopes_from_access_token] = lambda: frozenset(scopes)
+        app.dependency_overrides[auth_dependencies.get_current_scopes] = lambda: frozenset(scopes)
         app.dependency_overrides[core_database.get_db] = lambda: MagicMock()
         return TestClient(app)
 

@@ -51,7 +51,7 @@ def _client(mock_db, route: str) -> tuple[TestClient, str]:
     core_exceptions.register_exception_handlers(app)
     app.include_router(router.router, prefix=f"/{package}")
     app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
-    app.dependency_overrides[auth_dependencies.get_sub_from_access_token] = lambda: 1
+    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: 1
     app.dependency_overrides[core_database.get_db] = lambda: mock_db
     return TestClient(app), f"modules.health.{package}.router.{package}_service"
 

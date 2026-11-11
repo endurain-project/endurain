@@ -45,14 +45,14 @@ The activity upload and the archive bulk import take an `Idempotency-Key`. Every
 
 `GET /jobs/{job_id}` reads one job. Poll the path that `Content-Location` names, and wait the seconds in `Retry-After` between polls (slower while a [realtime hint](realtime.md) connection is open). A job that is not finished sends `Retry-After` again; a final state, `succeeded` or `failed`, sends none, so stop there.
 
-- Reading a job needs the scope its kind asks for: `activities:upload` for an activity upload, refresh or bulk import (an [API key](api-keys.md) works too), `activities:read` for a bulk edit, `account:integrations` for a Garmin Connect link or a Strava link or unlink, `account` for a Garmin Connect or Strava gear or health sync, `account:export` for a profile export or import, and `users:read-all` for an account deletion. Without it the read is `403`.
+- Reading a job needs the scope its kind asks for: `activities:upload` for an activity upload, refresh or bulk import, `activities:read` for a bulk edit, `account:integrations` for a Garmin Connect link or a Strava link or unlink, `account` for a Garmin Connect or Strava gear or health sync, `account:export` for a profile export or import, and `users:read-all` for an account deletion. Without it the read is `403`.
 - You read the jobs you started. Any administrator with `users:read-all` can also read an account deletion. Another user's job is `404`, never `403`, so an id cannot be probed.
 - An unknown id is `404`. So is a job whose record has expired. An activity ingestion job is kept for its retention period. Every other job is kept for a limited time after it starts: 7 minutes for a Garmin Connect link, 30 minutes for a Garmin Connect or Strava sync or a Strava link or unlink, 1 hour for a bulk edit, 2 hours for a profile export or an account deletion and 4 hours for a profile import. Starting the next job of the same kind replaces it sooner. Poll until a final state and do not rely on reading the result later.
 - A `202` can also be refused with `503` when the server runs without a durable job worker and its in-process pool is full. Retry later.
 
 ## Listing your jobs
 
-`GET /jobs` lists the jobs you started, newest first, as a keyset page: `items`, `num_records` and `next_cursor`. Pass `next_cursor` back as `cursor` for the next slice; `num_records` sets the slice size. Filter with `kind` (one of the values above) and `status`. Only the kinds your scopes can read are listed, so an API key with `activities:upload` sees its uploads, imports and refreshes alone.
+`GET /jobs` lists the jobs you started, newest first, as a keyset page: `items`, `num_records` and `next_cursor`. Pass `next_cursor` back as `cursor` for the next slice; `num_records` sets the slice size. Filter with `kind` (one of the values above) and `status`. Only the kinds your scopes can read are listed, so an [API key](api-keys.md) with only `activities:upload` sees its uploads, imports and refreshes alone.
 
 Use it to pick a job up again when the client lost its id, for example after a restart: `GET /jobs?kind=profile_export` finds the export to download, and `GET /jobs?status=running` the work still in progress. A job is listed for as long as it can be read.
 
@@ -88,7 +88,7 @@ These routes start a job of one shape, `ActivityIngestionJobRead`, whatever the 
 
 A refresh that is waiting for a provider's rate limit to clear is `queued` with `retry_after` set. It is not a failure: the job runs again by itself at `retry_after`.
 
-Reading the job needs the `activities:upload` scope and accepts an API key. Starting a bulk import, a folder import, a refresh or a provider range sync needs `activities:write` and a signed-in session (an API key is not accepted).
+Reading the job needs the `activities:upload` scope. Starting a bulk import, a folder import, a refresh or a provider range sync needs `activities:write`. Each accepts a bearer token or an [API key](api-keys.md) holding the scope.
 
 ### Upload an activity file
 

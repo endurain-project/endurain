@@ -24,7 +24,7 @@ class TestIssueWsTicket:
         app = FastAPI()
         app.include_router(websocket_router.router, prefix="/ws")
         app.dependency_overrides[auth_deps.check_scopes] = lambda: None
-        app.dependency_overrides[auth_deps.get_sub_from_access_token] = lambda: user_id
+        app.dependency_overrides[auth_deps.get_current_user_id] = lambda: user_id
         app.dependency_overrides[auth_deps.get_sid_from_access_token] = lambda: "session-1"
         app.dependency_overrides[websocket_dependencies.get_ws_ticket_store] = lambda: store
         return TestClient(app)

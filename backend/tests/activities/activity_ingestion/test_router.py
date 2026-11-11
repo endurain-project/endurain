@@ -78,12 +78,12 @@ class TestUploadRoute:
 
         db = MagicMock()
         app = FastAPI()
-        app.include_router(router.api_upload_router, prefix="/activities")
+        app.include_router(router.router, prefix="/activities")
         app.add_api_route("/jobs/{job_id}", lambda job_id: None, name="read_job")
         app.dependency_overrides[core_db.get_db] = lambda: db
         app.dependency_overrides[core_dependencies.get_storage] = lambda: "storage"
-        app.dependency_overrides[auth_dependencies.get_user_id_from_auth] = lambda: 7
-        app.dependency_overrides[auth_dependencies.check_auth_scopes] = lambda: None
+        app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: 7
+        app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
 
         with patch.object(
             router.activity_ingestion_service,

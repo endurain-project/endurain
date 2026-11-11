@@ -34,7 +34,7 @@ def _app(mock_db) -> FastAPI:
     )
     app.dependency_overrides[mfa_dependencies.get_pending_mfa_store] = lambda: MagicMock()
 
-    @app.get("/protected", dependencies=[Depends(auth_dependencies.validate_access_token)])
+    @app.get("/protected", dependencies=[Depends(auth_dependencies.authenticate)])
     def _protected():
         return {}
 

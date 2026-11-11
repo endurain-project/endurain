@@ -27,7 +27,7 @@ class UserApiKeyCreate(BaseModel):
 
     Attributes:
         name: User-friendly label for the key.
-        scopes: List containing the supported API key scope.
+        scopes: The scopes to grant, each one an API key may hold.
         expires_at: Optional expiration datetime, at most the server's maximum API key lifetime from now. When
             omitted the key expires at that maximum.
         step_up: The caller's step-up verification.
@@ -39,10 +39,10 @@ class UserApiKeyCreate(BaseModel):
         max_length=100,
         description="User-friendly label for the key",
     )
-    scopes: list[StrictStr] = Field(
+    scopes: list[api_keys_constants.ApiKeyScope] = Field(
         ...,
         min_length=1,
-        description="List of scope strings to grant",
+        description="Scopes to grant: the account's own data, never its security, export, provider links or administration",
     )
     expires_at: AwareDatetime | None = Field(
         None,
@@ -54,28 +54,6 @@ class UserApiKeyCreate(BaseModel):
     step_up: auth_schema.StepUpVerification = Field(
         ..., description="Step-up verification, required to create an API key"
     )
-
-    @field_validator("scopes")
-    @classmethod
-    def scopes_must_be_valid(cls, v: list[str]) -> list[str]:
-        """Validate API keys only grant activity upload access.
-
-        Args:
-            v: List of scope strings to validate.
-
-        Returns:
-            Validated list of scope strings.
-
-        Raises:
-            ValueError: If any scope is not supported.
-        """
-        unsupported = set(v) - api_keys_constants.SUPPORTED_API_KEY_SCOPES
-        if unsupported:
-            raise ValueError(
-                f"Unsupported API key scopes: {', '.join(sorted(unsupported))}. "
-                f"Valid scopes: {', '.join(sorted(api_keys_constants.SUPPORTED_API_KEY_SCOPES))}"
-            )
-        return v
 
     @field_validator("expires_at")
     @classmethod
