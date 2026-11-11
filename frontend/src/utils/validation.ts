@@ -16,8 +16,11 @@ export function isValidEmail(value: string): boolean {
   return EMAIL_PATTERN.test(value.trim())
 }
 
+/** Longest password the server accepts, whether it sets the password or presents it. */
+export const PASSWORD_MAX_LENGTH = 256
+
 /**
- * Returns whether a password is at least the minimum length. Length is the
+ * Returns whether a password is at least the minimum length and at most `PASSWORD_MAX_LENGTH`. Length is the
  * only rule the browser can check; the server also refuses common passwords and
  * ones built from the account's own details. Use it to gate the submit
  * affordance, not as a security boundary.
@@ -25,10 +28,14 @@ export function isValidEmail(value: string): boolean {
  * @param password - Raw password input.
  * @param minLength - Minimum length of the account's access tier.
  * @returns `true` when the password has at least `minLength` characters,
- *   counted as the server counts them: Unicode code points of the NFC form.
+ *   counted as the server counts them: Unicode code points of the NFC form,
+ *   and at most `PASSWORD_MAX_LENGTH` code points as typed.
  */
 export function isValidPassword(password: string, minLength: number): boolean {
-  return [...password.normalize('NFC')].length >= minLength
+  return (
+    [...password.normalize('NFC')].length >= minLength &&
+    [...password].length <= PASSWORD_MAX_LENGTH
+  )
 }
 
 /**

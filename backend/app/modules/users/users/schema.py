@@ -24,6 +24,7 @@ import core.pagination as core_pagination
 import core.partial_update as core_partial_update
 import core.types as core_types
 import modules.activities.activity.constants as activity_constants
+import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.schema as auth_schema
 import modules.server_settings.schema as server_settings_schema
@@ -174,7 +175,9 @@ UserUsername = Annotated[
     ),
 ]
 UserEmail = Annotated[EmailStr, Field(max_length=250, description="User's email address")]
-UserPassword = Annotated[StrictStr, Field(min_length=8, max_length=250, description="User's password")]
+UserPassword = Annotated[
+    StrictStr, Field(min_length=8, max_length=credentials_contracts.PASSWORD_MAX_LENGTH, description="User's password")
+]
 
 
 #: Shortest and tallest height, in centimeters, a client may set.
@@ -685,7 +688,7 @@ class UserEditPassword(BaseModel):
     password: StrictStr = Field(
         ...,
         min_length=8,
-        max_length=250,
+        max_length=credentials_contracts.PASSWORD_MAX_LENGTH,
         description="New password",
     )
     revoke_other_sessions: StrictBool = Field(
@@ -720,7 +723,7 @@ class UserAdminEditPassword(BaseModel):
     password: StrictStr = Field(
         ...,
         min_length=8,
-        max_length=250,
+        max_length=credentials_contracts.PASSWORD_MAX_LENGTH,
         description="New password",
     )
     step_up: auth_schema.StepUpVerification = Field(

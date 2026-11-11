@@ -61,7 +61,7 @@ Authentication and authorization failures use the same shape. Typical causes:
 | `409` | A conflict with the current state: an MFA operation that does not fit the account's MFA state (already enabled, not enabled, no setup in progress), a user approval while the user's email is not verified, a username already taken |
 | `429` | Too many login or OAuth attempts |
 
-The `/auth/login` form takes a `username` and a `password` of at most 256 characters each; a longer one, like a NUL character, is `422` (`urn:endurain:error:validation-failed`).
+The `/auth/login` form takes a `username` and a `password` of at most 256 characters each; a longer one, like a NUL character, is `422` (`urn:endurain:error:validation-failed`). Every request that carries a password, new or current (including a step-up `current_password`), takes at most 256 characters.
 
 ## Concurrent edits with `ETag` and `If-Match`
 

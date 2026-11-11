@@ -7,6 +7,9 @@ from pydantic import BaseModel, ConfigDict
 
 import core.exceptions as core_exceptions
 
+#: Longest password, in characters, that any request accepts, whether it sets the password or presents it.
+PASSWORD_MAX_LENGTH = 256
+
 
 class PasswordPolicyError(core_exceptions.DomainError):
     """A password a caller supplied failed policy validation, answered as an unprocessable request.

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { Eye, EyeOff } from '@lucide/vue'
 
 import { Input } from '@/components/ui/input'
+import { PASSWORD_MAX_LENGTH } from '@/utils/validation'
 
 const model = defineModel<string>({ required: true })
 
@@ -17,7 +18,7 @@ withDefaults(
     autocomplete?: string
     /** Placeholder text. */
     placeholder?: string
-    /** Maximum allowed character length. */
+    /** Maximum allowed character length; the server's password maximum by default. */
     maxlength?: number
     /** Whether the field is disabled. */
     disabled?: boolean
@@ -31,7 +32,7 @@ withDefaults(
     name: undefined,
     autocomplete: 'off',
     placeholder: undefined,
-    maxlength: undefined,
+    maxlength: PASSWORD_MAX_LENGTH,
     disabled: false,
     ariaInvalid: false,
     ariaDescribedby: undefined,

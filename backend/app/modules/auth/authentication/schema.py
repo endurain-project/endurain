@@ -14,6 +14,8 @@ from pydantic import (
     field_validator,
 )
 
+import modules.auth.credentials.contracts as credentials_contracts
+
 
 class MFALoginRequest(BaseModel):
     """Schema for MFA login requests.
@@ -43,7 +45,7 @@ class PasswordChangeLoginRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     password_change_challenge: StrictStr = Field(..., min_length=43, max_length=64)
-    password: StrictStr = Field(..., min_length=8, max_length=256)
+    password: StrictStr = Field(..., min_length=8, max_length=credentials_contracts.PASSWORD_MAX_LENGTH)
 
 
 class MFARequiredRead(BaseModel):

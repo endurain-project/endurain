@@ -18,6 +18,7 @@ import modules.auth.access_tokens.integration_service as access_tokens_integrati
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.computation as auth_computation
 import modules.auth.constants as auth_constants
+import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.known_devices.dependencies as known_devices_dependencies
 
 _REFRESH_TOKEN_COOKIE_BASE_NAME = "endurain_refresh_token"
@@ -116,9 +117,9 @@ def _pkce_errors(
     return errors
 
 
-#: Longest username or password the login form accepts. The longest password any form lets a user set is 256
-#: characters (change and reset), so every valid credential fits; anything longer never reaches Argon2.
-LOGIN_FIELD_MAX_LENGTH = 256
+#: Longest username or password the login form accepts. It is the longest password any request accepts, so every
+#: valid credential fits; anything longer never reaches Argon2.
+LOGIN_FIELD_MAX_LENGTH = credentials_contracts.PASSWORD_MAX_LENGTH
 
 
 def reject_nul_in_login_form(

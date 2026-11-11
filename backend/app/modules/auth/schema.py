@@ -2,6 +2,8 @@
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 
+import modules.auth.credentials.contracts as credentials_contracts
+
 
 class IdpReauthProof(BaseModel):
     """Proof that a password-less account signed in again with its identity provider.
@@ -46,7 +48,7 @@ class StepUpVerification(BaseModel):
     current_password: StrictStr | None = Field(
         default=None,
         min_length=1,
-        max_length=250,
+        max_length=credentials_contracts.PASSWORD_MAX_LENGTH,
         description=("Current password (step-up verification). Required when the account has a local password."),
     )
     mfa_code: StrictStr | None = Field(

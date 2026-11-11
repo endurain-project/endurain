@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { isValidEmail, isValidPassword, resolvePasswordMinLength } from '@/utils/validation'
+import {
+  isValidEmail,
+  isValidPassword,
+  PASSWORD_MAX_LENGTH,
+  resolvePasswordMinLength,
+} from '@/utils/validation'
 
 describe('isValidEmail', () => {
   it('accepts a well-formed address and ignores surrounding whitespace', () => {
@@ -17,6 +22,12 @@ describe('isValidEmail', () => {
 })
 
 describe('isValidPassword', () => {
+  it('accepts a password of the maximum length and refuses a longer one', () => {
+    expect(PASSWORD_MAX_LENGTH).toBe(256)
+    expect(isValidPassword('a'.repeat(256), 8)).toBe(true)
+    expect(isValidPassword('a'.repeat(257), 8)).toBe(false)
+  })
+
   it('accepts any password of at least the minimum length', () => {
     expect(isValidPassword('aaaaaaaa', 8)).toBe(true)
     expect(isValidPassword('correct horse battery', 15)).toBe(true)

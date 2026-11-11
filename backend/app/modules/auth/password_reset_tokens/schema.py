@@ -4,6 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, StrictBool, StrictInt, StrictStr
 
+import modules.auth.credentials.contracts as credentials_contracts
+
 
 class PasswordResetToken(BaseModel):
     """Schema representing a password reset token record.
@@ -101,7 +103,7 @@ class PasswordResetConfirm(BaseModel):
         ...,
         description="The new password to set",
         min_length=8,
-        max_length=256,
+        max_length=credentials_contracts.PASSWORD_MAX_LENGTH,
     )
 
     model_config = ConfigDict(extra="forbid")
