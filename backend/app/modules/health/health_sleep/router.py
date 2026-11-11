@@ -22,7 +22,7 @@ router = APIRouter()
 
 @router.get(
     "",
-    response_model=core_pagination.Page[health_sleep_schema.HealthSleepRead],
+    response_model=core_pagination.Page[health_sleep_schema.HealthSleepListItem],
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:read"])],
 )
 def read_health_sleep_all_pagination(
@@ -38,11 +38,12 @@ def read_health_sleep_all_pagination(
         bool | None,
         Query(description="Keep only nights with (`true`) or without (`false`) a resting heart rate"),
     ] = None,
-) -> core_pagination.Page[health_sleep_schema.HealthSleepRead]:
+) -> core_pagination.Page[health_sleep_schema.HealthSleepListItem]:
     """Retrieve health sleep records for the authenticated user.
 
     One page of records, newest first, optionally limited to an interval and to nights with or without a
-    resting heart rate; the total counts the same records. Access is restricted to users with the
+    resting heart rate; the total counts the same records. A record carries ``has_sleep_stages``, not its
+    stages, which are on `GET /health/sleep/{health_sleep_id}`. Access is restricted to users with the
     'health:read' scope.
 
     Args:

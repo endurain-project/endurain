@@ -182,7 +182,7 @@ class TestEditAndDelete:
 
 
 class TestListHealthSleep:
-    @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_by_user_id", return_value=[])
+    @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_list_items_by_user_id", return_value=[])
     @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_number_by_user_id", return_value=0)
     @patch(f"{_PREFIX}.users_integration.local_today", return_value=datetime_date(2024, 1, 15))
     def test_resolves_the_interval_in_the_users_calendar(self, _today, mock_number, mock_list, mock_db):
@@ -200,20 +200,40 @@ class TestListHealthSleep:
         mock_list.assert_called_once_with(1, mock_db, 2, 10, since, None, has_resting_heart_rate=None)
         assert (result.total, result.page, result.num_records) == (0, 2, 10)
 
-    @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_by_user_id", return_value=[])
+    @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_list_items_by_user_id", return_value=[])
     @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_number_by_user_id", return_value=0)
     def test_no_interval_means_no_lower_bound(self, mock_number, mock_list, mock_db):
         health_sleep_service.list_health_sleep(1, mock_db, date_range=_NO_RANGE)
 
         mock_number.assert_called_once_with(1, mock_db, None, None, has_resting_heart_rate=None)
 
-    @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_by_user_id", return_value=[])
+    @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_list_items_by_user_id", return_value=[])
     @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_number_by_user_id", return_value=0)
     def test_the_resting_heart_rate_filter_reaches_the_count_and_the_page(self, mock_number, mock_list, mock_db):
         health_sleep_service.list_health_sleep(1, mock_db, date_range=_NO_RANGE, has_resting_heart_rate=True)
 
         assert mock_number.call_args.kwargs == {"has_resting_heart_rate": True}
         assert mock_list.call_args.kwargs == {"has_resting_heart_rate": True}
+
+
+class TestListItems:
+    @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_number_by_user_id", return_value=2)
+    @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_list_items_by_user_id")
+    def test_the_page_holds_items_that_flag_the_stages_and_do_not_carry_them(self, mock_list, _number, mock_db):
+        mock_list.return_value = [
+            health_sleep_schema.HealthSleepListItem(id=1, user_id=1, has_sleep_stages=True),
+            health_sleep_schema.HealthSleepListItem(id=2, user_id=1, has_sleep_stages=False),
+        ]
+
+        page = health_sleep_service.list_health_sleep(1, mock_db, date_range=_NO_RANGE)
+
+        assert [item.has_sleep_stages for item in page.items] == [True, False]
+        assert all("sleep_stages" not in item.model_dump() for item in page.items)
+
+    def test_the_item_read_still_carries_the_stages(self):
+        record = health_sleep_schema.HealthSleepRead(id=1, user_id=1, sleep_stages=[{"stage_type": "deep"}])
+
+        assert len(record.model_dump()["sleep_stages"]) == 1
 
 
 class TestMissingDate:

@@ -61,7 +61,10 @@ def list_own_activities(
         Query(gt=0, le=core_types.INT32_MAX, description="Keep only the activities recorded with this gear"),
     ] = None,
 ) -> activity_schema.ActivityPage:
-    """List the authenticated user's activities, with the matching total."""
+    """List the authenticated user's activities, with the matching total.
+
+    Items are summaries: private notes and import metadata are on `GET /activities/{activity_id}`.
+    """
     return activity_service.page_user_activities(
         token_user_id,
         token_user_id,
@@ -111,6 +114,7 @@ def list_feed(
     With ``scope=mine`` the slice holds the caller's own activities of every visibility, newest first.
     The slice also carries the public profile of each owner on it in ``users`` (the projection
     ``GET /users/{user_id}`` returns), so a token with ``activities:read`` alone receives it too.
+    Items are summaries: private notes and import metadata are on ``GET /activities/{activity_id}``.
     """
     return activity_service.scroll_feed(
         token_user_id,

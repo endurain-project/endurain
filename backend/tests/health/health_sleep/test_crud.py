@@ -1,10 +1,11 @@
 from datetime import date as datetime_date
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlalchemy.exc import IntegrityError
 
 import core.exceptions as core_exceptions
+import modules.health.computation as health_computation
 import modules.health.health_sleep.crud as health_sleep_crud
 import modules.health.health_sleep.models as health_sleep_models
 import modules.health.health_sleep.schema as health_sleep_schema
@@ -45,12 +46,23 @@ class TestReads:
     def test_list_paginates_and_bounds(self, mock_db):
         _returns_scalars(mock_db, [_row()])
 
-        result = health_sleep_crud.get_health_sleep_by_user_id(1, mock_db, 2, 10, datetime_date(2024, 1, 1))
+        result = health_sleep_crud.get_health_sleep_list_items_by_user_id(1, mock_db, 2, 10, datetime_date(2024, 1, 1))
 
         assert len(result) == 1
         compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
         assert "LIMIT 10 OFFSET 10" in compiled
         assert "health_sleep.date >=" in compiled
+
+    def test_the_list_reads_rows_as_list_items_and_the_export_as_full_records(self, mock_db):
+        _returns_scalars(mock_db, [])
+        with patch.object(health_computation, "to_read_schemas", return_value=[]) as convert:
+            health_sleep_crud.get_health_sleep_list_items_by_user_id(1, mock_db)
+            health_sleep_crud.get_health_sleep_by_user_id(1, mock_db)
+
+        assert [call.args[0] for call in convert.call_args_list] == [
+            health_sleep_schema.HealthSleepListItem,
+            health_sleep_schema.HealthSleepRead,
+        ]
 
     def test_the_resting_heart_rate_filter_bounds_the_count_and_the_page(self, mock_db):
         mock_db.execute.return_value.scalar_one.return_value = 0
@@ -58,20 +70,20 @@ class TestReads:
         assert "health_sleep.resting_heart_rate IS NOT NULL" in str(mock_db.execute.call_args.args[0])
 
         _returns_scalars(mock_db, [])
-        health_sleep_crud.get_health_sleep_by_user_id(1, mock_db, has_resting_heart_rate=False)
+        health_sleep_crud.get_health_sleep_list_items_by_user_id(1, mock_db, has_resting_heart_rate=False)
         assert "health_sleep.resting_heart_rate IS NULL" in str(mock_db.execute.call_args.args[0])
 
     def test_no_resting_heart_rate_filter_by_default(self, mock_db):
         _returns_scalars(mock_db, [])
 
-        health_sleep_crud.get_health_sleep_by_user_id(1, mock_db)
+        health_sleep_crud.get_health_sleep_list_items_by_user_id(1, mock_db)
 
         assert "resting_heart_rate" not in str(mock_db.execute.call_args.args[0]).split("WHERE", 1)[1]
 
     def test_list_empty(self, mock_db):
         _returns_scalars(mock_db, [])
 
-        assert health_sleep_crud.get_health_sleep_by_user_id(1, mock_db) == []
+        assert health_sleep_crud.get_health_sleep_list_items_by_user_id(1, mock_db) == []
 
     def test_by_date_found(self, mock_db):
         _returns_one(mock_db, _row())

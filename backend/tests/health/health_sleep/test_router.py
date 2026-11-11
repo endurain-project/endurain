@@ -16,11 +16,35 @@ def _record(record_id: int = 1, day: int = 15, seconds: int = 28800) -> health_s
     )
 
 
+def _item(record_id: int = 1, *, has_stages: bool = False) -> health_sleep_schema.HealthSleepListItem:
+    return health_sleep_schema.HealthSleepListItem(
+        id=record_id, user_id=1, date=datetime_date(2024, 1, 15), has_sleep_stages=has_stages
+    )
+
+
+def _item_with(record_id: int, seconds: int) -> health_sleep_schema.HealthSleepListItem:
+    return health_sleep_schema.HealthSleepListItem(
+        id=record_id, user_id=1, date=datetime_date(2024, 1, 15), total_sleep_seconds=seconds, has_sleep_stages=False
+    )
+
+
 class TestReadHealthSleepAll:
+    @patch(f"{_SERVICE}.list_health_sleep")
+    def test_items_carry_the_stage_flag_not_the_stages(self, mock_list, fast_api_client, fast_api_app):
+        mock_list.return_value = core_pagination.Page(
+            items=[_item(1, has_stages=True), _item(2, has_stages=False)], total=2, page=1, num_records=25
+        )
+
+        response = fast_api_client.get("/health_sleep", headers=_HEADERS)
+
+        items = response.json()["items"]
+        assert all("sleep_stages" not in item for item in items)
+        assert [item["has_sleep_stages"] for item in items] == [True, False]
+
     @patch(f"{_SERVICE}.list_health_sleep")
     def test_returns_the_page_and_total(self, mock_list, fast_api_client, fast_api_app):
         mock_list.return_value = core_pagination.Page(
-            items=[_record(1, 15, 28800), _record(2, 16, 30000)], total=2, page=1, num_records=25
+            items=[_item_with(1, 28800), _item_with(2, 30000)], total=2, page=1, num_records=25
         )
 
         response = fast_api_client.get("/health_sleep", headers=_HEADERS)

@@ -8,6 +8,7 @@ import pytest
 from sqlalchemy.orm.exc import StaleDataError
 
 import core.exceptions as core_exceptions
+import modules.activities.activity.schema as activity_schema
 
 # A Thursday, so week bounds straddle a month boundary in neither direction.
 _TODAY = date(2026, 3, 12)
@@ -413,6 +414,31 @@ class TestCrossModuleWrites:
         mock_publishers.publish_activities_deleted.assert_called_once_with([1, 2], 7, db, source="api:test")
 
 
+class TestPageUserActivities:
+    def test_items_are_summaries_with_thumbnail_and_media(self):
+        from modules.activities.activity import service
+
+        activity = activity_schema.ActivityRead(
+            id=4, user_id=7, distance=0, name="Run", activity_type=1, private_notes="secret", import_info={"a": 1}
+        )
+        with (
+            patch.object(service, "_require_visible_owner"),
+            patch.object(service, "_followees_of", return_value=[]),
+            patch.object(service, "list_user_activities_paginated", return_value=[activity]),
+            patch("modules.activities.activity.service.activity_crud.count_user_activities", return_value=1),
+            patch("modules.activities.activity.service.activities_contributor_registry") as registry,
+        ):
+            registry.resolve_thumbnail_url.return_value = "thumb"
+            registry.resolve_media.return_value = {}
+            page = service.page_user_activities(7, 7, MagicMock(), page_number=1, num_records=25)
+
+        item = page.items[0]
+        assert isinstance(item, activity_schema.ActivitySummaryRead)
+        assert item.map_thumbnail_url == "thumb"
+        assert "private_notes" not in item.model_dump()
+        assert "import_info" not in item.model_dump()
+
+
 class TestScrollFeed:
     def test_reads_only_the_callers_followees(self):
         from modules.activities.activity.service import scroll_feed
@@ -441,7 +467,9 @@ class TestScrollOwnFeed:
 
         entries = [
             SimpleNamespace(
-                activity=SimpleNamespace(id=i, user_id=7, map_thumbnail_path=None, media=[]),
+                activity=activity_schema.ActivityRead(
+                    id=i, user_id=7, distance=0, name="Run", activity_type=1, private_notes="secret"
+                ),
                 cursor_sort_value=datetime(2024, 1, i, tzinfo=UTC),
                 cursor_id=i,
             )
@@ -465,6 +493,8 @@ class TestScrollOwnFeed:
         followers.list_accepted_followee_ids.assert_not_called()
         following.assert_not_called()
         assert [item.id for item in page["items"]] == [3, 2]
+        assert all(isinstance(item, activity_schema.ActivitySummaryRead) for item in page["items"])
+        assert all("private_notes" not in item.model_dump() for item in page["items"])
         assert page["next_cursor"] is not None
         assert profiles.call_args.args[0] == {7}
         assert page["users"] == {7: "me"}

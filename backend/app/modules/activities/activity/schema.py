@@ -44,8 +44,11 @@ LongText = Annotated[StrictStr, Field(max_length=2500)]
 ActivityName = core_types.DisplayName
 
 
-class ActivityBase(BaseModel):
-    """The fields that describe an activity, shared by the read and write shapes.
+class ActivitySummaryBase(BaseModel):
+    """The fields that describe an activity, less the two heavy ones the lists leave out.
+
+    The list responses (:class:`ActivitySummaryRead`) carry exactly these. :class:`ActivityBase`
+    adds ``private_notes`` and ``import_info`` for the full read and the write shapes.
 
     Split out from :class:`Activity` so the ingestion contract
     (:class:`~modules.activities.activity.contracts.ActivityCore`) can extend
@@ -58,7 +61,6 @@ class ActivityBase(BaseModel):
     Attributes:
         user_id: ID of the owning user.
         description: Public activity description.
-        private_notes: Private notes visible only to owner.
         distance: Total distance in meters.
         name: Activity name.
         activity_type: The sport type.
@@ -97,8 +99,6 @@ class ActivityBase(BaseModel):
         garminconnect_activity_id: Garmin Connect activity
             identifier.
         garminconnect_gear_id: Garmin Connect gear identifier.
-        import_info: Import metadata (imported, import_source,
-            import_ISO_time).
         is_hidden: Whether the activity is hidden.
         hide_start_time: Hide the start time from others.
         hide_location: Hide location data from others.
@@ -121,7 +121,6 @@ class ActivityBase(BaseModel):
 
     user_id: core_types.RecordId | None = None
     description: str | None = Field(default=None, max_length=2500)
-    private_notes: str | None = Field(default=None, max_length=2500)
     distance: int = Field(ge=0, description="Total distance in meters")
     name: str = Field(max_length=250)
     activity_type: StoredActivityType
@@ -163,7 +162,6 @@ class ActivityBase(BaseModel):
     strava_activity_id: int | None = None
     garminconnect_activity_id: int | None = None
     garminconnect_gear_id: str | None = Field(default=None, max_length=45)
-    import_info: dict[str, Any] | None = None
     is_hidden: bool = False
     hide_start_time: bool | None = None
     hide_location: bool | None = None
@@ -216,6 +214,28 @@ class ActivityBase(BaseModel):
         return core_timezone.to_utc_aware(value) if isinstance(value, str) else value
 
 
+class _ActivityHeavyFields(BaseModel):
+    """The two large fields no list screen shows.
+
+    Attributes:
+        private_notes: Private notes visible only to owner.
+        import_info: Import metadata (imported, import_source, import_ISO_time).
+    """
+
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+    private_notes: str | None = Field(default=None, max_length=2500)
+    import_info: dict[str, Any] | None = None
+
+
+class ActivityBase(ActivitySummaryBase, _ActivityHeavyFields):
+    """Every field that describes an activity, shared by the read and write shapes.
+
+    :class:`ActivitySummaryBase` plus ``private_notes`` and ``import_info``; see it for the
+    attribute documentation and for why the ingestion contract extends this rather than the read model.
+    """
+
+
 class ActivityMediaEmbedded(BaseModel):
     """A photo of an activity, as embedded in an activity list response.
 
@@ -237,12 +257,10 @@ class ActivityMediaEmbedded(BaseModel):
     url: str = Field(min_length=1)
 
 
-class ActivityRead(ActivityBase):
-    """Schema representing a stored fitness activity — what the API returns.
+class _ActivityServerFields(BaseModel):
+    """The fields the **server** owns: read out of a stored row, never accepted from an ingestion producer.
 
-    Extends :class:`ActivityBase` with the fields the **server** owns: they are
-    read out of a stored row and are never accepted from an ingestion producer,
-    which is exactly why they live here rather than on the shared base.
+    That is why they live here rather than on the shared base.
 
     Attributes:
         id: Unique activity identifier, assigned on insert.
@@ -263,6 +281,20 @@ class ActivityRead(ActivityBase):
         default_factory=list,
         description="The activity's photos, set on list responses for the viewer's own activities",
     )
+
+
+class ActivitySummaryRead(ActivitySummaryBase, _ActivityServerFields):
+    """A stored activity as the list responses return it: without ``private_notes`` and ``import_info``.
+
+    Both are on ``GET /activities/{activity_id}`` (:class:`ActivityRead`).
+    """
+
+
+class ActivityRead(ActivityBase, _ActivityServerFields):
+    """Schema representing a stored fitness activity — what the API returns.
+
+    :class:`ActivityBase` plus the server-owned fields.
+    """
 
 
 class ActivitySportStats(BaseModel):
@@ -326,10 +358,10 @@ class ActivityStatsRead(BaseModel):
 #: One page of activities. Aliases the shared :class:`core.pagination.Page` so
 #: the activities list endpoints and every other module's return the same
 #: envelope rather than each inventing its own.
-ActivityPage = core_pagination.Page[ActivityRead]
+ActivityPage = core_pagination.Page[ActivitySummaryRead]
 
 
-class ActivityFeedPage(core_pagination.CursorPage[ActivityRead]):
+class ActivityFeedPage(core_pagination.CursorPage[ActivitySummaryRead]):
     """One keyset slice of the following feed.
 
     The feed takes inserts at the head continuously, so offset paging would repeat and skip rows

@@ -382,6 +382,20 @@ def _with_thumbnail_urls(
     return activities
 
 
+def _to_summaries(activities: list[activity_schema.ActivityRead]) -> list[activity_schema.ActivitySummaryRead]:
+    """Drop ``private_notes`` and ``import_info`` from activities headed for a list response.
+
+    Args:
+        activities: Masked activities with their thumbnail URL and media already set.
+
+    Returns:
+        The same activities as list items.
+    """
+    return [
+        activity_schema.ActivitySummaryRead.model_validate(activity, from_attributes=True) for activity in activities
+    ]
+
+
 def with_media(
     activities: list[activity_schema.ActivityRead],
     requester_user_id: int,
@@ -547,7 +561,7 @@ def page_user_activities(
         followee_ids=_followees_of(requester_user_id, db),
     )
     return activity_schema.ActivityPage.build(
-        with_media(_with_thumbnail_urls(items), requester_user_id, db), total, page_number, num_records
+        _to_summaries(with_media(_with_thumbnail_urls(items), requester_user_id, db)), total, page_number, num_records
     )
 
 
@@ -580,7 +594,9 @@ def scroll_feed(
         entries = activity_crud.get_following_feed_after(followee_ids, after, num_records + 1, db)
     has_more = len(entries) > num_records
     page_entries = entries[:num_records]
-    items = with_media(_with_thumbnail_urls([entry.activity for entry in page_entries]), requester_user_id, db)
+    items = _to_summaries(
+        with_media(_with_thumbnail_urls([entry.activity for entry in page_entries]), requester_user_id, db)
+    )
     next_cursor = (
         core_pagination.encode_cursor(page_entries[-1].cursor_sort_value, page_entries[-1].cursor_id)
         if has_more and page_entries

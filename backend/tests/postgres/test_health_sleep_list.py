@@ -49,3 +49,21 @@ def test_without_the_filter_every_night_is_listed(db):
     page = sleep_service.list_health_sleep(1, db, date_range=core_date_range.DateRange())
 
     assert page.total == 2
+
+
+def test_the_list_flags_the_stages_without_carrying_them(db):
+    db.add_all(
+        [
+            sleep_models.HealthSleep(
+                user_id=1, date=date(2026, 3, 1), sleep_stages=[{"stage_type": "deep", "duration_seconds": 60}]
+            ),
+            sleep_models.HealthSleep(user_id=1, date=date(2026, 3, 2), sleep_stages=[]),
+            sleep_models.HealthSleep(user_id=1, date=date(2026, 3, 3)),
+        ]
+    )
+    db.commit()
+
+    page = sleep_service.list_health_sleep(1, db, date_range=core_date_range.DateRange())
+
+    assert [item.has_sleep_stages for item in page.items] == [False, False, True]
+    assert all("sleep_stages" not in item.model_dump() for item in page.items)

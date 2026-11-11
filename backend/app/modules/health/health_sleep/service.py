@@ -91,7 +91,7 @@ def list_health_sleep(
     interval: health_constants.Interval | None = None,
     date_range: core_date_range.DateRange = core_date_range.DateRange(),
     has_resting_heart_rate: bool | None = None,
-) -> core_pagination.Page[health_sleep_schema.HealthSleepRead]:
+) -> core_pagination.Page[health_sleep_schema.HealthSleepListItem]:
     """List one page of a user's sleep records with their total.
 
     Args:
@@ -116,7 +116,7 @@ def list_health_sleep(
         lambda since, until: health_sleep_crud.get_health_sleep_number_by_user_id(
             user_id, db, since, until, has_resting_heart_rate=has_resting_heart_rate
         ),
-        lambda since, until: health_sleep_crud.get_health_sleep_by_user_id(
+        lambda since, until: health_sleep_crud.get_health_sleep_list_items_by_user_id(
             user_id, db, page_number, num_records, since, until, has_resting_heart_rate=has_resting_heart_rate
         ),
         db,

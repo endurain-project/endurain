@@ -7,6 +7,7 @@ from enum import Enum
 from typing import Annotated, ClassVar
 
 from pydantic import (
+    AliasChoices,
     BaseModel,
     BeforeValidator,
     ConfigDict,
@@ -138,8 +139,8 @@ class HealthSleepStage(BaseModel):
         return None if value is None else _DATETIME.dump_python(value, mode="json")
 
 
-class HealthSleepBase(BaseModel):
-    """Pydantic model representing the base schema for health sleep data.
+class HealthSleepCore(BaseModel):
+    """Pydantic model representing the sleep fields every sleep schema shares, without the sleep stages.
 
     This model defines the structure and validation rules for sleep-related health metrics,
     including sleep duration, quality scores, heart rate variability, oxygen saturation,
@@ -249,7 +250,6 @@ class HealthSleepBase(BaseModel):
     sleep_score_overall: StrictInt | None = Field(default=None, ge=0, le=100, description="Overall sleep score (0-100)")
     sleep_score_duration: SleepScore | None = Field(default=None, description="Sleep duration score")
     sleep_score_quality: SleepScore | None = Field(default=None, description="Sleep quality score")
-    sleep_stages: Sequence[HealthSleepStage] | None = Field(default=None, description="List of sleep stages")
     hrv_status: HRVStatus | None = Field(default=None, description="Heart rate variability status")
     resting_heart_rate: StrictInt | None = Field(
         default=None, ge=20, le=220, description="Resting heart rate in beats per minute"
@@ -274,7 +274,7 @@ class HealthSleepBase(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_sleep_times(self) -> "HealthSleepBase":
+    def validate_sleep_times(self) -> "HealthSleepCore":
         """Validate sleep start < end, reading a time without an offset as UTC."""
         if (
             self.sleep_start_time_gmt is not None
@@ -293,6 +293,16 @@ class HealthSleepBase(BaseModel):
             raise ValueError("Sleep start time (local) must be before sleep end time (local)")
 
         return self
+
+
+class HealthSleepBase(HealthSleepCore):
+    """The sleep fields with the sleep stages, the base of every schema that carries them.
+
+    Attributes:
+        sleep_stages (list[HealthSleepStage] | None): List of sleep stages.
+    """
+
+    sleep_stages: Sequence[HealthSleepStage] | None = Field(default=None, description="List of sleep stages")
 
 
 class HealthSleepStageWrite(HealthSleepStage):
@@ -341,17 +351,15 @@ class HealthSleepCreate(HealthSleepWrite):
     """
 
 
-class HealthSleepRead(HealthSleepBase):
-    """Read schema for health sleep records.
-
-    Extends the base health sleep schema with an identifier field for retrieving
-    or referencing existing sleep records in the database.
+class HealthSleepIdentity(HealthSleepCore):
+    """The stored identity and provenance every sleep read carries, with the sleep fields but not the stages.
 
     Attributes:
         garminconnect_sleep_id (StrictStr | None): Garmin Connect sleep record ID.
         source (Source | None): Source of the sleep data.
         user_id (StrictInt): Foreign key reference to the user.
         id (StrictInt): Unique identifier for the sleep record to update or retrieve.
+        version (StrictInt): Optimistic-concurrency counter, also sent as the ETag.
     """
 
     garminconnect_sleep_id: StrictStr | None = Field(
@@ -361,6 +369,38 @@ class HealthSleepRead(HealthSleepBase):
     id: StrictInt = Field(..., description="Unique identifier for the sleep record to update")
     user_id: StrictInt = Field(..., description="Foreign key reference to the user")
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
+
+
+class HealthSleepRead(HealthSleepIdentity, HealthSleepBase):
+    """Read schema for a health sleep record, with its sleep stages."""
+
+
+def _has_stages(value: object) -> bool:
+    """Tell whether a stored list of sleep stages holds at least one stage.
+
+    Args:
+        value: The stages, or ``None``; a flag already computed passes through.
+
+    Returns:
+        ``True`` when there is at least one stage.
+    """
+    return value if isinstance(value, bool) else bool(value)
+
+
+class HealthSleepListItem(HealthSleepIdentity):
+    """A sleep record as the list returns it: no stages, only whether the record has any.
+
+    The stages are on ``GET /health/sleep/{health_sleep_id}``.
+
+    Attributes:
+        has_sleep_stages (bool): Whether the record has at least one sleep stage. Read from a stored row's
+            ``sleep_stages``.
+    """
+
+    has_sleep_stages: Annotated[bool, BeforeValidator(_has_stages)] = Field(
+        validation_alias=AliasChoices("has_sleep_stages", "sleep_stages"),
+        description="Whether the record has at least one sleep stage; the stages are on the record itself",
+    )
 
 
 class HealthSleepUpdate(core_partial_update.NotClearable, HealthSleepWrite):

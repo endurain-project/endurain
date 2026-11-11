@@ -25,6 +25,17 @@ class TestTimezoneCanonicalization:
         assert self._activity(None).timezone is None
 
 
+class TestActivitySummaryRead:
+    """The list item is the full read less the two heavy fields."""
+
+    def test_has_every_field_of_the_full_read_except_the_heavy_two(self):
+        full = set(activity_schema.ActivityRead.model_fields)
+        assert set(activity_schema.ActivitySummaryRead.model_fields) == full - {"private_notes", "import_info"}
+
+    def test_the_request_shape_keeps_the_heavy_two(self):
+        assert {"private_notes", "import_info"} <= set(activity_schema.ActivityBase.model_fields)
+
+
 class TestActivityEditNotNullColumns:
     """A field whose column is NOT NULL may be omitted from an edit but not cleared."""
 

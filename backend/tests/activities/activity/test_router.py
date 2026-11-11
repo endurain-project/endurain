@@ -71,6 +71,8 @@ def _valid_activity(**kw):
         town="Town",
         country="Country",
         description="desc",
+        private_notes="secret",
+        import_info={"imported": True},
         gear_id=1,
         id=1,
         user_id=1,
@@ -90,6 +92,14 @@ def _feed_entry(**kw):
     )
 
 
+def _assert_summary(item):
+    assert "private_notes" not in item
+    assert "import_info" not in item
+    assert item["id"] == 1
+    assert item["description"] == "desc"
+    assert "media" in item
+
+
 class TestListOwnActivities:
     """The list endpoint carries its own total, so no second /count call."""
 
@@ -107,6 +117,7 @@ class TestListOwnActivities:
             assert body["total"] == 1
             assert body["page"] == 1
             assert body["next"] is None
+            _assert_summary(body["items"][0])
 
     @pytest.mark.parametrize("path", ["/activities", "/users/2/activities"])
     def test_a_start_after_the_end_is_a_validation_error(self, mock_db, path):
@@ -195,6 +206,7 @@ class TestFeed:
             resp = TestClient(_build_app(mock_db)).get("/activities/feed", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200
             assert len(resp.json()["items"]) == 1
+            _assert_summary(resp.json()["items"][0])
 
     def test_scope_defaults_to_following(self, mock_db):
         with (
@@ -433,6 +445,7 @@ class TestListUserActivities:
             resp = TestClient(_build_app(mock_db)).get("/users/2/activities", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200
             assert resp.json()["total"] == 1
+            _assert_summary(resp.json()["items"][0])
 
 
 class TestAnotherUsersActivitiesOfAnInactiveOwner:
@@ -453,6 +466,8 @@ class TestReadByID:
             m.return_value = _valid_activity()
             resp = TestClient(_build_app(mock_db)).get("/activities/1", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200
+            assert resp.json()["private_notes"] == "secret"
+            assert resp.json()["import_info"] == {"imported": True}
 
     def test_not_found(self, mock_db):
         with patch(

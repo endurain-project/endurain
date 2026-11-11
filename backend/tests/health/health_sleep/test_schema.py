@@ -351,3 +351,38 @@ class TestSleepTimeOrdering:
     def test_a_mixed_pair_not_in_order_is_a_validation_error(self, pair, start, end):
         with pytest.raises(ValidationError):
             health_sleep_schema.HealthSleepCreate(**{f"sleep_start_time_{pair}": start, f"sleep_end_time_{pair}": end})
+
+
+class TestHealthSleepListItem:
+    def test_the_flag_is_derived_from_a_rows_stages(self):
+        class Row:
+            id = 1
+            user_id = 1
+
+            def __init__(self, sleep_stages):
+                self.sleep_stages = sleep_stages
+
+        assert (
+            health_sleep_schema.HealthSleepListItem.model_validate(
+                Row([{"stage_type": "deep", "duration_seconds": 60}])
+            ).has_sleep_stages
+            is True
+        )
+        assert health_sleep_schema.HealthSleepListItem.model_validate(Row(None)).has_sleep_stages is False
+        assert health_sleep_schema.HealthSleepListItem.model_validate(Row([])).has_sleep_stages is False
+
+    def test_it_carries_no_stages_and_forbids_them_as_a_field(self):
+        item = health_sleep_schema.HealthSleepListItem(id=1, user_id=1, has_sleep_stages=True)
+
+        assert "sleep_stages" not in item.model_dump()
+        assert "sleep_stages" not in health_sleep_schema.HealthSleepListItem.model_json_schema()["properties"]
+
+    def test_it_forbids_extra_fields(self):
+        with pytest.raises(ValidationError):
+            health_sleep_schema.HealthSleepListItem(id=1, user_id=1, has_sleep_stages=False, extra_field=1)
+
+    def test_it_has_every_read_field_but_the_stages(self):
+        read = set(health_sleep_schema.HealthSleepRead.model_fields)
+        item = set(health_sleep_schema.HealthSleepListItem.model_fields)
+
+        assert item == (read - {"sleep_stages"}) | {"has_sleep_stages"}

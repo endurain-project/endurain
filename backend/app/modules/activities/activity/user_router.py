@@ -66,6 +66,7 @@ def list_user_activities(
     """List another user's visible activities, with the matching total.
 
     Answered 404 when that user does not exist, is inactive or awaits approval.
+    Items are summaries: private notes and import metadata are on `GET /activities/{activity_id}`.
     """
     return activity_service.page_user_activities(
         user_id,

@@ -2,6 +2,7 @@
 
 from datetime import date as date_type
 
+from pydantic import BaseModel
 from sqlalchemy import ColumnElement, SQLColumnExpression, func, select
 from sqlalchemy.orm import Session
 
@@ -15,6 +16,13 @@ import modules.health.schema as health_schema
 SPEC = health_record_crud.RecordSpec(
     model=health_sleep_models.HealthSleep,
     read_schema=health_sleep_schema.HealthSleepRead,
+    not_found="Health sleep not found",
+    etag_label="sleep record",
+)
+
+LIST_SPEC = health_record_crud.RecordSpec(
+    model=health_sleep_models.HealthSleep,
+    read_schema=health_sleep_schema.HealthSleepListItem,
     not_found="Health sleep not found",
     etag_label="sleep record",
 )
@@ -67,6 +75,46 @@ def get_health_sleep_number_by_user_id(
     )
 
 
+def _list_page[ModelT: health_record_crud.Row, ReadT: BaseModel](
+    spec: health_record_crud.RecordSpec[ModelT, ReadT],
+    user_id: int,
+    page_number: int | None,
+    num_records: int | None,
+    since: date_type | None,
+    until: date_type | None,
+    db: Session,
+    *,
+    has_resting_heart_rate: bool | None,
+) -> list[ReadT]:
+    """Retrieve a user's sleep records as a spec's read schema.
+
+    Args:
+        spec: The record type and the schema each row is returned as.
+        user_id: The records' owner.
+        page_number: 1-based page; paginates only together with ``num_records``.
+        num_records: Records per page.
+        since: Return only records on or after this date.
+        until: Return only records on or before this date.
+        db: Database session.
+        has_resting_heart_rate: Return only nights with (``True``) or without (``False``) a resting heart rate.
+
+    Returns:
+        The records ordered by date descending.
+    """
+    return health_record_crud.list_page(
+        spec,
+        user_id,
+        health_sleep_models.HealthSleep.date,
+        health_sleep_models.HealthSleep.date,
+        since,
+        until,
+        page_number,
+        num_records,
+        db,
+        _resting_heart_rate_conditions(has_resting_heart_rate),
+    )
+
+
 def get_health_sleep_by_user_id(
     user_id: int,
     db: Session,
@@ -77,7 +125,7 @@ def get_health_sleep_by_user_id(
     *,
     has_resting_heart_rate: bool | None = None,
 ) -> list[health_sleep_schema.HealthSleepRead]:
-    """Retrieve a user's sleep records, optionally paginated and bounded.
+    """Retrieve a user's sleep records with their stages, optionally paginated and bounded.
 
     Args:
         user_id: The records' owner.
@@ -91,17 +139,37 @@ def get_health_sleep_by_user_id(
     Returns:
         The records ordered by date descending.
     """
-    return health_record_crud.list_page(
-        SPEC,
-        user_id,
-        health_sleep_models.HealthSleep.date,
-        health_sleep_models.HealthSleep.date,
-        since,
-        until,
-        page_number,
-        num_records,
-        db,
-        _resting_heart_rate_conditions(has_resting_heart_rate),
+    return _list_page(
+        SPEC, user_id, page_number, num_records, since, until, db, has_resting_heart_rate=has_resting_heart_rate
+    )
+
+
+def get_health_sleep_list_items_by_user_id(
+    user_id: int,
+    db: Session,
+    page_number: int | None = None,
+    num_records: int | None = None,
+    since: date_type | None = None,
+    until: date_type | None = None,
+    *,
+    has_resting_heart_rate: bool | None = None,
+) -> list[health_sleep_schema.HealthSleepListItem]:
+    """Retrieve a user's sleep records without their stages, optionally paginated and bounded.
+
+    Args:
+        user_id: The records' owner.
+        db: Database session.
+        page_number: 1-based page; paginates only together with ``num_records``.
+        num_records: Records per page.
+        since: Return only records on or after this date.
+        until: Return only records on or before this date.
+        has_resting_heart_rate: Return only nights with (``True``) or without (``False``) a resting heart rate.
+
+    Returns:
+        The records ordered by date descending, each with whether it has stages.
+    """
+    return _list_page(
+        LIST_SPEC, user_id, page_number, num_records, since, until, db, has_resting_heart_rate=has_resting_heart_rate
     )
 
 
