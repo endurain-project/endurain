@@ -964,6 +964,8 @@
       "deleteError": "Nepavyko ištrinti API rakto. Bandykite dar kartą."
     },
     "stepUp": {
+      "passwordLabel": "Jūsų slaptažodis",
+      "passwordHint": "Įveskite savo slaptažodį, kad patvirtintumėte, jog tai Jūs.",
       "prompt": "Jūsų paskyra neturi slaptažodžio. Prisijunkite iš naujo per susietą tapatybės teikėją, kad patvirtintumėte, jog tai Jūs.",
       "continueWith": "Tęsti su {name}",
       "ready": "Prisijungimas per tapatybės teikėją patvirtintas.",

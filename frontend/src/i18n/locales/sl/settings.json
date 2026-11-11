@@ -964,6 +964,8 @@
       "deleteError": "API ključa ni bilo mogoče izbrisati. Prosim, poskusi znova."
     },
     "stepUp": {
+      "passwordLabel": "Tvoje geslo",
+      "passwordHint": "Vnesi svoje geslo, da potrdiš, da si to ti.",
       "prompt": "Tvoj račun nima gesla. Znova se prijavi prek povezanega ponudnika identitete, da potrdiš, da si to ti.",
       "continueWith": "Nadaljuj z {name}",
       "ready": "Prijava prek ponudnika identitete potrjena.",

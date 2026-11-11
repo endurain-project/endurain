@@ -964,6 +964,8 @@
       "deleteError": "API kľúč sa nepodarilo odstrániť. Skúste to znova."
     },
     "stepUp": {
+      "passwordLabel": "Vaše heslo",
+      "passwordHint": "Zadajte svoje vlastné heslo a potvrďte, že ste to vy.",
       "prompt": "Váš účet nemá heslo. Prihláste sa znova cez prepojeného poskytovateľa identity a potvrďte, že ste to vy.",
       "continueWith": "Pokračovať cez {name}",
       "ready": "Prihlásenie cez poskytovateľa identity potvrdené.",

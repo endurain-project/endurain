@@ -964,6 +964,8 @@
       "deleteError": "API-võtit ei õnnestunud kustutada. Palun proovi uuesti."
     },
     "stepUp": {
+      "passwordLabel": "Sinu parool",
+      "passwordHint": "Sisesta oma parool, et kinnitada, et see oled sina.",
       "prompt": "Sinu kontol pole parooli. Logi uuesti sisse seotud identiteedipakkuja kaudu, et kinnitada, et see oled sina.",
       "continueWith": "Jätka teenusega {name}",
       "ready": "Identiteedipakkuja kaudu sisselogimine kinnitatud.",

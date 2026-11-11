@@ -964,6 +964,8 @@
       "deleteError": "API-sleutel kon niet worden verwijderd. Probeer het opnieuw."
     },
     "stepUp": {
+      "passwordLabel": "Je wachtwoord",
+      "passwordHint": "Voer je eigen wachtwoord in om te bevestigen dat jij het bent.",
       "prompt": "Je account heeft geen wachtwoord. Log opnieuw in met een gekoppelde identiteitsprovider om te bevestigen dat jij het bent.",
       "continueWith": "Doorgaan met {name}",
       "ready": "Inloggen bij de identiteitsprovider bevestigd.",

@@ -964,6 +964,8 @@
       "deleteError": "Der API-Schlüssel konnte nicht gelöscht werden. Bitte versuche es erneut."
     },
     "stepUp": {
+      "passwordLabel": "Dein Passwort",
+      "passwordHint": "Gib dein eigenes Passwort ein, um zu bestätigen, dass du es bist.",
       "prompt": "Dein Konto hat kein Passwort. Melde dich erneut mit einem verknüpften Identitätsanbieter an, um zu bestätigen, dass du es bist.",
       "continueWith": "Weiter mit {name}",
       "ready": "Anmeldung beim Identitätsanbieter bestätigt.",

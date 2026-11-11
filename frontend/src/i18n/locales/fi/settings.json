@@ -964,6 +964,8 @@
       "deleteError": "API-avainta ei voitu poistaa. Yritä uudelleen."
     },
     "stepUp": {
+      "passwordLabel": "Oma salasanasi",
+      "passwordHint": "Anna oma salasanasi vahvistaaksesi, että se olet sinä.",
       "prompt": "Tililläsi ei ole salasanaa. Kirjaudu uudelleen sisään linkitetyllä tunnistuspalvelulla vahvistaaksesi, että se olet sinä.",
       "continueWith": "Jatka palvelulla {name}",
       "ready": "Tunnistuspalvelulla kirjautuminen vahvistettu.",

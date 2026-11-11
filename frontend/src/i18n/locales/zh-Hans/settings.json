@@ -964,6 +964,8 @@
       "deleteError": "无法删除 API 密钥，请重试。"
     },
     "stepUp": {
+      "passwordLabel": "您的密码",
+      "passwordHint": "请输入您自己的密码以确认是您本人。",
       "prompt": "您的账户没有密码。请通过已关联的身份提供者重新登录，以确认是您本人。",
       "continueWith": "使用 {name} 继续",
       "ready": "身份提供者登录已确认。",

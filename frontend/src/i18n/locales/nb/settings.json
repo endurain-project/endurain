@@ -964,6 +964,8 @@
       "deleteError": "Kunne ikke slette API-nøkkelen. Vennligst prøv igjen."
     },
     "stepUp": {
+      "passwordLabel": "Ditt passord",
+      "passwordHint": "Skriv inn ditt eget passord for å bekrefte at det er deg.",
       "prompt": "Kontoen din har ikke noe passord. Logg inn på nytt med en tilkoblet identitetsleverandør for å bekrefte at det er deg.",
       "continueWith": "Fortsett med {name}",
       "ready": "Innlogging med identitetsleverandør bekreftet.",

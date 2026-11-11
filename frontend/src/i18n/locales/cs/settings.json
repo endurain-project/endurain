@@ -964,6 +964,8 @@
       "deleteError": "Nepodařilo se smazat API klíč. Zkuste to prosím znovu."
     },
     "stepUp": {
+      "passwordLabel": "Vaše heslo",
+      "passwordHint": "Zadejte své vlastní heslo a potvrďte, že jste to vy.",
       "prompt": "Váš účet nemá heslo. Přihlaste se znovu přes propojeného poskytovatele identity a potvrďte, že jste to vy.",
       "continueWith": "Pokračovat přes {name}",
       "ready": "Přihlášení přes poskytovatele identity potvrzeno.",

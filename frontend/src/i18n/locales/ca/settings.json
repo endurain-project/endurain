@@ -964,6 +964,8 @@
       "deleteError": "No s'ha pogut eliminar la clau API. Torna-ho a intentar."
     },
     "stepUp": {
+      "passwordLabel": "La teva contrasenya",
+      "passwordHint": "Introdueix la teva pròpia contrasenya per confirmar que ets tu.",
       "prompt": "El teu compte no té contrasenya. Torna a iniciar sessió amb un proveïdor d'identitat vinculat per confirmar que ets tu.",
       "continueWith": "Continua amb {name}",
       "ready": "Inici de sessió del proveïdor d'identitat confirmat.",

@@ -143,13 +143,16 @@ function onSubmit(): void {
         :disabled="pending"
       />
       <div v-if="requirePassword" class="flex flex-col gap-1.5">
-        <Label for="stepup-password">{{ t('settings.security.password.current') }}</Label>
+        <Label for="stepup-password">{{ t('settings.security.stepUp.passwordLabel') }}</Label>
         <PasswordInput
           id="stepup-password"
           v-model="password"
           autocomplete="current-password"
           :disabled="pending"
         />
+        <p class="text-xs text-muted-foreground">
+          {{ t('settings.security.stepUp.passwordHint') }}
+        </p>
       </div>
       <div v-if="requireMfa && (requirePassword || reauth)" class="flex flex-col gap-1.5">
         <Label for="stepup-mfa">{{ t('settings.security.mfaCode') }}</Label>

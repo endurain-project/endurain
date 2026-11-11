@@ -964,6 +964,8 @@
       "deleteError": "Kunde inte ta bort API-nyckeln. Försök igen."
     },
     "stepUp": {
+      "passwordLabel": "Ditt lösenord",
+      "passwordHint": "Ange ditt eget lösenord för att bekräfta att det är du.",
       "prompt": "Ditt konto har inget lösenord. Logga in igen med en kopplad identitetsleverantör för att bekräfta att det är du.",
       "continueWith": "Fortsätt med {name}",
       "ready": "Inloggningen hos identitetsleverantören är bekräftad.",

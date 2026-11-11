@@ -964,6 +964,8 @@
       "deleteError": "Impossible de supprimer la clé API. Veuillez réessayer."
     },
     "stepUp": {
+      "passwordLabel": "Votre mot de passe",
+      "passwordHint": "Saisissez votre propre mot de passe pour confirmer que c'est bien vous.",
       "prompt": "Votre compte n'a pas de mot de passe. Reconnectez-vous avec un fournisseur d'identité associé pour confirmer votre identité.",
       "continueWith": "Continuer avec {name}",
       "ready": "Connexion au fournisseur d'identité confirmée.",

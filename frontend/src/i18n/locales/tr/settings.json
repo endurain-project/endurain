@@ -964,6 +964,8 @@
       "deleteError": "API anahtarı silinemedi. Lütfen tekrar deneyin."
     },
     "stepUp": {
+      "passwordLabel": "Parolanız",
+      "passwordHint": "Sizin olduğunuzu doğrulamak için kendi parolanızı girin.",
       "prompt": "Hesabınızın parolası yok. Kendiniz olduğunuzu doğrulamak için bağlı bir kimlik sağlayıcıyla yeniden giriş yapın.",
       "continueWith": "{name} ile devam et",
       "ready": "Kimlik sağlayıcı girişi doğrulandı.",

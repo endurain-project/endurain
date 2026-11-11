@@ -964,6 +964,8 @@
       "deleteError": "Impossibile eliminare la chiave API. Riprova."
     },
     "stepUp": {
+      "passwordLabel": "La tua password",
+      "passwordHint": "Inserisci la tua password per confermare che sei tu.",
       "prompt": "Il tuo account non ha una password. Accedi di nuovo con un provider di identità collegato per confermare la tua identità.",
       "continueWith": "Continua con {name}",
       "ready": "Accesso al provider di identità confermato.",

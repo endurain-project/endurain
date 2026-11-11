@@ -964,6 +964,8 @@
       "deleteError": "Non se puido eliminar a clave de API. Por favor, téntao de novo."
     },
     "stepUp": {
+      "passwordLabel": "O teu contrasinal",
+      "passwordHint": "Introduce o teu propio contrasinal para confirmar que es ti.",
       "prompt": "A túa conta non ten contrasinal. Inicia sesión de novo cun provedor de identidade vinculado para confirmar que es ti.",
       "continueWith": "Continuar con {name}",
       "ready": "Inicio de sesión do provedor de identidade confirmado.",

@@ -964,6 +964,8 @@
       "deleteError": "Neizdevās dzēst API atslēgu. Lūdzu, mēģiniet vēlreiz."
     },
     "stepUp": {
+      "passwordLabel": "Jūsu parole",
+      "passwordHint": "Ievadiet savu paroli, lai apstiprinātu, ka tas esat Jūs.",
       "prompt": "Jūsu kontam nav paroles. Piesakieties vēlreiz ar piesaistītu identitātes pakalpojumu sniedzēju, lai apstiprinātu, ka tas esat Jūs.",
       "continueWith": "Turpināt ar {name}",
       "ready": "Pieteikšanās ar identitātes pakalpojumu sniedzēju apstiprināta.",

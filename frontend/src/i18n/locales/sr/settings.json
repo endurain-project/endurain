@@ -964,6 +964,8 @@
       "deleteError": "Nije moguće obrisati API ključ. Pokušajte ponovo."
     },
     "stepUp": {
+      "passwordLabel": "Vaša lozinka",
+      "passwordHint": "Unesite sopstvenu lozinku da biste potvrdili da ste to vi.",
       "prompt": "Vaš nalog nema lozinku. Prijavite se ponovo preko povezanog provajdera identiteta da biste potvrdili da ste to vi.",
       "continueWith": "Nastavi sa provajderom {name}",
       "ready": "Prijava preko provajdera identiteta potvrđena.",

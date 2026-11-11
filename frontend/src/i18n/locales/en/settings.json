@@ -964,6 +964,8 @@
       "deleteError": "Couldn't delete the API key. Please try again."
     },
     "stepUp": {
+      "passwordLabel": "Your password",
+      "passwordHint": "Enter your own password to confirm it's you.",
       "prompt": "Your account has no password. Sign in again with a linked identity provider to confirm it's you.",
       "continueWith": "Continue with {name}",
       "ready": "Identity provider sign-in confirmed.",

@@ -964,6 +964,8 @@
       "deleteError": "無法刪除 API 金鑰，請再試一次。"
     },
     "stepUp": {
+      "passwordLabel": "您的密碼",
+      "passwordHint": "請輸入您自己的密碼以確認是您本人。",
       "prompt": "您的帳號沒有密碼。請透過已連結的身分提供者重新登入，以確認是您本人。",
       "continueWith": "使用 {name} 繼續",
       "ready": "身分提供者登入已確認。",

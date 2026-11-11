@@ -964,6 +964,8 @@
       "deleteError": "Nie udało się usunąć klucza API. Spróbuj ponownie."
     },
     "stepUp": {
+      "passwordLabel": "Twoje hasło",
+      "passwordHint": "Wpisz własne hasło, aby potwierdzić, że to Ty.",
       "prompt": "Twoje konto nie ma hasła. Zaloguj się ponownie przez połączonego dostawcę tożsamości, aby potwierdzić, że to Ty.",
       "continueWith": "Kontynuuj z {name}",
       "ready": "Logowanie przez dostawcę tożsamości potwierdzone.",

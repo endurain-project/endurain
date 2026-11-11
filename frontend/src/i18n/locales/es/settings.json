@@ -964,6 +964,8 @@
       "deleteError": "No se pudo eliminar la clave API. Inténtalo de nuevo."
     },
     "stepUp": {
+      "passwordLabel": "Tu contraseña",
+      "passwordHint": "Introduce tu propia contraseña para confirmar que eres tú.",
       "prompt": "Tu cuenta no tiene contraseña. Inicia sesión de nuevo con un proveedor de identidad vinculado para confirmar que eres tú.",
       "continueWith": "Continuar con {name}",
       "ready": "Inicio de sesión con el proveedor de identidad confirmado.",

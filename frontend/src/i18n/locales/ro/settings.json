@@ -964,6 +964,8 @@
       "deleteError": "Nu am putut șterge cheia API. Te rugăm să încerci din nou."
     },
     "stepUp": {
+      "passwordLabel": "Parola ta",
+      "passwordHint": "Introdu propria parolă pentru a confirma că ești tu.",
       "prompt": "Contul tău nu are parolă. Autentifică-te din nou cu un furnizor de identitate asociat pentru a confirma că ești tu.",
       "continueWith": "Continuă cu {name}",
       "ready": "Autentificarea prin furnizorul de identitate a fost confirmată.",

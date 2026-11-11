@@ -964,6 +964,8 @@
       "deleteError": "Nem sikerült törölni az API-kulcsot. Kérjük, próbáld újra."
     },
     "stepUp": {
+      "passwordLabel": "A te jelszavad",
+      "passwordHint": "Add meg a saját jelszavadat annak megerősítéséhez, hogy te vagy az.",
       "prompt": "A fiókodnak nincs jelszava. Jelentkezz be újra egy összekapcsolt identitásszolgáltatóval, hogy megerősítsd, te vagy az.",
       "continueWith": "Folytatás ezzel: {name}",
       "ready": "Az identitásszolgáltatós bejelentkezés megerősítve.",

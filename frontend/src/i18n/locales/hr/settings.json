@@ -964,6 +964,8 @@
       "deleteError": "Nije moguće izbrisati API ključ. Pokušajte ponovno."
     },
     "stepUp": {
+      "passwordLabel": "Vaša lozinka",
+      "passwordHint": "Unesite vlastitu lozinku kako biste potvrdili da ste to vi.",
       "prompt": "Vaš račun nema lozinku. Ponovno se prijavite putem povezanog pružatelja identiteta kako biste potvrdili da ste to vi.",
       "continueWith": "Nastavi s pružateljem {name}",
       "ready": "Prijava putem pružatelja identiteta potvrđena.",
