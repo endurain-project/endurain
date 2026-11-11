@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch'
 import { useToasts } from '@/composables/useToasts'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
 import {
-  useGarminLinkStatusQuery,
+  useGarminLinkQuery,
   useLinkGarminMutation,
   useSubmitGarminMfaMutation,
 } from '@/features/integrations/composables/useIntegrations'
@@ -25,21 +25,21 @@ const username = ref('')
 const password = ref('')
 const isCn = ref(false)
 const mfaCode = ref('')
-// The backend asks for an MFA code by reporting `mfa_required` on the link status we poll,
+// The backend asks for an MFA code by reporting `mfa_required` on the link job we follow,
 // so the prompt never depends on a realtime push arriving.
 const mfaRequired = ref(false)
 // True from the moment the MFA code is submitted until the link attempt finishes — the
 // `/mfa` POST itself returns instantly, so the button must track the link, not that drop.
 const isVerifyingMfa = ref(false)
-// True while a started link attempt is being followed to its outcome.
-const linking = ref(false)
+// The link job being followed to its outcome, from the 202 that started it.
+const linkJobId = ref<string | null>(null)
 
 const linkMutation = useLinkGarminMutation()
 const mfaMutation = useSubmitGarminMfaMutation()
-const statusQuery = useGarminLinkStatusQuery(linking)
+const statusQuery = useGarminLinkQuery(linkJobId)
 
 /** Whether the credentials are locked: the start request or the background login is running. */
-const busy = computed(() => linkMutation.isPending.value || linking.value)
+const busy = computed(() => linkMutation.isPending.value || linkJobId.value !== null)
 
 const canSubmit = computed(() => username.value.trim().length > 0 && password.value.length > 0)
 
@@ -50,12 +50,12 @@ function reset(): void {
   mfaCode.value = ''
   mfaRequired.value = false
   isVerifyingMfa.value = false
-  linking.value = false
+  linkJobId.value = null
 }
 
 /** Ends the attempt on screen so the credentials can be corrected and resubmitted. */
 function stopFollowing(): void {
-  linking.value = false
+  linkJobId.value = null
   mfaRequired.value = false
   isVerifyingMfa.value = false
 }
@@ -65,7 +65,7 @@ watch(open, (isOpen) => {
     reset()
   } else {
     // Closing stops following; the server finishes the attempt on its own.
-    linking.value = false
+    linkJobId.value = null
   }
 })
 
@@ -75,11 +75,7 @@ watch(
     if (state === undefined) {
       return
     }
-    if (state === null) {
-      // The attempt expired before it finished: stop waiting instead of polling forever.
-      stopFollowing()
-      toasts.error(t('settings.integrations.garmin.linkError'))
-    } else if (state.status === 'running' && state.mfa_required) {
+    if (state.status === 'running' && state.mfa_required) {
       mfaRequired.value = true
     } else if (state.status === 'succeeded') {
       stopFollowing()
@@ -98,7 +94,7 @@ watch(
   },
 )
 
-// The status is gone (expired) or unreachable: stop waiting instead of polling forever.
+// The job is gone (expired) or unreachable: stop waiting instead of polling forever.
 watch(
   () => statusQuery.isError.value,
   (failed) => {
@@ -109,13 +105,13 @@ watch(
   },
 )
 
-/** Starts the link; the dialog then follows its status until it completes or fails. */
+/** Starts the link; the dialog then follows its job until it completes or fails. */
 function onLogin(): void {
   linkMutation.mutate(
     { username: username.value.trim(), password: password.value, isCn: isCn.value },
     {
-      onSuccess: () => {
-        linking.value = true
+      onSuccess: (job) => {
+        linkJobId.value = job.id
       },
       onError: () => {
         toasts.error(t('settings.integrations.garmin.linkError'))

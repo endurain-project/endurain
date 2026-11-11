@@ -324,30 +324,19 @@ export async function deleteUserPhoto(userId: number): Promise<void> {
  * @param id - The user id to delete.
  * @param version - The user version the caller read, for `If-Match`.
  * @param stepUp - The administrator's step-up credentials.
+ * @returns The deletion job; follow it with `useUserDeletionQuery`.
  * @throws {HttpError} When the request fails (`412` when the user changed since it was read).
  */
-export async function deleteUser(id: number, version: number, stepUp: StepUpInput): Promise<void> {
-  await apiFetch<void>(`/users/${id}/delete`, {
+export async function deleteUser(
+  id: number,
+  version: number,
+  stepUp: StepUpInput,
+): Promise<UserDeletionStatus> {
+  return apiFetch<UserDeletionStatus>(`/users/${id}/delete`, {
     method: 'POST',
     headers: ifMatchHeaders(version),
     body: JSON.stringify({ step_up: toStepUpWire(stepUp) } satisfies StepUpRequestDto),
-    responseType: 'void',
   })
-}
-
-/**
- * Fetches where a user's queued account deletion is (admin scope `users:read_all`).
- *
- * @param id - The user whose deletion to read.
- * @param signal - Optional abort signal for cancellation.
- * @returns The deletion's state, or `null` when none is recorded.
- * @throws {HttpError} When the request fails.
- */
-export function fetchUserDeletion(
-  id: number,
-  signal?: AbortSignal,
-): Promise<UserDeletionStatus | null> {
-  return apiFetch<UserDeletionStatus | null>(`/users/${id}/deletion`, { signal })
 }
 
 /**

@@ -3,7 +3,7 @@ import type { InfiniteData } from '@tanstack/vue-query'
 
 import {
   prependActivitiesToFeed,
-  pollIngestionJob,
+  followIngestionJob,
   replaceActivitiesInFeed,
   IngestionJobFailedError,
   IngestionJobTimeoutError,
@@ -13,11 +13,7 @@ import {
   isAwaitingThumbnail,
   markAwaitingThumbnail,
 } from '@/features/upload/composables/usePendingThumbnails'
-import {
-  assertValidActivityFile,
-  fetchIngestionJob,
-  uploadActivityFile,
-} from '@/features/upload/services/upload'
+import { assertValidActivityFile, uploadActivityFile } from '@/features/upload/services/upload'
 import {
   ACTIVITY_FILE_ACCEPT,
   type ActivityIngestionJob,
@@ -64,7 +60,7 @@ function jsonResponse(body: unknown, status = 201): Response {
 function uploadJob(overrides: Partial<ActivityIngestionJob> = {}): ActivityIngestionJob {
   return {
     id: 'job-1',
-    kind: 'upload',
+    kind: 'activity_upload',
     filename: 'ride.gpx',
     status: 'queued',
     activity_ids: [],
@@ -205,28 +201,16 @@ describe('uploadActivityFile', () => {
   })
 })
 
-describe('fetchIngestionJob', () => {
-  it('encodes the job id into the path', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse(uploadJob()))
-
-    await fetchIngestionJob('../admin/jobs')
-
-    const [url] = fetchMock.mock.calls[0] as [string, RequestInit]
-    // A hostile id must not climb out of the ingestion-jobs namespace.
-    expect(url).toBe('/activities/ingestion-jobs/..%2Fadmin%2Fjobs')
-  })
-})
-
-describe('pollIngestionJob', () => {
+describe('followIngestionJob', () => {
   it('follows the hints of its own job', async () => {
     const watch = vi.spyOn(realtime, 'watchJob')
     fetchMock
       .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'running' })))
       .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'succeeded', activity_ids: [7] })))
 
-    await pollIngestionJob('job-1', { intervalMs: 0 })
+    await followIngestionJob('job-1', { intervalMs: 0 })
 
-    expect(watch).toHaveBeenCalledExactlyOnceWith('ingestion:job-1')
+    expect(watch).toHaveBeenCalledExactlyOnceWith('job-1')
     watch.mockRestore()
   })
 
@@ -237,7 +221,7 @@ describe('pollIngestionJob', () => {
       .mockReturnValue({ wait: () => Promise.resolve(), stop })
     fetchMock.mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'failed' })))
 
-    await expect(pollIngestionJob('job-1', { intervalMs: 0 })).rejects.toThrow(
+    await expect(followIngestionJob('job-1', { intervalMs: 0 })).rejects.toThrow(
       'Activity import failed',
     )
 
@@ -251,7 +235,7 @@ describe('pollIngestionJob', () => {
       .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'running' })))
       .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'succeeded', activity_ids: [7, 8] })))
 
-    const job = await pollIngestionJob('job-1', { intervalMs: 0 })
+    const job = await followIngestionJob('job-1', { intervalMs: 0 })
 
     expect(fetchMock).toHaveBeenCalledTimes(3)
     expect(job.activity_ids).toEqual([7, 8])
@@ -264,7 +248,7 @@ describe('pollIngestionJob', () => {
       )
       .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'succeeded', activity_ids: [3] })))
 
-    const job = await pollIngestionJob('job-1', { intervalMs: 0 })
+    const job = await followIngestionJob('job-1', { intervalMs: 0 })
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(job.activity_ids).toEqual([3])
@@ -275,7 +259,7 @@ describe('pollIngestionJob', () => {
       jsonResponse(uploadJob({ status: 'failed', error_code: 'invalid_file' })),
     )
 
-    const error = await pollIngestionJob('job-1', { intervalMs: 0 }).catch((err: unknown) => err)
+    const error = await followIngestionJob('job-1', { intervalMs: 0 }).catch((err: unknown) => err)
 
     expect(error).toBeInstanceOf(IngestionJobFailedError)
     expect((error as IngestionJobFailedError).code).toBe('invalid_file')
@@ -284,9 +268,9 @@ describe('pollIngestionJob', () => {
   it('gives up once the deadline passes', async () => {
     fetchMock.mockResolvedValue(jsonResponse(uploadJob({ status: 'running' })))
 
-    await expect(pollIngestionJob('job-1', { intervalMs: 0, timeoutMs: 0 })).rejects.toBeInstanceOf(
-      IngestionJobTimeoutError,
-    )
+    await expect(
+      followIngestionJob('job-1', { intervalMs: 0, timeoutMs: 0 }),
+    ).rejects.toBeInstanceOf(IngestionJobTimeoutError)
   })
 })
 

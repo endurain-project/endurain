@@ -7,13 +7,27 @@ import type { GarminLinkStatus } from '@/features/integrations/types'
 import i18n from '@/i18n'
 import GarminLoginDialog from '@/features/integrations/components/GarminLoginDialog.vue'
 
-const linkMutate = vi.fn<(input: unknown, options: { onSuccess?: () => void }) => void>()
+const linkMutate =
+  vi.fn<(input: unknown, options: { onSuccess?: (job: GarminLinkStatus) => void }) => void>()
 const mfaMutate = vi.fn<(code: string) => void>()
 const toastSuccess = vi.fn<(message: string) => void>()
 const toastError = vi.fn<(message: string) => void>()
 const statusData = ref<GarminLinkStatus | undefined>(undefined)
+
+/** A link job as the server reports it. */
+function linkJob(overrides: Partial<GarminLinkStatus>): GarminLinkStatus {
+  return {
+    id: 'job-1',
+    kind: 'garmin_link',
+    created_at: '2026-01-01T00:00:00Z',
+    status: 'running',
+    mfa_required: false,
+    error_code: null,
+    ...overrides,
+  }
+}
 const statusError = ref(false)
-let followed: Ref<boolean>
+let followed: Ref<string | null>
 
 vi.mock('@/composables/useToasts', () => ({
   useToasts: () => ({ success: toastSuccess, error: toastError }),
@@ -22,8 +36,8 @@ vi.mock('@/composables/useToasts', () => ({
 vi.mock('@/features/integrations/composables/useIntegrations', () => ({
   useLinkGarminMutation: () => ({ mutate: linkMutate, isPending: computed(() => false) }),
   useSubmitGarminMfaMutation: () => ({ mutate: mfaMutate }),
-  useGarminLinkStatusQuery: (enabled: Ref<boolean>) => {
-    followed = enabled
+  useGarminLinkQuery: (jobId: Ref<string | null>) => {
+    followed = jobId
     return { data: statusData, isError: statusError }
   },
 }))
@@ -58,7 +72,7 @@ async function startLink(wrapper: Awaited<ReturnType<typeof mountDialog>>) {
   await wrapper.find('#garmin-username').setValue(' rider ')
   await wrapper.find('#garmin-password').setValue('pw')
   await wrapper.find('form').trigger('submit')
-  linkMutate.mock.calls[0]?.[1].onSuccess?.()
+  linkMutate.mock.calls[0]?.[1].onSuccess?.(linkJob({ status: 'queued' }))
   await nextTick()
 }
 
@@ -76,7 +90,7 @@ describe('GarminLoginDialog', () => {
 
   it('starts the link with the trimmed credentials and then follows its status', async () => {
     const wrapper = await mountDialog()
-    expect(followed.value).toBe(false)
+    expect(followed.value).toBeNull()
 
     await startLink(wrapper)
 
@@ -85,7 +99,7 @@ describe('GarminLoginDialog', () => {
       password: 'pw',
       isCn: false,
     })
-    expect(followed.value).toBe(true)
+    expect(followed.value).toBe('job-1')
   })
 
   it('asks for the MFA code only once the status says so', async () => {
@@ -93,7 +107,7 @@ describe('GarminLoginDialog', () => {
     await startLink(wrapper)
     expect(wrapper.find('#garmin-mfa').exists()).toBe(false)
 
-    statusData.value = { status: 'running', mfa_required: true, error_code: null }
+    statusData.value = linkJob({ mfa_required: true })
     await nextTick()
 
     expect(wrapper.find('#garmin-mfa').exists()).toBe(true)
@@ -106,12 +120,12 @@ describe('GarminLoginDialog', () => {
     const wrapper = await mountDialog()
     await startLink(wrapper)
 
-    statusData.value = { status: 'succeeded', mfa_required: false, error_code: null }
+    statusData.value = linkJob({ status: 'succeeded' })
     await nextTick()
 
     expect(toastSuccess).toHaveBeenCalledTimes(1)
     expect(wrapper.emitted('update:open')?.slice(-1)[0]).toEqual([false])
-    expect(followed.value).toBe(false)
+    expect(followed.value).toBeNull()
   })
 
   it.each(['invalid_credentials', 'incorrect_mfa', 'internal'] as const)(
@@ -120,11 +134,11 @@ describe('GarminLoginDialog', () => {
       const wrapper = await mountDialog()
       await startLink(wrapper)
 
-      statusData.value = { status: 'failed', mfa_required: false, error_code: reason }
+      statusData.value = linkJob({ status: 'failed', error_code: reason })
       await nextTick()
 
       expect(toastError).toHaveBeenCalledTimes(1)
-      expect(followed.value).toBe(false)
+      expect(followed.value).toBeNull()
       expect(wrapper.emitted('update:open')).toBeUndefined()
     },
   )
@@ -137,7 +151,7 @@ describe('GarminLoginDialog', () => {
     await nextTick()
 
     expect(toastError).toHaveBeenCalledTimes(1)
-    expect(followed.value).toBe(false)
+    expect(followed.value).toBeNull()
   })
 
   it('stops following when the dialog is closed mid-attempt', async () => {
@@ -146,6 +160,6 @@ describe('GarminLoginDialog', () => {
 
     await wrapper.setProps({ open: false })
 
-    expect(followed.value).toBe(false)
+    expect(followed.value).toBeNull()
   })
 })

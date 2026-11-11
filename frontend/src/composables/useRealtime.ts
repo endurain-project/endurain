@@ -22,6 +22,27 @@ export interface RealtimeEvent {
   [key: string]: unknown
 }
 
+/**
+ * The hint the server sends when a background job changes. It carries the job's id and kind, not
+ * its state: read the job (`GET /jobs/{id}`) for that.
+ */
+export interface JobStatusChangedEvent extends RealtimeEvent {
+  message: 'JOB_STATUS_CHANGED'
+  job_id: string
+  kind: Schemas['JobKind']
+}
+
+/**
+ * Whether a realtime event is a `JOB_STATUS_CHANGED` hint for one job.
+ *
+ * @param event - The event a handler received.
+ * @param jobId - The job's id, as the 202 that started it returned it.
+ * @returns `true` when the event announces a change of that job.
+ */
+export function isJobHintFor(event: RealtimeEvent, jobId: string): boolean {
+  return event.message === 'JOB_STATUS_CHANGED' && (event as JobStatusChangedEvent).job_id === jobId
+}
+
 /** Handler invoked for a subscribed realtime event. */
 export type RealtimeHandler = (event: RealtimeEvent) => void
 
@@ -346,18 +367,19 @@ export interface JobWatch {
 }
 
 /**
- * Follows the server's `JOB_STATUS_CHANGED` hints for one background job. Start it before the
- * request that reads or starts the job: a hint that arrives while that request is in flight is
- * remembered and ends the next {@link JobWatch.wait} at once, instead of being lost.
+ * Follows the server's `JOB_STATUS_CHANGED` hints for one background job. The job's id is known
+ * only once the request that starts it answers `202`, so start the watch right after that: a
+ * hint that arrives while the first status read is in flight is remembered and ends the next
+ * {@link JobWatch.wait} at once, instead of being lost.
  *
- * @param job - The job's name, as the server's hint carries it.
+ * @param jobId - The job's id, as the 202 and the server's hint carry it.
  * @returns The watch; call `stop` when the job is done.
  */
-export function watchJob(job: string): JobWatch {
+export function watchJob(jobId: string): JobWatch {
   let hinted = false
   let wake: (() => void) | null = null
   const unsubscribe = subscribe('JOB_STATUS_CHANGED', (event) => {
-    if (event.job === job) {
+    if (isJobHintFor(event, jobId)) {
       hinted = true
       wake?.()
     }

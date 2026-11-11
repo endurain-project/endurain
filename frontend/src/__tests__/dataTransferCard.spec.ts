@@ -34,8 +34,8 @@ vi.mock('@/features/profile/composables/useDataTransfer', () => ({
   useExportProfileMutation: () => ({ mutate: exportMutate, isPending: ref(false) }),
   useDownloadProfileExportMutation: () => ({ mutate: vi.fn<() => void>(), isPending: ref(false) }),
   useImportProfileMutation: () => ({ mutate: vi.fn<() => void>(), isPending: ref(false) }),
-  useProfileExportQuery: () => ({ data: computed(() => null) }),
-  useProfileImportQuery: () => ({ data: computed(() => importStatus.value) }),
+  useProfileExportQuery: () => computed(() => null),
+  useProfileImportQuery: () => computed(() => importStatus.value),
 }))
 
 const passthrough = { template: '<div><slot /></div>' }

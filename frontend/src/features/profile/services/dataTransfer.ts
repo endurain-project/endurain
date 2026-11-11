@@ -7,7 +7,7 @@ import { toStepUpWire } from '@/features/security/services/security'
 /**
  * Queues an export of all of the authenticated user's profile data after step-up
  * verification. A worker builds the archive, so the request returns at once.
- * Follow the outcome with {@link fetchProfileExport} and fetch the archive with
+ * Follow the returned job with `useProfileExportQuery` and fetch the archive with
  * {@link downloadProfileExport}.
  *
  * @param input - The step-up credentials (password or identity-provider proof, and with MFA a code).
@@ -19,17 +19,6 @@ export function requestProfileExport(input: StepUpInput): Promise<ProfileExportS
     method: 'POST',
     body: JSON.stringify({ step_up: toStepUpWire(input) } satisfies StepUpRequestDto),
   })
-}
-
-/**
- * Reads where the user's profile export is.
- *
- * @param signal - Optional abort signal for cancellation.
- * @returns The export's state, or `null` when none is recorded (or it expired).
- * @throws {HttpError} When the request fails.
- */
-export function fetchProfileExport(signal?: AbortSignal): Promise<ProfileExportStatus | null> {
-  return apiFetch<ProfileExportStatus | null>('/profile/export', { signal })
 }
 
 /**
@@ -52,7 +41,7 @@ export function downloadProfileExport(signal?: AbortSignal): Promise<Blob> {
  * Queues a profile import from a ZIP archive. The file is sent as multipart form
  * data under the `file` field; the backend validates and stages it and a worker
  * imports it, so the caller's filename never builds a path and the request
- * returns at once. Follow the outcome with {@link fetchProfileImport}.
+ * returns at once. Follow the returned job with `useProfileImportQuery`.
  *
  * @param file - The ZIP archive to import.
  * @returns The queued import's state.
@@ -67,15 +56,4 @@ export async function importProfileData(file: File): Promise<ProfileImportStatus
     body: formData,
     timeoutMs: 0,
   })
-}
-
-/**
- * Reads where the user's profile import is.
- *
- * @param signal - Optional abort signal for cancellation.
- * @returns The import's state, or `null` when none is recorded (or it expired).
- * @throws {HttpError} When the request fails.
- */
-export function fetchProfileImport(signal?: AbortSignal): Promise<ProfileImportStatus | null> {
-  return apiFetch<ProfileImportStatus | null>('/profile/import', { signal })
 }

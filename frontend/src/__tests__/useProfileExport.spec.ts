@@ -1,34 +1,38 @@
 import { defineComponent, h } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-import { createPinia, setActivePinia } from 'pinia'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { ProfileExportStatus } from '@/features/profile/types'
 
-import { useAuthStore } from '@/features/auth/stores/auth'
 import {
   useExportProfileMutation,
   useProfileExportQuery,
 } from '@/features/profile/composables/useDataTransfer'
-import { fetchProfileExport, requestProfileExport } from '@/features/profile/services/dataTransfer'
-import { isTerminalProfileExport } from '@/features/profile/types'
+import { requestProfileExport } from '@/features/profile/services/dataTransfer'
+import { fetchJob, listJobs } from '@/services/jobStatus'
 import { queryKeys } from '@/services/queryKeys'
 
 vi.mock('@/features/profile/services/dataTransfer', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/profile/services/dataTransfer')>()),
-  fetchProfileExport: vi.fn<() => Promise<ProfileExportStatus | null>>(),
   requestProfileExport: vi.fn<() => Promise<ProfileExportStatus>>(),
 }))
+vi.mock('@/services/jobStatus', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/jobStatus')>()),
+  fetchJob: vi.fn<typeof fetchJob>(),
+  listJobs: vi.fn<typeof listJobs>(),
+}))
 
-const queued: ProfileExportStatus = { status: 'queued', error_code: null, size_bytes: null }
+const queued: ProfileExportStatus = {
+  id: 'export-1',
+  kind: 'profile_export',
+  status: 'queued',
+  created_at: '2026-01-01T00:00:00Z',
+  error_code: null,
+  size_bytes: null,
+}
 
 let wrapper: ReturnType<typeof mount> | undefined
-
-beforeEach(() => {
-  setActivePinia(createPinia())
-  useAuthStore().isAuthenticated = true
-})
 
 afterEach(() => {
   wrapper?.unmount()
@@ -37,11 +41,11 @@ afterEach(() => {
 })
 
 function mountComposables(queryClient: QueryClient) {
-  let query!: ReturnType<typeof useProfileExportQuery>
+  let job!: ReturnType<typeof useProfileExportQuery>
   let mutation!: ReturnType<typeof useExportProfileMutation>
   const TestComponent = defineComponent({
     setup() {
-      query = useProfileExportQuery()
+      job = useProfileExportQuery()
       mutation = useExportProfileMutation()
       return () => h('div')
     },
@@ -49,20 +53,35 @@ function mountComposables(queryClient: QueryClient) {
   wrapper = mount(TestComponent, {
     global: { plugins: [[VueQueryPlugin, { queryClient }]] },
   })
-  return { query, mutation }
+  return { job, mutation }
 }
 
 describe('profile export composables', () => {
-  it('starts as no export when nothing is recorded', async () => {
-    vi.mocked(fetchProfileExport).mockResolvedValue(null)
-    const { query } = mountComposables(new QueryClient())
+  it('starts as no export when the user has none', async () => {
+    vi.mocked(listJobs).mockResolvedValue({ items: [], num_records: 0 })
+    const { job } = mountComposables(new QueryClient())
     await flushPromises()
 
-    expect(query.data.value).toBeNull()
+    expect(listJobs).toHaveBeenCalledWith(
+      { kind: 'profile_export', numRecords: 1 },
+      expect.anything(),
+    )
+    expect(job.value).toBeNull()
   })
 
-  it('seeds the export state with the queued export the mutation returns', async () => {
-    vi.mocked(fetchProfileExport).mockResolvedValue(null)
+  it('finds an export started before the page loaded and follows it', async () => {
+    vi.mocked(listJobs).mockResolvedValue({ items: [queued], num_records: 1 })
+    vi.mocked(fetchJob).mockResolvedValue({ ...queued, status: 'succeeded', size_bytes: 9 })
+    const { job } = mountComposables(new QueryClient())
+    await flushPromises()
+
+    expect(fetchJob).toHaveBeenCalledWith('export-1', expect.anything())
+    expect(job.value?.status).toBe('succeeded')
+  })
+
+  it('seeds both caches with the queued export the mutation returns', async () => {
+    vi.mocked(listJobs).mockResolvedValue({ items: [], num_records: 0 })
+    vi.mocked(fetchJob).mockResolvedValue(queued)
     vi.mocked(requestProfileExport).mockResolvedValue(queued)
     const queryClient = new QueryClient()
     const { mutation } = mountComposables(queryClient)
@@ -70,13 +89,7 @@ describe('profile export composables', () => {
 
     await mutation.mutateAsync({ currentPassword: 'pw', mfaCode: null, idpReauth: null })
 
-    expect(queryClient.getQueryData(queryKeys.profile.export())).toEqual(queued)
-  })
-
-  it('treats succeeded and failed as terminal', () => {
-    expect(isTerminalProfileExport(queued)).toBe(false)
-    expect(isTerminalProfileExport({ ...queued, status: 'running' })).toBe(false)
-    expect(isTerminalProfileExport({ ...queued, status: 'succeeded' })).toBe(true)
-    expect(isTerminalProfileExport({ ...queued, status: 'failed' })).toBe(true)
+    expect(queryClient.getQueryData(queryKeys.jobs.detail('export-1'))).toEqual(queued)
+    expect(queryClient.getQueryData(queryKeys.jobs.latest('profile_export'))).toEqual(queued)
   })
 })

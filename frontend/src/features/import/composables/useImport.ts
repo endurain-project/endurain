@@ -1,7 +1,9 @@
-import { computed, type Ref } from 'vue'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { watch, type Ref } from 'vue'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
 
 import { invalidateActivityData } from '@/composables/useInvalidatingMutation'
+import { useJobQuery } from '@/composables/useJobQuery'
+import { isTerminalJobState, seedJob } from '@/services/jobStatus'
 import { queryKeys } from '@/services/queryKeys'
 import {
   type BulkImportSource,
@@ -9,23 +11,26 @@ import {
   bulkImportFromFolder,
   importStravaGear,
 } from '@/features/import/services/import'
-import { fetchIngestionJob } from '@/features/upload/services/upload'
-import { type ActivityIngestionJob, isTerminalIngestionJob } from '@/features/upload/types'
+import type { ActivityIngestionJob } from '@/features/upload/types'
 
 /** How long to wait between progress polls of a running import. */
 const PROGRESS_POLL_MS = 3000
 
 /** Starts a bulk import of the files in the user's folder on the server. */
 export function useBulkImportFromFolderMutation() {
+  const client = useQueryClient()
   return useMutation<ActivityIngestionJob, Error, BulkImportSource>({
     mutationFn: (source) => bulkImportFromFolder(source),
+    onSuccess: (job) => seedJob(client, job),
   })
 }
 
 /** Uploads a ZIP archive for bulk import. */
 export function useBulkImportFromArchiveMutation() {
+  const client = useQueryClient()
   return useMutation<ActivityIngestionJob, Error, { file: File; source: BulkImportSource }>({
     mutationFn: ({ file, source }) => bulkImportFromArchive(file, source),
+    onSuccess: (job) => seedJob(client, job),
   })
 }
 
@@ -33,28 +38,25 @@ export function useBulkImportFromArchiveMutation() {
  * Follows one bulk import until it reaches a terminal state.
  *
  * A bulk import is worked through in batches over minutes or hours, so unlike a
- * single upload it is polled by a query that stops on its own, and the caller
- * keeps only the job id.
+ * single upload it is followed by a query that stops on its own, and the caller
+ * keeps only the job id. A finished import has created activities, so the
+ * activity queries are refreshed once it ends.
  *
  * @param jobId - The accepted import's job id, or `null` when none is running.
  * @returns The query; `data` is the job's current progress.
  */
 export function useBulkImportJobQuery(jobId: Ref<string | null>) {
   const client = useQueryClient()
-  return useQuery<ActivityIngestionJob, Error>({
-    queryKey: computed(() => queryKeys.bulkImport.job(jobId.value ?? '')),
-    queryFn: ({ signal }) => fetchIngestionJob(jobId.value as string, { signal }),
-    enabled: computed(() => jobId.value !== null),
-    refetchInterval: (query) => {
-      const job = query.state.data
-      if (job && isTerminalIngestionJob(job)) {
-        // A finished import has created activities; refresh what shows them.
+  const query = useJobQuery<'activity_bulk_import'>(jobId, { intervalMs: PROGRESS_POLL_MS })
+  watch(
+    () => query.data.value?.status,
+    (status) => {
+      if (status !== undefined && isTerminalJobState(status)) {
         void invalidateActivityData(client)
-        return false
       }
-      return PROGRESS_POLL_MS
     },
-  })
+  )
+  return query
 }
 
 /** Imports Strava bikes from an uploaded CSV; refreshes gear lists on success. */

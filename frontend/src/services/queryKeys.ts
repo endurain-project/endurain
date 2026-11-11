@@ -1,4 +1,5 @@
 import type { GearType } from '@/features/gears/types'
+import type { Schemas } from '@/types'
 
 /**
  * Centralised TanStack Query key factories — the single source of truth for
@@ -324,11 +325,6 @@ export const queryKeys = {
      */
     detail: (id: number) => ['users', 'detail', id] as const,
     /**
-     * @param id - The user id.
-     * @returns A query key for the state of the user's queued account deletion.
-     */
-    deletion: (id: number) => ['users', 'deletion', id] as const,
-    /**
      * A user's public-facing profile (name/username/city/avatar), as shown on
      * the `/user/:id` page and in follower/following lists. Distinct from
      * {@link detail} (the admin `ManagedUser` shape) so the two never collide in
@@ -408,21 +404,20 @@ export const queryKeys = {
       ['server-settings', 'logs', level, search] as const,
   },
 
-  /**
-   * Bulk imports. A running import is one ingestion job polled until it is
-   * terminal; it creates activities rather than caching any, so it has no
-   * invalidation role of its own.
-   */
-  integrations: {
-    /** @returns A query key for the Garmin Connect link attempt's progress. */
-    garminLinkStatus: () => ['integrations', 'garmin-link-status'] as const,
-  },
-  bulkImport: {
+  /** Background jobs: every job, whatever its kind, is read through `GET /jobs/{id}`. */
+  jobs: {
+    /** Broad prefix; invalidating this cascades to every background-job query. */
+    all: () => ['jobs'] as const,
     /**
-     * @param jobId - The ingestion job returned when the import was accepted.
-     * @returns A query key for that job's progress.
+     * @param id - The job id the request that started it returned.
+     * @returns A query key for one background job's state.
      */
-    job: (jobId: string) => ['bulk-import', 'job', jobId] as const,
+    detail: (id: string) => ['jobs', 'detail', id] as const,
+    /**
+     * @param kind - What the job does.
+     * @returns A query key for the caller's newest job of that kind.
+     */
+    latest: (kind: Schemas['JobKind']) => ['jobs', 'latest', kind] as const,
   },
 
   /**
@@ -451,10 +446,6 @@ export const queryKeys = {
     detail: () => ['profile', 'detail'] as const,
     /** The user's per-activity default-gear assignments. */
     defaultGear: () => ['profile', 'default-gear'] as const,
-    /** The state of the user's profile export. */
-    export: () => ['profile', 'export'] as const,
-    /** The state of the user's profile import. */
-    import: () => ['profile', 'import'] as const,
   },
 
   /**

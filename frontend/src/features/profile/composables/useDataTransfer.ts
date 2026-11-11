@@ -1,18 +1,15 @@
-import { watch } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { computed, watch } from 'vue'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
 
 import type { ProfileExportStatus, ProfileImportStatus } from '@/features/profile/types'
 import type { StepUpInput } from '@/features/security/types'
 
 import { invalidateActivityData } from '@/composables/useInvalidatingMutation'
+import { useJobQuery, useLatestJobQuery } from '@/composables/useJobQuery'
+import { isTerminalJobState, seedJob } from '@/services/jobStatus'
 import { queryKeys } from '@/services/queryKeys'
-import { useAuthStore } from '@/features/auth/stores/auth'
-import { isTerminalProfileExport, isTerminalProfileImport } from '@/features/profile/types'
 import {
   downloadProfileExport,
-  fetchProfileExport,
-  fetchProfileImport,
   importProfileData,
   requestProfileExport,
 } from '@/features/profile/services/dataTransfer'
@@ -20,9 +17,24 @@ import {
 const POLL_MS = 3000
 
 /**
+ * Finds a profile job of one kind and follows it to a terminal state. The latest job of the kind is
+ * looked up, so a job started earlier (another tab, a page reload) shows too; a job a 202 just
+ * returned is seeded into both caches and followed from the start.
+ *
+ * @param kind - The job kind to find.
+ * @returns The job's current state, or `null` when the user has none.
+ */
+function useProfileJob<K extends 'profile_export' | 'profile_import'>(kind: K) {
+  const latest = useLatestJobQuery(kind)
+  const jobId = computed(() => latest.data.value?.id ?? null)
+  const followed = useJobQuery<K>(jobId, { intervalMs: POLL_MS })
+  return computed(() => followed.data.value ?? latest.data.value ?? null)
+}
+
+/**
  * Export mutation, run after step-up. It only queues the export; the outcome comes from
- * {@link useProfileExportQuery}, which this seeds with the queued state so
- * polling starts straight away.
+ * {@link useProfileExportQuery}, which this seeds with the queued job so polling starts
+ * straight away.
  *
  * @returns The TanStack Query mutation for requesting a profile export.
  */
@@ -31,7 +43,7 @@ export function useExportProfileMutation() {
 
   return useMutation<ProfileExportStatus, Error, StepUpInput>({
     mutationFn: (input) => requestProfileExport(input),
-    onSuccess: (status) => client.setQueryData(queryKeys.profile.export(), status),
+    onSuccess: (job) => seedJob(client, job),
   })
 }
 
@@ -39,20 +51,10 @@ export function useExportProfileMutation() {
  * Follows the user's profile export until it reaches a terminal state. It also
  * picks up an export that was started earlier (another tab, a page reload).
  *
- * @returns The query; `data` is the export's current state, or `null` when none is recorded.
+ * @returns The export job's current state, or `null` when the user has none.
  */
 export function useProfileExportQuery() {
-  const { isAuthenticated } = storeToRefs(useAuthStore())
-
-  return useQuery<ProfileExportStatus | null, Error>({
-    queryKey: queryKeys.profile.export(),
-    queryFn: ({ signal }) => fetchProfileExport(signal),
-    enabled: isAuthenticated,
-    refetchInterval: (state) => {
-      const status = state.state.data
-      return status && !isTerminalProfileExport(status) ? POLL_MS : false
-    },
-  })
+  return useProfileJob('profile_export')
 }
 
 /**
@@ -86,7 +88,7 @@ function invalidateImportedData(client: ReturnType<typeof useQueryClient>): void
 
 /**
  * Import mutation. It only queues the import; the outcome comes from
- * {@link useProfileImportQuery}, which this seeds with the queued state so
+ * {@link useProfileImportQuery}, which this seeds with the queued job so
  * polling starts straight away.
  *
  * @returns The TanStack Query mutation for importing a profile archive.
@@ -96,7 +98,7 @@ export function useImportProfileMutation() {
 
   return useMutation<ProfileImportStatus, Error, File>({
     mutationFn: (file) => importProfileData(file),
-    onSuccess: (status) => client.setQueryData(queryKeys.profile.import(), status),
+    onSuccess: (job) => seedJob(client, job),
   })
 }
 
@@ -105,31 +107,23 @@ export function useImportProfileMutation() {
  * picks up an import that was started earlier (another tab, a page reload).
  * Once the import finishes, the data it changed is refetched.
  *
- * @returns The query; `data` is the import's current state, or `null` when none is recorded.
+ * @returns The import job's current state, or `null` when the user has none.
  */
 export function useProfileImportQuery() {
   const client = useQueryClient()
-  const { isAuthenticated } = storeToRefs(useAuthStore())
-
-  const query = useQuery<ProfileImportStatus | null, Error>({
-    queryKey: queryKeys.profile.import(),
-    queryFn: ({ signal }) => fetchProfileImport(signal),
-    enabled: isAuthenticated,
-    refetchInterval: (state) => {
-      const status = state.state.data
-      return status && !isTerminalProfileImport(status) ? POLL_MS : false
-    },
-  })
+  const job = useProfileJob('profile_import')
 
   // Refetch what the import changed once, when it goes from running to finished.
-  watch(
-    () => query.data.value,
-    (next, previous) => {
-      if (previous && !isTerminalProfileImport(previous) && next && isTerminalProfileImport(next)) {
-        invalidateImportedData(client)
-      }
-    },
-  )
+  watch(job, (next, previous) => {
+    if (
+      previous &&
+      !isTerminalJobState(previous.status) &&
+      next &&
+      isTerminalJobState(next.status)
+    ) {
+      invalidateImportedData(client)
+    }
+  })
 
-  return query
+  return job
 }

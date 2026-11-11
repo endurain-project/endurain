@@ -8,13 +8,13 @@ import type {
   CreateUserInput,
   EditUserFields,
   ManagedUser,
-  UserDeletionStatus,
   UserFilters,
 } from '@/features/users/types'
 
 import { queryKeys } from '@/services/queryKeys'
 import { useUserDeletionsStore } from '@/features/users/stores/userDeletions'
-import { isTerminalJobState } from '@/services/jobStatus'
+import { seedJob } from '@/services/jobStatus'
+import { useJobQuery } from '@/composables/useJobQuery'
 import { bumpAvatarCacheToken } from '@/lib/avatarCache'
 import { useInvalidatingMutation } from '@/composables/useInvalidatingMutation'
 import { useAuthStore } from '@/features/auth/stores/auth'
@@ -26,7 +26,6 @@ import {
   deleteUser,
   deleteUserPhoto,
   fetchUserById,
-  fetchUserDeletion,
   fetchUsers,
   requireUserPasswordChange,
   resetUserMfa,
@@ -125,13 +124,15 @@ export function useUpdateUserMutation() {
  * @returns The TanStack Query mutation for deleting a user.
  */
 export function useDeleteUserMutation() {
+  const client = useQueryClient()
   const deletions = useUserDeletionsStore()
 
   return useInvalidatingMutation<void, { id: number; version: number; stepUp: StepUpInput }>({
     mutationKey: queryKeys.users.all(),
     mutationFn: async ({ id, version, stepUp }) => {
-      await deleteUser(id, version, stepUp)
-      deletions.track(id)
+      const job = await deleteUser(id, version, stepUp)
+      seedJob(client, job)
+      deletions.track(id, job.id)
     },
   })
 }
@@ -140,25 +141,15 @@ export function useDeleteUserMutation() {
 const DELETION_POLL_MS = 10_000
 
 /**
- * Follows a user's queued account deletion until it reaches a terminal state. Once it has succeeded,
+ * Follows a queued account deletion until it reaches a terminal state. Once it has succeeded,
  * the users lists and details are refetched, so the erased account leaves the screen.
  *
- * @param userId - The user queued for deletion.
- * @returns The query; `data` is the deletion's state, or `null` when none is recorded.
+ * @param jobId - The deletion job's id, from the 202 that queued it.
+ * @returns The query; `data` is the deletion job's state.
  */
-export function useUserDeletionQuery(userId: MaybeRefOrGetter<number>) {
+export function useUserDeletionQuery(jobId: MaybeRefOrGetter<string>) {
   const client = useQueryClient()
-  const { isAuthenticated } = storeToRefs(useAuthStore())
-
-  const query = useQuery<UserDeletionStatus | null, Error>({
-    queryKey: computed(() => queryKeys.users.deletion(toValue(userId))),
-    queryFn: ({ signal }) => fetchUserDeletion(toValue(userId), signal),
-    enabled: isAuthenticated,
-    refetchInterval: (state) => {
-      const deletion = state.state.data
-      return deletion && !isTerminalJobState(deletion.status) ? DELETION_POLL_MS : false
-    },
-  })
+  const query = useJobQuery<'user_deletion'>(jobId, { intervalMs: DELETION_POLL_MS })
 
   watch(
     () => query.data.value?.status,
@@ -200,6 +191,8 @@ export function useUserQuery(id: MaybeRefOrGetter<number | null>) {
     queryKey: computed(() => queryKeys.users.detail(toValue(id) ?? 0)),
     queryFn: ({ signal }) => fetchUserById(toValue(id) as number, signal),
     enabled: computed(() => isAuthenticated.value && (toValue(id) ?? 0) > 0),
+    // While the account waits to be erased, read it again until it is gone.
+    refetchInterval: (state) => (state.state.data?.deletionRequestedAt ? DELETION_POLL_MS : false),
   })
 }
 

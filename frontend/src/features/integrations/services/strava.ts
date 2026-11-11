@@ -7,7 +7,7 @@ import type {
   StravaSyncStatus,
 } from '@/features/integrations/types'
 
-import { watchJob } from '@/composables/useRealtime'
+import { followJob, JobTimeoutError } from '@/services/jobStatus'
 import { ifMatchHeaders } from '@/services/ifMatch'
 import { apiFetch } from '@/services/http'
 import { getRuntimeBackendHost } from '@/services/runtime'
@@ -25,41 +25,26 @@ const STRAVA_SYNC_POLL_MS = 1_000
 const STRAVA_SYNC_TIMEOUT_MS = 120_000
 
 /**
- * Follows a queued Strava job (`link` or `unlink`) until it finishes. It listens for the job's
- * hints before `queue` runs, so a job that finishes before the request returns is not waited on.
+ * Follows a queued Strava job (link or unlink) until it finishes.
  *
- * @param kind - Which job to follow.
- * @param queue - Queues the job and answers with its first status.
+ * @param queued - The 202 body of the request that queued the job.
  * @param label - The job's name, for the error message.
  * @throws {Error} When the job fails on the server or does not finish in time.
  */
-async function followStravaSync(
-  kind: StravaSyncStatus['kind'],
-  queue: () => Promise<StravaSyncStatus>,
-  label: string,
-): Promise<void> {
-  const deadline = Date.now() + STRAVA_SYNC_TIMEOUT_MS
-  const watch = watchJob(`strava:${kind}`)
+async function followStravaSync(queued: StravaSyncStatus, label: string): Promise<void> {
+  let job: StravaSyncStatus
   try {
-    let status: StravaSyncStatus | null = await queue()
-    for (;;) {
-      if (status === null) {
-        throw new Error(`${label} Strava status expired`)
-      }
-      if (status.status === 'succeeded') {
-        return
-      }
-      if (status.status === 'failed') {
-        throw new Error(`${label} Strava failed`)
-      }
-      if (Date.now() >= deadline) {
-        throw new Error(`${label} Strava did not finish in time`)
-      }
-      await watch.wait(STRAVA_SYNC_POLL_MS)
-      status = await apiFetch<StravaSyncStatus | null>(`/strava/sync/${kind}`)
-    }
-  } finally {
-    watch.stop()
+    job = await followJob<StravaSyncStatus['kind']>(queued.id, {
+      intervalMs: STRAVA_SYNC_POLL_MS,
+      timeoutMs: STRAVA_SYNC_TIMEOUT_MS,
+    })
+  } catch (error) {
+    throw error instanceof JobTimeoutError
+      ? new Error(`${label} Strava did not finish in time`)
+      : error
+  }
+  if (job.status === 'failed') {
+    throw new Error(`${label} Strava failed`)
   }
 }
 
@@ -131,15 +116,11 @@ export async function completeStravaLink(
   scope: string,
 ): Promise<void> {
   const payload: StravaLinkDto = { state, code, scope }
-  await followStravaSync(
-    'link',
-    () =>
-      apiFetch<StravaSyncStatus>('/strava/link', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      }),
-    'Linking',
-  )
+  const queued = await apiFetch<StravaSyncStatus>('/strava/link', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  await followStravaSync(queued, 'Linking')
 }
 
 /**
@@ -174,9 +155,6 @@ export async function retrieveStravaGear(): Promise<void> {
  * @throws {Error} When the unlink fails on the server or does not finish in time.
  */
 export async function unlinkStrava(): Promise<void> {
-  await followStravaSync(
-    'unlink',
-    () => apiFetch<StravaSyncStatus>('/strava/link', { method: 'DELETE' }),
-    'Unlinking',
-  )
+  const queued = await apiFetch<StravaSyncStatus>('/strava/link', { method: 'DELETE' })
+  await followStravaSync(queued, 'Unlinking')
 }

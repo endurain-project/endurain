@@ -385,7 +385,11 @@ watch(
       </ul>
     </ListPanel>
 
-    <UserDeletionWatcher v-for="id in deletions.userIds" :key="id" :user-id="id" />
+    <UserDeletionWatcher
+      v-for="deletion in deletions.deletions"
+      :key="deletion.jobId"
+      :job-id="deletion.jobId"
+    />
     <UserFormDialog
       v-model:open="isFormOpen"
       :user="editingUser"

@@ -11,10 +11,10 @@ import { editActivity, refreshActivities } from '@/features/activities/services/
 import { useEditActivityMutation } from '@/features/activities/composables/useActivityDetail'
 import { useRefreshActivitiesMutation } from '@/features/home/composables/useHome'
 import { useBulkImportJobQuery } from '@/features/import/composables/useImport'
-import { fetchIngestionJob, uploadActivityFile } from '@/features/upload/services/upload'
+import { uploadActivityFile } from '@/features/upload/services/upload'
 import { useUploadActivityFileMutation } from '@/features/upload/composables/useUpload'
 import { useProfileImportQuery } from '@/features/profile/composables/useDataTransfer'
-import { fetchProfileImport } from '@/features/profile/services/dataTransfer'
+import { fetchJob, followJob, listJobs } from '@/services/jobStatus'
 import { queryKeys } from '@/services/queryKeys'
 
 vi.mock('@/features/activities/services/activities', async (importOriginal) => ({
@@ -24,15 +24,18 @@ vi.mock('@/features/activities/services/activities', async (importOriginal) => (
 }))
 vi.mock('@/features/upload/services/upload', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/upload/services/upload')>()),
-  fetchIngestionJob: vi.fn<typeof fetchIngestionJob>(),
   uploadActivityFile: vi.fn<typeof uploadActivityFile>(),
 }))
-vi.mock('@/features/profile/services/dataTransfer', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/features/profile/services/dataTransfer')>()),
-  fetchProfileImport: vi.fn<typeof fetchProfileImport>(),
+vi.mock('@/services/jobStatus', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/jobStatus')>()),
+  fetchJob: vi.fn<typeof fetchJob>(),
+  followJob: vi.fn<typeof followJob>(),
+  listJobs: vi.fn<typeof listJobs>(),
 }))
 vi.mock('@/composables/useRealtime', () => ({
-  watchJob: () => ({ wait: () => Promise.resolve(), stop: vi.fn<() => void>() }),
+  jobPollInterval: (fastMs: number) => fastMs,
+  isJobHintFor: () => false,
+  useRealtime: () => ({ on: () => () => undefined }),
 }))
 vi.mock('pinia', async (importOriginal) => ({
   ...(await importOriginal<typeof import('pinia')>()),
@@ -74,7 +77,8 @@ function mountHook<T>(client: QueryClient, hook: () => T): T {
 }
 
 beforeEach(() => {
-  vi.mocked(fetchIngestionJob).mockResolvedValue(completedJob)
+  vi.mocked(followJob).mockResolvedValue(completedJob as never)
+  vi.mocked(fetchJob).mockResolvedValue(completedJob as never)
 })
 afterEach(() => {
   wrapper?.unmount()
@@ -136,12 +140,13 @@ describe('goal results follow activity changes', () => {
 
   it('a finished profile import refreshes goal results', async () => {
     const client = seededClient()
-    const running = { status: 'running', error_code: null, imported: null }
-    vi.mocked(fetchProfileImport).mockResolvedValue(running as never)
+    const running = { id: 'import-1', kind: 'profile_import', status: 'running', imported: null }
+    vi.mocked(listJobs).mockResolvedValue({ items: [running], num_records: 1 } as never)
+    vi.mocked(fetchJob).mockResolvedValue(running as never)
     mountHook(client, useProfileImportQuery)
     await flushPromises()
 
-    client.setQueryData(queryKeys.profile.import(), { ...running, status: 'succeeded' })
+    client.setQueryData(queryKeys.jobs.detail('import-1'), { ...running, status: 'succeeded' })
     await flushPromises()
 
     expect(goalResultsStale(client)).toBe(true)

@@ -10,7 +10,6 @@ import {
   deleteUser,
   deleteUserPhoto,
   fetchUserById,
-  fetchUserDeletion,
   fetchUsers,
   mapManagedUser,
   updateUser,
@@ -97,14 +96,6 @@ describe('mapManagedUser', () => {
 describe('users service requests', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-  })
-
-  it("reads the state of a user's queued deletion", async () => {
-    vi.mocked(apiFetch).mockResolvedValue({ status: 'queued' })
-
-    await expect(fetchUserDeletion(7)).resolves.toEqual({ status: 'queued' })
-
-    expect(apiFetch).toHaveBeenCalledWith('/users/7/deletion', { signal: undefined })
   })
 
   it('fetchUsers calls the paginated endpoint and maps records', async () => {
@@ -399,15 +390,17 @@ describe('users service requests', () => {
   })
 
   it('deleteUser POSTs to the delete route with If-Match and the admin step-up', async () => {
-    vi.mocked(apiFetch).mockResolvedValue(undefined)
+    const job = { id: 'job-1', kind: 'user_deletion', status: 'queued' }
+    vi.mocked(apiFetch).mockResolvedValue(job)
 
-    await deleteUser(7, 2, { currentPassword: 'admin-pw', mfaCode: null })
+    await expect(deleteUser(7, 2, { currentPassword: 'admin-pw', mfaCode: null })).resolves.toBe(
+      job,
+    )
 
     expect(apiFetch).toHaveBeenCalledWith('/users/7/delete', {
       method: 'POST',
       headers: { 'If-Match': '"2"' },
       body: JSON.stringify({ step_up: { current_password: 'admin-pw', mfa_code: null } }),
-      responseType: 'void',
     })
   })
 

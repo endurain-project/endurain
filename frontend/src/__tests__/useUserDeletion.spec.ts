@@ -9,18 +9,28 @@ import type { UserDeletionStatus } from '@/features/users/types'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import UserDeletionWatcher from '@/features/users/components/UserDeletionWatcher.vue'
 import { useUserDeletionsStore } from '@/features/users/stores/userDeletions'
-import { useUserDeletionQuery } from '@/features/users/composables/useUsers'
-import { fetchUserDeletion } from '@/features/users/services/users'
+import { useUserDeletionQuery, useUserQuery } from '@/features/users/composables/useUsers'
+import { fetchUserById } from '@/features/users/services/users'
+import { fetchJob } from '@/services/jobStatus'
 import { queryKeys } from '@/services/queryKeys'
 
+vi.mock('@/services/jobStatus', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/jobStatus')>()),
+  fetchJob: vi.fn<typeof fetchJob>(),
+}))
 vi.mock('@/features/users/services/users', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/users/services/users')>()),
-  fetchUserDeletion: vi.fn<(id: number) => Promise<UserDeletionStatus | null>>(),
+  fetchUserById: vi.fn<typeof fetchUserById>(),
 }))
 
-const queued: UserDeletionStatus = { status: 'queued' }
-const succeeded: UserDeletionStatus = { status: 'succeeded' }
-const failed: UserDeletionStatus = { status: 'failed' }
+const queued: UserDeletionStatus = {
+  id: 'job-7',
+  kind: 'user_deletion',
+  status: 'queued',
+  created_at: '2026-01-01T00:00:00Z',
+}
+const succeeded: UserDeletionStatus = { ...queued, status: 'succeeded' }
+const failed: UserDeletionStatus = { ...queued, status: 'failed' }
 
 let wrapper: ReturnType<typeof mount> | undefined
 
@@ -39,7 +49,7 @@ afterEach(() => {
 function mountQuery(queryClient: QueryClient) {
   const TestComponent = defineComponent({
     setup() {
-      useUserDeletionQuery(() => 7)
+      useUserDeletionQuery(() => 'job-7')
       return () => h('div')
     },
   })
@@ -56,23 +66,23 @@ function invalidatedKeys(invalidate: ReturnType<typeof vi.spyOn>): string[] {
 }
 
 describe('useUserDeletionQuery', () => {
-  it('reads the deletion of the given user', async () => {
-    vi.mocked(fetchUserDeletion).mockResolvedValue(queued)
+  it('reads the deletion job it is given', async () => {
+    vi.mocked(fetchJob).mockResolvedValue(queued)
     mountQuery(new QueryClient())
     await flushPromises()
 
-    expect(fetchUserDeletion).toHaveBeenCalledWith(7, expect.anything())
+    expect(fetchJob).toHaveBeenCalledWith('job-7', expect.anything())
   })
 
   it('refetches the users lists and details once the deletion succeeds', async () => {
-    vi.mocked(fetchUserDeletion).mockResolvedValue(queued)
+    vi.mocked(fetchJob).mockResolvedValue(queued)
     const queryClient = new QueryClient()
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
     mountQuery(queryClient)
     await flushPromises()
     expect(invalidate).not.toHaveBeenCalled()
 
-    queryClient.setQueryData(queryKeys.users.deletion(7), succeeded)
+    queryClient.setQueryData(queryKeys.jobs.detail('job-7'), succeeded)
     await flushPromises()
 
     const keys = invalidatedKeys(invalidate)
@@ -81,7 +91,7 @@ describe('useUserDeletionQuery', () => {
   })
 
   it('refetches the users lists when the deletion had already succeeded at the first read', async () => {
-    vi.mocked(fetchUserDeletion).mockResolvedValue(succeeded)
+    vi.mocked(fetchJob).mockResolvedValue(succeeded)
     const queryClient = new QueryClient()
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
     mountQuery(queryClient)
@@ -91,7 +101,7 @@ describe('useUserDeletionQuery', () => {
   })
 
   it('refetches nothing when the deletion failed, since the account is still there', async () => {
-    vi.mocked(fetchUserDeletion).mockResolvedValue(failed)
+    vi.mocked(fetchJob).mockResolvedValue(failed)
     const queryClient = new QueryClient()
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
     mountQuery(queryClient)
@@ -102,60 +112,109 @@ describe('useUserDeletionQuery', () => {
 
   it('polls while the deletion runs and stops once it ends', async () => {
     vi.useFakeTimers()
-    vi.mocked(fetchUserDeletion).mockResolvedValue(queued)
+    vi.mocked(fetchJob).mockResolvedValue(queued)
     mountQuery(new QueryClient())
     await flushPromises()
-    expect(fetchUserDeletion).toHaveBeenCalledTimes(1)
+    expect(fetchJob).toHaveBeenCalledTimes(1)
 
-    vi.mocked(fetchUserDeletion).mockResolvedValue(failed)
+    vi.mocked(fetchJob).mockResolvedValue(failed)
     await vi.advanceTimersByTimeAsync(10_000)
-    expect(fetchUserDeletion).toHaveBeenCalledTimes(2)
+    expect(fetchJob).toHaveBeenCalledTimes(2)
 
     await vi.advanceTimersByTimeAsync(60_000)
-    expect(fetchUserDeletion).toHaveBeenCalledTimes(2)
+    expect(fetchJob).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('useUserQuery', () => {
+  function mountUser() {
+    wrapper = mount(
+      defineComponent({
+        setup() {
+          useUserQuery(7)
+          return () => h('div')
+        },
+      }),
+      { global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]] } },
+    )
+  }
+
+  it('reads the user again while the account waits to be erased', async () => {
+    vi.useFakeTimers()
+    vi.mocked(fetchUserById).mockResolvedValue({ deletionRequestedAt: '2026-01-01' } as never)
+    mountUser()
+    await flushPromises()
+    expect(fetchUserById).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(fetchUserById).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not poll an account that is not being erased', async () => {
+    vi.useFakeTimers()
+    vi.mocked(fetchUserById).mockResolvedValue({ deletionRequestedAt: null } as never)
+    mountUser()
+    await flushPromises()
+
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(fetchUserById).toHaveBeenCalledTimes(1)
   })
 })
 
 describe('session deletion tracking', () => {
   const queryClient = new QueryClient()
 
-  function mountWatcher(ids: number[]) {
+  function mountWatcher(tracked: Array<[number, string]>) {
     wrapper = mount(
       defineComponent({
         setup() {
           const deletions = useUserDeletionsStore()
           return () =>
-            deletions.userIds.map((id) => h(UserDeletionWatcher, { key: id, userId: id }))
+            deletions.deletions.map((deletion) =>
+              h(UserDeletionWatcher, { key: deletion.jobId, jobId: deletion.jobId }),
+            )
         },
       }),
       { global: { plugins: [[VueQueryPlugin, { queryClient }]] } },
     )
-    for (const id of ids) {
-      useUserDeletionsStore().track(id)
+    for (const [userId, jobId] of tracked) {
+      useUserDeletionsStore().track(userId, jobId)
     }
   }
 
-  it('does not read the deletion of a row marked before this session', async () => {
-    vi.mocked(fetchUserDeletion).mockResolvedValue(queued)
+  it('does not read the job of a row marked before this session', async () => {
+    vi.mocked(fetchJob).mockResolvedValue(queued)
     mountWatcher([])
     await flushPromises()
 
-    expect(fetchUserDeletion).not.toHaveBeenCalled()
+    expect(fetchJob).not.toHaveBeenCalled()
+  })
+
+  it('tracks the user and job id of a queued deletion, once per job', () => {
+    const deletions = useUserDeletionsStore()
+
+    deletions.track(7, 'job-7')
+    deletions.track(7, 'job-7')
+    deletions.track(8, 'job-8')
+    expect(deletions.deletions).toEqual([
+      { userId: 7, jobId: 'job-7' },
+      { userId: 8, jobId: 'job-8' },
+    ])
+
+    deletions.release('job-7')
+    expect(deletions.deletions).toEqual([{ userId: 8, jobId: 'job-8' }])
   })
 
   it('follows a deletion queued in this session and drops it once it ends', async () => {
-    vi.mocked(fetchUserDeletion).mockResolvedValue(queued)
-    mountWatcher([7])
+    vi.mocked(fetchJob).mockResolvedValue(queued)
+    mountWatcher([[7, 'job-7']])
     await flushPromises()
-    expect(fetchUserDeletion).toHaveBeenCalledWith(7, expect.anything())
-    expect(useUserDeletionsStore().userIds).toEqual([7])
+    expect(fetchJob).toHaveBeenCalledWith('job-7', expect.anything())
+    expect(useUserDeletionsStore().deletions).toEqual([{ userId: 7, jobId: 'job-7' }])
 
-    useUserDeletionsStore().track(7)
-    expect(useUserDeletionsStore().userIds).toEqual([7])
-
-    vi.mocked(fetchUserDeletion).mockResolvedValue(failed)
-    queryClient.setQueryData(queryKeys.users.deletion(7), failed)
+    vi.mocked(fetchJob).mockResolvedValue(failed)
+    queryClient.setQueryData(queryKeys.jobs.detail('job-7'), failed)
     await flushPromises()
-    expect(useUserDeletionsStore().userIds).toEqual([])
+    expect(useUserDeletionsStore().deletions).toEqual([])
   })
 })

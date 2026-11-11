@@ -2,6 +2,7 @@ import type { Schemas } from '@/types'
 
 import { apiFetch, HttpError } from '@/services/http'
 import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
+import { followJob, JobTimeoutError, type JobOf } from '@/services/jobStatus'
 import { fetchAllPages } from '@/services/pagination'
 import { mapEmbeddedUsers } from '@/features/users/services/publicUsers'
 import { pastWeekRange, todayIsoDate } from '@/utils/datetime'
@@ -10,7 +11,7 @@ import { isActivityType } from '../utils/activityType'
 import { mapActivityOwner } from './activityOwner'
 import { mapActivityMedia } from './activityMedia'
 
-/** Job handle returned by the refresh endpoint; polled via `fetchIngestionJob`. */
+/** Job handle returned by the refresh endpoint; followed with `followJob`. */
 type ActivityIngestionJob = Schemas['ActivityIngestionJobRead']
 
 import type {
@@ -511,7 +512,7 @@ export async function fetchActivityStats(
  *
  * Resolves as soon as the sync is queued, not when it finishes: the endpoint
  * answers `202` and pulls the providers on a background worker, so the caller
- * must poll `fetchIngestionJob` for the outcome.
+ * must follow the job (`followJob`) for the outcome.
  *
  * @param signal - Optional abort signal for cancellation.
  * @returns The accepted refresh job, in the pending state.
@@ -726,28 +727,23 @@ const BULK_EDIT_TIMEOUT_MS = 10 * 60_000
 export async function updateUserActivitiesVisibility(
   visibility: Schemas['ActivityVisibility'],
 ): Promise<void> {
-  const deadline = Date.now() + BULK_EDIT_TIMEOUT_MS
-  let job: Schemas['ActivitiesBulkEditStatus'] | null = await apiFetch<
-    Schemas['ActivitiesBulkEditStatus']
-  >('/activities', {
+  const queued = await apiFetch<Schemas['ActivitiesBulkEditStatus']>('/activities', {
     method: 'PATCH',
     body: JSON.stringify({ visibility }),
   })
-  for (;;) {
-    if (job === null) {
-      throw new Error('The activities visibility edit status expired')
-    }
-    if (job.status === 'succeeded') {
-      return
-    }
-    if (job.status === 'failed') {
-      throw new Error('Updating the activities visibility failed')
-    }
-    if (Date.now() >= deadline) {
-      throw new Error('Updating the activities visibility did not finish in time')
-    }
-    await new Promise((resolve) => setTimeout(resolve, BULK_EDIT_POLL_MS))
-    job = await apiFetch<Schemas['ActivitiesBulkEditStatus'] | null>('/activities/bulk-edit')
+  let job: JobOf<'activities_bulk_edit'>
+  try {
+    job = await followJob<'activities_bulk_edit'>(queued.id, {
+      intervalMs: BULK_EDIT_POLL_MS,
+      timeoutMs: BULK_EDIT_TIMEOUT_MS,
+    })
+  } catch (error) {
+    throw error instanceof JobTimeoutError
+      ? new Error('Updating the activities visibility did not finish in time')
+      : error
+  }
+  if (job.status === 'failed') {
+    throw new Error('Updating the activities visibility failed')
   }
 }
 

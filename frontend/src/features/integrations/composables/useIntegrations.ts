@@ -1,13 +1,12 @@
-import { onScopeDispose, type Ref } from 'vue'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { watch, type Ref } from 'vue'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
 
 import type { DateRange, GarminLinkStatus, GarminLoginInput } from '@/features/integrations/types'
 
-import { jobPollInterval, useRealtime } from '@/composables/useRealtime'
-import { isTerminalJobState } from '@/services/jobStatus'
+import { useJobQuery } from '@/composables/useJobQuery'
+import { seedJob } from '@/services/jobStatus'
 import { queryKeys } from '@/services/queryKeys'
 import {
-  fetchGarminLinkStatus,
   linkGarmin,
   retrieveGarminActivities,
   retrieveGarminGear,
@@ -53,65 +52,40 @@ export function useUnlinkStravaMutation() {
   })
 }
 
-/** How often the Garmin Connect link status is read while the attempt is running and no hint can arrive. */
+/** How often the Garmin Connect link job is read while it runs and no hint can arrive. */
 const GARMIN_LINK_POLL_MS = 1_500
-
-/** The job name the server's `JOB_STATUS_CHANGED` hints carry for a Garmin Connect link. */
-const GARMIN_LINK_JOB = 'garmin-link'
 
 /**
  * Starts linking a Garmin Connect account. It resolves as soon as the background login is
- * accepted; {@link useGarminLinkStatusQuery} then follows it to its outcome.
+ * accepted, with the link job, which it seeds into the cache; {@link useGarminLinkQuery} then
+ * follows it to its outcome.
  */
 export function useLinkGarminMutation() {
   const client = useQueryClient()
   return useMutation<GarminLinkStatus, Error, GarminLoginInput>({
     mutationFn: (input) => linkGarmin(input),
-    // Replace the previous attempt's outcome (and error) before the dialog starts following.
-    onSuccess: (status) => {
-      client.setQueryData(queryKeys.integrations.garminLinkStatus(), status)
-    },
+    onSuccess: (job) => seedJob(client, job),
   })
 }
 
 /**
- * Follows a Garmin Connect link attempt until it completes or fails. While the realtime channel is
- * open the server announces each change of the attempt, which re-reads the status at once, and the
- * poll only backs that up; without the channel it polls quickly. It keeps polling in a background
- * tab, because the user may be reading an MFA code in another app. A succeeded link refreshes the
+ * Follows a Garmin Connect link job until it completes or fails. A succeeded link refreshes the
  * profile's link status.
  *
- * @param enabled - Whether an attempt is being followed.
- * @returns The TanStack Query result for the attempt's status.
+ * @param jobId - The link job's id from the 202, or `null` while none is followed.
+ * @returns The TanStack Query result for the job.
  */
-export function useGarminLinkStatusQuery(enabled: Ref<boolean>) {
+export function useGarminLinkQuery(jobId: Ref<string | null>) {
   const invalidateProfile = useProfileInvalidation()
-  const query = useQuery<GarminLinkStatus | null, Error>({
-    queryKey: queryKeys.integrations.garminLinkStatus(),
-    queryFn: async ({ signal }) => {
-      const status = await fetchGarminLinkStatus(signal)
-      if (status?.status === 'succeeded') {
+  const query = useJobQuery<'garmin_link'>(jobId, { intervalMs: GARMIN_LINK_POLL_MS })
+  watch(
+    () => query.data.value?.status,
+    (status) => {
+      if (status === 'succeeded') {
         invalidateProfile()
       }
-      return status
     },
-    enabled,
-    retry: false,
-    refetchInterval: (query) => {
-      const state = query.state.data
-      return state === null || (state !== undefined && isTerminalJobState(state.status))
-        ? false
-        : jobPollInterval(GARMIN_LINK_POLL_MS)
-    },
-    refetchIntervalInBackground: true,
-    gcTime: 0,
-  })
-  const stopListening = useRealtime().on('JOB_STATUS_CHANGED', (event) => {
-    if (event.job === GARMIN_LINK_JOB && enabled.value) {
-      void query.refetch()
-    }
-  })
-  onScopeDispose(stopListening)
+  )
   return query
 }
 

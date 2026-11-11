@@ -5,7 +5,6 @@ import type { DateRange } from '@/features/integrations/types'
 import * as realtime from '@/composables/useRealtime'
 import { apiFetch } from '@/services/http'
 import {
-  fetchGarminLinkStatus,
   linkGarmin,
   retrieveGarminActivities,
   retrieveGarminGear,
@@ -31,6 +30,11 @@ vi.mock('@/services/http', () => ({
 vi.mock('@/services/runtime', () => ({
   getRuntimeBackendHost: vi.fn<() => string | null>(() => 'https://app.example.com'),
 }))
+
+/** A Strava job as the server reports it. */
+function stravaJob(kind: 'strava_link' | 'strava_unlink', status: string) {
+  return { id: 'job-1', kind, status, created_at: '2026-01-01T00:00:00Z' }
+}
 
 const range: DateRange = { startDate: '2026-01-01', endDate: '2026-01-07' }
 
@@ -87,9 +91,9 @@ describe('strava service', () => {
     it('POSTs state, code and scope in the body, not the URL, and resolves once the queued link completes', async () => {
       vi.useFakeTimers()
       vi.mocked(apiFetch)
-        .mockResolvedValueOnce({ kind: 'link', status: 'queued' })
-        .mockResolvedValueOnce({ kind: 'link', status: 'running' })
-        .mockResolvedValueOnce({ kind: 'link', status: 'succeeded' })
+        .mockResolvedValueOnce(stravaJob('strava_link', 'queued'))
+        .mockResolvedValueOnce(stravaJob('strava_link', 'running'))
+        .mockResolvedValueOnce(stravaJob('strava_link', 'succeeded'))
 
       const done = completeStravaLink('st ate', 'co/de', 'read,profile:read_all,activity:read_all')
       await vi.advanceTimersByTimeAsync(2_000)
@@ -103,30 +107,32 @@ describe('strava service', () => {
           scope: 'read,profile:read_all,activity:read_all',
         }),
       })
-      expect(apiFetch).toHaveBeenNthCalledWith(2, '/strava/sync/link')
+      expect(apiFetch).toHaveBeenNthCalledWith(2, '/jobs/job-1', { signal: undefined })
       expect(apiFetch).toHaveBeenCalledTimes(3)
     })
 
-    it("follows the link job's hints from before the job is queued", async () => {
+    it("follows the link job's hints once the 202 gives its id", async () => {
       vi.useFakeTimers()
       const watch = vi.spyOn(realtime, 'watchJob')
       vi.mocked(apiFetch)
-        .mockResolvedValueOnce({ kind: 'link', status: 'queued' })
-        .mockResolvedValueOnce({ kind: 'link', status: 'succeeded' })
+        .mockResolvedValueOnce(stravaJob('strava_link', 'queued'))
+        .mockResolvedValueOnce(stravaJob('strava_link', 'succeeded'))
 
       const done = completeStravaLink('s', 'c', 'read')
       await vi.advanceTimersByTimeAsync(1_000)
       await done
 
-      expect(watch).toHaveBeenCalledExactlyOnceWith('strava:link')
-      expect(watch.mock.invocationCallOrder[0]!).toBeLessThan(
+      expect(watch).toHaveBeenCalledExactlyOnceWith('job-1')
+      expect(watch.mock.invocationCallOrder[0]!).toBeGreaterThan(
         vi.mocked(apiFetch).mock.invocationCallOrder[0]!,
       )
       watch.mockRestore()
     })
 
     it('rejects when the queued link fails', async () => {
-      vi.mocked(apiFetch).mockResolvedValueOnce({ kind: 'link', status: 'failed' })
+      vi.mocked(apiFetch)
+        .mockResolvedValueOnce(stravaJob('strava_link', 'queued'))
+        .mockResolvedValueOnce(stravaJob('strava_link', 'failed'))
 
       await expect(completeStravaLink('s', 'c', 'read')).rejects.toThrow('Linking Strava failed')
     })
@@ -153,32 +159,32 @@ describe('strava service', () => {
     it('DELETEs the unlink path and resolves once the queued unlink completes', async () => {
       vi.useFakeTimers()
       vi.mocked(apiFetch)
-        .mockResolvedValueOnce({ kind: 'unlink', status: 'queued' })
-        .mockResolvedValueOnce({ kind: 'unlink', status: 'running' })
-        .mockResolvedValueOnce({ kind: 'unlink', status: 'succeeded' })
+        .mockResolvedValueOnce(stravaJob('strava_unlink', 'queued'))
+        .mockResolvedValueOnce(stravaJob('strava_unlink', 'running'))
+        .mockResolvedValueOnce(stravaJob('strava_unlink', 'succeeded'))
 
       const done = unlinkStrava()
       await vi.advanceTimersByTimeAsync(2_000)
       await done
 
       expect(apiFetch).toHaveBeenNthCalledWith(1, '/strava/link', { method: 'DELETE' })
-      expect(apiFetch).toHaveBeenNthCalledWith(2, '/strava/sync/unlink')
+      expect(apiFetch).toHaveBeenNthCalledWith(2, '/jobs/job-1', { signal: undefined })
       expect(apiFetch).toHaveBeenCalledTimes(3)
     })
 
-    it("follows the unlink job's hints from before the job is queued", async () => {
+    it("follows the unlink job's hints once the 202 gives its id", async () => {
       vi.useFakeTimers()
       const watch = vi.spyOn(realtime, 'watchJob')
       vi.mocked(apiFetch)
-        .mockResolvedValueOnce({ kind: 'unlink', status: 'queued' })
-        .mockResolvedValueOnce({ kind: 'unlink', status: 'succeeded' })
+        .mockResolvedValueOnce(stravaJob('strava_unlink', 'queued'))
+        .mockResolvedValueOnce(stravaJob('strava_unlink', 'succeeded'))
 
       const done = unlinkStrava()
       await vi.advanceTimersByTimeAsync(1_000)
       await done
 
-      expect(watch).toHaveBeenCalledExactlyOnceWith('strava:unlink')
-      expect(watch.mock.invocationCallOrder[0]!).toBeLessThan(
+      expect(watch).toHaveBeenCalledExactlyOnceWith('job-1')
+      expect(watch.mock.invocationCallOrder[0]!).toBeGreaterThan(
         vi.mocked(apiFetch).mock.invocationCallOrder[0]!,
       )
       watch.mockRestore()
@@ -186,7 +192,7 @@ describe('strava service', () => {
 
     it('gives up when the job has not finished by the deadline', async () => {
       vi.useFakeTimers()
-      vi.mocked(apiFetch).mockResolvedValue({ kind: 'unlink', status: 'running' })
+      vi.mocked(apiFetch).mockResolvedValue(stravaJob('strava_unlink', 'running'))
 
       const outcome = unlinkStrava().catch((error: unknown) => error)
       await vi.advanceTimersByTimeAsync(130_000)
@@ -195,7 +201,9 @@ describe('strava service', () => {
     })
 
     it('rejects when the queued unlink fails', async () => {
-      vi.mocked(apiFetch).mockResolvedValueOnce({ kind: 'unlink', status: 'failed' })
+      vi.mocked(apiFetch)
+        .mockResolvedValueOnce(stravaJob('strava_unlink', 'queued'))
+        .mockResolvedValueOnce(stravaJob('strava_unlink', 'failed'))
 
       await expect(unlinkStrava()).rejects.toThrow('Unlinking Strava failed')
     })
@@ -208,12 +216,15 @@ describe('garmin service', () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
   })
 
-  it('linkGarmin POSTs the credentials and returns the initial status', async () => {
-    vi.mocked(apiFetch).mockResolvedValue({
-      status: 'running',
+  it('linkGarmin POSTs the credentials and returns the queued job', async () => {
+    const queued = {
+      id: 'job-1',
+      kind: 'garmin_link',
+      status: 'queued',
       mfa_required: false,
       error_code: null,
-    })
+    }
+    vi.mocked(apiFetch).mockResolvedValue(queued)
 
     const status = await linkGarmin({ username: 'rider', password: 'pw', isCn: false })
 
@@ -221,23 +232,7 @@ describe('garmin service', () => {
       method: 'POST',
       body: JSON.stringify({ username: 'rider', password: 'pw', is_cn: false }),
     })
-    expect(status).toEqual({ status: 'running', mfa_required: false, error_code: null })
-  })
-
-  it('fetchGarminLinkStatus GETs the link status path', async () => {
-    vi.mocked(apiFetch).mockResolvedValue({
-      status: 'running',
-      mfa_required: true,
-      error_code: null,
-    })
-    const controller = new AbortController()
-
-    const status = await fetchGarminLinkStatus(controller.signal)
-
-    expect(apiFetch).toHaveBeenCalledWith('/garmin/link/status', {
-      signal: controller.signal,
-    })
-    expect(status?.mfa_required).toBe(true)
+    expect(status).toEqual(queued)
   })
 
   it('linkGarmin forwards the China-region flag', async () => {

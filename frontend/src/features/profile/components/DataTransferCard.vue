@@ -17,7 +17,7 @@ import {
   isStepUpLocked,
   useIdpReauthChallenge,
 } from '@/features/security/composables/useIdpStepUp'
-import { isTerminalProfileExport, isTerminalProfileImport } from '@/features/profile/types'
+import { isTerminalJobState } from '@/services/jobStatus'
 import {
   useDownloadProfileExportMutation,
   useExportProfileMutation,
@@ -40,10 +40,10 @@ const props = defineProps<{
 const { t } = useI18n()
 const toasts = useToasts()
 const exportMutation = useExportProfileMutation()
-const exportQuery = useProfileExportQuery()
+const exportJob = useProfileExportQuery()
 const downloadMutation = useDownloadProfileExportMutation()
 const importMutation = useImportProfileMutation()
-const importQuery = useProfileImportQuery()
+const importJob = useProfileImportQuery()
 const handleIdpChallenge = useIdpReauthChallenge()
 
 const isStepUpOpen = ref(false)
@@ -57,10 +57,10 @@ onMounted(() => {
   }
 })
 
-const exportStatus = computed(() => exportQuery.data.value ?? null)
+const exportStatus = exportJob
 /** Whether an export is queued or being built, so a second one cannot start. */
 const isExportActive = computed(
-  () => exportStatus.value !== null && !isTerminalProfileExport(exportStatus.value),
+  () => exportStatus.value !== null && !isTerminalJobState(exportStatus.value.status),
 )
 /** Whether a finished export is waiting to be downloaded. */
 const isExportReady = computed(() => exportStatus.value?.status === 'succeeded')
@@ -80,10 +80,10 @@ const exportMessage = computed<string | null>(() => {
   return t(`settings.profile.dataTransfer.exportStatus.${status.status}`)
 })
 
-const importStatus = computed(() => importQuery.data.value ?? null)
+const importStatus = importJob
 /** Whether an import is queued or running, so a second one cannot start. */
 const isImportActive = computed(
-  () => importStatus.value !== null && !isTerminalProfileImport(importStatus.value),
+  () => importStatus.value !== null && !isTerminalJobState(importStatus.value.status),
 )
 
 /** The one-line progress or outcome of the latest import. */

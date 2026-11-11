@@ -487,8 +487,17 @@ describe('deleteActivity', () => {
 })
 
 describe('updateUserActivitiesVisibility', () => {
+  const bulkEdit = (status: string) => ({
+    id: 'job-1',
+    kind: 'activities_bulk_edit',
+    status,
+    created_at: '2026-01-01T00:00:00Z',
+  })
+
   it('patches the collection with the requested visibility', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce({ status: 'succeeded' })
+    vi.mocked(apiFetch)
+      .mockResolvedValueOnce(bulkEdit('queued'))
+      .mockResolvedValueOnce(bulkEdit('succeeded'))
 
     await updateUserActivitiesVisibility('followers')
 
@@ -498,20 +507,20 @@ describe('updateUserActivitiesVisibility', () => {
     })
   })
 
-  it('follows the queued edit until it completes', async () => {
+  it('follows the queued edit job until it completes', async () => {
     vi.useFakeTimers()
     try {
       vi.mocked(apiFetch)
-        .mockResolvedValueOnce({ status: 'queued' })
-        .mockResolvedValueOnce({ status: 'running' })
-        .mockResolvedValueOnce({ status: 'succeeded' })
+        .mockResolvedValueOnce(bulkEdit('queued'))
+        .mockResolvedValueOnce(bulkEdit('running'))
+        .mockResolvedValueOnce(bulkEdit('succeeded'))
 
       const done = updateUserActivitiesVisibility('private')
       await vi.advanceTimersByTimeAsync(2_000)
       await vi.advanceTimersByTimeAsync(2_000)
       await done
 
-      expect(apiFetch).toHaveBeenNthCalledWith(2, '/activities/bulk-edit')
+      expect(apiFetch).toHaveBeenNthCalledWith(2, '/jobs/job-1', { signal: undefined })
       expect(apiFetch).toHaveBeenCalledTimes(3)
     } finally {
       vi.useRealTimers()
@@ -519,7 +528,9 @@ describe('updateUserActivitiesVisibility', () => {
   })
 
   it('reports an edit that failed on the server', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce({ status: 'failed' })
+    vi.mocked(apiFetch)
+      .mockResolvedValueOnce(bulkEdit('queued'))
+      .mockResolvedValueOnce(bulkEdit('failed'))
 
     await expect(updateUserActivitiesVisibility('private')).rejects.toThrow(/failed/)
   })

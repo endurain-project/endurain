@@ -27,7 +27,7 @@ import {
   floatPinnedActivities,
   refreshPinnedActivities,
 } from '@/features/upload/composables/usePinnedActivities'
-import { pollIngestionJob } from '@/features/upload/composables/useUpload'
+import { followIngestionJob } from '@/features/upload/composables/useUpload'
 import type { ActivityIngestionJob } from '@/features/upload/types'
 
 /** Default number of activities fetched per feed page (matches v1's fallback). */
@@ -256,7 +256,7 @@ export function useRefreshActivitiesMutation() {
     mutationKey: queryKeys.activities.all(),
     mutationFn: async () => {
       const job = await refreshActivities()
-      return pollIngestionJob(job.id)
+      return followIngestionJob(job.id)
     },
     onSettled: () => {
       void invalidateActivityData(client)

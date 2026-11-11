@@ -15,10 +15,10 @@ import {
   clearAwaitingThumbnail,
   markAwaitingThumbnail,
 } from '@/features/upload/composables/usePendingThumbnails'
-import { fetchIngestionJob, uploadActivityFile } from '@/features/upload/services/upload'
-import { type ActivityIngestionJob, isTerminalIngestionJob } from '@/features/upload/types'
+import { uploadActivityFile } from '@/features/upload/services/upload'
+import type { ActivityIngestionJob } from '@/features/upload/types'
 import { invalidateActivityData } from '@/composables/useInvalidatingMutation'
-import { watchJob } from '@/composables/useRealtime'
+import { followJob, JobTimeoutError } from '@/services/jobStatus'
 import { queryKeys } from '@/services/queryKeys'
 
 /** Key prefixes of the home feeds, which an upload updates by hand. */
@@ -72,7 +72,7 @@ export class IngestionJobTimeoutError extends Error {
 }
 
 /**
- * Waits for a queued import to reach a terminal state.
+ * Follows a queued import until it reaches a terminal state.
  *
  * @param jobId - The job returned by the upload request.
  * @param options - Optional abort signal, polling interval, and timeout.
@@ -80,32 +80,24 @@ export class IngestionJobTimeoutError extends Error {
  * @throws {IngestionJobFailedError} When the import finished unsuccessfully.
  * @throws {IngestionJobTimeoutError} When it is still running at the deadline.
  */
-export async function pollIngestionJob(
+export async function followIngestionJob(
   jobId: string,
   options: { signal?: AbortSignal; intervalMs?: number; timeoutMs?: number } = {},
 ): Promise<ActivityIngestionJob> {
-  const intervalMs = options.intervalMs ?? POLL_INTERVAL_MS
-  const timeoutMs = options.timeoutMs ?? POLL_TIMEOUT_MS
-  const deadline = Date.now() + timeoutMs
-  const watch = watchJob(`ingestion:${jobId}`)
-
+  let job: ActivityIngestionJob
   try {
-    for (;;) {
-      const job = await fetchIngestionJob(jobId, { signal: options.signal })
-      if (isTerminalIngestionJob(job)) {
-        if (job.status === 'failed') {
-          throw new IngestionJobFailedError(job.error_code)
-        }
-        return job
-      }
-      if (Date.now() >= deadline) {
-        throw new IngestionJobTimeoutError()
-      }
-      await watch.wait(intervalMs)
-    }
-  } finally {
-    watch.stop()
+    job = await followJob<'activity_upload' | 'activity_refresh'>(jobId, {
+      signal: options.signal,
+      intervalMs: options.intervalMs ?? POLL_INTERVAL_MS,
+      timeoutMs: options.timeoutMs ?? POLL_TIMEOUT_MS,
+    })
+  } catch (error) {
+    throw error instanceof JobTimeoutError ? new IngestionJobTimeoutError() : error
   }
+  if (job.status === 'failed') {
+    throw new IngestionJobFailedError(job.error_code)
+  }
+  return job
 }
 
 /**
@@ -289,7 +281,7 @@ export function useUploadActivityFileMutation() {
       // 401-refresh retry inside apiFetch today, a mutation retry later — is
       // answered with the original job instead of importing the file twice.
       const job = await uploadActivityFile(file, { idempotencyKey: crypto.randomUUID() })
-      return pollIngestionJob(job.id)
+      return followIngestionJob(job.id)
     },
     onSuccess: async (job) => {
       // The job reports what it created, so fetch exactly those rows rather

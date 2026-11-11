@@ -52,31 +52,9 @@ export interface paths {
          *     bulk-editable field without another endpoint.
          *
          *     The edit can touch a whole library, so it runs as a background job: poll
-         *     ``GET /activities/bulk-edit`` for the outcome.
+         *     ``GET /jobs/{job_id}`` for the outcome.
          */
         patch: operations["edit_activities"];
-        trace?: never;
-    };
-    "/api/v1/activities/bulk-edit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Bulk Edit Status
-         * @description Report where the authenticated user's bulk edit is.
-         *
-         *     ``Retry-After`` says when to poll again while the edit is not finished.
-         */
-        get: operations["read_bulk_edit_status"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
         trace?: never;
     };
     "/api/v1/activities/bulk-import": {
@@ -94,12 +72,12 @@ export interface paths {
          *
          *     Returns ``202`` once the archive is stored and queued: nothing inside it is
          *     read in the request beyond its directory listing. Poll
-         *     ``GET /activities/ingestion-jobs/{job_id}`` for progress (``files_done`` and
+         *     ``GET /jobs/{job_id}`` for progress (``files_done`` and
          *     ``files_failed`` against ``files_total``); a finished import with failed files
          *     still ends ``completed``.
          *
          *     One bulk import runs per user at a time; a second request while one is running
-         *     is answered ``409`` with the running job's ``job_id`` and a ``Content-Location`` naming its status.
+         *     is answered ``409`` with the running job's ``job_id`` and a ``Content-Location`` naming it.
          *
          *     Send an ``Idempotency-Key`` to make a retry safe: a repeat of the same archive and ``source`` returns the
          *     original job instead of starting another, and the same key with a different archive is ``409``.
@@ -128,10 +106,10 @@ export interface paths {
          *     provider export's own per-user folder). Returns ``202`` with a job handle;
          *     packing and staging the folder happens in the background, and the files are
          *     removed from the folder only once they are safely staged. Poll
-         *     ``GET /activities/ingestion-jobs/{job_id}`` for progress.
+         *     ``GET /jobs/{job_id}`` for progress.
          *
          *     One bulk import runs per user at a time; a second request while one is running
-         *     is answered ``409`` with the running job's ``job_id`` and a ``Content-Location`` naming its status.
+         *     is answered ``409`` with the running job's ``job_id`` and a ``Content-Location`` naming it.
          */
         post: operations["create_bulk_import_from_folder"];
         delete?: never;
@@ -184,34 +162,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities/ingestion-jobs/{job_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Activity Ingestion Job
-         * @description Read the state of one of your ingestion requests.
-         *
-         *     Serves uploads, bulk imports and provider refreshes: the caller's question is the
-         *     same either way, so there is one route rather than three near-identical ones.
-         *     ``Retry-After`` says when to poll again while the job is still running.
-         *
-         *     Scoped to the caller: a job belonging to another user is reported as not
-         *     found rather than forbidden, so the endpoint does not confirm that an id
-         *     exists.
-         */
-        get: operations["read_activity_ingestion_job"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/activities/refresh": {
         parameters: {
             query?: never;
@@ -226,7 +176,7 @@ export interface paths {
          * @description Queue a sync of the last 24h from the linked providers (Strava/Garmin).
          *
          *     Returns ``202`` with a job handle; poll
-         *     ``GET /activities/ingestion-jobs/{job_id}`` for the outcome.
+         *     ``GET /jobs/{job_id}`` for the outcome.
          *
          *     The sync runs as a job, so no provider call blocks a request thread or the
          *     event loop.
@@ -293,7 +243,7 @@ export interface paths {
          *
          *     Returns ``202`` once the file is stored and queued: parsing is seconds of
          *     CPU work, and doing it inline held a shared request thread for the duration.
-         *     Poll ``GET /activities/ingestion-jobs/{job_id}`` for the outcome; ``Content-Location`` names it and
+         *     Poll ``GET /jobs/{job_id}`` for the outcome; ``Content-Location`` names it and
          *     ``Retry-After`` says when to look first.
          *
          *     Rejections that can be decided cheaply — unsupported extension, failed
@@ -794,7 +744,7 @@ export interface paths {
          * Garminconnect Retrieve Activities Days
          * @description Queue a Garmin Connect sync of an explicit date range.
          *
-         *     Returns ``202`` with a job handle; poll ``GET /activities/ingestion-jobs/{job_id}``
+         *     Returns ``202`` with a job handle; poll ``GET /jobs/{job_id}``
          *     for the outcome. The range is fetched by a background job, never on this
          *     request or an API worker thread.
          */
@@ -818,7 +768,7 @@ export interface paths {
          * Garminconnect Retrieve Gear
          * @description Queue a sync of the user's Garmin Connect gear; a background job runs it.
          *
-         *     Poll ``GET /garmin/sync/gear`` for the outcome. A second request while one is
+         *     Poll ``GET /jobs/{job_id}`` for the outcome. A second request while one is
          *     pending is answered 409.
          */
         post: operations["garminconnect_retrieve_gear"];
@@ -842,7 +792,7 @@ export interface paths {
          * @description Queue a sync of the user's Garmin Connect health data for a date range.
          *
          *     The range must not exceed 31 days; a background job runs it. Poll
-         *     ``GET /garmin/sync/health`` for the outcome. A second request while one is pending is
+         *     ``GET /jobs/{job_id}`` for the outcome. A second request while one is pending is
          *     answered 409.
          */
         post: operations["garminconnect_retrieve_health_days"];
@@ -865,10 +815,10 @@ export interface paths {
          * Garminconnect Link
          * @description Start linking a Garmin Connect account and return at once.
          *
-         *     The login runs in the background. Poll ``GET /garmin/link/status``: when it reports
+         *     The login runs in the background. Poll ``GET /jobs/{job_id}``: when it reports
          *     ``mfa_required``, submit the code to ``POST /garmin/mfa`` and keep polling until it
          *     reports ``succeeded`` or ``failed``. A second request while one is running is answered 409 with a
-         *     ``Content-Location`` naming the status.
+         *     ``Content-Location`` naming that job.
          */
         post: operations["garminconnect_link"];
         /**
@@ -876,28 +826,6 @@ export interface paths {
          * @description Unlink the user's Garmin Connect account.
          */
         delete: operations["garminconnect_unlink"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/garmin/link/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Garminconnect Link Status
-         * @description Report where the authenticated user's Garmin Connect link attempt is.
-         *
-         *     ``Retry-After`` says when to poll again while the attempt is not finished.
-         */
-        get: operations["garminconnect_link_status"];
-        put?: never;
-        post?: never;
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -917,28 +845,6 @@ export interface paths {
          * @description Hand the MFA code to the Garmin Connect login waiting for it.
          */
         post: operations["garminconnect_mfa_code"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/garmin/sync/{kind}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Garminconnect Sync Status
-         * @description Report where the authenticated user's queued gear or health sync is.
-         *
-         *     ``Retry-After`` says when to poll again while the sync is not finished.
-         */
-        get: operations["garminconnect_sync_status"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1877,6 +1783,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Jobs
+         * @description List a keyset slice of the background jobs the caller started, newest first.
+         *
+         *     Only the kinds the caller's scopes allow are listed, so an API key with ``activities:upload`` sees its
+         *     uploads and imports alone. A job other than an activity upload, refresh or bulk import is listed while its
+         *     record lasts, which is minutes to hours after it finishes.
+         */
+        get: operations["list_jobs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Job
+         * @description Report where a background job is.
+         *
+         *     ``kind`` says what the job does and which fields it carries. ``Retry-After`` says when to poll again while
+         *     the job is not finished. A job the caller did not start, or one whose record has expired, is ``404``; an
+         *     account deletion is also readable by any holder of ``users:read_all``. Reading a job needs the scope its kind
+         *     asks for: ``activities:upload`` for an activity upload, refresh or bulk import, ``activities:read`` for a bulk
+         *     edit, ``account`` for a Garmin Connect or Strava link or sync, ``account:export`` for a profile export or
+         *     import and ``users:read_all`` for an account deletion.
+         */
+        get: operations["read_job"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications": {
         parameters: {
             query?: never;
@@ -2296,13 +2253,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Read Profile Export Status
-         * @description Report where the authenticated user's profile export is.
-         *
-         *     ``Retry-After`` says when to poll again while the export is not finished.
-         */
-        get: operations["read_profile_export_status"];
+        get?: never;
         put?: never;
         /**
          * Export Profile Data
@@ -2310,7 +2261,7 @@ export interface paths {
          *
          *     Requires step-up verification: the current password (or, for an account without one, a fresh
          *     identity-provider sign-in), and an MFA code when MFA is enabled. A worker builds the archive;
-         *     poll ``GET /profile/export`` for the outcome and fetch it from ``GET /profile/export/download``.
+         *     poll ``GET /jobs/{job_id}`` for the outcome and fetch it from ``GET /profile/export/download``.
          */
         post: operations["export_profile_data"];
         delete?: never;
@@ -2595,19 +2546,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Read Profile Import Status
-         * @description Report where the authenticated user's profile import is.
-         *
-         *     ``Retry-After`` says when to poll again while the import is not finished.
-         */
-        get: operations["read_profile_import_status"];
+        get?: never;
         put?: never;
         /**
          * Import Profile Data
          * @description Queue a profile import from a ZIP archive.
          *
-         *     The archive is validated and staged, and a worker imports it; poll ``GET /profile/import`` for
+         *     The archive is validated and staged, and a worker imports it; poll ``GET /jobs/{job_id}`` for
          *     the outcome. The database part is all-or-nothing, so a failed import leaves nothing behind.
          */
         post: operations["import_profile_data"];
@@ -3668,7 +3613,7 @@ export interface paths {
          * Strava Retrieve Activities Days
          * @description Queue a Strava sync of an explicit date range.
          *
-         *     Returns ``202`` with a job handle; poll ``GET /activities/ingestion-jobs/{job_id}``
+         *     Returns ``202`` with a job handle; poll ``GET /jobs/{job_id}``
          *     for the outcome. The range is fetched by a background job, never on this
          *     request or an API worker thread.
          */
@@ -3712,7 +3657,7 @@ export interface paths {
          * Strava Retrieve Gear
          * @description Queue a sync of the user's Strava gear; a background job runs it.
          *
-         *     Poll ``GET /strava/sync/gear`` for the outcome. A second request while one is
+         *     Poll ``GET /jobs/{job_id}`` for the outcome. A second request while one is
          *     pending is answered 409.
          */
         post: operations["strava_retrieve_gear"];
@@ -3758,7 +3703,7 @@ export interface paths {
          *     Send the ``state``, ``code`` and ``scope`` Strava put on the callback. ``scope`` is the comma-separated
          *     list of permissions the user granted; a link whose grant lacks ``read``, ``profile:read_all`` or
          *     ``activity:read_all`` is refused with 400 and ``urn:endurain:error:provider-scope-insufficient`` before
-         *     the code is exchanged. Poll ``GET /strava/sync/link`` for the outcome. A second request while one is
+         *     the code is exchanged. Poll ``GET /jobs/{job_id}`` for the outcome. A second request while one is
          *     pending is answered 409.
          */
         post: operations["strava_link"];
@@ -3767,7 +3712,7 @@ export interface paths {
          * @description Queue the disconnection of the user's Strava account; a background job runs it.
          *
          *     The job revokes the authorization with Strava and deletes the activities and gear
-         *     imported from it. Poll ``GET /strava/sync/unlink`` for the outcome.
+         *     imported from it. Poll ``GET /jobs/{job_id}`` for the outcome.
          */
         delete: operations["strava_unlink"];
         options?: never;
@@ -3791,28 +3736,6 @@ export interface paths {
          *     Replaces any state the user issued earlier.
          */
         post: operations["strava_begin_state"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/strava/sync/{kind}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Strava Sync Status
-         * @description Report where the authenticated user's queued link, gear sync or unlink is.
-         *
-         *     ``Retry-After`` says when to poll again while the sync is not finished.
-         */
-        get: operations["strava_sync_status"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3966,32 +3889,10 @@ export interface paths {
          *
          *     Requires the administrator's own step-up verification: their current password (or, for an account
          *     without one, a fresh identity-provider sign-in), and an MFA code when MFA is enabled. The user is signed
-         *     out and deactivated at once and a background job erases their data. Poll ``GET /users/{user_id}/deletion``
-         *     for the outcome; a failed deletion is requested again.
+         *     out and deactivated at once and a background job erases their data. Poll ``GET /jobs/{job_id}`` for the
+         *     outcome; a failed deletion is requested again.
          */
         post: operations["delete_user"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/users/{user_id}/deletion": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read User Deletion Status
-         * @description Report where a user's account deletion is.
-         *
-         *     ``Retry-After`` says when to poll again while the deletion is not finished.
-         */
-        get: operations["read_user_deletion_status"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4507,9 +4408,10 @@ export interface components {
         ActivitiesBulkEditStatus: {
             /**
              * Created At
+             * Format: date-time
              * @description When the job was accepted
              */
-            readonly created_at?: string | null;
+            readonly created_at: string;
             /**
              * Error Code
              * @description Why the job failed; null unless it failed
@@ -4522,9 +4424,14 @@ export interface components {
             finished_at?: string | null;
             /**
              * Id
-             * @description The job's identifier, when it has one of its own
+             * @description The job's identifier
              */
-            readonly id?: string | null;
+            readonly id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "activities_bulk_edit";
             /** @description Where the job is */
             status: components["schemas"]["JobState"];
         };
@@ -4724,7 +4631,11 @@ export interface components {
             readonly id: string;
             /** Import Source */
             import_source?: string | null;
-            kind: components["schemas"]["IngestionJobKind"];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "activity_bulk_import" | "activity_refresh" | "activity_upload";
             /** Provider */
             provider?: string | null;
             /** Retry After */
@@ -5921,6 +5832,7 @@ export interface components {
          * @description Where a Garmin Connect link attempt is.
          *
          *     Attributes:
+         *         kind: Always ``garmin_link``.
          *         mfa_required: ``true`` while the login waits for a code the user submits through ``POST /garmin/mfa``;
          *             ``status`` is ``running`` then.
          *         error_code: Why the attempt failed; set only when ``status`` is ``failed``.
@@ -5928,9 +5840,10 @@ export interface components {
         GarminLinkStatus: {
             /**
              * Created At
+             * Format: date-time
              * @description When the job was accepted
              */
-            readonly created_at?: string | null;
+            readonly created_at: string;
             /** @description Why the attempt failed */
             error_code?: components["schemas"]["LinkFailure"] | null;
             /**
@@ -5940,9 +5853,14 @@ export interface components {
             finished_at?: string | null;
             /**
              * Id
-             * @description The job's identifier, when it has one of its own
+             * @description The job's identifier
              */
-            readonly id?: string | null;
+            readonly id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "garmin_link";
             /**
              * Mfa Required
              * @description The login waits for an MFA code
@@ -5975,14 +5893,15 @@ export interface components {
          * @description Where a queued Garmin Connect gear or health sync is.
          *
          *     Attributes:
-         *         kind: What the sync pulls.
+         *         kind: What the sync pulls, as its job kind.
          */
         GarminSyncStatus: {
             /**
              * Created At
+             * Format: date-time
              * @description When the job was accepted
              */
-            readonly created_at?: string | null;
+            readonly created_at: string;
             /**
              * Error Code
              * @description Why the job failed; null unless it failed
@@ -5995,10 +5914,14 @@ export interface components {
             finished_at?: string | null;
             /**
              * Id
-             * @description The job's identifier, when it has one of its own
+             * @description The job's identifier
              */
-            readonly id?: string | null;
-            kind: components["schemas"]["modules__garmin__constants__SyncKind"];
+            readonly id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "garmin_sync_gear" | "garmin_sync_health";
             /** @description Where the job is */
             status: components["schemas"]["JobState"];
         };
@@ -8912,12 +8835,6 @@ export interface components {
          */
         IngestionJobErrorCode: "unsupported_format" | "invalid_file" | "no_activities_found" | "processing_failed" | "provider_unavailable";
         /**
-         * IngestionJobKind
-         * @description What kind of ingestion the job performs.
-         * @enum {string}
-         */
-        IngestionJobKind: "upload" | "refresh" | "bulk_import";
-        /**
          * Interval
          * @description Recurrence intervals for user goals.
          *
@@ -8929,6 +8846,39 @@ export interface components {
          * @enum {string}
          */
         "Interval-Output": "daily" | "weekly" | "monthly" | "yearly";
+        /**
+         * JobKind
+         * @description What a background job does; the ``kind`` of every model in :data:`JobRead`.
+         *
+         *     Attributes:
+         *         ACTIVITY_UPLOAD: An uploaded activity file being imported.
+         *         ACTIVITY_REFRESH: A pull of new activities from the linked providers.
+         *         ACTIVITY_BULK_IMPORT: One dropped bulk-import archive being imported.
+         *         ACTIVITIES_BULK_EDIT: A change to the visibility of all the user's activities.
+         *         GARMIN_LINK: A Garmin Connect login, which may wait for an MFA code.
+         *         GARMIN_SYNC_GEAR: A pull of gear from Garmin Connect.
+         *         GARMIN_SYNC_HEALTH: A pull of health data from Garmin Connect.
+         *         STRAVA_LINK: A Strava account link.
+         *         STRAVA_GEAR: A pull of gear from Strava.
+         *         STRAVA_UNLINK: A Strava account unlink.
+         *         USER_DELETION: An account deletion an administrator queued.
+         *         PROFILE_EXPORT: A profile export archive being built.
+         *         PROFILE_IMPORT: A profile export archive being imported.
+         * @enum {string}
+         */
+        JobKind: "activity_upload" | "activity_refresh" | "activity_bulk_import" | "activities_bulk_edit" | "garmin_link" | "garmin_sync_gear" | "garmin_sync_health" | "strava_link" | "strava_gear" | "strava_unlink" | "user_deletion" | "profile_export" | "profile_import";
+        /**
+         * JobPage
+         * @description A keyset slice of the caller's jobs, newest first.
+         */
+        JobPage: {
+            /** Items */
+            items: (components["schemas"]["ActivityIngestionJobRead"] | components["schemas"]["ActivitiesBulkEditStatus"] | components["schemas"]["GarminLinkStatus"] | components["schemas"]["GarminSyncStatus"] | components["schemas"]["StravaSyncStatus"] | components["schemas"]["UserDeletionStatus"] | components["schemas"]["ProfileExportStatus"] | components["schemas"]["ProfileImportStatus"])[];
+            /** Next Cursor */
+            next_cursor?: string | null;
+            /** Num Records */
+            num_records: number;
+        };
         /**
          * JobState
          * @description Where a background job is.
@@ -10334,9 +10284,10 @@ export interface components {
         ProfileExportStatus: {
             /**
              * Created At
+             * Format: date-time
              * @description When the job was accepted
              */
-            readonly created_at?: string | null;
+            readonly created_at: string;
             /** @description Reason the export failed */
             error_code?: components["schemas"]["ExportFailure"] | null;
             /**
@@ -10351,9 +10302,14 @@ export interface components {
             finished_at?: string | null;
             /**
              * Id
-             * @description The job's identifier, when it has one of its own
+             * @description The job's identifier
              */
-            readonly id?: string | null;
+            readonly id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "profile_export";
             /**
              * Size Bytes
              * @description Archive size in bytes, once it succeeded
@@ -10373,9 +10329,10 @@ export interface components {
         ProfileImportStatus: {
             /**
              * Created At
+             * Format: date-time
              * @description When the job was accepted
              */
-            readonly created_at?: string | null;
+            readonly created_at: string;
             /** @description Reason the import failed */
             error_code?: components["schemas"]["ImportFailure"] | null;
             /**
@@ -10385,9 +10342,9 @@ export interface components {
             finished_at?: string | null;
             /**
              * Id
-             * @description The job's identifier, when it has one of its own
+             * @description The job's identifier
              */
-            readonly id?: string | null;
+            readonly id: string;
             /**
              * Imported
              * @description Items imported per kind, once it succeeded
@@ -10395,6 +10352,11 @@ export interface components {
             imported?: {
                 [key: string]: number;
             } | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "profile_import";
             /** @description Where the job is */
             status: components["schemas"]["JobState"];
         };
@@ -11306,17 +11268,18 @@ export interface components {
         };
         /**
          * StravaSyncStatus
-         * @description Where a queued Strava gear sync or unlink is.
+         * @description Where a queued Strava link, gear sync or unlink is.
          *
          *     Attributes:
-         *         kind: What the sync does.
+         *         kind: The job kind: ``strava_link``, ``strava_gear`` or ``strava_unlink``.
          */
         StravaSyncStatus: {
             /**
              * Created At
+             * Format: date-time
              * @description When the job was accepted
              */
-            readonly created_at?: string | null;
+            readonly created_at: string;
             /**
              * Error Code
              * @description Why the job failed; null unless it failed
@@ -11329,10 +11292,14 @@ export interface components {
             finished_at?: string | null;
             /**
              * Id
-             * @description The job's identifier, when it has one of its own
+             * @description The job's identifier
              */
-            readonly id?: string | null;
-            kind: components["schemas"]["modules__strava__constants__SyncKind"];
+            readonly id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "strava_gear" | "strava_link" | "strava_unlink";
             /** @description Where the job is */
             status: components["schemas"]["JobState"];
         };
@@ -12214,9 +12181,10 @@ export interface components {
         UserDeletionStatus: {
             /**
              * Created At
+             * Format: date-time
              * @description When the job was accepted
              */
-            readonly created_at?: string | null;
+            readonly created_at: string;
             /**
              * Error Code
              * @description Why the job failed; null unless it failed
@@ -12229,9 +12197,14 @@ export interface components {
             finished_at?: string | null;
             /**
              * Id
-             * @description The job's identifier, when it has one of its own
+             * @description The job's identifier
              */
-            readonly id?: string | null;
+            readonly id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "user_deletion";
             /** @description Where the job is */
             status: components["schemas"]["JobState"];
         };
@@ -13576,12 +13549,6 @@ export interface components {
             type_breakdown?: components["schemas"]["TypeBreakdownItem"][] | null;
         };
         /**
-         * SyncKind
-         * @description What a queued Garmin Connect sync pulls.
-         * @enum {string}
-         */
-        modules__garmin__constants__SyncKind: "gear" | "health";
-        /**
          * Interval
          * @description Enumeration of time intervals for health weight data queries.
          *
@@ -13653,12 +13620,6 @@ export interface components {
          * @enum {string}
          */
         modules__health__health_weight__schema__Source: "manual" | "garmin";
-        /**
-         * SyncKind
-         * @description What a queued Strava sync does.
-         * @enum {string}
-         */
-        modules__strava__constants__SyncKind: "link" | "gear" | "unlink";
         /**
          * Interval
          * @description Recurrence intervals for user goals.
@@ -13843,10 +13804,10 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
+            /** @description Accepted. The work runs in the background as a job; `Content-Location` names where to poll it. */
             202: {
                 headers: {
-                    /** @description Path of the status resource to poll for the outcome. */
+                    /** @description Path of the job to poll for the outcome, `/jobs/{job_id}`. */
                     "Content-Location"?: string;
                     /** @description Seconds to wait before the first poll. */
                     "Retry-After"?: number;
@@ -13936,79 +13897,6 @@ export interface operations {
             };
         };
     };
-    read_bulk_edit_status: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    /** @description Seconds to wait before polling again. Sent only while the work is not finished. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ActivitiesBulkEditStatus"] | null;
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
     create_bulk_import_from_archive: {
         parameters: {
             query?: {
@@ -14032,10 +13920,10 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
+            /** @description Accepted. The work runs in the background as a job; `Content-Location` names where to poll it. */
             202: {
                 headers: {
-                    /** @description Path of the status resource to poll for the outcome. */
+                    /** @description Path of the job to poll for the outcome, `/jobs/{job_id}`. */
                     "Content-Location"?: string;
                     /** @description Seconds to wait before the first poll. */
                     "Retry-After"?: number;
@@ -14151,10 +14039,10 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
+            /** @description Accepted. The work runs in the background as a job; `Content-Location` names where to poll it. */
             202: {
                 headers: {
-                    /** @description Path of the status resource to poll for the outcome. */
+                    /** @description Path of the job to poll for the outcome, `/jobs/{job_id}`. */
                     "Content-Location"?: string;
                     /** @description Seconds to wait before the first poll. */
                     "Retry-After"?: number;
@@ -14403,99 +14291,6 @@ export interface operations {
             };
         };
     };
-    read_activity_ingestion_job: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                job_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    /** @description Seconds to wait before polling again. Sent only while the work is not finished. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ActivityIngestionJobRead"];
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The resource does not exist, or is concealed from the caller. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
     refresh_activities: {
         parameters: {
             query?: never;
@@ -14510,10 +14305,10 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
+            /** @description Accepted. The work runs in the background as a job; `Content-Location` names where to poll it. */
             202: {
                 headers: {
-                    /** @description Path of the status resource to poll for the outcome. */
+                    /** @description Path of the job to poll for the outcome, `/jobs/{job_id}`. */
                     "Content-Location"?: string;
                     /** @description Seconds to wait before the first poll. */
                     "Retry-After"?: number;
@@ -14765,10 +14560,10 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
+            /** @description Accepted. The work runs in the background as a job; `Content-Location` names where to poll it. */
             202: {
                 headers: {
-                    /** @description Path of the status resource to poll for the outcome. */
+                    /** @description Path of the job to poll for the outcome, `/jobs/{job_id}`. */
                     "Content-Location"?: string;
                     /** @description Seconds to wait before the first poll. */
                     "Retry-After"?: number;
@@ -16966,10 +16761,10 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
+            /** @description Accepted. The work runs in the background as a job; `Content-Location` names where to poll it. */
             202: {
                 headers: {
-                    /** @description Path of the status resource to poll for the outcome. */
+                    /** @description Path of the job to poll for the outcome, `/jobs/{job_id}`. */
                     "Content-Location"?: string;
                     /** @description Seconds to wait before the first poll. */
                     "Retry-After"?: number;
@@ -17064,10 +16859,10 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
+            /** @description Accepted. The work runs in the background as a job; `Content-Location` names where to poll it. */
             202: {
                 headers: {
-                    /** @description Path of the status resource to poll for the outcome. */
+                    /** @description Path of the job to poll for the outcome, `/jobs/{job_id}`. */
                     "Content-Location"?: string;
                     /** @description Seconds to wait before the first poll. */
                     "Retry-After"?: number;
@@ -17156,10 +16951,10 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
+            /** @description Accepted. The work runs in the background as a job; `Content-Location` names where to poll it. */
             202: {
                 headers: {
-                    /** @description Path of the status resource to poll for the outcome. */
+                    /** @description Path of the job to poll for the outcome, `/jobs/{job_id}`. */
                     "Content-Location"?: string;
                     /** @description Seconds to wait before the first poll. */
                     "Retry-After"?: number;
@@ -17258,10 +17053,10 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
+            /** @description Accepted. The work runs in the background as a job; `Content-Location` names where to poll it. */
             202: {
                 headers: {
-                    /** @description Path of the status resource to poll for the outcome. */
+                    /** @description Path of the job to poll for the outcome, `/jobs/{job_id}`. */
                     "Content-Location"?: string;
                     /** @description Seconds to wait before the first poll. */
                     "Retry-After"?: number;
@@ -17434,79 +17229,6 @@ export interface operations {
             };
         };
     };
-    garminconnect_link_status: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    /** @description Seconds to wait before polling again. Sent only while the work is not finished. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GarminLinkStatus"] | null;
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
     garminconnect_mfa_code: {
         parameters: {
             query?: never;
@@ -17563,99 +17285,6 @@ export interface operations {
             };
             /** @description The body is larger than the route accepts. */
             413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    garminconnect_sync_status: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                kind: components["schemas"]["modules__garmin__constants__SyncKind"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    /** @description Seconds to wait before polling again. Sent only while the work is not finished. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GarminSyncStatus"] | null;
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The resource does not exist, or is concealed from the caller. */
-            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -24478,6 +24107,184 @@ export interface operations {
             };
         };
     };
+    list_jobs: {
+        parameters: {
+            query?: {
+                kind?: components["schemas"]["JobKind"] | null;
+                status?: components["schemas"]["JobState"] | null;
+                cursor?: string | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobPage"];
+                };
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_job: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Seconds to wait before polling again. Sent only while the work is not finished. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityIngestionJobRead"] | components["schemas"]["ActivitiesBulkEditStatus"] | components["schemas"]["GarminLinkStatus"] | components["schemas"]["GarminSyncStatus"] | components["schemas"]["StravaSyncStatus"] | components["schemas"]["UserDeletionStatus"] | components["schemas"]["ProfileExportStatus"] | components["schemas"]["ProfileImportStatus"];
+                };
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The resource does not exist, or is concealed from the caller. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     read_notifications_user_pagination: {
         parameters: {
             query?: {
@@ -26728,79 +26535,6 @@ export interface operations {
             };
         };
     };
-    read_profile_export_status: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    /** @description Seconds to wait before polling again. Sent only while the work is not finished. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProfileExportStatus"] | null;
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
     export_profile_data: {
         parameters: {
             query?: never;
@@ -26819,10 +26553,10 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
+            /** @description Accepted. The work runs in the background as a job; `Content-Location` names where to poll it. */
             202: {
                 headers: {
-                    /** @description Path of the status resource to poll for the outcome. */
+                    /** @description Path of the job to poll for the outcome, `/jobs/{job_id}`. */
                     "Content-Location"?: string;
                     /** @description Seconds to wait before the first poll. */
                     "Retry-After"?: number;
@@ -28368,79 +28102,6 @@ export interface operations {
             };
         };
     };
-    read_profile_import_status: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    /** @description Seconds to wait before polling again. Sent only while the work is not finished. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProfileImportStatus"] | null;
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
     import_profile_data: {
         parameters: {
             query?: never;
@@ -28459,10 +28120,10 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
+            /** @description Accepted. The work runs in the background as a job; `Content-Location` names where to poll it. */
             202: {
                 headers: {
-                    /** @description Path of the status resource to poll for the outcome. */
+                    /** @description Path of the job to poll for the outcome, `/jobs/{job_id}`. */
                     "Content-Location"?: string;
                     /** @description Seconds to wait before the first poll. */
                     "Retry-After"?: number;
@@ -32928,10 +32589,10 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
+            /** @description Accepted. The work runs in the background as a job; `Content-Location` names where to poll it. */
             202: {
                 headers: {
-                    /** @description Path of the status resource to poll for the outcome. */
+                    /** @description Path of the job to poll for the outcome, `/jobs/{job_id}`. */
                     "Content-Location"?: string;
                     /** @description Seconds to wait before the first poll. */
                     "Retry-After"?: number;
@@ -33161,10 +32822,10 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
+            /** @description Accepted. The work runs in the background as a job; `Content-Location` names where to poll it. */
             202: {
                 headers: {
-                    /** @description Path of the status resource to poll for the outcome. */
+                    /** @description Path of the job to poll for the outcome, `/jobs/{job_id}`. */
                     "Content-Location"?: string;
                     /** @description Seconds to wait before the first poll. */
                     "Retry-After"?: number;
@@ -33373,10 +33034,10 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
+            /** @description Accepted. The work runs in the background as a job; `Content-Location` names where to poll it. */
             202: {
                 headers: {
-                    /** @description Path of the status resource to poll for the outcome. */
+                    /** @description Path of the job to poll for the outcome, `/jobs/{job_id}`. */
                     "Content-Location"?: string;
                     /** @description Seconds to wait before the first poll. */
                     "Retry-After"?: number;
@@ -33480,10 +33141,10 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
+            /** @description Accepted. The work runs in the background as a job; `Content-Location` names where to poll it. */
             202: {
                 headers: {
-                    /** @description Path of the status resource to poll for the outcome. */
+                    /** @description Path of the job to poll for the outcome, `/jobs/{job_id}`. */
                     "Content-Location"?: string;
                     /** @description Seconds to wait before the first poll. */
                     "Retry-After"?: number;
@@ -33600,99 +33261,6 @@ export interface operations {
             };
             /** @description The request conflicts with the current state. */
             409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    strava_sync_status: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                kind: components["schemas"]["modules__strava__constants__SyncKind"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    /** @description Seconds to wait before polling again. Sent only while the work is not finished. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StravaSyncStatus"] | null;
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The resource does not exist, or is concealed from the caller. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -34503,10 +34071,10 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
+            /** @description Accepted. The work runs in the background as a job; `Content-Location` names where to poll it. */
             202: {
                 headers: {
-                    /** @description Path of the status resource to poll for the outcome. */
+                    /** @description Path of the job to poll for the outcome, `/jobs/{job_id}`. */
                     "Content-Location"?: string;
                     /** @description Seconds to wait before the first poll. */
                     "Retry-After"?: number;
@@ -34592,99 +34160,6 @@ export interface operations {
             };
             /** @description The `If-Match` header is missing. */
             428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    read_user_deletion_status: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    /** @description Seconds to wait before polling again. Sent only while the work is not finished. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserDeletionStatus"] | null;
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The resource does not exist, or is concealed from the caller. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -1,11 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { apiFetch } from '@/services/http'
-import { HttpError } from '@/services/http'
 import {
   downloadProfileExport,
-  fetchProfileExport,
-  fetchProfileImport,
   importProfileData,
   requestProfileExport,
 } from '@/features/profile/services/dataTransfer'
@@ -21,7 +18,13 @@ describe('data transfer service requests', () => {
   })
 
   it('requestProfileExport queues the export with a POST carrying the step-up credentials', async () => {
-    const status = { status: 'queued', error_code: null, size_bytes: null } as const
+    const status = {
+      id: 'job-1',
+      kind: 'profile_export',
+      status: 'queued',
+      error_code: null,
+      size_bytes: null,
+    } as const
     vi.mocked(apiFetch).mockResolvedValue(status)
 
     expect(
@@ -65,57 +68,5 @@ describe('data transfer service requests', () => {
     const uploaded = (body as FormData).get('file')
     expect(uploaded).toBeInstanceOf(File)
     expect((uploaded as File).name).toBe('export.zip')
-  })
-})
-
-describe('fetchProfileImport', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('reads the import state', async () => {
-    const status = { status: 'running', error_code: null, imported: null } as const
-    vi.mocked(apiFetch).mockResolvedValue(status)
-
-    expect(await fetchProfileImport()).toEqual(status)
-    expect(apiFetch).toHaveBeenCalledWith('/profile/import', { signal: undefined })
-  })
-
-  it('returns null when no import is recorded', async () => {
-    vi.mocked(apiFetch).mockResolvedValue(null)
-
-    expect(await fetchProfileImport()).toBeNull()
-  })
-
-  it('rethrows a failure, a 404 included', async () => {
-    vi.mocked(apiFetch).mockRejectedValue(new HttpError(404, 'Not Found'))
-
-    await expect(fetchProfileImport()).rejects.toBeInstanceOf(HttpError)
-  })
-})
-
-describe('fetchProfileExport', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('reads the export state', async () => {
-    const status = { status: 'succeeded', error_code: null, size_bytes: 9 } as const
-    vi.mocked(apiFetch).mockResolvedValue(status)
-
-    expect(await fetchProfileExport()).toEqual(status)
-    expect(apiFetch).toHaveBeenCalledWith('/profile/export', { signal: undefined })
-  })
-
-  it('returns null when no export is recorded', async () => {
-    vi.mocked(apiFetch).mockResolvedValue(null)
-
-    expect(await fetchProfileExport()).toBeNull()
-  })
-
-  it('rethrows a failure, a 404 included', async () => {
-    vi.mocked(apiFetch).mockRejectedValue(new HttpError(404, 'Not Found'))
-
-    await expect(fetchProfileExport()).rejects.toBeInstanceOf(HttpError)
   })
 })

@@ -10,11 +10,11 @@ import { apiFetch } from '@/services/http'
 
 /**
  * Starts linking a Garmin Connect account. The login runs in the background, so this
- * returns at once; follow it with {@link fetchGarminLinkStatus}. When the account has MFA
- * the status turns `mfa_required` and the code goes through {@link submitGarminMfa}.
+ * returns at once; follow the returned job with `useGarminLinkQuery`. When the account has MFA
+ * the job turns `mfa_required` and the code goes through {@link submitGarminMfa}.
  *
  * @param input - The Garmin Connect username and password.
- * @returns The attempt's initial status (`pending`).
+ * @returns The queued link job.
  * @throws {HttpError} When the request fails, including 409 while another link is running.
  */
 export async function linkGarmin(input: GarminLoginInput): Promise<GarminLinkStatus> {
@@ -29,21 +29,6 @@ export async function linkGarmin(input: GarminLoginInput): Promise<GarminLinkSta
     method: 'POST',
     body: JSON.stringify(payload),
   })
-}
-
-/**
- * Reads where the Garmin Connect link attempt is. The state lives on the server, so any
- * backend replica answers it and nothing depends on a realtime push arriving.
- *
- * @param signal - Optional abort signal for cancellation.
- * @returns The attempt's status, with the failure reason once it has failed, or `null` when no
- *   attempt is recorded or it has expired.
- * @throws {HttpError} When the request fails.
- */
-export async function fetchGarminLinkStatus(
-  signal?: AbortSignal,
-): Promise<GarminLinkStatus | null> {
-  return apiFetch<GarminLinkStatus | null>('/garmin/link/status', { signal })
 }
 
 /**

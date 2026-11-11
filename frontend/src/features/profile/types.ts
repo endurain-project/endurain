@@ -1,7 +1,5 @@
 import type { Schemas } from '@/types'
 
-import { isTerminalJobState } from '@/services/jobStatus'
-
 /** Raw authenticated `/profile` payload (snake_case wire shape). */
 export type ProfileDto = Schemas['UserMe']
 
@@ -17,28 +15,8 @@ export type ProfileImportStatus = Schemas['ProfileImportStatus']
 /** Why a profile import failed. */
 export type ProfileImportFailure = NonNullable<ProfileImportStatus['error_code']>
 
-/**
- * Whether a profile import has reached a state it will not leave.
- *
- * @param status - The import to inspect.
- * @returns `true` when the import is finished, successfully or not.
- */
-export function isTerminalProfileImport(status: ProfileImportStatus): boolean {
-  return isTerminalJobState(status.status)
-}
-
 /** Where the user's profile export is, as the backend reports it. */
 export type ProfileExportStatus = Schemas['ProfileExportStatus']
-
-/**
- * Whether a profile export has reached a state it will not leave.
- *
- * @param status - The export to inspect.
- * @returns `true` when the export is finished, successfully or not.
- */
-export function isTerminalProfileExport(status: ProfileExportStatus): boolean {
-  return isTerminalJobState(status.status)
-}
 
 /** Activity visibility level, mirrored from the backend enum. */
 export type ActivityVisibility = Schemas['ActivityVisibility']
