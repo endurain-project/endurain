@@ -11,7 +11,7 @@ import type {
 import { apiFetch } from '@/services/http'
 
 /**
- * Authenticates with username/password using the backend's OAuth2 form contract.
+ * Authenticates with username/password using the backend's login form.
  *
  * @param username - Username supplied by the user.
  * @param password - Password supplied by the user.
@@ -20,7 +20,6 @@ import { apiFetch } from '@/services/http'
  */
 export function loginWithPassword(username: string, password: string): Promise<LoginResponse> {
   const body = new URLSearchParams()
-  body.set('grant_type', 'password')
   body.set('username', username)
   body.set('password', password)
 

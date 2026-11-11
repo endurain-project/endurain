@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { confirmPasswordReset, requestPasswordReset } from '@/features/auth/services/passwordReset'
 import { completeOnboarding, fetchOnboardingStatus } from '@/features/auth/services/onboarding'
-import { refreshSession } from '@/features/auth/services/session'
+import { loginWithPassword, refreshSession } from '@/features/auth/services/session'
 import { getAccessToken, getCsrfToken } from '@/services/authTokens'
 import { confirmEmailChange, confirmSignUp } from '@/features/auth/services/signUp'
 import { exchangeSessionForTokens } from '@/services/identityProviders'
@@ -129,6 +129,18 @@ describe('onboarding service', () => {
 })
 
 describe('session service', () => {
+  it('signs in with the username and password only', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ next_step: 'mfa' }))
+
+    await loginWithPassword('bob', 'secret')
+
+    const [url, init] = fetchMock.mock.calls[0] ?? ['', {}]
+    expect(url).toContain('/auth/login')
+    expect(new URLSearchParams(init.body as URLSearchParams).toString()).toBe(
+      'username=bob&password=secret',
+    )
+  })
+
   it('refreshes without the CSRF token even when one is held', async () => {
     vi.mocked(getAccessToken).mockReturnValueOnce('access-old')
     vi.mocked(getCsrfToken).mockReturnValueOnce('csrf-old')

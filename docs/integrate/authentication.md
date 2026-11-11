@@ -218,7 +218,7 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 
 | What | Url | Expected Information | Rate Limit |
 | ---- | --- | -------------------- | ---------- |
-| **Authorize** | `/auth/login` | Header: `X-Client-Type: web`; `FORM` with fields: `username`, `password` and an optional `grant_type` (only `password`, accepted for compatibility and ignored). `code_challenge` and `code_challenge_method` are refused (`422`). HTTPS highly recommended | 10 requests/min |
+| **Authorize** | `/auth/login` | Header: `X-Client-Type: web`; `FORM` with fields: `username` and `password`. `code_challenge` and `code_challenge_method` are refused (`422`). HTTPS highly recommended | 10 requests/min |
 | **Refresh Token** | `/auth/refresh` | Header: `X-Client-Type: web`; Cookie: `__Host-endurain_refresh_token` (`endurain_refresh_token` in development); optional Header: `X-CSRF-Token` (bootstrap logic) | 30 requests/min |
 | **Verify MFA** | `/auth/mfa/verify` | Header: `X-Client-Type: web`; JSON `{'mfa_challenge': <mfa_challenge from /auth/login>, 'mfa_code': '123456'}` | 10 requests/min |
 | **Change Password** | `/auth/password-change` | Header: `X-Client-Type: web`; JSON `{'password_change_challenge': <password_change_challenge from /auth/login or /auth/mfa/verify>, 'password': '<new password>'}` | 10 requests/min |
@@ -228,7 +228,7 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 
 | What | Url | Expected Information | Rate Limit |
 | ---- | --- | -------------------- | ---------- |
-| **Authorize** | `/auth/login` | Header: `X-Client-Type: mobile`; `FORM` with fields: `username`, `password`, `code_challenge`, `code_challenge_method` (`S256`) and an optional `grant_type` (only `password`, ignored); the first four are required. HTTPS highly recommended | 10 requests/min |
+| **Authorize** | `/auth/login` | Header: `X-Client-Type: mobile`; `FORM` with fields: `username`, `password`, `code_challenge`, `code_challenge_method` (`S256`); all four are required. HTTPS highly recommended | 10 requests/min |
 | **Refresh Token** | `/auth/refresh` | Header: `X-Client-Type: mobile`; JSON body: `{'refresh_token': <Refresh Token>}` | 30 requests/min |
 | **Verify MFA** | `/auth/mfa/verify` | Header: `X-Client-Type: mobile`; JSON body: `{'mfa_challenge': <mfa_challenge from /auth/login>, 'mfa_code': '123456'}`. No PKCE values: the challenge of the password step is kept with the MFA challenge | 10 requests/min |
 | **Change Password** | `/auth/password-change` | Header: `X-Client-Type: mobile`; JSON `{'password_change_challenge': <password_change_challenge from /auth/login or /auth/mfa/verify>, 'password': '<new password>'}`. The PKCE values of the sign-in are kept with the challenge | 10 requests/min |

@@ -126,14 +126,6 @@ def reject_nul_in_login_form(
     username: Annotated[str, Form(description="The account username.")],
     password: Annotated[str, Form(description="The account password.", json_schema_extra={"format": "password"})],
     client_type: Annotated[auth_constants.ClientType, Depends(get_client_type)],
-    grant_type: Annotated[
-        str | None,
-        Form(
-            pattern="^password$",
-            description="Accepted so OAuth 2 password-grant clients keep working; the only value is `password` and "
-            "it is ignored.",
-        ),
-    ] = None,
     code_challenge: Annotated[
         str | None,
         Form(
@@ -157,13 +149,14 @@ def reject_nul_in_login_form(
     A mobile client must send ``code_challenge`` and ``code_challenge_method`` (``S256``) and a web client must
     send neither, so a sign-in is valid or refused before the password is looked at.
 
+    Other form fields, such as an OAuth ``grant_type``, are not declared and are ignored.
+
     The username loses surrounding whitespace, as the web form does; the password is kept exactly as sent.
 
     Args:
         username: The username form field.
         password: The password form field.
         client_type: The ``X-Client-Type`` header.
-        grant_type: The ``grant_type`` form field, which is checked and then ignored.
         code_challenge: The PKCE code challenge form field.
         code_challenge_method: The PKCE method form field.
 
@@ -179,7 +172,6 @@ def reject_nul_in_login_form(
         for name, value in {
             "username": username,
             "password": password,
-            "grant_type": grant_type,
             "code_challenge": code_challenge,
             "code_challenge_method": code_challenge_method,
         }.items()

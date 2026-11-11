@@ -5465,11 +5465,6 @@ export interface components {
              */
             code_challenge_method?: string | null;
             /**
-             * Grant Type
-             * @description Accepted so OAuth 2 password-grant clients keep working; the only value is `password` and it is ignored.
-             */
-            grant_type?: string | null;
-            /**
              * Password
              * Format: password
              * @description The account password.
