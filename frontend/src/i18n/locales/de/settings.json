@@ -168,7 +168,8 @@
       "stepUpTitle": "Bestätige deine Identität",
       "stepUpDescription": "Wenn du die E-Mail-Adresse, den Zugriffstyp oder den Aktivstatus von {username} änderst, wird die Person überall abgemeldet. Bestätige, dass du es bist, um fortzufahren.",
       "stepUpCreateDescription": "Das Erstellen eines Administratorkontos gewährt vollen Zugriff. Bestätige, dass du es bist, um fortzufahren.",
-      "stepUpConfirm": "Änderungen speichern"
+      "stepUpConfirm": "Änderungen speichern",
+      "approvalPending": "Dieser Benutzer wartet auf Genehmigung. Genehmige ihn, statt ihn hier zu aktivieren."
     },
     "delete": {
       "title": "Benutzer löschen",
@@ -376,7 +377,8 @@
       "apiKeyDays": "Maximale Gültigkeit eines API-Schlüssels (Tage)",
       "apiKeyDaysHint": "Ein neuer API-Schlüssel läuft nach dieser Anzahl Tage ab, sofern sein Besitzer kein früheres Datum wählt.",
       "invalidRange": "Gib eine ganze Zahl zwischen {min} und {max} ein.",
-      "absoluteBelowIdle": "Darf nicht kürzer sein als das Inaktivitäts-Timeout."
+      "absoluteBelowIdle": "Darf nicht kürzer sein als das Inaktivitäts-Timeout.",
+      "accessNotBelowIdle": "Muss kürzer sein als das Inaktivitäts-Timeout."
     },
     "retention": {
       "title": "Datenaufbewahrung",
@@ -575,6 +577,7 @@
       "slugRequired": "Slug ist erforderlich",
       "slugTooLong": "Slug darf maximal 50 Zeichen lang sein",
       "slugInvalid": "Verwende nur Kleinbuchstaben, Zahlen und Bindestriche",
+      "slugReserved": "Dieser Slug ist reserviert; wähle einen anderen",
       "providerType": "Anbietertyp",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
@@ -594,6 +597,7 @@
       "scopes": "Scopes",
       "scopesHint": "Leerzeichen-getrennte OAuth-Scopes",
       "scopesTooLong": "Scopes dürfen maximal 500 Zeichen lang sein",
+      "scopesOpenidRequired": "Ein OIDC-Anbieter benötigt den Scope openid",
       "icon": "Symbol",
       "iconNone": "Kein",
       "iconUpload": "Bild hochladen",
@@ -814,7 +818,8 @@
       "lastSeen": "Zuletzt angemeldet {date}",
       "forget": "Dieses Gerät vergessen",
       "forgetTitle": "Dieses Gerät vergessen?",
-      "forgetDescription": "Die nächste Anmeldung von diesem Gerät zählt als neues Gerät und löst eine Benachrichtigung aus.",
+      "forgetDescription": "Wenn du dieses Gerät vergisst, wird es auch abgemeldet. Die nächste Anmeldung von diesem Gerät zählt als neues Gerät und löst eine Benachrichtigung aus.",
+      "forgetCurrentDescription": "Dies ist das Gerät, das du gerade benutzt. Wenn du es vergisst, wirst du sofort abgemeldet, und die nächste Anmeldung von diesem Gerät zählt als neues Gerät und löst eine Benachrichtigung aus.",
       "forgetConfirm": "Gerät vergessen",
       "forgetSuccess": "Gerät vergessen",
       "forgetError": "Das Gerät konnte nicht vergessen werden. Bitte versuche es erneut.",
@@ -863,6 +868,17 @@
       "cancelError": "Die Änderung konnte nicht abgebrochen werden. Bitte versuche es erneut.",
       "conflict": "Diese E-Mail-Adresse wird bereits verwendet.",
       "error": "Deine E-Mail konnte nicht geändert werden. Bitte versuche es erneut."
+    },
+    "username": {
+      "title": "Benutzername",
+      "subtitle": "Mit deinem Benutzernamen meldest du dich an. Für eine Änderung musst du deine Identität bestätigen, und sie gilt sofort.",
+      "current": "Aktueller Benutzername",
+      "action": "Benutzername ändern",
+      "new": "Neuer Benutzername",
+      "sameAsCurrent": "Das ist bereits dein Benutzername.",
+      "success": "Benutzername geändert.",
+      "conflict": "Dieser Benutzername wird bereits verwendet.",
+      "error": "Dein Benutzername konnte nicht geändert werden. Bitte versuche es erneut."
     },
     "deleteAccount": {
       "title": "Mein Konto löschen",

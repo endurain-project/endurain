@@ -46,6 +46,9 @@ ROOT_PATH = "/api/v1"
 #: The shortest ``SECRET_KEY`` accepted; ``openssl rand -hex 32``, which the docs prescribe, gives 64.
 MIN_SECRET_KEY_LENGTH = 32
 
+#: The fewest distinct characters a ``SECRET_KEY`` may use; ``openssl rand -hex 32`` always clears it (16 symbols).
+MIN_SECRET_KEY_DISTINCT_CHARACTERS = 10
+
 # Secrets published in ``.env.example``. A deployment that keeps one runs with a value anyone can read, so startup
 # refuses it. Each maps to the command that generates a replacement.
 PUBLISHED_EXAMPLE_SECRETS: dict[str, tuple[frozenset[str], str]] = {
@@ -376,7 +379,13 @@ class Settings(BaseSettings):
     @field_validator("ENDURAIN_HOST")
     @classmethod
     def _validate_endurain_host(cls, v: str) -> str:
-        """Require the public address to be an origin: ``http(s)://host[:port]``.
+        """Require the public address to be an origin: ``http(s)://host[:port]``, and return it in canonical form.
+
+        The canonical form is the one a browser sends as ``Origin`` (RFC 6454): lower-case scheme and host, the default
+        port of the scheme dropped. It is the token ``iss`` and ``aud`` and the CORS and websocket origin.
+
+        Returns:
+            The origin with a lower-case scheme and host and no default port.
 
         Raises:
             ValueError: If the value has no scheme or host, a scheme other than http or https, user info, a path
@@ -392,7 +401,10 @@ class Settings(BaseSettings):
             raise ValueError(message) from err
         if parts.scheme not in ("http", "https") or not parts.hostname or parts.path:
             raise ValueError(message)
-        return v
+        host = f"[{parts.hostname}]" if ":" in parts.hostname else parts.hostname
+        default_port = 443 if parts.scheme == "https" else 80
+        port = parts.port
+        return f"{parts.scheme}://{host}" if port is None or port == default_port else f"{parts.scheme}://{host}:{port}"
 
     @field_validator("ALLOWED_REDIRECT_URIS", mode="before")
     @classmethod
@@ -1187,6 +1199,13 @@ def check_required_env_vars() -> None:
             message = (
                 f"SECRET_KEY must be at least {MIN_SECRET_KEY_LENGTH} characters. "
                 "Generate one with 'openssl rand -hex 32'."
+            )
+            logger.error(message, extra=core_logger.context(console=True))
+            raise ValueError(message)
+        if any(len(set(key)) < MIN_SECRET_KEY_DISTINCT_CHARACTERS for key in secret_keys):
+            message = (
+                f"SECRET_KEY must use at least {MIN_SECRET_KEY_DISTINCT_CHARACTERS} distinct characters; "
+                "a key with so few distinct characters is easy to guess. Generate one with 'openssl rand -hex 32'."
             )
             logger.error(message, extra=core_logger.context(console=True))
             raise ValueError(message)

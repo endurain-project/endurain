@@ -425,10 +425,12 @@ export function useServerSettingsForm(props: {
         (Number(value.trim()) < Number(form.values.sessionIdleTimeoutHours.trim())
           ? t('settings.server.session.absoluteBelowIdle')
           : null),
-      accessTokenExpireMinutes: integerRangeValidator(
-        ACCESS_MINUTES_RANGE,
-        rangeMessage(ACCESS_MINUTES_RANGE),
-      ),
+      accessTokenExpireMinutes: (value: string): string | null =>
+        integerRangeValidator(ACCESS_MINUTES_RANGE, rangeMessage(ACCESS_MINUTES_RANGE))(value) ??
+        (form.values.sessionIdleTimeoutEnabled &&
+        Number(value.trim()) >= Number(form.values.sessionIdleTimeoutHours.trim()) * 60
+          ? t('settings.server.session.accessNotBelowIdle')
+          : null),
       refreshTokenExpireDays: integerRangeValidator(
         REFRESH_DAYS_RANGE,
         rangeMessage(REFRESH_DAYS_RANGE),

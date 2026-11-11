@@ -882,6 +882,77 @@ class TestImportSessionEnv:
         with pytest.raises(ValueError):
             server_settings_env_import_service._import_session_env(MagicMock())
 
+    def test_a_lone_access_token_lifetime_is_checked_against_the_stored_idle_timeout(self, import_session):
+        import_session.stored = import_session.stored.model_copy(
+            update={"session_idle_timeout_enabled": True, "session_idle_timeout_hours": 1}
+        )
+        import_session.set_vars = {"ACCESS_TOKEN_EXPIRE_MINUTES"}
+        import_session.settings.ACCESS_TOKEN_EXPIRE_MINUTES = 60
+
+        with (
+            patch.object(
+                server_settings_service.server_settings_crud, "get_server_settings", return_value=import_session.stored
+            ),
+            pytest.raises(ValueError, match="ACCESS_TOKEN_EXPIRE_MINUTES"),
+        ):
+            server_settings_env_import_service._import_session_env(MagicMock())
+
+        import_session.write.assert_not_called()
+
+    def test_a_lone_idle_timeout_is_checked_against_the_stored_access_token_lifetime(self, import_session):
+        import_session.stored = import_session.stored.model_copy(
+            update={
+                "session_idle_timeout_enabled": True,
+                "session_idle_timeout_hours": 24,
+                "access_token_expire_minutes": 90,
+            }
+        )
+        import_session.set_vars = {"SESSION_IDLE_TIMEOUT_HOURS"}
+        import_session.settings.SESSION_IDLE_TIMEOUT_HOURS = 1
+
+        with (
+            patch.object(
+                server_settings_service.server_settings_crud, "get_server_settings", return_value=import_session.stored
+            ),
+            pytest.raises(ValueError, match="ACCESS_TOKEN_EXPIRE_MINUTES"),
+        ):
+            server_settings_env_import_service._import_session_env(MagicMock())
+
+        import_session.write.assert_not_called()
+
+    def test_an_unrelated_variable_is_not_blocked_by_a_stored_row_that_breaks_the_rule(self, import_session):
+        import_session.stored = import_session.stored.model_copy(
+            update={"session_idle_timeout_enabled": True, "access_token_expire_minutes": 90}
+        )
+        import_session.set_vars = {"REFRESH_TOKEN_EXPIRE_DAYS"}
+        import_session.settings.REFRESH_TOKEN_EXPIRE_DAYS = 30
+
+        with patch.object(
+            server_settings_service.server_settings_crud, "get_server_settings", return_value=import_session.stored
+        ):
+            server_settings_env_import_service._import_session_env(MagicMock())
+
+        assert import_session.write.call_args.args[0].model_dump(exclude_unset=True) == {
+            "refresh_token_expire_days": 30
+        }
+
+    def test_the_variables_may_fix_a_stored_row_that_breaks_the_rule(self, import_session):
+        import_session.stored = import_session.stored.model_copy(
+            update={"session_idle_timeout_enabled": True, "access_token_expire_minutes": 90}
+        )
+        import_session.set_vars = {"ACCESS_TOKEN_EXPIRE_MINUTES"}
+        import_session.settings.ACCESS_TOKEN_EXPIRE_MINUTES = 30
+        import_session.settings.SESSION_IDLE_TIMEOUT_ENABLED = True
+
+        with patch.object(
+            server_settings_service.server_settings_crud, "get_server_settings", return_value=import_session.stored
+        ):
+            server_settings_env_import_service._import_session_env(MagicMock())
+
+        assert import_session.write.call_args.args[0].model_dump(exclude_unset=True) == {
+            "access_token_expire_minutes": 30
+        }
+
 
 class TestRetention:
     def test_the_stored_value_is_returned_by_the_integration_read(self, edit_env):

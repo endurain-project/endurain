@@ -743,13 +743,18 @@ class TestValidateLogLevel:
         assert validate_log_level("invalid") is False
 
 
+# Keys of 32 characters that use 16 distinct ones.
+_VARIED_KEY = "3f9a1c7e5b2d8046a1e3c9f7b5d20846"
+_VARIED_KEY_2 = "c81d4f6a2e90b753d1a8f4c6e2b09753"
+
+
 class TestCheckRequiredEnvVars:
     """check_required_env_vars: startup validation."""
 
     def _minimal_env(self, **overrides):
         env = {
             "DB_PASSWORD": "dbpass",
-            "SECRET_KEY": "x" * 32,
+            "SECRET_KEY": _VARIED_KEY,
             "FERNET_KEY": Fernet.generate_key().decode(),
             "ENDURAIN_HOST": "http://localhost:8080",
         }
@@ -1083,6 +1088,11 @@ class TestEnvironmentValidation:
 class TestSecretKeyLength:
     """SECRET_KEY must be at least 32 characters, as the docs require."""
 
+    def test_the_distinct_character_floor_is_ten(self):
+        from core.config import MIN_SECRET_KEY_DISTINCT_CHARACTERS
+
+        assert MIN_SECRET_KEY_DISTINCT_CHARACTERS == 10
+
     def test_a_short_key_stops_startup(self):
         from core.config import check_required_env_vars
 
@@ -1097,7 +1107,7 @@ class TestSecretKeyLength:
     def test_every_key_of_a_list_must_be_long_enough(self):
         from core.config import check_required_env_vars
 
-        env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY=f"{'x' * 32},short")
+        env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY=f"{_VARIED_KEY},short")
         with (
             patch.dict(os.environ, env, clear=True),
             patch("core.config.logger"),
@@ -1108,20 +1118,62 @@ class TestSecretKeyLength:
     def test_a_list_of_long_keys_starts(self):
         from core.config import check_required_env_vars
 
-        env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY=f"{'x' * 32}, {'y' * 40}")
+        env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY=f"{_VARIED_KEY}, {_VARIED_KEY_2}")
         with patch.dict(os.environ, env, clear=True), patch("core.config.logger"):
             check_required_env_vars()
 
     def test_an_empty_entry_stops_startup(self):
         from core.config import check_required_env_vars
 
-        env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY=f"{'x' * 32},")
+        env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY=f"{_VARIED_KEY},")
         with (
             patch.dict(os.environ, env, clear=True),
             patch("core.config.logger"),
             pytest.raises(ValueError, match="SECRET_KEY contains an empty entry"),
         ):
             check_required_env_vars()
+
+
+class TestSecretKeyVariety:
+    """SECRET_KEY must use at least 10 distinct characters, so a repeated or patterned key does not start."""
+
+    @staticmethod
+    def _start(secret_key):
+        from core.config import check_required_env_vars
+
+        env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY=secret_key)
+        with patch.dict(os.environ, env, clear=True), patch("core.config.logger"):
+            check_required_env_vars()
+
+    @pytest.mark.parametrize(
+        "key",
+        ["x" * 32, "ab" * 16, "012345678" * 4, "abcdefghi" * 4],
+        ids=["one-character", "two-characters", "nine-digits", "nine-letters"],
+    )
+    def test_a_long_key_with_fewer_than_ten_distinct_characters_stops_startup(self, key):
+        assert len(key) >= 32
+        with pytest.raises(ValueError, match="at least 10 distinct characters"):
+            self._start(key)
+
+    def test_the_error_says_why_and_shows_the_generator(self):
+        with pytest.raises(ValueError) as error:
+            self._start("x" * 32)
+
+        assert "SECRET_KEY" in str(error.value)
+        assert "distinct characters" in str(error.value)
+        assert "openssl rand -hex 32" in str(error.value)
+
+    def test_every_key_of_a_list_needs_the_variety(self):
+        with pytest.raises(ValueError, match="at least 10 distinct characters"):
+            self._start(f"{_VARIED_KEY}, {'x' * 32}")
+
+    def test_ten_distinct_characters_start(self):
+        self._start("0123456789" * 4)
+
+    def test_a_generated_hex_key_starts(self):
+        import secrets
+
+        self._start(secrets.token_hex(32))
 
 
 class TestPublishedExampleSecrets:

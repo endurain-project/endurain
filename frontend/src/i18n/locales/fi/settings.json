@@ -168,7 +168,8 @@
       "stepUpTitle": "Vahvista henkilöllisyytesi",
       "stepUpDescription": "Käyttäjän {username} sähköpostin, käyttöoikeustyypin tai aktiivisuustilan muuttaminen kirjaa hänet ulos kaikkialta. Vahvista, että se olet sinä, jatkaaksesi.",
       "stepUpCreateDescription": "Ylläpitäjätilin luominen antaa täydet oikeudet. Vahvista, että se olet sinä, jatkaaksesi.",
-      "stepUpConfirm": "Tallenna muutokset"
+      "stepUpConfirm": "Tallenna muutokset",
+      "approvalPending": "Tämä käyttäjä odottaa hyväksyntää. Hyväksy hänet sen sijaan, että aktivoit hänet täällä."
     },
     "delete": {
       "title": "Poista käyttäjä",
@@ -376,7 +377,8 @@
       "apiKeyDays": "API-avaimen enimmäisvoimassaoloaika (päivää)",
       "apiKeyDaysHint": "Uusi API-avain vanhenee näiden päivien kuluttua, ellei sen omistaja valitse aikaisempaa päivämäärää.",
       "invalidRange": "Anna kokonaisluku väliltä {min}–{max}.",
-      "absoluteBelowIdle": "Ei saa olla lyhyempi kuin joutenolon aikakatkaisu."
+      "absoluteBelowIdle": "Ei saa olla lyhyempi kuin joutenolon aikakatkaisu.",
+      "accessNotBelowIdle": "Täytyy olla lyhyempi kuin joutenolon aikakatkaisu."
     },
     "retention": {
       "title": "Tietojen säilytys",
@@ -575,6 +577,7 @@
       "slugRequired": "Tunniste on pakollinen",
       "slugTooLong": "Tunniste saa olla enintään 50 merkkiä",
       "slugInvalid": "Käytä vain pieniä kirjaimia, numeroita ja väliviivoja",
+      "slugReserved": "Tämä slug on varattu; valitse toinen",
       "providerType": "Tarjoajan tyyppi",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
@@ -594,6 +597,7 @@
       "scopes": "Laajuudet",
       "scopesHint": "Välilyönnein erotetut OAuth-laajuudet",
       "scopesTooLong": "Laajuudet saavat olla enintään 500 merkkiä",
+      "scopesOpenidRequired": "OIDC-palveluntarjoaja tarvitsee openid-laajuuden",
       "icon": "Kuvake",
       "iconNone": "Ei mitään",
       "iconUpload": "Lataa kuva",
@@ -814,7 +818,8 @@
       "lastSeen": "Viimeksi kirjautunut {date}",
       "forget": "Unohda tämä laite",
       "forgetTitle": "Unohdetaanko tämä laite?",
-      "forgetDescription": "Seuraava kirjautuminen tältä laitteelta lasketaan uudeksi laitteeksi ja lähettää sinulle ilmoituksen.",
+      "forgetDescription": "Kun unohdat tämän laitteen, se myös kirjataan ulos. Seuraava kirjautuminen tältä laitteelta lasketaan uudeksi laitteeksi ja lähettää sinulle ilmoituksen.",
+      "forgetCurrentDescription": "Tämä on laite, jota käytät nyt. Sen unohtaminen kirjaa sinut ulos heti, ja seuraava kirjautuminen tältä laitteelta lasketaan uudeksi laitteeksi ja lähettää sinulle ilmoituksen.",
       "forgetConfirm": "Unohda laite",
       "forgetSuccess": "Laite unohdettu",
       "forgetError": "Laitetta ei voitu unohtaa. Yritä uudelleen.",
@@ -863,6 +868,17 @@
       "cancelError": "Muutosta ei voitu peruuttaa. Yritä uudelleen.",
       "conflict": "Tämä sähköposti on jo käytössä.",
       "error": "Sähköpostin vaihtaminen epäonnistui. Yritä uudelleen."
+    },
+    "username": {
+      "title": "Käyttäjätunnus",
+      "subtitle": "Kirjaudut sisään käyttäjätunnuksellasi. Sen vaihtaminen edellyttää henkilöllisyytesi vahvistamista, ja muutos tulee voimaan heti.",
+      "current": "Nykyinen käyttäjätunnus",
+      "action": "Vaihda käyttäjätunnus",
+      "new": "Uusi käyttäjätunnus",
+      "sameAsCurrent": "Tämä on jo käyttäjätunnuksesi.",
+      "success": "Käyttäjätunnus vaihdettu.",
+      "conflict": "Käyttäjätunnus on jo käytössä.",
+      "error": "Käyttäjätunnuksen vaihtaminen epäonnistui. Yritä uudelleen."
     },
     "deleteAccount": {
       "title": "Poista tilini",

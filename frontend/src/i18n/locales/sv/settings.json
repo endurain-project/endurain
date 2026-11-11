@@ -168,7 +168,8 @@
       "stepUpTitle": "Bekräfta din identitet",
       "stepUpDescription": "Om du ändrar e-postadress, åtkomsttyp eller aktiv status för {username} loggas användaren ut överallt. Bekräfta att det är du för att fortsätta.",
       "stepUpCreateDescription": "Att skapa ett administratörskonto ger full åtkomst. Bekräfta att det är du för att fortsätta.",
-      "stepUpConfirm": "Spara ändringar"
+      "stepUpConfirm": "Spara ändringar",
+      "approvalPending": "Den här användaren väntar på godkännande. Godkänn användaren i stället för att aktivera den här."
     },
     "delete": {
       "title": "Ta bort användare",
@@ -376,7 +377,8 @@
       "apiKeyDays": "Maximal livslängd för API-nyckel (dagar)",
       "apiKeyDaysHint": "En ny API-nyckel går ut efter så här många dagar, om inte ägaren väljer ett tidigare datum.",
       "invalidRange": "Ange ett heltal mellan {min} och {max}.",
-      "absoluteBelowIdle": "Får inte vara kortare än tidsgränsen för inaktivitet."
+      "absoluteBelowIdle": "Får inte vara kortare än tidsgränsen för inaktivitet.",
+      "accessNotBelowIdle": "Måste vara kortare än tidsgränsen för inaktivitet."
     },
     "retention": {
       "title": "Lagring av data",
@@ -575,6 +577,7 @@
       "slugRequired": "Slug krävs",
       "slugTooLong": "Slug får vara högst 50 tecken",
       "slugInvalid": "Använd bara gemener, siffror och bindestreck",
+      "slugReserved": "Den här sluggen är reserverad; välj en annan",
       "providerType": "Leverantörstyp",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
@@ -594,6 +597,7 @@
       "scopes": "Scopes",
       "scopesHint": "Mellanslag-separerade OAuth-scopes",
       "scopesTooLong": "Scopes får vara högst 500 tecken",
+      "scopesOpenidRequired": "En OIDC-leverantör behöver scopet openid",
       "icon": "Ikon",
       "iconNone": "Ingen",
       "iconUpload": "Ladda upp en bild",
@@ -814,7 +818,8 @@
       "lastSeen": "Senast inloggad {date}",
       "forget": "Glöm den här enheten",
       "forgetTitle": "Glöm den här enheten?",
-      "forgetDescription": "Nästa inloggning från den här enheten räknas som en ny enhet och ger dig ett meddelande.",
+      "forgetDescription": "Om du glömmer den här enheten loggas den också ut. Nästa inloggning från den här enheten räknas som en ny enhet och ger dig ett meddelande.",
+      "forgetCurrentDescription": "Det här är enheten du använder nu. Om du glömmer den loggas du ut direkt, och nästa inloggning från den räknas som en ny enhet och ger dig ett meddelande.",
       "forgetConfirm": "Glöm enhet",
       "forgetSuccess": "Enheten har glömts",
       "forgetError": "Det gick inte att glömma enheten. Försök igen.",
@@ -863,6 +868,17 @@
       "cancelError": "Det gick inte att avbryta ändringen. Försök igen.",
       "conflict": "Den e-postadressen används redan.",
       "error": "Kunde inte ändra din e-post. Försök igen."
+    },
+    "username": {
+      "title": "Användarnamn",
+      "subtitle": "Du loggar in med ditt användarnamn. För att ändra det måste du bekräfta din identitet, och ändringen gäller direkt.",
+      "current": "Nuvarande användarnamn",
+      "action": "Ändra användarnamn",
+      "new": "Nytt användarnamn",
+      "sameAsCurrent": "Det är redan ditt användarnamn.",
+      "success": "Användarnamnet har ändrats.",
+      "conflict": "Det användarnamnet används redan.",
+      "error": "Det gick inte att ändra ditt användarnamn. Försök igen."
     },
     "deleteAccount": {
       "title": "Radera mitt konto",

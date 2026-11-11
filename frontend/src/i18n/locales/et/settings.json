@@ -168,7 +168,8 @@
       "stepUpTitle": "Kinnita oma identiteet",
       "stepUpDescription": "Kasutaja {username} e-posti aadressi, juurdepääsutüübi või aktiivse oleku muutmine logib ta kõikjalt välja. Jätkamiseks kinnita, et see oled sina.",
       "stepUpCreateDescription": "Administraatorikonto loomine annab täieliku juurdepääsu. Jätkamiseks kinnita, et see oled sina.",
-      "stepUpConfirm": "Salvesta muudatused"
+      "stepUpConfirm": "Salvesta muudatused",
+      "approvalPending": "See kasutaja ootab kinnitamist. Kinnitage ta, selle asemel et teda siin aktiveerida."
     },
     "delete": {
       "title": "Kustuta kasutaja",
@@ -376,7 +377,8 @@
       "apiKeyDays": "API-võtme maksimaalne kehtivusaeg (päeva)",
       "apiKeyDaysHint": "Uus API-võti aegub selle arvu päevade pärast, kui selle omanik ei vali varasemat kuupäeva.",
       "invalidRange": "Sisesta täisarv vahemikus {min}–{max}.",
-      "absoluteBelowIdle": "Ei tohi olla lühem kui tegevusetuse ajalõpp."
+      "absoluteBelowIdle": "Ei tohi olla lühem kui tegevusetuse ajalõpp.",
+      "accessNotBelowIdle": "Peab olema lühem kui tegevusetuse ajalõpp."
     },
     "retention": {
       "title": "Andmete säilitamine",
@@ -575,6 +577,7 @@
       "slugRequired": "Identifikaator on kohustuslik",
       "slugTooLong": "Identifikaator tohib olla kuni 50 tähemärki",
       "slugInvalid": "Kasuta ainult väiketähti, numbreid ja sidekriipse",
+      "slugReserved": "See slug on reserveeritud; vali mõni teine",
       "providerType": "Pakkuja tüüp",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
@@ -594,6 +597,7 @@
       "scopes": "Skoobid",
       "scopesHint": "Tühikuga eraldatud OAuth-skoobid",
       "scopesTooLong": "Skoobid tohivad olla kuni 500 tähemärki",
+      "scopesOpenidRequired": "OIDC pakkuja vajab skoopi openid",
       "icon": "Ikoon",
       "iconNone": "Puudub",
       "iconUpload": "Laadi pilt üles",
@@ -814,7 +818,8 @@
       "lastSeen": "Viimati sisse logitud {date}",
       "forget": "Unusta see seade",
       "forgetTitle": "Kas unustada see seade?",
-      "forgetDescription": "Järgmine sisselogimine sellest seadmest loetakse uueks seadmeks ja saadab sulle teate.",
+      "forgetDescription": "Selle seadme unustamine logib ka selle välja. Järgmine sisselogimine sellest seadmest loetakse uueks seadmeks ja saadab sulle teate.",
+      "forgetCurrentDescription": "See on seade, mida praegu kasutad. Selle unustamine logib sind kohe välja ning järgmine sisselogimine sellest seadmest loetakse uueks seadmeks ja saadab sulle teate.",
       "forgetConfirm": "Unusta seade",
       "forgetSuccess": "Seade unustatud",
       "forgetError": "Seadet ei õnnestunud unustada. Palun proovi uuesti.",
@@ -863,6 +868,17 @@
       "cancelError": "Muudatust ei õnnestunud tühistada. Palun proovi uuesti.",
       "conflict": "See e-post on juba kasutusel.",
       "error": "E-posti muutmine ebaõnnestus. Palun proovi uuesti."
+    },
+    "username": {
+      "title": "Kasutajanimi",
+      "subtitle": "Kasutajanimega logid sisse. Selle muutmiseks pead oma isiku kinnitama ja muudatus jõustub kohe.",
+      "current": "Praegune kasutajanimi",
+      "action": "Muuda kasutajanime",
+      "new": "Uus kasutajanimi",
+      "sameAsCurrent": "See on juba sinu kasutajanimi.",
+      "success": "Kasutajanimi muudetud.",
+      "conflict": "See kasutajanimi on juba kasutusel.",
+      "error": "Kasutajanime muutmine ei õnnestunud. Proovi uuesti."
     },
     "deleteAccount": {
       "title": "Kustuta minu konto",

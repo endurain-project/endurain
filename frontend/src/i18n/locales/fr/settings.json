@@ -168,7 +168,8 @@
       "stepUpTitle": "Confirmez votre identité",
       "stepUpDescription": "Modifier l'e-mail, le type d'accès ou le statut actif de {username} le déconnecte partout. Confirmez qu'il s'agit bien de vous pour continuer.",
       "stepUpCreateDescription": "Créer un compte administrateur donne un accès complet. Confirmez qu'il s'agit bien de vous pour continuer.",
-      "stepUpConfirm": "Enregistrer les modifications"
+      "stepUpConfirm": "Enregistrer les modifications",
+      "approvalPending": "Cet utilisateur attend une approbation. Approuvez-le au lieu de l'activer ici."
     },
     "delete": {
       "title": "Supprimer l'utilisateur",
@@ -376,7 +377,8 @@
       "apiKeyDays": "Durée de vie maximale d'une clé d'API (jours)",
       "apiKeyDaysHint": "Une nouvelle clé d'API expire après ce nombre de jours, sauf si son propriétaire choisit une date antérieure.",
       "invalidRange": "Saisissez un nombre entier compris entre {min} et {max}.",
-      "absoluteBelowIdle": "Ne doit pas être plus court que le délai d'inactivité."
+      "absoluteBelowIdle": "Ne doit pas être plus court que le délai d'inactivité.",
+      "accessNotBelowIdle": "Doit être plus court que le délai d'inactivité."
     },
     "retention": {
       "title": "Conservation des données",
@@ -575,6 +577,7 @@
       "slugRequired": "L'identifiant est obligatoire",
       "slugTooLong": "L'identifiant doit contenir 50 caractères ou moins",
       "slugInvalid": "Utilisez uniquement des lettres minuscules, des chiffres et des tirets",
+      "slugReserved": "Ce slug est réservé ; choisissez-en un autre",
       "providerType": "Type de fournisseur",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
@@ -594,6 +597,7 @@
       "scopes": "Portées",
       "scopesHint": "Portées OAuth séparées par des espaces",
       "scopesTooLong": "Les portées doivent contenir 500 caractères ou moins",
+      "scopesOpenidRequired": "Un fournisseur OIDC nécessite la portée openid",
       "icon": "Icône",
       "iconNone": "Aucune",
       "iconUpload": "Téléverser une image",
@@ -814,7 +818,8 @@
       "lastSeen": "Dernière connexion le {date}",
       "forget": "Oublier cet appareil",
       "forgetTitle": "Oublier cet appareil ?",
-      "forgetDescription": "La prochaine connexion depuis cet appareil sera considérée comme un nouvel appareil et vous enverra une notification.",
+      "forgetDescription": "Oublier cet appareil le déconnecte aussi. La prochaine connexion depuis cet appareil sera considérée comme un nouvel appareil et vous enverra une notification.",
+      "forgetCurrentDescription": "C'est l'appareil que vous utilisez actuellement. L'oublier vous déconnecte immédiatement, et la prochaine connexion depuis cet appareil sera considérée comme un nouvel appareil et vous enverra une notification.",
       "forgetConfirm": "Oublier l'appareil",
       "forgetSuccess": "Appareil oublié",
       "forgetError": "Impossible d'oublier l'appareil. Veuillez réessayer.",
@@ -863,6 +868,17 @@
       "cancelError": "Impossible d'annuler la modification. Veuillez réessayer.",
       "conflict": "Cette adresse e-mail est déjà utilisée.",
       "error": "Impossible de changer votre e-mail. Veuillez réessayer."
+    },
+    "username": {
+      "title": "Nom d'utilisateur",
+      "subtitle": "Votre nom d'utilisateur est celui avec lequel vous vous connectez. Pour le modifier, vous devez confirmer votre identité, et la modification s'applique immédiatement.",
+      "current": "Nom d'utilisateur actuel",
+      "action": "Modifier le nom d'utilisateur",
+      "new": "Nouveau nom d'utilisateur",
+      "sameAsCurrent": "C'est déjà votre nom d'utilisateur.",
+      "success": "Nom d'utilisateur modifié.",
+      "conflict": "Ce nom d'utilisateur est déjà utilisé.",
+      "error": "Impossible de modifier votre nom d'utilisateur. Veuillez réessayer."
     },
     "deleteAccount": {
       "title": "Supprimer mon compte",

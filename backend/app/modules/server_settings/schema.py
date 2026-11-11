@@ -260,6 +260,26 @@ class ServerSettingsGeocoding(BaseModel):
         return value
 
 
+def require_access_token_below_idle_timeout(
+    idle_timeout_enabled: bool, idle_timeout_hours: int, access_token_expire_minutes: int
+) -> None:
+    """Refuse an access token that lives as long as the enforced idle timeout.
+
+    The idle timeout counts from the last refresh, which the client does only after an access token expires, so
+    a lifetime at or above the idle timeout can end the session of a user who is active.
+
+    Args:
+        idle_timeout_enabled: Whether the idle timeout is enforced; nothing is refused while it is not.
+        idle_timeout_hours: The idle timeout in hours.
+        access_token_expire_minutes: The access token lifetime in minutes.
+
+    Raises:
+        ValueError: If the idle timeout is enforced and the access token lifetime is not shorter than it.
+    """
+    if idle_timeout_enabled and access_token_expire_minutes >= idle_timeout_hours * 60:
+        raise ValueError("The access token lifetime must be shorter than the idle timeout")
+
+
 class ServerSettingsSessionPolicy(BaseModel):
     """The session and token policy fields, kept off the public settings model.
 
@@ -437,6 +457,24 @@ class ServerSettingsEditRequest(ServerSettingsEdit):
             "null otherwise"
         ),
     )
+
+    @model_validator(mode="after")
+    def validate_access_token_lifetime(self) -> "ServerSettingsEditRequest":
+        """Refuse an access token lifetime that is not shorter than the enforced idle timeout.
+
+        The check belongs to the request, not to the shared session policy fields: a stored row that predates it
+        must still read, and the administrator edits it into validity.
+
+        Returns:
+            The validated model.
+
+        Raises:
+            ValueError: If the idle timeout is enforced and the access token lifetime is not shorter than it.
+        """
+        require_access_token_below_idle_timeout(
+            self.session_idle_timeout_enabled, self.session_idle_timeout_hours, self.access_token_expire_minutes
+        )
+        return self
 
     def to_edit(self) -> ServerSettingsEdit:
         """Return the settings the client sent, without the step-up.

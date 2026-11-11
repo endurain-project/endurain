@@ -168,7 +168,8 @@
       "stepUpTitle": "Kimliğinizi doğrulayın",
       "stepUpDescription": "{username} kullanıcısının e-postasını, erişim türünü veya etkin durumunu değiştirmek, kullanıcının her yerden oturumunu kapatır. Devam etmek için sizin olduğunuzu doğrulayın.",
       "stepUpCreateDescription": "Yönetici hesabı oluşturmak tam erişim verir. Devam etmek için sizin olduğunuzu doğrulayın.",
-      "stepUpConfirm": "Değişiklikleri kaydet"
+      "stepUpConfirm": "Değişiklikleri kaydet",
+      "approvalPending": "Bu kullanıcı onay bekliyor. Burada etkinleştirmek yerine onaylayın."
     },
     "delete": {
       "title": "Kullanıcıyı sil",
@@ -376,7 +377,8 @@
       "apiKeyDays": "API anahtarı azami ömrü (gün)",
       "apiKeyDaysHint": "Yeni bir API anahtarı, sahibi daha erken bir tarih seçmedikçe bu kadar gün sonra sona erer.",
       "invalidRange": "{min} ile {max} arasında bir tam sayı girin.",
-      "absoluteBelowIdle": "Boşta kalma zaman aşımından kısa olamaz."
+      "absoluteBelowIdle": "Boşta kalma zaman aşımından kısa olamaz.",
+      "accessNotBelowIdle": "Boşta kalma zaman aşımından kısa olmalıdır."
     },
     "retention": {
       "title": "Veri saklama",
@@ -575,6 +577,7 @@
       "slugRequired": "Kısa ad zorunludur",
       "slugTooLong": "Kısa ad en fazla 50 karakter olmalı",
       "slugInvalid": "Yalnızca küçük harf, rakam ve tire kullanın",
+      "slugReserved": "Bu slug ayrılmıştır; başka bir tane seçin",
       "providerType": "Sağlayıcı türü",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
@@ -594,6 +597,7 @@
       "scopes": "Kapsamlar",
       "scopesHint": "Boşlukla ayrılmış OAuth kapsamları",
       "scopesTooLong": "Kapsamlar en fazla 500 karakter olmalı",
+      "scopesOpenidRequired": "OIDC sağlayıcısı openid kapsamını gerektirir",
       "icon": "Simge",
       "iconNone": "Yok",
       "iconUpload": "Görsel yükle",
@@ -814,7 +818,8 @@
       "lastSeen": "Son giriş {date}",
       "forget": "Bu cihazı unut",
       "forgetTitle": "Bu cihaz unutulsun mu?",
-      "forgetDescription": "Bu cihazdan bir sonraki giriş yeni bir cihaz sayılır ve size bir bildirim gönderir.",
+      "forgetDescription": "Bu cihazı unutmak, cihazın oturumunu da kapatır. Bu cihazdan bir sonraki giriş yeni bir cihaz sayılır ve size bir bildirim gönderir.",
+      "forgetCurrentDescription": "Bu, şu anda kullandığınız cihazdır. Onu unutmak oturumunuzu hemen kapatır ve bu cihazdan bir sonraki giriş yeni bir cihaz sayılır ve size bir bildirim gönderir.",
       "forgetConfirm": "Cihazı unut",
       "forgetSuccess": "Cihaz unutuldu",
       "forgetError": "Cihaz unutulamadı. Lütfen tekrar deneyin.",
@@ -863,6 +868,17 @@
       "cancelError": "Değişiklik iptal edilemedi. Lütfen tekrar deneyin.",
       "conflict": "Bu e-posta zaten kullanımda.",
       "error": "E-postanız değiştirilemedi. Lütfen tekrar deneyin."
+    },
+    "username": {
+      "title": "Kullanıcı adı",
+      "subtitle": "Oturum açarken kullanıcı adını kullanırsın. Değiştirmek için kimliğini doğrulaman gerekir ve değişiklik hemen geçerli olur.",
+      "current": "Mevcut kullanıcı adı",
+      "action": "Kullanıcı adını değiştir",
+      "new": "Yeni kullanıcı adı",
+      "sameAsCurrent": "Bu zaten senin kullanıcı adın.",
+      "success": "Kullanıcı adı değiştirildi.",
+      "conflict": "Bu kullanıcı adı zaten kullanımda.",
+      "error": "Kullanıcı adın değiştirilemedi. Lütfen tekrar dene."
     },
     "deleteAccount": {
       "title": "Hesabımı sil",

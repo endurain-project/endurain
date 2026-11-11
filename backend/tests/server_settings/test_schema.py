@@ -489,6 +489,50 @@ class TestSessionPolicyFields:
             **TestServerSettingsEdit._values(session_idle_timeout_hours=5, session_absolute_timeout_hours=5)
         )
 
+    @staticmethod
+    def _request(**overrides):
+        return server_settings_schema.ServerSettingsEditRequest(
+            **TestServerSettingsEdit._values(**overrides), step_up=None
+        )
+
+    @pytest.mark.parametrize("minutes", [60, 61, 1440])
+    def test_an_access_token_lifetime_at_or_above_the_enforced_idle_timeout_is_rejected(self, minutes):
+        with pytest.raises(ValidationError, match="shorter than the idle timeout"):
+            self._request(
+                session_idle_timeout_enabled=True, session_idle_timeout_hours=1, access_token_expire_minutes=minutes
+            )
+
+    def test_an_access_token_lifetime_below_the_enforced_idle_timeout_is_accepted(self):
+        self._request(session_idle_timeout_enabled=True, session_idle_timeout_hours=1, access_token_expire_minutes=59)
+
+    def test_a_longer_idle_timeout_allows_a_longer_access_token_lifetime(self):
+        self._request(
+            session_idle_timeout_enabled=True, session_idle_timeout_hours=24, access_token_expire_minutes=1440 - 1
+        )
+
+    def test_a_disabled_idle_timeout_does_not_limit_the_access_token_lifetime(self):
+        self._request(
+            session_idle_timeout_enabled=False, session_idle_timeout_hours=1, access_token_expire_minutes=1440
+        )
+
+    def test_a_stored_row_that_breaks_the_rule_still_reads(self):
+        values = TestServerSettingsEdit._values(
+            session_idle_timeout_enabled=True, session_idle_timeout_hours=1, access_token_expire_minutes=90
+        )
+
+        read = server_settings_schema.ServerSettingsRead(id=1, login_photo_set=False, **values)
+
+        assert read.access_token_expire_minutes == 90
+
+    def test_a_stored_row_that_breaks_the_rule_can_be_edited_into_validity(self):
+        stored = TestServerSettingsEdit._values(
+            session_idle_timeout_enabled=True, session_idle_timeout_hours=1, access_token_expire_minutes=90
+        )
+        server_settings_schema.ServerSettingsRead(id=1, login_photo_set=False, **stored)
+
+        self._request(session_idle_timeout_enabled=True, session_idle_timeout_hours=2, access_token_expire_minutes=90)
+        self._request(session_idle_timeout_enabled=True, session_idle_timeout_hours=1, access_token_expire_minutes=30)
+
     def test_the_public_settings_do_not_carry_the_session_policy(self):
         public = server_settings_schema.ServerSettingsReadPublic.model_fields
         assert not {"access_token_expire_minutes", "session_idle_timeout_enabled"} & set(public)

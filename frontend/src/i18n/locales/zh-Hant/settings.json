@@ -168,7 +168,8 @@
       "stepUpTitle": "確認您的身分",
       "stepUpDescription": "變更 {username} 的電子郵件、存取類型或啟用狀態會使其在所有裝置上登出。請確認是您本人操作以繼續。",
       "stepUpCreateDescription": "建立管理員帳號將授予完整存取權限。請確認是您本人操作以繼續。",
-      "stepUpConfirm": "儲存變更"
+      "stepUpConfirm": "儲存變更",
+      "approvalPending": "此使用者正在等待核准。請核准該使用者，而不是在此處啟用。"
     },
     "delete": {
       "title": "刪除使用者",
@@ -376,7 +377,8 @@
       "apiKeyDays": "API 金鑰最長有效期限（天）",
       "apiKeyDaysHint": "新的 API 金鑰會在這麼多天後過期，除非其擁有者選擇更早的日期。",
       "invalidRange": "請輸入介於 {min} 和 {max} 之間的整數。",
-      "absoluteBelowIdle": "不得短於閒置逾時。"
+      "absoluteBelowIdle": "不得短於閒置逾時。",
+      "accessNotBelowIdle": "必須短於閒置逾時。"
     },
     "retention": {
       "title": "資料保留",
@@ -575,6 +577,7 @@
       "slugRequired": "Slug 為必填",
       "slugTooLong": "Slug 不得超過 50 個字元",
       "slugInvalid": "只能使用小寫字母、數字和連字號",
+      "slugReserved": "此 slug 為保留字，請選擇其他",
       "providerType": "提供者類型",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
@@ -594,6 +597,7 @@
       "scopes": "範圍",
       "scopesHint": "以空格分隔的 OAuth 範圍",
       "scopesTooLong": "範圍不得超過 500 個字元",
+      "scopesOpenidRequired": "OIDC 提供者需要 openid 範圍",
       "icon": "圖示",
       "iconNone": "無",
       "iconUpload": "上傳圖片",
@@ -814,7 +818,8 @@
       "lastSeen": "最近登入於 {date}",
       "forget": "忘記此裝置",
       "forgetTitle": "忘記此裝置？",
-      "forgetDescription": "下次從此裝置登入將被視為新裝置，並向您發送通知。",
+      "forgetDescription": "忘記此裝置也會讓它登出。下次從此裝置登入將被視為新裝置，並向您發送通知。",
+      "forgetCurrentDescription": "這是您目前使用的裝置。忘記它會立即讓您登出，下次從此裝置登入將被視為新裝置，並向您發送通知。",
       "forgetConfirm": "忘記裝置",
       "forgetSuccess": "裝置已忘記",
       "forgetError": "無法忘記該裝置，請再試一次。",
@@ -863,6 +868,17 @@
       "cancelError": "無法取消變更，請再試一次。",
       "conflict": "該電子郵件已被使用。",
       "error": "無法變更您的電子郵件，請再試一次。"
+    },
+    "username": {
+      "title": "使用者名稱",
+      "subtitle": "你使用使用者名稱登入。變更使用者名稱需要先確認你的身分，變更會立即生效。",
+      "current": "目前使用者名稱",
+      "action": "變更使用者名稱",
+      "new": "新使用者名稱",
+      "sameAsCurrent": "這已經是你的使用者名稱。",
+      "success": "使用者名稱已變更。",
+      "conflict": "該使用者名稱已被使用。",
+      "error": "無法變更你的使用者名稱。請再試一次。"
     },
     "deleteAccount": {
       "title": "刪除我的帳號",

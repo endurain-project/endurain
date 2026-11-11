@@ -455,6 +455,31 @@ class TestEditRejectsReadOnlyFields:
         assert response.status_code == 422
 
 
+class TestEditValidatesAccessTokenLifetime:
+    @staticmethod
+    def _put(client, **overrides):
+        return client.put(
+            "/server_settings",
+            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
+            json=_edit_body(step_up=None, **overrides),
+        )
+
+    @patch("modules.server_settings.router.server_settings_service.edit_server_settings")
+    def test_an_access_token_lifetime_at_the_idle_timeout_is_a_422_naming_the_rule(
+        self, mock_edit, fast_api_client, fast_api_app
+    ):
+        response = self._put(
+            fast_api_client,
+            session_idle_timeout_enabled=True,
+            session_idle_timeout_hours=1,
+            access_token_expire_minutes=60,
+        )
+
+        assert response.status_code == 422
+        assert "The access token lifetime must be shorter than the idle timeout" in response.text
+        mock_edit.assert_not_called()
+
+
 class TestEditValidatesAuditRetention:
     @pytest.mark.parametrize("days", [1, 29])
     def test_a_retention_below_the_floor_is_a_422_naming_the_rule(self, days, fast_api_client, fast_api_app):

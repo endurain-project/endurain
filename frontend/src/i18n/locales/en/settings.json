@@ -168,7 +168,8 @@
       "stepUpTitle": "Confirm your identity",
       "stepUpDescription": "Changing the email, access type or active status of {username} signs them out everywhere. Confirm it is you to continue.",
       "stepUpCreateDescription": "Creating an administrator account grants full access. Confirm it is you to continue.",
-      "stepUpConfirm": "Save changes"
+      "stepUpConfirm": "Save changes",
+      "approvalPending": "This user is awaiting approval. Approve them instead of activating them here."
     },
     "delete": {
       "title": "Delete user",
@@ -376,7 +377,8 @@
       "apiKeyDays": "API key maximum lifetime (days)",
       "apiKeyDaysHint": "A new API key expires after this many days unless its owner chooses an earlier date.",
       "invalidRange": "Enter a whole number between {min} and {max}.",
-      "absoluteBelowIdle": "Must not be shorter than the idle timeout."
+      "absoluteBelowIdle": "Must not be shorter than the idle timeout.",
+      "accessNotBelowIdle": "Must be shorter than the idle timeout."
     },
     "retention": {
       "title": "Data retention",
@@ -575,6 +577,7 @@
       "slugRequired": "Slug is required",
       "slugTooLong": "Slug must be 50 characters or fewer",
       "slugInvalid": "Use only lowercase letters, numbers and hyphens",
+      "slugReserved": "This slug is reserved; choose another",
       "providerType": "Provider type",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
@@ -594,6 +597,7 @@
       "scopes": "Scopes",
       "scopesHint": "Space-separated OAuth scopes",
       "scopesTooLong": "Scopes must be 500 characters or fewer",
+      "scopesOpenidRequired": "An OIDC provider needs the openid scope",
       "icon": "Icon",
       "iconNone": "None",
       "iconUpload": "Upload an image",
@@ -814,7 +818,8 @@
       "lastSeen": "Last signed in {date}",
       "forget": "Forget this device",
       "forgetTitle": "Forget this device?",
-      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
+      "forgetDescription": "Forgetting this device also signs it out. The next sign-in from it counts as a new device and sends you a notice.",
+      "forgetCurrentDescription": "This is the device you are using now. Forgetting it signs you out right away, and the next sign-in from it counts as a new device and sends you a notice.",
       "forgetConfirm": "Forget device",
       "forgetSuccess": "Device forgotten",
       "forgetError": "Couldn't forget the device. Please try again.",
@@ -863,6 +868,17 @@
       "cancelError": "Couldn't cancel the change. Please try again.",
       "conflict": "That email is already in use.",
       "error": "Couldn't change your email. Please try again."
+    },
+    "username": {
+      "title": "Username",
+      "subtitle": "Your username is what you sign in with. Changing it requires you to confirm your identity, and it takes effect immediately.",
+      "current": "Current username",
+      "action": "Change username",
+      "new": "New username",
+      "sameAsCurrent": "This is already your username.",
+      "success": "Username changed.",
+      "conflict": "That username is already in use.",
+      "error": "Couldn't change your username. Please try again."
     },
     "deleteAccount": {
       "title": "Delete my account",

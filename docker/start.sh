@@ -242,7 +242,8 @@ case "$APP_ROLE" in
                     export FORWARDED_ALLOW_IPS="$FORWARDED_ALLOW_IPS_LIST"
                     echo_info_log "Honouring forwarded headers from: $FORWARDED_ALLOW_IPS_LIST"
                 else
-                    echo_error_log "BEHIND_PROXY=true but no usable TRUSTED_PROXIES entry was found; uvicorn will only honour forwarded headers from 127.0.0.1. Set TRUSTED_PROXIES to your reverse proxy address, CIDR, or hostname."
+                    echo_error_log "BEHIND_PROXY=true requires TRUSTED_PROXIES, and no usable entry was found. Set it to your reverse proxy address, CIDR, or hostname."
+                    exit 1
                 fi
             fi
         fi

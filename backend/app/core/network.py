@@ -279,6 +279,33 @@ def client_network(ip_address: str) -> str:
     return str(address)
 
 
+_MAX_PORT = 65535
+
+
+def _forwarded_hop_address(hop: str) -> str | None:
+    """Read the IP address of one ``X-Forwarded-For`` hop, dropping an optional port.
+
+    Accepts ``1.2.3.4``, ``1.2.3.4:5678``, ``2001:db8::1``, ``[2001:db8::1]`` and ``[2001:db8::1]:443``.
+
+    Args:
+        hop: One comma-separated entry of the header, already stripped.
+
+    Returns:
+        The address without a port, or None when the hop is not an IP address.
+    """
+    host, port = hop, None
+    if hop.startswith("["):
+        host, bracket, rest = hop[1:].partition("]")
+        if not bracket or (rest and not rest.startswith(":")):
+            return None
+        port = rest[1:] if rest else None
+    elif hop.count(":") == 1:
+        host, _, port = hop.partition(":")
+    if port is not None and not (port.isascii() and port.isdigit() and int(port) <= _MAX_PORT):
+        return None
+    return host if _looks_like_ip(host) else None
+
+
 def get_ip_address(request: HTTPConnection) -> str:
     """
     Extract client IP address from request, respecting TRUSTED_PROXIES.
@@ -288,11 +315,13 @@ def get_ip_address(request: HTTPConnection) -> str:
     This prevents attackers from spoofing their IP by injecting those
     headers on direct connections.
 
-    ``X-Forwarded-For`` is read right to left and the first hop that is not
+    Every ``X-Forwarded-For`` line is combined into one list (RFC 9110
+    section 5.3), which is read right to left; the first hop that is not
     itself a trusted proxy is the client. Proxies append to the header, so
     entries a client prepends are ignored. If every hop is trusted (always the
     case for ``TRUSTED_PROXIES=["*"]``) the leftmost entry is used, which a
-    client can forge.
+    client can forge. A hop is an IP address with an optional port. A hop the
+    walk reaches that is not one makes the peer address the result.
 
     When ``TRUSTED_PROXIES`` is ``["*"]`` all peers are trusted, which is only
     safe when nothing but a proxy can reach the application. An empty list (the
@@ -308,14 +337,19 @@ def get_ip_address(request: HTTPConnection) -> str:
 
     if peer_ip and _is_trusted_peer(peer_ip):
         # Peer is a trusted proxy — honour the forwarded headers
-        forwarded_for = request.headers.get("X-Forwarded-For")
-        hops = [hop.strip() for hop in forwarded_for.split(",") if hop.strip()] if forwarded_for else []
+        forwarded_for = ",".join(request.headers.getlist("X-Forwarded-For"))
+        hops = [hop.strip() for hop in forwarded_for.split(",") if hop.strip()]
         if hops:
+            trusted_hops: list[str] = []
             for hop in reversed(hops):
-                if not _is_trusted_peer(hop):
-                    return hop
+                address = _forwarded_hop_address(hop)
+                if address is None:
+                    return peer_ip
+                if not _is_trusted_peer(address):
+                    return address
+                trusted_hops.append(address)
             # Every hop is a trusted proxy, so the original client was one too
-            return hops[0]
+            return trusted_hops[-1]
 
         real_ip = request.headers.get("X-Real-IP")
         if real_ip and _looks_like_ip(real_ip):

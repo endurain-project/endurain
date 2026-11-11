@@ -80,7 +80,8 @@ Environment variable  | How to set it |
 | FERNET_KEY | Run `openssl rand -base64 32` on a terminal to get a secret, or use the base64 tool in the [Secret Generators](../tools.md#secret-generators). Example output is `7NfMMRSCWcoNDSjqBX8WoYH9nTFk1VdQOdZY13po53Y=`. |
 | TZ | Timezone definition. Insert your timezone. List of available time zones [here](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). Format `Europe/Lisbon` expected |
 | ENDURAIN_HOST | https://endurain.yourdomain.com |
-| BEHIND_PROXY | Change to true if behind reverse proxy |
+| BEHIND_PROXY | Change to true if behind reverse proxy. Requires `TRUSTED_PROXIES`. |
+| TRUSTED_PROXIES | Required when `BEHIND_PROXY` is `true`: the container refuses to start without it. Comma-separated IP addresses, CIDR ranges or hostnames of your reverse proxy, for example `caddy` or `10.0.0.5`. Never `*`. See [Advanced setup](advanced-setup.md#trusted_proxies-examples). |
 | POSTGRES_DB | Postgres name for the database. |
 | POSTGRES_USER | Postgres user for the database. |
 

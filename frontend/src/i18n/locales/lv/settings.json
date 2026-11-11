@@ -168,7 +168,8 @@
       "stepUpTitle": "Apstipriniet savu identitāti",
       "stepUpDescription": "Mainot lietotāja {username} e-pastu, piekļuves veidu vai aktīvo statusu, viņš tiek izrakstīts visur. Apstipriniet, ka tas esat Jūs, lai turpinātu.",
       "stepUpCreateDescription": "Administratora konta izveide piešķir pilnu piekļuvi. Apstipriniet, ka tas esat Jūs, lai turpinātu.",
-      "stepUpConfirm": "Saglabāt izmaiņas"
+      "stepUpConfirm": "Saglabāt izmaiņas",
+      "approvalPending": "Šis lietotājs gaida apstiprinājumu. Apstipriniet viņu, nevis aktivizējiet šeit."
     },
     "delete": {
       "title": "Dzēst lietotāju",
@@ -376,7 +377,8 @@
       "apiKeyDays": "API atslēgas maksimālais derīguma termiņš (dienas)",
       "apiKeyDaysHint": "Jauna API atslēga beidzas pēc šāda dienu skaita, ja tās īpašnieks neizvēlas agrāku datumu.",
       "invalidRange": "Ievadiet veselu skaitli no {min} līdz {max}.",
-      "absoluteBelowIdle": "Nedrīkst būt īsāks par neaktivitātes taimautu."
+      "absoluteBelowIdle": "Nedrīkst būt īsāks par neaktivitātes taimautu.",
+      "accessNotBelowIdle": "Jābūt īsākam par neaktivitātes taimautu."
     },
     "retention": {
       "title": "Datu glabāšana",
@@ -575,6 +577,7 @@
       "slugRequired": "Identifikators ir obligāts",
       "slugTooLong": "Identifikatoram jābūt 50 rakstzīmju vai īsākam",
       "slugInvalid": "Izmantojiet tikai mazos burtus, ciparus un defises",
+      "slugReserved": "Šis slug ir rezervēts; izvēlieties citu",
       "providerType": "Pakalpojumu sniedzēja veids",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
@@ -594,6 +597,7 @@
       "scopes": "Tvērumi",
       "scopesHint": "Ar atstarpēm atdalīti OAuth tvērumi",
       "scopesTooLong": "Tvērumiem jābūt 500 rakstzīmju vai īsākiem",
+      "scopesOpenidRequired": "OIDC pakalpojumu sniedzējam nepieciešams openid tvērums",
       "icon": "Ikona",
       "iconNone": "Nav",
       "iconUpload": "Augšupielādēt attēlu",
@@ -814,7 +818,8 @@
       "lastSeen": "Pēdējā pieteikšanās: {date}",
       "forget": "Aizmirst šo ierīci",
       "forgetTitle": "Aizmirst šo ierīci?",
-      "forgetDescription": "Nākamā pieteikšanās no šīs ierīces tiks uzskatīta par jaunu ierīci un nosūtīs Jums paziņojumu.",
+      "forgetDescription": "Aizmirstot šo ierīci, tā tiek arī izrakstīta. Nākamā pieteikšanās no šīs ierīces tiks uzskatīta par jaunu ierīci un nosūtīs Jums paziņojumu.",
+      "forgetCurrentDescription": "Šī ir ierīce, kuru izmantojat tagad. To aizmirstot, Jūs uzreiz tiksiet izrakstīts, un nākamā pieteikšanās no tās tiks uzskatīta par jaunu ierīci un nosūtīs Jums paziņojumu.",
       "forgetConfirm": "Aizmirst ierīci",
       "forgetSuccess": "Ierīce aizmirsta",
       "forgetError": "Neizdevās aizmirst ierīci. Lūdzu, mēģiniet vēlreiz.",
@@ -863,6 +868,17 @@
       "cancelError": "Nevarēja atcelt maiņu. Lūdzu, mēģiniet vēlreiz.",
       "conflict": "Šis e-pasts jau tiek izmantots.",
       "error": "Neizdevās mainīt e-pastu. Lūdzu, mēģiniet vēlreiz."
+    },
+    "username": {
+      "title": "Lietotājvārds",
+      "subtitle": "Ar lietotājvārdu tu pieslēdzies. Lai to mainītu, jāapstiprina sava identitāte, un izmaiņas stājas spēkā nekavējoties.",
+      "current": "Pašreizējais lietotājvārds",
+      "action": "Mainīt lietotājvārdu",
+      "new": "Jaunais lietotājvārds",
+      "sameAsCurrent": "Šis jau ir tavs lietotājvārds.",
+      "success": "Lietotājvārds nomainīts.",
+      "conflict": "Šis lietotājvārds jau tiek izmantots.",
+      "error": "Neizdevās nomainīt lietotājvārdu. Lūdzu, mēģini vēlreiz."
     },
     "deleteAccount": {
       "title": "Dzēst manu kontu",

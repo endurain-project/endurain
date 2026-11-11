@@ -168,7 +168,8 @@
       "stepUpTitle": "Confirmă-ți identitatea",
       "stepUpDescription": "Schimbarea e-mailului, a tipului de acces sau a stării active pentru {username} îl deconectează peste tot. Confirmă că ești tu pentru a continua.",
       "stepUpCreateDescription": "Crearea unui cont de administrator acordă acces complet. Confirmă că ești tu pentru a continua.",
-      "stepUpConfirm": "Salvează modificările"
+      "stepUpConfirm": "Salvează modificările",
+      "approvalPending": "Acest utilizator așteaptă aprobarea. Aprobă-l în loc să îl activezi aici."
     },
     "delete": {
       "title": "Șterge utilizatorul",
@@ -376,7 +377,8 @@
       "apiKeyDays": "Durata maximă a unei chei API (zile)",
       "apiKeyDaysHint": "O cheie API nouă expiră după acest număr de zile, dacă proprietarul nu alege o dată anterioară.",
       "invalidRange": "Introdu un număr întreg între {min} și {max}.",
-      "absoluteBelowIdle": "Nu poate fi mai scurtă decât expirarea la inactivitate."
+      "absoluteBelowIdle": "Nu poate fi mai scurtă decât expirarea la inactivitate.",
+      "accessNotBelowIdle": "Trebuie să fie mai scurtă decât expirarea la inactivitate."
     },
     "retention": {
       "title": "Păstrarea datelor",
@@ -575,6 +577,7 @@
       "slugRequired": "Slug-ul este obligatoriu",
       "slugTooLong": "Slug-ul trebuie să aibă cel mult 50 de caractere",
       "slugInvalid": "Folosește doar litere mici, cifre și cratime",
+      "slugReserved": "Acest slug este rezervat; alege altul",
       "providerType": "Tip de furnizor",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
@@ -594,6 +597,7 @@
       "scopes": "Domenii",
       "scopesHint": "Domenii OAuth separate prin spații",
       "scopesTooLong": "Domeniile trebuie să aibă cel mult 500 de caractere",
+      "scopesOpenidRequired": "Un furnizor OIDC necesită domeniul openid",
       "icon": "Pictogramă",
       "iconNone": "Niciuna",
       "iconUpload": "Încarcă o imagine",
@@ -814,7 +818,8 @@
       "lastSeen": "Ultima autentificare {date}",
       "forget": "Uită acest dispozitiv",
       "forgetTitle": "Uiți acest dispozitiv?",
-      "forgetDescription": "Următoarea autentificare de pe acest dispozitiv va conta ca dispozitiv nou și îți va trimite o notificare.",
+      "forgetDescription": "Uitarea acestui dispozitiv îl și deconectează. Următoarea autentificare de pe acest dispozitiv va conta ca dispozitiv nou și îți va trimite o notificare.",
+      "forgetCurrentDescription": "Acesta este dispozitivul pe care îl folosești acum. Dacă îl uiți, ești deconectat imediat, iar următoarea autentificare de pe el va conta ca dispozitiv nou și îți va trimite o notificare.",
       "forgetConfirm": "Uită dispozitivul",
       "forgetSuccess": "Dispozitiv uitat",
       "forgetError": "Nu s-a putut uita dispozitivul. Încearcă din nou.",
@@ -863,6 +868,17 @@
       "cancelError": "Nu am putut anula schimbarea. Te rugăm să încerci din nou.",
       "conflict": "Acest e-mail este deja folosit.",
       "error": "Nu am putut schimba e-mailul. Te rugăm să încerci din nou."
+    },
+    "username": {
+      "title": "Nume de utilizator",
+      "subtitle": "Te autentifici cu numele de utilizator. Pentru a-l schimba trebuie să îți confirmi identitatea, iar schimbarea se aplică imediat.",
+      "current": "Numele de utilizator actual",
+      "action": "Schimbă numele de utilizator",
+      "new": "Nume de utilizator nou",
+      "sameAsCurrent": "Acesta este deja numele tău de utilizator.",
+      "success": "Numele de utilizator a fost schimbat.",
+      "conflict": "Acest nume de utilizator este deja folosit.",
+      "error": "Numele de utilizator nu a putut fi schimbat. Încearcă din nou."
     },
     "deleteAccount": {
       "title": "Șterge-mi contul",

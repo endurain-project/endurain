@@ -1,6 +1,6 @@
 # Reverse proxy
 
-A reverse proxy gives Endurain a domain name and an HTTPS certificate. Point your DNS provider at your external IP and open ports 80 and 443 on your firewall first. Then set `ENDURAIN_HOST` (for example `https://endurain.yourdomain.com`) and `BEHIND_PROXY=true` in `.env`, and run `sudo docker compose up -d`.
+A reverse proxy gives Endurain a domain name and an HTTPS certificate. Point your DNS provider at your external IP and open ports 80 and 443 on your firewall first. Then set `ENDURAIN_HOST` (for example `https://endurain.yourdomain.com`), `BEHIND_PROXY=true` and `TRUSTED_PROXIES` (your proxy address, CIDR or hostname; see [Advanced setup](advanced-setup.md#trusted_proxies-examples)) in `.env`, and run `sudo docker compose up -d`.
 
 ## Caddy
 

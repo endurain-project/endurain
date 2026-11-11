@@ -168,7 +168,8 @@
       "stepUpTitle": "Bekræft din identitet",
       "stepUpDescription": "Ændring af e-mail, adgangstype eller aktiv status for {username} logger vedkommende ud overalt. Bekræft, at det er dig, for at fortsætte.",
       "stepUpCreateDescription": "Oprettelse af en administratorkonto giver fuld adgang. Bekræft, at det er dig, for at fortsætte.",
-      "stepUpConfirm": "Gem ændringer"
+      "stepUpConfirm": "Gem ændringer",
+      "approvalPending": "Denne bruger afventer godkendelse. Godkend brugeren i stedet for at aktivere den her."
     },
     "delete": {
       "title": "Slet bruger",
@@ -376,7 +377,8 @@
       "apiKeyDays": "Maksimal levetid for API-nøgle (dage)",
       "apiKeyDaysHint": "En ny API-nøgle udløber efter dette antal dage, medmindre ejeren vælger en tidligere dato.",
       "invalidRange": "Indtast et helt tal mellem {min} og {max}.",
-      "absoluteBelowIdle": "Må ikke være kortere end timeout ved inaktivitet."
+      "absoluteBelowIdle": "Må ikke være kortere end timeout ved inaktivitet.",
+      "accessNotBelowIdle": "Skal være kortere end timeout ved inaktivitet."
     },
     "retention": {
       "title": "Dataopbevaring",
@@ -575,6 +577,7 @@
       "slugRequired": "Slug er påkrævet",
       "slugTooLong": "Slug må højst være 50 tegn",
       "slugInvalid": "Brug kun små bogstaver, tal og bindestreger",
+      "slugReserved": "Denne slug er reserveret; vælg en anden",
       "providerType": "Udbydertype",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
@@ -594,6 +597,7 @@
       "scopes": "Scopes",
       "scopesHint": "Mellemrumsadskilte OAuth-scopes",
       "scopesTooLong": "Scopes må højst være 500 tegn",
+      "scopesOpenidRequired": "En OIDC-udbyder kræver scopet openid",
       "icon": "Ikon",
       "iconNone": "Ingen",
       "iconUpload": "Upload et billede",
@@ -814,7 +818,8 @@
       "lastSeen": "Sidst logget ind {date}",
       "forget": "Glem denne enhed",
       "forgetTitle": "Glem denne enhed?",
-      "forgetDescription": "Det næste login fra denne enhed tæller som en ny enhed og sender dig en besked.",
+      "forgetDescription": "Hvis du glemmer denne enhed, bliver den også logget ud. Det næste login fra denne enhed tæller som en ny enhed og sender dig en besked.",
+      "forgetCurrentDescription": "Det er den enhed, du bruger nu. Hvis du glemmer den, bliver du logget ud med det samme, og det næste login fra den tæller som en ny enhed og sender dig en besked.",
       "forgetConfirm": "Glem enhed",
       "forgetSuccess": "Enhed glemt",
       "forgetError": "Kunne ikke glemme enheden. Prøv venligst igen.",
@@ -863,6 +868,17 @@
       "cancelError": "Ændringen kunne ikke annulleres. Prøv venligst igen.",
       "conflict": "Den e-mailadresse er allerede i brug.",
       "error": "Kunne ikke ændre din e-mail. Prøv venligst igen."
+    },
+    "username": {
+      "title": "Brugernavn",
+      "subtitle": "Du logger ind med dit brugernavn. For at ændre det skal du bekræfte din identitet, og ændringen træder i kraft med det samme.",
+      "current": "Nuværende brugernavn",
+      "action": "Skift brugernavn",
+      "new": "Nyt brugernavn",
+      "sameAsCurrent": "Det er allerede dit brugernavn.",
+      "success": "Brugernavnet er ændret.",
+      "conflict": "Det brugernavn er allerede i brug.",
+      "error": "Dit brugernavn kunne ikke ændres. Prøv igen."
     },
     "deleteAccount": {
       "title": "Slet min konto",

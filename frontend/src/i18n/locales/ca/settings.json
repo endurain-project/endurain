@@ -168,7 +168,8 @@
       "stepUpTitle": "Confirma la teva identitat",
       "stepUpDescription": "Canviar el correu, el tipus d'accés o l'estat actiu de {username} tanca la seva sessió a tot arreu. Confirma que ets tu per continuar.",
       "stepUpCreateDescription": "Crear un compte d'administrador atorga accés total. Confirma que ets tu per continuar.",
-      "stepUpConfirm": "Desa els canvis"
+      "stepUpConfirm": "Desa els canvis",
+      "approvalPending": "Aquest usuari està pendent d'aprovació. Aprova'l en lloc d'activar-lo aquí."
     },
     "delete": {
       "title": "Elimina l'usuari",
@@ -376,7 +377,8 @@
       "apiKeyDays": "Durada màxima d'una clau d'API (dies)",
       "apiKeyDaysHint": "Una clau d'API nova caduca després d'aquests dies, tret que el seu propietari triï una data anterior.",
       "invalidRange": "Introdueix un nombre enter entre {min} i {max}.",
-      "absoluteBelowIdle": "No pot ser inferior al temps d'inactivitat."
+      "absoluteBelowIdle": "No pot ser inferior al temps d'inactivitat.",
+      "accessNotBelowIdle": "Ha de ser inferior al temps d'inactivitat."
     },
     "retention": {
       "title": "Conservació de dades",
@@ -575,6 +577,7 @@
       "slugRequired": "El slug és obligatori",
       "slugTooLong": "El slug ha de tenir 50 caràcters o menys",
       "slugInvalid": "Fes servir només lletres minúscules, números i guions",
+      "slugReserved": "Aquest slug està reservat; tria'n un altre",
       "providerType": "Tipus de proveïdor",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
@@ -594,6 +597,7 @@
       "scopes": "Àmbits",
       "scopesHint": "Àmbits OAuth separats per espais",
       "scopesTooLong": "Els àmbits han de tenir 500 caràcters o menys",
+      "scopesOpenidRequired": "Un proveïdor OIDC necessita l'àmbit openid",
       "icon": "Icona",
       "iconNone": "Cap",
       "iconUpload": "Puja una imatge",
@@ -814,7 +818,8 @@
       "lastSeen": "Últim inici de sessió {date}",
       "forget": "Oblida aquest dispositiu",
       "forgetTitle": "Oblidar aquest dispositiu?",
-      "forgetDescription": "El proper inici de sessió des d'aquest dispositiu es compta com a dispositiu nou i t'envia un avís.",
+      "forgetDescription": "Oblidar aquest dispositiu també hi tanca la sessió. El proper inici de sessió des d'aquest dispositiu es compta com a dispositiu nou i t'envia un avís.",
+      "forgetCurrentDescription": "Aquest és el dispositiu que fas servir ara. Si l'oblides, es tanca la teva sessió immediatament, i el proper inici de sessió des d'aquest dispositiu es compta com a dispositiu nou i t'envia un avís.",
       "forgetConfirm": "Oblida el dispositiu",
       "forgetSuccess": "Dispositiu oblidat",
       "forgetError": "No s'ha pogut oblidar el dispositiu. Torna-ho a intentar.",
@@ -863,6 +868,17 @@
       "cancelError": "No s'ha pogut cancel·lar el canvi. Torna-ho a intentar.",
       "conflict": "Aquest correu ja està en ús.",
       "error": "No s'ha pogut canviar el teu correu. Torna-ho a intentar."
+    },
+    "username": {
+      "title": "Nom d'usuari",
+      "subtitle": "El teu nom d'usuari és el que fas servir per iniciar la sessió. Per canviar-lo has de confirmar la teva identitat, i el canvi s'aplica immediatament.",
+      "current": "Nom d'usuari actual",
+      "action": "Canvia el nom d'usuari",
+      "new": "Nou nom d'usuari",
+      "sameAsCurrent": "Aquest ja és el teu nom d'usuari.",
+      "success": "Nom d'usuari canviat.",
+      "conflict": "Aquest nom d'usuari ja està en ús.",
+      "error": "No s'ha pogut canviar el teu nom d'usuari. Torna-ho a provar."
     },
     "deleteAccount": {
       "title": "Elimina el meu compte",

@@ -168,7 +168,8 @@
       "stepUpTitle": "Potvrdite svoj identitet",
       "stepUpDescription": "Promena emaila, tipa pristupa ili aktivnog statusa korisnika {username} odjavljuje ga svuda. Potvrdite da ste to vi da biste nastavili.",
       "stepUpCreateDescription": "Kreiranje administratorskog naloga daje puni pristup. Potvrdite da ste to vi da biste nastavili.",
-      "stepUpConfirm": "Sačuvaj izmene"
+      "stepUpConfirm": "Sačuvaj izmene",
+      "approvalPending": "Ovaj korisnik čeka odobrenje. Odobrite ga umesto da ga ovde aktivirate."
     },
     "delete": {
       "title": "Obriši korisnika",
@@ -376,7 +377,8 @@
       "apiKeyDays": "Maksimalno trajanje API ključa (dani)",
       "apiKeyDaysHint": "Novi API ključ ističe nakon ovoliko dana, osim ako njegov vlasnik izabere raniji datum.",
       "invalidRange": "Unesite ceo broj između {min} i {max}.",
-      "absoluteBelowIdle": "Ne sme biti kraći od isteka zbog neaktivnosti."
+      "absoluteBelowIdle": "Ne sme biti kraći od isteka zbog neaktivnosti.",
+      "accessNotBelowIdle": "Mora biti kraći od isteka zbog neaktivnosti."
     },
     "retention": {
       "title": "Čuvanje podataka",
@@ -575,6 +577,7 @@
       "slugRequired": "Slug je obavezan",
       "slugTooLong": "Slug mora imati najviše 50 znakova",
       "slugInvalid": "Koristite samo mala slova, brojeve i crtice",
+      "slugReserved": "Ovaj slug je rezervisan; izaberite drugi",
       "providerType": "Tip provajdera",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
@@ -594,6 +597,7 @@
       "scopes": "Opsezi",
       "scopesHint": "OAuth opsezi razdvojeni razmakom",
       "scopesTooLong": "Opsezi moraju imati najviše 500 znakova",
+      "scopesOpenidRequired": "OIDC provajder zahteva opseg openid",
       "icon": "Ikona",
       "iconNone": "Nijedna",
       "iconUpload": "Otpremi sliku",
@@ -814,7 +818,8 @@
       "lastSeen": "Poslednja prijava {date}",
       "forget": "Zaboravi ovaj uređaj",
       "forgetTitle": "Zaboraviti ovaj uređaj?",
-      "forgetDescription": "Sledeća prijava sa ovog uređaja računa se kao novi uređaj i šalje vam obaveštenje.",
+      "forgetDescription": "Zaboravljanjem ovog uređaja on se i odjavljuje. Sledeća prijava sa ovog uređaja računa se kao novi uređaj i šalje vam obaveštenje.",
+      "forgetCurrentDescription": "Ovo je uređaj koji trenutno koristite. Ako ga zaboravite, odmah ćete biti odjavljeni, a sledeća prijava sa njega računa se kao novi uređaj i šalje vam obaveštenje.",
       "forgetConfirm": "Zaboravi uređaj",
       "forgetSuccess": "Uređaj je zaboravljen",
       "forgetError": "Nije moguće zaboraviti uređaj. Pokušajte ponovo.",
@@ -863,6 +868,17 @@
       "cancelError": "Nije moguće otkazati promenu. Pokušajte ponovo.",
       "conflict": "Ta e-pošta je već u upotrebi.",
       "error": "E-pošta nije mogla da se promeni. Pokušajte ponovo."
+    },
+    "username": {
+      "title": "Korisničko ime",
+      "subtitle": "Korisničkim imenom se prijavljujete. Za promenu morate potvrditi svoj identitet, a promena stupa na snagu odmah.",
+      "current": "Trenutno korisničko ime",
+      "action": "Promeni korisničko ime",
+      "new": "Novo korisničko ime",
+      "sameAsCurrent": "Ovo je već vaše korisničko ime.",
+      "success": "Korisničko ime je promenjeno.",
+      "conflict": "To korisničko ime je već u upotrebi.",
+      "error": "Korisničko ime nije moglo da se promeni. Pokušajte ponovo."
     },
     "deleteAccount": {
       "title": "Obriši moj nalog",

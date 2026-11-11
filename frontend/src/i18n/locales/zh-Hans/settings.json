@@ -168,7 +168,8 @@
       "stepUpTitle": "确认您的身份",
       "stepUpDescription": "更改 {username} 的邮箱、访问类型或启用状态会使其在所有设备上退出登录。请确认是您本人操作以继续。",
       "stepUpCreateDescription": "创建管理员账户将授予完全访问权限。请确认是您本人操作以继续。",
-      "stepUpConfirm": "保存更改"
+      "stepUpConfirm": "保存更改",
+      "approvalPending": "该用户正在等待审批。请批准该用户，而不是在此处激活。"
     },
     "delete": {
       "title": "删除用户",
@@ -376,7 +377,8 @@
       "apiKeyDays": "API 密钥最长有效期（天）",
       "apiKeyDaysHint": "新的 API 密钥在这么多天后过期，除非其所有者选择更早的日期。",
       "invalidRange": "请输入介于 {min} 和 {max} 之间的整数。",
-      "absoluteBelowIdle": "不得短于空闲超时。"
+      "absoluteBelowIdle": "不得短于空闲超时。",
+      "accessNotBelowIdle": "必须短于空闲超时。"
     },
     "retention": {
       "title": "数据保留",
@@ -575,6 +577,7 @@
       "slugRequired": "Slug 为必填项",
       "slugTooLong": "Slug 不能超过 50 个字符",
       "slugInvalid": "只能使用小写字母、数字和连字符",
+      "slugReserved": "该 slug 已被保留，请选择其他",
       "providerType": "提供者类型",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
@@ -594,6 +597,7 @@
       "scopes": "权限范围",
       "scopesHint": "以空格分隔的 OAuth 权限范围",
       "scopesTooLong": "权限范围不能超过 500 个字符",
+      "scopesOpenidRequired": "OIDC 提供商需要 openid 范围",
       "icon": "图标",
       "iconNone": "无",
       "iconUpload": "上传图片",
@@ -814,7 +818,8 @@
       "lastSeen": "最近登录于 {date}",
       "forget": "忘记此设备",
       "forgetTitle": "忘记此设备？",
-      "forgetDescription": "下次从此设备登录将被视为新设备，并向您发送通知。",
+      "forgetDescription": "忘记此设备也会让它退出登录。下次从此设备登录将被视为新设备，并向您发送通知。",
+      "forgetCurrentDescription": "这是您当前使用的设备。忘记它会立即让您退出登录，下次从此设备登录将被视为新设备，并向您发送通知。",
       "forgetConfirm": "忘记设备",
       "forgetSuccess": "设备已忘记",
       "forgetError": "无法忘记该设备，请重试。",
@@ -863,6 +868,17 @@
       "cancelError": "无法取消更改，请重试。",
       "conflict": "该电子邮件已被使用。",
       "error": "无法更改您的电子邮件，请重试。"
+    },
+    "username": {
+      "title": "用户名",
+      "subtitle": "你使用用户名登录。更改用户名需要先确认你的身份，更改会立即生效。",
+      "current": "当前用户名",
+      "action": "更改用户名",
+      "new": "新用户名",
+      "sameAsCurrent": "这已经是你的用户名。",
+      "success": "用户名已更改。",
+      "conflict": "该用户名已被使用。",
+      "error": "无法更改你的用户名。请重试。"
     },
     "deleteAccount": {
       "title": "删除我的账户",

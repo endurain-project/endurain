@@ -27,19 +27,23 @@ Architecture
 
 import math
 import time
+from collections.abc import Callable
+from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from fastapi import Request
+from fastapi import FastAPI, Request, routing
 from joserfc import jwt
 from joserfc.errors import JoseError
 from joserfc.jwk import KeySet, OctKey
 from limits import RateLimitItem
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware, _find_route_handler, _should_exempt, sync_check_limits
+from slowapi.middleware import SlowAPIMiddleware, _should_exempt, sync_check_limits
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import Response
+from starlette.routing import Match
+from starlette.types import Scope
 
 import core.config as core_config
 import core.exceptions as core_exceptions
@@ -199,6 +203,31 @@ def with_store_timeouts(storage_uri: str) -> str:
     return urlunsplit(parts._replace(query=urlencode(query)))
 
 
+def _route_handler(app: FastAPI, scope: Scope) -> Callable[..., Any] | None:
+    """
+    Find the endpoint a request is routed to.
+
+    The routes are read through FastAPI's route contexts because a router included in the application is not
+    flattened into ``app.routes``, which is all slowapi's own lookup sees. The first full match is the one the
+    application serves, so a catch-all route registered after the real ones does not take its place. The contexts
+    are listed on the first request, after every router has been included, and kept on the application.
+
+    Args:
+        app: The application serving the request.
+        scope: The ASGI connection scope.
+
+    Returns:
+        The endpoint of the matching route, or None when the request matches no route or the route has no endpoint.
+    """
+    routes = getattr(app.state, "rate_limit_routes", None)
+    if routes is None:
+        routes = app.state.rate_limit_routes = list(routing.iter_route_contexts(app.routes))
+    for route in routes:
+        if route.matches(scope)[0] == Match.FULL:
+            return route.endpoint
+    return None
+
+
 class RateLimitMiddleware(SlowAPIMiddleware):
     """
     Apply the default limits without blocking the event loop.
@@ -223,7 +252,7 @@ class RateLimitMiddleware(SlowAPIMiddleware):
         if not limiter.enabled:
             return await call_next(request)
 
-        handler = _find_route_handler(app.routes, request.scope)
+        handler = _route_handler(app, request.scope)
         if _should_exempt(limiter, handler):
             return await call_next(request)
 

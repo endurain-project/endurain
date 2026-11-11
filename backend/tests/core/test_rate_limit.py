@@ -380,7 +380,7 @@ class TestRateLimitMiddleware:
     def _app(monkeypatch, default: str = "2/minute"):
         import threading
 
-        from fastapi import FastAPI
+        from fastapi import APIRouter, FastAPI
         from slowapi.errors import RateLimitExceeded
 
         import core.exceptions as core_exceptions
@@ -402,10 +402,20 @@ class TestRateLimitMiddleware:
         core_exceptions.register_sync_handler(app, RateLimitExceeded, core_rate_limit.rate_limit_exceeded_handler)
         app.add_middleware(core_rate_limit.RateLimitMiddleware)
 
-        @app.get("/open")
+        # Routes live on an included router, as in the real application, where ``app.routes`` holds the router
+        # wrapper rather than its routes.
+        router = APIRouter()
+
+        @router.get("/open")
         async def open_route() -> dict[str, str]:
             threads["loop"].add(threading.get_ident())
             return {"ok": "yes"}
+
+        @router.get("/{rest:path}")
+        async def catch_all(rest: str) -> dict[str, str]:
+            return {"rest": rest}
+
+        app.include_router(router)
 
         return app, limiter, threads
 

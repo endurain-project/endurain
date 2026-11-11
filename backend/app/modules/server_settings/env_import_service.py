@@ -19,6 +19,11 @@ import modules.server_settings.service as server_settings_service
 
 logger = core_logger.get_logger(__name__)
 
+#: The session settings the access token lifetime is checked against the idle timeout for.
+_IDLE_ACCESS_FIELDS = frozenset(
+    {"session_idle_timeout_enabled", "session_idle_timeout_hours", "access_token_expire_minutes"}
+)
+
 
 class ImportResult(NamedTuple):
     """What one import block found and changed.
@@ -196,7 +201,8 @@ def _import_session_env(db: Session) -> ImportResult:
 
     Raises:
         ValueError: If the resulting absolute session timeout is shorter than the idle
-            timeout. This is a configuration error that stops the start rather than
+            timeout, or the resulting access token lifetime is not shorter than the enforced
+            idle timeout. This is a configuration error that stops the start rather than
             silently weakening the policy.
         ServiceUnavailableError: If the settings row does not exist.
     """
@@ -222,6 +228,18 @@ def _import_session_env(db: Session) -> ImportResult:
             "SESSION_ABSOLUTE_TIMEOUT_HOURS and SESSION_IDLE_TIMEOUT_HOURS are inconsistent: "
             "the absolute timeout cannot be shorter than the idle timeout"
         )
+    if changes.keys() & _IDLE_ACCESS_FIELDS:
+        try:
+            server_settings_schema.require_access_token_below_idle_timeout(
+                changes.get("session_idle_timeout_enabled", current.session_idle_timeout_enabled),
+                idle,
+                changes.get("access_token_expire_minutes", current.access_token_expire_minutes),
+            )
+        except ValueError as err:
+            raise ValueError(
+                "ACCESS_TOKEN_EXPIRE_MINUTES and SESSION_IDLE_TIMEOUT_HOURS are inconsistent: "
+                "the access token lifetime must be shorter than the enforced idle timeout"
+            ) from err
     if changes:
         # Only the differing fields are written; the values were validated by the settings model.
         server_settings_crud.edit_server_settings(

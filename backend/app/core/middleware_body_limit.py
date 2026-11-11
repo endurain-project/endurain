@@ -10,6 +10,10 @@ A route that takes a form or file body declares its own cap with :func:`upload_l
 the matched route and is published in the OpenAPI document as ``x-max-body-bytes``. Every other request, and a
 multipart request to a route that declares no cap, gets the small :data:`MAX_BODY_BYTES`. The routes still validate
 their files. A reverse proxy in front of the application should enforce a cap as well.
+
+The credential and public routes, under ``/auth/`` and ``/public/``, take only small JSON or form bodies and are
+reachable without a session, so a request to one of them gets the smaller :data:`MAX_PUBLIC_BODY_BYTES` unless the
+matched route declares a cap of its own.
 """
 
 from typing import Any
@@ -19,10 +23,15 @@ from starlette.requests import Request
 from starlette.routing import Match
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+import core.config as core_config
 import core.exceptions as core_exceptions
 
 # Every body that is not an upload is JSON or form data.
 MAX_BODY_BYTES = 10 * 1024 * 1024
+# A body sent to a route under ``/auth/`` or ``/public/``: a login, a token or a short form.
+MAX_PUBLIC_BODY_BYTES = 64 * 1024
+# The path prefixes whose requests get :data:`MAX_PUBLIC_BODY_BYTES`.
+_PUBLIC_BODY_PREFIXES = (f"{core_config.ROOT_PATH}/auth/", f"{core_config.ROOT_PATH}/public/")
 # What a multipart body carries beyond the file: boundaries, part headers and form fields.
 MULTIPART_OVERHEAD_BYTES = 1024 * 1024
 # The OpenAPI extension an upload route's cap is published under.
@@ -92,13 +101,27 @@ def _is_multipart(scope: Scope) -> bool:
     return any(name == b"content-type" and value.lower().startswith(b"multipart/") for name, value in scope["headers"])
 
 
+def _default_limit(scope: Scope) -> int:
+    """Pick the limit for a request whose route declares no cap.
+
+    Args:
+        scope: The ASGI connection scope.
+
+    Returns:
+        :data:`MAX_PUBLIC_BODY_BYTES` for a path under ``/auth/`` or ``/public/``, else :data:`MAX_BODY_BYTES`.
+    """
+    if scope["path"].startswith(_PUBLIC_BODY_PREFIXES):
+        return MAX_PUBLIC_BODY_BYTES
+    return MAX_BODY_BYTES
+
+
 def _limit_for(scope: Scope) -> int:
     """Pick the limit that applies to a request.
 
     A multipart request to a route that declares a form or file body gets that route's own cap. Every other request,
     including a multipart one to a route that takes no upload, to no route at all or to an upload route with no cap,
-    gets the small one. The routes are read from the application on the first request, after every router has been
-    included.
+    gets the default for its path. The routes are read from the application on the first request, after every router
+    has been included.
 
     Args:
         scope: The ASGI connection scope.
@@ -107,15 +130,15 @@ def _limit_for(scope: Scope) -> int:
         The largest body, in bytes, the request may carry.
     """
     if not _is_multipart(scope):
-        return MAX_BODY_BYTES
+        return _default_limit(scope)
     app = scope["app"]
     routes = getattr(app.state, "upload_routes", None)
     if routes is None:
         routes = app.state.upload_routes = upload_routes(app)
     for route in routes:
         if route.matches(scope)[0] == Match.FULL:
-            return route_limit(route) or MAX_BODY_BYTES
-    return MAX_BODY_BYTES
+            return route_limit(route) or _default_limit(scope)
+    return _default_limit(scope)
 
 
 def _declared_length(scope: Scope) -> int | None:

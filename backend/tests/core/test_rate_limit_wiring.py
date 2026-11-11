@@ -21,6 +21,7 @@ import ast
 import pathlib
 import time
 from collections.abc import Iterator
+from unittest.mock import patch
 
 import pytest
 from fastapi import FastAPI, Request
@@ -30,7 +31,9 @@ from joserfc.jwk import OctKey
 from limits import parse as parse_limit
 from slowapi.errors import RateLimitExceeded
 
+import core.config as core_config
 import core.exceptions as core_exceptions
+import core.logger as core_logger
 import core.rate_limit as core_rate_limit
 import modules.activities.activity.public_router as activity_public_router
 import modules.activities.activity.router as activity_router
@@ -197,6 +200,7 @@ _TIERED_ENDPOINTS = [
     pytest.param(users_profile_router.put_profile_image, core_rate_limit.UPLOAD, id="profile-image-upload"),
     pytest.param(users_profile_router.edit_profile, core_rate_limit.WRITE, id="profile-edit"),
     pytest.param(users_profile_router.edit_profile_email, core_rate_limit.SENSITIVE, id="profile-email-change"),
+    pytest.param(users_profile_router.edit_profile_username, core_rate_limit.SENSITIVE, id="profile-username-change"),
     pytest.param(
         users_profile_router.resend_profile_email_change, core_rate_limit.SENSITIVE, id="profile-email-change-resend"
     ),
@@ -512,3 +516,45 @@ def test_buckets_are_per_caller_not_global(enabled_limiter, monkeypatch):
 
     assert _burst(client, noisy, 7)[-1] == 429
     assert _burst(client, quiet, 1) == [200]
+
+
+@pytest.fixture(scope="module")
+def real_app() -> FastAPI:
+    """Build the real application, skipping the startup pre-flight checks."""
+    with (
+        patch.object(core_config, "check_deprecated_env_vars"),
+        patch.object(core_config, "check_required_env_vars"),
+        patch.object(core_config, "warn_unsafe_settings"),
+        patch.object(core_config, "check_required_dirs"),
+        patch.object(core_logger, "setup_main_logger"),
+    ):
+        import main as main_module
+
+        return main_module.create_app()
+
+
+def _statuses(client: TestClient, path: str, count: int) -> list[int]:
+    return [client.get(path).status_code for _ in range(count)]
+
+
+def test_the_default_limit_applies_to_an_undecorated_route(enabled_limiter, real_app):
+    """The default tier reaches routes that carry no decorator, through the application's included routers."""
+    client = TestClient(real_app)
+
+    statuses = _statuses(client, f"{core_config.ROOT_PATH}/about", 121)
+
+    assert statuses[:120] == [200] * 120
+    assert statuses[120] == 429
+
+
+def test_a_decorated_route_counts_only_its_own_limit(enabled_limiter, real_app):
+    """A route with its own tier is checked by its decorator alone, so the default does not count it again.
+
+    The tier here equals the default, so a request counted by both would share one bucket and refuse at the 61st.
+    """
+    client = TestClient(real_app)
+
+    statuses = _statuses(client, f"{core_config.ROOT_PATH}/public/server-settings/tile-maps-templates", 121)
+
+    assert statuses[:120] == [200] * 120
+    assert statuses[120] == 429

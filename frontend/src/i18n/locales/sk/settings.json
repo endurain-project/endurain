@@ -168,7 +168,8 @@
       "stepUpTitle": "Potvrďte svoju identitu",
       "stepUpDescription": "Zmena e-mailu, typu prístupu alebo aktívneho stavu používateľa {username} ho odhlási všade. Pokračujte potvrdením, že ste to vy.",
       "stepUpCreateDescription": "Vytvorenie účtu správcu udeľuje plný prístup. Pokračujte potvrdením, že ste to vy.",
-      "stepUpConfirm": "Uložiť zmeny"
+      "stepUpConfirm": "Uložiť zmeny",
+      "approvalPending": "Tento používateľ čaká na schválenie. Schváľte ho namiesto aktivácie tu."
     },
     "delete": {
       "title": "Odstrániť používateľa",
@@ -376,7 +377,8 @@
       "apiKeyDays": "Maximálna platnosť API kľúča (dni)",
       "apiKeyDaysHint": "Nový API kľúč vyprší po tomto počte dní, ak jeho vlastník nezvolí skorší dátum.",
       "invalidRange": "Zadajte celé číslo medzi {min} a {max}.",
-      "absoluteBelowIdle": "Nesmie byť kratší ako časový limit nečinnosti."
+      "absoluteBelowIdle": "Nesmie byť kratší ako časový limit nečinnosti.",
+      "accessNotBelowIdle": "Musí byť kratší ako časový limit nečinnosti."
     },
     "retention": {
       "title": "Uchovávanie údajov",
@@ -575,6 +577,7 @@
       "slugRequired": "Slug je povinný",
       "slugTooLong": "Slug musí mať najviac 50 znakov",
       "slugInvalid": "Použite iba malé písmená, čísla a pomlčky",
+      "slugReserved": "Tento slug je vyhradený; zvoľte iný",
       "providerType": "Typ poskytovateľa",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
@@ -594,6 +597,7 @@
       "scopes": "Rozsahy",
       "scopesHint": "OAuth rozsahy oddelené medzerou",
       "scopesTooLong": "Rozsahy musia mať najviac 500 znakov",
+      "scopesOpenidRequired": "Poskytovateľ OIDC vyžaduje rozsah openid",
       "icon": "Ikona",
       "iconNone": "Žiadna",
       "iconUpload": "Nahrať obrázok",
@@ -814,7 +818,8 @@
       "lastSeen": "Posledné prihlásenie {date}",
       "forget": "Zabudnúť toto zariadenie",
       "forgetTitle": "Zabudnúť toto zariadenie?",
-      "forgetDescription": "Ďalšie prihlásenie z tohto zariadenia sa bude považovať za nové zariadenie a pošle vám upozornenie.",
+      "forgetDescription": "Zabudnutím tohto zariadenia sa z neho tiež odhlásite. Ďalšie prihlásenie z tohto zariadenia sa bude považovať za nové zariadenie a pošle vám upozornenie.",
+      "forgetCurrentDescription": "Toto je zariadenie, ktoré práve používate. Jeho zabudnutím budete okamžite odhlásení a ďalšie prihlásenie z neho sa bude považovať za nové zariadenie a pošle vám upozornenie.",
       "forgetConfirm": "Zabudnúť zariadenie",
       "forgetSuccess": "Zariadenie bolo zabudnuté",
       "forgetError": "Zariadenie sa nepodarilo zabudnúť. Skúste to znova.",
@@ -863,6 +868,17 @@
       "cancelError": "Zmenu sa nepodarilo zrušiť. Skúste to prosím znova.",
       "conflict": "Tento e-mail sa už používa.",
       "error": "E-mail sa nepodarilo zmeniť. Skúste to prosím znova."
+    },
+    "username": {
+      "title": "Používateľské meno",
+      "subtitle": "Používateľským menom sa prihlasuješ. Na jeho zmenu musíš potvrdiť svoju totožnosť a zmena sa prejaví okamžite.",
+      "current": "Súčasné používateľské meno",
+      "action": "Zmeniť používateľské meno",
+      "new": "Nové používateľské meno",
+      "sameAsCurrent": "Toto už je tvoje používateľské meno.",
+      "success": "Používateľské meno bolo zmenené.",
+      "conflict": "Toto používateľské meno sa už používa.",
+      "error": "Používateľské meno sa nepodarilo zmeniť. Skús to prosím znova."
     },
     "deleteAccount": {
       "title": "Odstrániť môj účet",

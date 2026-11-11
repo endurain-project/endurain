@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import Request
+from starlette.datastructures import Headers
 
 import core.exceptions as core_exceptions
 import core.network as core_network
@@ -289,7 +290,7 @@ class TestGetIpAddress:
     def test_untrusted_peer_uses_direct_ip(self):
         request = MagicMock(spec=Request)
         request.client.host = "203.0.113.5"
-        request.headers = {"X-Forwarded-For": "1.2.3.4"}
+        request.headers = Headers({"X-Forwarded-For": "1.2.3.4"})
         with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
             result = core_network.get_ip_address(request)
             assert result == "203.0.113.5"
@@ -297,7 +298,7 @@ class TestGetIpAddress:
     def test_trusted_proxy_x_forwarded_for(self):
         request = MagicMock(spec=Request)
         request.client.host = "10.0.0.1"
-        request.headers = {"X-Forwarded-For": "1.2.3.4, 10.0.0.1"}
+        request.headers = Headers({"X-Forwarded-For": "1.2.3.4, 10.0.0.1"})
         with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
             result = core_network.get_ip_address(request)
             assert result == "1.2.3.4"
@@ -305,7 +306,7 @@ class TestGetIpAddress:
     def test_trusted_proxy_ignores_forged_prepended_hop(self):
         request = MagicMock(spec=Request)
         request.client.host = "10.0.0.1"
-        request.headers = {"X-Forwarded-For": "198.51.100.1, 203.0.113.9"}
+        request.headers = Headers({"X-Forwarded-For": "198.51.100.1, 203.0.113.9"})
         with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
             result = core_network.get_ip_address(request)
             assert result == "203.0.113.9"
@@ -313,7 +314,7 @@ class TestGetIpAddress:
     def test_trusted_proxy_chain_skips_trusted_hops(self):
         request = MagicMock(spec=Request)
         request.client.host = "10.0.0.2"
-        request.headers = {"X-Forwarded-For": "198.51.100.1, 203.0.113.9, 10.0.0.1"}
+        request.headers = Headers({"X-Forwarded-For": "198.51.100.1, 203.0.113.9, 10.0.0.1"})
         with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
             result = core_network.get_ip_address(request)
             assert result == "203.0.113.9"
@@ -321,7 +322,7 @@ class TestGetIpAddress:
     def test_trusted_proxy_all_hops_trusted_returns_leftmost(self):
         request = MagicMock(spec=Request)
         request.client.host = "10.0.0.2"
-        request.headers = {"X-Forwarded-For": "10.0.0.3, 10.0.0.1"}
+        request.headers = Headers({"X-Forwarded-For": "10.0.0.3, 10.0.0.1"})
         with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
             result = core_network.get_ip_address(request)
             assert result == "10.0.0.3"
@@ -329,7 +330,7 @@ class TestGetIpAddress:
     def test_wildcard_trusts_every_hop_and_returns_leftmost(self):
         request = MagicMock(spec=Request)
         request.client.host = "10.0.0.1"
-        request.headers = {"X-Forwarded-For": "1.2.3.4, 5.6.7.8"}
+        request.headers = Headers({"X-Forwarded-For": "1.2.3.4, 5.6.7.8"})
         with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["*"]):
             result = core_network.get_ip_address(request)
             assert result == "1.2.3.4"
@@ -339,7 +340,7 @@ class TestGetIpAddress:
         settings = core_network.core_config.Settings(_env_file=None, ENVIRONMENT="development")
         request = MagicMock(spec=Request)
         request.client.host = "203.0.113.5"
-        request.headers = {"X-Forwarded-For": "198.51.100.1"}
+        request.headers = Headers({"X-Forwarded-For": "198.51.100.1"})
         with patch.object(core_network.core_config, "settings", settings):
             result = core_network.get_ip_address(request)
         assert result == "203.0.113.5"
@@ -347,7 +348,7 @@ class TestGetIpAddress:
     def test_empty_x_forwarded_for_falls_back_to_x_real_ip(self):
         request = MagicMock(spec=Request)
         request.client.host = "10.0.0.1"
-        request.headers = {"X-Forwarded-For": " , ", "X-Real-IP": "5.6.7.8"}
+        request.headers = Headers({"X-Forwarded-For": " , ", "X-Real-IP": "5.6.7.8"})
         with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
             result = core_network.get_ip_address(request)
             assert result == "5.6.7.8"
@@ -355,7 +356,7 @@ class TestGetIpAddress:
     def test_trusted_proxy_x_real_ip(self):
         request = MagicMock(spec=Request)
         request.client.host = "10.0.0.1"
-        request.headers = {"X-Real-IP": "5.6.7.8"}
+        request.headers = Headers({"X-Real-IP": "5.6.7.8"})
         with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
             result = core_network.get_ip_address(request)
             assert result == "5.6.7.8"
@@ -363,7 +364,7 @@ class TestGetIpAddress:
     def test_trusted_proxy_prefers_x_forwarded_for(self):
         request = MagicMock(spec=Request)
         request.client.host = "10.0.0.1"
-        request.headers = {"X-Forwarded-For": "1.2.3.4", "X-Real-IP": "5.6.7.8"}
+        request.headers = Headers({"X-Forwarded-For": "1.2.3.4", "X-Real-IP": "5.6.7.8"})
         with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["*"]):
             result = core_network.get_ip_address(request)
             assert result == "1.2.3.4"
@@ -371,10 +372,97 @@ class TestGetIpAddress:
     def test_trusted_proxy_no_headers_returns_direct_ip(self):
         request = MagicMock(spec=Request)
         request.client.host = "10.0.0.1"
-        request.headers = {}
+        request.headers = Headers({})
         with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
             result = core_network.get_ip_address(request)
             assert result == "10.0.0.1"
+
+
+def _forwarded_request(*forwarded_for_lines: str, peer: str = "10.0.0.1"):
+    """Build a request from ``peer`` that carries one ``X-Forwarded-For`` header line per argument."""
+    request = MagicMock(spec=Request)
+    request.client.host = peer
+    request.headers = Headers(raw=[(b"x-forwarded-for", line.encode()) for line in forwarded_for_lines])
+    return request
+
+
+class TestForwardedForLines:
+    """Repeated X-Forwarded-For lines are one list, as RFC 9110 section 5.3 combines repeated fields."""
+
+    def test_a_proxy_that_adds_its_own_line_does_not_let_the_clients_line_win(self):
+        request = _forwarded_request("198.51.100.1", "203.0.113.9")
+        with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
+            assert core_network.get_ip_address(request) == "203.0.113.9"
+
+    def test_lines_and_commas_walk_the_same_chain(self):
+        lines = _forwarded_request("198.51.100.1", "203.0.113.9, 10.0.0.2")
+        joined = _forwarded_request("198.51.100.1, 203.0.113.9, 10.0.0.2")
+        with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
+            assert core_network.get_ip_address(lines) == core_network.get_ip_address(joined) == "203.0.113.9"
+
+    def test_a_trusted_hop_on_a_later_line_is_skipped(self):
+        request = _forwarded_request("203.0.113.9", "10.0.0.2")
+        with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
+            assert core_network.get_ip_address(request) == "203.0.113.9"
+
+
+class TestForwardedForHopsAreIpAddresses:
+    """A hop is accepted only when it is an IP address, with or without a port."""
+
+    @pytest.mark.parametrize(
+        ("hop", "expected"),
+        [
+            ("203.0.113.9:5678", "203.0.113.9"),
+            ("[2001:db8::1]:443", "2001:db8::1"),
+            ("[2001:db8::1]", "2001:db8::1"),
+            ("2001:db8::1", "2001:db8::1"),
+        ],
+    )
+    def test_a_hop_is_read_without_its_port(self, hop, expected):
+        request = _forwarded_request(hop)
+        with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
+            assert core_network.get_ip_address(request) == expected
+
+    def test_a_trusted_hop_with_a_port_is_still_skipped(self):
+        request = _forwarded_request("203.0.113.9, 10.0.0.2:4433")
+        with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
+            assert core_network.get_ip_address(request) == "203.0.113.9"
+
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "evil<b>",
+            "unknown",
+            "x" * 500,
+            "203.0.113.9:port",
+            "203.0.113.9:99999",
+            "203.0.113.9:",
+            "[2001:db8::1",
+            "[2001:db8::1]:",
+            "[2001:db8::1]x",
+            "[203.0.113.9",
+            "203.0.113.9:80:80",
+        ],
+    )
+    def test_a_hop_that_is_not_an_address_falls_back_to_the_peer(self, line):
+        request = _forwarded_request(line)
+        with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
+            assert core_network.get_ip_address(request) == "10.0.0.1"
+
+    def test_a_junk_hop_in_wildcard_mode_falls_back_to_the_peer(self):
+        request = _forwarded_request("evil<b>, 1.2.3.4")
+        with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["*"]):
+            assert core_network.get_ip_address(request) == "10.0.0.1"
+
+    def test_a_junk_hop_a_proxy_appended_falls_back_to_the_peer(self):
+        request = _forwarded_request("198.51.100.1, garbage")
+        with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
+            assert core_network.get_ip_address(request) == "10.0.0.1"
+
+    def test_junk_a_client_prepended_beyond_the_client_hop_is_not_read(self):
+        request = _forwarded_request("evil<b>, 203.0.113.9")
+        with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
+            assert core_network.get_ip_address(request) == "203.0.113.9"
 
 
 class TestIsPrivateOrReserved:
@@ -807,7 +895,7 @@ class TestXRealIpValidation:
 
         request = MagicMock()
         request.client.host = "10.0.0.1"
-        request.headers = {"X-Real-IP": real_ip}
+        request.headers = Headers({"X-Real-IP": real_ip})
         return request
 
     def test_a_valid_address_is_used(self):

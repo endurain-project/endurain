@@ -168,7 +168,8 @@
       "stepUpTitle": "Patvirtinkite savo tapatybę",
       "stepUpDescription": "Pakeitus naudotojo {username} el. paštą, prieigos tipą ar aktyvumo būseną, jis bus atjungtas visur. Patvirtinkite, kad tai Jūs, kad tęstumėte.",
       "stepUpCreateDescription": "Sukūrus administratoriaus paskyrą suteikiama visa prieiga. Patvirtinkite, kad tai Jūs, kad tęstumėte.",
-      "stepUpConfirm": "Išsaugoti pakeitimus"
+      "stepUpConfirm": "Išsaugoti pakeitimus",
+      "approvalPending": "Šis naudotojas laukia patvirtinimo. Patvirtinkite jį, užuot aktyvinę čia."
     },
     "delete": {
       "title": "Ištrinti naudotoją",
@@ -376,7 +377,8 @@
       "apiKeyDays": "Didžiausias API rakto galiojimo laikas (dienomis)",
       "apiKeyDaysHint": "Naujas API raktas nustoja galioti po tiek dienų, nebent jo savininkas pasirenka ankstesnę datą.",
       "invalidRange": "Įveskite sveikąjį skaičių nuo {min} iki {max}.",
-      "absoluteBelowIdle": "Negali būti trumpesnis už neaktyvumo skirtąjį laiką."
+      "absoluteBelowIdle": "Negali būti trumpesnis už neaktyvumo skirtąjį laiką.",
+      "accessNotBelowIdle": "Turi būti trumpesnis už neaktyvumo skirtąjį laiką."
     },
     "retention": {
       "title": "Duomenų saugojimas",
@@ -575,6 +577,7 @@
       "slugRequired": "Trumpinys yra privalomas",
       "slugTooLong": "Trumpinys turi būti ne ilgesnis nei 50 simbolių",
       "slugInvalid": "Naudokite tik mažąsias raides, skaičius ir brūkšnelius",
+      "slugReserved": "Šis slug yra rezervuotas; pasirinkite kitą",
       "providerType": "Teikėjo tipas",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
@@ -594,6 +597,7 @@
       "scopes": "Apimtys",
       "scopesHint": "Tarpais atskirtos OAuth apimtys",
       "scopesTooLong": "Apimtys turi būti ne ilgesnės nei 500 simbolių",
+      "scopesOpenidRequired": "OIDC teikėjui reikalinga openid apimtis",
       "icon": "Piktograma",
       "iconNone": "Nėra",
       "iconUpload": "Įkelti vaizdą",
@@ -814,7 +818,8 @@
       "lastSeen": "Paskutinį kartą prisijungta {date}",
       "forget": "Pamiršti šį įrenginį",
       "forgetTitle": "Pamiršti šį įrenginį?",
-      "forgetDescription": "Kitas prisijungimas iš šio įrenginio bus laikomas naujo įrenginio prisijungimu ir Jums bus išsiųstas pranešimas.",
+      "forgetDescription": "Pamiršus šį įrenginį, jis taip pat atjungiamas. Kitas prisijungimas iš šio įrenginio bus laikomas naujo įrenginio prisijungimu ir Jums bus išsiųstas pranešimas.",
+      "forgetCurrentDescription": "Tai įrenginys, kuriuo naudojatės dabar. Jį pamiršus, būsite iškart atjungti, o kitas prisijungimas iš jo bus laikomas naujo įrenginio prisijungimu ir Jums bus išsiųstas pranešimas.",
       "forgetConfirm": "Pamiršti įrenginį",
       "forgetSuccess": "Įrenginys pamirštas",
       "forgetError": "Nepavyko pamiršti įrenginio. Bandykite dar kartą.",
@@ -863,6 +868,17 @@
       "cancelError": "Nepavyko atšaukti keitimo. Bandykite dar kartą.",
       "conflict": "Šis el. paštas jau naudojamas.",
       "error": "Nepavyko pakeisti el. pašto. Bandykite dar kartą."
+    },
+    "username": {
+      "title": "Naudotojo vardas",
+      "subtitle": "Naudotojo vardu prisijungi. Norėdamas jį pakeisti, turi patvirtinti savo tapatybę, o pakeitimas įsigalioja iš karto.",
+      "current": "Dabartinis naudotojo vardas",
+      "action": "Keisti naudotojo vardą",
+      "new": "Naujas naudotojo vardas",
+      "sameAsCurrent": "Tai jau tavo naudotojo vardas.",
+      "success": "Naudotojo vardas pakeistas.",
+      "conflict": "Šis naudotojo vardas jau naudojamas.",
+      "error": "Nepavyko pakeisti naudotojo vardo. Bandyk dar kartą."
     },
     "deleteAccount": {
       "title": "Ištrinti mano paskyrą",

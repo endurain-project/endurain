@@ -168,7 +168,8 @@
       "stepUpTitle": "Erősítsd meg a személyazonosságodat",
       "stepUpDescription": "{username} e-mail-címének, hozzáférési típusának vagy aktív állapotának módosítása mindenhonnan kijelentkezteti. A folytatáshoz erősítsd meg, hogy te vagy az.",
       "stepUpCreateDescription": "Rendszergazdai fiók létrehozása teljes hozzáférést ad. A folytatáshoz erősítsd meg, hogy te vagy az.",
-      "stepUpConfirm": "Módosítások mentése"
+      "stepUpConfirm": "Módosítások mentése",
+      "approvalPending": "Ez a felhasználó jóváhagyásra vár. Jóváhagyással engedélyezd, ne itt aktiváld."
     },
     "delete": {
       "title": "Felhasználó törlése",
@@ -376,7 +377,8 @@
       "apiKeyDays": "API-kulcs maximális élettartama (nap)",
       "apiKeyDaysHint": "Az új API-kulcs ennyi nap után lejár, hacsak a tulajdonosa nem választ korábbi dátumot.",
       "invalidRange": "Adj meg egy egész számot {min} és {max} között.",
-      "absoluteBelowIdle": "Nem lehet rövidebb az inaktivitási időkorlátnál."
+      "absoluteBelowIdle": "Nem lehet rövidebb az inaktivitási időkorlátnál.",
+      "accessNotBelowIdle": "Rövidebbnek kell lennie az inaktivitási időkorlátnál."
     },
     "retention": {
       "title": "Adatmegőrzés",
@@ -575,6 +577,7 @@
       "slugRequired": "A slug megadása kötelező",
       "slugTooLong": "A slug legfeljebb 50 karakter lehet",
       "slugInvalid": "Csak kisbetűket, számokat és kötőjeleket használj",
+      "slugReserved": "Ez a slug foglalt; válassz másikat",
       "providerType": "Szolgáltató típusa",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
@@ -594,6 +597,7 @@
       "scopes": "Hatókörök",
       "scopesHint": "Szóközzel elválasztott OAuth-hatókörök",
       "scopesTooLong": "A hatókörök legfeljebb 500 karakter lehetnek",
+      "scopesOpenidRequired": "Az OIDC-szolgáltatóhoz az openid hatókör szükséges",
       "icon": "Ikon",
       "iconNone": "Nincs",
       "iconUpload": "Kép feltöltése",
@@ -814,7 +818,8 @@
       "lastSeen": "Utolsó bejelentkezés: {date}",
       "forget": "Eszköz elfelejtése",
       "forgetTitle": "Elfelejted ezt az eszközt?",
-      "forgetDescription": "Az erről az eszközről történő következő bejelentkezés új eszköznek számít, és értesítést kapsz.",
+      "forgetDescription": "Az eszköz elfelejtése ki is jelentkezteti azt. Az erről az eszközről történő következő bejelentkezés új eszköznek számít, és értesítést kapsz.",
+      "forgetCurrentDescription": "Ez az az eszköz, amelyet most használsz. Az elfelejtése azonnal kijelentkeztet, az erről történő következő bejelentkezés pedig új eszköznek számít, és értesítést kapsz.",
       "forgetConfirm": "Eszköz elfelejtése",
       "forgetSuccess": "Eszköz elfelejtve",
       "forgetError": "Nem sikerült elfelejteni az eszközt. Kérjük, próbáld újra.",
@@ -863,6 +868,17 @@
       "cancelError": "A módosítást nem sikerült visszavonni. Kérjük, próbáld újra.",
       "conflict": "Ez az e-mail-cím már használatban van.",
       "error": "Nem sikerült módosítani az e-mail-címedet. Kérjük, próbáld újra."
+    },
+    "username": {
+      "title": "Felhasználónév",
+      "subtitle": "A felhasználónevedet használod a bejelentkezéshez. A módosításhoz meg kell erősítened a személyazonosságodat, és a változás azonnal életbe lép.",
+      "current": "Jelenlegi felhasználónév",
+      "action": "Felhasználónév módosítása",
+      "new": "Új felhasználónév",
+      "sameAsCurrent": "Ez már a felhasználóneved.",
+      "success": "A felhasználónév módosítva.",
+      "conflict": "Ez a felhasználónév már foglalt.",
+      "error": "Nem sikerült módosítani a felhasználónevedet. Próbáld újra."
     },
     "deleteAccount": {
       "title": "Fiókom törlése",

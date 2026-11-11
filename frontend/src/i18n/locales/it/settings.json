@@ -168,7 +168,8 @@
       "stepUpTitle": "Conferma la tua identità",
       "stepUpDescription": "Cambiare l'email, il tipo di accesso o lo stato attivo di {username} lo disconnette ovunque. Conferma che sei tu per continuare.",
       "stepUpCreateDescription": "Creare un account amministratore concede accesso completo. Conferma che sei tu per continuare.",
-      "stepUpConfirm": "Salva modifiche"
+      "stepUpConfirm": "Salva modifiche",
+      "approvalPending": "Questo utente è in attesa di approvazione. Approvalo invece di attivarlo qui."
     },
     "delete": {
       "title": "Elimina utente",
@@ -376,7 +377,8 @@
       "apiKeyDays": "Durata massima di una chiave API (giorni)",
       "apiKeyDaysHint": "Una nuova chiave API scade dopo questo numero di giorni, a meno che il proprietario scelga una data precedente.",
       "invalidRange": "Inserisci un numero intero compreso tra {min} e {max}.",
-      "absoluteBelowIdle": "Non deve essere inferiore al timeout di inattività."
+      "absoluteBelowIdle": "Non deve essere inferiore al timeout di inattività.",
+      "accessNotBelowIdle": "Deve essere inferiore al timeout di inattività."
     },
     "retention": {
       "title": "Conservazione dei dati",
@@ -575,6 +577,7 @@
       "slugRequired": "Lo slug è obbligatorio",
       "slugTooLong": "Lo slug deve avere al massimo 50 caratteri",
       "slugInvalid": "Usa solo lettere minuscole, numeri e trattini",
+      "slugReserved": "Questo slug è riservato; scegline un altro",
       "providerType": "Tipo di provider",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
@@ -594,6 +597,7 @@
       "scopes": "Scope",
       "scopesHint": "Scope OAuth separati da spazi",
       "scopesTooLong": "Gli scope devono avere al massimo 500 caratteri",
+      "scopesOpenidRequired": "Un provider OIDC richiede lo scope openid",
       "icon": "Icona",
       "iconNone": "Nessuna",
       "iconUpload": "Carica un'immagine",
@@ -814,7 +818,8 @@
       "lastSeen": "Ultimo accesso {date}",
       "forget": "Dimentica questo dispositivo",
       "forgetTitle": "Dimenticare questo dispositivo?",
-      "forgetDescription": "Il prossimo accesso da questo dispositivo verrà considerato un nuovo dispositivo e ti invierà un avviso.",
+      "forgetDescription": "Dimenticare questo dispositivo lo disconnette anche. Il prossimo accesso da questo dispositivo verrà considerato un nuovo dispositivo e ti invierà un avviso.",
+      "forgetCurrentDescription": "Questo è il dispositivo che stai usando ora. Dimenticarlo ti disconnette subito, e il prossimo accesso da esso verrà considerato un nuovo dispositivo e ti invierà un avviso.",
       "forgetConfirm": "Dimentica dispositivo",
       "forgetSuccess": "Dispositivo dimenticato",
       "forgetError": "Impossibile dimenticare il dispositivo. Riprova.",
@@ -863,6 +868,17 @@
       "cancelError": "Impossibile annullare la modifica. Riprova.",
       "conflict": "Questo indirizzo e-mail è già in uso.",
       "error": "Impossibile cambiare la tua e-mail. Riprova."
+    },
+    "username": {
+      "title": "Nome utente",
+      "subtitle": "Il tuo nome utente è quello con cui accedi. Per modificarlo devi confermare la tua identità, e la modifica ha effetto subito.",
+      "current": "Nome utente attuale",
+      "action": "Cambia nome utente",
+      "new": "Nuovo nome utente",
+      "sameAsCurrent": "Questo è già il tuo nome utente.",
+      "success": "Nome utente modificato.",
+      "conflict": "Questo nome utente è già in uso.",
+      "error": "Impossibile modificare il tuo nome utente. Riprova."
     },
     "deleteAccount": {
       "title": "Elimina il mio account",

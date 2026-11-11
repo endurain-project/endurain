@@ -427,6 +427,26 @@ class TestEndurainHostValidation:
     def test_the_default_is_accepted(self):
         assert core_config.Settings(_env_file=None).ENDURAIN_HOST == "http://localhost:8080"
 
+    @pytest.mark.parametrize(
+        ("host", "canonical"),
+        [
+            ("HTTPS://Host:443", "https://host"),
+            ("https://host", "https://host"),
+            ("https://Endurain.Example.COM:443", "https://endurain.example.com"),
+            ("HTTP://Host:80", "http://host"),
+            ("http://Host:8080", "http://host:8080"),
+            ("https://host:80", "https://host:80"),
+            ("http://host:443", "http://host:443"),
+            ("https://host:", "https://host"),
+            ("http://192.168.1.10:8080", "http://192.168.1.10:8080"),
+            ("http://[::1]:8080", "http://[::1]:8080"),
+            ("HTTPS://[2001:DB8::1]:443", "https://[2001:db8::1]"),
+        ],
+    )
+    def test_returns_the_origin_in_canonical_form(self, host, canonical):
+        """Browsers send ``Origin`` in this form, and the issuer is one stable string."""
+        assert canonical == core_config.Settings(_env_file=None, ENDURAIN_HOST=host).ENDURAIN_HOST
+
 
 class TestStartupWarnings:
     """warn_unsafe_settings logs what is allowed but unwise, or ignored."""

@@ -168,7 +168,8 @@
       "stepUpTitle": "Bevestig je identiteit",
       "stepUpDescription": "Als je het e-mailadres, het toegangstype of de actieve status van {username} wijzigt, wordt die gebruiker overal uitgelogd. Bevestig dat jij het bent om door te gaan.",
       "stepUpCreateDescription": "Een beheerdersaccount aanmaken geeft volledige toegang. Bevestig dat jij het bent om door te gaan.",
-      "stepUpConfirm": "Wijzigingen opslaan"
+      "stepUpConfirm": "Wijzigingen opslaan",
+      "approvalPending": "Deze gebruiker wacht op goedkeuring. Keur de gebruiker goed in plaats van hem hier te activeren."
     },
     "delete": {
       "title": "Gebruiker verwijderen",
@@ -376,7 +377,8 @@
       "apiKeyDays": "Maximale levensduur API-sleutel (dagen)",
       "apiKeyDaysHint": "Een nieuwe API-sleutel verloopt na dit aantal dagen, tenzij de eigenaar een eerdere datum kiest.",
       "invalidRange": "Voer een geheel getal in tussen {min} en {max}.",
-      "absoluteBelowIdle": "Mag niet korter zijn dan de time-out bij inactiviteit."
+      "absoluteBelowIdle": "Mag niet korter zijn dan de time-out bij inactiviteit.",
+      "accessNotBelowIdle": "Moet korter zijn dan de time-out bij inactiviteit."
     },
     "retention": {
       "title": "Gegevensbewaring",
@@ -575,6 +577,7 @@
       "slugRequired": "Slug is verplicht",
       "slugTooLong": "Slug mag maximaal 50 tekens zijn",
       "slugInvalid": "Gebruik alleen kleine letters, cijfers en koppeltekens",
+      "slugReserved": "Deze slug is gereserveerd; kies een andere",
       "providerType": "Providertype",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
@@ -594,6 +597,7 @@
       "scopes": "Scopes",
       "scopesHint": "Spatie-gescheiden OAuth-scopes",
       "scopesTooLong": "Scopes mogen maximaal 500 tekens zijn",
+      "scopesOpenidRequired": "Een OIDC-provider heeft de scope openid nodig",
       "icon": "Pictogram",
       "iconNone": "Geen",
       "iconUpload": "Een afbeelding uploaden",
@@ -814,7 +818,8 @@
       "lastSeen": "Laatst ingelogd {date}",
       "forget": "Dit apparaat vergeten",
       "forgetTitle": "Dit apparaat vergeten?",
-      "forgetDescription": "De volgende inlog vanaf dit apparaat telt als een nieuw apparaat en stuurt je een melding.",
+      "forgetDescription": "Als je dit apparaat vergeet, wordt het ook uitgelogd. De volgende inlog vanaf dit apparaat telt als een nieuw apparaat en stuurt je een melding.",
+      "forgetCurrentDescription": "Dit is het apparaat dat je nu gebruikt. Als je het vergeet, word je meteen uitgelogd en telt de volgende inlog ervan als een nieuw apparaat en stuurt je een melding.",
       "forgetConfirm": "Apparaat vergeten",
       "forgetSuccess": "Apparaat vergeten",
       "forgetError": "Het apparaat kon niet worden vergeten. Probeer het opnieuw.",
@@ -863,6 +868,17 @@
       "cancelError": "De wijziging kon niet worden geannuleerd. Probeer het opnieuw.",
       "conflict": "Dat e-mailadres is al in gebruik.",
       "error": "Je e-mailadres kon niet worden gewijzigd. Probeer het opnieuw."
+    },
+    "username": {
+      "title": "Gebruikersnaam",
+      "subtitle": "Met je gebruikersnaam log je in. Om hem te wijzigen moet je je identiteit bevestigen, en de wijziging gaat direct in.",
+      "current": "Huidige gebruikersnaam",
+      "action": "Gebruikersnaam wijzigen",
+      "new": "Nieuwe gebruikersnaam",
+      "sameAsCurrent": "Dit is al je gebruikersnaam.",
+      "success": "Gebruikersnaam gewijzigd.",
+      "conflict": "Die gebruikersnaam is al in gebruik.",
+      "error": "Je gebruikersnaam kon niet worden gewijzigd. Probeer het opnieuw."
     },
     "deleteAccount": {
       "title": "Mijn account verwijderen",

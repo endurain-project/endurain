@@ -168,7 +168,8 @@
       "stepUpTitle": "Bekreft identiteten din",
       "stepUpDescription": "Hvis du endrer e-postadressen, tilgangstypen eller aktivstatusen til {username}, logges brukeren ut overalt. Bekreft at det er deg for å fortsette.",
       "stepUpCreateDescription": "Å opprette en administratorkonto gir full tilgang. Bekreft at det er deg for å fortsette.",
-      "stepUpConfirm": "Lagre endringer"
+      "stepUpConfirm": "Lagre endringer",
+      "approvalPending": "Denne brukeren venter på godkjenning. Godkjenn brukeren i stedet for å aktivere den her."
     },
     "delete": {
       "title": "Slett bruker",
@@ -376,7 +377,8 @@
       "apiKeyDays": "Maksimal levetid for API-nøkkel (dager)",
       "apiKeyDaysHint": "En ny API-nøkkel utløper etter dette antallet dager, med mindre eieren velger en tidligere dato.",
       "invalidRange": "Skriv inn et heltall mellom {min} og {max}.",
-      "absoluteBelowIdle": "Kan ikke være kortere enn tidsavbruddet ved inaktivitet."
+      "absoluteBelowIdle": "Kan ikke være kortere enn tidsavbruddet ved inaktivitet.",
+      "accessNotBelowIdle": "Må være kortere enn tidsavbruddet ved inaktivitet."
     },
     "retention": {
       "title": "Datalagring",
@@ -575,6 +577,7 @@
       "slugRequired": "Slug er obligatorisk",
       "slugTooLong": "Slug må være 50 tegn eller færre",
       "slugInvalid": "Bruk bare små bokstaver, tall og bindestreker",
+      "slugReserved": "Denne sluggen er reservert; velg en annen",
       "providerType": "Leverandørtype",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
@@ -594,6 +597,7 @@
       "scopes": "Omfang",
       "scopesHint": "Mellomromsadskilte OAuth-omfang",
       "scopesTooLong": "Omfang må være 500 tegn eller færre",
+      "scopesOpenidRequired": "En OIDC-leverandør trenger scopet openid",
       "icon": "Ikon",
       "iconNone": "Ingen",
       "iconUpload": "Last opp et bilde",
@@ -814,7 +818,8 @@
       "lastSeen": "Sist innlogget {date}",
       "forget": "Glem denne enheten",
       "forgetTitle": "Glemme denne enheten?",
-      "forgetDescription": "Neste innlogging fra denne enheten regnes som en ny enhet og sender deg et varsel.",
+      "forgetDescription": "Hvis du glemmer denne enheten, blir den også logget ut. Neste innlogging fra denne enheten regnes som en ny enhet og sender deg et varsel.",
+      "forgetCurrentDescription": "Dette er enheten du bruker nå. Hvis du glemmer den, blir du logget ut med en gang, og neste innlogging fra den regnes som en ny enhet og sender deg et varsel.",
       "forgetConfirm": "Glem enhet",
       "forgetSuccess": "Enheten er glemt",
       "forgetError": "Kunne ikke glemme enheten. Vennligst prøv igjen.",
@@ -863,6 +868,17 @@
       "cancelError": "Kunne ikke avbryte endringen. Vennligst prøv igjen.",
       "conflict": "Denne e-postadressen er allerede i bruk.",
       "error": "Kunne ikke endre e-posten din. Vennligst prøv igjen."
+    },
+    "username": {
+      "title": "Brukernavn",
+      "subtitle": "Du logger inn med brukernavnet ditt. For å endre det må du bekrefte identiteten din, og endringen trer i kraft med en gang.",
+      "current": "Nåværende brukernavn",
+      "action": "Endre brukernavn",
+      "new": "Nytt brukernavn",
+      "sameAsCurrent": "Dette er allerede brukernavnet ditt.",
+      "success": "Brukernavnet er endret.",
+      "conflict": "Det brukernavnet er allerede i bruk.",
+      "error": "Kunne ikke endre brukernavnet ditt. Prøv igjen."
     },
     "deleteAccount": {
       "title": "Slett kontoen min",
