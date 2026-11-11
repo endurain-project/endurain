@@ -58,6 +58,9 @@ vi.mock('@/services/http', () => ({
   apiFetch: vi.fn<typeof apiFetch>(),
 }))
 
+/** Shared server-owned timestamp carried by every read payload. */
+const UPDATED_AT = '2026-06-25T09:00:00Z'
+
 describe('health dashboard service', () => {
   beforeEach(() => vi.mocked(apiFetch).mockReset())
 
@@ -66,6 +69,7 @@ describe('health dashboard service', () => {
       id: 2,
       user_id: 9,
       version: 3,
+      updated_at: UPDATED_AT,
       sleep_seconds: 28800,
       steps: 8000,
       weight_kg: 70,
@@ -104,6 +108,7 @@ function makeWeightDto(
     id: 5,
     user_id: 9,
     version: 1,
+    updated_at: UPDATED_AT,
     date: '2026-06-25',
     weight_kg: 72.5,
     bmi: 22.1,
@@ -261,6 +266,7 @@ describe('weight service requests', () => {
       id: 3,
       user_id: 9,
       version: 1,
+      updated_at: UPDATED_AT,
       weight_kg: 70,
     } satisfies Schemas['HealthTargetsRead'])
 
@@ -278,6 +284,7 @@ describe('weight service requests', () => {
       id: 3,
       user_id: 9,
       version: 1,
+      updated_at: UPDATED_AT,
     } satisfies Schemas['HealthTargetsRead'])
 
     await updateWeightTarget(3, null)
@@ -298,6 +305,7 @@ function makeStepsDto(
     id: 5,
     user_id: 9,
     version: 1,
+    updated_at: UPDATED_AT,
     date: '2026-06-25',
     steps: 8500,
     source: 'garmin',
@@ -382,6 +390,7 @@ describe('steps service requests', () => {
       id: 3,
       user_id: 9,
       version: 1,
+      updated_at: UPDATED_AT,
       steps: 10000,
     } satisfies Schemas['HealthTargetsRead'])
 
@@ -399,6 +408,7 @@ describe('steps service requests', () => {
       id: 3,
       user_id: 9,
       version: 1,
+      updated_at: UPDATED_AT,
     } satisfies Schemas['HealthTargetsRead'])
 
     await updateStepsTarget(3, null)
@@ -419,6 +429,7 @@ function makeWaterDto(
     id: 5,
     user_id: 9,
     version: 1,
+    updated_at: UPDATED_AT,
     date: '2026-06-25',
     amount_ml: 1500,
     source: 'garmin',
@@ -503,6 +514,7 @@ describe('water service requests', () => {
       id: 3,
       user_id: 9,
       version: 1,
+      updated_at: UPDATED_AT,
       water_ml: 2000,
     } satisfies Schemas['HealthTargetsRead'])
 
@@ -520,6 +532,7 @@ describe('water service requests', () => {
       id: 3,
       user_id: 9,
       version: 1,
+      updated_at: UPDATED_AT,
     } satisfies Schemas['HealthTargetsRead'])
 
     await updateWaterTarget(3, null)
@@ -540,6 +553,7 @@ function makePoopDto(
     id: 5,
     user_id: 9,
     version: 1,
+    updated_at: UPDATED_AT,
     date_time: '2026-06-25T08:30:00',
     bristol_type: 'type_4',
     color: 'brown',
@@ -639,6 +653,7 @@ describe('poop service requests', () => {
       id: 3,
       user_id: 9,
       version: 1,
+      updated_at: UPDATED_AT,
       poop_count: 2,
     } satisfies Schemas['HealthTargetsRead'])
 
@@ -656,6 +671,7 @@ describe('poop service requests', () => {
       id: 3,
       user_id: 9,
       version: 1,
+      updated_at: UPDATED_AT,
     } satisfies Schemas['HealthTargetsRead'])
 
     await updatePoopTarget(3, null)
@@ -677,6 +693,7 @@ function makeSleepDto(
     has_sleep_stages: false,
     user_id: 9,
     version: 1,
+    updated_at: UPDATED_AT,
     date: '2026-06-25',
     resting_heart_rate: 52,
     source: 'garmin',
@@ -760,6 +777,7 @@ function makeFastingDto(
     id: 5,
     user_id: 9,
     version: 1,
+    updated_at: UPDATED_AT,
     fast_start_time: '2026-06-25T08:00:00.000Z',
     fast_end_time: '2026-06-25T22:00:00.000Z',
     fasting_type: '16:8',
@@ -932,6 +950,7 @@ describe('fasting service requests', () => {
       id: 3,
       user_id: 9,
       version: 1,
+      updated_at: UPDATED_AT,
       fasting_seconds: 57600,
     } satisfies Schemas['HealthTargetsRead'])
 
@@ -949,6 +968,7 @@ describe('fasting service requests', () => {
       id: 3,
       user_id: 9,
       version: 1,
+      updated_at: UPDATED_AT,
     } satisfies Schemas['HealthTargetsRead'])
 
     await updateFastingTarget(3, null)
@@ -969,6 +989,7 @@ function makeFullSleepDto(
     id: 5,
     user_id: 9,
     version: 1,
+    updated_at: UPDATED_AT,
     date: '2026-06-25',
     sleep_start_time_local: '2026-06-24T23:00',
     sleep_end_time_local: '2026-06-25T07:00',
@@ -1245,6 +1266,7 @@ describe('sleep service requests', () => {
       id: 3,
       user_id: 9,
       version: 1,
+      updated_at: UPDATED_AT,
       sleep_seconds: 28800,
     } satisfies Schemas['HealthTargetsRead'])
 
@@ -1262,6 +1284,7 @@ describe('sleep service requests', () => {
       id: 3,
       user_id: 9,
       version: 1,
+      updated_at: UPDATED_AT,
     } satisfies Schemas['HealthTargetsRead'])
 
     await updateSleepTarget(3, null)

@@ -42,6 +42,7 @@ const gearDto: GearDto = {
   strava_gear_id: 'b123',
   garminconnect_gear_id: 'g456',
   version: 3,
+  updated_at: '2024-06-01T10:00:00Z',
 }
 
 const mappedGear = {
@@ -89,7 +90,14 @@ describe('mapGear', () => {
 
   it('defaults active to true and absent optionals to null', () => {
     expect(
-      mapGear({ id: 9, user_id: 2, gear_type: 'shoes', nickname: 'Shoes', version: 1 }),
+      mapGear({
+        id: 9,
+        user_id: 2,
+        gear_type: 'shoes',
+        nickname: 'Shoes',
+        version: 1,
+        updated_at: gearDto.updated_at,
+      }),
     ).toEqual({
       id: 9,
       userId: 2,

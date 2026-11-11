@@ -37,6 +37,7 @@ const createdDto: GearComponentDto = {
   expected_usage: 5_000_000,
   purchase_value: '45.00',
   version: 1,
+  updated_at: '2024-06-01T10:00:00Z',
 }
 
 /** Passthrough stub so the reka-ui portal/focus-trap is skipped and the form

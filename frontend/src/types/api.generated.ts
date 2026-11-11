@@ -3746,6 +3746,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Sync
+         * @description Report what changed in the caller's records since a cursor, oldest first, deletions included.
+         *
+         *     Without a cursor the walk starts from the beginning and reports every record. Send the `next_cursor` back as
+         *     `cursor`: while `has_more` is true, ask again at once; once it is false, keep the cursor for the next sync.
+         *     A change carries the record as its owner reads it; a deletion carries `record: null`. `types` limits the walk
+         *     to some record types (repeat the parameter); without it, every type the caller's scopes can read is walked:
+         *     `activities:read` for activities, `health:read` for health records, `health_targets:read` for the targets and
+         *     `gears:read` for gear and components. A type asked for without its scope is `403`. A cursor older than
+         *     90 days is `410` with `urn:endurain:error:sync-expired`: discard the local copy and sync from the start.
+         *     Changes appear about two minutes after they happen.
+         */
+        get: operations["read_sync"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users": {
         parameters: {
             query?: never;
@@ -4441,6 +4470,30 @@ export interface components {
             status: components["schemas"]["JobState"];
         };
         /**
+         * ActivityChange
+         * @description A changed or deleted activity.
+         */
+        ActivityChange: {
+            /**
+             * Changed At
+             * Format: date-time
+             * @description When the record changed, or when it was deleted
+             */
+            changed_at: string;
+            /**
+             * Id
+             * @description The record's id
+             */
+            readonly id: number;
+            /** @description The record; null when it was deleted */
+            record?: components["schemas"]["ActivityRead"] | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "activity";
+        };
+        /**
          * ActivityDetailRead
          * @description An activity together with the first page of each child collection the detail view shows.
          *
@@ -5096,6 +5149,8 @@ export interface components {
             tracker_manufacturer?: string | null;
             /** Tracker Model */
             tracker_model?: string | null;
+            /** Updated At */
+            readonly updated_at?: string | null;
             /** User Id */
             user_id?: number | null;
             /** Version */
@@ -5432,6 +5487,8 @@ export interface components {
             tracker_manufacturer?: string | null;
             /** Tracker Model */
             tracker_model?: string | null;
+            /** Updated At */
+            readonly updated_at?: string | null;
             /** User Id */
             user_id?: number | null;
             /** Version */
@@ -6098,6 +6155,54 @@ export interface components {
             status: components["schemas"]["JobState"];
         };
         /**
+         * GearChange
+         * @description A changed or deleted gear, with its totals; the totals follow activities without stamping the gear.
+         */
+        GearChange: {
+            /**
+             * Changed At
+             * Format: date-time
+             * @description When the record changed, or when it was deleted
+             */
+            changed_at: string;
+            /**
+             * Id
+             * @description The record's id
+             */
+            readonly id: number;
+            /** @description The record; null when it was deleted */
+            record?: components["schemas"]["GearDetailRead"] | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "gear";
+        };
+        /**
+         * GearComponentChange
+         * @description A changed or deleted gear component.
+         */
+        GearComponentChange: {
+            /**
+             * Changed At
+             * Format: date-time
+             * @description When the record changed, or when it was deleted
+             */
+            changed_at: string;
+            /**
+             * Id
+             * @description The record's id
+             */
+            readonly id: number;
+            /** @description The record; null when it was deleted */
+            record?: components["schemas"]["GearComponentRead"] | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "gear_component";
+        };
+        /**
          * GearComponentCreate
          * @description Schema for creating a gear component.
          *
@@ -6159,6 +6264,7 @@ export interface components {
          *         id: Unique identifier.
          *         user_id: Foreign key to user.
          *         version: Optimistic-concurrency counter, also sent as the ``ETag``.
+         *         updated_at: When the component last changed; set by the server.
          */
         GearComponentRead: {
             /**
@@ -6211,6 +6317,12 @@ export interface components {
              * @description Type of gear component
              */
             type: string;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When the component last changed
+             */
+            readonly updated_at: string;
             /**
              * User Id
              * @description Foreign key to user
@@ -6375,6 +6487,12 @@ export interface components {
              */
             type: string;
             /**
+             * Updated At
+             * Format: date-time
+             * @description When the component last changed
+             */
+            readonly updated_at: string;
+            /**
              * User Id
              * @description Foreign key to user
              */
@@ -6513,6 +6631,12 @@ export interface components {
              */
             total_time: number;
             /**
+             * Updated At
+             * Format: date-time
+             * @description When the gear last changed
+             */
+            readonly updated_at: string;
+            /**
              * User Id
              * @description Foreign key to user
              */
@@ -6532,6 +6656,7 @@ export interface components {
          *         id: Unique identifier.
          *         user_id: Foreign key to user.
          *         version: Optimistic-concurrency counter, also sent as the ``ETag``.
+         *         updated_at: When the gear last changed; set by the server.
          */
         GearRead: {
             /**
@@ -6586,6 +6711,12 @@ export interface components {
              * @description Strava gear ID
              */
             strava_gear_id?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When the gear last changed
+             */
+            readonly updated_at: string;
             /**
              * User Id
              * @description Foreign key to user
@@ -6784,6 +6915,30 @@ export interface components {
             weight?: components["schemas"]["HealthWeightDashboard"] | null;
         };
         /**
+         * HealthFastingChange
+         * @description A changed or deleted fasting record.
+         */
+        HealthFastingChange: {
+            /**
+             * Changed At
+             * Format: date-time
+             * @description When the record changed, or when it was deleted
+             */
+            changed_at: string;
+            /**
+             * Id
+             * @description The record's id
+             */
+            readonly id: number;
+            /** @description The record; null when it was deleted */
+            record?: components["schemas"]["HealthFastingRead"] | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "health_fasting";
+        };
+        /**
          * HealthFastingComplete
          * @description Schema for completing or ending a fasting session.
          *
@@ -6934,6 +7089,12 @@ export interface components {
              */
             target_duration_seconds?: number | null;
             /**
+             * Updated At
+             * Format: date-time
+             * @description When the record last changed, set by the server
+             */
+            readonly updated_at: string;
+            /**
              * User Id
              * @description Foreign key reference to the user
              */
@@ -7023,6 +7184,30 @@ export interface components {
             target_duration_seconds?: number | null;
         };
         /**
+         * HealthPoopChange
+         * @description A changed or deleted bowel movement record.
+         */
+        HealthPoopChange: {
+            /**
+             * Changed At
+             * Format: date-time
+             * @description When the record changed, or when it was deleted
+             */
+            changed_at: string;
+            /**
+             * Id
+             * @description The record's id
+             */
+            readonly id: number;
+            /** @description The record; null when it was deleted */
+            record?: components["schemas"]["HealthPoopRead"] | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "health_poop";
+        };
+        /**
          * HealthPoopCreate
          * @description Schema for creating a new poop record.
          *
@@ -7095,6 +7280,12 @@ export interface components {
              */
             source: components["schemas"]["modules__health__health_poop__schema__Source"];
             /**
+             * Updated At
+             * Format: date-time
+             * @description When the record last changed, set by the server
+             */
+            readonly updated_at: string;
+            /**
              * User Id
              * @description Foreign key reference to the user
              */
@@ -7156,6 +7347,30 @@ export interface components {
              * @enum {string}
              */
             status: "ok" | "degraded";
+        };
+        /**
+         * HealthSleepChange
+         * @description A changed or deleted sleep record, with its sleep stages.
+         */
+        HealthSleepChange: {
+            /**
+             * Changed At
+             * Format: date-time
+             * @description When the record changed, or when it was deleted
+             */
+            changed_at: string;
+            /**
+             * Id
+             * @description The record's id
+             */
+            readonly id: number;
+            /** @description The record; null when it was deleted */
+            record?: components["schemas"]["HealthSleepRead"] | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "health_sleep";
         };
         /**
          * HealthSleepCreate
@@ -7546,6 +7761,12 @@ export interface components {
              */
             unmeasurable_sleep_seconds?: number | null;
             /**
+             * Updated At
+             * Format: date-time
+             * @description When the record last changed, set by the server
+             */
+            readonly updated_at: string;
+            /**
              * User Id
              * @description Foreign key reference to the user
              */
@@ -7738,6 +7959,12 @@ export interface components {
              * @description Unmeasurable sleep duration in seconds
              */
             unmeasurable_sleep_seconds?: number | null;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When the record last changed, set by the server
+             */
+            readonly updated_at: string;
             /**
              * User Id
              * @description Foreign key reference to the user
@@ -7976,6 +8203,30 @@ export interface components {
             unmeasurable_sleep_seconds?: number | null;
         };
         /**
+         * HealthStepsChange
+         * @description A changed or deleted steps record.
+         */
+        HealthStepsChange: {
+            /**
+             * Changed At
+             * Format: date-time
+             * @description When the record changed, or when it was deleted
+             */
+            changed_at: string;
+            /**
+             * Id
+             * @description The record's id
+             */
+            readonly id: number;
+            /** @description The record; null when it was deleted */
+            record?: components["schemas"]["HealthStepsRead"] | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "health_steps";
+        };
+        /**
          * HealthStepsCreate
          * @description Schema for creating a health steps record.
          *
@@ -8041,6 +8292,12 @@ export interface components {
              */
             steps?: number | null;
             /**
+             * Updated At
+             * Format: date-time
+             * @description When the record last changed, set by the server
+             */
+            readonly updated_at: string;
+            /**
              * User Id
              * @description Foreign key reference to the user
              */
@@ -8070,6 +8327,30 @@ export interface components {
              * @description Number of steps taken
              */
             steps?: number | null;
+        };
+        /**
+         * HealthTargetsChange
+         * @description A changed or deleted set of health targets.
+         */
+        HealthTargetsChange: {
+            /**
+             * Changed At
+             * Format: date-time
+             * @description When the record changed, or when it was deleted
+             */
+            changed_at: string;
+            /**
+             * Id
+             * @description The record's id
+             */
+            readonly id: number;
+            /** @description The record; null when it was deleted */
+            record?: components["schemas"]["HealthTargetsRead"] | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "health_targets";
         };
         /**
          * HealthTargetsRead
@@ -8106,6 +8387,12 @@ export interface components {
              * @description Target daily steps count
              */
             steps?: number | null;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When the record last changed, set by the server
+             */
+            readonly updated_at: string;
             /**
              * User Id
              * @description Foreign key reference to the user
@@ -8166,6 +8453,30 @@ export interface components {
              * @description Target weight in kg
              */
             weight_kg?: number | null;
+        };
+        /**
+         * HealthWaterChange
+         * @description A changed or deleted water record.
+         */
+        HealthWaterChange: {
+            /**
+             * Changed At
+             * Format: date-time
+             * @description When the record changed, or when it was deleted
+             */
+            changed_at: string;
+            /**
+             * Id
+             * @description The record's id
+             */
+            readonly id: number;
+            /** @description The record; null when it was deleted */
+            record?: components["schemas"]["HealthWaterRead"] | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "health_water";
         };
         /**
          * HealthWaterCreate
@@ -8230,6 +8541,12 @@ export interface components {
              */
             source: components["schemas"]["modules__health__health_water__schema__Source"];
             /**
+             * Updated At
+             * Format: date-time
+             * @description When the record last changed, set by the server
+             */
+            readonly updated_at: string;
+            /**
              * User Id
              * @description Foreign key reference to the user
              */
@@ -8259,6 +8576,30 @@ export interface components {
              * @description Calendar date of the water intake
              */
             date?: string | null;
+        };
+        /**
+         * HealthWeightChange
+         * @description A changed or deleted weight record.
+         */
+        HealthWeightChange: {
+            /**
+             * Changed At
+             * Format: date-time
+             * @description When the record changed, or when it was deleted
+             */
+            changed_at: string;
+            /**
+             * Id
+             * @description The record's id
+             */
+            readonly id: number;
+            /** @description The record; null when it was deleted */
+            record?: components["schemas"]["HealthWeightRead"] | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "health_weight";
         };
         /**
          * HealthWeightCreate
@@ -8401,6 +8742,12 @@ export interface components {
              * @default manual
              */
             source: components["schemas"]["modules__health__health_weight__schema__Source"];
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When the record last changed, set by the server
+             */
+            readonly updated_at: string;
             /**
              * User Id
              * @description Foreign key reference to the user
@@ -11726,6 +12073,38 @@ export interface components {
          * @enum {string}
          */
         SummaryPeriod: "week" | "month" | "year" | "lifetime";
+        /**
+         * SyncPage
+         * @description A slice of the changes since a cursor, oldest first.
+         *
+         *     Attributes:
+         *         changes: The changes and deletions, in the order they happened.
+         *         next_cursor: Where the next request continues; keep it after the last page too, for the next sync.
+         *         has_more: Whether more changes are already waiting; ask again at once while it is true.
+         */
+        SyncPage: {
+            /**
+             * Changes
+             * @description The changes and deletions, oldest first
+             */
+            changes: (components["schemas"]["ActivityChange"] | components["schemas"]["HealthWeightChange"] | components["schemas"]["HealthStepsChange"] | components["schemas"]["HealthSleepChange"] | components["schemas"]["HealthWaterChange"] | components["schemas"]["HealthPoopChange"] | components["schemas"]["HealthFastingChange"] | components["schemas"]["HealthTargetsChange"] | components["schemas"]["GearChange"] | components["schemas"]["GearComponentChange"])[];
+            /**
+             * Has More
+             * @description Whether more changes are waiting; ask again at once while true
+             */
+            has_more: boolean;
+            /**
+             * Next Cursor
+             * @description Where the next sync continues; keep it after the last page too
+             */
+            next_cursor: string;
+        };
+        /**
+         * SyncType
+         * @description A kind of record ``GET /sync`` reports; the ``type`` of every change.
+         * @enum {string}
+         */
+        SyncType: "activity" | "health_weight" | "health_steps" | "health_sleep" | "health_water" | "health_poop" | "health_fasting" | "health_targets" | "gear" | "gear_component";
         /**
          * TemperatureStreamRead
          * @description The temperature stream (`temperature`).
@@ -33623,6 +34002,90 @@ export interface operations {
             };
             /** @description The request conflicts with the current state. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_sync: {
+        parameters: {
+            query?: {
+                cursor?: string | null;
+                types?: components["schemas"]["SyncType"][] | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPage"];
+                };
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

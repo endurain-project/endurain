@@ -44,6 +44,7 @@ const componentDto: GearComponentDto = {
   current_distance: 1_200_000,
   current_time: 360_000,
   version: 2,
+  updated_at: '2024-06-01T10:00:00Z',
 }
 
 const mappedComponent: GearComponent = {
@@ -102,6 +103,7 @@ describe('mapGearComponent', () => {
         brand: 'Look',
         model: 'Keo',
         version: 1,
+        updated_at: componentDto.updated_at,
       }),
     ).toEqual({
       id: 9,
