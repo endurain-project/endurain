@@ -33,6 +33,7 @@ DEFAULT_ROUTER_MODULES = [
     "modules.users.users_goals.router",
     "modules.auth.account_security.api_keys_router",
     "modules.auth.account_security.devices_router",
+    "modules.auth.account_security.admin_api_keys_router",
 ]
 
 PUBLIC_ROUTER_MODULES = [
@@ -227,6 +228,8 @@ def _include_router_if_exists(app: FastAPI, dotted: str):
                 app.include_router(router, prefix="/api-keys")
             elif dotted == "modules.auth.account_security.devices_router":
                 app.include_router(router, prefix="/devices")
+            elif dotted == "modules.auth.account_security.admin_api_keys_router":
+                app.include_router(router, prefix="/users")
             elif dotted == "modules.server_settings.public_router":
                 app.include_router(router, prefix="/server_settings/public")
             else:

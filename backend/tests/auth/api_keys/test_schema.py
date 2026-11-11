@@ -31,6 +31,8 @@ _EXCLUDED = {
     "account:export",
     "account:integrations",
     "account:security",
+    "api-keys:read",
+    "api-keys:write",
     "identity-providers:read",
     "identity-providers:write",
     "server-settings:logs",

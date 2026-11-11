@@ -55,6 +55,18 @@ _AUDITED_WRITES: dict[tuple[str, str], tuple[str, ...]] = {
     ("activities/activity/router.py", "edit_activity"): ("activities.visibility.update",),
     ("activities/activity_ingestion/router.py", "create_bulk_import_from_archive"): ("activities.import.request",),
     ("activities/activity_ingestion/router.py", "create_bulk_import_from_folder"): ("activities.import.request",),
+    ("auth/account_security/admin_api_keys_router.py", "revoke_api_key_user"): (
+        "auth.api_key.revoke",
+        "auth.backup_codes.use",
+        "auth.lockout.apply",
+        "auth.step_up.verify",
+    ),
+    ("auth/account_security/admin_api_keys_router.py", "revoke_api_keys_user"): (
+        "auth.api_keys.revoke",
+        "auth.backup_codes.use",
+        "auth.lockout.apply",
+        "auth.step_up.verify",
+    ),
     ("auth/account_security/api_keys_router.py", "create_user_api_key"): (
         "auth.api_key.create",
         "auth.backup_codes.use",
@@ -63,6 +75,12 @@ _AUDITED_WRITES: dict[tuple[str, str], tuple[str, ...]] = {
     ),
     ("auth/account_security/api_keys_router.py", "delete_user_api_key"): ("auth.api_key.delete",),
     ("auth/account_security/api_keys_router.py", "revoke_user_api_key"): ("auth.api_key.revoke",),
+    ("auth/account_security/devices_router.py", "forget_other_user_devices"): (
+        "auth.devices.forget_others",
+        "auth.backup_codes.use",
+        "auth.lockout.apply",
+        "auth.step_up.verify",
+    ),
     ("auth/account_security/devices_router.py", "forget_user_device"): (
         "auth.device.forget",
         "auth.backup_codes.use",

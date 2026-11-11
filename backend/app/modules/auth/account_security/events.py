@@ -31,6 +31,7 @@ class AccountSecurityChange(StrEnum):
     PASSWORD_CHANGE_REQUIRED_BY_ADMIN = "password_change_required_by_admin"
     BACKUP_CODES_GENERATED = "backup_codes_generated"
     API_KEY_CREATED = "api_key_created"
+    API_KEYS_REVOKED_BY_ADMIN = "api_keys_revoked_by_admin"
     IDENTITY_PROVIDER_UNLINKED = "identity_provider_unlinked"
     ACCOUNT_LOCKED = "account_locked"
     MFA_LOCKED = "mfa_locked"

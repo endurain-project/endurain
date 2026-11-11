@@ -193,6 +193,27 @@ def delete_device(device_id: int, user_id: int, generation: int, db: Session) ->
     return device_hash
 
 
+def delete_devices_except(user_id: int, generation: int, keep_hash: str | None, db: Session) -> list[str]:
+    """Stage the deletion of every device the user knows under the current security generation but one.
+
+    Args:
+        user_id: The user who owns the devices.
+        generation: The account's current security generation.
+        keep_hash: The SHA-256 hex digest of the device id to keep, or None to keep none.
+        db: Database session.
+
+    Returns:
+        The SHA-256 hex digest of each deleted device's id.
+    """
+    model = known_devices_models.KnownDevice
+    stmt = delete(model).where(model.user_id == user_id, model.security_generation == generation)
+    if keep_hash is not None:
+        stmt = stmt.where(model.device_hash != keep_hash)
+    hashes = list(db.execute(stmt.returning(model.device_hash)).scalars())
+    db.flush()
+    return hashes
+
+
 def delete_unseen_since(cutoff: datetime, limit: int, db: Session) -> int:
     """Stage deletion of up to ``limit`` devices last seen before ``cutoff``."""
     model = known_devices_models.KnownDevice

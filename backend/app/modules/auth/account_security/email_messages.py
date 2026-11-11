@@ -19,6 +19,7 @@ _NOTICE_KEYS = {
     account_security_events.AccountSecurityChange.PASSWORD_SET_BY_ADMIN.value: "security_notice_admin",
     account_security_events.AccountSecurityChange.MFA_RESET_BY_ADMIN.value: "security_notice_admin",
     account_security_events.AccountSecurityChange.PASSWORD_CHANGE_REQUIRED_BY_ADMIN.value: "security_notice_admin",
+    account_security_events.AccountSecurityChange.API_KEYS_REVOKED_BY_ADMIN.value: "security_notice_admin",
     account_security_events.AccountSecurityChange.ACCOUNT_LOCKED.value: "security_notice_account_locked",
     account_security_events.AccountSecurityChange.MFA_LOCKED.value: "security_notice_mfa_locked",
     account_security_events.AccountSecurityChange.ROLE_CHANGED_BY_ADMIN.value: "security_notice_admin",

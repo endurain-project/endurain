@@ -68,3 +68,44 @@ def forget_user_device(
     )
     db.commit()
     logger.info("Known device forgotten", extra=core_logger.context(user_id=user_id, device_id=device_id))
+
+
+def forget_other_user_devices(
+    user_id: int,
+    session_id: str,
+    device_id: str | None,
+    step_up: auth_schema.StepUpVerification,
+    step_up_store: step_up_store_module.StepUpStore,
+    db: Session,
+) -> None:
+    """Verify step-up, then forget every known device of the user but the caller's, end their sessions and commit.
+
+    Args:
+        user_id: The authenticated user.
+        session_id: The caller's session, which the step-up is bound to.
+        device_id: The device id the request carries, which stays known, or None when it carries no valid one.
+        step_up: The step-up verification.
+        step_up_store: Step-up lockout store.
+        db: Database session.
+    """
+    step_up_service.verify_step_up_credentials(
+        user_id,
+        step_up.current_password,
+        step_up.mfa_code,
+        step_up_store,
+        db,
+        idp_reauth=step_up.idp_reauth,
+        session_id=session_id,
+        action=identity_providers_constants.StepUpAction.PROFILE_DEVICES_FORGET_OTHERS,
+    )
+    sessions_ended = known_devices_integration.forget_other_devices(user_id, device_id, db)
+    jasil_audit.stage(
+        db,
+        account_security_audit_actions.DEVICES_FORGET_OTHERS,
+        target_type="user",
+        target_id=str(user_id),
+        target_owner_id=str(user_id),
+        details=sessions_audit_actions.SessionsRevokedDetails(sessions_revoked=sessions_ended),
+    )
+    db.commit()
+    logger.info("Other known devices forgotten", extra=core_logger.context(user_id=user_id))

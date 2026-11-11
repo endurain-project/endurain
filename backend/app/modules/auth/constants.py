@@ -64,6 +64,8 @@ USERS_ADMIN_SCOPE: Final[tuple[str, ...]] = (
     "users:write",
     "sessions:read",
     "sessions:write",
+    "api-keys:read",
+    "api-keys:write",
 )
 GEARS_SCOPE: Final[tuple[str, ...]] = ("gears:read", "gears:write")
 ACTIVITIES_SCOPE: Final[tuple[str, ...]] = (
@@ -112,6 +114,8 @@ SCOPE_DICT: Final[dict[str, str]] = {
     "users:write": "Write privileges over users",
     "sessions:read": "Read privileges over sessions",
     "sessions:write": "Create/edit/delete privileges over sessions",
+    "api-keys:read": "Read privileges over the API keys of every user",
+    "api-keys:write": "Revoke privileges over the API keys of every user",
     "gears:read": "Read privileges over gears",
     "gears:write": "Write privileges over gears",
     "activities:read": "Read privileges over activities",

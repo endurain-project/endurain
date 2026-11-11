@@ -43,6 +43,20 @@ class ApiKeyCreateDetails(VersionedPayload):
     scopes: list[str]
 
 
+class ApiKeysRevokedDetails(VersionedPayload):
+    """Details of ``auth.api_keys.revoke``.
+
+    Attributes:
+        api_keys_revoked: How many active API keys the action revoked.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    SCHEMA_VERSION: ClassVar[int] = 1
+
+    api_keys_revoked: int
+
+
 class IdentityLinkDetails(VersionedPayload):
     """Details of an identity-provider link change.
 
@@ -163,6 +177,24 @@ DEVICE_FORGET = jasil_audit.AuditAction(
     details_model=sessions_audit_actions.SessionsRevokedDetails,
 )
 
+DEVICES_FORGET_OTHERS = jasil_audit.AuditAction(
+    id="auth.devices.forget_others",
+    category=jasil_audit.Category.IDENTITY,
+    severity=jasil_audit.Severity.MEDIUM,
+    description_key="audit.auth.devices.forget_others",
+    description_default="Every other known sign-in device was forgotten and its sessions were signed out",
+    details_model=sessions_audit_actions.SessionsRevokedDetails,
+)
+
+API_KEYS_REVOKE = jasil_audit.AuditAction(
+    id="auth.api_keys.revoke",
+    category=jasil_audit.Category.CREDENTIAL,
+    severity=jasil_audit.Severity.HIGH,
+    description_key="audit.auth.api_keys.revoke",
+    description_default="Every active API key of a user was revoked",
+    details_model=ApiKeysRevokedDetails,
+)
+
 STEP_UP_SESSION_END = jasil_audit.AuditAction(
     id="auth.session.step_up_end",
     category=jasil_audit.Category.AUTHENTICATION,
@@ -186,5 +218,7 @@ ACTIONS: tuple[jasil_audit.AuditAction, ...] = (
     API_KEY_DELETE,
     IDENTITY_LINK_UNLINK,
     DEVICE_FORGET,
+    DEVICES_FORGET_OTHERS,
+    API_KEYS_REVOKE,
     STEP_UP_SESSION_END,
 )

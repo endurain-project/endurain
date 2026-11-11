@@ -51,6 +51,9 @@ class TestScopeConstants:
         assert "users:read-all" not in auth_constants.REGULAR_ACCESS_SCOPE
         assert "sessions:read" in auth_constants.USERS_ADMIN_SCOPE
         assert "sessions:write" in auth_constants.USERS_ADMIN_SCOPE
+        assert "api-keys:read" in auth_constants.USERS_ADMIN_SCOPE
+        assert "api-keys:write" in auth_constants.USERS_ADMIN_SCOPE
+        assert {"api-keys:read", "api-keys:write"} <= set(auth_constants.SCOPE_DICT)
 
     def test_gears_scope_defined(self):
         """Test that gears scope is properly defined."""

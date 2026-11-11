@@ -418,6 +418,46 @@ class TestListAndForget:
         assert _session_ids(db) == {"on-other-device", "before-the-migration", "another-user"}
         assert revoked.call_count == 2
 
+    def test_forgetting_the_other_devices_keeps_the_current_one_and_ends_only_the_sessions_of_the_rest(
+        self, db, publish
+    ):
+        _account(db, age=timedelta(days=30))
+        _account(db, user_id=2, age=timedelta(days=30))
+        _record(db, device_id=_DEVICE_ID)
+        _record(db, device_id=_OTHER_DEVICE_ID)
+        current_hash, other_hash = core_hashing.sha256_hex(_DEVICE_ID), core_hashing.sha256_hex(_OTHER_DEVICE_ID)
+        _session(db, "on-current", 1, current_hash)
+        _session(db, "on-other-1", 1, other_hash)
+        _session(db, "on-other-2", 1, other_hash)
+        _session(db, "before-the-migration", 1, None)
+        _session(db, "another-user", 2, other_hash)
+
+        with patch(_PUBLISH_REVOKED):
+            ended = known_devices_service.forget_other_devices(1, _DEVICE_ID, db)
+
+        assert ended == 2
+        assert known_devices_service.is_known_device(1, _DEVICE_ID, db) is True
+        assert known_devices_service.is_known_device(1, _OTHER_DEVICE_ID, db) is False
+        assert _session_ids(db) == {"on-current", "before-the-migration", "another-user"}
+
+    def test_forgetting_the_other_devices_without_a_current_device_forgets_them_all(self, db, publish):
+        _account(db, age=timedelta(days=30))
+        _record(db, device_id=_DEVICE_ID)
+        _record(db, device_id=_OTHER_DEVICE_ID)
+
+        assert known_devices_service.forget_other_devices(1, None, db) == 0
+
+        assert known_devices_service.list_devices(1, None, core_pagination.PageParams(1, 10), db).total == 0
+
+    def test_forgetting_the_other_devices_leaves_another_users_devices(self, db, publish):
+        _account(db, age=timedelta(days=30))
+        _account(db, user_id=2, age=timedelta(days=30))
+        _record(db, device_id=_DEVICE_ID, user_id=2)
+
+        known_devices_service.forget_other_devices(1, _OTHER_DEVICE_ID, db)
+
+        assert known_devices_service.is_known_device(2, _DEVICE_ID, db) is True
+
     def test_a_device_nothing_signed_in_from_ends_no_session(self, db, publish):
         _account(db, age=timedelta(days=30))
         _record(db, device_id=_DEVICE_ID)

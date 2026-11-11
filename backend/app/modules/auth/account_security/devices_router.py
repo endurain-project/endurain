@@ -36,6 +36,34 @@ def list_user_devices(
 
 
 @router.post(
+    "/revoke",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
+def forget_other_user_devices(
+    body: auth_schema.StepUpRequest,
+    request: Request,
+    token_user_id: auth_dependencies.CurrentUserId,
+    token_session_id: auth_dependencies.CurrentSessionId,
+    device_id: known_devices_dependencies.DeviceId,
+    step_up_store: Annotated[
+        auth_dependencies.StepUpStore,
+        Depends(auth_dependencies.get_step_up_attempts),
+    ],
+    db: core_dependencies.DbSession,
+) -> None:
+    """Forget every known device except the one the request comes from, after step-up verification.
+
+    The sessions that signed in from the forgotten devices end, and the next sign-in from each is announced as a new device.
+    """
+    device_service.forget_other_user_devices(
+        token_user_id, token_session_id, device_id, body.step_up, step_up_store, db
+    )
+
+
+@router.post(
     "/{device_id}/delete",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,

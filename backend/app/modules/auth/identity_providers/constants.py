@@ -50,6 +50,7 @@ class StepUpAction(StrEnum):
         ACCOUNT_DELETE: Delete the account.
         PROFILE_EXPORT: Export all of the account's data.
         PROFILE_DEVICE_FORGET: Forget a device the account is known to sign in from.
+        PROFILE_DEVICES_FORGET_OTHERS: Forget every device the account is known to sign in from but the current one.
         MFA_ENABLE: Enable MFA.
         MFA_DISABLE: Disable MFA.
         MFA_BACKUP_CODES: Regenerate MFA backup codes.
@@ -65,6 +66,7 @@ class StepUpAction(StrEnum):
         ADMIN_IDP_EDIT: An administrator edits an identity provider.
         ADMIN_IDP_DELETE: An administrator deletes an identity provider.
         ADMIN_SESSIONS_REVOKE: An administrator ends another user's sessions.
+        ADMIN_API_KEYS_REVOKE: An administrator revokes another user's API keys.
         ADMIN_MAIL_SETTINGS_EDIT: An administrator edits the mail server settings.
         ADMIN_SERVER_SETTINGS_EDIT: An administrator changes a server setting that governs sign-up, sign-in, sessions,
             the audit trail or the owner info on public links.
@@ -78,6 +80,7 @@ class StepUpAction(StrEnum):
     ACCOUNT_DELETE = "account_delete"
     PROFILE_EXPORT = "profile_export"
     PROFILE_DEVICE_FORGET = "profile_device_forget"
+    PROFILE_DEVICES_FORGET_OTHERS = "profile_devices_forget_others"
     MFA_ENABLE = "mfa_enable"
     MFA_DISABLE = "mfa_disable"
     MFA_BACKUP_CODES = "mfa_backup_codes"
@@ -92,6 +95,7 @@ class StepUpAction(StrEnum):
     ADMIN_IDP_EDIT = "admin_idp_edit"
     ADMIN_IDP_DELETE = "admin_idp_delete"
     ADMIN_SESSIONS_REVOKE = "admin_sessions_revoke"
+    ADMIN_API_KEYS_REVOKE = "admin_api_keys_revoke"
     ADMIN_MAIL_SETTINGS_EDIT = "admin_mail_settings_edit"
     ADMIN_SERVER_SETTINGS_EDIT = "admin_server_settings_edit"
 

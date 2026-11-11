@@ -21,6 +21,7 @@ import modules.activities.activity_sets.public_router as activity_sets_public_ro
 import modules.activities.activity_sets.router as activity_sets_router
 import modules.activities.activity_streams.router as activity_streams_router
 import modules.activities.activity_thumbnail.public_router as activity_thumbnail_public_router
+import modules.auth.account_security.admin_api_keys_router as auth_admin_api_keys_router
 import modules.auth.account_security.api_keys_router as auth_api_keys_router
 import modules.auth.account_security.devices_router as auth_devices_router
 import modules.auth.account_security.identity_links_router as auth_idp_profile_router
@@ -100,7 +101,7 @@ OPENAPI_TAGS = [
     {"name": "activity_streams", "description": "Per-sample data of an activity: heart rate, power, cadence, pace."},
     {"name": "activity_summaries", "description": "Totals of activities over a period."},
     {"name": "activity_workout_steps", "description": "Planned workout steps of an activity."},
-    {"name": "api-keys", "description": "API keys of the signed-in user."},
+    {"name": "api-keys", "description": "API keys of the signed-in user, and their administration for other users."},
     {"name": "auth", "description": "Sign in, sign out, refresh, multi-factor authentication and SSO."},
     {"name": "core", "description": "Server metadata and health."},
     {"name": "followers", "description": "Follow requests, followers and following."},
@@ -463,6 +464,12 @@ router.include_router(
     auth_sessions_router.router,
     prefix=core_config.ROOT_PATH + "/users",
     tags=["sessions"],
+    dependencies=[Depends(auth_dependencies.authenticate)],
+)
+router.include_router(
+    auth_admin_api_keys_router.router,
+    prefix=core_config.ROOT_PATH + "/users",
+    tags=["api-keys"],
     dependencies=[Depends(auth_dependencies.authenticate)],
 )
 router.include_router(

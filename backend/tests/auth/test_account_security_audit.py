@@ -71,6 +71,7 @@ class TestPayloadAndPublisher:
             "password_change_required_by_admin",
             "backup_codes_generated",
             "api_key_created",
+            "api_keys_revoked_by_admin",
             "identity_provider_unlinked",
             "account_locked",
             "mfa_locked",

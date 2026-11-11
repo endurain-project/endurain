@@ -178,6 +178,27 @@ def forget_device(device_id: int, user_id: int, db: Session) -> int:
     return sessions_integration.delete_sessions_by_device(user_id, device_hash, db)
 
 
+def forget_other_devices(user_id: int, device_id: str | None, db: Session) -> int:
+    """Stage the deletion of the user's known devices but the request's own, and of their sessions; the caller commits.
+
+    A session created before sessions recorded their device has no hash and is not ended.
+
+    Args:
+        user_id: The user who owns the devices.
+        device_id: The device id the request carries, or None when it carries no valid one, which keeps no device.
+        db: Database session.
+
+    Returns:
+        The number of sessions ended.
+    """
+    generation = security_generation_integration.current_generation(user_id, db)
+    keep_hash = None if device_id is None else core_hashing.sha256_hex(device_id)
+    device_hashes = known_devices_crud.delete_devices_except(user_id, generation, keep_hash, db)
+    return sum(
+        sessions_integration.delete_sessions_by_device(user_id, device_hash, db) for device_hash in device_hashes
+    )
+
+
 def delete_unseen_devices(now: datetime, db: Session) -> int:
     """Delete devices no sign-in has used for the retention period, one batch per commit.
 
