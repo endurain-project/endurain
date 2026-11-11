@@ -9,7 +9,7 @@
   "signingIn": "Accesso in corso",
   "verifyingMfa": "Verifica codice in corso",
   "mfaRequired": "Inserisci il codice di autenticazione per completare l'accesso",
-  "passwordChangeRequired": "Un amministratore ha impostato la tua password. Scegli una nuova password per completare l'accesso.",
+  "passwordChangeRequired": "Un amministratore richiede che tu cambi la password. Scegli una nuova password per completare l'accesso.",
   "newPassword": "Nuova password",
   "confirmNewPassword": "Conferma la nuova password",
   "changePasswordButton": "Cambia password e accedi",

@@ -9,7 +9,7 @@
   "signingIn": "Inloggen",
   "verifyingMfa": "Code verifiëren",
   "mfaRequired": "Voer je authenticatiecode in om het inloggen te voltooien",
-  "passwordChangeRequired": "Een beheerder heeft je wachtwoord ingesteld. Kies een nieuw wachtwoord om het inloggen te voltooien.",
+  "passwordChangeRequired": "Een beheerder vereist dat je je wachtwoord wijzigt. Kies een nieuw wachtwoord om het inloggen te voltooien.",
   "newPassword": "Nieuw wachtwoord",
   "confirmNewPassword": "Nieuw wachtwoord bevestigen",
   "changePasswordButton": "Wachtwoord wijzigen en inloggen",

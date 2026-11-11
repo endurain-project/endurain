@@ -9,7 +9,7 @@
   "signingIn": "Prijavljanje",
   "verifyingMfa": "Preverjanje kode",
   "mfaRequired": "Vnesi kodo za preverjanje pristnosti, da dokončaš prijavo",
-  "passwordChangeRequired": "Skrbnik je nastavil tvoje geslo. Izberi novo geslo, da dokončaš prijavo.",
+  "passwordChangeRequired": "Skrbnik zahteva, da spremeniš geslo. Izberi novo geslo, da dokončaš prijavo.",
   "newPassword": "Novo geslo",
   "confirmNewPassword": "Potrdi novo geslo",
   "changePasswordButton": "Spremeni geslo in se prijavi",

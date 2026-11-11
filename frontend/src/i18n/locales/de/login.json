@@ -9,7 +9,7 @@
   "signingIn": "Wird angemeldet",
   "verifyingMfa": "Code wird verifiziert",
   "mfaRequired": "Gib deinen Authentifizierungscode ein, um die Anmeldung abzuschließen",
-  "passwordChangeRequired": "Ein Administrator hat dein Passwort festgelegt. Wähle ein neues Passwort, um die Anmeldung abzuschließen.",
+  "passwordChangeRequired": "Ein Administrator verlangt, dass du dein Passwort änderst. Wähle ein neues Passwort, um die Anmeldung abzuschließen.",
   "newPassword": "Neues Passwort",
   "confirmNewPassword": "Neues Passwort bestätigen",
   "changePasswordButton": "Passwort ändern und anmelden",

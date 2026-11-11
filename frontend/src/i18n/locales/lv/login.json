@@ -9,7 +9,7 @@
   "signingIn": "Notiek pieteikšanās",
   "verifyingMfa": "Notiek koda pārbaude",
   "mfaRequired": "Ievadiet autentifikācijas kodu, lai pabeigtu pieteikšanos",
-  "passwordChangeRequired": "Administrators iestatīja Jūsu paroli. Izvēlieties jaunu paroli, lai pabeigtu pieteikšanos.",
+  "passwordChangeRequired": "Administrators pieprasa, lai nomainītu paroli. Izvēlieties jaunu paroli, lai pabeigtu pieteikšanos.",
   "newPassword": "Jaunā parole",
   "confirmNewPassword": "Apstipriniet jauno paroli",
   "changePasswordButton": "Mainīt paroli un pieteikties",

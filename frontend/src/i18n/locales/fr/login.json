@@ -9,7 +9,7 @@
   "signingIn": "Connexion en cours",
   "verifyingMfa": "Vérification du code",
   "mfaRequired": "Entrez votre code d'authentification pour finaliser la connexion",
-  "passwordChangeRequired": "Un administrateur a défini votre mot de passe. Choisissez un nouveau mot de passe pour terminer la connexion.",
+  "passwordChangeRequired": "Un administrateur exige que vous changiez votre mot de passe. Choisissez un nouveau mot de passe pour terminer la connexion.",
   "newPassword": "Nouveau mot de passe",
   "confirmNewPassword": "Confirmer le nouveau mot de passe",
   "changePasswordButton": "Changer le mot de passe et se connecter",

@@ -9,7 +9,7 @@
   "signingIn": "Iniciando sesión",
   "verifyingMfa": "Verificando código",
   "mfaRequired": "Introduce tu código de autenticación para terminar de iniciar sesión",
-  "passwordChangeRequired": "Un administrador estableció tu contraseña. Elige una contraseña nueva para terminar de iniciar sesión.",
+  "passwordChangeRequired": "Un administrador requiere que cambies tu contraseña. Elige una contraseña nueva para terminar de iniciar sesión.",
   "newPassword": "Contraseña nueva",
   "confirmNewPassword": "Confirmar contraseña nueva",
   "changePasswordButton": "Cambiar contraseña e iniciar sesión",

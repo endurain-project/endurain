@@ -9,7 +9,7 @@
   "signingIn": "Iniciant sessió",
   "verifyingMfa": "Verificant el codi",
   "mfaRequired": "Introdueix el teu codi d'autenticació per acabar d'iniciar sessió",
-  "passwordChangeRequired": "Un administrador ha definit la teva contrasenya. Tria una contrasenya nova per acabar d'iniciar sessió.",
+  "passwordChangeRequired": "Un administrador et demana que canviïs la contrasenya. Tria una contrasenya nova per acabar d'iniciar sessió.",
   "newPassword": "Contrasenya nova",
   "confirmNewPassword": "Confirma la contrasenya nova",
   "changePasswordButton": "Canvia la contrasenya i inicia sessió",

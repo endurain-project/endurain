@@ -9,7 +9,7 @@
   "signingIn": "Logger inn",
   "verifyingMfa": "Bekrefter kode",
   "mfaRequired": "Skriv inn autentiseringskoden for å fullføre innloggingen",
-  "passwordChangeRequired": "En administrator har satt passordet ditt. Velg et nytt passord for å fullføre innloggingen.",
+  "passwordChangeRequired": "En administrator krever at du endrer passordet ditt. Velg et nytt passord for å fullføre innloggingen.",
   "newPassword": "Nytt passord",
   "confirmNewPassword": "Bekreft nytt passord",
   "changePasswordButton": "Endre passord og logg inn",

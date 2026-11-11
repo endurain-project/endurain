@@ -9,7 +9,7 @@
   "signingIn": "Giriş yapılıyor",
   "verifyingMfa": "Kod doğrulanıyor",
   "mfaRequired": "Girişi tamamlamak için kimlik doğrulama kodunuzu girin",
-  "passwordChangeRequired": "Parolanız bir yönetici tarafından belirlendi. Girişi tamamlamak için yeni bir parola seçin.",
+  "passwordChangeRequired": "Bir yönetici parolanızı değiştirmenizi gerektiriyor. Girişi tamamlamak için yeni bir parola seçin.",
   "newPassword": "Yeni parola",
   "confirmNewPassword": "Yeni parolayı onayla",
   "changePasswordButton": "Parolayı değiştir ve giriş yap",

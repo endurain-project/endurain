@@ -9,7 +9,7 @@
   "signingIn": "Signing in",
   "verifyingMfa": "Verifying code",
   "mfaRequired": "Enter your authentication code to finish signing in",
-  "passwordChangeRequired": "An administrator set your password. Choose a new password to finish signing in.",
+  "passwordChangeRequired": "An administrator requires you to change your password. Choose a new password to finish signing in.",
   "newPassword": "New password",
   "confirmNewPassword": "Confirm new password",
   "changePasswordButton": "Change password and sign in",

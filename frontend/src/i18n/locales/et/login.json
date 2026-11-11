@@ -9,7 +9,7 @@
   "signingIn": "Sisselogimine",
   "verifyingMfa": "Koodi kinnitamine",
   "mfaRequired": "Sisselogimise lõpetamiseks sisesta oma autentimiskood",
-  "passwordChangeRequired": "Administraator määras sinu parooli. Vali uus parool, et sisselogimine lõpule viia.",
+  "passwordChangeRequired": "Administraator nõuab, et muudaksid oma parooli. Vali uus parool, et sisselogimine lõpule viia.",
   "newPassword": "Uus parool",
   "confirmNewPassword": "Kinnita uus parool",
   "changePasswordButton": "Muuda parool ja logi sisse",

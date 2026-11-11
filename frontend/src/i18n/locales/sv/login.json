@@ -9,7 +9,7 @@
   "signingIn": "Loggar in",
   "verifyingMfa": "Verifierar kod",
   "mfaRequired": "Ange din autentiseringskod för att slutföra inloggningen",
-  "passwordChangeRequired": "En administratör har angett ditt lösenord. Välj ett nytt lösenord för att slutföra inloggningen.",
+  "passwordChangeRequired": "En administratör kräver att du byter lösenord. Välj ett nytt lösenord för att slutföra inloggningen.",
   "newPassword": "Nytt lösenord",
   "confirmNewPassword": "Bekräfta nytt lösenord",
   "changePasswordButton": "Byt lösenord och logga in",

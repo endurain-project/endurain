@@ -9,7 +9,7 @@
   "signingIn": "Bejelentkezés folyamatban",
   "verifyingMfa": "Kód ellenőrzése",
   "mfaRequired": "Add meg a hitelesítési kódot a bejelentkezés befejezéséhez",
-  "passwordChangeRequired": "Egy rendszergazda beállította a jelszavadat. A bejelentkezés befejezéséhez válassz új jelszót.",
+  "passwordChangeRequired": "Egy rendszergazda megköveteli, hogy megváltoztasd a jelszavadat. A bejelentkezés befejezéséhez válassz új jelszót.",
   "newPassword": "Új jelszó",
   "confirmNewPassword": "Új jelszó megerősítése",
   "changePasswordButton": "Jelszó módosítása és bejelentkezés",

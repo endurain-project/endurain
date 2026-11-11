@@ -9,7 +9,7 @@
   "signingIn": "Prihlasovanie",
   "verifyingMfa": "Overovanie kódu",
   "mfaRequired": "Zadajte overovací kód na dokončenie prihlásenia",
-  "passwordChangeRequired": "Správca nastavil vaše heslo. Zvoľte nové heslo a dokončite prihlásenie.",
+  "passwordChangeRequired": "Správca vyžaduje, aby ste zmenili heslo. Zvoľte nové heslo a dokončite prihlásenie.",
   "newPassword": "Nové heslo",
   "confirmNewPassword": "Potvrďte nové heslo",
   "changePasswordButton": "Zmeniť heslo a prihlásiť sa",

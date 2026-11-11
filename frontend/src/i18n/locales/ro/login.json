@@ -9,7 +9,7 @@
   "signingIn": "Se autentifică",
   "verifyingMfa": "Se verifică codul",
   "mfaRequired": "Introdu codul de autentificare pentru a finaliza autentificarea",
-  "passwordChangeRequired": "Un administrator ți-a setat parola. Alege o parolă nouă pentru a finaliza autentificarea.",
+  "passwordChangeRequired": "Un administrator solicită să îți schimbi parola. Alege o parolă nouă pentru a finaliza autentificarea.",
   "newPassword": "Parolă nouă",
   "confirmNewPassword": "Confirmă parola nouă",
   "changePasswordButton": "Schimbă parola și autentifică-te",

@@ -9,7 +9,7 @@
   "signingIn": "Prijava u tijeku",
   "verifyingMfa": "Provjera koda",
   "mfaRequired": "Unesite svoj autentifikacijski kod kako biste dovršili prijavu",
-  "passwordChangeRequired": "Administrator je postavio vašu lozinku. Odaberite novu lozinku kako biste dovršili prijavu.",
+  "passwordChangeRequired": "Administrator zahtijeva da promijenite lozinku. Odaberite novu lozinku kako biste dovršili prijavu.",
   "newPassword": "Nova lozinka",
   "confirmNewPassword": "Potvrdite novu lozinku",
   "changePasswordButton": "Promijeni lozinku i prijavi se",

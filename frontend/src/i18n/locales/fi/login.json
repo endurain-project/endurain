@@ -9,7 +9,7 @@
   "signingIn": "Kirjaudutaan sisään",
   "verifyingMfa": "Vahvistetaan koodia",
   "mfaRequired": "Anna todennuskoodi viimeistelläksesi kirjautumisen",
-  "passwordChangeRequired": "Ylläpitäjä asetti salasanasi. Valitse uusi salasana viimeistelläksesi kirjautumisen.",
+  "passwordChangeRequired": "Ylläpitäjä vaatii sinua vaihtamaan salasanasi. Valitse uusi salasana viimeistelläksesi kirjautumisen.",
   "newPassword": "Uusi salasana",
   "confirmNewPassword": "Vahvista uusi salasana",
   "changePasswordButton": "Vaihda salasana ja kirjaudu sisään",

@@ -9,7 +9,7 @@
   "signingIn": "登入中",
   "verifyingMfa": "驗證代碼中",
   "mfaRequired": "請輸入您的驗證碼以完成登入",
-  "passwordChangeRequired": "管理員已設定您的密碼。請選擇新密碼以完成登入。",
+  "passwordChangeRequired": "管理員要求您變更密碼。請選擇新密碼以完成登入。",
   "newPassword": "新密碼",
   "confirmNewPassword": "確認新密碼",
   "changePasswordButton": "變更密碼並登入",

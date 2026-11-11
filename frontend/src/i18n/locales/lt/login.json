@@ -9,7 +9,7 @@
   "signingIn": "Jungiamasi",
   "verifyingMfa": "Tikrinamas kodas",
   "mfaRequired": "Įveskite autentifikavimo kodą, kad užbaigtumėte prisijungimą",
-  "passwordChangeRequired": "Administratorius nustatė Jūsų slaptažodį. Pasirinkite naują slaptažodį, kad užbaigtumėte prisijungimą.",
+  "passwordChangeRequired": "Administratorius reikalauja, kad pakeistumėte slaptažodį. Pasirinkite naują slaptažodį, kad užbaigtumėte prisijungimą.",
   "newPassword": "Naujas slaptažodis",
   "confirmNewPassword": "Patvirtinkite naują slaptažodį",
   "changePasswordButton": "Pakeisti slaptažodį ir prisijungti",

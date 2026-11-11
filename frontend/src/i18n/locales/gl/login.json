@@ -9,7 +9,7 @@
   "signingIn": "Iniciando sesión",
   "verifyingMfa": "Verificando código",
   "mfaRequired": "Introduce o teu código de autenticación para rematar de iniciar sesión",
-  "passwordChangeRequired": "Un administrador definiu o teu contrasinal. Escolle un contrasinal novo para rematar de iniciar sesión.",
+  "passwordChangeRequired": "Un administrador require que cambies o teu contrasinal. Escolle un contrasinal novo para rematar de iniciar sesión.",
   "newPassword": "Contrasinal novo",
   "confirmNewPassword": "Confirma o contrasinal novo",
   "changePasswordButton": "Cambiar o contrasinal e iniciar sesión",

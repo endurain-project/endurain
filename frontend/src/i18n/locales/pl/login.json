@@ -9,7 +9,7 @@
   "signingIn": "Logowanie",
   "verifyingMfa": "Weryfikowanie kodu",
   "mfaRequired": "Wprowadź kod uwierzytelniający, aby dokończyć logowanie",
-  "passwordChangeRequired": "Administrator ustawił Twoje hasło. Wybierz nowe hasło, aby dokończyć logowanie.",
+  "passwordChangeRequired": "Administrator wymaga zmiany Twojego hasła. Wybierz nowe hasło, aby dokończyć logowanie.",
   "newPassword": "Nowe hasło",
   "confirmNewPassword": "Potwierdź nowe hasło",
   "changePasswordButton": "Zmień hasło i zaloguj się",
