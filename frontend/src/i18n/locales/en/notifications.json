@@ -103,6 +103,14 @@
         "title": "Two-step verification locked",
         "body": "Your account was locked after 100 wrong two-step verification codes in a row, so someone knows your password. Browsers and apps you have signed in from since your last security change can still sign in. If these attempts weren't yours, change your password."
       },
+      "stepUpSessionEnded": {
+        "title": "Session signed out",
+        "body": "A session of your account was signed out after 15 wrong passwords or two-step verification codes in a row were entered to confirm a sensitive action. Your other sessions were not affected. If these attempts weren't yours, change your password."
+      },
+      "stepUpLocked": {
+        "title": "Confirming sensitive actions locked",
+        "body": "Confirming sensitive actions, such as changing your password or creating an API key, was locked for 30 days after 100 wrong confirmations across your sessions. If these attempts weren't yours, reset your password, which also lifts the lock."
+      },
       "backupCodeUsed": {
         "title": "Backup code used",
         "body": "A backup code was used for two-step verification on your account. If this wasn't you, change your password and generate new backup codes.",

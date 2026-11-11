@@ -14,7 +14,11 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToasts } from '@/composables/useToasts'
 import { HttpError } from '@/services/http'
 import { formatMediumDateTime } from '@/utils/datetime'
-import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
+import {
+  isStepUpFailed,
+  isStepUpLocked,
+  useIdpReauthChallenge,
+} from '@/features/security/composables/useIdpStepUp'
 import {
   useForgetKnownDeviceMutation,
   useKnownDevicesQuery,
@@ -90,7 +94,9 @@ function onConfirm(input: StepUpInput): void {
         if (handleIdpChallenge(error)) {
           return
         }
-        if (isStepUpFailed(error)) {
+        if (isStepUpLocked(error)) {
+          toasts.error(t('settings.security.stepUp.tooManyAttempts'))
+        } else if (isStepUpFailed(error)) {
           toasts.error(t('settings.security.linked.invalidCredentials'))
         } else if (error instanceof HttpError && error.status === 404) {
           isStepUpOpen.value = false

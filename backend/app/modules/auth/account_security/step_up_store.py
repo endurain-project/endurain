@@ -33,6 +33,18 @@ class StepUpStore(Protocol):
         """Clear the failed-attempt count for the supplied key."""
         ...
 
+    def get_account_lockout_time(self, user_id: int) -> datetime | None:
+        """Return when the account-wide step-up lock ends, if the account is locked."""
+        ...
+
+    def record_account_failure(self, user_id: int) -> bool:
+        """Count a failed step-up against the account; True when this failure locked the account."""
+        ...
+
+    def reset_account(self, user_id: int) -> None:
+        """Clear the account-wide failed-step-up count and lock of a user."""
+        ...
+
     def clear_all(self) -> None:
         """Clear all tracked lockout attempts."""
         ...
@@ -51,7 +63,7 @@ class StepUpStore(Protocol):
 
 
 class StepUpAttempts:
-    """Track step-up failures with the configured progressive lockout tiers."""
+    """Track step-up failures per session with progressive lockout tiers, and per account with a far higher cap."""
 
     def __init__(self, state: StateProvider) -> None:
         """Bind this store to the request's platform state provider."""
@@ -62,6 +74,7 @@ class StepUpAttempts:
             tiers=lockout_contracts.STEP_UP_LOCKOUT_TIERS,
             attempts_ttl_seconds=2 * 60 * 60,
         )
+        self._by_account = lockout_integration.new_step_up_account_lockout(state)
 
     def is_locked_out(self, key: str) -> bool:
         """Return whether the supplied key is locked out."""
@@ -79,9 +92,22 @@ class StepUpAttempts:
         """Clear the failed-attempt count for the supplied key."""
         self._lockout.reset_attempts(key)
 
+    def get_account_lockout_time(self, user_id: int) -> datetime | None:
+        """Return when the account-wide step-up lock ends, if the account is locked."""
+        return self._by_account.get_lockout_time(str(user_id))
+
+    def record_account_failure(self, user_id: int) -> bool:
+        """Count a failed step-up against the account; True when this failure locked the account."""
+        return self._by_account.record_failure(str(user_id)).newly_locked
+
+    def reset_account(self, user_id: int) -> None:
+        """Clear the account-wide failed-step-up count and lock of a user."""
+        self._by_account.reset_attempts(str(user_id))
+
     def clear_all(self) -> None:
         """Clear all tracked lockout attempts."""
         self._lockout.clear_all()
+        self._by_account.clear_all()
 
     def claim_totp_step(self, user_id: int, step: int) -> bool:
         """Record an accepted TOTP step as used; False when it already was."""

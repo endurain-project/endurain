@@ -5,6 +5,7 @@ from collections.abc import Callable
 import jasil.audit as jasil_audit
 from jasil.providers import StateProvider
 
+import core.dependencies as core_dependencies
 import core.logger as core_logger
 import modules.auth.lockout.audit_actions as lockout_audit_actions
 import modules.auth.lockout.contracts as lockout_contracts
@@ -40,6 +41,37 @@ def new_progressive_lockout(
         attempts_ttl_seconds=attempts_ttl_seconds,
         normalize_key=normalize_key,
     )
+
+
+def new_step_up_account_lockout(state: StateProvider) -> lockout_contracts.LockoutStore:
+    """Create the account-wide step-up failure counter, keyed by the user id as a string.
+
+    Args:
+        state: Platform state provider that holds the counter.
+
+    Returns:
+        The lockout counter.
+    """
+    return new_progressive_lockout(
+        state,
+        name="step_up_account",
+        tiers=lockout_contracts.ACCOUNT_STEP_UP_LOCKOUT_TIERS,
+        attempts_ttl_seconds=lockout_contracts.ACCOUNT_STEP_UP_ATTEMPTS_TTL_SECONDS,
+    )
+
+
+def clear_step_up_account_lockout(user_id: int) -> None:
+    """Lift the account-wide step-up lock and failure count of a user after a recovery that proved ownership.
+
+    A recovery that follows an outage of the shared state still succeeds; the lock then ends on its own.
+
+    Args:
+        user_id: The user whose account-wide failed step-ups are forgotten.
+    """
+    try:
+        new_step_up_account_lockout(core_dependencies.get_platform_state()).reset_attempts(str(user_id))
+    except lockout_contracts.AuthSecurityStoreUnavailableError:
+        logger.warning("Account step-up lock was not cleared because the shared state is unavailable")
 
 
 def normalize_username_key(username: str) -> str:
@@ -81,7 +113,7 @@ def report_lockout_applied(
     of its own. It never holds the username.
 
     Args:
-        store_name: Which counter locked (``login``, ``login_account``, ``mfa``, ``mfa_account`` or ``step_up``).
+        store_name: Which counter locked (``login``, ``login_account``, ``mfa``, ``mfa_account``, ``step_up`` or ``step_up_account``).
         tiers: The tiers of that counter.
         failed_attempts: The count returned by ``record_failed_attempt``.
         username: Username the counter is keyed on, when it is one; only its hash is logged.

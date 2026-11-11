@@ -24,7 +24,11 @@ import { useForm } from '@/composables/useForm'
 import { HttpError } from '@/services/http'
 import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { isStaleWrite } from '@/services/ifMatch'
-import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
+import {
+  isStepUpFailed,
+  isStepUpLocked,
+  useIdpReauthChallenge,
+} from '@/features/security/composables/useIdpStepUp'
 import { useAdminStepUp, useResumeOnce } from '@/features/security/composables/useAdminStepUp'
 import { LAST_ADMINISTRATOR_TYPE } from '@/features/security/services/security'
 import { toNumberOrNull } from '@/utils/number'
@@ -217,6 +221,10 @@ async function submitForm(
   } catch (error) {
     const passwordProblem = policyError(error)
     if (handleIdpChallenge(error)) {
+      return
+    }
+    if (isStepUpLocked(error)) {
+      emit('error', t('settings.security.stepUp.tooManyAttempts'))
       return
     }
     if (isStepUpFailed(error)) {

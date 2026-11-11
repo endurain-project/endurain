@@ -16,7 +16,11 @@ import { Switch } from '@/components/ui/switch'
 import { useToasts } from '@/composables/useToasts'
 import { HttpError } from '@/services/http'
 import { normalizeMfaCode } from '@/features/auth/utils/mfaCode'
-import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
+import {
+  isStepUpFailed,
+  isStepUpLocked,
+  useIdpReauthChallenge,
+} from '@/features/security/composables/useIdpStepUp'
 import {
   useCancelEmailChangeMutation,
   useChangeEmailMutation,
@@ -135,6 +139,8 @@ function submit(): void {
         }
         if (error instanceof HttpError && error.status === 409) {
           toasts.error(t('settings.security.email.conflict'))
+        } else if (isStepUpLocked(error)) {
+          toasts.error(t('settings.security.stepUp.tooManyAttempts'))
         } else if (isStepUpFailed(error)) {
           toasts.error(t('settings.security.linked.invalidCredentials'))
         } else {

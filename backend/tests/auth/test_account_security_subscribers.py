@@ -248,6 +248,51 @@ class TestMfaLockedHandler:
         )
 
 
+class TestStepUpHandlers:
+    @pytest.mark.parametrize(
+        ("channel", "change", "handler", "bus", "subscriber_id"),
+        [
+            (
+                account_security_events.STEP_UP_SESSION_ENDED,
+                "step_up_session_ended",
+                "send_step_up_session_ended_email_for_event",
+                "on_step_up_session_ended",
+                "auth.send_step_up_session_ended_email",
+            ),
+            (
+                account_security_events.STEP_UP_LOCKED,
+                "step_up_locked",
+                "send_step_up_locked_email_for_event",
+                "on_step_up_locked",
+                "auth.send_step_up_locked_email",
+            ),
+        ],
+    )
+    @patch(f"{SUBSCRIBERS}.core_mail.send_email", return_value=True)
+    @patch(f"{SUBSCRIBERS}.account_security_service.prepare_security_change_email")
+    @patch(f"{SUBSCRIBERS}.platform_runtime.get_active_platform")
+    @patch(f"{SUBSCRIBERS}.core_database.SessionLocal")
+    def test_sends_the_notice_and_is_registered(
+        self, session_local, get_platform, prepare, send_email, channel, change, handler, bus, subscriber_id
+    ):
+        db = session_local.return_value.__enter__.return_value
+        prepare.return_value = ("alice@example.test", "subject", "html", "text")
+        event = platform_events.new_event(channel, {"user_id": 4}, source="test")
+
+        getattr(account_security_subscribers, handler)(event)
+
+        prepare.assert_called_once_with(
+            4, change, None, account_security_subscribers.core_config.settings.ENDURAIN_HOST, db
+        )
+        send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
+        events = MagicMock()
+        registry = MagicMock()
+        account_security_subscribers.register_bus_subscribers(events)
+        account_security_subscribers.register_durable_handlers(registry)
+        events.subscribe.assert_any_call(channel, getattr(account_security_subscribers, bus))
+        registry.register.assert_any_call(channel, subscriber_id, getattr(account_security_subscribers, handler))
+
+
 class TestRegistration:
     def test_the_password_reset_completed_event_has_a_bus_subscriber_and_a_durable_handler(self):
         events = MagicMock()

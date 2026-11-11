@@ -11,7 +11,11 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useToasts } from '@/composables/useToasts'
 import { HttpError } from '@/services/http'
-import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
+import {
+  isStepUpFailed,
+  isStepUpLocked,
+  useIdpReauthChallenge,
+} from '@/features/security/composables/useIdpStepUp'
 import { useDeleteAccountMutation } from '@/features/security/composables/useSecurity'
 import { LAST_ADMINISTRATOR_TYPE } from '@/features/security/services/security'
 
@@ -53,6 +57,8 @@ function onConfirm(input: StepUpInput): void {
         toasts.error(t('settings.security.deleteAccount.onlyAdminError'))
       } else if (error instanceof HttpError && error.status === 409) {
         toasts.error(t('settings.security.deleteAccount.pendingError'))
+      } else if (isStepUpLocked(error)) {
+        toasts.error(t('settings.security.stepUp.tooManyAttempts'))
       } else if (isStepUpFailed(error)) {
         toasts.error(t('settings.security.linked.invalidCredentials'))
       } else {

@@ -59,6 +59,22 @@ DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
         ),
     ),
     DurableSubscriberNet(
+        account_security_subscribers.STEP_UP_SESSION_ENDED_EMAIL_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "An ended-session notice is a one-off reaction to a session end that is already audited; "
+            "nothing is left to backfill once the session is ended."
+        ),
+    ),
+    DurableSubscriberNet(
+        account_security_subscribers.STEP_UP_LOCKED_EMAIL_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "A lock notice is a one-off reaction to a lock that is already stored and audited; "
+            "nothing is left to backfill once step-up is locked."
+        ),
+    ),
+    DurableSubscriberNet(
         account_security_subscribers.NEW_DEVICE_SIGN_IN_EMAIL_SUBSCRIBER_ID,
         None,
         exempt_reason=(

@@ -21,7 +21,11 @@ import { useForm } from '@/composables/useForm'
 import ProviderIconPicker from '@/features/identityProviders/components/ProviderIconPicker.vue'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
 import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
-import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
+import {
+  isStepUpFailed,
+  isStepUpLocked,
+  useIdpReauthChallenge,
+} from '@/features/security/composables/useIdpStepUp'
 import { useAdminStepUp, useResumeOnce } from '@/features/security/composables/useAdminStepUp'
 import {
   IDP_ISSUER_IN_USE_TYPE,
@@ -248,6 +252,10 @@ async function submitForm(
     open.value = false
   } catch (error) {
     if (handleIdpChallenge(error)) {
+      return
+    }
+    if (isStepUpLocked(error)) {
+      emit('error', t('settings.security.stepUp.tooManyAttempts'))
       return
     }
     if (isStepUpFailed(error)) {

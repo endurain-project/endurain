@@ -37,6 +37,8 @@ const ACCOUNT_SECURITY_CHANGE_KEY: Record<string, string> = {
   identity_provider_unlinked: 'identityProviderUnlinked',
   account_locked: 'accountLocked',
   mfa_locked: 'mfaLocked',
+  step_up_session_ended: 'stepUpSessionEnded',
+  step_up_locked: 'stepUpLocked',
   backup_code_used: 'backupCodeUsed',
   refresh_token_reuse_detected: 'refreshTokenReuseDetected',
   role_changed_by_admin: 'roleChangedByAdmin',

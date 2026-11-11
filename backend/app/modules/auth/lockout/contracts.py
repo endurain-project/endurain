@@ -20,11 +20,17 @@ MFA_LOCKOUT_TIERS: tuple[LockoutTier, ...] = ((5, 300, "5 min"), (10, 1800, "30 
 ACCOUNT_MFA_LOCKOUT_TIERS: tuple[LockoutTier, ...] = ((100, 30 * 24 * 60 * 60, "30 days"),)
 # How long the account-wide MFA count survives without a new wrong code.
 ACCOUNT_MFA_ATTEMPTS_TTL_SECONDS = 30 * 24 * 60 * 60
+# Failures per session. The last tier also ends the session, which the step-up service does.
 STEP_UP_LOCKOUT_TIERS: tuple[LockoutTier, ...] = (
     (5, 300, "5 min"),
     (10, 1800, "30 min"),
     (15, 7200, "2 hours"),
 )
+# Failed step-ups from every session of one account. The lock lasts 30 days and, like the count, is lifted by a
+# successful step-up, a password reset or an administrator setting the password.
+ACCOUNT_STEP_UP_LOCKOUT_TIERS: tuple[LockoutTier, ...] = ((100, 30 * 24 * 60 * 60, "30 days"),)
+# How long the account-wide step-up count survives without a new failure.
+ACCOUNT_STEP_UP_ATTEMPTS_TTL_SECONDS = 30 * 24 * 60 * 60
 
 
 @dataclass(frozen=True)

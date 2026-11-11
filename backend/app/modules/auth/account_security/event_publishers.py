@@ -35,3 +35,42 @@ def publish_account_security_changed(
         db=db,
         schema_version=payload.SCHEMA_VERSION,
     )
+
+
+def publish_step_up_session_ended(user_id: int, db: Session) -> None:
+    """Stage ``auth.step_up_session_ended`` in the caller's transaction.
+
+    Args:
+        user_id: The user whose session the failed step-ups ended.
+        db: The producer's DB session; the event is published when it commits.
+    """
+    payload = account_security_events.StepUpSessionEndedPayload(user_id=user_id)
+    platform_publisher.publish_on_commit(
+        account_security_events.STEP_UP_SESSION_ENDED,
+        payload.model_dump(),
+        source="api:step_up",
+        metadata={core_event_metadata.META_USER_ID: user_id},
+        db=db,
+        schema_version=payload.SCHEMA_VERSION,
+    )
+
+
+def publish_step_up_locked(user_id: int, db: Session) -> None:
+    """Publish ``auth.step_up_locked`` for an account that failed step-ups locked.
+
+    The lock is applied by a request that fails, so there is no transaction to stage the event in and it is
+    published on its own. The notices it triggers are advisory: a lost event leaves the lock in place and audited.
+
+    Args:
+        user_id: The user whose step-up was locked.
+        db: The producer's DB session.
+    """
+    payload = account_security_events.StepUpLockedPayload(user_id=user_id)
+    platform_publisher.publish(
+        account_security_events.STEP_UP_LOCKED,
+        payload.model_dump(),
+        source="api:step_up",
+        metadata={core_event_metadata.META_USER_ID: user_id},
+        db=db,
+        schema_version=payload.SCHEMA_VERSION,
+    )

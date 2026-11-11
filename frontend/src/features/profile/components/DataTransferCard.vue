@@ -12,7 +12,11 @@ import { Card } from '@/components/ui/card'
 import { useToasts } from '@/composables/useToasts'
 import { HttpError } from '@/services/http'
 import { downloadBlob } from '@/lib/download'
-import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
+import {
+  isStepUpFailed,
+  isStepUpLocked,
+  useIdpReauthChallenge,
+} from '@/features/security/composables/useIdpStepUp'
 import { isTerminalProfileExport, isTerminalProfileImport } from '@/features/profile/types'
 import {
   useDownloadProfileExportMutation,
@@ -117,6 +121,8 @@ function handleExport(input: StepUpInput): void {
       if (error instanceof HttpError && error.status === 409) {
         isStepUpOpen.value = false
         toasts.error(t('settings.profile.dataTransfer.exportInProgress'))
+      } else if (isStepUpLocked(error)) {
+        toasts.error(t('settings.security.stepUp.tooManyAttempts'))
       } else if (isStepUpFailed(error)) {
         toasts.error(t('settings.security.linked.invalidCredentials'))
       } else {

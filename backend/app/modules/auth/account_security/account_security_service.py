@@ -28,6 +28,7 @@ import modules.auth.constants as auth_constants
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_providers.integration_service as identity_providers_integration
 import modules.auth.lockout.contracts as lockout_contracts
+import modules.auth.lockout.integration_service as lockout_integration
 import modules.auth.login_audit.audit_actions as login_audit_actions
 import modules.auth.login_audit.integration_service as login_audit_integration
 import modules.auth.mfa.integration_service as mfa_integration
@@ -425,6 +426,7 @@ def change_managed_user_password(
     # The administrator ends every credential of the account that the old password could have created.
     api_keys_integration.revoke_user_api_keys(user_id, db)
     authentication_integration.clear_account_login_lockout(db_user.username)
+    lockout_integration.clear_step_up_account_lockout(user_id)
     _stage_credential_changed(
         account_security_audit_actions.PASSWORD_SET,
         account_security_events.AccountSecurityChange.PASSWORD_SET_BY_ADMIN,

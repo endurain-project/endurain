@@ -29,6 +29,8 @@ logger = core_logger.get_logger(__name__)
 ACCOUNT_SECURITY_CHANGED_EMAIL_SUBSCRIBER_ID = "auth.send_account_security_changed_email"
 ACCOUNT_LOCKED_EMAIL_SUBSCRIBER_ID = "auth.send_account_locked_email"
 MFA_LOCKED_EMAIL_SUBSCRIBER_ID = "auth.send_mfa_locked_email"
+STEP_UP_SESSION_ENDED_EMAIL_SUBSCRIBER_ID = "auth.send_step_up_session_ended_email"
+STEP_UP_LOCKED_EMAIL_SUBSCRIBER_ID = "auth.send_step_up_locked_email"
 IDP_LINKED_EMAIL_SUBSCRIBER_ID = "auth.send_idp_linked_email"
 NEW_DEVICE_SIGN_IN_EMAIL_SUBSCRIBER_ID = "auth.send_new_device_sign_in_email"
 BACKUP_CODE_USED_EMAIL_SUBSCRIBER_ID = "auth.send_backup_code_used_email"
@@ -162,6 +164,38 @@ def send_mfa_locked_email_for_event(event: Event) -> None:
     logger.debug("MFA-locked event processed", extra=core_logger.context(user_id=payload.user_id))
 
 
+def send_step_up_session_ended_email_for_event(event: Event) -> None:
+    """Send the user an email saying repeated failed step-ups ended one of their sessions."""
+    payload = platform_event_versioning.parse_payload(account_security_events.StepUpSessionEndedPayload, event)
+    mail = platform_runtime.get_active_platform().mail
+    change = account_security_events.AccountSecurityChange.STEP_UP_SESSION_ENDED.value
+    _send_security_email(
+        payload.user_id,
+        change,
+        lambda db: account_security_service.prepare_security_change_email(
+            payload.user_id, change, None, core_config.settings.ENDURAIN_HOST, db
+        ),
+        mail,
+    )
+    logger.debug("Step-up-session-ended event processed", extra=core_logger.context(user_id=payload.user_id))
+
+
+def send_step_up_locked_email_for_event(event: Event) -> None:
+    """Send the user an email saying repeated failed step-ups locked step-up for their account."""
+    payload = platform_event_versioning.parse_payload(account_security_events.StepUpLockedPayload, event)
+    mail = platform_runtime.get_active_platform().mail
+    change = account_security_events.AccountSecurityChange.STEP_UP_LOCKED.value
+    _send_security_email(
+        payload.user_id,
+        change,
+        lambda db: account_security_service.prepare_security_change_email(
+            payload.user_id, change, None, core_config.settings.ENDURAIN_HOST, db
+        ),
+        mail,
+    )
+    logger.debug("Step-up-locked event processed", extra=core_logger.context(user_id=payload.user_id))
+
+
 def send_new_device_sign_in_email_for_event(event: Event) -> None:
     """Send the user an email saying their account was signed in to from a new device."""
     payload = platform_event_versioning.parse_payload(known_devices_events.NewDeviceSignInPayload, event)
@@ -244,6 +278,8 @@ on_idp_linked = best_effort(send_idp_linked_email_for_event)
 on_password_reset_completed = best_effort(send_password_reset_completed_email_for_event)
 on_account_locked = best_effort(send_account_locked_email_for_event)
 on_mfa_locked = best_effort(send_mfa_locked_email_for_event)
+on_step_up_session_ended = best_effort(send_step_up_session_ended_email_for_event)
+on_step_up_locked = best_effort(send_step_up_locked_email_for_event)
 on_new_device_sign_in = best_effort(send_new_device_sign_in_email_for_event)
 on_backup_code_used = best_effort(send_backup_code_used_email_for_event)
 on_refresh_reuse = best_effort(send_refresh_reuse_email_for_event)
@@ -257,6 +293,8 @@ def register_bus_subscribers(events: EventBusProvider) -> None:
     events.subscribe(password_reset_events.PASSWORD_RESET_COMPLETED, on_password_reset_completed)
     events.subscribe(authentication_events.ACCOUNT_LOCKED, on_account_locked)
     events.subscribe(authentication_events.MFA_LOCKED, on_mfa_locked)
+    events.subscribe(account_security_events.STEP_UP_SESSION_ENDED, on_step_up_session_ended)
+    events.subscribe(account_security_events.STEP_UP_LOCKED, on_step_up_locked)
     events.subscribe(known_devices_events.NEW_DEVICE_SIGN_IN, on_new_device_sign_in)
     events.subscribe(backup_codes_events.BACKUP_CODE_USED, on_backup_code_used)
     events.subscribe(authentication_events.REFRESH_REUSE_DETECTED, on_refresh_reuse)
@@ -289,6 +327,16 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
         authentication_events.MFA_LOCKED,
         MFA_LOCKED_EMAIL_SUBSCRIBER_ID,
         send_mfa_locked_email_for_event,
+    )
+    registry.register(
+        account_security_events.STEP_UP_SESSION_ENDED,
+        STEP_UP_SESSION_ENDED_EMAIL_SUBSCRIBER_ID,
+        send_step_up_session_ended_email_for_event,
+    )
+    registry.register(
+        account_security_events.STEP_UP_LOCKED,
+        STEP_UP_LOCKED_EMAIL_SUBSCRIBER_ID,
+        send_step_up_locked_email_for_event,
     )
     registry.register(
         known_devices_events.NEW_DEVICE_SIGN_IN,

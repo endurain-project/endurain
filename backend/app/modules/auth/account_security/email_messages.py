@@ -25,6 +25,8 @@ _NOTICE_KEYS = {
     account_security_events.AccountSecurityChange.ACCOUNT_DEACTIVATED_BY_ADMIN.value: "security_notice_admin",
     account_security_events.AccountSecurityChange.ACCOUNT_DELETION_REQUESTED.value: "security_notice_admin",
     account_security_events.AccountSecurityChange.REFRESH_TOKEN_REUSE_DETECTED.value: "security_notice_session",
+    account_security_events.AccountSecurityChange.STEP_UP_SESSION_ENDED.value: "security_notice_session",
+    account_security_events.AccountSecurityChange.STEP_UP_LOCKED.value: "security_notice_step_up_locked",
     account_security_events.AccountSecurityChange.BACKUP_CODE_USED.value: "security_notice_backup_code",
 }
 # The changes that also end the account's API keys and pending email change, which the notice says.

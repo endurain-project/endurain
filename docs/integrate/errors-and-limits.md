@@ -59,7 +59,7 @@ Authentication and authorization failures use the same shape. Typical causes:
 | `403` | Insufficient permissions, missing required scope, a web write without `X-CSRF-Token` |
 | `404` | Invalid session ID, user not found |
 | `409` | A conflict with the current state: an MFA operation that does not fit the account's MFA state (already enabled, not enabled, no setup in progress), a user approval while the user's email is not verified, a username already taken |
-| `429` | Too many login or OAuth attempts |
+| `429` | Too many login or OAuth attempts, or too many failed [step-ups](account-security.md#step-up-lockout-policy): per session (the 15th failure also ends the session) and across the account (100 failures lock step-up for 30 days) |
 
 The `/auth/login` form takes a `username` and a `password` of at most 256 characters each; a longer one, like a NUL character, is `422` (`urn:endurain:error:validation-failed`). Every request that carries a password, new or current (including a step-up `current_password`), takes at most 256 characters.
 

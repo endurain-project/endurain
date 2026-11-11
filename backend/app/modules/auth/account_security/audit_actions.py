@@ -162,6 +162,15 @@ DEVICE_FORGET = jasil_audit.AuditAction(
     description_default="A known sign-in device was forgotten",
 )
 
+STEP_UP_SESSION_END = jasil_audit.AuditAction(
+    id="auth.session.step_up_end",
+    category=jasil_audit.Category.AUTHENTICATION,
+    severity=jasil_audit.Severity.HIGH,
+    description_key="audit.auth.session.step_up_end",
+    description_default="A session was ended after repeated failed step-up attempts",
+    details_model=sessions_audit_actions.SessionsRevokedDetails,
+)
+
 #: Every action this package writes, registered by the composition root.
 ACTIONS: tuple[jasil_audit.AuditAction, ...] = (
     PASSWORD_CHANGE,
@@ -176,4 +185,5 @@ ACTIONS: tuple[jasil_audit.AuditAction, ...] = (
     API_KEY_DELETE,
     IDENTITY_LINK_UNLINK,
     DEVICE_FORGET,
+    STEP_UP_SESSION_END,
 )

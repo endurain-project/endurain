@@ -13,6 +13,10 @@ from pydantic import ConfigDict
 # sign-in provider link), after the account or its MFA sign-in is locked by repeated failed sign-ins, and after an
 # administrator changed the account's role or deactivated it or its deletion was requested.
 ACCOUNT_SECURITY_CHANGED = "auth.account_security_changed"
+# Published when the last per-session tier of failed step-ups ends a session, so its owner is told.
+STEP_UP_SESSION_ENDED = "auth.step_up_session_ended"
+# Published when 100 failed step-ups across an account's sessions lock step-up for the account, so its owner is told.
+STEP_UP_LOCKED = "auth.step_up_locked"
 
 
 class AccountSecurityChange(StrEnum):
@@ -35,6 +39,8 @@ class AccountSecurityChange(StrEnum):
     ROLE_CHANGED_BY_ADMIN = "role_changed_by_admin"
     ACCOUNT_DEACTIVATED_BY_ADMIN = "account_deactivated_by_admin"
     ACCOUNT_DELETION_REQUESTED = "account_deletion_requested"
+    STEP_UP_SESSION_ENDED = "step_up_session_ended"
+    STEP_UP_LOCKED = "step_up_locked"
 
 
 class AccountSecurityChangedPayload(VersionedPayload):
@@ -55,3 +61,31 @@ class AccountSecurityChangedPayload(VersionedPayload):
     change: AccountSecurityChange
     idp_id: int | None = None
     access_type: str | None = None
+
+
+class StepUpSessionEndedPayload(VersionedPayload):
+    """Validated payload for the ``auth.step_up_session_ended`` event.
+
+    Attributes:
+        user_id: The user whose session was ended.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    SCHEMA_VERSION: ClassVar[int] = 1
+
+    user_id: int
+
+
+class StepUpLockedPayload(VersionedPayload):
+    """Validated payload for the ``auth.step_up_locked`` event.
+
+    Attributes:
+        user_id: The user whose step-up was locked.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    SCHEMA_VERSION: ClassVar[int] = 1
+
+    user_id: int

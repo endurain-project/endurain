@@ -70,6 +70,17 @@ export function isStepUpFailed(error: unknown): boolean {
   return error instanceof HttpError && error.type === STEP_UP_FAILED_PROBLEM
 }
 
+/**
+ * Whether an error is the backend refusing a sensitive request because too many failed confirmations locked
+ * step-up, for the session or for the whole account.
+ *
+ * @param error - The error a sensitive request failed with.
+ * @returns `true` for a 429 response.
+ */
+export function isStepUpLocked(error: unknown): boolean {
+  return error instanceof HttpError && error.status === 429
+}
+
 /** Reads and removes the stored entry; `null` when absent, malformed or older than the TTL. */
 function takeStoredStepUp(now: number): StoredStepUp | null {
   try {

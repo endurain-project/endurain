@@ -15,7 +15,11 @@ import {
   usePasswordPolicy,
 } from '@/features/security/composables/usePasswordPolicy'
 import { compose, required } from '@/utils/validators'
-import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
+import {
+  isStepUpFailed,
+  isStepUpLocked,
+  useIdpReauthChallenge,
+} from '@/features/security/composables/useIdpStepUp'
 import { useAdminStepUp, useResumeOnce } from '@/features/security/composables/useAdminStepUp'
 import { useChangeUserPasswordMutation } from '@/features/users/composables/useUsers'
 
@@ -96,7 +100,9 @@ async function submitForm(formValues: PasswordFormValues): Promise<void> {
     if (handleIdpChallenge(error)) {
       return
     }
-    if (isStepUpFailed(error)) {
+    if (isStepUpLocked(error)) {
+      emit('error', t('settings.security.stepUp.tooManyAttempts'))
+    } else if (isStepUpFailed(error)) {
       emit('error', t('settings.security.linked.invalidCredentials'))
     } else if (passwordProblem) {
       emit('error', passwordProblem)

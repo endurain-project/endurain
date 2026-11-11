@@ -20,6 +20,7 @@ _ACTION = lockout_audit_actions.LOCKOUT_APPLY.id
         ("mfa", lockout_contracts.MFA_LOCKOUT_TIERS),
         ("mfa_account", lockout_contracts.ACCOUNT_MFA_LOCKOUT_TIERS),
         ("step_up", lockout_contracts.STEP_UP_LOCKOUT_TIERS),
+        ("step_up_account", lockout_contracts.ACCOUNT_STEP_UP_LOCKOUT_TIERS),
     ],
 )
 def test_a_lockout_is_audited_with_its_counter_and_count(store_name, tiers):
@@ -55,8 +56,9 @@ def test_a_count_below_the_first_tier_writes_nothing():
 def test_a_refused_step_up_that_locks_the_user_audits_the_lockout_against_them():
     store = MagicMock()
     store.record_failed_attempt.return_value = lockout_contracts.STEP_UP_LOCKOUT_TIERS[0][0]
+    store.record_account_failure.return_value = False
     with jasil_testing.capture_audit() as audit:
-        step_up_service._record_failure(store, "key", 7)
+        step_up_service._record_failure(store, "key", 7, "sid", MagicMock())
 
     entry = audit.assert_audited(_ACTION, outcome="success", target_type="user", target_id="7", target_owner_id="7")
     assert entry.details["counter"] == "step_up"

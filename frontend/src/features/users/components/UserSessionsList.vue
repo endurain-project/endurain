@@ -17,7 +17,11 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToasts } from '@/composables/useToasts'
 import { formatMediumDateTime } from '@/utils/datetime'
 import { useAuthStore } from '@/features/auth/stores/auth'
-import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
+import {
+  isStepUpFailed,
+  isStepUpLocked,
+  useIdpReauthChallenge,
+} from '@/features/security/composables/useIdpStepUp'
 import { useAdminStepUp, useResumeOnce } from '@/features/security/composables/useAdminStepUp'
 import {
   useRevokeOtherUserSessionsMutation,
@@ -119,6 +123,10 @@ function openRevoke(session: UserSession): void {
  */
 function onRevokeError(error: unknown, message: string): void {
   if (handleIdpChallenge(error)) {
+    return
+  }
+  if (isStepUpLocked(error)) {
+    toasts.error(t('settings.security.stepUp.tooManyAttempts'))
     return
   }
   toasts.error(isStepUpFailed(error) ? t('settings.security.linked.invalidCredentials') : message)

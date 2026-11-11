@@ -416,6 +416,15 @@ _SURFACE_UNITS_OF_WORK: dict[str, str] = {
         "exists without them; the password-change step stages its new password in the same transaction and has "
         "nothing left to commit."
     ),
+    "account_security.integration_service.verify_step_up": (
+        "A refused step-up that spends its session's last tier of failures ends that session and commits the "
+        "deletion with its audit row and notice, so the session stays ended although the request is refused; "
+        "a step-up that passes stages nothing."
+    ),
+    "account_security.integration_service.change_own_password": (
+        "Verifies the step-up, which commits the end of a session that spent its last tier of failures; the "
+        "password change itself is staged and left to the caller."
+    ),
     "users.integration_service.request_user_deletion": (
         "Deactivates the account and stages users.deletion_requested in one commit, so the account is never "
         "deactivated without the job that erases it, nor queued for erasure while still active; without durable "

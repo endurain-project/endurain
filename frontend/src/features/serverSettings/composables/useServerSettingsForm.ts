@@ -13,7 +13,11 @@ import type { Validator } from '@/utils/validators'
 
 import { useForm } from '@/composables/useForm'
 import { useToasts } from '@/composables/useToasts'
-import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
+import {
+  isStepUpFailed,
+  isStepUpLocked,
+  useIdpReauthChallenge,
+} from '@/features/security/composables/useIdpStepUp'
 import { useResumeOnce } from '@/features/security/composables/useAdminStepUp'
 import { useSettingsStepUpResume } from '@/features/serverSettings/composables/useMailStepUpResume'
 import { useUpdateServerSettingsMutation } from '@/features/serverSettings/composables/useServerSettings'
@@ -318,6 +322,10 @@ export function useServerSettingsForm(props: {
       toasts.success(t('settings.server.saveSuccess'))
     } catch (error) {
       if (handleIdpChallenge(error)) {
+        return
+      }
+      if (isStepUpLocked(error)) {
+        toasts.error(t('settings.security.stepUp.tooManyAttempts'))
         return
       }
       if (isStepUpFailed(error)) {

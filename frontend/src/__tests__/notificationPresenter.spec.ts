@@ -155,6 +155,8 @@ describe('presentNotification', () => {
     ['api_key_created', 'apiKeyCreated'],
     ['account_locked', 'accountLocked'],
     ['mfa_locked', 'mfaLocked'],
+    ['step_up_session_ended', 'stepUpSessionEnded'],
+    ['step_up_locked', 'stepUpLocked'],
     ['refresh_token_reuse_detected', 'refreshTokenReuseDetected'],
     ['account_deactivated_by_admin', 'accountDeactivatedByAdmin'],
   ])('presents the %s account-security change', (change, key) => {

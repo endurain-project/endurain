@@ -20,7 +20,11 @@ import EnvManagedNotice from '@/features/serverSettings/components/EnvManagedNot
 import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
 import { useMailStepUpResume } from '@/features/serverSettings/composables/useMailStepUpResume'
 import { useUpdateMailSettingsMutation } from '@/features/serverSettings/composables/useServerSettings'
-import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
+import {
+  isStepUpFailed,
+  isStepUpLocked,
+  useIdpReauthChallenge,
+} from '@/features/security/composables/useIdpStepUp'
 import { useAdminStepUp, useResumeOnce } from '@/features/security/composables/useAdminStepUp'
 import { HttpError } from '@/services/http'
 
@@ -185,6 +189,10 @@ async function confirmSave(stepUp: StepUpInput): Promise<void> {
     toasts.success(t('settings.server.email.saveSuccess'))
   } catch (error) {
     if (handleIdpChallenge(error)) {
+      return
+    }
+    if (isStepUpLocked(error)) {
+      toasts.error(t('settings.security.stepUp.tooManyAttempts'))
       return
     }
     if (isStepUpFailed(error)) {

@@ -99,6 +99,32 @@ class TestGetAccountSecurityChangedEmail:
             assert "Change your password right away from a signed-in device" in body
         assert "security_change." not in html_body + text_body
 
+    def test_an_ended_session_says_why_and_what_to_do(self):
+        subject, html_body, text_body = email_messages.get_account_security_changed_email(
+            "Alice", "step_up_session_ended", None, HOST, "en"
+        )
+
+        assert subject == "Endurain - A session was signed out after wrong confirmations"
+        assert "A session was signed out after wrong confirmations" in html_body
+        for body in (html_body, text_body):
+            assert "15 wrong password or two-step verification codes" in body
+            assert "signed out" in body
+            assert "Change your password right away" in body
+        assert "security_change." not in html_body + text_body
+
+    def test_a_locked_step_up_says_what_is_refused_for_how_long_and_how_to_lift_it(self):
+        subject, html_body, text_body = email_messages.get_account_security_changed_email(
+            "Alice", "step_up_locked", None, HOST, "en"
+        )
+
+        assert subject == "Endurain - Confirming sensitive actions was locked"
+        assert "Confirming sensitive actions was locked" in html_body
+        for body in (html_body, text_body):
+            assert "100 wrong confirmations" in body
+            assert "30 days" in body
+            assert "reset your password" in body
+        assert "security_change." not in html_body + text_body
+
     @pytest.mark.parametrize("change", ["identity_provider_unlinked", "identity_provider_linked"])
     def test_names_the_provider_when_it_exists(self, change):
         _, html_body, text_body = email_messages.get_account_security_changed_email(

@@ -131,7 +131,16 @@ Failed step-up verifications are tracked per user and session with progressive l
 |-----------------|------------------|
 | 5 failures | 5 minutes |
 | 10 failures | 30 minutes |
-| 15 failures | 2 hours |
+| 15 failures | 2 hours, and the session ends |
+
+At the 15th failure the session is ended, as if it had signed out: its access and refresh tokens stop working, so the next request answers `401` and a client signs the user out. The failing request itself is refused like any other failed step-up. The owner gets one email and one in-app notification (`account_security_changed` with the change `step_up_session_ended`), and an `auth.session.step_up_end` audit row that holds only the number of sessions ended.
+
+Failures also count against the account across all of its sessions. After **100 failed step-ups in a row** for one account, step-up is locked for **30 days** in every session, whatever the credentials sent:
+
+- The count restarts on a successful step-up, a completed password reset or an administrator setting the user's password, and expires after 30 days without a failure. A locked account cannot step up, so only the last two lift the lock before it expires.
+- When the 100th failure locks the account, its owner gets one email and one in-app notification (`account_security_changed` with the change `step_up_locked`) and an `auth.lockout.apply` audit row with the counter `step_up_account`.
+- The refusal is the same `429`, with `Retry-After`, as the per-session lockout.
+- When the shared state that holds the counters is unavailable, the request is refused with `503` before any credential is checked.
 
 The lockout check happens **before** any password or MFA comparison, so the number of guesses is bounded even when an attacker has a valid access token.
 

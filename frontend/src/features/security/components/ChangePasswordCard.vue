@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { useToasts } from '@/composables/useToasts'
 import { normalizeMfaCode } from '@/features/auth/utils/mfaCode'
-import { isStepUpFailed } from '@/features/security/composables/useIdpStepUp'
+import { isStepUpFailed, isStepUpLocked } from '@/features/security/composables/useIdpStepUp'
 import { useChangePasswordMutation } from '@/features/security/composables/useSecurity'
 import {
   usePasswordConfirmation,
@@ -88,6 +88,8 @@ async function submit(): Promise<void> {
     const passwordProblem = policyError(error)
     if (passwordProblem) {
       toasts.error(passwordProblem)
+    } else if (isStepUpLocked(error)) {
+      toasts.error(t('settings.security.stepUp.tooManyAttempts'))
     } else if (isStepUpFailed(error)) {
       toasts.error(t('settings.security.password.invalidCredentials'))
     } else {

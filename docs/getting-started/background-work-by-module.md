@@ -342,6 +342,10 @@ Every durable job is one subscriber reacting to one event. The **subscriber id**
 | `auth.send_account_locked_email` | `auth.account_locked` | Bus | Nothing: the lock is audited | Nothing |
 | `auth.notify_mfa_locked` | `auth.mfa_locked` | Bus | Nothing, by design | Nothing |
 | `auth.send_mfa_locked_email` | `auth.mfa_locked` | Bus | Nothing: the lock is audited | Nothing |
+| `auth.notify_step_up_session_ended` | `auth.step_up_session_ended` | Bus | Nothing, by design | Nothing |
+| `auth.send_step_up_session_ended_email` | `auth.step_up_session_ended` | Bus | Nothing: the session end is audited | Nothing |
+| `auth.notify_step_up_locked` | `auth.step_up_locked` | Bus | Nothing, by design | Nothing |
+| `auth.send_step_up_locked_email` | `auth.step_up_locked` | Bus | Nothing: the lock is audited | Nothing |
 | `auth.notify_new_device_sign_in` | `auth.new_device_sign_in` | Bus | Nothing, by design | Nothing |
 | `auth.send_new_device_sign_in_email` | `auth.new_device_sign_in` | Bus | Nothing: the sign-in is audited | Nothing |
 | `auth.notify_backup_code_used` | `auth.backup_code_used` | Bus | Nothing, by design | Nothing |

@@ -17,6 +17,7 @@ import modules.auth.api_keys.integration_service as api_keys_integration
 import modules.auth.authentication.integration_service as authentication_integration
 import modules.auth.computation as token_hashing
 import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.lockout.integration_service as lockout_integration
 import modules.auth.password_reset_tokens.audit_actions as password_reset_audit_actions
 import modules.auth.password_reset_tokens.crud as password_reset_crud
 import modules.auth.password_reset_tokens.email_messages as password_reset_email_messages
@@ -288,6 +289,7 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
     password_reset_event_publishers.publish_password_reset_completed(token_user_id, db)
     db.commit()
     authentication_integration.clear_account_login_lockout(user.username)
+    lockout_integration.clear_step_up_account_lockout(token_user_id)
     logger.info("Password reset completed", extra=core_logger.context(user_id=token_user_id))
 
 

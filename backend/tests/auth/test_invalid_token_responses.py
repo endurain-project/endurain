@@ -31,6 +31,9 @@ class _Store:
     def record_failed_attempt(self, key):
         return 1
 
+    def record_account_failure(self, user_id):
+        return False
+
 
 @pytest.fixture
 def client():
@@ -49,7 +52,7 @@ def client():
     @app.post("/step-up")
     def _step_up():
         step_up_service._refuse_step_up(
-            _Store(), "user:1", 1, login_audit_actions.StepUpMethod.PASSWORD, "wrong password"
+            _Store(), "user:1", 1, "sid", login_audit_actions.StepUpMethod.PASSWORD, "wrong password", MagicMock()
         )
 
     return TestClient(app, headers={"X-Client-Type": "web"})

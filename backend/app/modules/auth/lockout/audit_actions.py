@@ -20,6 +20,7 @@ class LockoutCounter(StrEnum):
     MFA = "mfa"
     MFA_ACCOUNT = "mfa_account"
     STEP_UP = "step_up"
+    STEP_UP_ACCOUNT = "step_up_account"
 
 
 class LockoutApplyDetails(VersionedPayload):
@@ -32,7 +33,7 @@ class LockoutApplyDetails(VersionedPayload):
 
     model_config = ConfigDict(extra="forbid")
 
-    SCHEMA_VERSION: ClassVar[int] = 3
+    SCHEMA_VERSION: ClassVar[int] = 4
 
     counter: LockoutCounter
     failed_attempts: int

@@ -19,6 +19,7 @@ import { resumeTargetId, useAdminStepUp } from '@/features/security/composables/
 import {
   consumeIdpStepUpReturn,
   isStepUpFailed,
+  isStepUpLocked,
   useIdpReauthChallenge,
 } from '@/features/security/composables/useIdpStepUp'
 import { toProviderInput } from '@/features/identityProviders/services/identityProviders'
@@ -109,6 +110,10 @@ function confirmDelete(stepUp: StepUpInput): void {
         if (handleIdpChallenge(error)) {
           return
         }
+        if (isStepUpLocked(error)) {
+          toasts.error(t('settings.security.stepUp.tooManyAttempts'))
+          return
+        }
         if (isStepUpFailed(error)) {
           toasts.error(t('settings.security.linked.invalidCredentials'))
           return
@@ -167,6 +172,10 @@ function confirmToggle(stepUp: StepUpInput): void {
       },
       onError: (error) => {
         if (handleIdpChallenge(error)) {
+          return
+        }
+        if (isStepUpLocked(error)) {
+          toasts.error(t('settings.security.stepUp.tooManyAttempts'))
           return
         }
         if (isStepUpFailed(error)) {

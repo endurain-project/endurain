@@ -4,6 +4,7 @@ import {
   consumeIdpStepUpReturn,
   isIdpReauthRequired,
   isStepUpFailed,
+  isStepUpLocked,
   useIdpStepUp,
 } from '@/features/security/composables/useIdpStepUp'
 import { HttpError } from '@/services/http'
@@ -158,5 +159,13 @@ describe('isStepUpFailed', () => {
     expect(isStepUpFailed(new HttpError(403, 'Forbidden', null, type))).toBe(true)
     expect(isStepUpFailed(new HttpError(403, 'Forbidden'))).toBe(false)
     expect(isStepUpFailed(new Error('x'))).toBe(false)
+  })
+})
+
+describe('isStepUpLocked', () => {
+  it('matches a 429, which a locked session or account answers', () => {
+    expect(isStepUpLocked(new HttpError(429, 'Too Many Requests'))).toBe(true)
+    expect(isStepUpLocked(new HttpError(403, 'Forbidden'))).toBe(false)
+    expect(isStepUpLocked(new Error('x'))).toBe(false)
   })
 })

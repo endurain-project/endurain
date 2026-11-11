@@ -1,6 +1,6 @@
 """Audit rows and ``auth.account_security_changed`` events written by the account-security workflows."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import jasil.publisher as platform_publisher
@@ -79,6 +79,8 @@ class TestPayloadAndPublisher:
             "role_changed_by_admin",
             "account_deactivated_by_admin",
             "account_deletion_requested",
+            "step_up_session_ended",
+            "step_up_locked",
         }
 
     def test_the_event_is_staged_on_the_callers_session(self, mock_db, published):
@@ -150,6 +152,9 @@ class TestPasswordAudit:
             patch.object(
                 account_security_service.authentication_integration, "clear_account_login_lockout"
             ) as clear_lock,
+            patch.object(
+                account_security_service.lockout_integration, "clear_step_up_account_lockout"
+            ) as clear_step_up,
             jasil_testing.capture_audit() as audit,
         ):
             require_user.return_value.access_type = "regular"
@@ -157,6 +162,7 @@ class TestPasswordAudit:
             account_security_service.change_managed_user_password(7, "new", mock_db)
 
         clear_lock.assert_called_once_with("alice")
+        clear_step_up.assert_called_once_with(7)
 
         entry = audit.assert_audited(
             account_security_audit_actions.PASSWORD_SET.id, target_type="user", target_id="7", target_owner_id="7"
@@ -634,8 +640,10 @@ class TestStepUpAudit:
 
     def _store(self, *, locked=False):
         store = MagicMock()
-        store.is_locked_out.return_value = locked
-        store.get_lockout_time.return_value = None
+        store.get_lockout_time.return_value = datetime.now(UTC) + timedelta(minutes=5) if locked else None
+        store.get_account_lockout_time.return_value = None
+        store.record_failed_attempt.return_value = 1
+        store.record_account_failure.return_value = False
         return store
 
     def test_a_wrong_password_is_a_failure(self):

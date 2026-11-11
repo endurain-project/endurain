@@ -39,6 +39,8 @@ ACCOUNT_SECURITY_CHANGED_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_account_secur
 PASSWORD_RESET_COMPLETED_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_password_reset_completed"  # noqa: S105 (name matches the password-secret heuristic, not a secret)
 ACCOUNT_LOCKED_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_account_locked"
 MFA_LOCKED_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_mfa_locked"
+STEP_UP_SESSION_ENDED_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_step_up_session_ended"
+STEP_UP_LOCKED_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_step_up_locked"
 NEW_DEVICE_SIGN_IN_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_new_device_sign_in"
 ADMIN_SIGN_UP_APPROVAL_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_admin_sign_up_approval"
 BACKUP_CODE_USED_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_backup_code_used"
@@ -236,6 +238,36 @@ def notify_mfa_locked_for_event(event: Event) -> None:
         logger.debug("Created MFA-locked notification", extra=core_logger.context(user_id=payload.user_id))
 
 
+def notify_step_up_session_ended_for_event(event: Event) -> None:
+    """Notify the user that repeated failed step-ups ended one of their sessions."""
+    payload = platform_event_versioning.parse_payload(account_security_events.StepUpSessionEndedPayload, event)
+    change = account_security_events.AccountSecurityChange.STEP_UP_SESSION_ENDED.value
+    created = _notify_and_push(
+        event,
+        payload.user_id,
+        lambda db: notifications_service.create_account_security_changed_notification(
+            payload.user_id, change, None, event.event_id, db
+        ),
+    )
+    if created:
+        logger.debug("Created step-up-session-ended notification", extra=core_logger.context(user_id=payload.user_id))
+
+
+def notify_step_up_locked_for_event(event: Event) -> None:
+    """Notify the user that repeated failed step-ups locked step-up for their account."""
+    payload = platform_event_versioning.parse_payload(account_security_events.StepUpLockedPayload, event)
+    change = account_security_events.AccountSecurityChange.STEP_UP_LOCKED.value
+    created = _notify_and_push(
+        event,
+        payload.user_id,
+        lambda db: notifications_service.create_account_security_changed_notification(
+            payload.user_id, change, None, event.event_id, db
+        ),
+    )
+    if created:
+        logger.debug("Created step-up-locked notification", extra=core_logger.context(user_id=payload.user_id))
+
+
 def notify_new_device_sign_in_for_event(event: Event) -> None:
     """Notify the user that their account was signed in to from a new device."""
     payload = platform_event_versioning.parse_payload(known_devices_events.NewDeviceSignInPayload, event)
@@ -352,6 +384,8 @@ on_account_security_changed_notify = best_effort(notify_account_security_changed
 on_password_reset_completed_notify = best_effort(notify_password_reset_completed_for_event)
 on_account_locked_notify = best_effort(notify_account_locked_for_event)
 on_mfa_locked_notify = best_effort(notify_mfa_locked_for_event)
+on_step_up_session_ended_notify = best_effort(notify_step_up_session_ended_for_event)
+on_step_up_locked_notify = best_effort(notify_step_up_locked_for_event)
 on_new_device_sign_in_notify = best_effort(notify_new_device_sign_in_for_event)
 on_admin_sign_up_approval_notify = best_effort(notify_admin_sign_up_approval_for_event)
 on_backup_code_used_notify = best_effort(notify_backup_code_used_for_event)
@@ -370,6 +404,8 @@ def register_bus_subscribers(events: EventBusProvider) -> None:
     events.subscribe(password_reset_events.PASSWORD_RESET_COMPLETED, on_password_reset_completed_notify)
     events.subscribe(authentication_events.ACCOUNT_LOCKED, on_account_locked_notify)
     events.subscribe(authentication_events.MFA_LOCKED, on_mfa_locked_notify)
+    events.subscribe(account_security_events.STEP_UP_SESSION_ENDED, on_step_up_session_ended_notify)
+    events.subscribe(account_security_events.STEP_UP_LOCKED, on_step_up_locked_notify)
     events.subscribe(known_devices_events.NEW_DEVICE_SIGN_IN, on_new_device_sign_in_notify)
     events.subscribe(sign_up_events.SIGN_UP_APPROVAL_REQUESTED, on_admin_sign_up_approval_notify)
     events.subscribe(backup_codes_events.BACKUP_CODE_USED, on_backup_code_used_notify)
@@ -423,6 +459,16 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
         authentication_events.MFA_LOCKED,
         MFA_LOCKED_NOTIFICATION_SUBSCRIBER_ID,
         notify_mfa_locked_for_event,
+    )
+    registry.register(
+        account_security_events.STEP_UP_SESSION_ENDED,
+        STEP_UP_SESSION_ENDED_NOTIFICATION_SUBSCRIBER_ID,
+        notify_step_up_session_ended_for_event,
+    )
+    registry.register(
+        account_security_events.STEP_UP_LOCKED,
+        STEP_UP_LOCKED_NOTIFICATION_SUBSCRIBER_ID,
+        notify_step_up_locked_for_event,
     )
     registry.register(
         known_devices_events.NEW_DEVICE_SIGN_IN,

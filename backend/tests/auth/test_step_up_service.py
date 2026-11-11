@@ -49,6 +49,17 @@ class FakeStepUpStore:
         self._attempts.pop(key, None)
         self._locked.pop(key, None)
 
+    def get_account_lockout_time(self, user_id: int) -> datetime | None:
+        """Return no account-wide lock: these tests lock sessions only."""
+        return None
+
+    def record_account_failure(self, user_id: int) -> bool:
+        """Count nothing against the account."""
+        return False
+
+    def reset_account(self, user_id: int) -> None:
+        """Forget nothing: the fake keeps no account count."""
+
     def read_ticket(self, ticket: str) -> None:
         """Return no ticket: these tests issue none."""
         return None

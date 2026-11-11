@@ -23,7 +23,11 @@ import { useToasts } from '@/composables/useToasts'
 import { formatMediumDate } from '@/utils/datetime'
 import { queryKeys } from '@/services/queryKeys'
 import { HttpError } from '@/services/http'
-import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
+import {
+  isStepUpFailed,
+  isStepUpLocked,
+  useIdpReauthChallenge,
+} from '@/features/security/composables/useIdpStepUp'
 import { LAST_SIGN_IN_METHOD_TYPE } from '@/features/security/services/linkedAccounts'
 import {
   useAvailableProvidersQuery,
@@ -125,6 +129,8 @@ function confirmLink(idpId: number, input: StepUpInput): void {
         }
         if (error instanceof HttpError && error.status === 409) {
           toasts.error(t('settings.security.linked.alreadyLinked'))
+        } else if (isStepUpLocked(error)) {
+          toasts.error(t('settings.security.stepUp.tooManyAttempts'))
         } else if (isStepUpFailed(error)) {
           toasts.error(t('settings.security.linked.invalidCredentials'))
         } else {
@@ -151,6 +157,8 @@ function confirmUnlink(idpId: number, input: StepUpInput): void {
         }
         if (error instanceof HttpError && error.type === LAST_SIGN_IN_METHOD_TYPE) {
           toasts.error(t('settings.security.linked.lastMethodError'))
+        } else if (isStepUpLocked(error)) {
+          toasts.error(t('settings.security.stepUp.tooManyAttempts'))
         } else if (isStepUpFailed(error)) {
           toasts.error(t('settings.security.linked.invalidCredentials'))
         } else {

@@ -221,6 +221,50 @@ class TestNotifyMfaLockedForEvent:
         )
 
 
+class TestNotifyStepUpForEvent:
+    @pytest.mark.parametrize(
+        ("channel", "change", "handler", "subscriber_id"),
+        [
+            (
+                account_security_events.STEP_UP_SESSION_ENDED,
+                "step_up_session_ended",
+                "notify_step_up_session_ended_for_event",
+                "auth.notify_step_up_session_ended",
+            ),
+            (
+                account_security_events.STEP_UP_LOCKED,
+                "step_up_locked",
+                "notify_step_up_locked_for_event",
+                "auth.notify_step_up_locked",
+            ),
+        ],
+    )
+    @patch("modules.notifications.integration_service.websocket_integration")
+    @patch("modules.notifications.subscribers.core_database")
+    @patch("modules.notifications.subscribers.notifications_service")
+    def test_creates_the_notification_and_is_registered(
+        self, mock_notif, _db, mock_ws, channel, change, handler, subscriber_id
+    ):
+        mock_notif.create_account_security_changed_notification.return_value = (MagicMock(id=5), "WS", True)
+        event = new_event(channel, {"user_id": 1}, source="test")
+
+        getattr(notification_subscribers, handler)(event)
+
+        assert mock_notif.create_account_security_changed_notification.call_args.args[:4] == (
+            1,
+            change,
+            None,
+            event.event_id,
+        )
+        mock_ws.push_to_user.assert_called_once()
+        events = MagicMock()
+        registry = MagicMock()
+        notification_subscribers.register_bus_subscribers(events)
+        notification_subscribers.register_durable_handlers(registry)
+        assert any(c.args[0] == channel for c in events.subscribe.call_args_list)
+        assert any(c.args[:2] == (channel, subscriber_id) for c in registry.register.call_args_list)
+
+
 class TestNotifyAccountLockedForEvent:
     @patch("modules.notifications.integration_service.websocket_integration")
     @patch("modules.notifications.subscribers.core_database")

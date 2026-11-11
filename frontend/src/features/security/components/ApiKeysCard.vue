@@ -17,7 +17,11 @@ import { HttpError } from '@/services/http'
 import { useToasts } from '@/composables/useToasts'
 import { formatMediumDate } from '@/utils/datetime'
 import { API_KEY_SCOPES, apiKeyExpiryInstant } from '@/features/security/services/security'
-import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
+import {
+  isStepUpFailed,
+  isStepUpLocked,
+  useIdpReauthChallenge,
+} from '@/features/security/composables/useIdpStepUp'
 import {
   useApiKeysQuery,
   useCreateApiKeyMutation,
@@ -107,7 +111,9 @@ function onCreate(input: ApiKeyCreateInput): void {
       if (handleIdpChallenge(error)) {
         return
       }
-      if (isStepUpFailed(error)) {
+      if (isStepUpLocked(error)) {
+        toasts.error(t('settings.security.stepUp.tooManyAttempts'))
+      } else if (isStepUpFailed(error)) {
         toasts.error(t('settings.security.apiKeys.invalidCredentials'))
       } else if (refusedField(error, 'body.expires_at')) {
         // Both expiry refusals share the field and the error type, so the chosen date tells them apart.
