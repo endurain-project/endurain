@@ -4,6 +4,7 @@ import { computed, defineComponent, ref } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { createPinia } from 'pinia'
+import { createMemoryHistory, createRouter } from 'vue-router'
 
 import type { Component } from 'vue'
 import type { Activity } from '@/features/activities/types'
@@ -355,9 +356,15 @@ describe('inline forms keyed on the resource version', () => {
   it('rebuilds the privacy form when the profile refetch changes its version', async () => {
     const mounted = { count: 0 }
     profileData.value = { ...profile, privacy: { version: 1 } } as ProfileDetails
+    // The privacy card sits on the page's privacy tab, which the URL selects.
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/', component: { template: '<div />' } }],
+    })
+    await router.push('/?tab=privacy')
     const wrapper = mount(ProfileSettingsView, {
       global: {
-        plugins: plugins(),
+        plugins: [...plugins(), router],
         stubs: {
           PrivacySettingsCard: countingStub(mounted),
           ProfileInfoCard: true,

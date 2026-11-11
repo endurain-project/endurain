@@ -1,20 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Check, ChevronDown } from '@lucide/vue'
 import { onBeforeRouteLeave, useRoute, useRouter, type RouteLocationNormalized } from 'vue-router'
 
 import type { ServerSettings, TileMapsTemplate } from '@/features/serverSettings/types'
 
-import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import SectionTabsBar from '@/components/SectionTabsBar.vue'
+import { Tabs, TabsContent } from '@/components/ui/tabs'
 import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
 import { useAdminStepUp } from '@/features/security/composables/useAdminStepUp'
 import { useMailStepUpResume } from '@/features/serverSettings/composables/useMailStepUpResume'
@@ -97,6 +90,14 @@ const activeTab = computed(() => {
 function isTabDirty(tab: SettingsTab): boolean {
   return tab === 'email' ? mailDirty.value : dirtyTabs.value.has(tab)
 }
+
+const barTabs = computed(() =>
+  visibleTabs.value.map((tab) => ({
+    value: tab,
+    label: t(`settings.server.tabs.${tab}`),
+    dirty: isTabDirty(tab),
+  })),
+)
 
 /**
  * Switches tab by updating the URL, keeping any other query params.
@@ -193,47 +194,13 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', warnBeforeUnloa
   <div ref="root" class="flex flex-col gap-3">
     <Tabs class="flex flex-col gap-3" :model-value="activeTab" @update:model-value="selectTab">
       <div class="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between">
-        <!-- Below lg: a menu button, like the settings zone menu above, instead of a tab row. -->
-        <DropdownMenu>
-          <DropdownMenuTrigger as-child>
-            <Button variant="outline" class="w-full justify-between lg:hidden">
-              <span class="flex min-w-0 items-center gap-2">
-                <span class="truncate">{{ t(`settings.server.tabs.${activeTab}`) }}</span>
-                <span
-                  v-if="isTabDirty(activeTab)"
-                  role="img"
-                  class="size-2 shrink-0 rounded-full bg-brand"
-                  :aria-label="t('settings.server.tabs.unsaved')"
-                />
-              </span>
-              <ChevronDown class="size-4 shrink-0 opacity-60" aria-hidden="true" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" class="w-56">
-            <DropdownMenuItem v-for="tab in visibleTabs" :key="tab" @select="selectTab(tab)">
-              <span class="truncate">{{ t(`settings.server.tabs.${tab}`) }}</span>
-              <span
-                v-if="isTabDirty(tab)"
-                role="img"
-                class="size-2 shrink-0 rounded-full bg-brand"
-                :aria-label="t('settings.server.tabs.unsaved')"
-              />
-              <Check v-if="tab === activeTab" class="ml-auto size-4 shrink-0" aria-hidden="true" />
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <TabsList class="hidden lg:inline-flex" :aria-label="t('settings.server.tabs.label')">
-          <TabsTrigger v-for="tab in visibleTabs" :key="tab" :value="tab">
-            {{ t(`settings.server.tabs.${tab}`) }}
-            <span
-              v-if="isTabDirty(tab)"
-              role="img"
-              class="ml-2 size-2 rounded-full bg-brand"
-              :aria-label="t('settings.server.tabs.unsaved')"
-            />
-          </TabsTrigger>
-        </TabsList>
+        <SectionTabsBar
+          :model-value="activeTab"
+          :tabs="barTabs"
+          :label="t('settings.server.tabs.label')"
+          :unsaved-label="t('settings.server.tabs.unsaved')"
+          @update:model-value="selectTab"
+        />
         <ServerSettingsSearch @select="jumpTo" />
       </div>
 

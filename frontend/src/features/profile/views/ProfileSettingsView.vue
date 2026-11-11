@@ -7,23 +7,34 @@ import ProfileInfoCard from '@/features/profile/components/ProfileInfoCard.vue'
 import DefaultGearCard from '@/features/profile/components/DefaultGearCard.vue'
 import BlockedUsersCard from '@/features/followers/components/BlockedUsersCard.vue'
 import DataTransferCard from '@/features/profile/components/DataTransferCard.vue'
+import SectionTabsBar from '@/components/SectionTabsBar.vue'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { useProfileQuery } from '@/features/profile/composables/useProfile'
+import { useTabQuery } from '@/composables/useTabQuery'
 import { useToasts } from '@/composables/useToasts'
+import { DEFAULT_PROFILE_TAB, PROFILE_TABS, profileTabForAction } from '@/features/profile/tabs'
 import { consumeIdpStepUpReturn } from '@/features/security/composables/useIdpStepUp'
 
 const { t } = useI18n()
 const toasts = useToasts()
+const { activeTab, selectTab } = useTabQuery(PROFILE_TABS, DEFAULT_PROFILE_TAB)
+const tabs = computed(() =>
+  PROFILE_TABS.map((tab) => ({ value: tab, label: t(`settings.profile.tabs.${tab}`) })),
+)
 
 // Returning from an identity-provider sign-in, the callback leaves its outcome in the URL fragment. It is
-// consumed once; the data-transfer card reopens its dialog with the resume, and a failure is reported once the
+// consumed once; the data-transfer card reopens its dialog with the resume (on the tab that holds it), and a failure is reported once the
 // page is shown.
 const stepUpReturn = consumeIdpStepUpReturn()
 const resume = stepUpReturn && !stepUpReturn.error ? stepUpReturn : null
 onMounted(() => {
+  if (resume) {
+    void selectTab(profileTabForAction(resume.action))
+  }
   if (stepUpReturn?.error === 'not_fresh') {
     toasts.error(t('settings.security.stepUp.notFresh'))
   } else if (stepUpReturn?.error) {
@@ -80,18 +91,36 @@ const mfaEnabled = computed(() => profile.value?.mfaEnabled ?? false)
       </ErrorState>
     </Card>
 
-    <template v-else-if="profile">
-      <ProfileInfoCard :profile="profile" />
-      <DefaultGearCard />
-      <!-- Keyed on the version: a refetch that changes it rebuilds the form, so its If-Match is the one it shows. -->
-      <PrivacySettingsCard :key="profile.privacy.version" :privacy="profile.privacy" />
-      <BlockedUsersCard />
-      <DataTransferCard
-        :user-id="profile.id"
-        :has-local-password="profile.hasLocalPassword"
-        :mfa-enabled="mfaEnabled"
-        :resume="resume"
-      />
-    </template>
+    <Tabs
+      v-else-if="profile"
+      class="flex flex-col gap-3"
+      :model-value="activeTab"
+      @update:model-value="selectTab"
+    >
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <SectionTabsBar
+          :model-value="activeTab"
+          :tabs="tabs"
+          :label="t('settings.profile.tabs.label')"
+          @update:model-value="selectTab"
+        />
+      </div>
+
+      <TabsContent value="profile" class="mt-0 flex flex-col gap-3">
+        <ProfileInfoCard :profile="profile" />
+        <DefaultGearCard />
+      </TabsContent>
+      <TabsContent value="privacy" class="mt-0 flex flex-col gap-3">
+        <!-- Keyed on the version: a refetch that changes it rebuilds the form, so its If-Match is the one it shows. -->
+        <PrivacySettingsCard :key="profile.privacy.version" :privacy="profile.privacy" />
+        <BlockedUsersCard />
+        <DataTransferCard
+          :user-id="profile.id"
+          :has-local-password="profile.hasLocalPassword"
+          :mfa-enabled="mfaEnabled"
+          :resume="resume"
+        />
+      </TabsContent>
+    </Tabs>
   </div>
 </template>

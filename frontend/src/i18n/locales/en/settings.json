@@ -974,6 +974,12 @@
       "reauthRequired": "Confirm your identity with your identity provider to continue.",
       "failed": "Signing in again with your identity provider failed. Please try again.",
       "notFresh": "Your identity provider did not ask you to sign in again. Contact your administrator."
+    },
+    "tabs": {
+      "label": "Security sections",
+      "account": "Account",
+      "sessions": "Sessions & access",
+      "danger": "Danger zone"
     }
   },
   "integrations": {
@@ -1254,6 +1260,11 @@
       "unblockError": "Couldn't unblock this user. Please try again.",
       "loadError": "Couldn't load your blocked users.",
       "retry": "Try again"
+    },
+    "tabs": {
+      "label": "Profile sections",
+      "profile": "Profile",
+      "privacy": "Privacy & data"
     }
   }
 }
