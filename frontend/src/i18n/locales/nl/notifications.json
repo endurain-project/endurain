@@ -103,6 +103,34 @@
         "title": "Tweestapsverificatie vergrendeld",
         "body": "Je account is vergrendeld na 100 foute tweestapsverificatiecodes achter elkaar, dus iemand kent je wachtwoord. Browsers en apps waarmee je hebt ingelogd sinds je laatste beveiligingswijziging kunnen nog steeds inloggen. Als jij deze pogingen niet was, wijzig dan je wachtwoord."
       },
+      "stepUpSessionEnded": {
+        "title": "Sessie uitgelogd",
+        "body": "Een sessie van je account is uitgelogd nadat 15 keer achter elkaar een verkeerd wachtwoord of een verkeerde tweefactorcode is ingevoerd om een gevoelige actie te bevestigen. Je andere sessies zijn niet getroffen. Als jij dit niet was, wijzig dan je wachtwoord."
+      },
+      "stepUpLocked": {
+        "title": "Bevestigen van gevoelige acties vergrendeld",
+        "body": "Het bevestigen van gevoelige acties, zoals het wijzigen van je wachtwoord of het aanmaken van een API-sleutel, is 30 dagen vergrendeld na 100 foutieve bevestigingen in al je sessies samen. Als jij dit niet was, stel dan je wachtwoord opnieuw in; dat heft de vergrendeling ook op."
+      },
+      "backupCodeUsed": {
+        "title": "Herstelcode gebruikt",
+        "body": "Er is een herstelcode gebruikt voor de tweefactorauthenticatie van je account. Als jij dit niet was, wijzig dan je wachtwoord en genereer nieuwe herstelcodes.",
+        "bodyRemaining": "Er is een herstelcode gebruikt voor de tweefactorauthenticatie van je account. Ongebruikte herstelcodes over: {count}. Als jij dit niet was, wijzig dan je wachtwoord en genereer nieuwe herstelcodes.",
+        "bodyNone": "Er is een herstelcode gebruikt voor de tweefactorauthenticatie van je account. Je hebt geen ongebruikte herstelcodes meer, dus genereer nieuwe in je beveiligingsinstellingen. Als jij dit niet was, wijzig dan je wachtwoord."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Sessie beëindigd",
+        "body": "Een inlogsessie van je account is beëindigd omdat een token dat al was gebruikt opnieuw werd aangeboden, wat kan betekenen dat de sessie is gekopieerd. Je andere sessies zijn niet getroffen. Als je dit niet verwachtte, wijzig dan je wachtwoord."
+      },
+      "roleChangedByAdmin": {
+        "title": "Toegang gewijzigd door een beheerder",
+        "body": "Een beheerder heeft de toegang van je account gewijzigd en je op alle apparaten uitgelogd. Als je dit niet verwachtte, neem dan contact op met je beheerder.",
+        "bodyAdmin": "Een beheerder heeft de toegang van je account gewijzigd naar beheerder en je op alle apparaten uitgelogd. Als je dit niet verwachtte, neem dan contact op met je beheerder.",
+        "bodyRegular": "Een beheerder heeft de toegang van je account gewijzigd naar gewone gebruiker en je op alle apparaten uitgelogd. Als je dit niet verwachtte, neem dan contact op met je beheerder."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Account gedeactiveerd door een beheerder",
+        "body": "Een beheerder heeft je account gedeactiveerd en je op alle apparaten uitgelogd. Je kunt pas weer inloggen nadat een beheerder het opnieuw heeft geactiveerd."
+      },
       "unknown": {
         "title": "Accountbeveiliging gewijzigd",
         "body": "Een beveiligingsinstelling van je account is gewijzigd. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen."
@@ -115,6 +143,10 @@
     "adminSignUpApproval": {
       "title": "Nieuwe registratie vereist goedkeuring",
       "body": "{name} ({'@'}{username}) wacht op accountgoedkeuring."
+    },
+    "adminUserPromoted": {
+      "title": "Gebruiker gepromoveerd tot beheerder",
+      "body": "{name} ({'@'}{username}) heeft beheerderstoegang gekregen."
     },
     "unknown": {
       "title": "Melding",

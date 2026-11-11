@@ -103,6 +103,34 @@
         "title": "Tofaktorbekreftelse låst",
         "body": "Kontoen din ble låst etter 100 feil tofaktorkoder på rad, så noen kjenner passordet ditt. Nettlesere og apper du har logget inn fra siden din siste sikkerhetsendring, kan fortsatt logge inn. Hvis disse forsøkene ikke var dine, endre passordet ditt."
       },
+      "stepUpSessionEnded": {
+        "title": "Økt logget ut",
+        "body": "En økt på kontoen din ble logget ut etter at feil passord eller feil tofaktorkoder ble skrevet inn 15 ganger på rad for å bekrefte en sensitiv handling. De andre øktene dine ble ikke påvirket. Hvis det ikke var deg, endre passordet ditt."
+      },
+      "stepUpLocked": {
+        "title": "Bekreftelse av sensitive handlinger låst",
+        "body": "Bekreftelse av sensitive handlinger, som å endre passordet ditt eller opprette en API-nøkkel, ble låst i 30 dager etter 100 feil bekreftelser på tvers av øktene dine. Hvis det ikke var deg, tilbakestill passordet ditt, noe som også opphever låsen."
+      },
+      "backupCodeUsed": {
+        "title": "Reservekode brukt",
+        "body": "En reservekode ble brukt til tofaktorautentisering på kontoen din. Hvis det ikke var deg, endre passordet ditt og generer nye reservekoder.",
+        "bodyRemaining": "En reservekode ble brukt til tofaktorautentisering på kontoen din. Ubrukte reservekoder igjen: {count}. Hvis det ikke var deg, endre passordet ditt og generer nye reservekoder.",
+        "bodyNone": "En reservekode ble brukt til tofaktorautentisering på kontoen din. Du har ingen ubrukte reservekoder igjen, så generer nye i sikkerhetsinnstillingene dine. Hvis det ikke var deg, endre passordet ditt."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Økt avsluttet",
+        "body": "En innloggingsøkt på kontoen din ble avsluttet fordi et token som allerede var brukt, ble lagt fram på nytt, noe som kan bety at økten er kopiert. De andre øktene dine ble ikke påvirket. Hvis du ikke ventet dette, endre passordet ditt."
+      },
+      "roleChangedByAdmin": {
+        "title": "Tilgang endret av en administrator",
+        "body": "En administrator endret tilgangen til kontoen din og logget deg ut på alle enheter. Hvis du ikke ventet dette, kontakt administratoren din.",
+        "bodyAdmin": "En administrator endret tilgangen til kontoen din til administrator og logget deg ut på alle enheter. Hvis du ikke ventet dette, kontakt administratoren din.",
+        "bodyRegular": "En administrator endret tilgangen til kontoen din til vanlig bruker og logget deg ut på alle enheter. Hvis du ikke ventet dette, kontakt administratoren din."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Konto deaktivert av en administrator",
+        "body": "En administrator deaktiverte kontoen din og logget deg ut på alle enheter. Du kan ikke logge inn før en administrator aktiverer den på nytt."
+      },
       "unknown": {
         "title": "Kontosikkerheten ble endret",
         "body": "En sikkerhetsinnstilling på kontoen din ble endret. Hvis dette ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine."
@@ -115,6 +143,10 @@
     "adminSignUpApproval": {
       "title": "Ny registrering trenger godkjenning",
       "body": "{name} ({'@'}{username}) venter på godkjenning av konto."
+    },
+    "adminUserPromoted": {
+      "title": "Bruker gjort til administrator",
+      "body": "{name} ({'@'}{username}) fikk administratortilgang."
     },
     "unknown": {
       "title": "Varsel",

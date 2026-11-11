@@ -345,6 +345,17 @@
       "currencyPound": "Libra (£)",
       "numRecords": "Záznamov na stránku"
     },
+    "mfa": {
+      "title": "Dvojfaktorové overovanie",
+      "require": "Vyžadovať dvojfaktorové overovanie",
+      "requireHint": "Účet, ktorého sa to týka a ktorý nemá nastavené dvojfaktorové overovanie, ho musí nastaviť, kým bude môcť robiť čokoľvek iné. Dovtedy ho môže iba nastaviť a odhlásiť sa. Požiadavka platí od ďalšej požiadavky účtu.",
+      "options": {
+        "off": "Nevyžadovať",
+        "administrators": "Iba správcovia",
+        "everyone": "Všetci"
+      },
+      "enabledWarning": "Účty, ktorých sa toto nastavenie týka a ktoré nemajú nastavené dvojfaktorové overovanie, prípadne vrátane vášho, budú pri ďalšej požiadavke presmerované na jeho nastavenie."
+    },
     "password": {
       "title": "Pravidlá hesla",
       "lengthRegular": "Minimálna dĺžka pre bežných používateľov",
@@ -703,6 +714,13 @@
     "mfaCode": "Overovací kód",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "Na potvrdenie napíšte {phrase}",
+    "mfaEnrolment": {
+      "title": "Nastavte dvojfaktorové overovanie",
+      "description": "Tento server vyžaduje dvojfaktorové overovanie. Nastavte ho, aby ste mohli ďalej používať Endurain, alebo sa odhláste.",
+      "done": "Dvojfaktorové overovanie je nastavené. Môžete pokračovať.",
+      "continue": "Pokračovať",
+      "signOut": "Odhlásiť sa"
+    },
     "loadError": {
       "title": "Vaše nastavenia zabezpečenia sa nepodarilo načítať",
       "description": "Niečo sa pokazilo. Môžete to skúsiť znova."
@@ -848,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Odstrániť môj účet",
-      "subtitle": "Natrvalo odstráňte svoj účet a všetky svoje údaje vrátane aktivít a ich súborov, zdravotných záznamov, vybavenia, cieľov, integrácií a relácií. Túto akciu nie je možné vrátiť späť. Ak si chcete ponechať kópiu, najprv údaje exportujte.",
+      "subtitle": "Odstráňte svoj účet a všetky svoje údaje vrátane aktivít a ich súborov, zdravotných záznamov, vybavenia, cieľov, integrácií a relácií. Budete odhlásení zo všetkých zariadení a účet sa okamžite deaktivuje, potom sa vaše údaje na pozadí vymažú. Neexistuje žiadna ochranná lehota: zastaviť to môže iba správca, a to opätovnou aktiváciou účtu pred dokončením mazania. Ak si chcete ponechať kópiu, najprv exportujte svoje údaje.",
       "action": "Odstrániť môj účet",
       "dialogTitle": "Odstrániť váš účet?",
-      "dialogDescription": "Tým sa natrvalo odstráni váš účet a všetky údaje. Ak chcete pokračovať, potvrďte svoju totožnosť.",
+      "dialogDescription": "Týmto sa odhlásite zo všetkých zariadení, váš účet sa deaktivuje a začne sa mazanie všetkých vašich údajov. Zastaviť to pred dokončením môže iba správca. Pokračujte potvrdením svojej identity.",
       "confirm": "Odstrániť môj účet",
       "error": "Váš účet sa nepodarilo odstrániť. Skúste to prosím znova.",
       "onlyAdminError": "Ste jediný správca. Pred odstránením účtu udeľte práva správcu inému používateľovi.",

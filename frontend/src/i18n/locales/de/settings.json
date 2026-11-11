@@ -345,6 +345,17 @@
       "currencyPound": "Pfund (£)",
       "numRecords": "Einträge pro Seite"
     },
+    "mfa": {
+      "title": "Zwei-Faktor-Authentifizierung",
+      "require": "Zwei-Faktor-Authentifizierung verlangen",
+      "requireHint": "Ein davon betroffenes Konto, das die Zwei-Faktor-Authentifizierung noch nicht eingerichtet hat, muss sie einrichten, bevor es etwas anderes tun kann. Bis dahin kann es sie nur einrichten und sich abmelden. Die Anforderung gilt ab der nächsten Anfrage des Kontos.",
+      "options": {
+        "off": "Nicht erforderlich",
+        "administrators": "Nur Administratoren",
+        "everyone": "Alle"
+      },
+      "enabledWarning": "Von dieser Einstellung betroffene Konten, die die Zwei-Faktor-Authentifizierung noch nicht eingerichtet haben, möglicherweise auch deins, werden bei ihrer nächsten Anfrage zur Einrichtung weitergeleitet."
+    },
     "password": {
       "title": "Passwortrichtlinie",
       "lengthRegular": "Mindestlänge für normale Benutzer",
@@ -703,6 +714,13 @@
     "mfaCode": "Authentifizierungscode",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "Gib {phrase} zur Bestätigung ein",
+    "mfaEnrolment": {
+      "title": "Zwei-Faktor-Authentifizierung einrichten",
+      "description": "Dieser Server verlangt die Zwei-Faktor-Authentifizierung. Richte sie ein, um Endurain weiter zu nutzen, oder melde dich ab.",
+      "done": "Die Zwei-Faktor-Authentifizierung ist eingerichtet. Du kannst fortfahren.",
+      "continue": "Weiter",
+      "signOut": "Abmelden"
+    },
     "loadError": {
       "title": "Deine Sicherheitseinstellungen konnten nicht geladen werden",
       "description": "Etwas ist schiefgelaufen. Du kannst es erneut versuchen."
@@ -848,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Mein Konto löschen",
-      "subtitle": "Lösche dein Konto und alle deine Daten dauerhaft, einschließlich Aktivitäten und ihrer Dateien, Gesundheitsdaten, Ausrüstung, Ziele, Integrationen und Sitzungen. Das kann nicht rückgängig gemacht werden. Exportiere zuerst deine Daten, wenn du eine Kopie behalten möchtest.",
+      "subtitle": "Lösche dein Konto und alle deine Daten, darunter Aktivitäten und ihre Dateien, Gesundheitsdaten, Ausrüstung, Ziele, Integrationen und Sitzungen. Du wirst auf allen Geräten abgemeldet und das Konto wird sofort deaktiviert, danach werden deine Daten im Hintergrund gelöscht. Es gibt keine Karenzzeit: Nur ein Administrator kann das stoppen, indem er das Konto reaktiviert, bevor die Löschung abgeschlossen ist. Exportiere zuerst deine Daten, wenn du eine Kopie behalten möchtest.",
       "action": "Mein Konto löschen",
       "dialogTitle": "Dein Konto löschen?",
-      "dialogDescription": "Dadurch werden dein Konto und alle deine Daten dauerhaft gelöscht. Bestätige deine Identität, um fortzufahren.",
+      "dialogDescription": "Dadurch wirst du auf allen Geräten abgemeldet, dein Konto wird deaktiviert und das Löschen aller deiner Daten beginnt. Nur ein Administrator kann es stoppen, bevor es abgeschlossen ist. Bestätige deine Identität, um fortzufahren.",
       "confirm": "Mein Konto löschen",
       "error": "Dein Konto konnte nicht gelöscht werden. Bitte versuche es erneut.",
       "onlyAdminError": "Du bist der einzige Administrator. Mache einen anderen Benutzer zum Administrator, bevor du dein Konto löschst.",

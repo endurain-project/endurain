@@ -103,6 +103,34 @@
         "title": "Kaksivaiheinen vahvistus lukittu",
         "body": "Tilisi lukittiin 100 peräkkäisen väärän kaksivaiheisen vahvistuskoodin jälkeen, joten joku tietää salasanasi. Selaimet ja sovellukset, joista olet kirjautunut viimeisimmän tietoturvamuutoksen jälkeen, voivat yhä kirjautua sisään. Jos yritykset eivät olleet sinun, vaihda salasanasi."
       },
+      "stepUpSessionEnded": {
+        "title": "Istunto kirjattiin ulos",
+        "body": "Tilisi yksi istunto kirjattiin ulos, kun arkaluonteisen toiminnon vahvistamiseksi syötettiin peräkkäin 15 väärää salasanaa tai kaksivaiheisen todennuksen koodia. Muut istuntosi eivät vaikuttuneet. Jos nämä yritykset eivät olleet sinun, vaihda salasanasi."
+      },
+      "stepUpLocked": {
+        "title": "Arkaluonteisten toimintojen vahvistus lukittu",
+        "body": "Arkaluonteisten toimintojen, kuten salasanan vaihtamisen tai API-avaimen luomisen, vahvistaminen lukittiin 30 päiväksi 100 väärän vahvistuksen jälkeen istunnoissasi. Jos nämä yritykset eivät olleet sinun, palauta salasanasi, mikä myös poistaa lukituksen."
+      },
+      "backupCodeUsed": {
+        "title": "Varakoodia käytettiin",
+        "body": "Tilisi kaksivaiheisessa todennuksessa käytettiin varakoodia. Jos se et ollut sinä, vaihda salasanasi ja luo uudet varakoodit.",
+        "bodyRemaining": "Tilisi kaksivaiheisessa todennuksessa käytettiin varakoodia. Käyttämättömiä varakoodeja on jäljellä: {count}. Jos se et ollut sinä, vaihda salasanasi ja luo uudet varakoodit.",
+        "bodyNone": "Tilisi kaksivaiheisessa todennuksessa käytettiin varakoodia. Käyttämättömiä varakoodeja ei ole enää jäljellä, joten luo uudet tietoturva-asetuksissasi. Jos se et ollut sinä, vaihda salasanasi."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Istunto päätettiin",
+        "body": "Tilisi kirjautumisistunto päätettiin, koska jo käytetty tunnus esitettiin uudelleen, mikä voi tarkoittaa, että istunto kopioitiin. Muut istuntosi eivät vaikuttuneet. Jos et odottanut tätä, vaihda salasanasi."
+      },
+      "roleChangedByAdmin": {
+        "title": "Ylläpitäjä muutti käyttöoikeuksia",
+        "body": "Ylläpitäjä muutti tilisi käyttöoikeuksia ja kirjasi sinut ulos kaikilta laitteilta. Jos et odottanut tätä, ota yhteyttä ylläpitäjääsi.",
+        "bodyAdmin": "Ylläpitäjä muutti tilisi käyttöoikeudet ylläpitäjäksi ja kirjasi sinut ulos kaikilta laitteilta. Jos et odottanut tätä, ota yhteyttä ylläpitäjääsi.",
+        "bodyRegular": "Ylläpitäjä muutti tilisi käyttöoikeudet tavalliseksi käyttäjäksi ja kirjasi sinut ulos kaikilta laitteilta. Jos et odottanut tätä, ota yhteyttä ylläpitäjääsi."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Ylläpitäjä poisti tilin käytöstä",
+        "body": "Ylläpitäjä poisti tilisi käytöstä ja kirjasi sinut ulos kaikilta laitteilta. Et voi kirjautua sisään, ennen kuin ylläpitäjä ottaa sen uudelleen käyttöön."
+      },
       "unknown": {
         "title": "Tilin turvallisuus muuttui",
         "body": "Tilisi turvallisuusasetus muuttui. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi."
@@ -115,6 +143,10 @@
     "adminSignUpApproval": {
       "title": "Uusi rekisteröityminen vaatii hyväksynnän",
       "body": "{name} ({'@'}{username}) odottaa tilin hyväksyntää."
+    },
+    "adminUserPromoted": {
+      "title": "Käyttäjä ylennettiin ylläpitäjäksi",
+      "body": "Käyttäjälle {name} ({'@'}{username}) annettiin ylläpitäjän käyttöoikeudet."
     },
     "unknown": {
       "title": "Ilmoitus",

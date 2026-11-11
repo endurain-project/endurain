@@ -103,6 +103,34 @@
         "title": "Tvåstegsverifiering låst",
         "body": "Ditt konto låstes efter 100 felaktiga tvåstegsverifieringskoder i rad, så någon känner till ditt lösenord. Webbläsare och appar du har loggat in från sedan din senaste säkerhetsändring kan fortfarande logga in. Om försöken inte var dina, byt ditt lösenord."
       },
+      "stepUpSessionEnded": {
+        "title": "Session utloggad",
+        "body": "En session för ditt konto loggades ut efter att fel lösenord eller felaktiga tvåfaktorskoder angetts 15 gånger i rad för att bekräfta en känslig åtgärd. Dina andra sessioner påverkades inte. Om det inte var du, byt lösenord."
+      },
+      "stepUpLocked": {
+        "title": "Bekräftelse av känsliga åtgärder låst",
+        "body": "Bekräftelse av känsliga åtgärder, som att byta lösenord eller skapa en API-nyckel, låstes i 30 dagar efter 100 felaktiga bekräftelser över alla dina sessioner. Om det inte var du, återställ ditt lösenord, vilket också häver låset."
+      },
+      "backupCodeUsed": {
+        "title": "Reservkod använd",
+        "body": "En reservkod användes för tvåfaktorsautentisering på ditt konto. Om det inte var du, byt lösenord och skapa nya reservkoder.",
+        "bodyRemaining": "En reservkod användes för tvåfaktorsautentisering på ditt konto. Oanvända reservkoder kvar: {count}. Om det inte var du, byt lösenord och skapa nya reservkoder.",
+        "bodyNone": "En reservkod användes för tvåfaktorsautentisering på ditt konto. Du har inga oanvända reservkoder kvar, så skapa nya i dina säkerhetsinställningar. Om det inte var du, byt lösenord."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Session avslutad",
+        "body": "En inloggningssession för ditt konto avslutades eftersom en token som redan använts visades upp igen, vilket kan betyda att sessionen har kopierats. Dina andra sessioner påverkades inte. Om du inte väntade dig detta, byt lösenord."
+      },
+      "roleChangedByAdmin": {
+        "title": "Åtkomst ändrad av en administratör",
+        "body": "En administratör ändrade åtkomsten för ditt konto och loggade ut dig från alla enheter. Kontakta din administratör om du inte väntade dig detta.",
+        "bodyAdmin": "En administratör ändrade åtkomsten för ditt konto till administratör och loggade ut dig från alla enheter. Kontakta din administratör om du inte väntade dig detta.",
+        "bodyRegular": "En administratör ändrade åtkomsten för ditt konto till vanlig användare och loggade ut dig från alla enheter. Kontakta din administratör om du inte väntade dig detta."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Konto inaktiverat av en administratör",
+        "body": "En administratör inaktiverade ditt konto och loggade ut dig från alla enheter. Du kan inte logga in förrän en administratör aktiverar det igen."
+      },
       "unknown": {
         "title": "Kontosäkerheten ändrades",
         "body": "En säkerhetsinställning för ditt konto ändrades. Om det inte var du, återställ ditt lösenord och granska dina säkerhetsinställningar."
@@ -115,6 +143,10 @@
     "adminSignUpApproval": {
       "title": "Ny registrering behöver godkännande",
       "body": "{name} ({'@'}{username}) väntar på kontogodkännande."
+    },
+    "adminUserPromoted": {
+      "title": "Användare befordrad till administratör",
+      "body": "{name} ({'@'}{username}) fick administratörsåtkomst."
     },
     "unknown": {
       "title": "Avisering",

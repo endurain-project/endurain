@@ -103,6 +103,34 @@
         "title": "Totrinsbekræftelse låst",
         "body": "Din konto blev låst efter 100 forkerte koder til totrinsbekræftelse i træk, så nogen kender din adgangskode. Browsere og apps, du har logget ind fra siden din seneste sikkerhedsændring, kan stadig logge ind. Hvis forsøgene ikke var dine, så skift din adgangskode."
       },
+      "stepUpSessionEnded": {
+        "title": "Session logget ud",
+        "body": "En session på din konto blev logget ud, efter at der 15 gange i træk var indtastet forkerte adgangskoder eller tofaktorkoder for at bekræfte en følsom handling. Dine andre sessioner var ikke berørt. Hvis det ikke var dig, så skift din adgangskode."
+      },
+      "stepUpLocked": {
+        "title": "Bekræftelse af følsomme handlinger låst",
+        "body": "Bekræftelse af følsomme handlinger, som at skifte din adgangskode eller oprette en API-nøgle, blev låst i 30 dage efter 100 forkerte bekræftelser på tværs af dine sessioner. Hvis det ikke var dig, så nulstil din adgangskode, hvilket også ophæver låsen."
+      },
+      "backupCodeUsed": {
+        "title": "Backup-kode brugt",
+        "body": "En backup-kode blev brugt til tofaktorgodkendelse på din konto. Hvis det ikke var dig, så skift din adgangskode og generér nye backup-koder.",
+        "bodyRemaining": "En backup-kode blev brugt til tofaktorgodkendelse på din konto. Ubrugte backup-koder tilbage: {count}. Hvis det ikke var dig, så skift din adgangskode og generér nye backup-koder.",
+        "bodyNone": "En backup-kode blev brugt til tofaktorgodkendelse på din konto. Du har ingen ubrugte backup-koder tilbage, så generér nye i dine sikkerhedsindstillinger. Hvis det ikke var dig, så skift din adgangskode."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Session afsluttet",
+        "body": "En loginsession på din konto blev afsluttet, fordi et token, der allerede var brugt, blev fremvist igen, hvilket kan betyde, at sessionen er kopieret. Dine andre sessioner var ikke berørt. Hvis du ikke forventede dette, så skift din adgangskode."
+      },
+      "roleChangedByAdmin": {
+        "title": "Adgang ændret af en administrator",
+        "body": "En administrator ændrede adgangen for din konto og loggede dig ud af alle enheder. Hvis du ikke forventede dette, så kontakt din administrator.",
+        "bodyAdmin": "En administrator ændrede adgangen for din konto til administrator og loggede dig ud af alle enheder. Hvis du ikke forventede dette, så kontakt din administrator.",
+        "bodyRegular": "En administrator ændrede adgangen for din konto til almindelig bruger og loggede dig ud af alle enheder. Hvis du ikke forventede dette, så kontakt din administrator."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Konto deaktiveret af en administrator",
+        "body": "En administrator deaktiverede din konto og loggede dig ud af alle enheder. Du kan ikke logge ind, før en administrator genaktiverer den."
+      },
       "unknown": {
         "title": "Kontosikkerheden er ændret",
         "body": "En sikkerhedsindstilling på din konto er ændret. Hvis det ikke var dig, så nulstil din adgangskode og gennemgå dine sikkerhedsindstillinger."
@@ -115,6 +143,10 @@
     "adminSignUpApproval": {
       "title": "Ny tilmelding kræver godkendelse",
       "body": "{name} ({'@'}{username}) afventer kontogodkendelse."
+    },
+    "adminUserPromoted": {
+      "title": "Bruger gjort til administrator",
+      "body": "{name} ({'@'}{username}) fik administratoradgang."
     },
     "unknown": {
       "title": "Notifikation",

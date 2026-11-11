@@ -345,6 +345,17 @@
       "currencyPound": "Libra (£)",
       "numRecords": "Záznamů na stránku"
     },
+    "mfa": {
+      "title": "Dvoufaktorové ověřování",
+      "require": "Vyžadovat dvoufaktorové ověřování",
+      "requireHint": "Účet, kterého se to týká a který nemá nastavené dvoufaktorové ověřování, jej musí nastavit, než bude moci dělat cokoli jiného. Do té doby jej může pouze nastavit a odhlásit se. Požadavek platí od dalšího požadavku účtu.",
+      "options": {
+        "off": "Nevyžadovat",
+        "administrators": "Pouze správci",
+        "everyone": "Všichni"
+      },
+      "enabledWarning": "Účty, kterých se toto nastavení týká a které nemají nastavené dvoufaktorové ověřování, případně včetně vašeho, budou při dalším požadavku přesměrovány na jeho nastavení."
+    },
     "password": {
       "title": "Zásady hesel",
       "lengthRegular": "Minimální délka pro běžné uživatele",
@@ -703,6 +714,13 @@
     "mfaCode": "Ověřovací kód",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "Pro potvrzení napište {phrase}",
+    "mfaEnrolment": {
+      "title": "Nastavte dvoufaktorové ověřování",
+      "description": "Tento server vyžaduje dvoufaktorové ověřování. Nastavte je, abyste mohli dál používat Endurain, nebo se odhlaste.",
+      "done": "Dvoufaktorové ověřování je nastaveno. Můžete pokračovat.",
+      "continue": "Pokračovat",
+      "signOut": "Odhlásit se"
+    },
     "loadError": {
       "title": "Nepodařilo se načíst nastavení zabezpečení",
       "description": "Něco se pokazilo. Můžete to zkusit znovu."
@@ -848,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Smazat můj účet",
-      "subtitle": "Trvale smažte svůj účet a všechna svá data, včetně aktivit a jejich souborů, zdravotních záznamů, vybavení, cílů, integrací a relací. Tuto akci nelze vrátit zpět. Chcete-li si ponechat kopii, nejprve data exportujte.",
+      "subtitle": "Smažte svůj účet a všechna svá data, včetně aktivit a jejich souborů, zdravotních záznamů, vybavení, cílů, integrací a relací. Budete odhlášeni ze všech zařízení a účet bude okamžitě deaktivován, poté budou vaše data na pozadí vymazána. Neexistuje žádná ochranná lhůta: zastavit to může pouze správce, a to opětovnou aktivací účtu před dokončením mazání. Chcete-li si ponechat kopii, nejprve exportujte svá data.",
       "action": "Smazat můj účet",
       "dialogTitle": "Smazat váš účet?",
-      "dialogDescription": "Tím se trvale smaže váš účet a všechna data. Pro pokračování potvrďte svou totožnost.",
+      "dialogDescription": "Tím se odhlásíte ze všech zařízení, váš účet bude deaktivován a začne mazání všech vašich dat. Zastavit to před dokončením může pouze správce. Pro pokračování potvrďte svou totožnost.",
       "confirm": "Smazat můj účet",
       "error": "Váš účet se nepodařilo smazat. Zkuste to prosím znovu.",
       "onlyAdminError": "Jste jediný správce. Před smazáním účtu udělte práva správce jinému uživateli.",

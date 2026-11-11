@@ -103,6 +103,34 @@
         "title": "Zwei-Schritt-Verifizierung gesperrt",
         "body": "Dein Konto wurde nach 100 falschen Codes der Zwei-Schritt-Verifizierung in Folge gesperrt, also kennt jemand dein Passwort. Browser und Apps, mit denen du dich seit deiner letzten Sicherheitsänderung angemeldet hast, können sich weiterhin anmelden. Wenn diese Versuche nicht von dir stammten, ändere dein Passwort."
       },
+      "stepUpSessionEnded": {
+        "title": "Sitzung abgemeldet",
+        "body": "Eine Sitzung deines Kontos wurde abgemeldet, nachdem 15 Mal hintereinander falsche Passwörter oder Zwei-Faktor-Codes eingegeben wurden, um eine sensible Aktion zu bestätigen. Deine anderen Sitzungen waren nicht betroffen. Wenn du das nicht warst, ändere dein Passwort."
+      },
+      "stepUpLocked": {
+        "title": "Bestätigung sensibler Aktionen gesperrt",
+        "body": "Die Bestätigung sensibler Aktionen, etwa das Ändern deines Passworts oder das Erstellen eines API-Schlüssels, wurde für 30 Tage gesperrt, nachdem über deine Sitzungen hinweg 100 Mal falsch bestätigt wurde. Wenn du das nicht warst, setze dein Passwort zurück; dadurch wird die Sperre ebenfalls aufgehoben."
+      },
+      "backupCodeUsed": {
+        "title": "Backup-Code verwendet",
+        "body": "Für die Zwei-Faktor-Authentifizierung deines Kontos wurde ein Backup-Code verwendet. Wenn du das nicht warst, ändere dein Passwort und erstelle neue Backup-Codes.",
+        "bodyRemaining": "Für die Zwei-Faktor-Authentifizierung deines Kontos wurde ein Backup-Code verwendet. Verbleibende ungenutzte Backup-Codes: {count}. Wenn du das nicht warst, ändere dein Passwort und erstelle neue Backup-Codes.",
+        "bodyNone": "Für die Zwei-Faktor-Authentifizierung deines Kontos wurde ein Backup-Code verwendet. Du hast keine ungenutzten Backup-Codes mehr, erstelle daher in deinen Sicherheitseinstellungen neue. Wenn du das nicht warst, ändere dein Passwort."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Sitzung beendet",
+        "body": "Eine Anmeldesitzung deines Kontos wurde beendet, weil ein bereits verwendetes Token erneut vorgelegt wurde, was bedeuten kann, dass die Sitzung kopiert wurde. Deine anderen Sitzungen waren nicht betroffen. Wenn du das nicht erwartet hast, ändere dein Passwort."
+      },
+      "roleChangedByAdmin": {
+        "title": "Zugriff von einem Administrator geändert",
+        "body": "Ein Administrator hat den Zugriff deines Kontos geändert und dich auf allen Geräten abgemeldet. Wenn du das nicht erwartet hast, wende dich an deinen Administrator.",
+        "bodyAdmin": "Ein Administrator hat den Zugriff deines Kontos auf Administrator geändert und dich auf allen Geräten abgemeldet. Wenn du das nicht erwartet hast, wende dich an deinen Administrator.",
+        "bodyRegular": "Ein Administrator hat den Zugriff deines Kontos auf normaler Benutzer geändert und dich auf allen Geräten abgemeldet. Wenn du das nicht erwartet hast, wende dich an deinen Administrator."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Konto von einem Administrator deaktiviert",
+        "body": "Ein Administrator hat dein Konto deaktiviert und dich auf allen Geräten abgemeldet. Du kannst dich erst wieder anmelden, wenn ein Administrator es reaktiviert."
+      },
       "unknown": {
         "title": "Kontosicherheit geändert",
         "body": "Eine Sicherheitseinstellung deines Kontos wurde geändert. Wenn du das nicht warst, setze dein Passwort zurück und prüfe deine Sicherheitseinstellungen."
@@ -115,6 +143,10 @@
     "adminSignUpApproval": {
       "title": "Neue Registrierung benötigt Genehmigung",
       "body": "{name} ({'@'}{username}) wartet auf Kontogenehmigung."
+    },
+    "adminUserPromoted": {
+      "title": "Benutzer zum Administrator befördert",
+      "body": "{name} ({'@'}{username}) wurde Administratorzugriff gewährt."
     },
     "unknown": {
       "title": "Benachrichtigung",

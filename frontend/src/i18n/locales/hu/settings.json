@@ -345,6 +345,17 @@
       "currencyPound": "Font (£)",
       "numRecords": "Rekordok oldalanként"
     },
+    "mfa": {
+      "title": "Kétfaktoros hitelesítés",
+      "require": "Kétfaktoros hitelesítés megkövetelése",
+      "requireHint": "Az az érintett fiók, amely nem állította be a kétfaktoros hitelesítést, csak a beállítása után tehet bármi mást. Addig csak beállíthatja, illetve kijelentkezhet. A követelmény a fiók következő kérésétől érvényes.",
+      "options": {
+        "off": "Nem kötelező",
+        "administrators": "Csak adminisztrátorok",
+        "everyone": "Mindenki"
+      },
+      "enabledWarning": "Azok a fiókok, amelyekre ez a beállítás vonatkozik, és nem állították be a kétfaktoros hitelesítést, esetleg a tiéd is, a következő kérésükkor a beállításhoz kerülnek."
+    },
     "password": {
       "title": "Jelszószabályzat",
       "lengthRegular": "Minimális hossz normál felhasználóknál",
@@ -703,6 +714,13 @@
     "mfaCode": "Hitelesítési kód",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "A megerősítéshez írd be: {phrase}",
+    "mfaEnrolment": {
+      "title": "Kétfaktoros hitelesítés beállítása",
+      "description": "Ez a szerver kétfaktoros hitelesítést követel meg. Állítsd be, hogy tovább használhasd az Enduraint, vagy jelentkezz ki.",
+      "done": "A kétfaktoros hitelesítés be van állítva. Folytathatod.",
+      "continue": "Folytatás",
+      "signOut": "Kijelentkezés"
+    },
     "loadError": {
       "title": "Nem sikerült betölteni a biztonsági beállításaidat",
       "description": "Valami hiba történt. Megpróbálhatod újra."
@@ -848,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Fiókom törlése",
-      "subtitle": "Véglegesen törlöd a fiókodat és az összes adatodat, beleértve a tevékenységeket és fájljaikat, az egészségügyi adatokat, a felszerelést, a célokat, az integrációkat és a munkameneteket. Ezt nem lehet visszavonni. Ha meg szeretnél tartani egy másolatot, előbb exportáld az adataidat.",
+      "subtitle": "Töröld a fiókodat és az összes adatodat, beleértve a tevékenységeket és a hozzájuk tartozó fájlokat, az egészségügyi adatokat, a felszerelést, a célokat, az integrációkat és a munkameneteket. Minden eszközről kijelentkeztetünk, a fiók azonnal deaktiválódik, majd az adataidat a háttérben töröljük. Nincs türelmi idő: csak egy adminisztrátor állíthatja meg, ha a törlés befejezése előtt újra aktiválja a fiókot. Ha meg szeretnél tartani egy másolatot, előbb exportáld az adataidat.",
       "action": "Fiókom törlése",
       "dialogTitle": "Törlöd a fiókodat?",
-      "dialogDescription": "Ez véglegesen törli a fiókodat és az összes adatodat. A folytatáshoz erősítsd meg a személyazonosságodat.",
+      "dialogDescription": "Ezzel minden eszközről kijelentkeztetünk, deaktiváljuk a fiókodat, és megkezdjük az összes adatod törlését. Csak egy adminisztrátor állíthatja meg a befejezés előtt. A folytatáshoz erősítsd meg a személyazonosságodat.",
       "confirm": "Fiókom törlése",
       "error": "Nem sikerült törölni a fiókodat. Kérjük, próbáld újra.",
       "onlyAdminError": "Te vagy az egyetlen rendszergazda. A fiókod törlése előtt tegyél rendszergazdává egy másik felhasználót.",

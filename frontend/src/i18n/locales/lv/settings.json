@@ -345,6 +345,17 @@
       "currencyPound": "Mārciņa (£)",
       "numRecords": "Ierakstu skaits lapā"
     },
+    "mfa": {
+      "title": "Divfaktoru autentifikācija",
+      "require": "Pieprasīt divfaktoru autentifikāciju",
+      "requireHint": "Kontam, uz kuru attiecas šis iestatījums un kas nav iestatījis divfaktoru autentifikāciju, tā jāiestata, pirms tas var darīt ko citu. Līdz tam tas var tikai to iestatīt un izrakstīties. Prasība stājas spēkā no konta nākamā pieprasījuma.",
+      "options": {
+        "off": "Nav obligāta",
+        "administrators": "Tikai administratoriem",
+        "everyone": "Visiem"
+      },
+      "enabledWarning": "Konti, uz kuriem attiecas šis iestatījums un kas nav iestatījuši divfaktoru autentifikāciju, iespējams, arī Jūsējais, nākamajā pieprasījumā tiks novirzīti to iestatīt."
+    },
     "password": {
       "title": "Paroles politika",
       "lengthRegular": "Minimālais garums parastajiem lietotājiem",
@@ -703,6 +714,13 @@
     "mfaCode": "Autentifikācijas kods",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "Lai apstiprinātu, ierakstiet {phrase}",
+    "mfaEnrolment": {
+      "title": "Iestatiet divfaktoru autentifikāciju",
+      "description": "Šis serveris pieprasa divfaktoru autentifikāciju. Iestatiet to, lai turpinātu lietot Endurain, vai izrakstieties.",
+      "done": "Divfaktoru autentifikācija ir iestatīta. Varat turpināt.",
+      "continue": "Turpināt",
+      "signOut": "Izrakstīties"
+    },
     "loadError": {
       "title": "Neizdevās ielādēt jūsu drošības iestatījumus",
       "description": "Kaut kas nogāja greizi. Varat mēģināt vēlreiz."
@@ -848,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Dzēst manu kontu",
-      "subtitle": "Neatgriezeniski dzēsiet savu kontu un visus datus, tostarp aktivitātes un to failus, veselības ierakstus, inventāru, mērķus, integrācijas un sesijas. To nevar atsaukt. Ja vēlaties saglabāt kopiju, vispirms eksportējiet datus.",
+      "subtitle": "Dzēsiet savu kontu un visus savus datus, tostarp aktivitātes un to failus, veselības ierakstus, aprīkojumu, mērķus, integrācijas un sesijas. Jūs tiksiet izrakstīts visās ierīcēs, un konts tiks nekavējoties deaktivizēts, pēc tam Jūsu dati tiks dzēsti fonā. Pagarinājuma perioda nav: to var apturēt tikai administrators, atkal aktivizējot kontu pirms dzēšanas beigām. Ja vēlaties saglabāt kopiju, vispirms eksportējiet savus datus.",
       "action": "Dzēst manu kontu",
       "dialogTitle": "Dzēst jūsu kontu?",
-      "dialogDescription": "Tas neatgriezeniski izdzēš jūsu kontu un visus datus. Lai turpinātu, apstipriniet savu identitāti.",
+      "dialogDescription": "Tas izrakstīs Jūs visās ierīcēs, deaktivizēs Jūsu kontu un sāks dzēst visus Jūsu datus. Pirms tas beidzas, to var apturēt tikai administrators. Apstipriniet savu identitāti, lai turpinātu.",
       "confirm": "Dzēst manu kontu",
       "error": "Neizdevās izdzēst jūsu kontu. Lūdzu, mēģiniet vēlreiz.",
       "onlyAdminError": "Jūs esat vienīgais administrators. Pirms konta dzēšanas piešķiriet administratora tiesības citam lietotājam.",

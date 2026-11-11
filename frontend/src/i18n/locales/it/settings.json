@@ -345,6 +345,17 @@
       "currencyPound": "Sterlina (£)",
       "numRecords": "Record per pagina"
     },
+    "mfa": {
+      "title": "Autenticazione a due fattori",
+      "require": "Richiedi l'autenticazione a due fattori",
+      "requireHint": "Un account interessato che non ha configurato l'autenticazione a due fattori deve configurarla prima di poter fare qualsiasi altra cosa. Fino ad allora può solo configurarla e disconnettersi. Il requisito si applica dalla richiesta successiva dell'account.",
+      "options": {
+        "off": "Non richiesta",
+        "administrators": "Solo amministratori",
+        "everyone": "Tutti"
+      },
+      "enabledWarning": "Gli account coperti da questa impostazione che non hanno configurato l'autenticazione a due fattori, eventualmente incluso il tuo, vengono indirizzati a configurarla alla richiesta successiva."
+    },
     "password": {
       "title": "Policy password",
       "lengthRegular": "Lunghezza minima utenti normali",
@@ -703,6 +714,13 @@
     "mfaCode": "Codice di autenticazione",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "Digita {phrase} per confermare",
+    "mfaEnrolment": {
+      "title": "Configura l'autenticazione a due fattori",
+      "description": "Questo server richiede l'autenticazione a due fattori. Configurala per continuare a usare Endurain, oppure disconnettiti.",
+      "done": "L'autenticazione a due fattori è configurata. Puoi continuare.",
+      "continue": "Continua",
+      "signOut": "Disconnetti"
+    },
     "loadError": {
       "title": "Impossibile caricare le impostazioni di sicurezza",
       "description": "Si è verificato un errore. Puoi riprovare."
@@ -848,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Elimina il mio account",
-      "subtitle": "Elimina definitivamente il tuo account e tutti i tuoi dati, incluse le attività e i relativi file, i dati sulla salute, l'attrezzatura, gli obiettivi, le integrazioni e le sessioni. L'operazione non può essere annullata. Esporta prima i tuoi dati se vuoi conservarne una copia.",
+      "subtitle": "Elimina il tuo account e tutti i tuoi dati, incluse attività e relativi file, dati sulla salute, attrezzatura, obiettivi, integrazioni e sessioni. Vieni disconnesso da tutti i dispositivi e l'account viene disattivato subito, poi i tuoi dati vengono cancellati in background. Non c'è un periodo di tolleranza: solo un amministratore può fermare l'operazione, riattivando l'account prima che la cancellazione termini. Esporta prima i tuoi dati se vuoi conservarne una copia.",
       "action": "Elimina il mio account",
       "dialogTitle": "Eliminare il tuo account?",
-      "dialogDescription": "Questo elimina definitivamente il tuo account e tutti i tuoi dati. Conferma la tua identità per continuare.",
+      "dialogDescription": "Questo ti disconnette da tutti i dispositivi, disattiva il tuo account e avvia la cancellazione di tutti i tuoi dati. Solo un amministratore può fermarla prima che termini. Conferma la tua identità per continuare.",
       "confirm": "Elimina il mio account",
       "error": "Impossibile eliminare il tuo account. Riprova.",
       "onlyAdminError": "Sei l'unico amministratore. Rendi amministratore un altro utente prima di eliminare il tuo account.",

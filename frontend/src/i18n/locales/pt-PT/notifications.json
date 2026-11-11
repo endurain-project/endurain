@@ -103,6 +103,34 @@
         "title": "Verificação em dois passos bloqueada",
         "body": "A tua conta foi bloqueada após 100 códigos de verificação em dois passos errados seguidos, por isso alguém conhece a tua palavra-passe. Os navegadores e aplicações a partir dos quais iniciaste sessão desde a tua última alteração de segurança ainda podem iniciar sessão. Se estas tentativas não foram tuas, altera a tua palavra-passe."
       },
+      "stepUpSessionEnded": {
+        "title": "Sessão terminada",
+        "body": "Foi terminada uma sessão da sua conta depois de terem sido introduzidas 15 palavras-passe ou códigos de verificação em dois passos errados seguidos para confirmar uma ação sensível. As suas outras sessões não foram afetadas. Se estas tentativas não foram suas, altere a sua palavra-passe."
+      },
+      "stepUpLocked": {
+        "title": "Confirmação de ações sensíveis bloqueada",
+        "body": "A confirmação de ações sensíveis, como alterar a sua palavra-passe ou criar uma chave de API, foi bloqueada durante 30 dias após 100 confirmações erradas nas suas sessões. Se estas tentativas não foram suas, reponha a sua palavra-passe, o que também levanta o bloqueio."
+      },
+      "backupCodeUsed": {
+        "title": "Código de recuperação utilizado",
+        "body": "Foi utilizado um código de recuperação na verificação em dois passos da sua conta. Se não foi você, altere a sua palavra-passe e gere novos códigos de recuperação.",
+        "bodyRemaining": "Foi utilizado um código de recuperação na verificação em dois passos da sua conta. Códigos de recuperação por utilizar que lhe restam: {count}. Se não foi você, altere a sua palavra-passe e gere novos códigos de recuperação.",
+        "bodyNone": "Foi utilizado um código de recuperação na verificação em dois passos da sua conta. Já não lhe restam códigos de recuperação por utilizar, por isso gere novos nas suas definições de segurança. Se não foi você, altere a sua palavra-passe."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Sessão terminada",
+        "body": "Foi terminada uma sessão de início de sessão da sua conta porque um token que já tinha sido utilizado foi apresentado novamente, o que pode significar que a sessão foi copiada. As suas outras sessões não foram afetadas. Se não estava à espera disto, altere a sua palavra-passe."
+      },
+      "roleChangedByAdmin": {
+        "title": "Acesso alterado por um administrador",
+        "body": "Um administrador alterou o acesso da sua conta e terminou a sua sessão em todos os dispositivos. Se não estava à espera disto, contacte o seu administrador.",
+        "bodyAdmin": "Um administrador alterou o acesso da sua conta para administrador e terminou a sua sessão em todos os dispositivos. Se não estava à espera disto, contacte o seu administrador.",
+        "bodyRegular": "Um administrador alterou o acesso da sua conta para utilizador normal e terminou a sua sessão em todos os dispositivos. Se não estava à espera disto, contacte o seu administrador."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Conta desativada por um administrador",
+        "body": "Um administrador desativou a sua conta e terminou a sua sessão em todos os dispositivos. Não pode iniciar sessão até que um administrador a reative."
+      },
       "unknown": {
         "title": "Segurança da conta alterada",
         "body": "Uma definição de segurança da tua conta foi alterada. Se não foste tu, repõe a palavra-passe e revê as tuas definições de segurança."
@@ -115,6 +143,10 @@
     "adminSignUpApproval": {
       "title": "Novo registo aguarda aprovação",
       "body": "{name} ({'@'}{username}) está a aguardar aprovação da conta."
+    },
+    "adminUserPromoted": {
+      "title": "Utilizador promovido a administrador",
+      "body": "{name} ({'@'}{username}) recebeu acesso de administrador."
     },
     "unknown": {
       "title": "Notificação",

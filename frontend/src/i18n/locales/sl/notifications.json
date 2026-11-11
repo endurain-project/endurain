@@ -103,6 +103,34 @@
         "title": "Dvostopenjsko preverjanje je zaklenjeno",
         "body": "Tvoj račun je bil zaklenjen po 100 zaporednih napačnih kodah dvostopenjskega preverjanja, zato nekdo pozna tvoje geslo. Brskalniki in aplikacije, iz katerih si se prijavil od zadnje varnostne spremembe, se še vedno lahko prijavijo. Če teh poskusov nisi izvedel ti, spremeni geslo."
       },
+      "stepUpSessionEnded": {
+        "title": "Seja je bila odjavljena",
+        "body": "Ena seja tvojega računa je bila odjavljena, potem ko je bilo 15-krat zapored vneseno napačno geslo ali koda dvostopenjske avtentikacije pri potrjevanju občutljivega dejanja. Tvoje druge seje niso bile prizadete. Če teh poskusov nisi bil ti, spremeni geslo."
+      },
+      "stepUpLocked": {
+        "title": "Potrjevanje občutljivih dejanj je zaklenjeno",
+        "body": "Potrjevanje občutljivih dejanj, kot sta sprememba gesla ali ustvarjanje ključa API, je bilo zaklenjeno za 30 dni po 100 napačnih potrditvah v vseh tvojih sejah. Če teh poskusov nisi bil ti, ponastavi geslo, kar prav tako odpravi zaklep."
+      },
+      "backupCodeUsed": {
+        "title": "Uporabljena varnostna koda",
+        "body": "Za dvostopenjsko avtentikacijo tvojega računa je bila uporabljena varnostna koda. Če to nisi bil ti, spremeni geslo in ustvari nove varnostne kode.",
+        "bodyRemaining": "Za dvostopenjsko avtentikacijo tvojega računa je bila uporabljena varnostna koda. Preostale neuporabljene varnostne kode: {count}. Če to nisi bil ti, spremeni geslo in ustvari nove varnostne kode.",
+        "bodyNone": "Za dvostopenjsko avtentikacijo tvojega računa je bila uporabljena varnostna koda. Nimaš več neuporabljenih varnostnih kod, zato v varnostnih nastavitvah ustvari nove. Če to nisi bil ti, spremeni geslo."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Seja je bila končana",
+        "body": "Ena prijavna seja tvojega računa je bila končana, ker je bil ponovno predložen žeton, ki je bil že uporabljen, kar lahko pomeni, da je bila seja kopirana. Tvoje druge seje niso bile prizadete. Če tega nisi pričakoval, spremeni geslo."
+      },
+      "roleChangedByAdmin": {
+        "title": "Dostop je spremenil skrbnik",
+        "body": "Skrbnik je spremenil dostop tvojega računa in te odjavil z vseh naprav. Če tega nisi pričakoval, se obrni na svojega skrbnika.",
+        "bodyAdmin": "Skrbnik je dostop tvojega računa spremenil v skrbnika in te odjavil z vseh naprav. Če tega nisi pričakoval, se obrni na svojega skrbnika.",
+        "bodyRegular": "Skrbnik je dostop tvojega računa spremenil v navadnega uporabnika in te odjavil z vseh naprav. Če tega nisi pričakoval, se obrni na svojega skrbnika."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Račun je deaktiviral skrbnik",
+        "body": "Skrbnik je deaktiviral tvoj račun in te odjavil z vseh naprav. Prijaviti se ne moreš, dokler ga skrbnik ponovno ne aktivira."
+      },
       "unknown": {
         "title": "Varnost računa spremenjena",
         "body": "Spremenila se je ena od varnostnih nastavitev tvojega računa. Če to nisi bil ti, ponastavi geslo in preglej varnostne nastavitve."
@@ -115,6 +143,10 @@
     "adminSignUpApproval": {
       "title": "Nova registracija čaka na odobritev",
       "body": "{name} ({'@'}{username}) čaka na odobritev računa."
+    },
+    "adminUserPromoted": {
+      "title": "Uporabnik povišan v skrbnika",
+      "body": "Uporabnik {name} ({'@'}{username}) je dobil skrbniški dostop."
     },
     "unknown": {
       "title": "Obvestilo",

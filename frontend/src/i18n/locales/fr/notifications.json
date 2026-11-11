@@ -103,6 +103,34 @@
         "title": "Vérification en deux étapes verrouillée",
         "body": "Votre compte a été verrouillé après 100 codes de vérification en deux étapes incorrects consécutifs, ce qui signifie que quelqu'un connaît votre mot de passe. Les navigateurs et applications depuis lesquels vous vous êtes connecté depuis votre dernière modification de sécurité peuvent toujours se connecter. Si ces tentatives ne sont pas les vôtres, changez votre mot de passe."
       },
+      "stepUpSessionEnded": {
+        "title": "Session déconnectée",
+        "body": "Une session de votre compte a été déconnectée après la saisie de 15 mots de passe ou codes de vérification en deux étapes incorrects consécutifs pour confirmer une action sensible. Vos autres sessions n'ont pas été affectées. Si ces tentatives ne vous sont pas imputables, changez votre mot de passe."
+      },
+      "stepUpLocked": {
+        "title": "Confirmation des actions sensibles verrouillée",
+        "body": "La confirmation des actions sensibles, comme le changement de votre mot de passe ou la création d'une clé API, a été verrouillée pendant 30 jours après 100 confirmations incorrectes sur l'ensemble de vos sessions. Si ces tentatives ne vous sont pas imputables, réinitialisez votre mot de passe, ce qui lève aussi le verrouillage."
+      },
+      "backupCodeUsed": {
+        "title": "Code de secours utilisé",
+        "body": "Un code de secours a été utilisé pour la vérification en deux étapes de votre compte. Si ce n'était pas vous, changez votre mot de passe et générez de nouveaux codes de secours.",
+        "bodyRemaining": "Un code de secours a été utilisé pour la vérification en deux étapes de votre compte. Codes de secours inutilisés restants : {count}. Si ce n'était pas vous, changez votre mot de passe et générez de nouveaux codes de secours.",
+        "bodyNone": "Un code de secours a été utilisé pour la vérification en deux étapes de votre compte. Il ne vous reste aucun code de secours inutilisé : générez-en de nouveaux dans vos paramètres de sécurité. Si ce n'était pas vous, changez votre mot de passe."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Session terminée",
+        "body": "Une session de connexion de votre compte a été terminée, car un jeton déjà utilisé a été présenté à nouveau, ce qui peut signifier que la session a été copiée. Vos autres sessions n'ont pas été affectées. Si vous ne vous y attendiez pas, changez votre mot de passe."
+      },
+      "roleChangedByAdmin": {
+        "title": "Accès modifié par un administrateur",
+        "body": "Un administrateur a modifié l'accès de votre compte et vous a déconnecté de tous vos appareils. Si vous ne vous y attendiez pas, contactez votre administrateur.",
+        "bodyAdmin": "Un administrateur a modifié l'accès de votre compte en administrateur et vous a déconnecté de tous vos appareils. Si vous ne vous y attendiez pas, contactez votre administrateur.",
+        "bodyRegular": "Un administrateur a modifié l'accès de votre compte en utilisateur standard et vous a déconnecté de tous vos appareils. Si vous ne vous y attendiez pas, contactez votre administrateur."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Compte désactivé par un administrateur",
+        "body": "Un administrateur a désactivé votre compte et vous a déconnecté de tous vos appareils. Vous ne pouvez pas vous connecter tant qu'un administrateur ne l'a pas réactivé."
+      },
       "unknown": {
         "title": "Sécurité du compte modifiée",
         "body": "Un paramètre de sécurité de votre compte a été modifié. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité."
@@ -115,6 +143,10 @@
     "adminSignUpApproval": {
       "title": "Nouvelle inscription en attente d'approbation",
       "body": "{name} ({'@'}{username}) attend l'approbation de son compte."
+    },
+    "adminUserPromoted": {
+      "title": "Utilisateur promu administrateur",
+      "body": "{name} ({'@'}{username}) a reçu l'accès administrateur."
     },
     "unknown": {
       "title": "Notification",

@@ -103,6 +103,34 @@
         "title": "Dvostepena verifikacija je zaključana",
         "body": "Vaš nalog je zaključan nakon 100 pogrešnih kodova dvostepene verifikacije zaredom, pa neko zna vašu lozinku. Pregledači i aplikacije iz kojih ste se prijavili od poslednje bezbednosne promene i dalje mogu da se prijave. Ako ove pokušaje niste izvršili vi, promenite lozinku."
       },
+      "stepUpSessionEnded": {
+        "title": "Sesija je odjavljena",
+        "body": "Jedna sesija vašeg naloga je odjavljena nakon što je 15 puta zaredom uneta pogrešna lozinka ili kod dvofaktorske autentifikacije radi potvrde osetljive radnje. Vaše ostale sesije nisu pogođene. Ako ovi pokušaji nisu bili vaši, promenite lozinku."
+      },
+      "stepUpLocked": {
+        "title": "Potvrđivanje osetljivih radnji je zaključano",
+        "body": "Potvrđivanje osetljivih radnji, kao što su promena lozinke ili kreiranje API ključa, zaključano je na 30 dana nakon 100 pogrešnih potvrda u svim vašim sesijama. Ako ovi pokušaji nisu bili vaši, resetujte lozinku, čime se zaključavanje takođe ukida."
+      },
+      "backupCodeUsed": {
+        "title": "Rezervni kod je iskorišćen",
+        "body": "Rezervni kod je iskorišćen za dvofaktorsku autentifikaciju na vašem nalogu. Ako to niste bili vi, promenite lozinku i generišite nove rezervne kodove.",
+        "bodyRemaining": "Rezervni kod je iskorišćen za dvofaktorsku autentifikaciju na vašem nalogu. Preostalo neiskorišćenih rezervnih kodova: {count}. Ako to niste bili vi, promenite lozinku i generišite nove rezervne kodove.",
+        "bodyNone": "Rezervni kod je iskorišćen za dvofaktorsku autentifikaciju na vašem nalogu. Nemate više neiskorišćenih rezervnih kodova, pa generišite nove u podešavanjima bezbednosti. Ako to niste bili vi, promenite lozinku."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Sesija je prekinuta",
+        "body": "Jedna sesija prijave na vaš nalog je prekinuta jer je token koji je već bio iskorišćen ponovo predočen, što može značiti da je sesija kopirana. Vaše ostale sesije nisu pogođene. Ako ovo niste očekivali, promenite lozinku."
+      },
+      "roleChangedByAdmin": {
+        "title": "Administrator je promenio pristup",
+        "body": "Administrator je promenio pristup vašeg naloga i odjavio vas sa svih uređaja. Ako ovo niste očekivali, obratite se svom administratoru.",
+        "bodyAdmin": "Administrator je promenio pristup vašeg naloga u administratorski i odjavio vas sa svih uređaja. Ako ovo niste očekivali, obratite se svom administratoru.",
+        "bodyRegular": "Administrator je promenio pristup vašeg naloga u običnog korisnika i odjavio vas sa svih uređaja. Ako ovo niste očekivali, obratite se svom administratoru."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Administrator je deaktivirao nalog",
+        "body": "Administrator je deaktivirao vaš nalog i odjavio vas sa svih uređaja. Ne možete se prijaviti dok ga administrator ponovo ne aktivira."
+      },
       "unknown": {
         "title": "Bezbednost naloga promenjena",
         "body": "Promenjeno je bezbednosno podešavanje vašeg naloga. Ako to niste bili vi, resetujte lozinku i pregledajte svoja bezbednosna podešavanja."
@@ -115,6 +143,10 @@
     "adminSignUpApproval": {
       "title": "Nova registracija zahteva odobrenje",
       "body": "{name} ({'@'}{username}) čeka odobrenje naloga."
+    },
+    "adminUserPromoted": {
+      "title": "Korisnik je unapređen u administratora",
+      "body": "{name} ({'@'}{username}) je dobio administratorski pristup."
     },
     "unknown": {
       "title": "Obaveštenje",

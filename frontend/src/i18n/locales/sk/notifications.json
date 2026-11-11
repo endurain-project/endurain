@@ -103,6 +103,34 @@
         "title": "Dvojstupňové overovanie je zamknuté",
         "body": "Váš účet bol zamknutý po 100 nesprávnych kódoch dvojstupňového overenia za sebou, takže niekto pozná vaše heslo. Prehliadače a aplikácie, z ktorých ste sa prihlásili od poslednej zmeny zabezpečenia, sa môžu naďalej prihlásiť. Ak tieto pokusy neboli vaše, zmeňte heslo."
       },
+      "stepUpSessionEnded": {
+        "title": "Relácia bola odhlásená",
+        "body": "Jedna relácia vášho účtu bola odhlásená po tom, ako bolo 15-krát po sebe zadané nesprávne heslo alebo kód dvojfaktorového overovania pri potvrdzovaní citlivej akcie. Vaše ostatné relácie neboli dotknuté. Ak tieto pokusy neboli vaše, zmeňte si heslo."
+      },
+      "stepUpLocked": {
+        "title": "Potvrdzovanie citlivých akcií je uzamknuté",
+        "body": "Potvrdzovanie citlivých akcií, napríklad zmeny hesla alebo vytvorenia API kľúča, bolo uzamknuté na 30 dní po 100 nesprávnych potvrdeniach naprieč vašimi reláciami. Ak tieto pokusy neboli vaše, obnovte si heslo, čím sa zámok tiež zruší."
+      },
+      "backupCodeUsed": {
+        "title": "Použitý záložný kód",
+        "body": "Na dvojfaktorové overovanie vášho účtu bol použitý záložný kód. Ak ste to neboli vy, zmeňte si heslo a vygenerujte nové záložné kódy.",
+        "bodyRemaining": "Na dvojfaktorové overovanie vášho účtu bol použitý záložný kód. Zostávajúce nepoužité záložné kódy: {count}. Ak ste to neboli vy, zmeňte si heslo a vygenerujte nové záložné kódy.",
+        "bodyNone": "Na dvojfaktorové overovanie vášho účtu bol použitý záložný kód. Nezostávajú vám žiadne nepoužité záložné kódy, preto si v nastaveniach zabezpečenia vygenerujte nové. Ak ste to neboli vy, zmeňte si heslo."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Relácia bola ukončená",
+        "body": "Jedna prihlasovacia relácia vášho účtu bola ukončená, pretože bol znova predložený token, ktorý už bol použitý, čo môže znamenať, že relácia bola skopírovaná. Vaše ostatné relácie neboli dotknuté. Ak ste to nečakali, zmeňte si heslo."
+      },
+      "roleChangedByAdmin": {
+        "title": "Prístup zmenil správca",
+        "body": "Správca zmenil prístup vášho účtu a odhlásil vás zo všetkých zariadení. Ak ste to nečakali, obráťte sa na svojho správcu.",
+        "bodyAdmin": "Správca zmenil prístup vášho účtu na správcu a odhlásil vás zo všetkých zariadení. Ak ste to nečakali, obráťte sa na svojho správcu.",
+        "bodyRegular": "Správca zmenil prístup vášho účtu na bežného používateľa a odhlásil vás zo všetkých zariadení. Ak ste to nečakali, obráťte sa na svojho správcu."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Účet deaktivoval správca",
+        "body": "Správca deaktivoval váš účet a odhlásil vás zo všetkých zariadení. Nemôžete sa prihlásiť, kým ho správca znova neaktivuje."
+      },
       "unknown": {
         "title": "Zabezpečenie účtu zmenené",
         "body": "Zmenilo sa niektoré nastavenie zabezpečenia vášho účtu. Ak ste to neboli vy, obnovte heslo a skontrolujte nastavenia zabezpečenia."
@@ -115,6 +143,10 @@
     "adminSignUpApproval": {
       "title": "Nová registrácia vyžaduje schválenie",
       "body": "{name} ({'@'}{username}) čaká na schválenie účtu."
+    },
+    "adminUserPromoted": {
+      "title": "Používateľ povýšený na správcu",
+      "body": "Používateľ {name} ({'@'}{username}) získal prístup správcu."
     },
     "unknown": {
       "title": "Upozornenie",

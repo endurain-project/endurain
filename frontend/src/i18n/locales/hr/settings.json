@@ -345,6 +345,17 @@
       "currencyPound": "Funta (£)",
       "numRecords": "Zapisa po stranici"
     },
+    "mfa": {
+      "title": "Dvofaktorska autentifikacija",
+      "require": "Zahtijevaj dvofaktorsku autentifikaciju",
+      "requireHint": "Račun obuhvaćen ovom postavkom koji nema postavljenu dvofaktorsku autentifikaciju mora je postaviti prije nego što može raditi bilo što drugo. Do tada je može samo postaviti i odjaviti se. Zahtjev vrijedi od sljedećeg zahtjeva računa.",
+      "options": {
+        "off": "Nije obavezna",
+        "administrators": "Samo administratori",
+        "everyone": "Svi"
+      },
+      "enabledWarning": "Računi obuhvaćeni ovom postavkom koji nemaju postavljenu dvofaktorsku autentifikaciju, moguće i vaš, bit će pri sljedećem zahtjevu preusmjereni na njezino postavljanje."
+    },
     "password": {
       "title": "Pravila lozinke",
       "lengthRegular": "Minimalna duljina za obične korisnike",
@@ -703,6 +714,13 @@
     "mfaCode": "Autentifikacijski kod",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "Upišite {phrase} za potvrdu",
+    "mfaEnrolment": {
+      "title": "Postavite dvofaktorsku autentifikaciju",
+      "description": "Ovaj poslužitelj zahtijeva dvofaktorsku autentifikaciju. Postavite je kako biste nastavili koristiti Endurain ili se odjavite.",
+      "done": "Dvofaktorska autentifikacija je postavljena. Možete nastaviti.",
+      "continue": "Nastavi",
+      "signOut": "Odjavi se"
+    },
     "loadError": {
       "title": "Vaše se sigurnosne postavke nisu mogle učitati",
       "description": "Nešto je pošlo po zlu. Možete pokušati ponovno."
@@ -848,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Izbriši moj račun",
-      "subtitle": "Trajno izbrišite svoj račun i sve svoje podatke, uključujući aktivnosti i njihove datoteke, zdravstvene zapise, opremu, ciljeve, integracije i sesije. Ovo se ne može poništiti. Prvo izvezite podatke ako želite zadržati kopiju.",
+      "subtitle": "Izbrišite svoj račun i sve svoje podatke, uključujući aktivnosti i njihove datoteke, zdravstvene zapise, opremu, ciljeve, integracije i sesije. Odjavljeni ste sa svih uređaja, a račun se odmah deaktivira, nakon čega se vaši podaci brišu u pozadini. Nema odgode: zaustaviti ga može samo administrator, ponovnom aktivacijom računa prije nego što brisanje završi. Prvo izvezite svoje podatke ako želite zadržati kopiju.",
       "action": "Izbriši moj račun",
       "dialogTitle": "Izbrisati račun?",
-      "dialogDescription": "Ovo trajno briše vaš račun i sve vaše podatke. Potvrdite svoj identitet za nastavak.",
+      "dialogDescription": "Time ćete se odjaviti sa svih uređaja, vaš će se račun deaktivirati i počet će brisanje svih vaših podataka. Prije završetka to može zaustaviti samo administrator. Potvrdite svoj identitet za nastavak.",
       "confirm": "Izbriši moj račun",
       "error": "Račun nije bilo moguće izbrisati. Pokušajte ponovno.",
       "onlyAdminError": "Vi ste jedini administrator. Prije brisanja računa postavite drugog korisnika za administratora.",

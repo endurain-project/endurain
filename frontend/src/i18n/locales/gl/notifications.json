@@ -103,6 +103,34 @@
         "title": "Verificación en dous pasos bloqueada",
         "body": "A túa conta bloqueouse tras 100 códigos de verificación en dous pasos incorrectos seguidos, polo que alguén coñece o teu contrasinal. Os navegadores e aplicacións desde os que iniciaches sesión desde o teu último cambio de seguranza aínda poden iniciar sesión. Se eses intentos non foron teus, cambia o teu contrasinal."
       },
+      "stepUpSessionEnded": {
+        "title": "Sesión pechada",
+        "body": "Pechouse unha sesión da túa conta tras introducir 15 contrasinais ou códigos de verificación en dous pasos incorrectos seguidos para confirmar unha acción sensible. As túas outras sesións non se viron afectadas. Se eses intentos non foron teus, cambia o teu contrasinal."
+      },
+      "stepUpLocked": {
+        "title": "Confirmación de accións sensibles bloqueada",
+        "body": "A confirmación de accións sensibles, como cambiar o teu contrasinal ou crear unha clave de API, bloqueouse durante 30 días tras 100 confirmacións incorrectas nas túas sesións. Se eses intentos non foron teus, restablece o teu contrasinal, o que tamén levanta o bloqueo."
+      },
+      "backupCodeUsed": {
+        "title": "Código de recuperación utilizado",
+        "body": "Utilizouse un código de recuperación para a verificación en dous pasos da túa conta. Se non fuches ti, cambia o teu contrasinal e xera novos códigos de recuperación.",
+        "bodyRemaining": "Utilizouse un código de recuperación para a verificación en dous pasos da túa conta. Códigos de recuperación sen usar que che quedan: {count}. Se non fuches ti, cambia o teu contrasinal e xera novos códigos de recuperación.",
+        "bodyNone": "Utilizouse un código de recuperación para a verificación en dous pasos da túa conta. Xa non che quedan códigos de recuperación sen usar, así que xera outros novos nos teus axustes de seguranza. Se non fuches ti, cambia o teu contrasinal."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Sesión finalizada",
+        "body": "Finalizouse unha sesión de inicio de sesión da túa conta porque se presentou de novo un token que xa se usara, o que pode significar que a sesión se copiou. As túas outras sesións non se viron afectadas. Se non o agardabas, cambia o teu contrasinal."
+      },
+      "roleChangedByAdmin": {
+        "title": "Acceso cambiado por un administrador",
+        "body": "Un administrador cambiou o acceso da túa conta e pechou a túa sesión en todos os dispositivos. Se non o agardabas, contacta co teu administrador.",
+        "bodyAdmin": "Un administrador cambiou o acceso da túa conta a administrador e pechou a túa sesión en todos os dispositivos. Se non o agardabas, contacta co teu administrador.",
+        "bodyRegular": "Un administrador cambiou o acceso da túa conta a usuario normal e pechou a túa sesión en todos os dispositivos. Se non o agardabas, contacta co teu administrador."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Conta desactivada por un administrador",
+        "body": "Un administrador desactivou a túa conta e pechou a túa sesión en todos os dispositivos. Non podes iniciar sesión ata que un administrador a reactive."
+      },
       "unknown": {
         "title": "Seguridade da conta cambiada",
         "body": "Cambiou unha opción de seguridade da túa conta. Se non foches ti, restablece o contrasinal e revisa a túa configuración de seguridade."
@@ -115,6 +143,10 @@
     "adminSignUpApproval": {
       "title": "Novo rexistro pendente de aprobación",
       "body": "{name} ({'@'}{username}) está agardando a aprobación da conta."
+    },
+    "adminUserPromoted": {
+      "title": "Usuario ascendido a administrador",
+      "body": "{name} ({'@'}{username}) recibiu acceso de administrador."
     },
     "unknown": {
       "title": "Notificación",

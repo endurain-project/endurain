@@ -345,6 +345,17 @@
       "currencyPound": "Pund (£)",
       "numRecords": "Oppføringer per side"
     },
+    "mfa": {
+      "title": "Tofaktorautentisering",
+      "require": "Krev tofaktorautentisering",
+      "requireHint": "En konto som omfattes, og som ikke har satt opp tofaktorautentisering, må sette den opp før den kan gjøre noe annet. Inntil da kan den bare sette den opp og logge ut. Kravet gjelder fra kontoens neste forespørsel.",
+      "options": {
+        "off": "Ikke påkrevd",
+        "administrators": "Bare administratorer",
+        "everyone": "Alle"
+      },
+      "enabledWarning": "Kontoer som omfattes av denne innstillingen og ikke har satt opp tofaktorautentisering, muligens også din, blir sendt til oppsett ved sin neste forespørsel."
+    },
     "password": {
       "title": "Passordretningslinjer",
       "lengthRegular": "Minimumslengde for vanlige brukere",
@@ -703,6 +714,13 @@
     "mfaCode": "Autentiseringskode",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "Skriv {phrase} for å bekrefte",
+    "mfaEnrolment": {
+      "title": "Sett opp tofaktorautentisering",
+      "description": "Denne serveren krever tofaktorautentisering. Sett den opp for å fortsette å bruke Endurain, eller logg ut.",
+      "done": "Tofaktorautentisering er satt opp. Du kan fortsette.",
+      "continue": "Fortsett",
+      "signOut": "Logg ut"
+    },
     "loadError": {
       "title": "Kunne ikke laste sikkerhetsinnstillingene dine",
       "description": "Noe gikk galt. Du kan prøve igjen."
@@ -848,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Slett kontoen min",
-      "subtitle": "Slett kontoen din og alle dataene dine permanent, inkludert aktiviteter og filene deres, helsedata, utstyr, mål, integrasjoner og økter. Dette kan ikke angres. Eksporter dataene dine først hvis du vil beholde en kopi.",
+      "subtitle": "Slett kontoen din og alle dataene dine, inkludert aktiviteter og filene deres, helsedata, utstyr, mål, integrasjoner og økter. Du logges ut på alle enheter og kontoen deaktiveres umiddelbart, deretter slettes dataene dine i bakgrunnen. Det finnes ingen betenkningstid: Bare en administrator kan stoppe det ved å aktivere kontoen på nytt før slettingen er ferdig. Eksporter dataene dine først hvis du vil beholde en kopi.",
       "action": "Slett kontoen min",
       "dialogTitle": "Slette kontoen din?",
-      "dialogDescription": "Dette sletter kontoen din og alle dataene dine permanent. Bekreft identiteten din for å fortsette.",
+      "dialogDescription": "Dette logger deg ut på alle enheter, deaktiverer kontoen din og starter slettingen av alle dataene dine. Bare en administrator kan stoppe det før det er ferdig. Bekreft identiteten din for å fortsette.",
       "confirm": "Slett kontoen min",
       "error": "Kunne ikke slette kontoen din. Vennligst prøv igjen.",
       "onlyAdminError": "Du er den eneste administratoren. Gjør en annen bruker til administrator før du sletter kontoen din.",

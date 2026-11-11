@@ -345,6 +345,17 @@
       "currencyPound": "Punta (£)",
       "numRecords": "Tietueita sivulla"
     },
+    "mfa": {
+      "title": "Kaksivaiheinen todennus",
+      "require": "Vaadi kaksivaiheinen todennus",
+      "requireHint": "Tilin, jota tämä koskee ja joka ei ole ottanut kaksivaiheista todennusta käyttöön, on otettava se käyttöön ennen kuin se voi tehdä mitään muuta. Siihen asti se voi vain ottaa sen käyttöön ja kirjautua ulos. Vaatimus tulee voimaan tilin seuraavasta pyynnöstä alkaen.",
+      "options": {
+        "off": "Ei vaadita",
+        "administrators": "Vain ylläpitäjät",
+        "everyone": "Kaikki"
+      },
+      "enabledWarning": "Tämän asetuksen piiriin kuuluvat tilit, jotka eivät ole ottaneet kaksivaiheista todennusta käyttöön, mahdollisesti myös sinun, ohjataan ottamaan se käyttöön seuraavan pyyntönsä yhteydessä."
+    },
     "password": {
       "title": "Salasanakäytäntö",
       "lengthRegular": "Tavallisten käyttäjien vähimmäispituus",
@@ -703,6 +714,13 @@
     "mfaCode": "Todennuskoodi",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "Vahvista kirjoittamalla {phrase}",
+    "mfaEnrolment": {
+      "title": "Ota kaksivaiheinen todennus käyttöön",
+      "description": "Tämä palvelin vaatii kaksivaiheisen todennuksen. Ota se käyttöön jatkaaksesi Endurainin käyttöä tai kirjaudu ulos.",
+      "done": "Kaksivaiheinen todennus on otettu käyttöön. Voit jatkaa.",
+      "continue": "Jatka",
+      "signOut": "Kirjaudu ulos"
+    },
     "loadError": {
       "title": "Tietoturva-asetuksiasi ei voitu ladata",
       "description": "Jokin meni pieleen. Voit yrittää uudelleen."
@@ -848,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Poista tilini",
-      "subtitle": "Poista tilisi ja kaikki tietosi pysyvästi, mukaan lukien aktiviteetit ja niiden tiedostot, terveystiedot, varusteet, tavoitteet, integraatiot ja istunnot. Tätä ei voi perua. Vie tietosi ensin, jos haluat säilyttää kopion.",
+      "subtitle": "Poista tilisi ja kaikki tietosi, mukaan lukien aktiviteetit ja niiden tiedostot, terveystiedot, varusteet, tavoitteet, integraatiot ja istunnot. Sinut kirjataan ulos kaikilta laitteilta ja tili poistetaan käytöstä heti, minkä jälkeen tietosi poistetaan taustalla. Odotusaikaa ei ole: vain ylläpitäjä voi pysäyttää poiston ottamalla tilin uudelleen käyttöön ennen kuin poisto päättyy. Vie tietosi ensin, jos haluat säilyttää kopion.",
       "action": "Poista tilini",
       "dialogTitle": "Poistetaanko tilisi?",
-      "dialogDescription": "Tämä poistaa tilisi ja kaikki tietosi pysyvästi. Vahvista henkilöllisyytesi jatkaaksesi.",
+      "dialogDescription": "Tämä kirjaa sinut ulos kaikilta laitteilta, poistaa tilisi käytöstä ja aloittaa kaikkien tietojesi poistamisen. Vain ylläpitäjä voi pysäyttää sen ennen kuin se päättyy. Vahvista henkilöllisyytesi jatkaaksesi.",
       "confirm": "Poista tilini",
       "error": "Tilin poistaminen epäonnistui. Yritä uudelleen.",
       "onlyAdminError": "Olet ainoa ylläpitäjä. Tee toisesta käyttäjästä ylläpitäjä ennen tilisi poistamista.",

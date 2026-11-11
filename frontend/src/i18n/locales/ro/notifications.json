@@ -103,6 +103,34 @@
         "title": "Verificarea în doi pași a fost blocată",
         "body": "Contul tău a fost blocat după 100 de coduri greșite de verificare în doi pași la rând, deci cineva îți știe parola. Browserele și aplicațiile din care te-ai autentificat de la ultima modificare de securitate se pot autentifica în continuare. Dacă aceste încercări nu au fost ale tale, schimbă-ți parola."
       },
+      "stepUpSessionEnded": {
+        "title": "Sesiune deconectată",
+        "body": "O sesiune a contului tău a fost deconectată după ce au fost introduse 15 parole sau coduri de autentificare în doi pași greșite la rând pentru a confirma o acțiune sensibilă. Celelalte sesiuni ale tale nu au fost afectate. Dacă nu tu ai încercat, schimbă-ți parola."
+      },
+      "stepUpLocked": {
+        "title": "Confirmarea acțiunilor sensibile blocată",
+        "body": "Confirmarea acțiunilor sensibile, precum schimbarea parolei sau crearea unei chei API, a fost blocată pentru 30 de zile după 100 de confirmări greșite în sesiunile tale. Dacă nu tu ai încercat, resetează-ți parola, ceea ce ridică și blocarea."
+      },
+      "backupCodeUsed": {
+        "title": "Cod de rezervă folosit",
+        "body": "A fost folosit un cod de rezervă pentru autentificarea în doi pași pe contul tău. Dacă nu tu l-ai folosit, schimbă-ți parola și generează coduri de rezervă noi.",
+        "bodyRemaining": "A fost folosit un cod de rezervă pentru autentificarea în doi pași pe contul tău. Coduri de rezervă nefolosite rămase: {count}. Dacă nu tu l-ai folosit, schimbă-ți parola și generează coduri de rezervă noi.",
+        "bodyNone": "A fost folosit un cod de rezervă pentru autentificarea în doi pași pe contul tău. Nu mai ai coduri de rezervă nefolosite, așa că generează altele noi în setările de securitate. Dacă nu tu l-ai folosit, schimbă-ți parola."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Sesiune încheiată",
+        "body": "O sesiune de autentificare a contului tău a fost încheiată deoarece un token deja folosit a fost prezentat din nou, ceea ce poate însemna că sesiunea a fost copiată. Celelalte sesiuni ale tale nu au fost afectate. Dacă nu te așteptai la asta, schimbă-ți parola."
+      },
+      "roleChangedByAdmin": {
+        "title": "Acces schimbat de un administrator",
+        "body": "Un administrator a schimbat tipul de acces al contului tău și te-a deconectat de pe toate dispozitivele. Dacă nu te așteptai la asta, contactează administratorul tău.",
+        "bodyAdmin": "Un administrator a schimbat tipul de acces al contului tău în administrator și te-a deconectat de pe toate dispozitivele. Dacă nu te așteptai la asta, contactează administratorul tău.",
+        "bodyRegular": "Un administrator a schimbat tipul de acces al contului tău în utilizator obișnuit și te-a deconectat de pe toate dispozitivele. Dacă nu te așteptai la asta, contactează administratorul tău."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Cont dezactivat de un administrator",
+        "body": "Un administrator ți-a dezactivat contul și te-a deconectat de pe toate dispozitivele. Nu te poți autentifica până când un administrator nu îl reactivează."
+      },
       "unknown": {
         "title": "Securitatea contului a fost modificată",
         "body": "O setare de securitate a contului tău a fost modificată. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate."
@@ -115,6 +143,10 @@
     "adminSignUpApproval": {
       "title": "O înscriere nouă necesită aprobare",
       "body": "{name} ({'@'}{username}) așteaptă aprobarea contului."
+    },
+    "adminUserPromoted": {
+      "title": "Utilizator promovat la administrator",
+      "body": "{name} ({'@'}{username}) a primit acces de administrator."
     },
     "unknown": {
       "title": "Notificare",

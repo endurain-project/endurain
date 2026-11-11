@@ -103,6 +103,34 @@
         "title": "Kétlépéses ellenőrzés zárolva",
         "body": "A fiókodat 100 egymást követő hibás kétlépéses ellenőrző kód után zároltuk, tehát valaki ismeri a jelszavadat. Azok a böngészők és alkalmazások, amelyekből az utolsó biztonsági módosítás óta bejelentkeztél, továbbra is be tudnak jelentkezni. Ha nem te próbálkoztál, módosítsd a jelszavadat."
       },
+      "stepUpSessionEnded": {
+        "title": "Munkamenet kijelentkeztetve",
+        "body": "A fiókod egyik munkamenetéből kijelentkeztettünk, miután egy érzékeny művelet megerősítéséhez egymás után 15 hibás jelszót vagy kétfaktoros hitelesítési kódot adtak meg. A többi munkamenetedet ez nem érintette. Ha nem te voltál, változtasd meg a jelszavadat."
+      },
+      "stepUpLocked": {
+        "title": "Az érzékeny műveletek megerősítése zárolva",
+        "body": "Az érzékeny műveletek, például a jelszóváltoztatás vagy API-kulcs létrehozása megerősítését 30 napra zároltuk, miután a munkameneteid között 100 hibás megerősítés történt. Ha nem te voltál, állítsd vissza a jelszavadat, ami a zárolást is feloldja."
+      },
+      "backupCodeUsed": {
+        "title": "Tartalékkód felhasználva",
+        "body": "A fiókodnál felhasználtak egy tartalékkódot a kétfaktoros hitelesítéshez. Ha nem te voltál, változtasd meg a jelszavadat, és generálj új tartalékkódokat.",
+        "bodyRemaining": "A fiókodnál felhasználtak egy tartalékkódot a kétfaktoros hitelesítéshez. Fel nem használt tartalékkódok: {count}. Ha nem te voltál, változtasd meg a jelszavadat, és generálj új tartalékkódokat.",
+        "bodyNone": "A fiókodnál felhasználtak egy tartalékkódot a kétfaktoros hitelesítéshez. Nincs több fel nem használt tartalékkódod, ezért generálj újakat a biztonsági beállításokban. Ha nem te voltál, változtasd meg a jelszavadat."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Munkamenet megszakítva",
+        "body": "A fiókod egyik bejelentkezési munkamenetét megszakítottuk, mert egy már felhasznált tokent újra bemutattak, ami azt jelentheti, hogy a munkamenetet lemásolták. A többi munkamenetedet ez nem érintette. Ha nem számítottál erre, változtasd meg a jelszavadat."
+      },
+      "roleChangedByAdmin": {
+        "title": "A hozzáférésedet egy adminisztrátor módosította",
+        "body": "Egy adminisztrátor módosította a fiókod hozzáférési típusát, és minden eszközről kijelentkeztetett. Ha nem számítottál erre, fordulj az adminisztrátorodhoz.",
+        "bodyAdmin": "Egy adminisztrátor a fiókod hozzáférési típusát adminisztrátorra módosította, és minden eszközről kijelentkeztetett. Ha nem számítottál erre, fordulj az adminisztrátorodhoz.",
+        "bodyRegular": "Egy adminisztrátor a fiókod hozzáférési típusát átlagos felhasználóra módosította, és minden eszközről kijelentkeztetett. Ha nem számítottál erre, fordulj az adminisztrátorodhoz."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "A fiókodat egy adminisztrátor deaktiválta",
+        "body": "Egy adminisztrátor deaktiválta a fiókodat, és minden eszközről kijelentkeztetett. Addig nem tudsz bejelentkezni, amíg egy adminisztrátor újra nem aktiválja."
+      },
       "unknown": {
         "title": "A fiók biztonsága megváltozott",
         "body": "A fiókod egyik biztonsági beállítása megváltozott. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
@@ -115,6 +143,10 @@
     "adminSignUpApproval": {
       "title": "Új regisztráció vár jóváhagyásra",
       "body": "{name} ({'@'}{username}) a fiók jóváhagyására vár."
+    },
+    "adminUserPromoted": {
+      "title": "Egy felhasználó adminisztrátor lett",
+      "body": "{name} ({'@'}{username}) adminisztrátori hozzáférést kapott."
     },
     "unknown": {
       "title": "Értesítés",

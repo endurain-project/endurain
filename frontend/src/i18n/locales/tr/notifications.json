@@ -103,6 +103,34 @@
         "title": "İki adımlı doğrulama kilitlendi",
         "body": "Hesabınız art arda 100 yanlış iki adımlı doğrulama kodundan sonra kilitlendi; yani biri parolanızı biliyor. Son güvenlik değişikliğinizden bu yana giriş yaptığınız tarayıcılar ve uygulamalar yine de giriş yapabilir. Bu denemeler size ait değilse parolanızı değiştirin."
       },
+      "stepUpSessionEnded": {
+        "title": "Oturum kapatıldı",
+        "body": "Hassas bir işlemi onaylamak için art arda 15 yanlış parola veya iki adımlı kimlik doğrulama kodu girildiği için hesabınızın bir oturumu kapatıldı. Diğer oturumlarınız etkilenmedi. Bunları siz girmediyseniz parolanızı değiştirin."
+      },
+      "stepUpLocked": {
+        "title": "Hassas işlemlerin onaylanması kilitlendi",
+        "body": "Oturumlarınız genelinde 100 yanlış onay yapıldığı için parolanızı değiştirmek veya API anahtarı oluşturmak gibi hassas işlemlerin onaylanması 30 gün boyunca kilitlendi. Bunları siz yapmadıysanız parolanızı sıfırlayın; bu işlem kilidi de kaldırır."
+      },
+      "backupCodeUsed": {
+        "title": "Yedek kod kullanıldı",
+        "body": "Hesabınızda iki adımlı kimlik doğrulama için bir yedek kod kullanıldı. Bunu siz yapmadıysanız parolanızı değiştirin ve yeni yedek kodlar oluşturun.",
+        "bodyRemaining": "Hesabınızda iki adımlı kimlik doğrulama için bir yedek kod kullanıldı. Kalan kullanılmamış yedek kod sayısı: {count}. Bunu siz yapmadıysanız parolanızı değiştirin ve yeni yedek kodlar oluşturun.",
+        "bodyNone": "Hesabınızda iki adımlı kimlik doğrulama için bir yedek kod kullanıldı. Kullanılmamış yedek kodunuz kalmadı, bu yüzden güvenlik ayarlarınızdan yenilerini oluşturun. Bunu siz yapmadıysanız parolanızı değiştirin."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Oturum sonlandırıldı",
+        "body": "Daha önce kullanılmış bir belirteç tekrar sunulduğu için hesabınızın bir oturumu sonlandırıldı; bu, oturumun kopyalandığı anlamına gelebilir. Diğer oturumlarınız etkilenmedi. Bunu beklemiyorsanız parolanızı değiştirin."
+      },
+      "roleChangedByAdmin": {
+        "title": "Erişiminiz bir yönetici tarafından değiştirildi",
+        "body": "Bir yönetici hesabınızın erişim türünü değiştirdi ve tüm cihazlardaki oturumlarınızı kapattı. Bunu beklemiyorsanız yöneticinizle iletişime geçin.",
+        "bodyAdmin": "Bir yönetici hesabınızın erişim türünü yönetici olarak değiştirdi ve tüm cihazlardaki oturumlarınızı kapattı. Bunu beklemiyorsanız yöneticinizle iletişime geçin.",
+        "bodyRegular": "Bir yönetici hesabınızın erişim türünü normal kullanıcı olarak değiştirdi ve tüm cihazlardaki oturumlarınızı kapattı. Bunu beklemiyorsanız yöneticinizle iletişime geçin."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Hesabınız bir yönetici tarafından devre dışı bırakıldı",
+        "body": "Bir yönetici hesabınızı devre dışı bıraktı ve tüm cihazlardaki oturumlarınızı kapattı. Bir yönetici hesabı yeniden etkinleştirene kadar giriş yapamazsınız."
+      },
       "unknown": {
         "title": "Hesap güvenliği değişti",
         "body": "Hesabınızın bir güvenlik ayarı değişti. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
@@ -115,6 +143,10 @@
     "adminSignUpApproval": {
       "title": "Yeni kayıt onay bekliyor",
       "body": "{name} ({'@'}{username}) hesap onayını bekliyor."
+    },
+    "adminUserPromoted": {
+      "title": "Kullanıcı yönetici yapıldı",
+      "body": "{name} ({'@'}{username}) kullanıcısına yönetici erişimi verildi."
     },
     "unknown": {
       "title": "Bildirim",

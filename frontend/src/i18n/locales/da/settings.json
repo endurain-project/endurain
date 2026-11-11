@@ -345,6 +345,17 @@
       "currencyPound": "Pund (£)",
       "numRecords": "Poster pr. side"
     },
+    "mfa": {
+      "title": "Tofaktorgodkendelse",
+      "require": "Kræv tofaktorgodkendelse",
+      "requireHint": "En konto, som dette omfatter, og som ikke har sat tofaktorgodkendelse op, skal sætte tofaktorgodkendelse op, før den kan gøre andet. Indtil da kan den kun sætte den op og logge ud. Kravet gælder fra kontoens næste anmodning.",
+      "options": {
+        "off": "Ikke påkrævet",
+        "administrators": "Kun administratorer",
+        "everyone": "Alle"
+      },
+      "enabledWarning": "Konti, der er omfattet af denne indstilling og ikke har sat tofaktorgodkendelse op, muligvis også din, bliver sendt til opsætning ved deres næste anmodning."
+    },
     "password": {
       "title": "Adgangskodepolitik",
       "lengthRegular": "Minimumslængde for almindelige brugere",
@@ -703,6 +714,13 @@
     "mfaCode": "Godkendelseskode",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "Skriv {phrase} for at bekræfte",
+    "mfaEnrolment": {
+      "title": "Sæt tofaktorgodkendelse op",
+      "description": "Denne server kræver tofaktorgodkendelse. Sæt den op for at fortsætte med at bruge Endurain, eller log ud.",
+      "done": "Tofaktorgodkendelse er sat op. Du kan fortsætte.",
+      "continue": "Fortsæt",
+      "signOut": "Log ud"
+    },
     "loadError": {
       "title": "Kunne ikke indlæse dine sikkerhedsindstillinger",
       "description": "Noget gik galt. Du kan prøve igen."
@@ -848,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Slet min konto",
-      "subtitle": "Slet permanent din konto og alle dine data, herunder aktiviteter og deres filer, sundhedsdata, udstyr, mål, integrationer og sessioner. Dette kan ikke fortrydes. Eksportér dine data først, hvis du vil beholde en kopi.",
+      "subtitle": "Slet din konto og alle dine data, herunder aktiviteter og deres filer, sundhedsdata, udstyr, mål, integrationer og sessioner. Du bliver logget ud af alle enheder, og kontoen deaktiveres med det samme, hvorefter dine data slettes i baggrunden. Der er ingen henstandsperiode: Kun en administrator kan stoppe det ved at genaktivere kontoen, før sletningen er færdig. Eksportér dine data først, hvis du vil beholde en kopi.",
       "action": "Slet min konto",
       "dialogTitle": "Slette din konto?",
-      "dialogDescription": "Dette sletter permanent din konto og alle dine data. Bekræft din identitet for at fortsætte.",
+      "dialogDescription": "Dette logger dig ud af alle enheder, deaktiverer din konto og starter sletningen af alle dine data. Kun en administrator kan stoppe det, før det er færdigt. Bekræft din identitet for at fortsætte.",
       "confirm": "Slet min konto",
       "error": "Kunne ikke slette din konto. Prøv venligst igen.",
       "onlyAdminError": "Du er den eneste administrator. Gør en anden bruger til administrator, før du sletter din konto.",

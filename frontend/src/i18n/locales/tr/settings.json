@@ -345,6 +345,17 @@
       "currencyPound": "Sterlin (£)",
       "numRecords": "Sayfa başına kayıt"
     },
+    "mfa": {
+      "title": "İki adımlı kimlik doğrulama",
+      "require": "İki adımlı kimlik doğrulamayı zorunlu kıl",
+      "requireHint": "Bu kapsamdaki ve iki adımlı kimlik doğrulamayı kurmamış bir hesap, başka bir şey yapabilmeden önce onu kurmalıdır. O zamana kadar yalnızca kurulum yapabilir ve çıkış yapabilir. Zorunluluk, hesabın bir sonraki isteğinden itibaren geçerli olur.",
+      "options": {
+        "off": "Zorunlu değil",
+        "administrators": "Yalnızca yöneticiler",
+        "everyone": "Herkes"
+      },
+      "enabledWarning": "Bu ayarın kapsadığı ve iki adımlı kimlik doğrulamayı kurmamış hesaplar, sizinki de olabilir, bir sonraki isteklerinde kurulum için yönlendirilir."
+    },
     "password": {
       "title": "Parola ilkesi",
       "lengthRegular": "Normal kullanıcılar için minimum uzunluk",
@@ -703,6 +714,13 @@
     "mfaCode": "Kimlik doğrulama kodu",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "Onaylamak için {phrase} yazın",
+    "mfaEnrolment": {
+      "title": "İki adımlı kimlik doğrulamayı kurun",
+      "description": "Bu sunucu iki adımlı kimlik doğrulama gerektiriyor. Endurain'i kullanmaya devam etmek için kurulumu yapın veya çıkış yapın.",
+      "done": "İki adımlı kimlik doğrulama kuruldu. Devam edebilirsiniz.",
+      "continue": "Devam",
+      "signOut": "Çıkış yap"
+    },
     "loadError": {
       "title": "Güvenlik ayarlarınız yüklenemedi",
       "description": "Bir şeyler ters gitti. Tekrar deneyebilirsiniz."
@@ -848,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Hesabımı sil",
-      "subtitle": "Hesabınızı ve etkinlikler ile dosyaları, sağlık kayıtları, ekipman, hedefler, entegrasyonlar ve oturumlar dahil tüm verilerinizi kalıcı olarak silin. Bu işlem geri alınamaz. Bir kopyasını saklamak istiyorsanız önce verilerinizi dışa aktarın.",
+      "subtitle": "Hesabınızı ve etkinlikler ile dosyaları, sağlık kayıtları, ekipman, hedefler, entegrasyonlar ve oturumlar dahil tüm verilerinizi silin. Tüm cihazlardaki oturumlarınız kapatılır ve hesap hemen devre dışı bırakılır, ardından verileriniz arka planda silinir. Bekleme süresi yoktur: yalnızca bir yönetici, silme tamamlanmadan önce hesabı yeniden etkinleştirerek bunu durdurabilir. Bir kopyasını saklamak istiyorsanız önce verilerinizi dışa aktarın.",
       "action": "Hesabımı sil",
       "dialogTitle": "Hesabınız silinsin mi?",
-      "dialogDescription": "Bu işlem hesabınızı ve tüm verilerinizi kalıcı olarak siler. Devam etmek için kimliğinizi doğrulayın.",
+      "dialogDescription": "Bu işlem tüm cihazlardaki oturumlarınızı kapatır, hesabınızı devre dışı bırakır ve tüm verilerinizin silinmesini başlatır. Yalnızca bir yönetici, tamamlanmadan önce bunu durdurabilir. Devam etmek için kimliğinizi doğrulayın.",
       "confirm": "Hesabımı sil",
       "error": "Hesabınız silinemedi. Lütfen tekrar deneyin.",
       "onlyAdminError": "Tek yönetici sizsiniz. Hesabınızı silmeden önce başka bir kullanıcıyı yönetici yapın.",

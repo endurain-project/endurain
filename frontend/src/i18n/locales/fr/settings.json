@@ -345,6 +345,17 @@
       "currencyPound": "Livre sterling (£)",
       "numRecords": "Enregistrements par page"
     },
+    "mfa": {
+      "title": "Vérification en deux étapes",
+      "require": "Exiger la vérification en deux étapes",
+      "requireHint": "Un compte concerné qui n'a pas configuré la vérification en deux étapes doit la configurer avant de pouvoir faire quoi que ce soit d'autre. D'ici là, il peut seulement la configurer et se déconnecter. L'exigence s'applique dès la prochaine requête du compte.",
+      "options": {
+        "off": "Non exigée",
+        "administrators": "Administrateurs uniquement",
+        "everyone": "Tout le monde"
+      },
+      "enabledWarning": "Les comptes concernés par ce paramètre qui n'ont pas configuré la vérification en deux étapes, y compris peut-être le vôtre, sont invités à la configurer dès leur prochaine requête."
+    },
     "password": {
       "title": "Politique de mot de passe",
       "lengthRegular": "Longueur minimale pour les utilisateurs réguliers",
@@ -703,6 +714,13 @@
     "mfaCode": "Code d'authentification",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "Saisissez {phrase} pour confirmer",
+    "mfaEnrolment": {
+      "title": "Configurer la vérification en deux étapes",
+      "description": "Ce serveur exige la vérification en deux étapes. Configurez-la pour continuer à utiliser Endurain, ou déconnectez-vous.",
+      "done": "La vérification en deux étapes est configurée. Vous pouvez continuer.",
+      "continue": "Continuer",
+      "signOut": "Se déconnecter"
+    },
     "loadError": {
       "title": "Impossible de charger vos paramètres de sécurité",
       "description": "Une erreur s'est produite. Vous pouvez réessayer."
@@ -848,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Supprimer mon compte",
-      "subtitle": "Supprimez définitivement votre compte et toutes vos données, y compris les activités et leurs fichiers, les données de santé, l'équipement, les objectifs, les intégrations et les sessions. Cette action est irréversible. Exportez d'abord vos données si vous souhaitez en conserver une copie.",
+      "subtitle": "Supprimez votre compte et toutes vos données, y compris les activités et leurs fichiers, les données de santé, l'équipement, les objectifs, les intégrations et les sessions. Vous êtes déconnecté de tous vos appareils et le compte est désactivé immédiatement, puis vos données sont effacées en arrière-plan. Il n'y a aucun délai de grâce : seul un administrateur peut l'arrêter, en réactivant le compte avant la fin de l'effacement. Exportez d'abord vos données si vous souhaitez en conserver une copie.",
       "action": "Supprimer mon compte",
       "dialogTitle": "Supprimer votre compte ?",
-      "dialogDescription": "Cela supprime définitivement votre compte et toutes vos données. Confirmez votre identité pour continuer.",
+      "dialogDescription": "Cela vous déconnecte de tous vos appareils, désactive votre compte et lance l'effacement de toutes vos données. Seul un administrateur peut l'arrêter avant la fin. Confirmez votre identité pour continuer.",
       "confirm": "Supprimer mon compte",
       "error": "Impossible de supprimer votre compte. Veuillez réessayer.",
       "onlyAdminError": "Vous êtes le seul administrateur. Nommez un autre utilisateur administrateur avant de supprimer votre compte.",

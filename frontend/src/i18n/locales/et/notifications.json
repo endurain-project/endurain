@@ -103,6 +103,34 @@
         "title": "Kaheastmeline kinnitus lukustatud",
         "body": "Sinu konto lukustati pärast 100 järjestikust valet kaheastmelise kinnituse koodi, seega keegi teab sinu parooli. Brauserid ja rakendused, millest oled pärast viimast turvamuudatust sisse loginud, saavad endiselt sisse logida. Kui need katsed ei olnud sinu omad, muuda oma parool."
       },
+      "stepUpSessionEnded": {
+        "title": "Seanss logiti välja",
+        "body": "Sinu konto üks seanss logiti välja, kui tundliku toimingu kinnitamiseks sisestati järjest 15 valet parooli või kaheastmelise autentimise koodi. Sinu teisi seansse see ei mõjutanud. Kui need katsed ei olnud sinu tehtud, muuda oma parooli."
+      },
+      "stepUpLocked": {
+        "title": "Tundlike toimingute kinnitamine lukustatud",
+        "body": "Tundlike toimingute, näiteks parooli muutmise või API-võtme loomise kinnitamine lukustati 30 päevaks pärast 100 valet kinnitust sinu seanssides. Kui need katsed ei olnud sinu tehtud, lähtesta oma parool, mis ka lukustuse tühistab."
+      },
+      "backupCodeUsed": {
+        "title": "Varukood kasutatud",
+        "body": "Sinu konto kaheastmelise autentimise jaoks kasutati varukoodi. Kui see ei olnud sina, muuda oma parooli ja loo uued varukoodid.",
+        "bodyRemaining": "Sinu konto kaheastmelise autentimise jaoks kasutati varukoodi. Kasutamata varukoode on alles: {count}. Kui see ei olnud sina, muuda oma parooli ja loo uued varukoodid.",
+        "bodyNone": "Sinu konto kaheastmelise autentimise jaoks kasutati varukoodi. Kasutamata varukoode ei ole enam alles, seega loo uued oma turvaseadetes. Kui see ei olnud sina, muuda oma parooli."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Seanss lõpetati",
+        "body": "Sinu konto sisselogimisseanss lõpetati, kuna juba kasutatud tokenit esitati uuesti, mis võib tähendada, et seanss kopeeriti. Sinu teisi seansse see ei mõjutanud. Kui sa seda ei oodanud, muuda oma parooli."
+      },
+      "roleChangedByAdmin": {
+        "title": "Administraator muutis juurdepääsu",
+        "body": "Administraator muutis sinu konto juurdepääsu ja logis sind kõigist seadmetest välja. Kui sa seda ei oodanud, võta ühendust oma administraatoriga.",
+        "bodyAdmin": "Administraator muutis sinu konto juurdepääsu administraatoriks ja logis sind kõigist seadmetest välja. Kui sa seda ei oodanud, võta ühendust oma administraatoriga.",
+        "bodyRegular": "Administraator muutis sinu konto juurdepääsu tavakasutajaks ja logis sind kõigist seadmetest välja. Kui sa seda ei oodanud, võta ühendust oma administraatoriga."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Administraator deaktiveeris konto",
+        "body": "Administraator deaktiveeris sinu konto ja logis sind kõigist seadmetest välja. Sa ei saa sisse logida enne, kui administraator selle uuesti aktiveerib."
+      },
       "unknown": {
         "title": "Konto turvalisus muutus",
         "body": "Sinu konto turvaseadet muudeti. Kui see ei olnud sina, lähtesta oma parool ja vaata üle oma turvaseaded."
@@ -115,6 +143,10 @@
     "adminSignUpApproval": {
       "title": "Uus registreerumine vajab heakskiitu",
       "body": "{name} ({'@'}{username}) ootab konto heakskiitu."
+    },
+    "adminUserPromoted": {
+      "title": "Kasutaja tõsteti administraatoriks",
+      "body": "Kasutajale {name} ({'@'}{username}) anti administraatori juurdepääs."
     },
     "unknown": {
       "title": "Teavitus",

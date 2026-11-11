@@ -345,6 +345,17 @@
       "currencyPound": "Pond (£)",
       "numRecords": "Records per pagina"
     },
+    "mfa": {
+      "title": "Tweefactorauthenticatie",
+      "require": "Tweefactorauthenticatie verplichten",
+      "requireHint": "Een account dat hieronder valt en tweefactorauthenticatie nog niet heeft ingesteld, moet die eerst instellen voordat het iets anders kan doen. Tot die tijd kan het alleen tweefactorauthenticatie instellen en uitloggen. De verplichting geldt vanaf het volgende verzoek van het account.",
+      "options": {
+        "off": "Niet verplicht",
+        "administrators": "Alleen beheerders",
+        "everyone": "Iedereen"
+      },
+      "enabledWarning": "Accounts die onder deze instelling vallen en tweefactorauthenticatie nog niet hebben ingesteld, mogelijk ook het jouwe, worden bij hun volgende verzoek doorgestuurd om die in te stellen."
+    },
     "password": {
       "title": "Wachtwoordbeleid",
       "lengthRegular": "Minimale lengte gewone gebruikers",
@@ -703,6 +714,13 @@
     "mfaCode": "Authenticatiecode",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "Typ {phrase} om te bevestigen",
+    "mfaEnrolment": {
+      "title": "Tweefactorauthenticatie instellen",
+      "description": "Deze server vereist tweefactorauthenticatie. Stel die in om Endurain te blijven gebruiken, of log uit.",
+      "done": "Tweefactorauthenticatie is ingesteld. Je kunt doorgaan.",
+      "continue": "Doorgaan",
+      "signOut": "Uitloggen"
+    },
     "loadError": {
       "title": "Beveiligingsinstellingen konden niet worden geladen",
       "description": "Er is iets misgegaan. Je kunt het opnieuw proberen."
@@ -848,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Mijn account verwijderen",
-      "subtitle": "Verwijder je account en al je gegevens definitief, inclusief activiteiten en hun bestanden, gezondheidsgegevens, uitrusting, doelen, integraties en sessies. Dit kan niet ongedaan worden gemaakt. Exporteer eerst je gegevens als je een kopie wilt bewaren.",
+      "subtitle": "Verwijder je account en al je gegevens, waaronder activiteiten en hun bestanden, gezondheidsgegevens, uitrusting, doelen, integraties en sessies. Je wordt op alle apparaten uitgelogd en het account wordt meteen gedeactiveerd, waarna je gegevens op de achtergrond worden gewist. Er is geen uitstelperiode: alleen een beheerder kan dit stoppen door het account opnieuw te activeren voordat het wissen klaar is. Exporteer eerst je gegevens als je een kopie wilt bewaren.",
       "action": "Mijn account verwijderen",
       "dialogTitle": "Je account verwijderen?",
-      "dialogDescription": "Dit verwijdert je account en al je gegevens definitief. Bevestig je identiteit om door te gaan.",
+      "dialogDescription": "Hiermee word je op alle apparaten uitgelogd, wordt je account gedeactiveerd en begint het wissen van al je gegevens. Alleen een beheerder kan het stoppen voordat het klaar is. Bevestig je identiteit om door te gaan.",
       "confirm": "Mijn account verwijderen",
       "error": "Je account kon niet worden verwijderd. Probeer het opnieuw.",
       "onlyAdminError": "Je bent de enige beheerder. Maak eerst een andere gebruiker beheerder voordat je je account verwijdert.",

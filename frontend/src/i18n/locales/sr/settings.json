@@ -345,6 +345,17 @@
       "currencyPound": "Funta (£)",
       "numRecords": "Zapisa po stranici"
     },
+    "mfa": {
+      "title": "Dvofaktorska autentifikacija",
+      "require": "Zahtevaj dvofaktorsku autentifikaciju",
+      "requireHint": "Nalog obuhvaćen ovim podešavanjem koji nije podesio dvofaktorsku autentifikaciju mora je podesiti pre nego što bilo šta drugo može da uradi. Do tada može samo da je podesi i da se odjavi. Zahtev važi od narednog zahteva naloga.",
+      "options": {
+        "off": "Nije obavezno",
+        "administrators": "Samo administratori",
+        "everyone": "Svi"
+      },
+      "enabledWarning": "Nalozi obuhvaćeni ovim podešavanjem koji nisu podesili dvofaktorsku autentifikaciju, moguće i vaš, biće upućeni da je podese pri narednom zahtevu."
+    },
     "password": {
       "title": "Politika lozinki",
       "lengthRegular": "Minimalna dužina za obične korisnike",
@@ -703,6 +714,13 @@
     "mfaCode": "Kod za autentifikaciju",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "Ukucajte {phrase} za potvrdu",
+    "mfaEnrolment": {
+      "title": "Podesite dvofaktorsku autentifikaciju",
+      "description": "Ovaj server zahteva dvofaktorsku autentifikaciju. Podesite je da biste nastavili da koristite Endurain ili se odjavite.",
+      "done": "Dvofaktorska autentifikacija je podešena. Možete da nastavite.",
+      "continue": "Nastavi",
+      "signOut": "Odjavi se"
+    },
     "loadError": {
       "title": "Nije moguće učitati vaša bezbednosna podešavanja",
       "description": "Nešto je pošlo naopako. Možete pokušati ponovo."
@@ -848,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Obriši moj nalog",
-      "subtitle": "Trajno obrišite svoj nalog i sve svoje podatke, uključujući aktivnosti i njihove datoteke, zdravstvene zapise, opremu, ciljeve, integracije i sesije. Ovo se ne može poništiti. Prvo izvezite podatke ako želite da zadržite kopiju.",
+      "subtitle": "Izbrišite svoj nalog i sve svoje podatke, uključujući aktivnosti i njihove datoteke, zdravstvene zapise, opremu, ciljeve, integracije i sesije. Odjavljeni ste sa svih uređaja i nalog se odmah deaktivira, a zatim se vaši podaci brišu u pozadini. Nema odložnog perioda: samo administrator može da ga zaustavi ponovnom aktivacijom naloga pre završetka brisanja. Prvo izvezite svoje podatke ako želite da sačuvate kopiju.",
       "action": "Obriši moj nalog",
       "dialogTitle": "Obrisati nalog?",
-      "dialogDescription": "Ovo trajno briše vaš nalog i sve vaše podatke. Potvrdite svoj identitet za nastavak.",
+      "dialogDescription": "Ovo vas odjavljuje sa svih uređaja, deaktivira vaš nalog i pokreće brisanje svih vaših podataka. Samo administrator može da ga zaustavi pre nego što se završi. Potvrdite svoj identitet da biste nastavili.",
       "confirm": "Obriši moj nalog",
       "error": "Nalog nije mogao da se obriše. Pokušajte ponovo.",
       "onlyAdminError": "Vi ste jedini administrator. Pre brisanja naloga postavite drugog korisnika za administratora.",

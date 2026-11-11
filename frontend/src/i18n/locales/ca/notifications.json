@@ -103,6 +103,34 @@
         "title": "Verificació en dos passos bloquejada",
         "body": "El teu compte s'ha bloquejat després de 100 codis de verificació en dos passos incorrectes seguits, així que algú coneix la teva contrasenya. Els navegadors i aplicacions des dels quals has iniciat sessió des del teu últim canvi de seguretat encara poden iniciar-la. Si aquests intents no eren teus, canvia la contrasenya."
       },
+      "stepUpSessionEnded": {
+        "title": "Sessió tancada",
+        "body": "S'ha tancat una sessió del teu compte després d'introduir 15 contrasenyes o codis de verificació en dos passos incorrectes seguits per confirmar una acció sensible. Les altres sessions no s'han vist afectades. Si aquests intents no eren teus, canvia la contrasenya."
+      },
+      "stepUpLocked": {
+        "title": "Confirmació d'accions sensibles bloquejada",
+        "body": "La confirmació d'accions sensibles, com canviar la contrasenya o crear una clau d'API, s'ha bloquejat durant 30 dies després de 100 confirmacions incorrectes a les teves sessions. Si aquests intents no eren teus, restableix la contrasenya, cosa que també aixeca el bloqueig."
+      },
+      "backupCodeUsed": {
+        "title": "Codi de seguretat utilitzat",
+        "body": "S'ha utilitzat un codi de seguretat per a la verificació en dos passos del teu compte. Si no has estat tu, canvia la contrasenya i genera codis de seguretat nous.",
+        "bodyRemaining": "S'ha utilitzat un codi de seguretat per a la verificació en dos passos del teu compte. Codis de seguretat sense utilitzar que et queden: {count}. Si no has estat tu, canvia la contrasenya i genera codis de seguretat nous.",
+        "bodyNone": "S'ha utilitzat un codi de seguretat per a la verificació en dos passos del teu compte. Ja no et queden codis de seguretat sense utilitzar, així que n'has de generar de nous a la configuració de seguretat. Si no has estat tu, canvia la contrasenya."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Sessió finalitzada",
+        "body": "S'ha finalitzat una sessió d'inici de sessió del teu compte perquè s'ha tornat a presentar un token que ja s'havia utilitzat, cosa que pot significar que la sessió s'ha copiat. Les altres sessions no s'han vist afectades. Si no t'ho esperaves, canvia la contrasenya."
+      },
+      "roleChangedByAdmin": {
+        "title": "Accés canviat per un administrador",
+        "body": "Un administrador ha canviat l'accés del teu compte i ha tancat la teva sessió a tots els dispositius. Si no t'ho esperaves, contacta amb el teu administrador.",
+        "bodyAdmin": "Un administrador ha canviat l'accés del teu compte a administrador i ha tancat la teva sessió a tots els dispositius. Si no t'ho esperaves, contacta amb el teu administrador.",
+        "bodyRegular": "Un administrador ha canviat l'accés del teu compte a usuari normal i ha tancat la teva sessió a tots els dispositius. Si no t'ho esperaves, contacta amb el teu administrador."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Compte desactivat per un administrador",
+        "body": "Un administrador ha desactivat el teu compte i ha tancat la teva sessió a tots els dispositius. No pots iniciar sessió fins que un administrador el torni a activar."
+      },
       "unknown": {
         "title": "Seguretat del compte canviada",
         "body": "S'ha canviat una opció de seguretat del teu compte. Si no has estat tu, restableix la contrasenya i revisa la configuració de seguretat."
@@ -115,6 +143,10 @@
     "adminSignUpApproval": {
       "title": "Nou registre necessita aprovació",
       "body": "{name} ({'@'}{username}) està esperant l'aprovació del compte."
+    },
+    "adminUserPromoted": {
+      "title": "Usuari ascendit a administrador",
+      "body": "{name} ({'@'}{username}) ha rebut accés d'administrador."
     },
     "unknown": {
       "title": "Notificació",

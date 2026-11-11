@@ -103,6 +103,34 @@
         "title": "Weryfikacja dwuetapowa zablokowana",
         "body": "Twoje konto zostało zablokowane po 100 błędnych kodach weryfikacji dwuetapowej z rzędu, więc ktoś zna Twoje hasło. Przeglądarki i aplikacje, z których logowałeś(-aś) się od ostatniej zmiany zabezpieczeń, nadal mogą się logować. Jeśli to nie były Twoje próby, zmień hasło."
       },
+      "stepUpSessionEnded": {
+        "title": "Sesja została wylogowana",
+        "body": "Jedna z sesji Twojego konta została wylogowana po wpisaniu 15 razy z rzędu błędnego hasła lub kodu uwierzytelniania dwuskładnikowego w celu potwierdzenia wrażliwej czynności. Pozostałe sesje nie zostały naruszone. Jeśli to nie Ty podejmowałeś(-aś) te próby, zmień hasło."
+      },
+      "stepUpLocked": {
+        "title": "Potwierdzanie wrażliwych czynności zablokowane",
+        "body": "Potwierdzanie wrażliwych czynności, takich jak zmiana hasła lub utworzenie klucza API, zostało zablokowane na 30 dni po 100 błędnych potwierdzeniach we wszystkich Twoich sesjach. Jeśli to nie Ty podejmowałeś(-aś) te próby, zresetuj hasło, co również zdejmuje blokadę."
+      },
+      "backupCodeUsed": {
+        "title": "Użyto kodu zapasowego",
+        "body": "Kod zapasowy został użyty do uwierzytelniania dwuskładnikowego na Twoim koncie. Jeśli to nie Ty, zmień hasło i wygeneruj nowe kody zapasowe.",
+        "bodyRemaining": "Kod zapasowy został użyty do uwierzytelniania dwuskładnikowego na Twoim koncie. Pozostało niewykorzystanych kodów zapasowych: {count}. Jeśli to nie Ty, zmień hasło i wygeneruj nowe kody zapasowe.",
+        "bodyNone": "Kod zapasowy został użyty do uwierzytelniania dwuskładnikowego na Twoim koncie. Nie masz już niewykorzystanych kodów zapasowych, więc wygeneruj nowe w ustawieniach bezpieczeństwa. Jeśli to nie Ty, zmień hasło."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Sesja została zakończona",
+        "body": "Sesja logowania na Twoim koncie została zakończona, ponieważ token, który został już użyty, został przedstawiony ponownie, co może oznaczać skopiowanie sesji. Pozostałe sesje nie zostały naruszone. Jeśli się tego nie spodziewałeś(-aś), zmień hasło."
+      },
+      "roleChangedByAdmin": {
+        "title": "Administrator zmienił dostęp",
+        "body": "Administrator zmienił dostęp Twojego konta i wylogował Cię ze wszystkich urządzeń. Jeśli się tego nie spodziewałeś(-aś), skontaktuj się ze swoim administratorem.",
+        "bodyAdmin": "Administrator zmienił dostęp Twojego konta na administratora i wylogował Cię ze wszystkich urządzeń. Jeśli się tego nie spodziewałeś(-aś), skontaktuj się ze swoim administratorem.",
+        "bodyRegular": "Administrator zmienił dostęp Twojego konta na zwykłego użytkownika i wylogował Cię ze wszystkich urządzeń. Jeśli się tego nie spodziewałeś(-aś), skontaktuj się ze swoim administratorem."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Administrator dezaktywował konto",
+        "body": "Administrator dezaktywował Twoje konto i wylogował Cię ze wszystkich urządzeń. Nie możesz się zalogować, dopóki administrator go ponownie nie aktywuje."
+      },
       "unknown": {
         "title": "Zmieniono zabezpieczenia konta",
         "body": "Zmieniono jedno z ustawień zabezpieczeń Twojego konta. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
@@ -115,6 +143,10 @@
     "adminSignUpApproval": {
       "title": "Nowa rejestracja wymaga zatwierdzenia",
       "body": "{name} ({'@'}{username}) oczekuje na zatwierdzenie konta."
+    },
+    "adminUserPromoted": {
+      "title": "Użytkownik awansowany na administratora",
+      "body": "{name} ({'@'}{username}) otrzymał(-a) dostęp administratora."
     },
     "unknown": {
       "title": "Powiadomienie",

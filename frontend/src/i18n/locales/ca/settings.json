@@ -345,6 +345,17 @@
       "currencyPound": "Lliura (£)",
       "numRecords": "Registres per pàgina"
     },
+    "mfa": {
+      "title": "Verificació en dos passos",
+      "require": "Exigeix la verificació en dos passos",
+      "requireHint": "Un compte inclòs que no hagi configurat la verificació en dos passos l'ha de configurar abans de poder fer res més. Fins aleshores només pot configurar-la i tancar la sessió. El requisit s'aplica a partir de la següent sol·licitud del compte.",
+      "options": {
+        "off": "No exigida",
+        "administrators": "Només administradors",
+        "everyone": "Tothom"
+      },
+      "enabledWarning": "Els comptes inclosos en aquesta opció que no hagin configurat la verificació en dos passos, possiblement el teu, són dirigits a configurar-la en la seva següent sol·licitud."
+    },
     "password": {
       "title": "Política de contrasenyes",
       "lengthRegular": "Longitud mínima usuaris regulars",
@@ -703,6 +714,13 @@
     "mfaCode": "Codi d'autenticació",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "Escriu {phrase} per confirmar",
+    "mfaEnrolment": {
+      "title": "Configura la verificació en dos passos",
+      "description": "Aquest servidor exigeix la verificació en dos passos. Configura-la per continuar utilitzant Endurain, o tanca la sessió.",
+      "done": "La verificació en dos passos està configurada. Pots continuar.",
+      "continue": "Continua",
+      "signOut": "Tanca la sessió"
+    },
     "loadError": {
       "title": "No s'ha pogut carregar la configuració de seguretat",
       "description": "S'ha produït un error. Pots tornar-ho a intentar."
@@ -848,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Elimina el meu compte",
-      "subtitle": "Elimina de manera permanent el teu compte i totes les teves dades, incloses les activitats i els seus fitxers, els registres de salut, l'equipament, els objectius, les integracions i les sessions. No es pot desfer. Exporta primer les teves dades si en vols conservar una còpia.",
+      "subtitle": "Suprimeix el teu compte i totes les teves dades, incloses les activitats i els seus fitxers, els registres de salut, l'equipament, els objectius, les integracions i les sessions. Es tanca la teva sessió a tots els dispositius i el compte es desactiva a l'instant; després les teves dades s'esborren en segon pla. No hi ha període de gràcia: només un administrador pot aturar-ho, tornant a activar el compte abans que acabi l'esborrat. Exporta abans les teves dades si en vols conservar una còpia.",
       "action": "Elimina el meu compte",
       "dialogTitle": "Eliminar el teu compte?",
-      "dialogDescription": "Això elimina de manera permanent el teu compte i totes les teves dades. Confirma la teva identitat per continuar.",
+      "dialogDescription": "Això tanca la teva sessió a tots els dispositius, desactiva el teu compte i comença a esborrar totes les teves dades. Només un administrador pot aturar-ho abans que acabi. Confirma la teva identitat per continuar.",
       "confirm": "Elimina el meu compte",
       "error": "No s'ha pogut eliminar el teu compte. Torna-ho a intentar.",
       "onlyAdminError": "Ets l'únic administrador. Fes administrador un altre usuari abans d'eliminar el teu compte.",

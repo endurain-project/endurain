@@ -345,6 +345,17 @@
       "currencyPound": "Nael (£)",
       "numRecords": "Kirjeid lehe kohta"
     },
+    "mfa": {
+      "title": "Kaheastmeline autentimine",
+      "require": "Nõua kaheastmelist autentimist",
+      "requireHint": "Konto, mida see hõlmab ja mis ei ole kaheastmelist autentimist seadistanud, peab selle enne millegi muu tegemist seadistama. Seni saab ta ainult selle seadistada ja välja logida. Nõue kehtib konto järgmisest päringust alates.",
+      "options": {
+        "off": "Pole nõutav",
+        "administrators": "Ainult administraatorid",
+        "everyone": "Kõik"
+      },
+      "enabledWarning": "Selle seadega hõlmatud kontod, mis ei ole kaheastmelist autentimist seadistanud, sealhulgas võimalik et sinu oma, suunatakse selle seadistamisele oma järgmise päringu ajal."
+    },
     "password": {
       "title": "Parooli reeglid",
       "lengthRegular": "Tavakasutajate minimaalne pikkus",
@@ -703,6 +714,13 @@
     "mfaCode": "Autentimiskood",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "Kinnitamiseks sisesta {phrase}",
+    "mfaEnrolment": {
+      "title": "Seadista kaheastmeline autentimine",
+      "description": "See server nõuab kaheastmelist autentimist. Seadista see, et Endurainit edasi kasutada, või logi välja.",
+      "done": "Kaheastmeline autentimine on seadistatud. Võid jätkata.",
+      "continue": "Jätka",
+      "signOut": "Logi välja"
+    },
     "loadError": {
       "title": "Sinu turvaseadeid ei õnnestunud laadida",
       "description": "Midagi läks valesti. Võid uuesti proovida."
@@ -848,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Kustuta minu konto",
-      "subtitle": "Kustuta jäädavalt oma konto ja kõik andmed, sealhulgas tegevused ja nende failid, terviseandmed, varustus, eesmärgid, integratsioonid ja seansid. Seda ei saa tagasi võtta. Kui soovid koopiat alles hoida, ekspordi andmed enne.",
+      "subtitle": "Kustuta oma konto ja kõik oma andmed, sealhulgas tegevused ja nende failid, terviseandmed, varustus, eesmärgid, integratsioonid ja seansid. Sind logitakse kõigist seadmetest välja ja konto deaktiveeritakse kohe, seejärel kustutatakse sinu andmed taustal. Ooteaega ei ole: seda saab peatada ainult administraator, aktiveerides konto uuesti enne kustutamise lõppu. Ekspordi oma andmed enne, kui soovid koopiat alles hoida.",
       "action": "Kustuta minu konto",
       "dialogTitle": "Kustutad oma konto?",
-      "dialogDescription": "See kustutab jäädavalt sinu konto ja kõik andmed. Jätkamiseks kinnita oma identiteet.",
+      "dialogDescription": "See logib sind kõigist seadmetest välja, deaktiveerib sinu konto ja alustab kõigi sinu andmete kustutamist. Seda saab enne lõppu peatada ainult administraator. Jätkamiseks kinnita oma identiteet.",
       "confirm": "Kustuta minu konto",
       "error": "Konto kustutamine ebaõnnestus. Palun proovi uuesti.",
       "onlyAdminError": "Sa oled ainus administraator. Enne konto kustutamist tee mõni teine kasutaja administraatoriks.",

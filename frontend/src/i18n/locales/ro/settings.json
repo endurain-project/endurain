@@ -345,6 +345,17 @@
       "currencyPound": "Liră (£)",
       "numRecords": "Înregistrări pe pagină"
     },
+    "mfa": {
+      "title": "Autentificare în doi pași",
+      "require": "Cere autentificarea în doi pași",
+      "requireHint": "Un cont vizat care nu a configurat autentificarea în doi pași trebuie să o configureze înainte de a putea face orice altceva. Până atunci o poate doar configura și se poate deconecta. Cerința se aplică de la următoarea solicitare a contului.",
+      "options": {
+        "off": "Nu este cerută",
+        "administrators": "Doar administratorii",
+        "everyone": "Toți"
+      },
+      "enabledWarning": "Conturile vizate de această setare care nu au configurat autentificarea în doi pași, posibil inclusiv al tău, sunt trimise să o configureze la următoarea solicitare."
+    },
     "password": {
       "title": "Politica parolelor",
       "lengthRegular": "Lungime minimă pentru utilizatorii obișnuiți",
@@ -703,6 +714,13 @@
     "mfaCode": "Cod de autentificare",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "Scrie {phrase} pentru a confirma",
+    "mfaEnrolment": {
+      "title": "Configurează autentificarea în doi pași",
+      "description": "Acest server cere autentificarea în doi pași. Configureaz-o pentru a continua să folosești Endurain sau deconectează-te.",
+      "done": "Autentificarea în doi pași este configurată. Poți continua.",
+      "continue": "Continuă",
+      "signOut": "Deconectează-te"
+    },
     "loadError": {
       "title": "Nu am putut încărca setările tale de securitate",
       "description": "Ceva nu a mers bine. Poți încerca din nou."
@@ -848,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Șterge-mi contul",
-      "subtitle": "Șterge definitiv contul și toate datele tale, inclusiv activitățile și fișierele lor, înregistrările de sănătate, echipamentele, obiectivele, integrările și sesiunile. Acțiunea nu poate fi anulată. Exportă-ți mai întâi datele dacă vrei să păstrezi o copie.",
+      "subtitle": "Șterge-ți contul și toate datele tale, inclusiv activitățile și fișierele lor, datele de sănătate, echipamentul, obiectivele, integrările și sesiunile. Ești deconectat de pe toate dispozitivele, iar contul este dezactivat imediat, apoi datele tale sunt șterse în fundal. Nu există o perioadă de grație: doar un administrator poate opri operațiunea, reactivând contul înainte de finalizarea ștergerii. Exportă-ți mai întâi datele dacă vrei să păstrezi o copie.",
       "action": "Șterge-mi contul",
       "dialogTitle": "Îți ștergi contul?",
-      "dialogDescription": "Aceasta șterge definitiv contul și toate datele tale. Confirmă-ți identitatea pentru a continua.",
+      "dialogDescription": "Aceasta te deconectează de pe toate dispozitivele, îți dezactivează contul și începe ștergerea tuturor datelor tale. Doar un administrator o poate opri înainte de finalizare. Confirmă-ți identitatea pentru a continua.",
       "confirm": "Șterge-mi contul",
       "error": "Nu am putut șterge contul. Te rugăm să încerci din nou.",
       "onlyAdminError": "Ești singurul administrator. Fă un alt utilizator administrator înainte de a-ți șterge contul.",

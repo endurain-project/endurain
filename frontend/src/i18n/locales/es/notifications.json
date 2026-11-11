@@ -103,6 +103,34 @@
         "title": "Verificación en dos pasos bloqueada",
         "body": "Tu cuenta se bloqueó tras 100 códigos de verificación en dos pasos incorrectos seguidos, así que alguien conoce tu contraseña. Los navegadores y las apps desde los que iniciaste sesión desde tu último cambio de seguridad aún pueden iniciar sesión. Si esos intentos no fueron tuyos, cambia tu contraseña."
       },
+      "stepUpSessionEnded": {
+        "title": "Sesión cerrada",
+        "body": "Se cerró una sesión de tu cuenta tras introducir 15 contraseñas o códigos de verificación en dos pasos incorrectos seguidos para confirmar una acción sensible. Tus otras sesiones no se vieron afectadas. Si esos intentos no fueron tuyos, cambia tu contraseña."
+      },
+      "stepUpLocked": {
+        "title": "Confirmación de acciones sensibles bloqueada",
+        "body": "La confirmación de acciones sensibles, como cambiar tu contraseña o crear una clave API, se bloqueó durante 30 días tras 100 confirmaciones incorrectas en tus sesiones. Si esos intentos no fueron tuyos, restablece tu contraseña, lo que también levanta el bloqueo."
+      },
+      "backupCodeUsed": {
+        "title": "Código de respaldo utilizado",
+        "body": "Se utilizó un código de respaldo para la verificación en dos pasos de tu cuenta. Si no fuiste tú, cambia tu contraseña y genera nuevos códigos de respaldo.",
+        "bodyRemaining": "Se utilizó un código de respaldo para la verificación en dos pasos de tu cuenta. Códigos de respaldo sin usar restantes: {count}. Si no fuiste tú, cambia tu contraseña y genera nuevos códigos de respaldo.",
+        "bodyNone": "Se utilizó un código de respaldo para la verificación en dos pasos de tu cuenta. Ya no te quedan códigos de respaldo sin usar, así que genera otros nuevos en tus ajustes de seguridad. Si no fuiste tú, cambia tu contraseña."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Sesión finalizada",
+        "body": "Se finalizó una sesión de inicio de sesión de tu cuenta porque se presentó de nuevo un token que ya se había usado, lo que puede significar que la sesión se copió. Tus otras sesiones no se vieron afectadas. Si no lo esperabas, cambia tu contraseña."
+      },
+      "roleChangedByAdmin": {
+        "title": "Acceso cambiado por un administrador",
+        "body": "Un administrador cambió el acceso de tu cuenta y cerró tu sesión en todos los dispositivos. Si no lo esperabas, contacta con tu administrador.",
+        "bodyAdmin": "Un administrador cambió el acceso de tu cuenta a administrador y cerró tu sesión en todos los dispositivos. Si no lo esperabas, contacta con tu administrador.",
+        "bodyRegular": "Un administrador cambió el acceso de tu cuenta a usuario normal y cerró tu sesión en todos los dispositivos. Si no lo esperabas, contacta con tu administrador."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Cuenta desactivada por un administrador",
+        "body": "Un administrador desactivó tu cuenta y cerró tu sesión en todos los dispositivos. No puedes iniciar sesión hasta que un administrador la reactive."
+      },
       "unknown": {
         "title": "Seguridad de la cuenta modificada",
         "body": "Se modificó un ajuste de seguridad de tu cuenta. Si no fuiste tú, restablece tu contraseña y revisa tus ajustes de seguridad."
@@ -115,6 +143,10 @@
     "adminSignUpApproval": {
       "title": "Nuevo registro pendiente de aprobación",
       "body": "{name} ({'@'}{username}) está esperando la aprobación de la cuenta."
+    },
+    "adminUserPromoted": {
+      "title": "Usuario ascendido a administrador",
+      "body": "{name} ({'@'}{username}) recibió acceso de administrador."
     },
     "unknown": {
       "title": "Notificación",

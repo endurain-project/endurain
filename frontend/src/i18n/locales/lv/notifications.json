@@ -103,6 +103,34 @@
         "title": "Divpakāpju verifikācija bloķēta",
         "body": "Jūsu konts tika bloķēts pēc 100 nepareiziem divpakāpju verifikācijas kodiem pēc kārtas, tātad kāds zina Jūsu paroli. Pārlūkprogrammas un lietotnes, no kurām pieteicāties kopš pēdējām drošības izmaiņām, joprojām var pieteikties. Ja šie mēģinājumi nebija Jūsu, nomainiet paroli."
       },
+      "stepUpSessionEnded": {
+        "title": "Sesija izrakstīta",
+        "body": "Viena Jūsu konta sesija tika izrakstīta pēc tam, kad jūtīgas darbības apstiprināšanai pēc kārtas tika ievadītas 15 nepareizas paroles vai divfaktoru autentifikācijas kodi. Pārējās Jūsu sesijas netika ietekmētas. Ja šos mēģinājumus veicāt nevis Jūs, nomainiet paroli."
+      },
+      "stepUpLocked": {
+        "title": "Jūtīgu darbību apstiprināšana bloķēta",
+        "body": "Jūtīgu darbību, piemēram, paroles maiņas vai API atslēgas izveides, apstiprināšana tika bloķēta uz 30 dienām pēc 100 nepareiziem apstiprinājumiem visās Jūsu sesijās. Ja šos mēģinājumus veicāt nevis Jūs, atiestatiet paroli, kas arī noņem bloķējumu."
+      },
+      "backupCodeUsed": {
+        "title": "Izmantots rezerves kods",
+        "body": "Jūsu konta divfaktoru autentifikācijai tika izmantots rezerves kods. Ja tas nebijāt Jūs, nomainiet paroli un izveidojiet jaunus rezerves kodus.",
+        "bodyRemaining": "Jūsu konta divfaktoru autentifikācijai tika izmantots rezerves kods. Atlikuši neizmantoti rezerves kodi: {count}. Ja tas nebijāt Jūs, nomainiet paroli un izveidojiet jaunus rezerves kodus.",
+        "bodyNone": "Jūsu konta divfaktoru autentifikācijai tika izmantots rezerves kods. Jums vairs nav neizmantotu rezerves kodu, tāpēc izveidojiet jaunus drošības iestatījumos. Ja tas nebijāt Jūs, nomainiet paroli."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Sesija beigta",
+        "body": "Jūsu konta pieteikšanās sesija tika beigta, jo jau izmantots marķieris tika uzrādīts atkārtoti, kas var nozīmēt, ka sesija ir nokopēta. Pārējās Jūsu sesijas netika ietekmētas. Ja to negaidījāt, nomainiet paroli."
+      },
+      "roleChangedByAdmin": {
+        "title": "Administrators mainīja piekļuvi",
+        "body": "Administrators mainīja Jūsu konta piekļuvi un izrakstīja Jūs visās ierīcēs. Ja to negaidījāt, sazinieties ar savu administratoru.",
+        "bodyAdmin": "Administrators mainīja Jūsu konta piekļuvi uz administratora un izrakstīja Jūs visās ierīcēs. Ja to negaidījāt, sazinieties ar savu administratoru.",
+        "bodyRegular": "Administrators mainīja Jūsu konta piekļuvi uz parasta lietotāja un izrakstīja Jūs visās ierīcēs. Ja to negaidījāt, sazinieties ar savu administratoru."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Administrators deaktivizēja kontu",
+        "body": "Administrators deaktivizēja Jūsu kontu un izrakstīja Jūs visās ierīcēs. Jūs nevarēsiet pieteikties, kamēr administrators to atkal neaktivizēs."
+      },
       "unknown": {
         "title": "Konta drošība mainīta",
         "body": "Mainīts kāds jūsu konta drošības iestatījums. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
@@ -115,6 +143,10 @@
     "adminSignUpApproval": {
       "title": "Jaunai reģistrācijai nepieciešams apstiprinājums",
       "body": "{name} ({'@'}{username}) gaida konta apstiprinājumu."
+    },
+    "adminUserPromoted": {
+      "title": "Lietotājs paaugstināts par administratoru",
+      "body": "{name} ({'@'}{username}) tika piešķirta administratora piekļuve."
     },
     "unknown": {
       "title": "Paziņojums",

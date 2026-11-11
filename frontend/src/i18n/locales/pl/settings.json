@@ -345,6 +345,17 @@
       "currencyPound": "Funt (£)",
       "numRecords": "Rekordów na stronę"
     },
+    "mfa": {
+      "title": "Uwierzytelnianie dwuskładnikowe",
+      "require": "Wymagaj uwierzytelniania dwuskładnikowego",
+      "requireHint": "Konto objęte tym ustawieniem, które nie skonfigurowało uwierzytelniania dwuskładnikowego, musi je skonfigurować, zanim będzie mogło zrobić cokolwiek innego. Do tego czasu może je tylko skonfigurować i się wylogować. Wymóg obowiązuje od następnego żądania konta.",
+      "options": {
+        "off": "Niewymagane",
+        "administrators": "Tylko administratorzy",
+        "everyone": "Wszyscy"
+      },
+      "enabledWarning": "Konta objęte tym ustawieniem, które nie skonfigurowały uwierzytelniania dwuskładnikowego, być może także Twoje, zostaną skierowane do jego konfiguracji przy następnym żądaniu."
+    },
     "password": {
       "title": "Zasady haseł",
       "lengthRegular": "Minimalna długość dla zwykłych użytkowników",
@@ -703,6 +714,13 @@
     "mfaCode": "Kod uwierzytelniający",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "Wpisz {phrase}, aby potwierdzić",
+    "mfaEnrolment": {
+      "title": "Skonfiguruj uwierzytelnianie dwuskładnikowe",
+      "description": "Ten serwer wymaga uwierzytelniania dwuskładnikowego. Skonfiguruj je, aby dalej korzystać z Endurain, lub się wyloguj.",
+      "done": "Uwierzytelnianie dwuskładnikowe zostało skonfigurowane. Możesz kontynuować.",
+      "continue": "Kontynuuj",
+      "signOut": "Wyloguj się"
+    },
     "loadError": {
       "title": "Nie udało się wczytać ustawień bezpieczeństwa",
       "description": "Coś poszło nie tak. Możesz spróbować ponownie."
@@ -848,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Usuń moje konto",
-      "subtitle": "Trwale usuń swoje konto i wszystkie dane, w tym aktywności i ich pliki, dane zdrowotne, sprzęt, cele, integracje i sesje. Tego nie można cofnąć. Jeśli chcesz zachować kopię, najpierw wyeksportuj dane.",
+      "subtitle": "Usuń swoje konto i wszystkie swoje dane, w tym aktywności i ich pliki, dane zdrowotne, sprzęt, cele, integracje i sesje. Zostaniesz wylogowany(-a) ze wszystkich urządzeń, a konto zostanie od razu dezaktywowane, po czym Twoje dane zostaną usunięte w tle. Nie ma okresu karencji: może to powstrzymać tylko administrator, ponownie aktywując konto przed zakończeniem usuwania. Najpierw wyeksportuj swoje dane, jeśli chcesz zachować kopię.",
       "action": "Usuń moje konto",
       "dialogTitle": "Usunąć Twoje konto?",
-      "dialogDescription": "To trwale usuwa Twoje konto i wszystkie dane. Potwierdź swoją tożsamość, aby kontynuować.",
+      "dialogDescription": "Spowoduje to wylogowanie Cię ze wszystkich urządzeń, dezaktywację Twojego konta i rozpoczęcie usuwania wszystkich Twoich danych. Przed jego zakończeniem może to powstrzymać tylko administrator. Potwierdź swoją tożsamość, aby kontynuować.",
       "confirm": "Usuń moje konto",
       "error": "Nie udało się usunąć Twojego konta. Spróbuj ponownie.",
       "onlyAdminError": "Jesteś jedynym administratorem. Przed usunięciem konta nadaj uprawnienia administratora innemu użytkownikowi.",

@@ -345,6 +345,17 @@
       "currencyPound": "Pund (£)",
       "numRecords": "Poster per sida"
     },
+    "mfa": {
+      "title": "Tvåfaktorsautentisering",
+      "require": "Kräv tvåfaktorsautentisering",
+      "requireHint": "Ett konto som omfattas och inte har ställt in tvåfaktorsautentisering måste ställa in den innan det kan göra något annat. Tills dess kan det bara ställa in den och logga ut. Kravet gäller från kontots nästa förfrågan.",
+      "options": {
+        "off": "Krävs inte",
+        "administrators": "Endast administratörer",
+        "everyone": "Alla"
+      },
+      "enabledWarning": "Konton som omfattas av den här inställningen och inte har ställt in tvåfaktorsautentisering, möjligen även ditt, skickas till inställningen vid sin nästa förfrågan."
+    },
     "password": {
       "title": "Lösenordspolicy",
       "lengthRegular": "Minsta längd vanliga användare",
@@ -703,6 +714,13 @@
     "mfaCode": "Autentiseringskod",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "Skriv {phrase} för att bekräfta",
+    "mfaEnrolment": {
+      "title": "Ställ in tvåfaktorsautentisering",
+      "description": "Den här servern kräver tvåfaktorsautentisering. Ställ in den för att fortsätta använda Endurain, eller logga ut.",
+      "done": "Tvåfaktorsautentisering är inställd. Du kan fortsätta.",
+      "continue": "Fortsätt",
+      "signOut": "Logga ut"
+    },
     "loadError": {
       "title": "Kunde inte ladda dina säkerhetsinställningar",
       "description": "Något gick fel. Du kan försöka igen."
@@ -848,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Radera mitt konto",
-      "subtitle": "Radera ditt konto och alla dina data permanent, inklusive aktiviteter och deras filer, hälsoposter, utrustning, mål, integrationer och sessioner. Det går inte att ångra. Exportera dina data först om du vill behålla en kopia.",
+      "subtitle": "Radera ditt konto och all din data, inklusive aktiviteter och deras filer, hälsodata, utrustning, mål, integrationer och sessioner. Du loggas ut från alla enheter och kontot inaktiveras direkt, därefter raderas din data i bakgrunden. Det finns ingen respitperiod: bara en administratör kan stoppa det genom att aktivera kontot igen innan raderingen är klar. Exportera din data först om du vill behålla en kopia.",
       "action": "Radera mitt konto",
       "dialogTitle": "Radera ditt konto?",
-      "dialogDescription": "Det här raderar ditt konto och alla dina data permanent. Bekräfta din identitet för att fortsätta.",
+      "dialogDescription": "Detta loggar ut dig från alla enheter, inaktiverar ditt konto och startar raderingen av all din data. Bara en administratör kan stoppa det innan det är klart. Bekräfta din identitet för att fortsätta.",
       "confirm": "Radera mitt konto",
       "error": "Kunde inte radera ditt konto. Försök igen.",
       "onlyAdminError": "Du är den enda administratören. Gör en annan användare till administratör innan du raderar ditt konto.",

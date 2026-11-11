@@ -345,6 +345,17 @@
       "currencyPound": "Funt (£)",
       "numRecords": "Zapisov na stran"
     },
+    "mfa": {
+      "title": "Dvostopenjska avtentikacija",
+      "require": "Zahtevaj dvostopenjsko avtentikacijo",
+      "requireHint": "Račun, ki ga to zajema in nima nastavljene dvostopenjske avtentikacije, jo mora nastaviti, preden lahko počne karkoli drugega. Do takrat jo lahko le nastavi in se odjavi. Zahteva velja od naslednje zahteve računa.",
+      "options": {
+        "off": "Ni zahtevana",
+        "administrators": "Samo skrbniki",
+        "everyone": "Vsi"
+      },
+      "enabledWarning": "Račune, ki jih ta nastavitev zajema in nimajo nastavljene dvostopenjske avtentikacije, po možnosti tudi tvojega, ob naslednji zahtevi preusmerimo na njeno nastavitev."
+    },
     "password": {
       "title": "Pravilnik za gesla",
       "lengthRegular": "Minimalna dolžina za navadne uporabnike",
@@ -703,6 +714,13 @@
     "mfaCode": "Koda za preverjanje pristnosti",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "Za potrditev vnesi {phrase}",
+    "mfaEnrolment": {
+      "title": "Nastavi dvostopenjsko avtentikacijo",
+      "description": "Ta strežnik zahteva dvostopenjsko avtentikacijo. Nastavi jo, da lahko še naprej uporabljaš Endurain, ali pa se odjavi.",
+      "done": "Dvostopenjska avtentikacija je nastavljena. Lahko nadaljuješ.",
+      "continue": "Nadaljuj",
+      "signOut": "Odjavi se"
+    },
     "loadError": {
       "title": "Varnostnih nastavitev ni bilo mogoče naložiti",
       "description": "Prišlo je do napake. Poskusi znova."
@@ -848,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Izbriši moj račun",
-      "subtitle": "Trajno izbriši svoj račun in vse svoje podatke, vključno z aktivnostmi in njihovimi datotekami, zdravstvenimi zapisi, opremo, cilji, integracijami in sejami. Tega ni mogoče razveljaviti. Če želiš obdržati kopijo, najprej izvozi podatke.",
+      "subtitle": "Izbriši svoj račun in vse svoje podatke, vključno z dejavnostmi in njihovimi datotekami, zdravstvenimi zapisi, opremo, cilji, integracijami in sejami. Odjavljen boš z vseh naprav, račun pa bo takoj deaktiviran, nato bodo tvoji podatki v ozadju izbrisani. Odlog ne obstaja: ustavi ga lahko samo skrbnik, in sicer tako, da račun ponovno aktivira, preden se brisanje konča. Če želiš obdržati kopijo, najprej izvozi svoje podatke.",
       "action": "Izbriši moj račun",
       "dialogTitle": "Izbrisati tvoj račun?",
-      "dialogDescription": "S tem se trajno izbrišeta tvoj račun in vsi podatki. Za nadaljevanje potrdi svojo identiteto.",
+      "dialogDescription": "S tem boš odjavljen z vseh naprav, tvoj račun bo deaktiviran in začelo se bo brisanje vseh tvojih podatkov. Pred koncem ga lahko ustavi samo skrbnik. Za nadaljevanje potrdi svojo identiteto.",
       "confirm": "Izbriši moj račun",
       "error": "Tvojega računa ni bilo mogoče izbrisati. Poskusi znova.",
       "onlyAdminError": "Si edini skrbnik. Pred brisanjem računa naredi drugega uporabnika za skrbnika.",

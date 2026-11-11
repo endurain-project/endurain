@@ -345,6 +345,17 @@
       "currencyPound": "Libra (£)",
       "numRecords": "Registos por página"
     },
+    "mfa": {
+      "title": "Verificação em dois passos",
+      "require": "Exigir verificação em dois passos",
+      "requireHint": "Uma conta abrangida que não tenha configurado a verificação em dois passos tem de a configurar antes de poder fazer qualquer outra coisa. Até lá, só pode configurá-la e terminar sessão. O requisito aplica-se a partir do pedido seguinte da conta.",
+      "options": {
+        "off": "Não exigida",
+        "administrators": "Apenas administradores",
+        "everyone": "Todos"
+      },
+      "enabledWarning": "As contas abrangidas por esta definição que não tenham configurado a verificação em dois passos, possivelmente a sua, são encaminhadas para a configurar no pedido seguinte."
+    },
     "password": {
       "title": "Política de palavras-passe",
       "lengthRegular": "Comprimento mínimo utilizadores regulares",
@@ -703,6 +714,13 @@
     "mfaCode": "Código de autenticação",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "Escreve {phrase} para confirmar",
+    "mfaEnrolment": {
+      "title": "Configurar a verificação em dois passos",
+      "description": "Este servidor exige verificação em dois passos. Configure-a para continuar a usar o Endurain, ou termine sessão.",
+      "done": "A verificação em dois passos está configurada. Pode continuar.",
+      "continue": "Continuar",
+      "signOut": "Terminar sessão"
+    },
     "loadError": {
       "title": "Não foi possível carregar as tuas definições de segurança",
       "description": "Ocorreu um erro. Podes tentar novamente."
@@ -848,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Eliminar a minha conta",
-      "subtitle": "Elimina de forma permanente a tua conta e todos os teus dados, incluindo atividades e respetivos ficheiros, registos de saúde, equipamento, objetivos, integrações e sessões. Não é possível anular. Exporta primeiro os teus dados se quiseres guardar uma cópia.",
+      "subtitle": "Elimine a sua conta e todos os seus dados, incluindo as atividades e os respetivos ficheiros, os registos de saúde, o equipamento, os objetivos, as integrações e as sessões. A sua sessão é terminada em todos os dispositivos e a conta é desativada de imediato; depois, os seus dados são apagados em segundo plano. Não há período de tolerância: só um administrador o pode parar, reativando a conta antes de o apagamento terminar. Exporte primeiro os seus dados se quiser guardar uma cópia.",
       "action": "Eliminar a minha conta",
       "dialogTitle": "Eliminar a tua conta?",
-      "dialogDescription": "Isto elimina de forma permanente a tua conta e todos os teus dados. Confirma a tua identidade para continuar.",
+      "dialogDescription": "Isto termina a sua sessão em todos os dispositivos, desativa a sua conta e começa a apagar todos os seus dados. Só um administrador o pode parar antes de terminar. Confirme a sua identidade para continuar.",
       "confirm": "Eliminar a minha conta",
       "error": "Não foi possível eliminar a tua conta. Tenta novamente.",
       "onlyAdminError": "És o único administrador. Torna outro utilizador administrador antes de eliminares a tua conta.",

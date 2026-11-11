@@ -345,6 +345,17 @@
       "currencyPound": "Svaras (£)",
       "numRecords": "Įrašų puslapyje"
     },
+    "mfa": {
+      "title": "Dviejų veiksnių autentifikavimas",
+      "require": "Reikalauti dviejų veiksnių autentifikavimo",
+      "requireHint": "Šio nustatymo apimama paskyra, kuri nėra nustačiusi dviejų veiksnių autentifikavimo, privalo jį nustatyti, kad galėtų daryti ką nors kita. Iki tol ji gali tik jį nustatyti ir atsijungti. Reikalavimas taikomas nuo kitos paskyros užklausos.",
+      "options": {
+        "off": "Nereikalaujama",
+        "administrators": "Tik administratoriai",
+        "everyone": "Visi"
+      },
+      "enabledWarning": "Šio nustatymo apimamos paskyros, kurios nėra nustačiusios dviejų veiksnių autentifikavimo, galbūt ir Jūsų, per kitą užklausą bus nukreiptos jį nustatyti."
+    },
     "password": {
       "title": "Slaptažodžių politika",
       "lengthRegular": "Minimalus įprastų naudotojų ilgis",
@@ -703,6 +714,13 @@
     "mfaCode": "Autentifikavimo kodas",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "Įveskite {phrase}, kad patvirtintumėte",
+    "mfaEnrolment": {
+      "title": "Nustatykite dviejų veiksnių autentifikavimą",
+      "description": "Šis serveris reikalauja dviejų veiksnių autentifikavimo. Nustatykite jį, kad galėtumėte toliau naudotis Endurain, arba atsijunkite.",
+      "done": "Dviejų veiksnių autentifikavimas nustatytas. Galite tęsti.",
+      "continue": "Tęsti",
+      "signOut": "Atsijungti"
+    },
     "loadError": {
       "title": "Nepavyko įkelti jūsų saugumo nustatymų",
       "description": "Kažkas nepavyko. Galite bandyti dar kartą."
@@ -848,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Ištrinti mano paskyrą",
-      "subtitle": "Visam laikui ištrinkite savo paskyrą ir visus duomenis, įskaitant veiklas ir jų failus, sveikatos įrašus, įrangą, tikslus, integracijas ir sesijas. Šio veiksmo atšaukti negalima. Jei norite pasilikti kopiją, pirmiausia eksportuokite duomenis.",
+      "subtitle": "Ištrinkite savo paskyrą ir visus savo duomenis, įskaitant veiklas ir jų failus, sveikatos įrašus, įrangą, tikslus, integracijas ir sesijas. Būsite atjungti visuose įrenginiuose, o paskyra bus nedelsiant išjungta, tada Jūsų duomenys bus ištrinti fone. Atidėjimo laikotarpio nėra: tai gali sustabdyti tik administratorius, vėl įjungdamas paskyrą prieš baigiantis trynimui. Jei norite pasilikti kopiją, pirmiausia eksportuokite savo duomenis.",
       "action": "Ištrinti mano paskyrą",
       "dialogTitle": "Ištrinti paskyrą?",
-      "dialogDescription": "Tai visam laikui ištrins jūsų paskyrą ir visus duomenis. Norėdami tęsti, patvirtinkite savo tapatybę.",
+      "dialogDescription": "Tai atjungs Jus visuose įrenginiuose, išjungs Jūsų paskyrą ir pradės trinti visus Jūsų duomenis. Prieš jam pasibaigiant tai gali sustabdyti tik administratorius. Patvirtinkite savo tapatybę, kad tęstumėte.",
       "confirm": "Ištrinti mano paskyrą",
       "error": "Nepavyko ištrinti paskyros. Bandykite dar kartą.",
       "onlyAdminError": "Esate vienintelis administratorius. Prieš ištrindami paskyrą, paskirkite administratoriumi kitą naudotoją.",

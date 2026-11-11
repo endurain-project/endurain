@@ -345,6 +345,17 @@
       "currencyPound": "Libra (£)",
       "numRecords": "Registros por página"
     },
+    "mfa": {
+      "title": "Verificación en dos pasos",
+      "require": "Exigir verificación en dos pasos",
+      "requireHint": "Una cuenta incluida que no haya configurado la verificación en dos pasos debe configurarla antes de poder hacer cualquier otra cosa. Hasta entonces solo puede configurarla y cerrar sesión. El requisito se aplica desde la siguiente solicitud de la cuenta.",
+      "options": {
+        "off": "No exigida",
+        "administrators": "Solo administradores",
+        "everyone": "Todos"
+      },
+      "enabledWarning": "Las cuentas incluidas en este ajuste que no hayan configurado la verificación en dos pasos, posiblemente la tuya, serán dirigidas a configurarla en su siguiente solicitud."
+    },
     "password": {
       "title": "Política de contraseñas",
       "lengthRegular": "Longitud mínima usuarios regulares",
@@ -703,6 +714,13 @@
     "mfaCode": "Código de autenticación",
     "mfaCodePlaceholder": "123456",
     "confirmPhrase": "Escribe {phrase} para confirmar",
+    "mfaEnrolment": {
+      "title": "Configurar la verificación en dos pasos",
+      "description": "Este servidor exige la verificación en dos pasos. Configúrala para seguir usando Endurain, o cierra sesión.",
+      "done": "La verificación en dos pasos está configurada. Puedes continuar.",
+      "continue": "Continuar",
+      "signOut": "Cerrar sesión"
+    },
     "loadError": {
       "title": "No se pudieron cargar tus ajustes de seguridad",
       "description": "Algo salió mal. Puedes intentarlo de nuevo."
@@ -848,10 +866,10 @@
     },
     "deleteAccount": {
       "title": "Eliminar mi cuenta",
-      "subtitle": "Elimina de forma permanente tu cuenta y todos tus datos, incluidas las actividades y sus archivos, registros de salud, equipamiento, objetivos, integraciones y sesiones. Esto no se puede deshacer. Exporta tus datos primero si quieres conservar una copia.",
+      "subtitle": "Elimina tu cuenta y todos tus datos, incluidas las actividades y sus archivos, los registros de salud, el equipo, los objetivos, las integraciones y las sesiones. Se cierra tu sesión en todos los dispositivos y la cuenta se desactiva de inmediato; después tus datos se borran en segundo plano. No hay periodo de gracia: solo un administrador puede detenerlo, reactivando la cuenta antes de que termine el borrado. Exporta antes tus datos si quieres conservar una copia.",
       "action": "Eliminar mi cuenta",
       "dialogTitle": "¿Eliminar tu cuenta?",
-      "dialogDescription": "Esto elimina de forma permanente tu cuenta y todos tus datos. Confirma tu identidad para continuar.",
+      "dialogDescription": "Esto cierra tu sesión en todos los dispositivos, desactiva tu cuenta y empieza a borrar todos tus datos. Solo un administrador puede detenerlo antes de que termine. Confirma tu identidad para continuar.",
       "confirm": "Eliminar mi cuenta",
       "error": "No se pudo eliminar tu cuenta. Inténtalo de nuevo.",
       "onlyAdminError": "Eres el único administrador. Haz administrador a otro usuario antes de eliminar tu cuenta.",

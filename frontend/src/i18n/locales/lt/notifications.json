@@ -103,6 +103,34 @@
         "title": "Dviejų žingsnių patvirtinimas užrakintas",
         "body": "Jūsų paskyra buvo užrakinta po 100 neteisingų dviejų žingsnių patvirtinimo kodų iš eilės, vadinasi, kažkas žino Jūsų slaptažodį. Naršyklės ir programėlės, iš kurių prisijungėte nuo paskutinio saugumo pakeitimo, vis dar gali prisijungti. Jei šie bandymai nebuvo Jūsų, pakeiskite slaptažodį."
       },
+      "stepUpSessionEnded": {
+        "title": "Sesija atjungta",
+        "body": "Viena Jūsų paskyros sesija buvo atjungta, kai jautriam veiksmui patvirtinti 15 kartų iš eilės buvo įvestas neteisingas slaptažodis arba dviejų veiksnių autentifikavimo kodas. Kitos Jūsų sesijos nebuvo paveiktos. Jei tų bandymų neatlikote Jūs, pakeiskite slaptažodį."
+      },
+      "stepUpLocked": {
+        "title": "Jautrių veiksmų patvirtinimas užrakintas",
+        "body": "Jautrių veiksmų, pavyzdžiui, slaptažodžio keitimo ar API rakto kūrimo, patvirtinimas buvo užrakintas 30 dienų po 100 neteisingų patvirtinimų visose Jūsų sesijose. Jei tų bandymų neatlikote Jūs, atstatykite slaptažodį, tai taip pat panaikina užraktą."
+      },
+      "backupCodeUsed": {
+        "title": "Panaudotas atsarginis kodas",
+        "body": "Jūsų paskyros dviejų veiksnių autentifikavimui buvo panaudotas atsarginis kodas. Jei tai buvote ne Jūs, pakeiskite slaptažodį ir sugeneruokite naujus atsarginius kodus.",
+        "bodyRemaining": "Jūsų paskyros dviejų veiksnių autentifikavimui buvo panaudotas atsarginis kodas. Liko nepanaudotų atsarginių kodų: {count}. Jei tai buvote ne Jūs, pakeiskite slaptažodį ir sugeneruokite naujus atsarginius kodus.",
+        "bodyNone": "Jūsų paskyros dviejų veiksnių autentifikavimui buvo panaudotas atsarginis kodas. Nepanaudotų atsarginių kodų nebeliko, todėl sugeneruokite naujų saugos nustatymuose. Jei tai buvote ne Jūs, pakeiskite slaptažodį."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Sesija nutraukta",
+        "body": "Jūsų paskyros prisijungimo sesija buvo nutraukta, nes jau panaudotas prieigos raktas buvo pateiktas dar kartą, o tai gali reikšti, kad sesija buvo nukopijuota. Kitos Jūsų sesijos nebuvo paveiktos. Jei to nesitikėjote, pakeiskite slaptažodį."
+      },
+      "roleChangedByAdmin": {
+        "title": "Administratorius pakeitė prieigą",
+        "body": "Administratorius pakeitė Jūsų paskyros prieigą ir atjungė Jus visuose įrenginiuose. Jei to nesitikėjote, susisiekite su savo administratoriumi.",
+        "bodyAdmin": "Administratorius pakeitė Jūsų paskyros prieigą į administratoriaus ir atjungė Jus visuose įrenginiuose. Jei to nesitikėjote, susisiekite su savo administratoriumi.",
+        "bodyRegular": "Administratorius pakeitė Jūsų paskyros prieigą į įprasto naudotojo ir atjungė Jus visuose įrenginiuose. Jei to nesitikėjote, susisiekite su savo administratoriumi."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Administratorius išjungė paskyrą",
+        "body": "Administratorius išjungė Jūsų paskyrą ir atjungė Jus visuose įrenginiuose. Negalėsite prisijungti, kol administratorius jos vėl neįjungs."
+      },
       "unknown": {
         "title": "Pasikeitė paskyros saugumas",
         "body": "Pasikeitė jūsų paskyros saugumo nustatymas. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus."
@@ -115,6 +143,10 @@
     "adminSignUpApproval": {
       "title": "Nauja registracija laukia patvirtinimo",
       "body": "{name} ({'@'}{username}) laukia paskyros patvirtinimo."
+    },
+    "adminUserPromoted": {
+      "title": "Naudotojas paaukštintas į administratorių",
+      "body": "{name} ({'@'}{username}) suteikta administratoriaus prieiga."
     },
     "unknown": {
       "title": "Pranešimas",
