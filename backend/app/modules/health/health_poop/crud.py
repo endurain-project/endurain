@@ -6,6 +6,7 @@ from datetime import datetime
 from sqlalchemy import desc, func, select
 from sqlalchemy.orm import Session
 
+import core.sync as core_sync
 import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_poop.models as health_poop_models
@@ -18,6 +19,7 @@ SPEC = health_record_crud.RecordSpec(
     read_schema=health_poop_schema.HealthPoopRead,
     not_found="Health poop not found",
     etag_label="bowel movement record",
+    sync_type="health_poop",
 )
 
 
@@ -244,3 +246,24 @@ def get_health_poop_first_day(user_id: int, tz_name: str, db: Session) -> date_t
         model.user_id == user_id
     )
     return db.execute(stmt).scalar_one()
+
+
+def list_changed(
+    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[health_poop_schema.HealthPoopRead]:
+    """Retrieve a user's records changed after a position, oldest change first.
+
+    Args:
+        user_id: The records' owner.
+        after: Return records strictly after this ``(updated_at, id)``; ``None`` from the first.
+        until: Return only records changed before this instant.
+        limit: The most records to return.
+        db: Database session.
+
+    Returns:
+        The records, in ``(updated_at, id)`` order.
+    """
+    model = health_poop_models.HealthPoop
+    return health_record_crud.list_changed(
+        model, model.user_id, model.id, SPEC.read_schema, user_id, after, until, limit, db
+    )

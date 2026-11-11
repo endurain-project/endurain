@@ -341,7 +341,9 @@ class TestTargetsScopes:
     def test_write_with_health_targets_write_is_allowed(self, mock_update, mock_db):
         import modules.health.health_targets.schema as health_targets_schema
 
-        mock_update.return_value = health_targets_schema.HealthTargetsRead(id=1, user_id=1, version=2, steps=1)
+        mock_update.return_value = health_targets_schema.HealthTargetsRead(
+            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, version=2, steps=1
+        )
         client, principal = self._client(mock_db, {"health_targets:write"})
 
         with principal:

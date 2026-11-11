@@ -1,6 +1,6 @@
 """Gear components schema definitions."""
 
-from datetime import date
+from datetime import date, datetime
 
 from pydantic import (
     BaseModel,
@@ -132,6 +132,7 @@ class GearComponentRead(GearComponentCreate):
         id: Unique identifier.
         user_id: Foreign key to user.
         version: Optimistic-concurrency counter, also sent as the ``ETag``.
+        updated_at: When the component last changed; set by the server.
     """
 
     version: StrictInt = Field(
@@ -146,6 +147,10 @@ class GearComponentRead(GearComponentCreate):
     user_id: StrictInt = Field(
         ...,
         description="Foreign key to user",
+    )
+    updated_at: datetime = Field(
+        ...,
+        description="When the component last changed",
     )
 
 

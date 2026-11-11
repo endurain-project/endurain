@@ -12,19 +12,32 @@ _IF_MATCH_HEADERS = {**_HEADERS, "If-Match": '"1"'}
 
 def _record(record_id: int = 1, day: int = 15, seconds: int = 28800) -> health_sleep_schema.HealthSleepRead:
     return health_sleep_schema.HealthSleepRead(
-        id=record_id, user_id=1, date=datetime_date(2024, 1, day), total_sleep_seconds=seconds
+        updated_at="2024-01-01T00:00:00Z",
+        id=record_id,
+        user_id=1,
+        date=datetime_date(2024, 1, day),
+        total_sleep_seconds=seconds,
     )
 
 
 def _item(record_id: int = 1, *, has_stages: bool = False) -> health_sleep_schema.HealthSleepListItem:
     return health_sleep_schema.HealthSleepListItem(
-        id=record_id, user_id=1, date=datetime_date(2024, 1, 15), has_sleep_stages=has_stages
+        updated_at="2024-01-01T00:00:00Z",
+        id=record_id,
+        user_id=1,
+        date=datetime_date(2024, 1, 15),
+        has_sleep_stages=has_stages,
     )
 
 
 def _item_with(record_id: int, seconds: int) -> health_sleep_schema.HealthSleepListItem:
     return health_sleep_schema.HealthSleepListItem(
-        id=record_id, user_id=1, date=datetime_date(2024, 1, 15), total_sleep_seconds=seconds, has_sleep_stages=False
+        updated_at="2024-01-01T00:00:00Z",
+        id=record_id,
+        user_id=1,
+        date=datetime_date(2024, 1, 15),
+        total_sleep_seconds=seconds,
+        has_sleep_stages=False,
     )
 
 

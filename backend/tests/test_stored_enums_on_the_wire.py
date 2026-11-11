@@ -74,7 +74,13 @@ class TestActivity:
 
 class TestGear:
     def test_a_stored_row_reads_as_the_key(self):
-        row = {"id": 1, "user_id": 1, "nickname": "Bike", "gear_type": 8}
+        row = {
+            "id": 1,
+            "user_id": 1,
+            "nickname": "Bike",
+            "gear_type": 8,
+            "updated_at": datetime(2026, 1, 1, tzinfo=UTC),
+        }
 
         assert gear_schema.GearRead(**row).gear_type == "water_sports_board"
 

@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 type ProfileIdMaps = dict[str, dict[int, int]]
 
 #: What an archive carries of a row's identity: the exporting account's id, owner and version, none of which an import writes.
-ARCHIVE_ROW_IDENTITY = frozenset({"id", "user_id", "version"})
+ARCHIVE_ROW_IDENTITY = frozenset({"id", "user_id", "version", "updated_at"})
 
 
 def without_row_identity(row: dict[str, Any]) -> dict[str, Any]:
@@ -28,7 +28,7 @@ def without_row_identity(row: dict[str, Any]) -> dict[str, Any]:
         row: One exported row.
 
     Returns:
-        The row without its id, owner and version.
+        The row without its id, owner, version and ``updated_at``, which the import renews.
     """
     return {key: value for key, value in row.items() if key not in ARCHIVE_ROW_IDENTITY}
 

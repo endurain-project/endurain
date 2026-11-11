@@ -1,10 +1,12 @@
 """CRUD operations for health steps records."""
 
 from datetime import date as date_type
+from datetime import datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+import core.sync as core_sync
 import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_steps.models as health_steps_models
@@ -17,6 +19,7 @@ SPEC = health_record_crud.RecordSpec(
     read_schema=health_steps_schema.HealthStepsRead,
     not_found="Health steps not found",
     etag_label="steps record",
+    sync_type="health_steps",
 )
 
 
@@ -188,3 +191,24 @@ def get_health_steps_chart(
         .order_by(day)
     )
     return [health_schema.HealthChartPoint(date=d, value=float(value)) for d, value in db.execute(stmt).all()]
+
+
+def list_changed(
+    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[health_steps_schema.HealthStepsRead]:
+    """Retrieve a user's records changed after a position, oldest change first.
+
+    Args:
+        user_id: The records' owner.
+        after: Return records strictly after this ``(updated_at, id)``; ``None`` from the first.
+        until: Return only records changed before this instant.
+        limit: The most records to return.
+        db: Database session.
+
+    Returns:
+        The records, in ``(updated_at, id)`` order.
+    """
+    model = health_steps_models.HealthSteps
+    return health_record_crud.list_changed(
+        model, model.user_id, model.id, SPEC.read_schema, user_id, after, until, limit, db
+    )

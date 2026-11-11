@@ -51,7 +51,7 @@ class TestStageCreate:
         stored = mock_create.call_args.args[1]
         assert stored.bmi is None
         health_weight_schema.HealthWeightRead.model_validate(
-            {**stored.model_dump(), "id": 1, "user_id": 1, "version": 1}
+            {**stored.model_dump(), "id": 1, "user_id": 1, "version": 1, "updated_at": "2024-01-01T00:00:00Z"}
         )
 
     @patch(f"{_PREFIX}.health_weight_crud.create_health_weight")

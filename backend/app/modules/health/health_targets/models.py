@@ -2,13 +2,14 @@
 
 from decimal import Decimal
 
-from sqlalchemy import ForeignKey, Numeric
+from sqlalchemy import ForeignKey, Index, Numeric
 from sqlalchemy.orm import Mapped, mapped_column
 
+import core.sync as core_sync
 from core.database import Base
 
 
-class HealthTargets(Base):
+class HealthTargets(core_sync.UpdatedAtMixin, Base):
     """User health targets configuration.
 
     Attributes:
@@ -23,6 +24,7 @@ class HealthTargets(Base):
     """
 
     __tablename__ = "health_targets"
+    __table_args__ = (Index("ix_health_targets_user_updated_at_id", "user_id", "updated_at", "id"),)
 
     id: Mapped[int] = mapped_column(
         primary_key=True,

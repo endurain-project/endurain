@@ -6,7 +6,7 @@ version-race guard, and charting a metric over an interval. A package passes the
 """
 
 from collections.abc import Callable, Mapping
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Any, Protocol
 from zoneinfo import ZoneInfo
 
@@ -18,6 +18,7 @@ import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
+import core.sync as core_sync
 import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.record_crud as health_record_crud
@@ -310,3 +311,18 @@ def restore_archived_records[CreateT: BaseModel](
             staged += 1
     logger.debug("Imported health records", extra=core_logger.context(kind=kind, count=staged))
     return staged
+
+
+def prune_deletions(db: Session) -> int:
+    """Remove the deleted-record tombstones kept past their retention and commit.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        How many were removed.
+    """
+    removed = health_record_crud.prune_deletions(datetime.now(UTC) - core_sync.TOMBSTONE_RETENTION, db)
+    db.commit()
+    logger.info("Pruned deleted health record tombstones", extra=core_logger.context(count=removed))
+    return removed

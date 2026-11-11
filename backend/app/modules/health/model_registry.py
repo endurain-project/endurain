@@ -9,6 +9,7 @@ import modules.health.health_water.model_registry as health_water_model_registry
 import modules.health.health_weight.model_registry as health_weight_model_registry
 
 MODEL_MODULES = (
+    "modules.health.models",
     *health_fasting_model_registry.MODEL_MODULES,
     *health_poop_model_registry.MODEL_MODULES,
     *health_sleep_model_registry.MODEL_MODULES,

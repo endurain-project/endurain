@@ -369,6 +369,7 @@ class HealthSleepIdentity(HealthSleepCore):
     id: StrictInt = Field(..., description="Unique identifier for the sleep record to update")
     user_id: StrictInt = Field(..., description="Foreign key reference to the user")
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
+    updated_at: datetime = Field(..., description="When the record last changed, set by the server")
 
 
 class HealthSleepRead(HealthSleepIdentity, HealthSleepBase):

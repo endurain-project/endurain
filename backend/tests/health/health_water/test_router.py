@@ -37,7 +37,7 @@ class TestReadHealthWaterAllPagination:
     @patch(f"{_SERVICE}.list_health_water")
     def test_list_success(self, mock_list, mock_db):
         mock_list.return_value = core_pagination.Page(
-            items=[HealthWaterRead(id=1, user_id=1)], total=1, page=1, num_records=25
+            items=[HealthWaterRead(updated_at="2024-01-01T00:00:00Z", id=1, user_id=1)], total=1, page=1, num_records=25
         )
 
         response = TestClient(_build_app(mock_db)).get("/health_water", headers=_HEADERS)
@@ -71,7 +71,7 @@ class TestReadHealthWaterAllPagination:
 class TestCreateHealthWater:
     @patch(f"{_SERVICE}.create_health_water")
     def test_create(self, mock_create, mock_db):
-        mock_create.return_value = HealthWaterRead(id=1, user_id=1, amount_ml=500.0)
+        mock_create.return_value = HealthWaterRead(updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, amount_ml=500.0)
 
         response = TestClient(_build_app(mock_db)).post(
             "/health_water", json={"amount_ml": 500, "date": "2024-01-15"}, headers=_HEADERS
@@ -94,7 +94,7 @@ class TestCreateHealthWater:
 class TestEditHealthWater:
     @patch(f"{_SERVICE}.edit_health_water")
     def test_edit(self, mock_edit, mock_db):
-        mock_edit.return_value = HealthWaterRead(id=1, user_id=1, amount_ml=900.0)
+        mock_edit.return_value = HealthWaterRead(updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, amount_ml=900.0)
 
         response = TestClient(_build_app(mock_db)).patch(
             "/health_water/1", json={"amount_ml": 900}, headers={**_HEADERS, "If-Match": '"1"'}
@@ -135,7 +135,7 @@ class TestDeleteHealthWater:
 class TestReadHealthWaterById:
     @patch(f"{_SERVICE}.get_health_water")
     def test_returns_the_record_with_its_etag(self, mock_get, mock_db):
-        mock_get.return_value = HealthWaterRead(id=1, user_id=1, amount_ml=500.0)
+        mock_get.return_value = HealthWaterRead(updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, amount_ml=500.0)
 
         response = TestClient(_build_app(mock_db)).get("/health_water/1", headers=_HEADERS)
 
@@ -155,7 +155,7 @@ class TestReadHealthWaterById:
 class TestCreateHealthWaterHeaders:
     @patch(f"{_SERVICE}.create_health_water")
     def test_create_names_the_record_and_its_version(self, mock_create, mock_db):
-        mock_create.return_value = HealthWaterRead(id=7, user_id=1, amount_ml=500.0)
+        mock_create.return_value = HealthWaterRead(updated_at="2024-01-01T00:00:00Z", id=7, user_id=1, amount_ml=500.0)
 
         response = TestClient(_build_app(mock_db)).post(
             "/health_water", json={"amount_ml": 500, "date": "2024-01-15"}, headers=_HEADERS

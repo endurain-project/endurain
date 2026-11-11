@@ -10,7 +10,12 @@ _LIST = "modules.health.health_weight.router.health_weight_service.list_health_w
 
 def _record(record_id: int, day: int, weight: float) -> health_weight_schema.HealthWeightRead:
     return health_weight_schema.HealthWeightRead(
-        id=record_id, user_id=1, date=datetime_date(2024, 1, day), weight_kg=weight, bmi=24.5
+        updated_at="2024-01-01T00:00:00Z",
+        id=record_id,
+        user_id=1,
+        date=datetime_date(2024, 1, day),
+        weight_kg=weight,
+        bmi=24.5,
     )
 
 
@@ -70,6 +75,7 @@ class TestCreateHealthWeight:
         """
         # Arrange
         created_weight = health_weight_schema.HealthWeightRead(
+            updated_at="2024-01-01T00:00:00Z",
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
@@ -106,6 +112,7 @@ class TestEditHealthWeight:
         """
         # Arrange
         updated_weight = health_weight_schema.HealthWeightRead(
+            updated_at="2024-01-01T00:00:00Z",
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),

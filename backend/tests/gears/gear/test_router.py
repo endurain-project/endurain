@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
@@ -25,8 +26,13 @@ def client(mock_db):
     return TestClient(app)
 
 
+_UPDATED_AT = datetime(2025, 1, 1, tzinfo=UTC)
+
+
 def _read(**overrides) -> schema.GearRead:
-    return schema.GearRead(**{"id": 1, "user_id": 1, "nickname": "Bike", "gear_type": 1, **overrides})
+    return schema.GearRead(
+        **{"id": 1, "user_id": 1, "nickname": "Bike", "gear_type": 1, "updated_at": _UPDATED_AT, **overrides}
+    )
 
 
 class TestList:

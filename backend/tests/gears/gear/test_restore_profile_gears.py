@@ -105,3 +105,18 @@ def test_an_archive_with_current_units_is_kept_as_it_is(db):
 
     restored = crud.get_gear_user(1, db)[0]
     assert (restored.initial_distance, restored.purchase_value) == (12_500.0, "99.90")
+
+
+def test_an_archived_gear_with_its_version_and_stamp_is_restored(db):
+    ids: dict[str, dict[int, int]] = {}
+    archived = {
+        "id": 5,
+        "user_id": 3,
+        "nickname": "Synced",
+        "gear_type": 1,
+        "version": 4,
+        "updated_at": "2026-11-11T07:30:00Z",
+    }
+
+    assert service.restore_profile_gears([archived], 1, ids, db) == 1
+    assert crud.get_gear_user(1, db)[0].nickname == "Synced"

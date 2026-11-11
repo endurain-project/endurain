@@ -5,6 +5,7 @@ tracking, including validation rules and source enumeration.
 """
 
 from datetime import date as datetime_date
+from datetime import datetime
 from enum import StrEnum
 from typing import ClassVar
 
@@ -100,6 +101,7 @@ class HealthWaterRead(HealthWaterBase):
         description="Foreign key reference to the user",
     )
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
+    updated_at: datetime = Field(..., description="When the record last changed, set by the server")
 
 
 class HealthWaterUpdate(core_partial_update.NotClearable, HealthWaterWrite):

@@ -1283,7 +1283,7 @@ class TestDeleteAllStravaActivitiesForUser:
         mock_db.scalars.return_value.all.return_value = [11, 12]
         result = crud.delete_all_strava_activities_for_user(user_id=1, db=mock_db, limit=2)
         assert result == [11, 12]
-        mock_db.execute.assert_called_once()
+        assert mock_db.execute.call_count == 2  # the delete, then the tombstones
         mock_db.commit.assert_not_called()
 
     def test_the_batch_is_bounded_and_locked(self, mock_db):

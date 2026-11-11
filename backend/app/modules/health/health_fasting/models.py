@@ -9,10 +9,11 @@ from datetime import datetime
 from sqlalchemy import DateTime, ForeignKey, Index, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
+import core.sync as core_sync
 from core.database import Base
 
 
-class HealthFasting(Base):
+class HealthFasting(core_sync.UpdatedAtMixin, Base):
     """User fasting session tracking data.
 
     Attributes:
@@ -30,11 +31,13 @@ class HealthFasting(Base):
 
     __tablename__ = "health_fasting"
     __table_args__ = (
+        Index("ix_health_fasting_user_updated_at_id", "user_id", "updated_at", "id"),
         Index(
             "uq_health_fasting_one_in_progress_per_user",
             "user_id",
             unique=True,
             postgresql_where=text("status = 'in_progress'"),
+            sqlite_where=text("status = 'in_progress'"),
         ),
     )
 

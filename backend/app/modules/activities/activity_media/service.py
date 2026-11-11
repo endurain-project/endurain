@@ -216,6 +216,7 @@ def _persist_media_bytes(
 
     try:
         record = activity_media_crud.create_activity_media(activity_id, storage_key, db, content_hash=content_hash)
+        activity_integration.touch_activity(activity_id, db)
         db.commit()
         return record
     except core_exceptions.ConflictError:
@@ -503,6 +504,7 @@ def delete_activity_media(
     _require_owned_activity(media.activity_id, requester_user_id, db)
 
     activity_media_crud.delete_activity_media(media_id, db)
+    activity_integration.touch_activity(activity_id, db)
     db.commit()
 
     if media.media_path:

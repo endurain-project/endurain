@@ -4,10 +4,13 @@ The profile export and import, and the composition root that tells the gear pack
 its components cost. The write stages and the caller commits.
 """
 
+from collections.abc import Collection
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
 
+import core.sync as core_sync
 import modules.gears.gear.schema as gears_schema
 import modules.gears.gear_components.crud as gear_components_crud
 import modules.gears.gear_components.schema as gear_components_schema
@@ -73,3 +76,52 @@ def count_components_outside_gear_type(
         The number of components that do not fit; zero for a gear type that accepts any component.
     """
     return gear_components_service.count_components_outside_gear_type(gear_id, user_id, gear_type, db)
+
+
+def record_gear_component_deletions(gear_ids: Collection[int], user_id: int, db: Session) -> None:
+    """Stage a deletion record for every component of the given gears; the caller commits.
+
+    Call it before deleting the gears, whose delete cascades the components away.
+
+    Args:
+        gear_ids: The gears about to be deleted.
+        user_id: Owner user ID.
+        db: Database session.
+    """
+    gear_components_crud.record_gear_component_deletions(gear_ids, user_id, db)
+
+
+def list_changed_gear_components(
+    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[gear_components_schema.GearComponentRead]:
+    """Return a page of a user's components changed after a position, oldest change first.
+
+    Args:
+        user_id: Owner user ID.
+        after: Return components strictly after this ``(updated_at, id)``; None from the first.
+        until: Return only components changed before this instant.
+        limit: The most components to return.
+        db: Database session.
+
+    Returns:
+        The components, in ``(updated_at, id)`` order.
+    """
+    return gear_components_crud.list_changed_gear_components(user_id, after, until, limit, db)
+
+
+def list_gear_component_deletions(
+    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[core_sync.Deletion]:
+    """Return a page of a user's deleted components after a position, oldest deletion first.
+
+    Args:
+        user_id: Owner user ID.
+        after: Return deletions strictly after this ``(deleted_at, id)``; None from the first.
+        until: Return only deletions before this instant.
+        limit: The most deletions to return.
+        db: Database session.
+
+    Returns:
+        The deletions, in ``(deleted_at, id)`` order.
+    """
+    return gear_components_crud.list_gear_component_deletions(user_id, after, until, limit, db)

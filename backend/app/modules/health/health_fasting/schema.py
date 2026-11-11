@@ -192,6 +192,7 @@ class HealthFastingRead(HealthFastingBase):
         description="Seconds between the start and the end time, derived by the server; null while the fast has no end",
     )
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
+    updated_at: datetime = Field(..., description="When the record last changed, set by the server")
 
 
 class HealthFastingUpdate(core_partial_update.NotClearable, HealthFastingWrite):

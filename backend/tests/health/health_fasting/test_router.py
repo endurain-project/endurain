@@ -49,7 +49,10 @@ class TestReadHealthFastingAllPagination:
     @patch(f"{_SERVICE}.list_health_fasting")
     def test_list_success(self, mock_list, mock_db):
         mock_list.return_value = core_pagination.Page(
-            items=[HealthFastingRead(id=1, user_id=1, fast_start_time=_STARTED)], total=1, page=1, num_records=25
+            items=[HealthFastingRead(updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, fast_start_time=_STARTED)],
+            total=1,
+            page=1,
+            num_records=25,
         )
 
         response = _client(mock_db).get("/health_fasting", headers=_HEADERS)
@@ -72,7 +75,9 @@ class TestReadHealthFastingAllPagination:
 class TestReadActiveFasting:
     @patch(f"{_SERVICE}.get_active_fasting")
     def test_active(self, mock_active, mock_db):
-        mock_active.return_value = HealthFastingRead(id=1, user_id=1, fast_start_time=_STARTED)
+        mock_active.return_value = HealthFastingRead(
+            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, fast_start_time=_STARTED
+        )
 
         response = _client(mock_db).get("/health_fasting/active", headers=_HEADERS)
 
@@ -108,7 +113,9 @@ class TestReadFastingStats:
 class TestReadFastingById:
     @patch(f"{_SERVICE}.get_health_fasting")
     def test_success(self, mock_get, mock_db):
-        mock_get.return_value = HealthFastingRead(id=1, user_id=1, fast_start_time=_STARTED)
+        mock_get.return_value = HealthFastingRead(
+            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, fast_start_time=_STARTED
+        )
 
         response = _client(mock_db).get("/health_fasting/1", headers=_HEADERS)
 
@@ -125,7 +132,9 @@ class TestReadFastingById:
 class TestCreateHealthFasting:
     @patch(f"{_SERVICE}.create_health_fasting")
     def test_create_success(self, mock_create, mock_db):
-        mock_create.return_value = HealthFastingRead(id=1, user_id=1, fast_start_time=_STARTED)
+        mock_create.return_value = HealthFastingRead(
+            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, fast_start_time=_STARTED
+        )
 
         response = _client(mock_db).post("/health_fasting", json=_START, headers=_HEADERS)
 
@@ -143,7 +152,9 @@ class TestCreateHealthFasting:
 class TestEditHealthFasting:
     @patch(f"{_SERVICE}.edit_health_fasting")
     def test_edit_success(self, mock_edit, mock_db):
-        mock_edit.return_value = HealthFastingRead(id=1, user_id=1, fast_start_time=_STARTED)
+        mock_edit.return_value = HealthFastingRead(
+            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, fast_start_time=_STARTED
+        )
 
         response = _client(mock_db).patch("/health_fasting/1", json={}, headers={**_HEADERS, "If-Match": '"1"'})
 
@@ -153,7 +164,9 @@ class TestEditHealthFasting:
 class TestCompleteHealthFasting:
     @patch(f"{_SERVICE}.complete_health_fasting")
     def test_complete_success(self, mock_complete, mock_db):
-        mock_complete.return_value = HealthFastingRead(id=1, user_id=1, fast_start_time=_STARTED)
+        mock_complete.return_value = HealthFastingRead(
+            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, fast_start_time=_STARTED
+        )
 
         response = _client(mock_db).post(
             "/health_fasting/1/complete",
@@ -198,7 +211,9 @@ class TestDeleteHealthFasting:
 class TestReadSendsTheETag:
     @patch(f"{_SERVICE}.get_health_fasting")
     def test_a_record_read_by_id_carries_its_version(self, mock_get, mock_db):
-        mock_get.return_value = HealthFastingRead(id=1, user_id=1, fast_start_time=_STARTED, version=5)
+        mock_get.return_value = HealthFastingRead(
+            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, fast_start_time=_STARTED, version=5
+        )
 
         response = _client(mock_db).get("/health_fasting/1", headers=_HEADERS)
 
@@ -206,7 +221,9 @@ class TestReadSendsTheETag:
 
     @patch(f"{_SERVICE}.get_active_fasting")
     def test_the_active_fast_carries_its_version(self, mock_active, mock_db):
-        mock_active.return_value = HealthFastingRead(id=1, user_id=1, fast_start_time=_STARTED, version=3)
+        mock_active.return_value = HealthFastingRead(
+            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, fast_start_time=_STARTED, version=3
+        )
 
         response = _client(mock_db).get("/health_fasting/active", headers=_HEADERS)
 

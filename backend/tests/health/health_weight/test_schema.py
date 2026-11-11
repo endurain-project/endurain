@@ -17,6 +17,7 @@ class TestHealthWeightSchema:
         """
         # Arrange & Act
         health_weight = health_weight_schema.HealthWeightRead(
+            updated_at="2024-01-01T00:00:00Z",
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
@@ -65,6 +66,7 @@ class TestHealthWeightSchema:
         """
         # Arrange & Act
         health_weight = health_weight_schema.HealthWeightRead(
+            updated_at="2024-01-01T00:00:00Z",
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
@@ -130,6 +132,7 @@ class TestHealthWeightSchema:
 
             id = 1
             user_id = 1
+            updated_at = "2024-01-01T00:00:00Z"
             date = datetime_date(2024, 1, 15)
             weight_kg = 75.5
             bmi = 24.5
@@ -219,7 +222,7 @@ class TestSourceEnum:
         """
         # Arrange & Act
         health_weight = health_weight_schema.HealthWeightRead(
-            id=1, user_id=1, source=health_weight_schema.Source.GARMIN
+            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, source=health_weight_schema.Source.GARMIN
         )
 
         # Assert
@@ -230,7 +233,9 @@ class TestSourceEnum:
         Test Source enum accepts string value directly.
         """
         # Arrange & Act
-        health_weight = health_weight_schema.HealthWeightRead(id=1, user_id=1, source="garmin")
+        health_weight = health_weight_schema.HealthWeightRead(
+            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, source="garmin"
+        )
 
         # Assert
         assert health_weight.source == "garmin"
@@ -241,6 +246,6 @@ class TestSourceEnum:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            health_weight_schema.HealthWeightRead(id=1, user_id=1, source="invalid")
+            health_weight_schema.HealthWeightRead(updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, source="invalid")
 
         assert "source" in str(exc_info.value)

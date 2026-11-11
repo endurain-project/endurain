@@ -7,10 +7,11 @@ from sqlalchemy import Date, ForeignKey, Index, Numeric, String, UniqueConstrain
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
+import core.sync as core_sync
 from core.database import Base
 
 
-class Gear(Base):
+class Gear(core_sync.UpdatedAtMixin, Base):
     """Gear data model.
 
     Attributes:
@@ -26,6 +27,8 @@ class Gear(Base):
         purchase_value: Gear purchase value.
         strava_gear_id: Strava gear ID.
         garminconnect_gear_id: Garmin gear ID.
+        version: Optimistic-concurrency counter.
+        updated_at: When the gear last changed.
     """
 
     __tablename__ = "gear"
@@ -112,8 +115,24 @@ class Gear(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "strava_gear_id", name="uq_gear_user_strava_gear_id"),
         UniqueConstraint("user_id", "garminconnect_gear_id", name="uq_gear_user_garminconnect_gear_id"),
+        Index("ix_gear_user_id_updated_at_id", "user_id", "updated_at", "id"),
     )
 
 
 #: One nickname per user, compared case-insensitively like the nickname lookup.
 Index("uq_gear_user_nickname", Gear.user_id, func.lower(Gear.nickname), unique=True)
+
+
+class GearDeletion(core_sync.TombstoneMixin, Base):
+    """Tombstone of a deleted gear, read by incremental sync.
+
+    Attributes:
+        id: Primary key.
+        user_id: Owner of the deleted gear.
+        record_id: The id the gear had.
+        deleted_at: When the gear was deleted.
+    """
+
+    __tablename__ = "gear_deletions"
+
+    __table_args__ = (Index("ix_gear_deletions_user_id_deleted_at_id", "user_id", "deleted_at", "id"),)

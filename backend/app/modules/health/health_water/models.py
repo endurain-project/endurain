@@ -7,13 +7,14 @@ water intake data, including consumption amount and data source.
 from datetime import date as date_type
 from decimal import Decimal
 
-from sqlalchemy import ForeignKey, Numeric, String, UniqueConstraint
+from sqlalchemy import ForeignKey, Index, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
+import core.sync as core_sync
 from core.database import Base
 
 
-class HealthWater(Base):
+class HealthWater(core_sync.UpdatedAtMixin, Base):
     """User daily water intake tracking data.
 
     Attributes:
@@ -28,7 +29,10 @@ class HealthWater(Base):
     """
 
     __tablename__ = "health_water"
-    __table_args__ = (UniqueConstraint("user_id", "date", name="uq_health_water_user_date"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", "date", name="uq_health_water_user_date"),
+        Index("ix_health_water_user_updated_at_id", "user_id", "updated_at", "id"),
+    )
 
     id: Mapped[int] = mapped_column(
         primary_key=True,

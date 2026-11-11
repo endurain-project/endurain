@@ -359,6 +359,20 @@ class PreconditionFailedError(DomainError):
     default_detail = "Precondition Failed"
 
 
+class SyncExpiredError(DomainError):
+    """A sync cursor is older than the deletions the server remembers.
+
+    Renders as ``410``. A deletion that happened before the cursor's position may already be forgotten, so the
+    client's copy cannot be brought up to date from it; clients branch on the ``sync-expired`` problem type to
+    discard their copy and sync again from the start.
+    """
+
+    status_code = status.HTTP_410_GONE
+    code = "sync-expired"
+    title = "Sync Expired"
+    default_detail = "The sync cursor has expired; sync again from the start"
+
+
 class PreconditionRequiredError(DomainError):
     """The request must be conditional and carries no ``If-Match`` header.
 

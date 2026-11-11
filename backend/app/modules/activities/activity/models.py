@@ -16,9 +16,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
+from core.sync import TombstoneMixin, UpdatedAtMixin
 
 
-class Activity(Base):
+class Activity(UpdatedAtMixin, Base):
     """Fitness activity record.
 
     Attributes:
@@ -79,6 +80,7 @@ class Activity(Base):
         dedup_key: Stable idempotency key (provider id now, content hash later) used to no-op re-imports.
         location_next_lookup_at: Earliest time the location backfill may look this activity up again.
         thumbnail_next_attempt_at: Earliest time the thumbnail backfill may try this activity again.
+        updated_at: When the activity last changed, including a derived change such as its thumbnail or media.
     """
 
     __tablename__ = "activities"
@@ -94,6 +96,7 @@ class Activity(Base):
         # no-op. NULL dedup_keys stay unconstrained (Postgres treats NULLs as
         # distinct), so activities with no stable identity are unaffected.
         Index("uq_activities_user_dedup_key", "user_id", "dedup_key", unique=True),
+        Index("ix_activities_user_id_updated_at_id", "user_id", "updated_at", "id"),
     )
 
     id: Mapped[int] = mapped_column(
@@ -380,3 +383,18 @@ class Activity(Base):
         nullable=True,
         comment="Earliest time the thumbnail backfill retries an activity that has no thumbnail",
     )
+
+
+class ActivityDeletion(TombstoneMixin, Base):
+    """A deleted activity, kept so a syncing client learns of the deletion.
+
+    Attributes:
+        id: Primary key.
+        user_id: Owner of the deleted activity.
+        record_id: The id the activity had.
+        deleted_at: When the activity was deleted.
+    """
+
+    __tablename__ = "activity_deletions"
+
+    __table_args__ = (Index("ix_activity_deletions_user_id_deleted_at_id", "user_id", "deleted_at", "id"),)

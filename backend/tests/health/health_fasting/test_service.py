@@ -62,7 +62,11 @@ class TestEditAndDelete:
     @patch(f"{_CRUD}.edit_health_fasting")
     def test_edit_commits(self, _edit, mock_get, _overlaps, mock_db):
         mock_get.return_value = health_fasting_schema.HealthFastingRead(
-            id=7, user_id=1, fast_start_time=datetime(2024, 1, 15, 8, tzinfo=UTC), status="in_progress"
+            updated_at="2024-01-01T00:00:00Z",
+            id=7,
+            user_id=1,
+            fast_start_time=datetime(2024, 1, 15, 8, tzinfo=UTC),
+            status="in_progress",
         )
         health_fasting_service.edit_health_fasting(
             1, 7, health_fasting_schema.HealthFastingUpdate(), mock_db, if_match="*"

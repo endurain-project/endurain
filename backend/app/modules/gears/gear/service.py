@@ -16,11 +16,13 @@ import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
+import core.sync as core_sync
 import core.types as core_types
 import modules.gears.contributor_registry as gears_contributor_registry
 import modules.gears.gear.constants as gears_constants
 import modules.gears.gear.crud as gears_crud
 import modules.gears.gear.schema as gears_schema
+import modules.users.users_profile.contracts as users_profile_contracts
 
 logger = core_logger.get_logger(__name__)
 
@@ -81,15 +83,47 @@ def read_gear_detail(gear_id: int, user_id: int, db: Session) -> gears_schema.Ge
     gear = gears_crud.get_gear_user_by_id(user_id, gear_id, db)
     if gear is None:
         raise core_exceptions.NotFoundError("Gear not found")
+    return _with_totals(gear, user_id, db)
+
+
+def _with_totals(gear: gears_schema.GearRead, user_id: int, db: Session) -> gears_schema.GearDetailRead:
+    """Add the recorded usage and component cost to a gear.
+
+    Args:
+        gear: The gear to extend.
+        user_id: Owner user ID.
+        db: Database session.
+
+    Returns:
+        The gear with totals.
+    """
     readers = gears_contributor_registry.readers()
-    usage = readers.usage(gear_id, user_id, db)
-    components_cost = readers.components_cost(gear_id, user_id, db)
+    usage = readers.usage(gear.id, user_id, db)
+    components_cost = readers.components_cost(gear.id, user_id, db)
     return gears_schema.GearDetailRead(
         **gear.model_dump(),
         total_distance=usage.distance + (gear.initial_distance or 0.0),
         total_time=usage.time,
         total_components_cost=f"{components_cost:.2f}",
     )
+
+
+def list_changed_gears(
+    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[gears_schema.GearDetailRead]:
+    """Return a page of a user's gears changed after a position, each with its totals.
+
+    Args:
+        user_id: Owner user ID.
+        after: Return gears strictly after this ``(updated_at, id)``; None from the first.
+        until: Return only gears changed before this instant.
+        limit: The most gears to return.
+        db: Database session.
+
+    Returns:
+        The gears with totals, in ``(updated_at, id)`` order.
+    """
+    return [_with_totals(gear, user_id, db) for gear in gears_crud.list_changed_gears(user_id, after, until, limit, db)]
 
 
 def create_gear(gear: gears_schema.GearCreateRequest, user_id: int, db: Session) -> gears_schema.GearRead:
@@ -173,14 +207,13 @@ def restore_profile_gears(
     ids[gears_constants.PROFILE_ARCHIVE_KEY] = mapping
     restored = 0
     for record in records:
-        record["user_id"] = user_id
-        original_id = record.pop("id", None)
-        record.pop("version", None)
-        _read_legacy_creation_timestamp(record)
-        _read_legacy_units(record)
+        original_id = record.get("id")
+        fields: dict[str, Any] = {**users_profile_contracts.without_row_identity(record), "user_id": user_id}
+        _read_legacy_creation_timestamp(fields)
+        _read_legacy_units(fields)
 
         try:
-            gear = gears_schema.GearCreate(**record)
+            gear = gears_schema.GearCreate(**fields)
         except ValidationError:
             logger.warning("Skipped an invalid gear")
             continue
@@ -352,6 +385,7 @@ def delete_gear(gear_id: int, user_id: int, db: Session, *, if_match: str) -> No
         gears_crud.lock_gear(gear_id, user_id, db)
         gears_contributor_registry.readers().clear_activities_gear(gear_id, user_id, db)
         gears_contributor_registry.readers().clear_default_gear([gear_id], user_id, db)
+        gears_contributor_registry.readers().record_component_deletions([gear_id], user_id, db)
         gears_crud.delete_gear(gear_id, user_id, db, if_match=if_match)
         db.commit()
     logger.info("Deleted a gear", extra=core_logger.context(user_id=user_id, gear_id=gear_id))
@@ -360,12 +394,15 @@ def delete_gear(gear_id: int, user_id: int, db: Session, *, if_match: str) -> No
 def delete_all_strava_gear_for_user(user_id: int, db: Session) -> None:
     """Stage the deletion of every Strava-linked gear a user has, unassigning it from their default gear first.
 
+    The components the deletion cascades away are recorded as deleted.
+
     Args:
         user_id: Owner user ID.
         db: Database session.
     """
     gear_ids = gears_crud.get_strava_gear_ids_for_user(user_id, db)
     gears_contributor_registry.readers().clear_default_gear(gear_ids, user_id, db)
+    gears_contributor_registry.readers().record_component_deletions(gear_ids, user_id, db)
     gears_crud.delete_all_strava_gear_for_user(user_id, db)
 
 
@@ -387,3 +424,19 @@ def require_owned_gears(user_id: int, gear_ids: Iterable[int | None], db: Sessio
     for gear_id in {gear_id for gear_id in gear_ids if gear_id is not None}:
         if gears_crud.get_gear_user_by_id(user_id, gear_id, db) is None:
             raise core_exceptions.NotFoundError("Gear not found")
+
+
+def prune_gear_deletions(now: datetime, db: Session) -> int:
+    """Delete the gear deletion records older than the retention period.
+
+    Args:
+        now: The current time.
+        db: Database session.
+
+    Returns:
+        How many records were removed.
+    """
+    removed = gears_crud.prune_gear_deletions(now - core_sync.TOMBSTONE_RETENTION, db)
+    db.commit()
+    logger.info("Pruned gear deletion records", extra=core_logger.context(count=removed))
+    return removed

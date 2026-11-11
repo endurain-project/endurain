@@ -33,6 +33,7 @@ CONVERTED_MODULES: tuple[str, ...] = (
     "notifications",
     "server_settings",
     "strava",
+    "sync",
     "users",
     "websocket",
 )

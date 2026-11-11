@@ -35,6 +35,7 @@ class TestReadHealthDailyStats:
             steps=health_dashboard_schema.HealthStepsDashboard(steps=8000),
             poop=health_dashboard_schema.HealthPoopDashboard(count=1),
             targets=health_targets_schema.HealthTargetsRead(
+                updated_at="2024-01-01T00:00:00Z",
                 id=2,
                 user_id=1,
                 version=3,

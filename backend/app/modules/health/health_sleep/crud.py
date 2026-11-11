@@ -1,11 +1,13 @@
 """CRUD operations for health sleep records."""
 
 from datetime import date as date_type
+from datetime import datetime
 
 from pydantic import BaseModel
 from sqlalchemy import ColumnElement, SQLColumnExpression, func, select
 from sqlalchemy.orm import Session
 
+import core.sync as core_sync
 import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_sleep.models as health_sleep_models
@@ -18,6 +20,7 @@ SPEC = health_record_crud.RecordSpec(
     read_schema=health_sleep_schema.HealthSleepRead,
     not_found="Health sleep not found",
     etag_label="sleep record",
+    sync_type="health_sleep",
 )
 
 LIST_SPEC = health_record_crud.RecordSpec(
@@ -25,6 +28,7 @@ LIST_SPEC = health_record_crud.RecordSpec(
     read_schema=health_sleep_schema.HealthSleepListItem,
     not_found="Health sleep not found",
     etag_label="sleep record",
+    sync_type="health_sleep",
 )
 
 
@@ -346,3 +350,24 @@ def get_health_sleep_resting_heart_rate_chart(
         The buckets that hold a value, oldest first.
     """
     return _average_by_bucket(health_sleep_models.HealthSleep.resting_heart_rate, user_id, since, until, bucket, db)
+
+
+def list_changed(
+    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[health_sleep_schema.HealthSleepRead]:
+    """Retrieve a user's records changed after a position, oldest change first.
+
+    Args:
+        user_id: The records' owner.
+        after: Return records strictly after this ``(updated_at, id)``; ``None`` from the first.
+        until: Return only records changed before this instant.
+        limit: The most records to return.
+        db: Database session.
+
+    Returns:
+        The records, in ``(updated_at, id)`` order.
+    """
+    model = health_sleep_models.HealthSleep
+    return health_record_crud.list_changed(
+        model, model.user_id, model.id, SPEC.read_schema, user_id, after, until, limit, db
+    )

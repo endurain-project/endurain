@@ -1,11 +1,13 @@
 """CRUD operations for health weight records."""
 
 from datetime import date as date_type
+from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import case, desc, func, select, update
 from sqlalchemy.orm import Session
 
+import core.sync as core_sync
 import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_weight.models as health_weight_models
@@ -18,6 +20,7 @@ SPEC = health_record_crud.RecordSpec(
     read_schema=health_weight_schema.HealthWeightRead,
     not_found="Health weight not found",
     etag_label="weight record",
+    sync_type="health_weight",
 )
 
 
@@ -289,3 +292,24 @@ def get_health_weight_chart(
         .order_by(day)
     )
     return [health_schema.HealthChartPoint(date=d, value=float(value)) for d, value in db.execute(stmt).all()]
+
+
+def list_changed(
+    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[health_weight_schema.HealthWeightRead]:
+    """Retrieve a user's records changed after a position, oldest change first.
+
+    Args:
+        user_id: The records' owner.
+        after: Return records strictly after this ``(updated_at, id)``; ``None`` from the first.
+        until: Return only records changed before this instant.
+        limit: The most records to return.
+        db: Database session.
+
+    Returns:
+        The records, in ``(updated_at, id)`` order.
+    """
+    model = health_weight_models.HealthWeight
+    return health_record_crud.list_changed(
+        model, model.user_id, model.id, SPEC.read_schema, user_id, after, until, limit, db
+    )

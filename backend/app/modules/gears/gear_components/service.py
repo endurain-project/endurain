@@ -4,7 +4,7 @@ Owns the transaction for every write the router makes. What other modules may co
 lives in :mod:`modules.gears.gear_components.integration_service`.
 """
 
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 from pydantic import ValidationError
@@ -14,6 +14,7 @@ import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
+import core.sync as core_sync
 import core.types as core_types
 import modules.gears.contracts as gears_contracts
 import modules.gears.contributor_registry as gears_contributor_registry
@@ -23,6 +24,7 @@ import modules.gears.gear.schema as gears_schema
 import modules.gears.gear_components.constants as gear_components_constants
 import modules.gears.gear_components.crud as gear_components_crud
 import modules.gears.gear_components.schema as gear_components_schema
+import modules.users.users_profile.contracts as users_profile_contracts
 
 logger = core_logger.get_logger(__name__)
 
@@ -232,8 +234,9 @@ def restore_profile_gear_components(
             legacy_threshold = record.pop("expected_kms")
             record.setdefault("expected_usage", legacy_threshold)
 
-        for owner_or_derived in ("id", "version", "user_id", "current_distance", "current_time"):
-            record.pop(owner_or_derived, None)
+        record = users_profile_contracts.without_row_identity(record)
+        for derived in ("current_distance", "current_time"):
+            record.pop(derived, None)
         if "purchase_value" in record:
             record["purchase_value"] = core_types.money_from_archived_number(record["purchase_value"])
 
@@ -355,3 +358,19 @@ def delete_gear_component(user_id: int, gear_component_id: int, db: Session, *, 
     logger.info(
         "Deleted a gear component", extra=core_logger.context(user_id=user_id, gear_component_id=gear_component_id)
     )
+
+
+def prune_gear_component_deletions(now: datetime, db: Session) -> int:
+    """Delete the gear component deletion records older than the retention period.
+
+    Args:
+        now: The current time.
+        db: Database session.
+
+    Returns:
+        How many records were removed.
+    """
+    removed = gear_components_crud.prune_gear_component_deletions(now - core_sync.TOMBSTONE_RETENTION, db)
+    db.commit()
+    logger.info("Pruned gear component deletion records", extra=core_logger.context(count=removed))
+    return removed

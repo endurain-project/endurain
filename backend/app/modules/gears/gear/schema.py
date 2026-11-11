@@ -1,6 +1,6 @@
 """Gear schema definitions."""
 
-from datetime import date
+from datetime import date, datetime
 from typing import Annotated
 
 from pydantic import (
@@ -214,6 +214,7 @@ class GearRead(GearCreate):
         id: Unique identifier.
         user_id: Foreign key to user.
         version: Optimistic-concurrency counter, also sent as the ``ETag``.
+        updated_at: When the gear last changed; set by the server.
     """
 
     id: StrictInt = Field(
@@ -228,6 +229,10 @@ class GearRead(GearCreate):
         default=1,
         ge=1,
         description="Optimistic-concurrency counter",
+    )
+    updated_at: datetime = Field(
+        ...,
+        description="When the gear last changed",
     )
 
 

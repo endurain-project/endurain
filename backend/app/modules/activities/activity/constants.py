@@ -90,6 +90,9 @@ class ActivityType(StoredStrEnum):
 
 
 #: The name an activity is stored under when its file or provider gives it none.
+#: The sync type of an activity, as ``GET /sync`` names it.
+SYNC_TYPE = "activity"
+
 DEFAULT_ACTIVITY_NAME = "Workout"
 
 #: The English display name of each activity type by stored id.

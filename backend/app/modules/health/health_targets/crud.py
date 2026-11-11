@@ -1,9 +1,12 @@
 """CRUD operations for per-user health targets."""
 
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
+import core.sync as core_sync
 import modules.health.computation as health_computation
 import modules.health.health_targets.models as health_targets_models
 import modules.health.health_targets.schema as health_targets_schema
@@ -14,6 +17,7 @@ SPEC = health_record_crud.RecordSpec(
     read_schema=health_targets_schema.HealthTargetsRead,
     not_found="Health targets not found",
     etag_label="health targets",
+    sync_type="health_targets",
 )
 
 
@@ -103,3 +107,24 @@ def health_targets_exists(user_id: int, db: Session) -> bool:
         .exists()
     )
     return bool(db.execute(stmt).scalar())
+
+
+def list_changed(
+    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[health_targets_schema.HealthTargetsRead]:
+    """Retrieve a user's records changed after a position, oldest change first.
+
+    Args:
+        user_id: The records' owner.
+        after: Return records strictly after this ``(updated_at, id)``; ``None`` from the first.
+        until: Return only records changed before this instant.
+        limit: The most records to return.
+        db: Database session.
+
+    Returns:
+        The records, in ``(updated_at, id)`` order.
+    """
+    model = health_targets_models.HealthTargets
+    return health_record_crud.list_changed(
+        model, model.user_id, model.id, SPEC.read_schema, user_id, after, until, limit, db
+    )

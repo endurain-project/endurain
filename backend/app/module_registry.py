@@ -21,6 +21,7 @@ import core.mail as core_mail
 import core.scheduler as core_scheduler
 import modules.activities.activity.audit_actions as activity_audit_actions
 import modules.activities.activity.integration_service as activity_integration
+import modules.activities.activity.scheduled_jobs as activity_scheduled_jobs
 import modules.activities.activity.subscriber_registry as activity_subscriber_registry
 import modules.activities.activity_exercise_titles.integration_service as activity_exercise_titles_integration
 import modules.activities.activity_file_storage.constants as activity_file_storage_constants
@@ -83,8 +84,10 @@ import modules.gears.contributor_registry as gears_contributor_registry
 import modules.gears.contributors as gears_contributors
 import modules.gears.gear.constants as gear_constants
 import modules.gears.gear.integration_service as gear_integration
+import modules.gears.gear.scheduled_jobs as gear_scheduled_jobs
 import modules.gears.gear_components.constants as gear_components_constants
 import modules.gears.gear_components.integration_service as gear_components_integration
+import modules.gears.gear_components.scheduled_jobs as gear_components_scheduled_jobs
 import modules.health.health_fasting.integration_service as health_fasting_integration
 import modules.health.health_poop.integration_service as health_poop_integration
 import modules.health.health_sleep.integration_service as health_sleep_integration
@@ -92,6 +95,7 @@ import modules.health.health_steps.integration_service as health_steps_integrati
 import modules.health.health_targets.integration_service as health_targets_integration
 import modules.health.health_water.integration_service as health_water_integration
 import modules.health.health_weight.integration_service as health_weight_integration
+import modules.health.scheduled_jobs as health_scheduled_jobs
 import modules.notifications.integration_service as notifications_integration
 import modules.notifications.scheduled_jobs as notifications_scheduled_jobs
 import modules.notifications.subscriber_registry as notifications_subscriber_registry
@@ -261,6 +265,7 @@ MODULES: tuple[RuntimeModule, ...] = (
         name="activity",
         register_durable=activity_subscriber_registry.register_durable_handlers,
         nets=activity_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
+        recurring_jobs=activity_scheduled_jobs.recurring_jobs,
         audit_actions=activity_audit_actions.ACTIONS,
         shutdown=activity_integration.shutdown_bulk_edit_pool,
     ),
@@ -356,6 +361,9 @@ MODULES: tuple[RuntimeModule, ...] = (
         ),
     ),
     RuntimeModule(name="known_devices", recurring_jobs=known_devices_scheduled_jobs.recurring_jobs),
+    RuntimeModule(name="gear", recurring_jobs=gear_scheduled_jobs.recurring_jobs),
+    RuntimeModule(name="gear_components", recurring_jobs=gear_components_scheduled_jobs.recurring_jobs),
+    RuntimeModule(name="health", recurring_jobs=health_scheduled_jobs.recurring_jobs),
     RuntimeModule(name="lockout", audit_actions=lockout_audit_actions.ACTIONS),
     RuntimeModule(name="login_audit", audit_actions=login_audit_actions.ACTIONS),
     RuntimeModule(name="mfa_backup_codes", audit_actions=mfa_backup_codes_audit_actions.ACTIONS),
@@ -562,6 +570,7 @@ def configure_gear_contributors() -> None:
             count_components_outside_type=gear_components_integration.count_components_outside_gear_type,
             clear_activities_gear=activity_integration.clear_activities_gear,
             clear_default_gear=users_default_gear_integration.clear_default_gears,
+            record_component_deletions=gear_components_integration.record_gear_component_deletions,
         )
     )
 

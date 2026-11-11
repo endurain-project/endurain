@@ -1,6 +1,7 @@
 """Pydantic request and response shapes for health weight records."""
 
 from datetime import date as datetime_date
+from datetime import datetime
 from enum import Enum
 from typing import ClassVar
 
@@ -117,6 +118,7 @@ class HealthWeightRead(HealthWeightBase):
     id: StrictInt = Field(..., description="Unique identifier for the weight record to update")
     user_id: StrictInt = Field(..., description="Foreign key reference to the user")
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
+    updated_at: datetime = Field(..., description="When the record last changed, set by the server")
 
 
 class HealthWeightUpdate(core_partial_update.NotClearable, HealthWeightWrite):

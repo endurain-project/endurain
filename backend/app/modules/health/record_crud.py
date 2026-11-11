@@ -8,19 +8,21 @@ stages writes with ``flush`` and never commits.
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Protocol
 
 from pydantic import BaseModel
 from sqlalchemy import ColumnElement, SQLColumnExpression, func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Mapped, QueryableAttribute, Session, declared_attr
+from sqlalchemy.orm import InstrumentedAttribute, Mapped, QueryableAttribute, Session, declared_attr
 
 import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.stored_enum as core_stored_enum
+import core.sync as core_sync
 import modules.health.computation as health_computation
+import modules.health.models as health_models
 
 #: Answer to an edit that moves a dated record onto a day that already has one.
 DATE_TAKEN_MESSAGE = "Another record already exists for that date"
@@ -57,12 +59,14 @@ class RecordSpec[ModelT: Row, ReadT: BaseModel]:
         read_schema: The schema a row is returned as.
         not_found: The detail of the error for a record the user does not have.
         etag_label: How a stale ``If-Match`` names the record.
+        sync_type: The record's sync type, which names its deletions.
     """
 
     model: type[ModelT]
     read_schema: type[ReadT]
     not_found: str
     etag_label: str
+    sync_type: str
 
 
 def duplicate_date_message(day: date | None) -> str:
@@ -399,4 +403,78 @@ def delete[ModelT: Row, ReadT: BaseModel](
     row = get_owned(spec, record_id, user_id, db)
     core_etag.require_if_match(if_match, row.version, spec.etag_label)
     db.delete(row)
+    core_sync.record_deletions(db, health_models.HealthRecordDeletion, user_id, [record_id], record_type=spec.sync_type)
     db.flush()
+
+
+def list_changed[RowT: core_sync.UpdatedAtMixin, ReadT: BaseModel](
+    model: type[RowT],
+    owner: InstrumentedAttribute[int],
+    row_id: InstrumentedAttribute[int],
+    read_schema: type[ReadT],
+    user_id: int,
+    after: core_sync.Position | None,
+    until: datetime,
+    limit: int,
+    db: Session,
+) -> list[ReadT]:
+    """Retrieve a user's records changed after a position, oldest change first.
+
+    Args:
+        model: The record's ORM class, carrying ``UpdatedAtMixin``.
+        owner: The model's owner column.
+        row_id: The model's id column.
+        read_schema: The schema a row is returned as.
+        user_id: The records' owner.
+        after: Return records strictly after this ``(updated_at, id)``; ``None`` from the first.
+        until: Return only records changed before this instant.
+        limit: The most records to return.
+        db: Database session.
+
+    Returns:
+        The records as ``read_schema``, in ``(updated_at, id)`` order.
+    """
+    return health_computation.to_read_schemas(
+        read_schema, core_sync.changed_rows(db, model, owner, row_id, user_id, after, until, limit)
+    )
+
+
+def list_deletions(
+    sync_type: str, user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[core_sync.Deletion]:
+    """Retrieve a user's deleted records of one type after a position, oldest deletion first.
+
+    Args:
+        sync_type: The sync type of the records.
+        user_id: The records' owner.
+        after: Return deletions strictly after this ``(deleted_at, id)``; ``None`` from the first.
+        until: Return only deletions before this instant.
+        limit: The most deletions to return.
+        db: Database session.
+
+    Returns:
+        The deletions, in ``(deleted_at, id)`` order.
+    """
+    rows = core_sync.deleted_rows(
+        db,
+        health_models.HealthRecordDeletion,
+        user_id,
+        after,
+        until,
+        limit,
+        (health_models.HealthRecordDeletion.record_type == sync_type,),
+    )
+    return [core_sync.Deletion(sync_type, row.record_id, row.deleted_at, (row.deleted_at, row.id)) for row in rows]
+
+
+def prune_deletions(before: datetime, db: Session) -> int:
+    """Stage the removal of the deleted-record tombstones older than an instant.
+
+    Args:
+        before: Tombstones of deletions before this instant are removed.
+        db: Database session.
+
+    Returns:
+        How many were removed.
+    """
+    return core_sync.prune_tombstones(db, health_models.HealthRecordDeletion, before)

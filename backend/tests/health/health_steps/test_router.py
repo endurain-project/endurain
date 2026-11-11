@@ -11,7 +11,9 @@ _IF_MATCH_HEADERS = {**_HEADERS, "If-Match": '"1"'}
 
 
 def _record(record_id: int = 1, day: int = 15, steps: int = 10000) -> health_steps_schema.HealthStepsRead:
-    return health_steps_schema.HealthStepsRead(id=record_id, user_id=1, date=datetime_date(2024, 1, day), steps=steps)
+    return health_steps_schema.HealthStepsRead(
+        updated_at="2024-01-01T00:00:00Z", id=record_id, user_id=1, date=datetime_date(2024, 1, day), steps=steps
+    )
 
 
 class TestReadHealthStepsAll:

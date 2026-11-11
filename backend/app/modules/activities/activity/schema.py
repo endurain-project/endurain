@@ -269,6 +269,7 @@ class _ActivityServerFields(BaseModel):
             only: it is excluded from serialization, so a client never receives it.
         map_thumbnail_url: The servable, token-gated URL of the thumbnail, set by
             the service layer for a viewer allowed to see the map.
+        updated_at: When the activity last changed, including a change the server derives (thumbnail, media).
         media: The activity's photos with signed URLs, set by the service layer on list
             responses for the viewer's own activities and empty otherwise.
     """
@@ -277,6 +278,7 @@ class _ActivityServerFields(BaseModel):
     map_thumbnail_path: str | None = Field(default=None, max_length=500, exclude=True)
     map_thumbnail_url: str | None = None
     version: int | None = Field(default=None, ge=1)
+    updated_at: datetime | None = None
     media: list[ActivityMediaEmbedded] = Field(
         default_factory=list,
         description="The activity's photos, set on list responses for the viewer's own activities",

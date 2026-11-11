@@ -6,10 +6,12 @@ writes stage and the caller commits.
 """
 
 from collections.abc import Iterable
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
 
+import core.sync as core_sync
 import modules.gears.gear.crud as gears_crud
 import modules.gears.gear.schema as gears_schema
 import modules.gears.gear.service as gears_service
@@ -139,3 +141,43 @@ def require_owned_gears(user_id: int, gear_ids: Iterable[int | None], db: Sessio
         NotFoundError: If a gear does not exist or is not the user's.
     """
     gears_service.require_owned_gears(user_id, gear_ids, db)
+
+
+def list_changed_gears(
+    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[gears_schema.GearDetailRead]:
+    """Return a page of a user's gears changed after a position, oldest change first.
+
+    Each gear carries its totals (distance, time, components cost). The totals are computed from activities
+    and components, so a change to an activity does not stamp the gear: a client that needs fresh totals
+    reads the gear again.
+
+    Args:
+        user_id: Owner user ID.
+        after: Return gears strictly after this ``(updated_at, id)``; None from the first.
+        until: Return only gears changed before this instant.
+        limit: The most gears to return.
+        db: Database session.
+
+    Returns:
+        The gears with totals, in ``(updated_at, id)`` order.
+    """
+    return gears_service.list_changed_gears(user_id, after, until, limit, db)
+
+
+def list_gear_deletions(
+    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[core_sync.Deletion]:
+    """Return a page of a user's deleted gears after a position, oldest deletion first.
+
+    Args:
+        user_id: Owner user ID.
+        after: Return deletions strictly after this ``(deleted_at, id)``; None from the first.
+        until: Return only deletions before this instant.
+        limit: The most deletions to return.
+        db: Database session.
+
+    Returns:
+        The deletions, in ``(deleted_at, id)`` order.
+    """
+    return gears_crud.list_gear_deletions(user_id, after, until, limit, db)

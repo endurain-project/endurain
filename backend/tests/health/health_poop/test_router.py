@@ -41,7 +41,10 @@ class TestReadHealthPoopAllPagination:
     @patch(f"{_SERVICE}.list_health_poop")
     def test_list_success(self, mock_list, mock_db):
         mock_list.return_value = core_pagination.Page(
-            items=[HealthPoopRead(id=1, user_id=1, date_time=_STARTED)], total=1, page=1, num_records=25
+            items=[HealthPoopRead(updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, date_time=_STARTED)],
+            total=1,
+            page=1,
+            num_records=25,
         )
 
         response = TestClient(_build_app(mock_db)).get("/health_poop", headers=_HEADERS)
@@ -75,7 +78,7 @@ class TestReadHealthPoopAllPagination:
 class TestReadHealthPoopById:
     @patch(f"{_SERVICE}.get_health_poop")
     def test_success(self, mock_get, mock_db):
-        mock_get.return_value = HealthPoopRead(id=1, user_id=1, date_time=_STARTED)
+        mock_get.return_value = HealthPoopRead(updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, date_time=_STARTED)
 
         response = TestClient(_build_app(mock_db)).get("/health_poop/1", headers=_HEADERS)
 
@@ -94,7 +97,9 @@ class TestReadHealthPoopById:
 class TestCreateHealthPoop:
     @patch(f"{_SERVICE}.create_health_poop")
     def test_create_success(self, mock_create, mock_db):
-        mock_create.return_value = HealthPoopRead(id=1, user_id=1, date_time=_STARTED)
+        mock_create.return_value = HealthPoopRead(
+            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, date_time=_STARTED
+        )
 
         response = TestClient(_build_app(mock_db)).post(
             "/health_poop", json={"date_time": "2024-01-15T10:00:00Z"}, headers=_HEADERS
@@ -108,7 +113,7 @@ class TestCreateHealthPoop:
 class TestEditHealthPoop:
     @patch(f"{_SERVICE}.edit_health_poop")
     def test_edit_success(self, mock_edit, mock_db):
-        mock_edit.return_value = HealthPoopRead(id=1, user_id=1, date_time=_STARTED)
+        mock_edit.return_value = HealthPoopRead(updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, date_time=_STARTED)
 
         response = TestClient(_build_app(mock_db)).patch(
             "/health_poop/1", json={}, headers={**_HEADERS, "If-Match": '"1"'}
@@ -130,7 +135,9 @@ class TestDeleteHealthPoop:
 class TestReadSendsTheETag:
     @patch(f"{_SERVICE}.get_health_poop")
     def test_a_record_read_by_id_carries_its_version(self, mock_get, mock_db):
-        mock_get.return_value = HealthPoopRead(id=1, user_id=1, date_time=_STARTED, version=5)
+        mock_get.return_value = HealthPoopRead(
+            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, date_time=_STARTED, version=5
+        )
 
         response = TestClient(_build_app(mock_db)).get("/health_poop/1", headers=_HEADERS)
 

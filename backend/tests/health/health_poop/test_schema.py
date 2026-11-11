@@ -44,7 +44,7 @@ class TestHealthPoopReadSchema:
     def test_valid(self):
         from modules.health.health_poop.schema import HealthPoopRead
 
-        data = HealthPoopRead(id=1, user_id=1, date_time=_STARTED)
+        data = HealthPoopRead(updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, date_time=_STARTED)
         assert data.id == 1
         assert data.user_id == 1
 

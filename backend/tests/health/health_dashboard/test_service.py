@@ -48,6 +48,7 @@ class TestGetDailyStats:
         peers["water"].return_value = MagicMock(amount_ml=1500.0)
         peers["poop"].return_value = [MagicMock(), MagicMock()]
         targets = health_targets_schema.HealthTargetsRead(
+            updated_at="2024-01-01T00:00:00Z",
             id=2,
             user_id=1,
             version=3,

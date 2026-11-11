@@ -36,6 +36,7 @@ def install_readers(
     ),
     clear_activities_gear: gears_contributors.ActivitiesGearClearer = lambda gear_id, user_id, db: 0,
     clear_default_gear: gears_contributors.DefaultGearClearer = lambda gear_ids, user_id, db: None,
+    record_component_deletions: gears_contributors.ComponentDeletionsRecorder = lambda gear_ids, user_id, db: None,
 ) -> None:
     """Install gears readers, zero-valued unless overridden."""
     gears_contributor_registry.register(
@@ -46,5 +47,6 @@ def install_readers(
             count_components_outside_type=count_components_outside_type,
             clear_activities_gear=clear_activities_gear,
             clear_default_gear=clear_default_gear,
+            record_component_deletions=record_component_deletions,
         )
     )

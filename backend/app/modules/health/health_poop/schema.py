@@ -178,6 +178,7 @@ class HealthPoopRead(HealthPoopBase):
         description="Foreign key reference to the user",
     )
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
+    updated_at: datetime = Field(..., description="When the record last changed, set by the server")
 
 
 class HealthPoopUpdate(core_partial_update.NotClearable, HealthPoopWrite):

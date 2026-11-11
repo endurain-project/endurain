@@ -1,6 +1,7 @@
 """CRUD operations for gear components."""
 
 from collections.abc import Collection
+from datetime import datetime
 
 from sqlalchemy import Select, func, select
 from sqlalchemy.exc import IntegrityError
@@ -9,6 +10,7 @@ from sqlalchemy.orm import Session
 import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
+import core.sync as core_sync
 import modules.gears.gear_components.models as gear_components_models
 import modules.gears.gear_components.schema as gear_components_schema
 import modules.gears.gear_components.serializers as gear_components_serializers
@@ -310,5 +312,85 @@ def delete_gear_component(user_id: int, gear_component_id: int, db: Session, *, 
     """
     db_component = _get_gear_component_model_or_404(gear_component_id, user_id, db)
     core_etag.require_if_match(if_match, db_component.version, "gear component")
+    core_sync.record_deletions(db, gear_components_models.GearComponentDeletion, user_id, [db_component.id])
     db.delete(db_component)
     db.flush()
+
+
+def record_gear_component_deletions(gear_ids: Collection[int], user_id: int, db: Session) -> None:
+    """Stage a tombstone for every component of the given gears, which deleting the gears cascades away.
+
+    Args:
+        gear_ids: The gears about to be deleted.
+        user_id: Owner user ID.
+        db: Database session.
+    """
+    stmt = select(gear_components_models.GearComponents.id).where(
+        gear_components_models.GearComponents.user_id == user_id,
+        gear_components_models.GearComponents.gear_id.in_(gear_ids),
+    )
+    core_sync.record_deletions(
+        db, gear_components_models.GearComponentDeletion, user_id, sorted(db.scalars(stmt).all())
+    )
+
+
+def list_changed_gear_components(
+    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[gear_components_schema.GearComponentRead]:
+    """Retrieve a page of a user's components changed after a position, oldest change first.
+
+    Args:
+        user_id: Owner user ID.
+        after: Return components strictly after this ``(updated_at, id)``; None from the first.
+        until: Return only components changed before this instant.
+        limit: The most components to return.
+        db: Database session.
+
+    Returns:
+        The components, in ``(updated_at, id)`` order.
+    """
+    rows = core_sync.changed_rows(
+        db,
+        gear_components_models.GearComponents,
+        gear_components_models.GearComponents.user_id,
+        gear_components_models.GearComponents.id,
+        user_id,
+        after,
+        until,
+        limit,
+    )
+    return [gear_components_serializers.to_read_schema(component) for component in rows]
+
+
+def list_gear_component_deletions(
+    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[core_sync.Deletion]:
+    """Retrieve a page of a user's deleted components after a position, oldest deletion first.
+
+    Args:
+        user_id: Owner user ID.
+        after: Return deletions strictly after this ``(deleted_at, id)``; None from the first.
+        until: Return only deletions before this instant.
+        limit: The most deletions to return.
+        db: Database session.
+
+    Returns:
+        The deletions, in ``(deleted_at, id)`` order.
+    """
+    rows = core_sync.deleted_rows(db, gear_components_models.GearComponentDeletion, user_id, after, until, limit)
+    return [
+        core_sync.Deletion("gear_component", row.record_id, row.deleted_at, (row.deleted_at, row.id)) for row in rows
+    ]
+
+
+def prune_gear_component_deletions(before: datetime, db: Session) -> int:
+    """Delete the component tombstones older than an instant.
+
+    Args:
+        before: Tombstones of deletions before this instant are removed.
+        db: Database session; the caller commits.
+
+    Returns:
+        How many were removed.
+    """
+    return core_sync.prune_tombstones(db, gear_components_models.GearComponentDeletion, before)

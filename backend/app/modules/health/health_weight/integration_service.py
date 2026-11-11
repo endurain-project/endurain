@@ -3,13 +3,15 @@
 The writes stage; the caller owns the unit of work and commits.
 """
 
-from datetime import date
+from datetime import date, datetime
 
 from sqlalchemy.orm import Session
 
+import core.sync as core_sync
 import modules.health.health_weight.crud as health_weight_crud
 import modules.health.health_weight.schema as health_weight_schema
 import modules.health.health_weight.service as health_weight_service
+import modules.health.record_crud as health_record_crud
 import modules.users.users_profile.contracts as users_profile_contracts
 
 
@@ -86,3 +88,39 @@ def profile_section() -> users_profile_contracts.ProfileRecordsSection:
         export=health_weight_crud.get_all_health_weight_by_user_id,
         restore=health_weight_service.restore_profile_records,
     )
+
+
+def list_changed_health_weight(
+    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[health_weight_schema.HealthWeightRead]:
+    """Return a user's weight records changed after a position, oldest change first.
+
+    Args:
+        user_id: The records' owner.
+        after: Return records strictly after this ``(updated_at, id)``; ``None`` from the first.
+        until: Return only records changed before this instant.
+        limit: The most records to return.
+        db: Database session.
+
+    Returns:
+        The records, in ``(updated_at, id)`` order.
+    """
+    return health_weight_crud.list_changed(user_id, after, until, limit, db)
+
+
+def list_health_weight_deletions(
+    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[core_sync.Deletion]:
+    """Return a user's deleted weight records after a position, oldest deletion first.
+
+    Args:
+        user_id: The records' owner.
+        after: Return deletions strictly after this ``(deleted_at, id)``; ``None`` from the first.
+        until: Return only deletions before this instant.
+        limit: The most deletions to return.
+        db: Database session.
+
+    Returns:
+        The deletions, in ``(deleted_at, id)`` order.
+    """
+    return health_record_crud.list_deletions(health_weight_crud.SPEC.sync_type, user_id, after, until, limit, db)

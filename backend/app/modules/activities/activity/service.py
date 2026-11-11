@@ -27,6 +27,7 @@ import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
+import core.sync as core_sync
 import core.timezone as core_timezone
 import modules.activities.activity.audit_actions as activity_audit_actions
 import modules.activities.activity.constants as activity_constants
@@ -420,6 +421,25 @@ def with_media(
     for activity in activities:
         activity.media = list(media.get(activity.id, ()))
     return activities
+
+
+def list_changed_activities(
+    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[activity_schema.ActivityRead]:
+    """List the owner's activities changed after a position, each as the owner's own list reads it.
+
+    Args:
+        user_id: The owner, who is also the reader, so nothing is masked.
+        after: Return activities strictly after this ``(updated_at, id)``; None from the first.
+        until: Return only activities changed before this instant.
+        limit: The most activities to return.
+        db: Database session.
+
+    Returns:
+        The activities in ``(updated_at, id)`` order, with their thumbnail URL and media set.
+    """
+    activities = activity_crud.get_changed_activities(user_id, after, until, limit, db)
+    return with_media(_with_thumbnail_urls(activities), user_id, db)
 
 
 def list_user_activities_paginated(
@@ -973,3 +993,20 @@ def owns_activity(activity_id: int, user_id: int, db: Session) -> bool:
         True when the activity exists and belongs to the user.
     """
     return activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is not None
+
+
+def prune_activity_deletions(now: datetime, db: Session) -> int:
+    """Remove the activity tombstones older than the retention, and commit.
+
+    Args:
+        now: The current instant.
+        db: Database session.
+
+    Returns:
+        How many tombstones were removed.
+    """
+    removed = activity_crud.prune_activity_deletions(now - core_sync.TOMBSTONE_RETENTION, db)
+    db.commit()
+    if removed:
+        logger.info("Pruned activity deletion tombstones", extra=core_logger.context(removed=removed))
+    return removed

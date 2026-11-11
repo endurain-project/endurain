@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 
 import modules.health.computation as health_computation
@@ -81,7 +81,15 @@ class TestIntervalStart:
 
 class TestToReadSchema:
     def test_validates_a_row_against_the_given_schema(self):
-        row = SimpleNamespace(id=1, version=2, user_id=3, date=date(2024, 1, 15), steps=9000, source="manual")
+        row = SimpleNamespace(
+            id=1,
+            version=2,
+            user_id=3,
+            updated_at=datetime(2024, 1, 15, tzinfo=UTC),
+            date=date(2024, 1, 15),
+            steps=9000,
+            source="manual",
+        )
 
         result = health_computation.to_read_schema(health_steps_schema.HealthStepsRead, row)
 
@@ -90,7 +98,16 @@ class TestToReadSchema:
 
     def test_converts_every_row_in_order(self):
         rows = [
-            SimpleNamespace(id=i, version=1, user_id=3, date=date(2024, 1, i), steps=i, source="manual") for i in (1, 2)
+            SimpleNamespace(
+                id=i,
+                version=1,
+                user_id=3,
+                updated_at=datetime(2024, 1, 15, tzinfo=UTC),
+                date=date(2024, 1, i),
+                steps=i,
+                source="manual",
+            )
+            for i in (1, 2)
         ]
 
         assert [r.id for r in health_computation.to_read_schemas(health_steps_schema.HealthStepsRead, rows)] == [1, 2]

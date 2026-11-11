@@ -53,3 +53,10 @@ def test_an_archived_expected_kms_is_read_as_expected_usage(db):
     service.restore_profile_gear_components([_record(expected_kms=3000)], 1, {"gears": {5: gear.id}}, db)
 
     assert crud.get_gear_components_user(1, db)[0].expected_usage == 3000
+
+
+def test_an_archived_component_with_its_version_and_stamp_is_restored(db):
+    gear = gear_crud.create_gear(gear_create(), 1, db)
+    record = _record(user_id=3, version=2, updated_at="2026-11-11T07:30:00Z")
+
+    assert service.restore_profile_gear_components([record], 1, {"gears": {5: gear.id}}, db) == 1

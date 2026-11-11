@@ -6,6 +6,7 @@ from decimal import Decimal
 from sqlalchemy import (
     Date,
     ForeignKey,
+    Index,
     Numeric,
     String,
 )
@@ -15,10 +16,11 @@ from sqlalchemy.orm import (
 )
 from sqlalchemy.sql import func
 
+import core.sync as core_sync
 from core.database import Base
 
 
-class GearComponents(Base):
+class GearComponents(core_sync.UpdatedAtMixin, Base):
     """Gear component data model.
 
     Attributes:
@@ -33,6 +35,8 @@ class GearComponents(Base):
         active: Whether component is active.
         expected_usage: Wear threshold in meters for a distance-tracked gear and in seconds for a time-tracked one.
         purchase_value: Purchase value.
+        version: Optimistic-concurrency counter.
+        updated_at: When the component last changed.
     """
 
     __tablename__ = "gear_components"
@@ -104,3 +108,20 @@ class GearComponents(Base):
     # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's
     # WHERE clause, raising StaleDataError when the row moved underneath.
     __mapper_args__ = {"version_id_col": version}  # noqa: RUF012
+
+    __table_args__ = (Index("ix_gear_components_user_id_updated_at_id", "user_id", "updated_at", "id"),)
+
+
+class GearComponentDeletion(core_sync.TombstoneMixin, Base):
+    """Tombstone of a deleted gear component, read by incremental sync.
+
+    Attributes:
+        id: Primary key.
+        user_id: Owner of the deleted component.
+        record_id: The id the component had.
+        deleted_at: When the component was deleted.
+    """
+
+    __tablename__ = "gear_component_deletions"
+
+    __table_args__ = (Index("ix_gear_component_deletions_user_id_deleted_at_id", "user_id", "deleted_at", "id"),)

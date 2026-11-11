@@ -14,6 +14,7 @@ _SPEC = health_record_crud.RecordSpec(
     read_schema=health_steps_schema.HealthStepsRead,
     not_found="Health steps not found",
     etag_label="steps record",
+    sync_type="health_steps",
 )
 
 

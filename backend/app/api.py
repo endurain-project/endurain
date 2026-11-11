@@ -55,6 +55,7 @@ import modules.server_settings.logs_router as server_settings_logs_router
 import modules.server_settings.public_router as server_settings_public_router
 import modules.server_settings.router as server_settings_router
 import modules.strava.router as strava_router
+import modules.sync.router as sync_router
 import modules.users.users.photo_router as users_photo_router
 import modules.users.users.router as users_router
 import modules.users.users_default_gear.router as user_default_gear_router
@@ -133,6 +134,7 @@ OPENAPI_TAGS = [
     {"name": "sessions", "description": "Administration of user sessions."},
     {"name": "sign_up_tokens", "description": "Sign-up by email verification."},
     {"name": "strava", "description": "Link a Strava account and import its gear."},
+    {"name": "sync", "description": "What changed in your records since a cursor, for a local copy."},
     {"name": "users", "description": "Users: list, read, edit, create, delete and their photos."},
     {"name": "websocket", "description": "Tickets to open the notification websocket."},
 ]
@@ -270,6 +272,11 @@ router.include_router(
     prefix=core_config.ROOT_PATH + "/profile/follow-requests",
     tags=["followers"],
     dependencies=[Depends(auth_dependencies.validate_access_token)],
+)
+router.include_router(
+    sync_router.router,
+    prefix=core_config.ROOT_PATH + "/sync",
+    tags=["sync"],
 )
 router.include_router(
     jobs_router.router,

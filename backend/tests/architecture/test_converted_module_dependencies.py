@@ -53,6 +53,7 @@ _ALLOWED_CORE: dict[str, str] = {
     "core.network": "The SSRF check on a tile server URL before it is saved.",
     "core.date_range": "The inclusive start_date/end_date window of a list, chart or sync route.",
     "core.pagination": "Page and cursor primitives.",
+    "core.sync": "The updated_at stamp, the tombstones and the keyset reads behind incremental sync.",
     "core.partial_update": "The edit-schema base that refuses an explicit null for a NOT NULL column.",
     "core.types": "Request-body id, date and money types bounded to what the database columns can store.",
     "core.sanitization": "Cleaning user-supplied text before storage.",

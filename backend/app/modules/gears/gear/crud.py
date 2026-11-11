@@ -1,5 +1,7 @@
 """CRUD operations for gear."""
 
+from datetime import datetime
+
 from sqlalchemy import Select, delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -9,6 +11,7 @@ import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
 import core.sanitization as core_sanitization
+import core.sync as core_sync
 import modules.gears.gear.models as gears_models
 import modules.gears.gear.schema as gears_schema
 import modules.gears.gear.serializers as gears_serializers
@@ -424,6 +427,7 @@ def delete_gear(gear_id: int, user_id: int, db: Session, *, if_match: str) -> No
     """
     db_gear = _get_gear_model_or_404(gear_id, user_id, db)
     core_etag.require_if_match(if_match, db_gear.version, "gear")
+    core_sync.record_deletions(db, gears_models.GearDeletion, user_id, [db_gear.id])
     db.delete(db_gear)
     db.flush()
 
@@ -446,12 +450,13 @@ def get_strava_gear_ids_for_user(user_id: int, db: Session) -> list[int]:
 
 
 def delete_all_strava_gear_for_user(user_id: int, db: Session) -> None:
-    """Stage the deletion of every Strava-linked gear a user has.
+    """Stage the deletion of every Strava-linked gear a user has, recording each as deleted.
 
     Args:
         user_id: Owner user ID.
         db: Database session.
     """
+    core_sync.record_deletions(db, gears_models.GearDeletion, user_id, get_strava_gear_ids_for_user(user_id, db))
     db.execute(
         delete(gears_models.Gear).where(
             gears_models.Gear.user_id == user_id,
@@ -459,3 +464,56 @@ def delete_all_strava_gear_for_user(user_id: int, db: Session) -> None:
         )
     )
     db.flush()
+
+
+def list_changed_gears(
+    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[gears_schema.GearRead]:
+    """Retrieve a page of a user's gears changed after a position, oldest change first.
+
+    Args:
+        user_id: Owner user ID.
+        after: Return gears strictly after this ``(updated_at, id)``; None from the first.
+        until: Return only gears changed before this instant.
+        limit: The most gears to return.
+        db: Database session.
+
+    Returns:
+        The gears, in ``(updated_at, id)`` order.
+    """
+    rows = core_sync.changed_rows(
+        db, gears_models.Gear, gears_models.Gear.user_id, gears_models.Gear.id, user_id, after, until, limit
+    )
+    return [gears_serializers.to_read_schema(gear) for gear in rows]
+
+
+def list_gear_deletions(
+    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[core_sync.Deletion]:
+    """Retrieve a page of a user's deleted gears after a position, oldest deletion first.
+
+    Args:
+        user_id: Owner user ID.
+        after: Return deletions strictly after this ``(deleted_at, id)``; None from the first.
+        until: Return only deletions before this instant.
+        limit: The most deletions to return.
+        db: Database session.
+
+    Returns:
+        The deletions, in ``(deleted_at, id)`` order.
+    """
+    rows = core_sync.deleted_rows(db, gears_models.GearDeletion, user_id, after, until, limit)
+    return [core_sync.Deletion("gear", row.record_id, row.deleted_at, (row.deleted_at, row.id)) for row in rows]
+
+
+def prune_gear_deletions(before: datetime, db: Session) -> int:
+    """Delete the gear tombstones older than an instant.
+
+    Args:
+        before: Tombstones of deletions before this instant are removed.
+        db: Database session; the caller commits.
+
+    Returns:
+        How many were removed.
+    """
+    return core_sync.prune_tombstones(db, gears_models.GearDeletion, before)

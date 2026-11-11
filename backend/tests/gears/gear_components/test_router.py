@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
@@ -29,7 +30,9 @@ def client(mock_db):
 
 
 def _read(**overrides) -> schema.GearComponentRead:
-    return schema.GearComponentRead(**{"id": 1, "user_id": 1, **_BODY, **overrides})
+    return schema.GearComponentRead(
+        **{"id": 1, "user_id": 1, "updated_at": datetime(2025, 1, 1, tzinfo=UTC), **_BODY, **overrides}
+    )
 
 
 def test_types_lists_every_gear_type(client):

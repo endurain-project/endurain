@@ -30,6 +30,7 @@ import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
+import core.sync as core_sync
 import core.timezone as core_timezone
 import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.contracts as activity_contracts
@@ -1668,6 +1669,7 @@ def delete_activity(activity_id: int, user_id: int, db: Session, *, if_match: st
         raise core_exceptions.NotFoundError(f"Activity with id {activity_id} not found")
     core_etag.require_if_match(if_match, db_activity.version, "activity")
     db.delete(db_activity)
+    core_sync.record_deletions(db, activity_models.ActivityDeletion, user_id, [activity_id])
     db.flush()
 
 
@@ -1701,6 +1703,7 @@ def delete_all_strava_activities_for_user(user_id: int, db: Session, *, limit: i
     if not batch_ids:
         return []
     db.execute(sa_delete(activity_models.Activity).where(activity_models.Activity.id.in_(batch_ids)))
+    core_sync.record_deletions(db, activity_models.ActivityDeletion, user_id, batch_ids)
     return batch_ids
 
 
@@ -1733,4 +1736,91 @@ def delete_activities_batch_for_user(user_id: int, limit: int, db: Session) -> l
         .where(activity_models.Activity.id.in_(batch))
         .returning(activity_models.Activity.id)
     )
-    return [row_id for (row_id,) in db.execute(stmt).all()]
+    deleted_ids = [row_id for (row_id,) in db.execute(stmt).all()]
+    core_sync.record_deletions(db, activity_models.ActivityDeletion, user_id, deleted_ids)
+    return deleted_ids
+
+
+def touch_activity(activity_id: int, db: Session) -> None:
+    """Stamp an activity's ``updated_at`` without bumping its ``version``.
+
+    For a change to what the owner reads that is not an edit of the activity, such as its media.
+
+    Args:
+        activity_id: Target activity ID.
+        db: Database session; the caller commits.
+    """
+    db.execute(
+        sa_update(activity_models.Activity)
+        .where(activity_models.Activity.id == activity_id)
+        .values(updated_at=func.now())
+    )
+    db.flush()
+
+
+def get_changed_activities(
+    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[activity_schema.ActivityRead]:
+    """Read a user's activities changed after a position, oldest change first.
+
+    Args:
+        user_id: The owner.
+        after: Return activities strictly after this ``(updated_at, id)``; None from the first.
+        until: Return only activities changed before this instant.
+        limit: The most activities to return.
+        db: Database session.
+
+    Returns:
+        The activities, in ``(updated_at, id)`` order.
+    """
+    rows = core_sync.changed_rows(
+        db,
+        activity_models.Activity,
+        activity_models.Activity.user_id,
+        activity_models.Activity.id,
+        user_id,
+        after,
+        until,
+        limit,
+    )
+    return [activity_serializers.to_read_schema(row) for row in rows]
+
+
+def get_activity_deletions(
+    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[core_sync.Deletion]:
+    """Read a user's activity tombstones after a position, oldest deletion first.
+
+    Args:
+        user_id: The owner.
+        after: Return tombstones strictly after this ``(deleted_at, id)``; None from the first.
+        until: Return only deletions before this instant.
+        limit: The most tombstones to return.
+        db: Database session.
+
+    Returns:
+        The deletions, in ``(deleted_at, id)`` order.
+    """
+    rows = core_sync.deleted_rows(db, activity_models.ActivityDeletion, user_id, after, until, limit)
+    return [
+        core_sync.Deletion(
+            type=activity_constants.SYNC_TYPE,
+            record_id=row.record_id,
+            deleted_at=row.deleted_at,
+            position=(row.deleted_at, row.id),
+        )
+        for row in rows
+    ]
+
+
+def prune_activity_deletions(before: datetime, db: Session) -> int:
+    """Stage the removal of the activity tombstones older than an instant.
+
+    Args:
+        before: Tombstones of deletions before this instant are removed.
+        db: Database session; the caller commits.
+
+    Returns:
+        How many were removed.
+    """
+    return core_sync.prune_tombstones(db, activity_models.ActivityDeletion, before)

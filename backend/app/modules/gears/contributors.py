@@ -33,6 +33,10 @@ ActivitiesGearClearer = Callable[[int, int, Session], int]
 #: ``(gear_ids, user_id, db)`` -> stages unassigning the gears from the user's default gear settings.
 DefaultGearClearer = Callable[[Collection[int], int, Session], None]
 
+#: ``(gear_ids, user_id, db)`` -> stages a deletion record for every component of the gears, which deleting the
+#: gears cascades away.
+ComponentDeletionsRecorder = Callable[[Collection[int], int, Session], None]
+
 
 @dataclass(frozen=True, kw_only=True)
 class GearReaders:
@@ -45,6 +49,7 @@ class GearReaders:
         count_components_outside_type: Counts a gear's components whose type is not valid for a gear type.
         clear_activities_gear: Stages unassigning a gear from the activities that carry it.
         clear_default_gear: Stages unassigning gears from the user's default gear settings.
+        record_component_deletions: Stages a deletion record for every component of gears about to be deleted.
     """
 
     usage: GearUsageReader
@@ -53,3 +58,4 @@ class GearReaders:
     count_components_outside_type: ComponentsOutsideTypeCounter
     clear_activities_gear: ActivitiesGearClearer
     clear_default_gear: DefaultGearClearer
+    record_component_deletions: ComponentDeletionsRecorder

@@ -100,17 +100,22 @@ class TestStoredRowsStayReadable:
     """A row stored before the bound existed is still read, so a list does not fail on it."""
 
     def test_a_far_future_date_is_read(self):
-        read = water_schema.HealthWaterRead(id=1, user_id=1, date=date(9999, 12, 31), amount_ml=1.0)
+        read = water_schema.HealthWaterRead(
+            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, date=date(9999, 12, 31), amount_ml=1.0
+        )
 
         assert read.date == date(9999, 12, 31)
 
     def test_a_far_future_time_is_read(self):
-        read = poop_schema.HealthPoopRead(id=1, user_id=1, date_time=datetime(9999, 1, 1, tzinfo=UTC))
+        read = poop_schema.HealthPoopRead(
+            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, date_time=datetime(9999, 1, 1, tzinfo=UTC)
+        )
 
         assert read.date_time.year == 9999
 
     def test_a_far_future_sleep_is_read(self):
         read = sleep_schema.HealthSleepRead(
+            updated_at="2024-01-01T00:00:00Z",
             id=1,
             user_id=1,
             date=date(9999, 1, 1),

@@ -265,8 +265,9 @@ class TestStoreActivityMedia:
         # Only the commit that ended the duplicate check's transaction; the row was never stored.
         db.commit.assert_called_once()
 
+    @patch(f"{_SVC}.activity_integration")
     @patch(f"{_SVC}.activity_media_crud")
-    def test_a_successful_store_commits(self, mock_media_crud):
+    def test_a_successful_store_commits(self, mock_media_crud, mock_activity_integration):
         from modules.activities.activity_media.contracts import ActivityMediaRecord
         from modules.activities.activity_media.service import store_activity_media_bytes
 
@@ -280,6 +281,7 @@ class TestStoreActivityMedia:
 
         # One commit ends the duplicate check before the blob is written, one stores the row.
         assert db.commit.call_count == 2
+        mock_activity_integration.touch_activity.assert_called_once_with(1, db)
 
 
 class TestStoredMediaMetadata:
@@ -368,9 +370,11 @@ class TestDeleteActivityMedia:
         mock_activities_service.owns_activity.return_value = True
 
         storage = MagicMock()
-        delete_activity_media(1, 5, 2, storage, MagicMock())
+        db = MagicMock()
+        delete_activity_media(1, 5, 2, storage, db)
 
         mock_media_crud.delete_activity_media.assert_called_once()
+        mock_activities_service.touch_activity.assert_called_once_with(1, db)
         storage.delete.assert_called_once_with("activity_media", "1_abc.jpg")
 
     @patch(f"{_SVC}.activity_media_crud")

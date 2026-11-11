@@ -18,6 +18,7 @@ class TestHealthSleepSchema:
         """
         # Arrange & Act
         health_sleep = health_sleep_schema.HealthSleepRead(
+            updated_at="2024-01-01T00:00:00Z",
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
@@ -59,6 +60,7 @@ class TestHealthSleepSchema:
         """
         # Arrange & Act
         health_sleep = health_sleep_schema.HealthSleepRead(
+            updated_at="2024-01-01T00:00:00Z",
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
@@ -94,6 +96,7 @@ class TestHealthSleepSchema:
 
             id = 1
             user_id = 1
+            updated_at = "2024-01-01T00:00:00Z"
             date = datetime_date(2024, 1, 15)
             sleep_start_time_gmt = datetime(2024, 1, 14, 22, 0, 0)
             sleep_end_time_gmt = datetime(2024, 1, 15, 6, 0, 0)
@@ -276,7 +279,9 @@ class TestSourceEnum:
         Test Source enum can be used in HealthSleepRead schema.
         """
         # Arrange & Act
-        health_sleep = health_sleep_schema.HealthSleepRead(id=1, user_id=1, source=health_sleep_schema.Source.GARMIN)
+        health_sleep = health_sleep_schema.HealthSleepRead(
+            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, source=health_sleep_schema.Source.GARMIN
+        )
 
         # Assert
         assert health_sleep.source == "garmin"
@@ -358,6 +363,7 @@ class TestHealthSleepListItem:
         class Row:
             id = 1
             user_id = 1
+            updated_at = "2024-01-01T00:00:00Z"
 
             def __init__(self, sleep_stages):
                 self.sleep_stages = sleep_stages
@@ -372,14 +378,18 @@ class TestHealthSleepListItem:
         assert health_sleep_schema.HealthSleepListItem.model_validate(Row([])).has_sleep_stages is False
 
     def test_it_carries_no_stages_and_forbids_them_as_a_field(self):
-        item = health_sleep_schema.HealthSleepListItem(id=1, user_id=1, has_sleep_stages=True)
+        item = health_sleep_schema.HealthSleepListItem(
+            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, has_sleep_stages=True
+        )
 
         assert "sleep_stages" not in item.model_dump()
         assert "sleep_stages" not in health_sleep_schema.HealthSleepListItem.model_json_schema()["properties"]
 
     def test_it_forbids_extra_fields(self):
         with pytest.raises(ValidationError):
-            health_sleep_schema.HealthSleepListItem(id=1, user_id=1, has_sleep_stages=False, extra_field=1)
+            health_sleep_schema.HealthSleepListItem(
+                updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, has_sleep_stages=False, extra_field=1
+            )
 
     def test_it_has_every_read_field_but_the_stages(self):
         read = set(health_sleep_schema.HealthSleepRead.model_fields)

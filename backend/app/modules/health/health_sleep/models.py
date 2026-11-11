@@ -5,13 +5,14 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Numeric, String, UniqueConstraint
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
+import core.sync as core_sync
 from core.database import Base
 
 
-class HealthSleep(Base):
+class HealthSleep(core_sync.UpdatedAtMixin, Base):
     """User sleep tracking data with metrics and quality scores.
 
     Attributes:
@@ -59,7 +60,10 @@ class HealthSleep(Base):
     """
 
     __tablename__ = "health_sleep"
-    __table_args__ = (UniqueConstraint("user_id", "date", name="uq_health_sleep_user_date"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", "date", name="uq_health_sleep_user_date"),
+        Index("ix_health_sleep_user_updated_at_id", "user_id", "updated_at", "id"),
+    )
 
     id: Mapped[int] = mapped_column(
         primary_key=True,

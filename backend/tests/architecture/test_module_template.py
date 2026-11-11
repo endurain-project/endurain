@@ -71,6 +71,10 @@ _NO_CROSS_MODULE_SURFACE: dict[str, str] = {
         "Read-only composition above the child packages: it assembles an activity and their "
         "surfaces into one response. Nothing calls it."
     ),
+    "sync": (
+        "Read-only and above every module that owns synced records: it merges their changes and tombstones into "
+        "the sync route. Nothing calls it."
+    ),
     "jobs": (
         "Read-only and above every feature that runs a job: it resolves a job id to the feature that owns it "
         "and serves the job routes. Nothing calls it."
@@ -144,11 +148,12 @@ def test_model_registries_collect_every_converted_model() -> None:
         if package.parent.name == "gears" and (package / "models.py").is_file()
     }
     assert set(gears_model_registry.MODEL_MODULES) == expected_gears
+    # The health namespace owns one table of its own beside its packages': the tombstones they share.
     expected_health = {
         f"modules.health.{package.name}.models"
         for package in _TEMPLATE_PACKAGES
         if package.parent.name == "health" and (package / "models.py").is_file()
-    }
+    } | {"modules.health.models"}
     assert set(health_model_registry.MODEL_MODULES) == expected_health
     assert set(notifications_model_registry.MODEL_MODULES) == {"modules.notifications.models"}
     assert set(server_settings_model_registry.MODEL_MODULES) == {"modules.server_settings.models"}

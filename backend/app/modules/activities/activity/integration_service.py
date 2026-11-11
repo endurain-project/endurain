@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 import core.job_status as core_job_status
 import core.pagination as core_pagination
+import core.sync as core_sync
 import modules.activities.activity.bulk_edit_job_service as activity_bulk_edit_job_service
 import modules.activities.activity.bulk_edit_state_store as bulk_edit_state_store
 import modules.activities.activity.child_access_service as activity_child_access_service
@@ -618,3 +619,51 @@ def read_bulk_edit_job(
         return None
     current, edit_state = stored
     return activity_schema.ActivitiesBulkEditStatus.model_validate({**current.envelope(), "status": edit_state.status})
+
+
+def touch_activity(activity_id: int, db: Session) -> None:
+    """Stamp an activity's ``updated_at`` after a change to what its owner reads, such as its media.
+
+    Leaves ``version`` alone: the change is not an edit of the activity.
+
+    Args:
+        activity_id: The activity that changed.
+        db: Database session; the caller commits.
+    """
+    activity_crud.touch_activity(activity_id, db)
+
+
+def list_changed_activities(
+    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[activity_schema.ActivityRead]:
+    """List the user's activities changed after a position, as the owner reads them.
+
+    Args:
+        user_id: The owner.
+        after: Return activities strictly after this ``(updated_at, id)``; None from the first.
+        until: Return only activities changed before this instant.
+        limit: The most activities to return.
+        db: Database session.
+
+    Returns:
+        The activities in ``(updated_at, id)`` order, each with its thumbnail URL and media.
+    """
+    return activity_service.list_changed_activities(user_id, after, until, limit, db)
+
+
+def list_activity_deletions(
+    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[core_sync.Deletion]:
+    """List the user's deleted activities after a position.
+
+    Args:
+        user_id: The owner.
+        after: Return deletions strictly after this ``(deleted_at, id)``; None from the first.
+        until: Return only deletions before this instant.
+        limit: The most deletions to return.
+        db: Database session.
+
+    Returns:
+        The deletions in ``(deleted_at, id)`` order.
+    """
+    return activity_crud.get_activity_deletions(user_id, after, until, limit, db)

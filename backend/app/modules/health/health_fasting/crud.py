@@ -7,6 +7,7 @@ from sqlalchemy import Date, and_, cast, desc, func, or_, select
 from sqlalchemy.orm import Session
 
 import core.etag as core_etag
+import core.sync as core_sync
 import modules.health.computation as health_computation
 import modules.health.health_fasting.models as health_fasting_models
 import modules.health.health_fasting.schema as health_fasting_schema
@@ -17,6 +18,7 @@ SPEC = health_record_crud.RecordSpec(
     read_schema=health_fasting_schema.HealthFastingRead,
     not_found="Health fasting not found",
     etag_label="fasting session record",
+    sync_type="health_fasting",
 )
 _ACTIVE_FAST_MESSAGE = "User already has an active fasting session"
 
@@ -378,3 +380,24 @@ def fasting_overlaps(
     if exclude_id is not None:
         conditions.append(model.id != exclude_id)
     return bool(db.execute(select(select(model.id).where(*conditions).exists())).scalar())
+
+
+def list_changed(
+    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[health_fasting_schema.HealthFastingRead]:
+    """Retrieve a user's records changed after a position, oldest change first.
+
+    Args:
+        user_id: The records' owner.
+        after: Return records strictly after this ``(updated_at, id)``; ``None`` from the first.
+        until: Return only records changed before this instant.
+        limit: The most records to return.
+        db: Database session.
+
+    Returns:
+        The records, in ``(updated_at, id)`` order.
+    """
+    model = health_fasting_models.HealthFasting
+    return health_record_crud.list_changed(
+        model, model.user_id, model.id, SPEC.read_schema, user_id, after, until, limit, db
+    )

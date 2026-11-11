@@ -15,6 +15,7 @@ class TestHealthTargetsSchema:
         """
         # Arrange & Act
         health_targets = health_targets_schema.HealthTargetsRead(
+            updated_at="2024-01-01T00:00:00Z",
             id=1,
             user_id=1,
             weight_kg=75.5,
@@ -47,6 +48,7 @@ class TestHealthTargetsSchema:
         """
         # Arrange & Act
         health_targets = health_targets_schema.HealthTargetsRead(
+            updated_at="2024-01-01T00:00:00Z",
             id=1,
             user_id=1,
             weight_kg=None,
@@ -124,6 +126,7 @@ class TestHealthTargetsSchema:
 
             id = 1
             user_id = 1
+            updated_at = "2024-01-01T00:00:00Z"
             weight_kg = 75.5
             steps = 10000
             sleep_seconds = 28800
@@ -189,6 +192,7 @@ class TestHealthTargetsSchema:
         """
         # Arrange & Act
         health_targets = health_targets_schema.HealthTargetsRead(
+            updated_at="2024-01-01T00:00:00Z",
             id=1,
             user_id=1,
             steps=10000,

@@ -472,7 +472,8 @@ class _Normaliser:
     gear or an activity is identified by its position in the archive's own list, and each key that
     names one (``activity_id``, ``gear_id``, ``*_gear_id``, the id inside a media key or a file
     name) is rewritten to that position. A link that points at the wrong row, or at none, shows up
-    as a difference. The ids of every other row, the owner and the version counter are dropped.
+    as a difference. The ids of every other row, the owner, the version counter and the ``updated_at`` stamp, which
+    the import renews, are dropped.
     """
 
     #: ``activity_files/{activity_id}.gpx`` and ``activity_media/{activity_id}_{suffix}``.
@@ -503,7 +504,7 @@ class _Normaliser:
             if key == "id":
                 if keep_id is not None:
                     out[key] = keep_id[value]
-            elif key in ("user_id", "version"):
+            elif key in ("user_id", "version", "updated_at"):
                 continue
             elif key == "activity_id":
                 out[key] = self.activities[value]

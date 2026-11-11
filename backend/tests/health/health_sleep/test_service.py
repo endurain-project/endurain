@@ -103,6 +103,7 @@ class TestUpsertHealthSleep:
 def _stored() -> health_sleep_schema.HealthSleepRead:
     """A stored record whose scores came from a full set of inputs."""
     return health_sleep_schema.HealthSleepRead(
+        updated_at="2024-01-01T00:00:00Z",
         id=7,
         user_id=1,
         date=datetime_date(2024, 1, 15),
@@ -221,8 +222,12 @@ class TestListItems:
     @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_list_items_by_user_id")
     def test_the_page_holds_items_that_flag_the_stages_and_do_not_carry_them(self, mock_list, _number, mock_db):
         mock_list.return_value = [
-            health_sleep_schema.HealthSleepListItem(id=1, user_id=1, has_sleep_stages=True),
-            health_sleep_schema.HealthSleepListItem(id=2, user_id=1, has_sleep_stages=False),
+            health_sleep_schema.HealthSleepListItem(
+                updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, has_sleep_stages=True
+            ),
+            health_sleep_schema.HealthSleepListItem(
+                updated_at="2024-01-01T00:00:00Z", id=2, user_id=1, has_sleep_stages=False
+            ),
         ]
 
         page = health_sleep_service.list_health_sleep(1, mock_db, date_range=_NO_RANGE)
@@ -231,7 +236,9 @@ class TestListItems:
         assert all("sleep_stages" not in item.model_dump() for item in page.items)
 
     def test_the_item_read_still_carries_the_stages(self):
-        record = health_sleep_schema.HealthSleepRead(id=1, user_id=1, sleep_stages=[{"stage_type": "deep"}])
+        record = health_sleep_schema.HealthSleepRead(
+            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, sleep_stages=[{"stage_type": "deep"}]
+        )
 
         assert len(record.model_dump()["sleep_stages"]) == 1
 
