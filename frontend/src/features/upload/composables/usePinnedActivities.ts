@@ -2,7 +2,7 @@ import { shallowReactive } from 'vue'
 import type { InfiniteData } from '@tanstack/vue-query'
 
 import { fetchActivity } from '@/features/activities/services/activities'
-import type { Activity, ActivityFeedSlice } from '@/features/activities/types'
+import type { ActivityFeedSlice, ActivitySummary } from '@/features/activities/types'
 
 /**
  * Activities uploaded in this session, kept at the top of the viewer's home feed.
@@ -13,7 +13,7 @@ import type { Activity, ActivityFeedSlice } from '@/features/activities/types'
  * date ordering. Nothing persists, so a reload restores the server ordering.
  * Insertion order is upload order, oldest first.
  */
-const pinned = shallowReactive(new Map<number, Activity>())
+const pinned = shallowReactive(new Map<number, ActivitySummary>())
 
 /**
  * Pins freshly uploaded activities to the top of the home feed.
@@ -21,7 +21,7 @@ const pinned = shallowReactive(new Map<number, Activity>())
  * @param activities - The newly created activities.
  * @returns Nothing.
  */
-export function pinActivities(activities: Activity[]): void {
+export function pinActivities(activities: ActivitySummary[]): void {
   for (const activity of activities) {
     pinned.set(activity.id, activity)
   }
@@ -43,7 +43,7 @@ export function unpinActivity(activityId: number): void {
  * @param activities - The refreshed activities; those not pinned are ignored.
  * @returns Nothing.
  */
-export function updatePinnedActivities(activities: Activity[]): void {
+export function updatePinnedActivities(activities: ActivitySummary[]): void {
   for (const activity of activities) {
     if (pinned.has(activity.id)) {
       pinned.set(activity.id, activity)

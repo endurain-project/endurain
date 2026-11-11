@@ -30,6 +30,7 @@ import { unpinActivity } from '@/features/upload/composables/usePinnedActivities
 import {
   deleteActivity,
   editActivity,
+  fetchActivity,
   fetchActivityDetail,
   fetchActivityExerciseTitles,
   fetchActivityLaps,
@@ -99,6 +100,25 @@ export function useActivityQuery(id: MaybeRefOrGetter<number | null>) {
 }
 
 /**
+ * Builds the reader of one full activity (`GET /activities/{id}`, with the private notes and the
+ * current version) that an edit started from a list row needs. Every call reads the server, so the
+ * version the edit sends as `If-Match` is the current one.
+ *
+ * @returns A function resolving to the full activity, or `null` when it is missing or not visible.
+ * @throws {HttpError} From the returned function, when the request fails.
+ */
+export function useFullActivityReader() {
+  const client = useQueryClient()
+
+  return (id: number): Promise<Activity | null> =>
+    client.fetchQuery({
+      queryKey: queryKeys.activities.full(id),
+      queryFn: () => fetchActivity(id),
+      staleTime: 0,
+    })
+}
+
+/**
  * Reads the activity owner's public-facing identity (name + avatar) from the cache the activity
  * detail and the feeds seed; it makes no request of its own. The owner viewing their own activity
  * is resolved by the callers from the cached current user.
@@ -107,7 +127,9 @@ export function useActivityQuery(id: MaybeRefOrGetter<number | null>) {
  * @returns The TanStack query result; data is `null` when the owner is hidden and `undefined`
  *   until a response that carries it has been read.
  */
-export function useActivityOwnerQuery(activity: MaybeRefOrGetter<Activity | null | undefined>) {
+export function useActivityOwnerQuery(
+  activity: MaybeRefOrGetter<Pick<Activity, 'userId'> | null | undefined>,
+) {
   const ownerId = computed(() => toValue(activity)?.userId ?? null)
 
   return useQuery<ActivityOwner | null>({

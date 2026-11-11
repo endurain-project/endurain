@@ -184,6 +184,8 @@
   },
   "edit": {
     "title": "Muuda tegevust",
+    "loading": "Tegevuse laadimine",
+    "loadError": "Tegevust ei õnnestunud laadida",
     "save": "Salvesta muudatused",
     "cancel": "Tühista",
     "close": "Sulge",

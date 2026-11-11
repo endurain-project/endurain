@@ -17,6 +17,7 @@ import {
   fetchUserActivityTypes,
   fetchUserWeekActivities,
   mapActivity,
+  mapActivitySummary,
   mapActivityLap,
   mapActivityStream,
   searchActivitiesByName,
@@ -88,6 +89,26 @@ describe('mapActivity', () => {
   it('defaults a missing visibility', () => {
     const activity = mapActivity({ ...activityDto, visibility: null })
     expect(activity.visibility).toBe('public')
+  })
+})
+
+describe('mapActivitySummary', () => {
+  it('maps the list fields and has no private notes', () => {
+    const dto: ActivityDto = { ...activityDto, private_notes: 'secret' }
+    const summary = mapActivitySummary(dto)
+
+    expect(summary).toMatchObject({ id: 5, userId: 7, name: 'Morning run', version: 3 })
+    expect(summary.privacy.hideHr).toBe(true)
+    expect(summary).not.toHaveProperty('privateNotes')
+  })
+
+  it('is the base the full mapper builds on', () => {
+    const dto: ActivityDto = { ...activityDto, private_notes: 'secret' }
+    const { privateNotes, ...rest } = mapActivity(dto)
+
+    expect(privateNotes).toBe('secret')
+    expect(rest).toEqual(mapActivitySummary(dto))
+    expect(mapActivity(activityDto).privateNotes).toBeNull()
   })
 })
 

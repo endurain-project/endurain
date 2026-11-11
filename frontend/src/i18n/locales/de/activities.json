@@ -184,6 +184,8 @@
   },
   "edit": {
     "title": "Aktivität bearbeiten",
+    "loading": "Aktivität wird geladen",
+    "loadError": "Aktivität konnte nicht geladen werden",
     "save": "Änderungen speichern",
     "cancel": "Abbrechen",
     "close": "Schließen",

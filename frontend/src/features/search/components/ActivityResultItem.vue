@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
-import type { Activity } from '@/features/activities/types'
+import type { ActivitySummary } from '@/features/activities/types'
 
 import { ActivityTypeBadge } from '@/components/ui/activity-type-badge'
 import { presentActivityType } from '@/features/activities/utils/activityType'
@@ -13,7 +13,7 @@ import { formatZonedDateTime } from '@/utils/datetime'
  * One activity row in the search results: type icon, name, start date, and a
  * coloured type badge, linking to the activity detail view.
  */
-const props = defineProps<{ activity: Activity }>()
+const props = defineProps<{ activity: ActivitySummary }>()
 
 const { t, locale } = useI18n()
 

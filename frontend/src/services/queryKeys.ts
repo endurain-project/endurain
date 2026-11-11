@@ -114,6 +114,11 @@ export const queryKeys = {
      * @returns A sleep-history list key scoped to the given filters.
      */
     sleep: (filters: Record<string, unknown> = {}) => ['health', 'sleep', filters] as const,
+    /**
+     * @param id - The sleep record id.
+     * @returns The key of one sleep record read with its stage timeline.
+     */
+    sleepItem: (id: number) => ['health', 'sleep', 'item', id] as const,
   },
 
   /** Reference domain factory — copy this shape for activities, gears, etc. */
@@ -171,6 +176,11 @@ export const queryKeys = {
      * @returns A detail query key for a single activity.
      */
     detail: (id: number) => ['activities', 'detail', id] as const,
+    /**
+     * @param id - Activity identifier.
+     * @returns A key for the full activity (with private notes) read before an edit from a list row.
+     */
+    full: (id: number) => ['activities', 'detail', id, 'full'] as const,
     /**
      * @param id - Activity identifier.
      * @returns A query key for an activity's metric streams.

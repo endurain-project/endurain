@@ -34,6 +34,8 @@ export interface paths {
         /**
          * List Own Activities
          * @description List the authenticated user's activities, with the matching total.
+         *
+         *     Items are summaries: private notes and import metadata are on `GET /activities/{activity_id}`.
          */
         get: operations["list_own_activities"];
         put?: never;
@@ -152,6 +154,7 @@ export interface paths {
          *     With ``scope=mine`` the slice holds the caller's own activities of every visibility, newest first.
          *     The slice also carries the public profile of each owner on it in ``users`` (the projection
          *     ``GET /users/{user_id}`` returns), so a token with ``activities:read`` alone receives it too.
+         *     Items are summaries: private notes and import metadata are on ``GET /activities/{activity_id}``.
          */
         get: operations["list_feed"];
         put?: never;
@@ -1255,7 +1258,8 @@ export interface paths {
          * @description Retrieve health sleep records for the authenticated user.
          *
          *     One page of records, newest first, optionally limited to an interval and to nights with or without a
-         *     resting heart rate; the total counts the same records. Access is restricted to users with the
+         *     resting heart rate; the total counts the same records. A record carries ``has_sleep_stages``, not its
+         *     stages, which are on `GET /health/sleep/{health_sleep_id}`. Access is restricted to users with the
          *     'health:read' scope.
          */
         get: operations["read_health_sleep_all_pagination"];
@@ -3819,6 +3823,7 @@ export interface paths {
          * @description List another user's visible activities, with the matching total.
          *
          *     Answered 404 when that user does not exist, is inactive or awaits approval.
+         *     Items are summaries: private notes and import metadata are on `GET /activities/{activity_id}`.
          */
         get: operations["list_user_activities"];
         put?: never;
@@ -4559,7 +4564,7 @@ export interface components {
          */
         ActivityFeedPage: {
             /** Items */
-            items: components["schemas"]["ActivityRead"][];
+            items: components["schemas"]["ActivitySummaryRead"][];
             /** Next Cursor */
             next_cursor?: string | null;
             /** Num Records */
@@ -4926,19 +4931,7 @@ export interface components {
          * ActivityRead
          * @description Schema representing a stored fitness activity — what the API returns.
          *
-         *     Extends :class:`ActivityBase` with the fields the **server** owns: they are
-         *     read out of a stored row and are never accepted from an ingestion producer,
-         *     which is exactly why they live here rather than on the shared base.
-         *
-         *     Attributes:
-         *         id: Unique activity identifier, assigned on insert.
-         *         map_thumbnail_path: Storage key of the generated map thumbnail, written
-         *             by the thumbnail subsystem reacting to ``activity.created``. Server-side
-         *             only: it is excluded from serialization, so a client never receives it.
-         *         map_thumbnail_url: The servable, token-gated URL of the thumbnail, set by
-         *             the service layer for a viewer allowed to see the map.
-         *         media: The activity's photos with signed URLs, set by the service layer on list
-         *             responses for the viewer's own activities and empty otherwise.
+         *     :class:`ActivityBase` plus the server-owned fields.
          */
         ActivityRead: {
             activity_type: components["schemas"]["ActivityType"];
@@ -5275,6 +5268,185 @@ export interface components {
          */
         ActivityStreamZones: {
             hr: components["schemas"]["HrZoneBreakdown"];
+        };
+        /**
+         * ActivitySummaryRead
+         * @description A stored activity as the list responses return it: without ``private_notes`` and ``import_info``.
+         *
+         *     Both are on ``GET /activities/{activity_id}`` (:class:`ActivityRead`).
+         */
+        ActivitySummaryRead: {
+            activity_type: components["schemas"]["ActivityType"];
+            /**
+             * Average Cad
+             * @description Average cadence in revolutions per minute (steps per minute for running)
+             */
+            average_cad?: number | null;
+            /**
+             * Average Hr
+             * @description Average heart rate in beats per minute
+             */
+            average_hr?: number | null;
+            /**
+             * Average Power
+             * @description Average power output in watts
+             */
+            average_power?: number | null;
+            /**
+             * Average Speed
+             * @description Average speed in meters per second
+             */
+            average_speed?: number | null;
+            /**
+             * Calories
+             * @description Estimated energy burned in kilocalories
+             */
+            calories?: number | null;
+            /** City */
+            city?: string | null;
+            /** Country */
+            country?: string | null;
+            /** Created At */
+            readonly created_at?: string | null;
+            /** Description */
+            description?: string | null;
+            /**
+             * Distance
+             * @description Total distance in meters
+             */
+            distance: number;
+            /**
+             * Elevation Gain
+             * @description Total elevation gain in meters
+             */
+            elevation_gain?: number | null;
+            /**
+             * Elevation Loss
+             * @description Total elevation loss in meters
+             */
+            elevation_loss?: number | null;
+            /** End Time */
+            end_time?: string | null;
+            /** Garminconnect Activity Id */
+            garminconnect_activity_id?: number | null;
+            /** Garminconnect Gear Id */
+            garminconnect_gear_id?: string | null;
+            /** Gear Id */
+            gear_id?: number | null;
+            /** Hide Cadence */
+            hide_cadence?: boolean | null;
+            /** Hide Elevation */
+            hide_elevation?: boolean | null;
+            /** Hide Gear */
+            hide_gear?: boolean | null;
+            /** Hide Hr */
+            hide_hr?: boolean | null;
+            /** Hide Laps */
+            hide_laps?: boolean | null;
+            /** Hide Location */
+            hide_location?: boolean | null;
+            /** Hide Map */
+            hide_map?: boolean | null;
+            /** Hide Pace */
+            hide_pace?: boolean | null;
+            /** Hide Power */
+            hide_power?: boolean | null;
+            /** Hide Speed */
+            hide_speed?: boolean | null;
+            /** Hide Start Time */
+            hide_start_time?: boolean | null;
+            /** Hide Workout Sets Steps */
+            hide_workout_sets_steps?: boolean | null;
+            /** Id */
+            readonly id: number;
+            /**
+             * Is Hidden
+             * @default false
+             */
+            is_hidden: boolean;
+            /** Map Thumbnail Url */
+            map_thumbnail_url?: string | null;
+            /**
+             * Max Cad
+             * @description Maximum cadence in revolutions per minute (steps per minute for running)
+             */
+            max_cad?: number | null;
+            /**
+             * Max Hr
+             * @description Maximum heart rate in beats per minute
+             */
+            max_hr?: number | null;
+            /**
+             * Max Power
+             * @description Maximum power output in watts
+             */
+            max_power?: number | null;
+            /**
+             * Max Speed
+             * @description Maximum speed in meters per second
+             */
+            max_speed?: number | null;
+            /**
+             * Media
+             * @description The activity's photos, set on list responses for the viewer's own activities
+             */
+            media?: components["schemas"]["ActivityMediaEmbedded"][];
+            /** Name */
+            name: string;
+            /**
+             * Normalized Power
+             * @description Normalized power in watts
+             */
+            normalized_power?: number | null;
+            /**
+             * Pace
+             * @description Average pace in seconds per meter
+             */
+            pace?: number | null;
+            /** Start Time */
+            start_time?: string | null;
+            /** Strava Activity Id */
+            strava_activity_id?: number | null;
+            /** Strava Gear Id */
+            strava_gear_id?: string | null;
+            /** Timezone */
+            timezone?: string | null;
+            /**
+             * Total Cycles
+             * @description Number of cycles recorded, such as pedal strokes or strides
+             */
+            total_cycles?: number | null;
+            /**
+             * Total Elapsed Time
+             * @description Total elapsed wall-clock time in seconds
+             */
+            total_elapsed_time?: number | null;
+            /**
+             * Total Timer Time
+             * @description Active timer time in seconds
+             */
+            total_timer_time?: number | null;
+            /** Town */
+            town?: string | null;
+            /** Tracker Manufacturer */
+            tracker_manufacturer?: string | null;
+            /** Tracker Model */
+            tracker_model?: string | null;
+            /** User Id */
+            user_id?: number | null;
+            /** Version */
+            readonly version?: number | null;
+            visibility?: components["schemas"]["ActivityVisibility"] | null;
+            /**
+             * Workout Feeling
+             * @description Subjective feeling score from 0 to 100
+             */
+            workout_feeling?: number | null;
+            /**
+             * Workout Rpe
+             * @description Rate of perceived exertion score from 10 to 100
+             */
+            workout_rpe?: number | null;
         };
         /**
          * ActivityType
@@ -7187,17 +7359,207 @@ export interface components {
             total_sleep_seconds?: number | null;
         };
         /**
-         * HealthSleepRead
-         * @description Read schema for health sleep records.
+         * HealthSleepListItem
+         * @description A sleep record as the list returns it: no stages, only whether the record has any.
          *
-         *     Extends the base health sleep schema with an identifier field for retrieving
-         *     or referencing existing sleep records in the database.
+         *     The stages are on ``GET /health/sleep/{health_sleep_id}``.
          *
          *     Attributes:
-         *         garminconnect_sleep_id (StrictStr | None): Garmin Connect sleep record ID.
-         *         source (Source | None): Source of the sleep data.
-         *         user_id (StrictInt): Foreign key reference to the user.
-         *         id (StrictInt): Unique identifier for the sleep record to update or retrieve.
+         *         has_sleep_stages (bool): Whether the record has at least one sleep stage. Read from a stored row's
+         *             ``sleep_stages``.
+         */
+        HealthSleepListItem: {
+            /**
+             * Avg Heart Rate
+             * @description Average heart rate during sleep in beats per minute
+             */
+            avg_heart_rate?: number | null;
+            /**
+             * Avg Respiration
+             * @description Average respiration rate in breaths per minute
+             */
+            avg_respiration?: number | null;
+            /**
+             * Avg Skin Temp Deviation
+             * @description Average skin temperature deviation from the baseline in degrees Celsius
+             */
+            avg_skin_temp_deviation?: number | null;
+            /**
+             * Avg Sleep Stress
+             * @description Average sleep stress, a score from 0 to 100
+             */
+            avg_sleep_stress?: number | null;
+            /**
+             * Avg Spo2 Percent
+             * @description Average SpO2 oxygen saturation as a percentage (70-100)
+             */
+            avg_spo2_percent?: number | null;
+            /**
+             * Avg Stress Level
+             * @description Average stress level, a score from 0 to 100
+             */
+            avg_stress_level?: number | null;
+            /**
+             * Awake Count
+             * @description Number of times awake during sleep
+             */
+            awake_count?: number | null;
+            /** @description Awake count score */
+            awake_count_score?: components["schemas"]["SleepScore"] | null;
+            /**
+             * Awake Sleep Seconds
+             * @description Duration of awake time in seconds
+             */
+            awake_sleep_seconds?: number | null;
+            /**
+             * Date
+             * @description Calendar date of the sleep session
+             */
+            date?: string | null;
+            /** @description Deep sleep percentage score */
+            deep_percentage_score?: components["schemas"]["SleepScore"] | null;
+            /**
+             * Deep Sleep Seconds
+             * @description Duration of deep sleep in seconds
+             */
+            deep_sleep_seconds?: number | null;
+            /**
+             * Garminconnect Sleep Id
+             * @description Garmin Connect sleep record ID
+             */
+            garminconnect_sleep_id?: string | null;
+            /**
+             * Has Sleep Stages
+             * @description Whether the record has at least one sleep stage; the stages are on the record itself
+             */
+            has_sleep_stages: boolean;
+            /**
+             * Highest Respiration
+             * @description Highest respiration rate in breaths per minute
+             */
+            highest_respiration?: number | null;
+            /**
+             * Highest Spo2 Percent
+             * @description Highest SpO2 reading during sleep as a percentage (70-100)
+             */
+            highest_spo2_percent?: number | null;
+            /** @description Heart rate variability status */
+            hrv_status?: components["schemas"]["HRVStatus"] | null;
+            /**
+             * Id
+             * @description Unique identifier for the sleep record to update
+             */
+            readonly id: number;
+            /** @description Light sleep percentage score */
+            light_percentage_score?: components["schemas"]["SleepScore"] | null;
+            /**
+             * Light Sleep Seconds
+             * @description Duration of light sleep in seconds
+             */
+            light_sleep_seconds?: number | null;
+            /**
+             * Lowest Respiration
+             * @description Lowest respiration rate in breaths per minute
+             */
+            lowest_respiration?: number | null;
+            /**
+             * Lowest Spo2 Percent
+             * @description Lowest SpO2 reading during sleep as a percentage (70-100)
+             */
+            lowest_spo2_percent?: number | null;
+            /**
+             * Max Heart Rate
+             * @description Maximum heart rate during sleep in beats per minute
+             */
+            max_heart_rate?: number | null;
+            /**
+             * Min Heart Rate
+             * @description Minimum heart rate during sleep in beats per minute
+             */
+            min_heart_rate?: number | null;
+            /**
+             * Nap Time Seconds
+             * @description Duration of naps in seconds
+             */
+            nap_time_seconds?: number | null;
+            /** @description REM percentage score */
+            rem_percentage_score?: components["schemas"]["SleepScore"] | null;
+            /**
+             * Rem Sleep Seconds
+             * @description Duration of REM sleep in seconds
+             */
+            rem_sleep_seconds?: number | null;
+            /**
+             * Resting Heart Rate
+             * @description Resting heart rate in beats per minute
+             */
+            resting_heart_rate?: number | null;
+            /**
+             * Restless Moments Count
+             * @description Number of restless moments during sleep
+             */
+            restless_moments_count?: number | null;
+            /**
+             * Sleep End Time Gmt
+             * @description End time of sleep in GMT
+             */
+            sleep_end_time_gmt?: string | null;
+            /**
+             * Sleep End Time Local
+             * @description Wall-clock time the sleep ended in the athlete's own zone, sent without a UTC offset. The server keeps the reading as given and does not convert it.
+             */
+            sleep_end_time_local?: string | null;
+            /** @description Sleep duration score */
+            sleep_score_duration?: components["schemas"]["SleepScore"] | null;
+            /**
+             * Sleep Score Overall
+             * @description Overall sleep score (0-100)
+             */
+            sleep_score_overall?: number | null;
+            /** @description Sleep quality score */
+            sleep_score_quality?: components["schemas"]["SleepScore"] | null;
+            /**
+             * Sleep Start Time Gmt
+             * @description Start time of sleep in GMT
+             */
+            sleep_start_time_gmt?: string | null;
+            /**
+             * Sleep Start Time Local
+             * @description Wall-clock time the sleep started in the athlete's own zone, sent without a UTC offset. The server keeps the reading as given and does not convert it.
+             */
+            sleep_start_time_local?: string | null;
+            /** @description Sleep stress score */
+            sleep_stress_score?: components["schemas"]["SleepScore"] | null;
+            /**
+             * @description Source of the sleep data
+             * @default manual
+             */
+            source: components["schemas"]["modules__health__health_sleep__schema__Source"];
+            /**
+             * Total Sleep Seconds
+             * @description Total duration of sleep in seconds
+             */
+            total_sleep_seconds?: number | null;
+            /**
+             * Unmeasurable Sleep Seconds
+             * @description Unmeasurable sleep duration in seconds
+             */
+            unmeasurable_sleep_seconds?: number | null;
+            /**
+             * User Id
+             * @description Foreign key reference to the user
+             */
+            user_id: number;
+            /**
+             * Version
+             * @description Optimistic-concurrency counter, also sent as the ETag
+             * @default 1
+             */
+            readonly version: number;
+        };
+        /**
+         * HealthSleepRead
+         * @description Read schema for a health sleep record, with its sleep stages.
          */
         HealthSleepRead: {
             /**
@@ -9804,19 +10166,6 @@ export interface components {
             /** Total */
             total: number;
         };
-        /** Page[ActivityRead] */
-        Page_ActivityRead_: {
-            /** Items */
-            items: components["schemas"]["ActivityRead"][];
-            /** Next */
-            next?: number | null;
-            /** Num Records */
-            num_records: number;
-            /** Page */
-            page: number;
-            /** Total */
-            total: number;
-        };
         /** Page[ActivitySetsRead] */
         Page_ActivitySetsRead_: {
             /** Items */
@@ -9834,6 +10183,19 @@ export interface components {
         Page_ActivityStreamResponse_: {
             /** Items */
             items: components["schemas"]["ActivityStreamResponse"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[ActivitySummaryRead] */
+        Page_ActivitySummaryRead_: {
+            /** Items */
+            items: components["schemas"]["ActivitySummaryRead"][];
             /** Next */
             next?: number | null;
             /** Num Records */
@@ -9921,10 +10283,10 @@ export interface components {
             /** Total */
             total: number;
         };
-        /** Page[HealthSleepRead] */
-        Page_HealthSleepRead_: {
+        /** Page[HealthSleepListItem] */
+        Page_HealthSleepListItem_: {
             /** Items */
-            items: components["schemas"]["HealthSleepRead"][];
+            items: components["schemas"]["HealthSleepListItem"][];
             /** Next */
             next?: number | null;
             /** Num Records */
@@ -13721,7 +14083,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_ActivityRead_"];
+                    "application/json": components["schemas"]["Page_ActivitySummaryRead_"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -20238,7 +20600,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_HealthSleepRead_"];
+                    "application/json": components["schemas"]["Page_HealthSleepListItem_"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -33778,7 +34140,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_ActivityRead_"];
+                    "application/json": components["schemas"]["Page_ActivitySummaryRead_"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */

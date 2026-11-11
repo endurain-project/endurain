@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { EllipsisVertical, ImagePlus, Pencil, Trash2 } from '@lucide/vue'
 
-import type { Activity } from '@/features/activities/types'
+import type { Activity, ActivitySummary } from '@/features/activities/types'
 
 import { IMAGE_ACCEPTED_TYPES } from '@/lib/imageTypes'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -24,8 +24,8 @@ import {
 import ActivityEditDialog from '@/features/activities/components/ActivityEditDialog.vue'
 
 const props = defineProps<{
-  /** The activity these owner-only actions apply to. */
-  activity: Activity
+  /** The activity (a list row or the full read) these owner-only actions apply to. */
+  activity: ActivitySummary | Activity
 }>()
 
 const { t } = useI18n()

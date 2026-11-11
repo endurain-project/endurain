@@ -184,6 +184,8 @@
   },
   "edit": {
     "title": "Edytuj aktywność",
+    "loading": "Wczytywanie aktywności",
+    "loadError": "Nie udało się wczytać aktywności",
     "save": "Zapisz zmiany",
     "cancel": "Anuluj",
     "close": "Zamknij",

@@ -262,6 +262,8 @@
     "scorePoor": "Loše",
     "detail": {
       "tabsLabel": "Odjeljci detalja sna",
+      "stagesLoading": "Učitavanje faza sna",
+      "stagesError": "Faze sna se nisu mogle učitati",
       "tabScore": "Ocjena sna",
       "tabDetails": "Detalji sna",
       "deep": "Duboki",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "Zabilježi san",
       "editTitle": "Uredi unos sna",
+      "loading": "Učitavanje unosa sna",
+      "loadError": "Unos sna se nije mogao učitati",
       "description": "Zabilježite trajanje svog sna i, po želji, raščlambu faza i metrike.",
       "date": "Datum",
       "dateRequired": "Odaberite datum.",

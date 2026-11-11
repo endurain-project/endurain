@@ -1,4 +1,4 @@
-import type { Activity, ActivityPrivacy, StreamMetric } from '../types'
+import type { ActivitySummary, ActivityPrivacy, StreamMetric } from '../types'
 import type { MetricVisibility } from './metrics'
 import { METRIC_PRIVACY_FIELD } from './streams'
 
@@ -10,7 +10,7 @@ import { METRIC_PRIVACY_FIELD } from './streams'
  * @param currentUserId - The viewer's user id, or `null` when unauthenticated.
  * @returns Whether the viewer is the owner.
  */
-export function isActivityOwner(activity: Activity, currentUserId: number | null): boolean {
+export function isActivityOwner(activity: ActivitySummary, currentUserId: number | null): boolean {
   return currentUserId !== null && activity.userId === currentUserId
 }
 
@@ -24,7 +24,7 @@ export function isActivityOwner(activity: Activity, currentUserId: number | null
  * @returns Whether the field is visible.
  */
 export function canViewField(
-  activity: Activity,
+  activity: ActivitySummary,
   field: keyof ActivityPrivacy,
   currentUserId: number | null,
 ): boolean {
@@ -39,7 +39,7 @@ export function canViewField(
  * @returns Which metrics the viewer may see.
  */
 export function buildMetricVisibility(
-  activity: Activity,
+  activity: ActivitySummary,
   currentUserId: number | null,
 ): MetricVisibility {
   return {
@@ -61,7 +61,7 @@ export function buildMetricVisibility(
  * @returns A predicate over {@link StreamMetric}.
  */
 export function streamMetricVisibility(
-  activity: Activity,
+  activity: ActivitySummary,
   currentUserId: number | null,
 ): (metric: StreamMetric) => boolean {
   return (metric) => {
@@ -77,6 +77,6 @@ export function streamMetricVisibility(
  * @param activity - The activity.
  * @returns Whether at least one hide flag is enabled.
  */
-export function hasHiddenFields(activity: Activity): boolean {
+export function hasHiddenFields(activity: ActivitySummary): boolean {
   return Object.values(activity.privacy).some(Boolean)
 }

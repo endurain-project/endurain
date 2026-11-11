@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { Activity } from '@/features/activities/types'
+import type { ActivitySummary } from '@/features/activities/types'
 import type { Units } from '@/features/activities/utils/format'
 import type { MetricVisibility } from '@/features/activities/utils/metrics'
 
@@ -11,7 +11,7 @@ import { useUnitFormat } from '@/composables/useUnitFormat'
 import { buildActivityMetrics } from '@/features/activities/utils/metrics'
 
 const props = defineProps<{
-  activity: Activity
+  activity: ActivitySummary
   units: Units
   visibility: MetricVisibility
 }>()

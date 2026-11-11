@@ -262,6 +262,8 @@
     "scorePoor": "Slabé",
     "detail": {
       "tabsLabel": "Sekcie detailov spánku",
+      "stagesLoading": "Načítavanie fáz spánku",
+      "stagesError": "Fázy spánku sa nepodarilo načítať",
       "tabScore": "Skóre spánku",
       "tabDetails": "Detaily spánku",
       "deep": "Hlboký",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "Zaznamenať spánok",
       "editTitle": "Upraviť záznam spánku",
+      "loading": "Načítavanie záznamu spánku",
+      "loadError": "Záznam spánku sa nepodarilo načítať",
       "description": "Zaznamenajte dĺžku svojho spánku a voliteľne rozpis fáz a metriky.",
       "date": "Dátum",
       "dateRequired": "Vyberte dátum.",

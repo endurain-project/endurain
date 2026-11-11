@@ -262,6 +262,8 @@
     "scorePoor": "Kehv",
     "detail": {
       "tabsLabel": "Une üksikasjade jaotised",
+      "stagesLoading": "Unefaaside laadimine",
+      "stagesError": "Unefaase ei õnnestunud laadida",
       "tabScore": "Une skoor",
       "tabDetails": "Une üksikasjad",
       "deep": "Sügav",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "Logi uni",
       "editTitle": "Muuda unekirjet",
+      "loading": "Unekirje laadimine",
+      "loadError": "Unekirjet ei õnnestunud laadida",
       "description": "Salvesta oma une kestus ja soovi korral faaside jaotus ja näitajad.",
       "date": "Kuupäev",
       "dateRequired": "Palun vali kuupäev.",

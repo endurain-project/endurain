@@ -184,6 +184,8 @@
   },
   "edit": {
     "title": "Redaguoti veiklą",
+    "loading": "Įkeliama veikla",
+    "loadError": "Nepavyko įkelti veiklos",
     "save": "Išsaugoti pakeitimus",
     "cancel": "Atšaukti",
     "close": "Uždaryti",

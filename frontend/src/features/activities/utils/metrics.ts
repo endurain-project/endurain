@@ -1,7 +1,7 @@
 import type { MetricPillVariants } from '@/components/ui/metric-pill'
 import type { UnitKey } from '@/i18n'
 
-import type { Activity, ActivityType } from '../types'
+import type { ActivitySummary, ActivityType } from '../types'
 import {
   activityTypeIsCycling,
   activityTypeIsDistanceBased,
@@ -59,7 +59,7 @@ function has(value: number | null | undefined): value is number {
  * @param activity - The activity domain model.
  * @returns The duration in seconds, or `null` when neither time is positive.
  */
-export function activityDuration(activity: Activity): number | null {
+export function activityDuration(activity: ActivitySummary): number | null {
   for (const seconds of [activity.totalTimerTime, activity.totalElapsedTime]) {
     if (has(seconds) && seconds > 0) {
       return seconds
@@ -75,7 +75,7 @@ export function activityDuration(activity: Activity): number | null {
  * @param activity - The activity domain model.
  * @returns The elapsed time in seconds, or `null` when absent or equal to the duration.
  */
-export function distinctElapsedTime(activity: Activity): number | null {
+export function distinctElapsedTime(activity: ActivitySummary): number | null {
   const elapsed = activity.totalElapsedTime
   const duration = activityDuration(activity)
   if (
@@ -101,7 +101,7 @@ export function distinctElapsedTime(activity: Activity): number | null {
  * @returns The ordered tiles to render (≤ 6 for distance activities, up to 5 otherwise).
  */
 export function buildActivityMetrics(
-  activity: Activity,
+  activity: ActivitySummary,
   units: Units,
   visibility: MetricVisibility,
 ): MetricTile[] {

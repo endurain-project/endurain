@@ -7,6 +7,7 @@ import type { Component } from 'vue'
 
 import { apiFetch } from '@/services/http'
 import i18n from '@/i18n'
+import { authedPinia } from './fixtures/authedPinia'
 import { todayIsoDate } from '@/utils/datetime'
 import HealthFastingFormDialog from '@/features/health/components/HealthFastingFormDialog.vue'
 import HealthPoopFormDialog from '@/features/health/components/HealthPoopFormDialog.vue'
@@ -28,7 +29,7 @@ async function openDialog(component: Component, props: Record<string, unknown> =
   const wrapper = mount(component, {
     props: { open: false, entry: null, ...props },
     global: {
-      plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]],
+      plugins: [i18n, authedPinia(), [VueQueryPlugin, { queryClient: new QueryClient() }]],
       stubs: {
         Dialog: passthrough,
         DialogContent: passthrough,

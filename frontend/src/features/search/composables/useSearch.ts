@@ -2,7 +2,7 @@ import { computed, type MaybeRefOrGetter, onBeforeUnmount, ref, toValue, watch }
 import { storeToRefs } from 'pinia'
 import { useQuery } from '@tanstack/vue-query'
 
-import type { Activity } from '@/features/activities/types'
+import type { ActivitySummary } from '@/features/activities/types'
 import type { GearType } from '@/features/gears/types'
 import type { SearchScope } from '@/features/search/types'
 
@@ -35,7 +35,7 @@ function useActivitySearchQuery(term: MaybeRefOrGetter<string>) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
   const trimmed = computed(() => toValue(term).trim())
 
-  return useQuery<Activity[]>({
+  return useQuery<ActivitySummary[]>({
     queryKey: computed(() => queryKeys.activities.search(trimmed.value)),
     queryFn: ({ signal }) => searchActivitiesByName(trimmed.value, signal),
     enabled: computed(() => isAuthenticated.value && trimmed.value.length > 0),

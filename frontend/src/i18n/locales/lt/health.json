@@ -262,6 +262,8 @@
     "scorePoor": "Prastas",
     "detail": {
       "tabsLabel": "Miego detalių skiltys",
+      "stagesLoading": "Įkeliamos miego fazės",
+      "stagesError": "Nepavyko įkelti miego fazių",
       "tabScore": "Miego įvertis",
       "tabDetails": "Miego detalės",
       "deep": "Gilus",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "Įrašyti miegą",
       "editTitle": "Redaguoti miego įrašą",
+      "loading": "Įkeliamas miego įrašas",
+      "loadError": "Nepavyko įkelti miego įrašo",
       "description": "Užfiksuokite savo miego trukmę ir, jei norite, fazių išskaidymą bei rodiklius.",
       "date": "Data",
       "dateRequired": "Pasirinkite datą.",

@@ -262,6 +262,8 @@
     "scorePoor": "Fraco",
     "detail": {
       "tabsLabel": "Secções de detalhes do sono",
+      "stagesLoading": "A carregar as fases do sono",
+      "stagesError": "Não foi possível carregar as fases do sono",
       "tabScore": "Pontuação do sono",
       "tabDetails": "Detalhes do sono",
       "deep": "Profundo",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "Registar sono",
       "editTitle": "Editar entrada de sono",
+      "loading": "A carregar a entrada de sono",
+      "loadError": "Não foi possível carregar a entrada de sono",
       "description": "Regista a duração do sono e, opcionalmente, a desagregação de fases e métricas.",
       "date": "Data",
       "dateRequired": "Escolhe uma data.",

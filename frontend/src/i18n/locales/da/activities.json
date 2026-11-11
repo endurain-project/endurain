@@ -184,6 +184,8 @@
   },
   "edit": {
     "title": "Redigér aktivitet",
+    "loading": "Indlæser aktiviteten",
+    "loadError": "Kunne ikke indlæse aktiviteten",
     "save": "Gem ændringer",
     "cancel": "Annullér",
     "close": "Luk",

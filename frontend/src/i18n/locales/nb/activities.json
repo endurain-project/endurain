@@ -184,6 +184,8 @@
   },
   "edit": {
     "title": "Rediger aktivitet",
+    "loading": "Laster aktiviteten",
+    "loadError": "Kunne ikke laste aktiviteten",
     "save": "Lagre endringer",
     "cancel": "Avbryt",
     "close": "Lukk",

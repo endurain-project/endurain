@@ -53,9 +53,12 @@ export async function fetchGearActivities(
     page_number: String(page),
     num_records: String(numRecords),
   })
-  const page_ = await apiFetch<Schemas['Page_ActivityRead_']>(`/activities?${params.toString()}`, {
-    signal,
-  })
+  const page_ = await apiFetch<Schemas['Page_ActivitySummaryRead_']>(
+    `/activities?${params.toString()}`,
+    {
+      signal,
+    },
+  )
   return {
     records: (page_.items ?? []).map((dto) => mapGearActivity(dto as GearActivityDto)),
     total: page_.total,

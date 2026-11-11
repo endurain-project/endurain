@@ -262,6 +262,8 @@
     "scorePoor": "Vājš",
     "detail": {
       "tabsLabel": "Miega detaļu sadaļas",
+      "stagesLoading": "Notiek miega stadiju ielāde",
+      "stagesError": "Neizdevās ielādēt miega stadijas",
       "tabScore": "Miega vērtējums",
       "tabDetails": "Miega detaļas",
       "deep": "Dziļais",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "Reģistrēt miegu",
       "editTitle": "Rediģēt miega ierakstu",
+      "loading": "Notiek miega ieraksta ielāde",
+      "loadError": "Neizdevās ielādēt miega ierakstu",
       "description": "Reģistrējiet sava miega ilgumu un pēc izvēles stadiju sadalījumu un rādītājus.",
       "date": "Datums",
       "dateRequired": "Lūdzu, izvēlieties datumu.",

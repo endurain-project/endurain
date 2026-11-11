@@ -184,6 +184,8 @@
   },
   "edit": {
     "title": "Modifica attività",
+    "loading": "Caricamento dell'attività",
+    "loadError": "Impossibile caricare l'attività",
     "save": "Salva modifiche",
     "cancel": "Annulla",
     "close": "Chiudi",

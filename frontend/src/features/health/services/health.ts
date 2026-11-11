@@ -23,6 +23,7 @@ import type {
   RestingHeartRatePage,
   SleepEntry,
   SleepEntryInput,
+  SleepListEntry,
   SleepStage,
   StepsEntry,
   StepsEntryInput,
@@ -45,6 +46,7 @@ type HealthStepsDto = Schemas['HealthStepsRead']
 type HealthWaterDto = Schemas['HealthWaterRead']
 type HealthPoopDto = Schemas['HealthPoopRead']
 type HealthSleepDto = Schemas['HealthSleepRead']
+type HealthSleepListDto = Schemas['HealthSleepListItem']
 type HealthChartSeriesDto = Schemas['HealthChartSeries']
 
 /** Maps a raw targets DTO to the clean {@link HealthTargets} model. */
@@ -493,8 +495,8 @@ export const deletePoopEntry = poopService.remove
 /** Updates only the user's daily bowel-movement target, preserving the others. */
 export const updatePoopTarget = createHealthTargetUpdater('poop_count')
 
-/** Maps a raw sleep DTO to the clean {@link RestingHeartRateEntry} model. */
-function mapRhrEntry(dto: HealthSleepDto): RestingHeartRateEntry {
+/** Maps a raw sleep list DTO to the clean {@link RestingHeartRateEntry} model. */
+function mapRhrEntry(dto: HealthSleepListDto): RestingHeartRateEntry {
   return {
     id: dto.id,
     date: dto.date ?? null,
@@ -687,8 +689,10 @@ function mapSleepStage(dto: NonNullable<HealthSleepDto['sleep_stages']>[number])
   }
 }
 
-/** Maps a raw sleep DTO to the clean {@link SleepEntry} model. */
-function mapSleepEntry(dto: HealthSleepDto): SleepEntry {
+/** Maps the sleep fields the list and the single-record read share. */
+function mapSleepFields(
+  dto: Omit<HealthSleepListDto, 'has_sleep_stages'>,
+): Omit<SleepListEntry, 'hasSleepStages'> {
   return {
     id: dto.id,
     userId: dto.user_id,
@@ -722,9 +726,18 @@ function mapSleepEntry(dto: HealthSleepDto): SleepEntry {
     highestRespiration: dto.highest_respiration ?? null,
     avgSleepStress: dto.avg_sleep_stress ?? null,
     awakeCount: dto.awake_count ?? null,
-    sleepStages: (dto.sleep_stages ?? []).map(mapSleepStage),
     source: dto.source ?? null,
   }
+}
+
+/** Maps a raw sleep list row to the clean {@link SleepListEntry} model, which has no stage rows. */
+function mapSleepListEntry(dto: HealthSleepListDto): SleepListEntry {
+  return { ...mapSleepFields(dto), hasSleepStages: dto.has_sleep_stages }
+}
+
+/** Maps a raw sleep DTO to the clean {@link SleepEntry} model. */
+function mapSleepEntry(dto: HealthSleepDto): SleepEntry {
+  return { ...mapSleepFields(dto), sleepStages: (dto.sleep_stages ?? []).map(mapSleepStage) }
 }
 
 /**
@@ -778,8 +791,34 @@ function toSleepWireFields(input: SleepEntryInput): Schemas['HealthSleepCreate']
 
 const sleepService = createHealthCrudService('sleep', mapSleepEntry, toSleepWireFields)
 
-/** Fetches one filtered page of the user's sleep history. */
-export const fetchSleepEntries = sleepService.fetch
+/**
+ * Fetches one filtered page of the user's sleep history. The rows carry no stage timeline.
+ *
+ * @param params - Page number, size, and the interval filter.
+ * @param signal - Optional abort signal for cancellation.
+ * @returns The page's sleep rows (mapped) plus the total count.
+ * @throws {HttpError} When the request fails.
+ */
+export function fetchSleepEntries(
+  params: HealthListParams,
+  signal?: AbortSignal,
+): Promise<HealthHistoryPage<SleepListEntry>> {
+  return fetchHealthHistoryPage('sleep', params, mapSleepListEntry, signal)
+}
+
+/**
+ * Fetches one sleep record with its stage timeline. The entry's version is the one an edit sends
+ * as `If-Match`.
+ *
+ * @param id - The sleep record id.
+ * @param signal - Optional abort signal for cancellation.
+ * @returns The full sleep entry.
+ * @throws {HttpError} When the request fails.
+ */
+export async function fetchSleepEntry(id: number, signal?: AbortSignal): Promise<SleepEntry> {
+  const dto = await apiFetch<HealthSleepDto>(`/health/sleep/${id}`, { signal })
+  return mapSleepEntry(dto)
+}
 /** Creates (or updates the existing same-date) sleep entry. */
 export const createSleepEntry = sleepService.create
 /** Updates an existing sleep entry (echoing id + user_id). */

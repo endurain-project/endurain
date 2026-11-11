@@ -262,6 +262,8 @@
     "scorePoor": "Dålig",
     "detail": {
       "tabsLabel": "Sömndetaljsektioner",
+      "stagesLoading": "Laddar sömnfaserna",
+      "stagesError": "Kunde inte ladda sömnfaserna",
       "tabScore": "Sömnpoäng",
       "tabDetails": "Sömndetaljer",
       "deep": "Djup",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "Logga sömn",
       "editTitle": "Redigera sömnpost",
+      "loading": "Laddar sömnposten",
+      "loadError": "Kunde inte ladda sömnposten",
       "description": "Registrera sömnlängd och eventuellt fasuppdelning och mätvärden.",
       "date": "Datum",
       "dateRequired": "Välj ett datum.",

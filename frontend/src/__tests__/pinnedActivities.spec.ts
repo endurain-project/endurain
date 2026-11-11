@@ -3,7 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { type InfiniteData, QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { Activity, ActivityFeedSlice } from '@/features/activities/types'
+import type { ActivityFeedSlice, ActivitySummary } from '@/features/activities/types'
 import { queryKeys } from '@/services/queryKeys'
 import { fetchActivity, fetchFollowersActivities } from '@/features/activities/services/activities'
 import { useUserActivitiesFeed } from '@/features/home/composables/useHome'
@@ -27,7 +27,7 @@ vi.mock('@/features/activities/services/activities', () => ({
 }))
 
 /** A last slice of the feed holding the given activities. */
-function slice(items: Activity[]): ActivityFeedSlice {
+function slice(items: ActivitySummary[]): ActivityFeedSlice {
   return { items, nextCursor: null, owners: new Map() }
 }
 
@@ -147,7 +147,7 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
     vi.mocked(fetchFollowersActivities).mockResolvedValue(slice([makeActivity({ id: 21 })]))
 
     const client = new QueryClient()
-    let top: () => Activity | undefined = () => undefined
+    let top: () => ActivitySummary | undefined = () => undefined
     mount(
       defineComponent({
         setup() {

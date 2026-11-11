@@ -262,6 +262,8 @@
     "scorePoor": "Slab",
     "detail": {
       "tabsLabel": "Secțiuni de detalii ale somnului",
+      "stagesLoading": "Se încarcă fazele somnului",
+      "stagesError": "Nu am putut încărca fazele somnului",
       "tabScore": "Scor de somn",
       "tabDetails": "Detalii ale somnului",
       "deep": "Profund",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "Înregistrează somnul",
       "editTitle": "Editează înregistrarea de somn",
+      "loading": "Se încarcă înregistrarea de somn",
+      "loadError": "Nu am putut încărca înregistrarea de somn",
       "description": "Înregistrează-ți durata somnului și, opțional, defalcarea pe faze și indicatorii.",
       "date": "Dată",
       "dateRequired": "Te rugăm să alegi o dată.",

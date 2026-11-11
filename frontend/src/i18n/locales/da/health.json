@@ -262,6 +262,8 @@
     "scorePoor": "Dårlig",
     "detail": {
       "tabsLabel": "Søvndetaljesektioner",
+      "stagesLoading": "Indlæser søvnstadierne",
+      "stagesError": "Kunne ikke indlæse søvnstadierne",
       "tabScore": "Søvnscore",
       "tabDetails": "Søvndetaljer",
       "deep": "Dyb",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "Registrér søvn",
       "editTitle": "Redigér søvnpost",
+      "loading": "Indlæser søvnposten",
+      "loadError": "Kunne ikke indlæse søvnposten",
       "description": "Registrér din søvnvarighed og eventuelt fordelingen på stadier og målinger.",
       "date": "Dato",
       "dateRequired": "Vælg venligst en dato.",

@@ -262,6 +262,8 @@
     "scorePoor": "Poor",
     "detail": {
       "tabsLabel": "Sleep detail sections",
+      "stagesLoading": "Loading the sleep stages",
+      "stagesError": "Couldn't load the sleep stages",
       "tabScore": "Sleep score",
       "tabDetails": "Sleep details",
       "deep": "Deep",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "Log sleep",
       "editTitle": "Edit sleep entry",
+      "loading": "Loading the sleep entry",
+      "loadError": "Couldn't load the sleep entry",
       "description": "Record your sleep duration and, optionally, the stage breakdown and metrics.",
       "date": "Date",
       "dateRequired": "Please choose a date.",

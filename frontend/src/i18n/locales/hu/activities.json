@@ -184,6 +184,8 @@
   },
   "edit": {
     "title": "Tevékenység szerkesztése",
+    "loading": "Tevékenység betöltése",
+    "loadError": "Nem sikerült betölteni a tevékenységet",
     "save": "Módosítások mentése",
     "cancel": "Mégse",
     "close": "Bezárás",

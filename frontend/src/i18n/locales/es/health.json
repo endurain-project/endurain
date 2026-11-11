@@ -262,6 +262,8 @@
     "scorePoor": "Deficiente",
     "detail": {
       "tabsLabel": "Secciones de detalle del sueño",
+      "stagesLoading": "Cargando las fases del sueño",
+      "stagesError": "No se pudieron cargar las fases del sueño",
       "tabScore": "Puntuación del sueño",
       "tabDetails": "Detalles del sueño",
       "deep": "Profundo",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "Registrar sueño",
       "editTitle": "Editar entrada de sueño",
+      "loading": "Cargando la entrada de sueño",
+      "loadError": "No se pudo cargar la entrada de sueño",
       "description": "Registra la duración de tu sueño y, opcionalmente, el desglose por fases y métricas.",
       "date": "Fecha",
       "dateRequired": "Elige una fecha.",

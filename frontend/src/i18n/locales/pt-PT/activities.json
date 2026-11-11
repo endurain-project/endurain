@@ -184,6 +184,8 @@
   },
   "edit": {
     "title": "Editar atividade",
+    "loading": "A carregar a atividade",
+    "loadError": "Não foi possível carregar a atividade",
     "save": "Guardar alterações",
     "cancel": "Cancelar",
     "close": "Fechar",

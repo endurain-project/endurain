@@ -262,6 +262,8 @@
     "scorePoor": "Deficient",
     "detail": {
       "tabsLabel": "Seccions de detall del son",
+      "stagesLoading": "Carregant les fases del son",
+      "stagesError": "No s'han pogut carregar les fases del son",
       "tabScore": "Puntuació del son",
       "tabDetails": "Detalls del son",
       "deep": "Profund",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "Registra el son",
       "editTitle": "Edita l'entrada de son",
+      "loading": "Carregant l'entrada de son",
+      "loadError": "No s'ha pogut carregar l'entrada de son",
       "description": "Registra la durada del teu son i, opcionalment, el desglossament de fases i les mètriques.",
       "date": "Data",
       "dateRequired": "Tria una data.",

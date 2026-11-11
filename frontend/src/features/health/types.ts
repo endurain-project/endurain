@@ -386,12 +386,12 @@ export interface SleepStage {
 }
 
 /**
- * A single night's sleep session. The backend captures a rich set of metrics
- * (stage breakdown, heart rate, SpO2, respiration, sub-scores, the stage
- * timeline) that Garmin populates and a manual entry can fill in part. All
- * durations are stored in seconds.
+ * A night's sleep session as the history list returns it. The backend captures a rich set of
+ * metrics (stage breakdown, heart rate, SpO2, respiration, sub-scores) that Garmin populates and a
+ * manual entry can fill in part. All durations are stored in seconds. The stage timeline is left
+ * out of the list; {@link SleepEntry} carries it.
  */
-export interface SleepEntry {
+export interface SleepListEntry {
   /** The record id (needed to edit/delete). */
   id: number
   /** The owning user's id (echoed back on edit). */
@@ -456,10 +456,16 @@ export interface SleepEntry {
   avgSleepStress: number | null
   /** Number of times awake during the night, or `null`. */
   awakeCount: number | null
-  /** Per-stage timeline driving the hypnogram. Empty when none recorded. */
-  sleepStages: SleepStage[]
+  /** Whether the night has a stage timeline; the stages come from the single-record read. */
+  hasSleepStages: boolean
   /** Integration that supplied the record (e.g. `garmin`), or `null` if manual. */
   source: string | null
+}
+
+/** A single night's sleep session as the single-record read returns it: the list row plus its stages. */
+export interface SleepEntry extends Omit<SleepListEntry, 'hasSleepStages'> {
+  /** Per-stage timeline driving the hypnogram. Empty when none recorded. */
+  sleepStages: SleepStage[]
 }
 
 /** Fields captured by the add/edit sleep form, decoupled from the wire payload. */
@@ -509,7 +515,7 @@ export interface SleepEntryInput {
 /** One page of the paginated sleep history. */
 export interface SleepPage {
   /** The sleep entries on this page (newest first). */
-  records: SleepEntry[]
+  records: SleepListEntry[]
   /** Total entries across all pages, for pagination. */
   total: number
 }

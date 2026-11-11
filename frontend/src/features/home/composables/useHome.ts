@@ -8,7 +8,7 @@ import {
   useQueryClient,
 } from '@tanstack/vue-query'
 
-import type { Activity, ActivityFeedSlice, ActivityStats } from '@/features/activities/types'
+import type { ActivitySummary, ActivityFeedSlice, ActivityStats } from '@/features/activities/types'
 import type { Schemas } from '@/types'
 import type { GoalProgress } from '@/features/goals/types'
 
@@ -47,7 +47,7 @@ function resolveUserId(userId: MaybeRefOrGetter<number | null>): number {
  * @param client - The query client holding the media queries.
  * @param activities - The mapped activities of one list response.
  */
-export function seedActivityMedia(client: QueryClient, activities: Activity[]): void {
+export function seedActivityMedia(client: QueryClient, activities: ActivitySummary[]): void {
   for (const activity of activities) {
     client.setQueryData(queryKeys.activities.media(activity.id), activity.media)
   }
@@ -135,7 +135,7 @@ export function useUserWeekActivitiesQuery(
   const weekValue = computed(() => toValue(week))
   const firstDay = computed(() => toValue(firstDayOfWeek))
 
-  return useQuery<Activity[]>({
+  return useQuery<ActivitySummary[]>({
     queryKey: computed(() =>
       queryKeys.activities.weekActivities(id.value, weekValue.value, firstDay.value),
     ),

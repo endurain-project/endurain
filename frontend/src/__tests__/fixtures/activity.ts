@@ -1,4 +1,4 @@
-import type { Activity, ActivityPrivacy } from '@/features/activities/types'
+import type { Activity, ActivityPrivacy, ActivitySummary } from '@/features/activities/types'
 
 /** All-false privacy flags (nothing hidden). */
 export const NO_PRIVACY: ActivityPrivacy = {
@@ -63,4 +63,16 @@ export function makeActivity(overrides: Partial<Activity> = {}): Activity {
     ...overrides,
     privacy: { ...NO_PRIVACY, ...overrides.privacy },
   }
+}
+
+/**
+ * Builds an activity summary fixture, the shape every list response returns: a full activity
+ * without the private notes.
+ *
+ * @param overrides - Fields to override on the default running activity.
+ * @returns A complete {@link ActivitySummary}.
+ */
+export function makeActivitySummary(overrides: Partial<ActivitySummary> = {}): ActivitySummary {
+  const { privateNotes: _privateNotes, ...summary } = makeActivity(overrides)
+  return summary
 }

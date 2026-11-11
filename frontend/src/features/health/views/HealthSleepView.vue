@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Moon, Plus, Target } from '@lucide/vue'
 
-import type { HealthInterval, SleepEntry } from '@/features/health/types'
+import type { HealthInterval, SleepListEntry } from '@/features/health/types'
 
 import HealthSleepChart from '@/features/health/components/HealthSleepChart.vue'
 import HealthSleepFormDialog from '@/features/health/components/HealthSleepFormDialog.vue'
@@ -81,14 +81,14 @@ watch(interval, resetPage)
 
 // Add/edit dialog state. `editingEntry` null means "add".
 const isFormOpen = ref(false)
-const editingEntry = ref<SleepEntry | null>(null)
+const editingEntry = ref<SleepListEntry | null>(null)
 
 function openAdd(): void {
   editingEntry.value = null
   isFormOpen.value = true
 }
 
-function openEdit(entry: SleepEntry): void {
+function openEdit(entry: SleepListEntry): void {
   editingEntry.value = entry
   isFormOpen.value = true
 }
@@ -110,10 +110,10 @@ function onDialogError(message: string): void {
 
 // Delete dialog state.
 const isDeleteOpen = ref(false)
-const entryToDelete = ref<SleepEntry | null>(null)
+const entryToDelete = ref<SleepListEntry | null>(null)
 const deleteMutation = useDeleteSleepEntryMutation()
 
-function openDelete(entry: SleepEntry): void {
+function openDelete(entry: SleepListEntry): void {
   entryToDelete.value = entry
   isDeleteOpen.value = true
 }

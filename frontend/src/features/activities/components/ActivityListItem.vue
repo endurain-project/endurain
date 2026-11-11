@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
-import type { Activity } from '@/features/activities/types'
+import type { ActivitySummary } from '@/features/activities/types'
 import type {
   ActivityMetricColumn,
   ActivityMetricKey,
@@ -38,7 +38,7 @@ import { formatNumber } from '@/utils/formatNumber'
  */
 const props = defineProps<{
   /** The activity to render. */
-  activity: Activity
+  activity: ActivitySummary
   /** The viewer's unit system. */
   units: Units
   /** The columns to render, shared with the list header so they line up. */

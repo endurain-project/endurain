@@ -184,6 +184,8 @@
   },
   "edit": {
     "title": "Edit activity",
+    "loading": "Loading the activity",
+    "loadError": "Couldn't load the activity",
     "save": "Save changes",
     "cancel": "Cancel",
     "close": "Close",

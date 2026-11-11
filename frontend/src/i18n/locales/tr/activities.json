@@ -184,6 +184,8 @@
   },
   "edit": {
     "title": "Etkinliği düzenle",
+    "loading": "Etkinlik yükleniyor",
+    "loadError": "Etkinlik yüklenemedi",
     "save": "Değişiklikleri kaydet",
     "cancel": "İptal",
     "close": "Kapat",

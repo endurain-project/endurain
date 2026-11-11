@@ -184,6 +184,8 @@
   },
   "edit": {
     "title": "Uredi aktivnost",
+    "loading": "Nalaganje aktivnosti",
+    "loadError": "Aktivnosti ni bilo mogoče naložiti",
     "save": "Shrani spremembe",
     "cancel": "Prekliči",
     "close": "Zapri",

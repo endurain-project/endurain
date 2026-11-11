@@ -262,6 +262,8 @@
     "scorePoor": "Scarso",
     "detail": {
       "tabsLabel": "Sezioni dettaglio sonno",
+      "stagesLoading": "Caricamento delle fasi del sonno",
+      "stagesError": "Impossibile caricare le fasi del sonno",
       "tabScore": "Punteggio sonno",
       "tabDetails": "Dettagli sonno",
       "deep": "Profondo",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "Registra sonno",
       "editTitle": "Modifica voce sonno",
+      "loading": "Caricamento della voce sonno",
+      "loadError": "Impossibile caricare la voce sonno",
       "description": "Registra la durata del sonno e, opzionalmente, il dettaglio delle fasi e le metriche.",
       "date": "Data",
       "dateRequired": "Scegli una data.",

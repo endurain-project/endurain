@@ -184,6 +184,8 @@
   },
   "edit": {
     "title": "Rediģēt aktivitāti",
+    "loading": "Notiek aktivitātes ielāde",
+    "loadError": "Neizdevās ielādēt aktivitāti",
     "save": "Saglabāt izmaiņas",
     "cancel": "Atcelt",
     "close": "Aizvērt",

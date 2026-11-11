@@ -262,6 +262,8 @@
     "scorePoor": "Heikko",
     "detail": {
       "tabsLabel": "Unen tieto-osiot",
+      "stagesLoading": "Ladataan univaiheita",
+      "stagesError": "Univaiheita ei voitu ladata",
       "tabScore": "Unipisteet",
       "tabDetails": "Unen tiedot",
       "deep": "Syvä",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "Kirjaa uni",
       "editTitle": "Muokkaa unimerkintää",
+      "loading": "Ladataan unimerkintää",
+      "loadError": "Unimerkintää ei voitu ladata",
       "description": "Kirjaa unesi kesto ja halutessasi vaihe-erittely ja mittarit.",
       "date": "Päivämäärä",
       "dateRequired": "Valitse päivämäärä.",

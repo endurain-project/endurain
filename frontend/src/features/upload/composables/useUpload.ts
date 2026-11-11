@@ -6,7 +6,7 @@ import {
 } from '@tanstack/vue-query'
 
 import { fetchActivity } from '@/features/activities/services/activities'
-import type { Activity, ActivityFeedSlice } from '@/features/activities/types'
+import type { Activity, ActivityFeedSlice, ActivitySummary } from '@/features/activities/types'
 import {
   pinActivities,
   updatePinnedActivities,
@@ -129,7 +129,7 @@ function activityListScope(queryKey: readonly unknown[]): string | undefined {
  */
 export function prependActivitiesToFeed(
   data: InfiniteData<ActivityFeedSlice> | undefined,
-  activities: Activity[],
+  activities: ActivitySummary[],
 ): InfiniteData<ActivityFeedSlice> | undefined {
   const [first, ...rest] = data?.pages ?? []
   if (!data || !first || activities.length === 0) {
@@ -161,7 +161,7 @@ export function prependActivitiesToFeed(
  */
 export function replaceActivitiesInFeed(
   data: InfiniteData<ActivityFeedSlice> | undefined,
-  activities: Activity[],
+  activities: ActivitySummary[],
 ): InfiniteData<ActivityFeedSlice> | undefined {
   if (!data || activities.length === 0) {
     return data
@@ -183,7 +183,7 @@ export function replaceActivitiesInFeed(
  * @param activities - The refreshed activities to swap in.
  * @returns Nothing.
  */
-function patchUserFeed(queryClient: QueryClient, activities: Activity[]): void {
+function patchUserFeed(queryClient: QueryClient, activities: ActivitySummary[]): void {
   updatePinnedActivities(activities)
   queryClient.setQueriesData<InfiniteData<ActivityFeedSlice>>(
     {

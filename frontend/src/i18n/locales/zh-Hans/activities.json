@@ -184,6 +184,8 @@
   },
   "edit": {
     "title": "编辑活动",
+    "loading": "正在加载活动",
+    "loadError": "无法加载活动",
     "save": "保存更改",
     "cancel": "取消",
     "close": "关闭",

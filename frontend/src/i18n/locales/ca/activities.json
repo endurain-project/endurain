@@ -184,6 +184,8 @@
   },
   "edit": {
     "title": "Edita l'activitat",
+    "loading": "Carregant l'activitat",
+    "loadError": "No s'ha pogut carregar l'activitat",
     "save": "Desa els canvis",
     "cancel": "Cancel·la",
     "close": "Tanca",

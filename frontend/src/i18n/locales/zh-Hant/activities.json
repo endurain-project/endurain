@@ -184,6 +184,8 @@
   },
   "edit": {
     "title": "編輯活動",
+    "loading": "正在載入活動",
+    "loadError": "無法載入活動",
     "save": "儲存變更",
     "cancel": "取消",
     "close": "關閉",

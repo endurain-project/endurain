@@ -4,7 +4,11 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { Globe, Lock, Users, type LucideIcon } from '@lucide/vue'
 
-import type { Activity, ActivityOwner, ActivityVisibility } from '@/features/activities/types'
+import type {
+  ActivitySummary,
+  ActivityOwner,
+  ActivityVisibility,
+} from '@/features/activities/types'
 import type { Units } from '@/features/activities/utils/format'
 
 import { Card } from '@/components/ui/card'
@@ -34,7 +38,7 @@ import { getBackendAssetUrl } from '@/services/runtime'
 
 const props = defineProps<{
   /** The feed activity to render. */
-  activity: Activity
+  activity: ActivitySummary
   /** The viewer's unit system. */
   units: Units
   /** The viewer's user id, or `null` when unauthenticated. */

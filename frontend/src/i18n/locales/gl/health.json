@@ -262,6 +262,8 @@
     "scorePoor": "Deficiente",
     "detail": {
       "tabsLabel": "Seccións de detalle do sono",
+      "stagesLoading": "Cargando as fases do sono",
+      "stagesError": "Non se puideron cargar as fases do sono",
       "tabScore": "Puntuación do sono",
       "tabDetails": "Detalles do sono",
       "deep": "Profundo",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "Rexistrar sono",
       "editTitle": "Editar entrada de sono",
+      "loading": "Cargando a entrada de sono",
+      "loadError": "Non se puido cargar a entrada de sono",
       "description": "Rexistra a duración do teu sono e, opcionalmente, o desglose de fases e métricas.",
       "date": "Data",
       "dateRequired": "Por favor, escolle unha data.",

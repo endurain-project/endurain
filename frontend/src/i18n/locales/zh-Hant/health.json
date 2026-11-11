@@ -262,6 +262,8 @@
     "scorePoor": "差",
     "detail": {
       "tabsLabel": "睡眠詳情區段",
+      "stagesLoading": "正在載入睡眠階段",
+      "stagesError": "無法載入睡眠階段",
       "tabScore": "睡眠分數",
       "tabDetails": "睡眠詳情",
       "deep": "深層睡眠",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "記錄睡眠",
       "editTitle": "編輯睡眠記錄",
+      "loading": "正在載入睡眠記錄",
+      "loadError": "無法載入睡眠記錄",
       "description": "記錄睡眠時長，以及選填的睡眠階段細項與指標。",
       "date": "日期",
       "dateRequired": "請選擇日期。",

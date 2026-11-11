@@ -262,6 +262,8 @@
     "scorePoor": "Slecht",
     "detail": {
       "tabsLabel": "Slaapdetailonderdelen",
+      "stagesLoading": "Slaapfasen worden geladen",
+      "stagesError": "Slaapfasen konden niet worden geladen",
       "tabScore": "Slaapscore",
       "tabDetails": "Slaapdetails",
       "deep": "Diep",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "Slaap registreren",
       "editTitle": "Slaapvermelding bewerken",
+      "loading": "Slaapvermelding wordt geladen",
+      "loadError": "Slaapvermelding kon niet worden geladen",
       "description": "Registreer je slaapduur en optioneel de faseindeling en statistieken.",
       "date": "Datum",
       "dateRequired": "Kies een datum.",

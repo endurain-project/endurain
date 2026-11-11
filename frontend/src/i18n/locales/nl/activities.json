@@ -184,6 +184,8 @@
   },
   "edit": {
     "title": "Activiteit bewerken",
+    "loading": "Activiteit wordt geladen",
+    "loadError": "Activiteit kon niet worden geladen",
     "save": "Wijzigingen opslaan",
     "cancel": "Annuleren",
     "close": "Sluiten",

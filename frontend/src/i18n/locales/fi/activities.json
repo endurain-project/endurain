@@ -184,6 +184,8 @@
   },
   "edit": {
     "title": "Muokkaa aktiviteettia",
+    "loading": "Ladataan aktiviteettia",
+    "loadError": "Aktiviteettia ei voitu ladata",
     "save": "Tallenna muutokset",
     "cancel": "Peruuta",
     "close": "Sulje",

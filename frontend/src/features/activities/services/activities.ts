@@ -30,6 +30,8 @@ import type {
   ActivityStats,
   ActivityStream,
   ActivityStreamDto,
+  ActivitySummary,
+  ActivitySummaryDto,
   ActivityType,
   ActivityWorkoutSet,
   ActivityWorkoutStep,
@@ -63,19 +65,18 @@ interface ChildPage<T> {
 }
 
 /**
- * Maps an activity DTO to the clean camelCase domain model, collapsing the
- * nullable wire fields into stable defaults.
+ * Maps an activity list item to the clean camelCase summary model, collapsing the nullable wire
+ * fields into stable defaults.
  *
- * @param dto - The activity wire payload.
- * @returns The activity domain model.
+ * @param dto - The activity summary wire payload.
+ * @returns The activity summary domain model.
  */
-export function mapActivity(dto: ActivityDto): Activity {
+export function mapActivitySummary(dto: ActivitySummaryDto): ActivitySummary {
   return {
     id: dto.id,
     userId: dto.user_id ?? null,
     name: dto.name,
     description: dto.description ?? null,
-    privateNotes: dto.private_notes ?? null,
     activityType: dto.activity_type,
     visibility: dto.visibility ?? 'public',
     isHidden: dto.is_hidden,
@@ -130,6 +131,17 @@ export function mapActivity(dto: ActivityDto): Activity {
       hideGear: dto.hide_gear ?? false,
     },
   }
+}
+
+/**
+ * Maps a full activity DTO to the clean camelCase domain model: the summary plus the private
+ * notes.
+ *
+ * @param dto - The activity wire payload.
+ * @returns The activity domain model.
+ */
+export function mapActivity(dto: ActivityDto): Activity {
+  return { ...mapActivitySummary(dto), privateNotes: dto.private_notes ?? null }
 }
 
 /**
@@ -272,12 +284,15 @@ export async function fetchActivityDetail(
 export async function searchActivitiesByName(
   name: string,
   signal?: AbortSignal,
-): Promise<Activity[]> {
+): Promise<ActivitySummary[]> {
   const params = new URLSearchParams({ name_contains: name })
-  const page_ = await apiFetch<Schemas['Page_ActivityRead_']>(`/activities?${params.toString()}`, {
-    signal,
-  })
-  return (page_.items ?? []).map(mapActivity)
+  const page_ = await apiFetch<Schemas['Page_ActivitySummaryRead_']>(
+    `/activities?${params.toString()}`,
+    {
+      signal,
+    },
+  )
+  return (page_.items ?? []).map(mapActivitySummary)
 }
 
 /** A timeframe accepted by the activity stats endpoints. */
@@ -312,7 +327,7 @@ export async function fetchFollowersActivities(
     `/activities/feed?${params.toString()}`,
     { signal },
   )
-  const items = (slice.items ?? []).map(mapActivity)
+  const items = (slice.items ?? []).map(mapActivitySummary)
   return {
     items,
     nextCursor: slice.next_cursor ?? null,
@@ -350,7 +365,7 @@ export async function fetchUserWeekActivities(
   week: number,
   firstDayOfWeek: Schemas['WeekDay'],
   signal?: AbortSignal,
-): Promise<Activity[]> {
+): Promise<ActivitySummary[]> {
   const { start, end } = pastWeekRange(week, firstDayOfWeek)
   const params = new URLSearchParams()
   if (week < OLDEST_WEEK_BUCKET) {
@@ -358,11 +373,11 @@ export async function fetchUserWeekActivities(
   }
   params.set('end_date', end)
   params.set('num_records', '200')
-  const page_ = await apiFetch<Schemas['Page_ActivityRead_']>(
+  const page_ = await apiFetch<Schemas['Page_ActivitySummaryRead_']>(
     `/users/${userId}/activities?${params.toString()}`,
     { signal },
   )
-  return (page_.items ?? []).map(mapActivity)
+  return (page_.items ?? []).map(mapActivitySummary)
 }
 
 /** Backend-validated sortable columns for the user activities list. */
@@ -454,14 +469,14 @@ export async function fetchUserActivitiesPage(
   listParams.set('page_number', String(page))
   listParams.set('num_records', String(numRecords))
 
-  const page_ = await apiFetch<Schemas['Page_ActivityRead_']>(
+  const page_ = await apiFetch<Schemas['Page_ActivitySummaryRead_']>(
     `/activities?${listParams.toString()}`,
     {
       signal,
     },
   )
 
-  return { records: (page_.items ?? []).map(mapActivity), total: page_.total }
+  return { records: (page_.items ?? []).map(mapActivitySummary), total: page_.total }
 }
 
 /**

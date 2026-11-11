@@ -184,6 +184,8 @@
   },
   "edit": {
     "title": "Redigera aktivitet",
+    "loading": "Laddar aktiviteten",
+    "loadError": "Kunde inte ladda aktiviteten",
     "save": "Spara ändringar",
     "cancel": "Avbryt",
     "close": "Stäng",

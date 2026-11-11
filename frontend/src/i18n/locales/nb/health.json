@@ -262,6 +262,8 @@
     "scorePoor": "Dårlig",
     "detail": {
       "tabsLabel": "Søvndetaljseksjoner",
+      "stagesLoading": "Laster søvnstadiene",
+      "stagesError": "Kunne ikke laste søvnstadiene",
       "tabScore": "Søvnpoengsum",
       "tabDetails": "Søvndetaljer",
       "deep": "Dyp",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "Registrer søvn",
       "editTitle": "Rediger søvnoppføring",
+      "loading": "Laster søvnoppføringen",
+      "loadError": "Kunne ikke laste søvnoppføringen",
       "description": "Registrer søvnvarigheten din og, valgfritt, oppdelingen av stadier og måltallene.",
       "date": "Dato",
       "dateRequired": "Vennligst velg en dato.",

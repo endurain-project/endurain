@@ -56,6 +56,7 @@ import {
   fetchPoopEntries,
   fetchRhrEntries,
   fetchSleepEntries,
+  fetchSleepEntry,
   updateStepsEntry,
   updateStepsTarget,
   updateWaterEntry,
@@ -669,6 +670,28 @@ export function useSleepEntriesQuery(
   interval: MaybeRefOrGetter<HealthInterval>,
 ) {
   return useHealthEntriesQuery(queryKeys.health.sleep, fetchSleepEntries, page, pageSize, interval)
+}
+
+/**
+ * One sleep record with its stage timeline, read by id. Gated on authentication and on `enabled`,
+ * so a row reads it only when it is expanded and a dialog only when it is open for an edit.
+ *
+ * @param id - Reactive sleep record id, or `null` when there is none to read.
+ * @param enabled - Reactive switch; the record is read only while it is true.
+ * @returns The TanStack Query result for the sleep record.
+ */
+export function useSleepEntryQuery(
+  id: MaybeRefOrGetter<number | null>,
+  enabled: MaybeRefOrGetter<boolean> = true,
+) {
+  const { isAuthenticated } = storeToRefs(useAuthStore())
+
+  return useQuery({
+    queryKey: computed(() => queryKeys.health.sleepItem(toValue(id) ?? 0)),
+    queryFn: ({ signal }) => fetchSleepEntry(toValue(id) as number, signal),
+    staleTime: HEALTH_QUERY_STALE_TIME_MS,
+    enabled: computed(() => isAuthenticated.value && toValue(id) !== null && toValue(enabled)),
+  })
 }
 
 /**

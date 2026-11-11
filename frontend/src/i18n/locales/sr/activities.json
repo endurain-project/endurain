@@ -184,6 +184,8 @@
   },
   "edit": {
     "title": "Izmeni aktivnost",
+    "loading": "Učitavanje aktivnosti",
+    "loadError": "Nije moguće učitati aktivnost",
     "save": "Sačuvaj izmene",
     "cancel": "Otkaži",
     "close": "Zatvori",

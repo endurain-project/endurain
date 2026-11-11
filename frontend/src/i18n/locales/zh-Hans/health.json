@@ -262,6 +262,8 @@
     "scorePoor": "较差",
     "detail": {
       "tabsLabel": "睡眠详情版块",
+      "stagesLoading": "正在加载睡眠阶段",
+      "stagesError": "无法加载睡眠阶段",
       "tabScore": "睡眠评分",
       "tabDetails": "睡眠详情",
       "deep": "深睡",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "记录睡眠",
       "editTitle": "编辑睡眠记录",
+      "loading": "正在加载睡眠记录",
+      "loadError": "无法加载睡眠记录",
       "description": "记录睡眠时长，以及可选的阶段分项和指标。",
       "date": "日期",
       "dateRequired": "请选择日期。",

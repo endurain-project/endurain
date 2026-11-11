@@ -262,6 +262,8 @@
     "scorePoor": "Slabo",
     "detail": {
       "tabsLabel": "Razdelki podrobnosti spanja",
+      "stagesLoading": "Nalaganje faz spanja",
+      "stagesError": "Faz spanja ni bilo mogoče naložiti",
       "tabScore": "Ocena spanja",
       "tabDetails": "Podrobnosti spanja",
       "deep": "Globoko",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "Zabeleži spanje",
       "editTitle": "Uredi vnos spanja",
+      "loading": "Nalaganje vnosa spanja",
+      "loadError": "Vnosa spanja ni bilo mogoče naložiti",
       "description": "Zabeleži trajanje spanja in po želji razčlenitev faz ter meritve.",
       "date": "Datum",
       "dateRequired": "Prosim, izberi datum.",

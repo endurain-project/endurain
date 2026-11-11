@@ -262,6 +262,8 @@
     "scorePoor": "Mauvais",
     "detail": {
       "tabsLabel": "Sections de détail du sommeil",
+      "stagesLoading": "Chargement des phases de sommeil",
+      "stagesError": "Impossible de charger les phases de sommeil",
       "tabScore": "Score de sommeil",
       "tabDetails": "Détails du sommeil",
       "deep": "Profond",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "Enregistrer le sommeil",
       "editTitle": "Modifier l'entrée de sommeil",
+      "loading": "Chargement de l'entrée de sommeil",
+      "loadError": "Impossible de charger l'entrée de sommeil",
       "description": "Enregistrez la durée de votre sommeil et, facultativement, la répartition des phases et les métriques.",
       "date": "Date",
       "dateRequired": "Veuillez choisir une date.",

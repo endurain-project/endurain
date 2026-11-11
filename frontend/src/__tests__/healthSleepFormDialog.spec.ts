@@ -5,6 +5,8 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 
 import { HttpError, apiFetch } from '@/services/http'
 import i18n from '@/i18n'
+import { authedPinia } from './fixtures/authedPinia'
+import type { SleepListEntry } from '@/features/health/types'
 import HealthSleepFormDialog from '@/features/health/components/HealthSleepFormDialog.vue'
 
 vi.mock('@/services/http', () => {
@@ -26,7 +28,7 @@ async function openDialog() {
   const wrapper = mount(HealthSleepFormDialog, {
     props: { open: false, entry: null },
     global: {
-      plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]],
+      plugins: [i18n, authedPinia(), [VueQueryPlugin, { queryClient: new QueryClient() }]],
       stubs: {
         Dialog: passthrough,
         DialogContent: passthrough,
@@ -185,4 +187,107 @@ describe('HealthSleepFormDialog hours/minutes names', () => {
       }
     },
   )
+})
+
+describe('HealthSleepFormDialog edit', () => {
+  const row: SleepListEntry = {
+    id: 5,
+    userId: 9,
+    version: 1,
+    date: '2026-06-25',
+    totalSleepSeconds: 7 * 3600,
+    hasSleepStages: true,
+  } as SleepListEntry
+
+  /** The full record the single read returns: a newer version than the list row, with one stage. */
+  const fullDto = {
+    id: 5,
+    user_id: 9,
+    version: 4,
+    date: '2026-06-25',
+    total_sleep_seconds: 8 * 3600,
+    sleep_stages: [
+      {
+        stage_type: 'deep',
+        start_time_gmt: '2026-06-24T23:00:00',
+        end_time_gmt: '2026-06-25T00:30:00',
+        duration_seconds: 5400,
+      },
+    ],
+  }
+
+  async function openEdit(retry = true) {
+    const wrapper = mount(HealthSleepFormDialog, {
+      props: { open: false, entry: row },
+      global: {
+        plugins: [
+          i18n,
+          authedPinia(),
+          [
+            VueQueryPlugin,
+            { queryClient: new QueryClient({ defaultOptions: { queries: { retry } } }) },
+          ],
+        ],
+        stubs: {
+          Dialog: passthrough,
+          DialogContent: passthrough,
+          DialogHeader: passthrough,
+          DialogTitle: passthrough,
+          DialogDescription: passthrough,
+          DialogFooter: passthrough,
+        },
+      },
+    })
+    await wrapper.setProps({ open: true })
+    return wrapper
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('shows a loading state, then fills the form from the full record', async () => {
+    let resolve: (value: unknown) => void = () => undefined
+    vi.mocked(apiFetch).mockReturnValue(new Promise((done) => (resolve = done)))
+
+    const wrapper = await openEdit()
+
+    expect(apiFetch).toHaveBeenCalledWith('/health/sleep/5', expect.anything())
+    expect(wrapper.text()).toContain(i18n.global.t('health.sleep.form.loading'))
+    expect(wrapper.find('input').exists()).toBe(false)
+
+    resolve(fullDto)
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain(i18n.global.t('health.sleep.form.loading'))
+    // The total comes from the full record (8 h), not the list row (7 h).
+    expect((wrapper.findAll('input[type="number"]')[0]!.element as HTMLInputElement).value).toBe(
+      '8',
+    )
+    // The stage row comes from the full record; the list row has none.
+    expect(wrapper.text()).toContain('Stage 1')
+  })
+
+  it('sends the version of the full record as If-Match', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(fullDto)
+    const wrapper = await openEdit()
+    await flushPromises()
+
+    await setInput(wrapper, 'input[type="number"]', '7', 0)
+    await submit(wrapper)
+
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/health/sleep/5',
+      expect.objectContaining({ method: 'PATCH', headers: { 'If-Match': '"4"' } }),
+    )
+  })
+
+  it('offers a retry when the record cannot be read', async () => {
+    vi.mocked(apiFetch).mockRejectedValue(new Error('boom'))
+    const wrapper = await openEdit(false)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(i18n.global.t('health.sleep.form.loadError'))
+    expect(wrapper.find('input').exists()).toBe(false)
+  })
 })

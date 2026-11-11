@@ -262,6 +262,8 @@
     "scorePoor": "Gyenge",
     "detail": {
       "tabsLabel": "Alvás részleteinek szakaszai",
+      "stagesLoading": "Alvási fázisok betöltése",
+      "stagesError": "Nem sikerült betölteni az alvási fázisokat",
       "tabScore": "Alváspontszám",
       "tabDetails": "Alvás részletei",
       "deep": "Mély",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "Alvás rögzítése",
       "editTitle": "Alvásbejegyzés szerkesztése",
+      "loading": "Alvásbejegyzés betöltése",
+      "loadError": "Nem sikerült betölteni az alvásbejegyzést",
       "description": "Rögzítsd az alvásod időtartamát, és opcionálisan a fázisok bontását és a mutatókat.",
       "date": "Dátum",
       "dateRequired": "Kérjük, válassz dátumot.",

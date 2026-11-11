@@ -262,6 +262,8 @@
     "scorePoor": "Słaby",
     "detail": {
       "tabsLabel": "Sekcje szczegółów snu",
+      "stagesLoading": "Wczytywanie faz snu",
+      "stagesError": "Nie udało się wczytać faz snu",
       "tabScore": "Wynik snu",
       "tabDetails": "Szczegóły snu",
       "deep": "Głęboki",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "Zapisz sen",
       "editTitle": "Edytuj wpis snu",
+      "loading": "Wczytywanie wpisu snu",
+      "loadError": "Nie udało się wczytać wpisu snu",
       "description": "Zapisz długość snu i opcjonalnie rozbicie na fazy oraz wskaźniki.",
       "date": "Data",
       "dateRequired": "Wybierz datę.",

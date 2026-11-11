@@ -262,6 +262,8 @@
     "scorePoor": "Zayıf",
     "detail": {
       "tabsLabel": "Uyku ayrıntı bölümleri",
+      "stagesLoading": "Uyku evreleri yükleniyor",
+      "stagesError": "Uyku evreleri yüklenemedi",
       "tabScore": "Uyku puanı",
       "tabDetails": "Uyku ayrıntıları",
       "deep": "Derin",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "Uyku kaydet",
       "editTitle": "Uyku kaydını düzenle",
+      "loading": "Uyku kaydı yükleniyor",
+      "loadError": "Uyku kaydı yüklenemedi",
       "description": "Uyku sürenizi ve isteğe bağlı olarak evre dağılımını ve metrikleri kaydedin.",
       "date": "Tarih",
       "dateRequired": "Lütfen bir tarih seçin.",

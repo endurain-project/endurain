@@ -33,6 +33,7 @@ import {
   fetchPoopEntries,
   fetchRhrEntries,
   fetchSleepEntries,
+  fetchSleepEntry,
   fetchStepsEntries,
   fetchWaterEntries,
   fetchWeightEntries,
@@ -669,10 +670,11 @@ describe('poop service requests', () => {
 
 /** Builds a HealthSleepRead payload with the RHR-relevant fields, overridable per case. */
 function makeSleepDto(
-  overrides: Partial<Schemas['HealthSleepRead']> = {},
-): Schemas['HealthSleepRead'] {
+  overrides: Partial<Schemas['HealthSleepListItem']> = {},
+): Schemas['HealthSleepListItem'] {
   return {
     id: 5,
+    has_sleep_stages: false,
     user_id: 9,
     version: 1,
     date: '2026-06-25',
@@ -693,7 +695,7 @@ describe('resting heart rate service requests', () => {
       page: 2,
       num_records: 25,
       items: [makeSleepDto(), makeSleepDto({ id: 6, source: 'manual' })],
-    } satisfies Schemas['Page_HealthSleepRead_'])
+    } satisfies Schemas['Page_HealthSleepListItem_'])
 
     const page = await fetchRhrEntries({ page: 2, numRecords: 25, interval: 'last_30_days' })
 
@@ -717,7 +719,7 @@ describe('resting heart rate service requests', () => {
       page: 1,
       num_records: 2,
       items: [makeSleepDto(), makeSleepDto({ id: 6, resting_heart_rate: 50 })],
-    } satisfies Schemas['Page_HealthSleepRead_'])
+    } satisfies Schemas['Page_HealthSleepListItem_'])
 
     const page = await fetchRhrEntries({ page: 1, numRecords: 2, interval: 'all_time' })
 
@@ -1015,6 +1017,14 @@ function makeFullSleepDto(
   }
 }
 
+/** Builds a HealthSleepListItem wire payload: the full record without stages, plus the flag. */
+function makeSleepListDto(
+  overrides: Partial<Schemas['HealthSleepListItem']> = {},
+): Schemas['HealthSleepListItem'] {
+  const { sleep_stages: stages, ...fields } = makeFullSleepDto()
+  return { ...fields, has_sleep_stages: (stages ?? []).length > 0, ...overrides }
+}
+
 /** A clean sleep input mirroring {@link makeFullSleepDto}, in seconds. */
 const sleepInput: SleepEntryInput = {
   date: '2026-06-25',
@@ -1056,8 +1066,11 @@ describe('sleep service requests', () => {
       total: 2,
       page: 2,
       num_records: 25,
-      items: [makeFullSleepDto(), makeFullSleepDto({ id: 6, source: 'manual', hrv_status: null })],
-    } satisfies Schemas['Page_HealthSleepRead_'])
+      items: [
+        makeSleepListDto(),
+        makeSleepListDto({ id: 6, source: 'manual', hrv_status: null, has_sleep_stages: false }),
+      ],
+    } satisfies Schemas['Page_HealthSleepListItem_'])
 
     const page = await fetchSleepEntries({ page: 2, numRecords: 25, interval: 'last_30_days' })
 
@@ -1099,23 +1112,41 @@ describe('sleep service requests', () => {
       highestRespiration: 18,
       avgSleepStress: 25,
       awakeCount: 3,
-      sleepStages: [
-        {
-          stageType: 'deep',
-          startTimeGmt: '2026-06-24T23:00:00',
-          endTimeGmt: '2026-06-25T00:30:00',
-          durationSeconds: 5400,
-        },
-        {
-          stageType: 'rem',
-          startTimeGmt: '2026-06-25T00:30:00',
-          endTimeGmt: '2026-06-25T01:15:00',
-          durationSeconds: 2700,
-        },
-      ],
+      hasSleepStages: true,
       source: 'garmin',
     })
-    expect(page.records[1]).toMatchObject({ id: 6, source: 'manual', hrvStatus: null })
+    expect(page.records[0]).not.toHaveProperty('sleepStages')
+    expect(page.records[1]).toMatchObject({
+      id: 6,
+      source: 'manual',
+      hrvStatus: null,
+      hasSleepStages: false,
+    })
+  })
+
+  it('fetchSleepEntry reads the record by id with its stages and version', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(makeFullSleepDto({ version: 4 }))
+    const controller = new AbortController()
+
+    const entry = await fetchSleepEntry(5, controller.signal)
+
+    expect(apiFetch).toHaveBeenCalledWith('/health/sleep/5', { signal: controller.signal })
+    expect(entry.version).toBe(4)
+    expect(entry.sleepStages).toEqual([
+      {
+        stageType: 'deep',
+        startTimeGmt: '2026-06-24T23:00:00',
+        endTimeGmt: '2026-06-25T00:30:00',
+        durationSeconds: 5400,
+      },
+      {
+        stageType: 'rem',
+        startTimeGmt: '2026-06-25T00:30:00',
+        endTimeGmt: '2026-06-25T01:15:00',
+        durationSeconds: 2700,
+      },
+    ])
+    expect(entry).not.toHaveProperty('hasSleepStages')
   })
 
   it('createSleepEntry POSTs the snake-cased payload (no source)', async () => {

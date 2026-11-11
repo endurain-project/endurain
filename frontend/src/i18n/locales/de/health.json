@@ -262,6 +262,8 @@
     "scorePoor": "Schlecht",
     "detail": {
       "tabsLabel": "Schlafdetail-Bereiche",
+      "stagesLoading": "Schlafphasen werden geladen",
+      "stagesError": "Schlafphasen konnten nicht geladen werden",
       "tabScore": "Schlafwert",
       "tabDetails": "Schlafdetails",
       "deep": "Tief",
@@ -307,6 +309,8 @@
     "form": {
       "addTitle": "Schlaf eintragen",
       "editTitle": "Schlafeintrag bearbeiten",
+      "loading": "Schlafeintrag wird geladen",
+      "loadError": "Schlafeintrag konnte nicht geladen werden",
       "description": "Erfasse deine Schlafdauer und optional die Phasenaufschlüsselung und Kennzahlen.",
       "date": "Datum",
       "dateRequired": "Bitte wähle ein Datum.",

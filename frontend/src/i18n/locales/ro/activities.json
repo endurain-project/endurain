@@ -184,6 +184,8 @@
   },
   "edit": {
     "title": "Editează activitatea",
+    "loading": "Se încarcă activitatea",
+    "loadError": "Nu am putut încărca activitatea",
     "save": "Salvează modificările",
     "cancel": "Anulează",
     "close": "Închide",

@@ -1,13 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import type { Component } from 'vue'
 
 import { apiFetch } from '@/services/http'
 import i18n from '@/i18n'
+import { authedPinia } from './fixtures/authedPinia'
 import type { Goal } from '@/features/goals/types'
-import type { HealthTargets, SleepEntry } from '@/features/health/types'
+import type { HealthTargets, SleepListEntry } from '@/features/health/types'
 import GoalListItem from '@/features/goals/components/GoalListItem.vue'
 import HealthFastingTargetDialog from '@/features/health/components/HealthFastingTargetDialog.vue'
 import HealthSleepFormDialog from '@/features/health/components/HealthSleepFormDialog.vue'
@@ -39,7 +40,7 @@ async function openDialog(component: Component, props: Record<string, unknown>) 
   const wrapper = mount(component, {
     props: { open: false, ...props },
     global: {
-      plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]],
+      plugins: [i18n, authedPinia(), [VueQueryPlugin, { queryClient: new QueryClient() }]],
       stubs: {
         Dialog: passthrough,
         DialogContent: passthrough,
@@ -79,9 +80,18 @@ describe('hours and minutes seeded from a duration', () => {
       lightSleepSeconds: null,
       remSleepSeconds: null,
       awakeSleepSeconds: null,
-      sleepStages: [],
-    } as unknown as SleepEntry
+      hasSleepStages: false,
+    } as unknown as SleepListEntry
+    vi.mocked(apiFetch).mockResolvedValue({
+      id: 1,
+      user_id: 1,
+      version: 1,
+      date: '2026-10-30',
+      total_sleep_seconds: ALMOST_EIGHT_HOURS,
+      sleep_stages: [],
+    })
     const wrapper = await openDialog(HealthSleepFormDialog, { entry })
+    await flushPromises()
     const values = inputValues(wrapper)
     expect(values).toContain('8')
     expect(values).not.toContain('60')

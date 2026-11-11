@@ -184,6 +184,8 @@
   },
   "edit": {
     "title": "Upravit aktivitu",
+    "loading": "Načítání aktivity",
+    "loadError": "Aktivitu se nepodařilo načíst",
     "save": "Uložit změny",
     "cancel": "Zrušit",
     "close": "Zavřít",

@@ -7,6 +7,7 @@ import type { Schemas } from '@/types'
  * them into the camelCase domain models below.
  */
 export type ActivityDto = Schemas['ActivityRead']
+export type ActivitySummaryDto = Schemas['ActivitySummaryRead']
 export type ActivityStreamDto = Schemas['ActivityStreamResponse']
 export type ActivityLapDto = Schemas['ActivityLapsRead']
 export type ActivityEditDto = Schemas['ActivityEdit']
@@ -206,16 +207,16 @@ export interface ActivityPrivacy {
 }
 
 /**
- * Clean camelCase activity domain model. Decoupled from the wire DTO via
- * {@link mapActivity} so views never touch snake_case and a schema change is
- * caught at the mapper boundary.
+ * Clean camelCase activity as the list responses return it (the list, the feed, a user's week and
+ * the search): everything except the owner-only private notes. Decoupled from the wire DTO via
+ * {@link mapActivitySummary} so views never touch snake_case and a schema change is caught at the
+ * mapper boundary.
  */
-export interface Activity {
+export interface ActivitySummary {
   id: number
   userId: number | null
   name: string
   description: string | null
-  privateNotes: string | null
   activityType: ActivityType
   visibility: ActivityVisibility
   isHidden: boolean
@@ -291,10 +292,18 @@ export interface Activity {
   privacy: ActivityPrivacy
 }
 
+/**
+ * The full activity a single read returns: the {@link ActivitySummary} plus the private notes, which
+ * only the owner's single-activity read carries.
+ */
+export interface Activity extends ActivitySummary {
+  privateNotes: string | null
+}
+
 /** One page of a user's activities plus the server-reported total count. */
 export interface ActivitiesPage {
   /** The activities on the current page, mapped to the clean model. */
-  records: Activity[]
+  records: ActivitySummary[]
   /** Total activities matching the active filters across all pages. */
   total: number
 }
@@ -364,7 +373,7 @@ export interface ActivityDetail {
  *   carries them; `null` for an owner the server left out (inactive, or awaiting approval).
  */
 export interface ActivityFeedSlice {
-  items: Activity[]
+  items: ActivitySummary[]
   nextCursor: string | null
   owners: Map<number, ActivityOwner | null>
 }
