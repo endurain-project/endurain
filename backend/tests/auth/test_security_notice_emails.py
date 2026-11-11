@@ -57,6 +57,24 @@ class TestBackupCodeUsedEmail:
         assert "Change your password" in html_body
 
 
+class TestUsernameChangedEmail:
+    def test_says_the_username_changed_and_holds_no_username(self):
+        subject, html_body, text_body = email_messages.get_account_security_changed_email(
+            "Alice", "username_changed", None, HOST, "en"
+        )
+
+        assert "username" in subject.lower()
+        assert "username" in html_body.lower()
+        assert "username" in text_body.lower()
+
+    def test_advises_changing_the_password(self):
+        _, html_body, _ = email_messages.get_account_security_changed_email(
+            "Alice", "username_changed", None, HOST, "en"
+        )
+
+        assert "reset your password" in html_body
+
+
 class TestRefreshReuseEmail:
     def test_says_a_session_was_ended_and_what_to_do(self):
         subject, html_body, text_body = email_messages.get_account_security_changed_email(

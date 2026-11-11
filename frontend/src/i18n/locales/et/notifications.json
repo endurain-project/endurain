@@ -134,6 +134,10 @@
       "unknown": {
         "title": "Konto turvalisus muutus",
         "body": "Sinu konto turvaseadet muudeti. Kui see ei olnud sina, lähtesta oma parool ja vaata üle oma turvaseaded."
+      },
+      "usernameChanged": {
+        "title": "Kasutajanimi muudetud",
+        "body": "Teie kasutajanime muudeti. Kui see ei olnud teie, lähtestage parool ja vaadake üle turvaseaded."
       }
     },
     "newDeviceSignIn": {

@@ -104,8 +104,8 @@ def get_email_change_tokens(change_id: str, now: datetime, db: Session) -> list[
     return [sign_up_serializers.to_state(row) for row in db.execute(stmt).scalars().all()]
 
 
-def has_later_email_change(user_id: int, change_id: str, since: datetime, now: datetime, db: Session) -> bool:
-    """Return whether the user has an email change, other than the given one, that began after ``since``.
+def get_later_email_change_ids(user_id: int, change_id: str, since: datetime, now: datetime, db: Session) -> list[str]:
+    """Return the other email changes of the user that began after ``since`` and can still be reverted.
 
     Args:
         user_id: The user to look up.
@@ -115,40 +115,72 @@ def has_later_email_change(user_id: int, change_id: str, since: datetime, now: d
         db: Database session.
 
     Returns:
-        True when a different change has a row created after ``since`` and a revert window still open.
+        The identifiers of the different changes that have a row created after ``since``, a revert window still open
+        and no revert yet.
     """
     model = sign_up_models.SignUpToken
-    stmt = select(model.id).where(
+    stmt = select(model.change_id).where(
         model.user_id == user_id,
         model.change_id.is_not(None),
         model.change_id != change_id,
         model.created_at > since,
         model.revert_until > now,
+        model.reverted_at.is_(None),
     )
-    return db.execute(stmt.limit(1)).first() is not None
+    return sorted({row for row in db.execute(stmt).scalars().all() if row is not None})
 
 
-def mark_email_change_reverted(change_id: str, db: Session) -> int:
-    """Stage the use of an email change's revert link, once, and return how many rows it marked.
+def mark_email_changes_reverted(change_ids: Collection[str], db: Session) -> int:
+    """Stage the revert of email changes, once each, and return how many rows it marked.
 
     One conditional ``UPDATE`` sets ``reverted_at``, so of two requests presenting the same link only one matches rows.
 
     Args:
-        change_id: The identifier of the change.
+        change_ids: The identifiers of the changes.
         db: Database session.
 
     Returns:
-        The number of rows marked; zero when the link was already used.
+        The number of rows marked; zero when the changes were already reverted.
     """
     model = sign_up_models.SignUpToken
     stmt = (
         sa_update(model)
-        .where(model.change_id == change_id, model.reverted_at.is_(None))
+        .where(model.change_id.in_(change_ids), model.reverted_at.is_(None))
         .values(reverted_at=datetime.now(UTC))
     )
     matched = core_database.rowcount(db, stmt)
     db.flush()
     return matched
+
+
+def get_email_reserver_id(email: str, except_user_id: int | None, now: datetime, db: Session) -> int | None:
+    """Return the user whose confirmed email change left ``email`` behind and can still be reverted.
+
+    Args:
+        email: The address, in any case.
+        except_user_id: A user who does not count as the reserver, or None for every user.
+        now: The instant the revert window must still be open at.
+        db: Database session.
+
+    Returns:
+        The user whose change has ``email`` as its previous address, a revert window still open and no revert yet, or
+        None when no other user reserves it.
+    """
+    model = sign_up_models.SignUpToken
+    stmt = (
+        select(model.user_id)
+        .where(
+            model.previous_email == email.lower(),
+            model.confirmed_at.is_not(None),
+            model.reverted_at.is_(None),
+            model.revert_until > now,
+        )
+        .order_by(model.user_id)
+        .limit(1)
+    )
+    if except_user_id is not None:
+        stmt = stmt.where(model.user_id != except_user_id)
+    return db.execute(stmt).scalar_one_or_none()
 
 
 def get_sign_up_token_by_id(token_id: str, db: Session) -> sign_up_contracts.SignUpTokenState | None:

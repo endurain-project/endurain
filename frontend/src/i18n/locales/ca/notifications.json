@@ -134,6 +134,10 @@
       "unknown": {
         "title": "Seguretat del compte canviada",
         "body": "S'ha canviat una opció de seguretat del teu compte. Si no has estat tu, restableix la contrasenya i revisa la configuració de seguretat."
+      },
+      "usernameChanged": {
+        "title": "Nom d'usuari canviat",
+        "body": "El teu nom d'usuari s'ha canviat. Si no has estat tu, restableix la contrasenya i revisa la configuració de seguretat."
       }
     },
     "newDeviceSignIn": {

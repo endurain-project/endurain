@@ -303,7 +303,6 @@ def edit_profile(
 
     Raises:
         NotFoundError: If the user does not exist.
-        ConflictError: If the username or email is already taken.
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
     return users_service.stage_profile_edit(user_id, profile, db, if_match=if_match)
@@ -323,6 +322,24 @@ def changed_field_names(before: BaseModel, after: BaseModel, names: Collection[s
     return users_service.changed_field_names(before, after, names)
 
 
+def stage_username_change(user_id: int, username: str, db: Session) -> bool:
+    """Stage a new username for a user, stored in lower case.
+
+    Args:
+        user_id: The user whose username changes.
+        username: The new username, in any case.
+        db: Database session.
+
+    Returns:
+        True when the username changed, False when it was already the user's.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+        ConflictError: If another account uses the username.
+    """
+    return users_service.stage_username_change(user_id, username, db)
+
+
 def stage_email_change(user_id: int, email: str, db: Session) -> bool:
     """Stage a new email address for a user and mark it unverified.
 
@@ -339,6 +356,20 @@ def stage_email_change(user_id: int, email: str, db: Session) -> bool:
         ConflictError: If the email is already taken.
     """
     return users_service.stage_email_change(user_id, email, db)
+
+
+def is_email_available(user_id: int | None, email: str, db: Session) -> bool:
+    """Tell whether an address can be given to a user: no other account uses it or has it reserved.
+
+    Args:
+        user_id: The user who wants the address, or None for an account not yet created.
+        email: The address, in any case.
+        db: Database session.
+
+    Returns:
+        False when another account uses the address or has it reserved for an email-change revert.
+    """
+    return users_service.is_email_available(user_id, email, db)
 
 
 def stage_confirmed_email_change(user_id: int, email: str, db: Session) -> None:

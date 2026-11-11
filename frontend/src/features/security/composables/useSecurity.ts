@@ -19,6 +19,7 @@ import { useAuthStore } from '@/features/auth/stores/auth'
 import {
   cancelEmailChange,
   changeEmail,
+  changeUsername,
   changePassword,
   createApiKey,
   deleteAccount,
@@ -364,7 +365,7 @@ export function useDeleteAccountMutation() {
  * @returns The TanStack Query mutation for changing the account email.
  */
 export function useChangeEmailMutation() {
-  const invalidate = useInvalidateEmailViews()
+  const invalidate = useInvalidateIdentityViews()
 
   return useMutation<
     boolean,
@@ -379,10 +380,31 @@ export function useChangeEmailMutation() {
 }
 
 /**
- * Invalidates every view of the account email, so the pending change shows (or disappears)
- * in the profile, the app shell and an admin's users views.
+ * Change-username mutation, run after step-up. The username is shown by the profile, the app shell
+ * and an admin's users views, so all of them are refetched, and the profile's `ETag` with them.
+ *
+ * @returns The TanStack Query mutation for changing the account username.
  */
-function useInvalidateEmailViews(): () => void {
+export function useChangeUsernameMutation() {
+  const invalidate = useInvalidateIdentityViews()
+
+  return useMutation<
+    void,
+    Error,
+    { username: string; stepUp: StepUpInput; revokeOtherSessions: boolean }
+  >({
+    mutationKey: queryKeys.security.all(),
+    mutationFn: ({ username, stepUp, revokeOtherSessions }) =>
+      changeUsername(username, stepUp, revokeOtherSessions),
+    onSettled: invalidate,
+  })
+}
+
+/**
+ * Invalidates every view of the account identity (email or username), so a change shows in the
+ * profile, the app shell and an admin's users views.
+ */
+function useInvalidateIdentityViews(): () => void {
   const client = useQueryClient()
   return () => {
     void client.invalidateQueries({ queryKey: queryKeys.profile.all() })
@@ -398,7 +420,7 @@ function useInvalidateEmailViews(): () => void {
  * @returns The TanStack Query mutation for resending the link.
  */
 export function useResendEmailChangeMutation() {
-  const invalidate = useInvalidateEmailViews()
+  const invalidate = useInvalidateIdentityViews()
 
   return useMutation<void, Error, void>({
     mutationKey: queryKeys.security.all(),
@@ -413,7 +435,7 @@ export function useResendEmailChangeMutation() {
  * @returns The TanStack Query mutation for cancelling the change.
  */
 export function useCancelEmailChangeMutation() {
-  const invalidate = useInvalidateEmailViews()
+  const invalidate = useInvalidateIdentityViews()
 
   return useMutation<void, Error, void>({
     mutationKey: queryKeys.security.all(),

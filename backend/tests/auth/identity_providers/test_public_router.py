@@ -99,10 +99,23 @@ class TestInitiateLogin:
 
         cookie = response.headers["set-cookie"]
         assert f"{idp_dependencies.BINDING_COOKIE_NAME}=login-secret" in cookie
-        assert f"Path={idp_dependencies.BINDING_COOKIE_PATH}" in cookie
+        assert "Path=/;" in cookie or cookie.endswith("Path=/")
+        assert "Domain" not in cookie
         assert f"Max-Age={oauth_state_constants.STATE_TTL_SECONDS}" in cookie
         assert "HttpOnly" in cookie
         assert "SameSite=lax" in cookie
+
+    def test_a_deployed_login_sets_a_host_locked_binding_cookie(self, client, service):
+        service.begin_login.return_value = _start("https://provider.example/auth", "login-secret")
+
+        with patch.object(idp_dependencies.core_config.settings, "ENVIRONMENT", "production"):
+            response = self._login(client)
+
+        cookie = response.headers["set-cookie"]
+        assert cookie.startswith("__Host-endurain_idp_binding=login-secret")
+        assert "Secure" in cookie
+        assert "Path=/;" in cookie or cookie.endswith("Path=/")
+        assert "Domain" not in cookie
 
     def test_the_binding_is_not_in_the_redirect_url(self, client, service):
         service.begin_login.return_value = _start("https://provider.example/auth", "login-secret")
@@ -175,7 +188,7 @@ class TestHandleCallback:
     def test_the_browser_binding_reaches_the_state_check_and_is_cleared(self, client, service):
         service.prepare_callback.return_value = (MagicMock(), MagicMock())
         service.complete_callback.return_value = "https://app.example.com/settings/security?idp_link=success"
-        client.cookies.set(idp_dependencies.BINDING_COOKIE_NAME, "binding-secret", path="/api/v1/public/idp/callback")
+        client.cookies.set(idp_dependencies.BINDING_COOKIE_NAME, "binding-secret", path="/")
 
         response = self._callback(client)
 

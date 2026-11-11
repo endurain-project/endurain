@@ -32,6 +32,7 @@ def test_the_list_marks_the_device_the_request_names(mock_db):
 class TestForget:
     def test_step_up_is_verified_for_the_forget_action_before_the_device_is_touched(self, mock_db):
         calls = MagicMock()
+        calls.forget.return_value = 0
         with (
             patch.object(device_service.step_up_service, "verify_step_up_credentials", calls.verify),
             patch.object(device_service.known_devices_integration, "forget_device", calls.forget),
@@ -48,17 +49,18 @@ class TestForget:
     def test_a_forgotten_device_is_audited_and_committed(self, mock_db):
         with (
             patch.object(device_service.step_up_service, "verify_step_up_credentials"),
-            patch.object(device_service.known_devices_integration, "forget_device"),
+            patch.object(device_service.known_devices_integration, "forget_device", return_value=3),
             jasil_testing.capture_audit() as audit,
         ):
             _forget(mock_db)
 
-        audit.assert_audited(
+        row = audit.assert_audited(
             account_security_audit_actions.DEVICE_FORGET.id,
             target_type="device",
             target_id="5",
             target_owner_id="7",
         )
+        assert row.details == {"sessions_revoked": 3}
         mock_db.commit.assert_called_once()
 
     def test_a_refused_step_up_forgets_and_audits_nothing(self, mock_db):

@@ -145,12 +145,15 @@ class EmailChangeCancelRead(BaseModel):
     """Response schema for the "this wasn't me" link of an email change.
 
     Attributes:
-        change_applied: Whether the change had already been confirmed when the link was used.
+        change_applied: Whether the change, or a later change of the account voided by the link, had been confirmed
+            when the link was used.
         email_restored: Whether the account's previous address was put back; false when the change was still pending,
             or when another account holds the previous address now.
     """
 
-    change_applied: StrictBool = Field(..., description="Whether the change had been confirmed when the link was used")
+    change_applied: StrictBool = Field(
+        ..., description="Whether the change, or a later change voided by the link, had been confirmed"
+    )
     email_restored: StrictBool = Field(..., description="Whether the account's previous email address was restored")
 
     model_config = ConfigDict(extra="forbid")

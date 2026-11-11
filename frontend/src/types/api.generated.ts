@@ -563,7 +563,7 @@ export interface paths {
          *       * 5 failures: 5 minute lockout
          *       * 10 failures: 30 minute lockout
          *       * 20 failures: 24 hour lockout
-         *     - Account lock: 100 failed password sign-ins in a row for one username, from any addresses, lock the account for
+         *     - Account lock: 100 failed password sign-ins in a row for one account, from any addresses, lock the account for
          *       30 days. A device the account has signed in from since its last security change is not held by it. A successful
          *       sign-in, a completed password reset, a password change or an administrator setting the password lifts it.
          *
@@ -2185,7 +2185,9 @@ export interface paths {
         put?: never;
         /**
          * Forget User Device
-         * @description Forget a device after step-up verification, so the next sign-in from it is announced as a new device.
+         * @description Forget a device after step-up verification, which also signs it out.
+         *
+         *     The sessions that signed in from the device end, and the next sign-in from it is announced as a new device.
          */
         post: operations["forget_user_device"];
         delete?: never;
@@ -2864,6 +2866,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/profile/username/change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Edit Profile Username
+         * @description Change the authenticated user's username after step-up verification.
+         *
+         *     The username is the sign-in name, so the caller must re-prove identity with the current password (and an
+         *     MFA code when MFA is enabled). It is stored in lower case, and re-submitting the current username changes
+         *     nothing. The user's other sessions are revoked when the request asks for it, and the account's email address
+         *     is told of the change. The answer is the updated profile.
+         */
+        post: operations["edit_profile_username"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/activities/exercise-titles": {
         parameters: {
             query?: never;
@@ -3049,10 +3076,11 @@ export interface paths {
          * Cancel Email Change
          * @description Report an email change as not made by its owner, with the link emailed to the account's address.
          *
-         *     The link works once, for seven days after the change was requested. A pending change is cancelled; a confirmed one
-         *     puts the previous address back unless another account holds it now. Every session of the account ends and its
-         *     API keys are revoked either way. The answer says whether the change had been confirmed and whether the previous
-         *     address was restored.
+         *     The link works once, for seven days after the change was requested. A later change of the account does not end the
+         *     link: using it voids every later change still inside its window. A pending change is cancelled; after a
+         *     confirmed one the address the link was mailed to is put back unless another account holds it now. Every session
+         *     of the account ends and its API keys are revoked either way. The answer says whether any change of the run had
+         *     been confirmed and whether the previous address was restored.
          */
         post: operations["cancel_email_change"];
         delete?: never;
@@ -3171,7 +3199,7 @@ export interface paths {
          *     named too, or every session the user signed in to through the provider when only a `sub` is named. A token is
          *     accepted once. The answer is 200 with no body when the sessions ended or none was signed in, and 400 when the
          *     token is refused. A provider that does not exist or issues no ID token answers 404; a disabled provider is still
-         *     served, because disabling it does not end the sessions it signed in.
+         *     served, so a logout token for a sign-in recorded before it was disabled still succeeds.
          */
         post: operations["backchannel_logout"];
         delete?: never;
@@ -5904,14 +5932,15 @@ export interface components {
          * @description Response schema for the "this wasn't me" link of an email change.
          *
          *     Attributes:
-         *         change_applied: Whether the change had already been confirmed when the link was used.
+         *         change_applied: Whether the change, or a later change of the account voided by the link, had been confirmed
+         *             when the link was used.
          *         email_restored: Whether the account's previous address was put back; false when the change was still pending,
          *             or when another account holds the previous address now.
          */
         EmailChangeCancelRead: {
             /**
              * Change Applied
-             * @description Whether the change had been confirmed when the link was used
+             * @description Whether the change, or a later change voided by the link, had been confirmed
              */
             change_applied: boolean;
             /**
@@ -8958,11 +8987,6 @@ export interface components {
              */
             issuer_url?: string | null;
             /**
-             * Jwks Uri
-             * @description OIDC JWKS URI
-             */
-            jwks_uri?: string | null;
-            /**
              * Link By Email
              * @description Link a sign-in that has no link yet to the local account with the same verified email. When off, that sign-in is refused and the user links the provider from their settings
              * @default false
@@ -9226,11 +9250,6 @@ export interface components {
              */
             issuer_url?: string | null;
             /**
-             * Jwks Uri
-             * @description OIDC JWKS URI
-             */
-            jwks_uri?: string | null;
-            /**
              * Link By Email
              * @description Link a sign-in that has no link yet to the local account with the same verified email. When off, that sign-in is refused and the user links the provider from their settings
              * @default false
@@ -9394,11 +9413,6 @@ export interface components {
              * @description OIDC issuer/discovery URL
              */
             issuer_url?: string | null;
-            /**
-             * Jwks Uri
-             * @description OIDC JWKS URI
-             */
-            jwks_uri?: string | null;
             /**
              * Link By Email
              * @description Link a sign-in that has no link yet to the local account with the same verified email. When off, that sign-in is refused and the user links the provider from their settings
@@ -11095,7 +11109,6 @@ export interface components {
          *
          *     Attributes:
          *         name: User's full name.
-         *         username: Unique username.
          *         city: User's city.
          *         birthdate: User's birthdate.
          *         preferred_language: Preferred application language.
@@ -11110,7 +11123,8 @@ export interface components {
          *
          *     Note:
          *         ``email`` is deliberately absent. It is the address password resets go to, so changing
-         *         it needs fresh proof of identity and is :class:`EmailChange`.
+         *         it needs fresh proof of identity and is :class:`EmailChange`. ``username`` is deliberately absent
+         *         for the same reason: it is the sign-in name, so changing it is :class:`UsernameChange`.
          *
          *         ``photo_path`` is deliberately absent. The photo is a
          *         server-issued storage key written only by the upload and
@@ -11135,8 +11149,6 @@ export interface components {
             /** Timezone */
             timezone?: string | null;
             units?: components["schemas"]["Units"] | null;
-            /** Username */
-            username?: string | null;
             weight_units?: components["schemas"]["Units"] | null;
         };
         /**
@@ -11828,6 +11840,7 @@ export interface components {
          *         IDP_LINK: Mint a token that links an identity provider.
          *         IDP_UNLINK: Unlink an identity provider.
          *         EMAIL_CHANGE: Change the account's email address.
+         *         USERNAME_CHANGE: Change the account's username, which is its sign-in name.
          *         ACCOUNT_DELETE: Delete the account.
          *         PROFILE_EXPORT: Export all of the account's data.
          *         PROFILE_DEVICE_FORGET: Forget a device the account is known to sign in from.
@@ -11851,7 +11864,7 @@ export interface components {
          *             the audit trail or the owner info on public links.
          * @enum {string}
          */
-        StepUpAction: "api_key_create" | "idp_link" | "idp_unlink" | "email_change" | "account_delete" | "profile_export" | "profile_device_forget" | "mfa_enable" | "mfa_disable" | "mfa_backup_codes" | "admin_credential_reset" | "admin_mfa_reset" | "admin_credential_change_require" | "admin_user_edit" | "admin_user_delete" | "admin_idp_unlink" | "admin_user_create" | "admin_idp_create" | "admin_idp_edit" | "admin_idp_delete" | "admin_sessions_revoke" | "admin_mail_settings_edit" | "admin_server_settings_edit";
+        StepUpAction: "api_key_create" | "idp_link" | "idp_unlink" | "email_change" | "username_change" | "account_delete" | "profile_export" | "profile_device_forget" | "mfa_enable" | "mfa_disable" | "mfa_backup_codes" | "admin_credential_reset" | "admin_mfa_reset" | "admin_credential_change_require" | "admin_user_edit" | "admin_user_delete" | "admin_idp_unlink" | "admin_user_create" | "admin_idp_create" | "admin_idp_edit" | "admin_idp_delete" | "admin_sessions_revoke" | "admin_mail_settings_edit" | "admin_server_settings_edit";
         /**
          * StepUpRequest
          * @description Request body of an operation that needs nothing but a step-up verification.
@@ -12472,84 +12485,40 @@ export interface components {
          */
         UserAdminEdit: {
             /** @description User access level */
-            access_type: components["schemas"]["UserAccessType"];
+            access_type?: components["schemas"]["UserAccessType"] | null;
             /**
              * Active
              * @description Whether the user is active
              */
-            active: boolean;
-            /**
-             * Birthdate
-             * @description User's birthdate
-             */
+            active?: boolean | null;
+            /** Birthdate */
             birthdate?: string | null;
-            /**
-             * City
-             * @description User's city
-             */
+            /** City */
             city?: string | null;
-            /**
-             * @description User currency (euro, dollar, pound)
-             * @default euro
-             */
-            currency: components["schemas"]["Currency"];
-            /**
-             * Email
-             * Format: email
-             * @description User's email address
-             */
-            email: string;
+            currency?: components["schemas"]["Currency"] | null;
+            /** Email */
+            email?: string | null;
             /**
              * Email Verified
              * @description Whether email is verified
-             * @default false
              */
-            email_verified: boolean;
-            /**
-             * @description First day of the week
-             * @default monday
-             */
-            first_day_of_week: components["schemas"]["WeekDay"];
-            /**
-             * @description User's gender
-             * @default unspecified
-             */
-            gender: components["schemas"]["Gender"];
+            email_verified?: boolean | null;
+            first_day_of_week?: components["schemas"]["WeekDay"] | null;
+            gender?: components["schemas"]["Gender"] | null;
             /** Height */
             height?: number | null;
-            /**
-             * Max Heart Rate
-             * @description Maximum heart rate in bpm
-             */
+            /** Max Heart Rate */
             max_heart_rate?: number | null;
-            /**
-             * Name
-             * @description User's full name
-             */
-            name: string;
-            /**
-             * @description Preferred language
-             * @default en
-             */
-            preferred_language: components["schemas"]["Language"];
+            /** Name */
+            name?: string | null;
+            preferred_language?: components["schemas"]["Language"] | null;
             /** @description The administrator's step-up verification, required to change the email, access type or active flag */
             step_up?: components["schemas"]["StepUpVerification"] | null;
-            /**
-             * Timezone
-             * @description IANA timezone the athlete lives in. Used as the fallback for activities imported without a GPS track, which would otherwise inherit the server's timezone. Null means not set.
-             */
+            /** Timezone */
             timezone?: string | null;
-            /**
-             * @description User units (metric, imperial)
-             * @default metric
-             */
-            units: components["schemas"]["Units"];
-            /**
-             * Username
-             * @description Unique username (alphanumeric, dots, hyphen, underscore)
-             */
-            username: string;
-            /** @description Weight units override (metric - kg, imperial - lb), follows 'units' when null */
+            units?: components["schemas"]["Units"] | null;
+            /** Username */
+            username?: string | null;
             weight_units?: components["schemas"]["Units"] | null;
         };
         /**
@@ -14081,6 +14050,30 @@ export interface components {
              * @default en
              */
             preferred_language: components["schemas"]["Language"];
+            /**
+             * Username
+             * @description Unique username (alphanumeric, dots, hyphen, underscore)
+             */
+            username: string;
+        };
+        /**
+         * UsernameChange
+         * @description Self-service username change, authorised by step-up verification.
+         *
+         *     Attributes:
+         *         username: The new username.
+         *         revoke_other_sessions: Whether to sign out the user's other sessions after the change.
+         *         step_up: The caller's step-up verification.
+         */
+        UsernameChange: {
+            /**
+             * Revoke Other Sessions
+             * @description After the username change, all of the user's other sessions (keeping the current one) are revoked unless the client sends false.
+             * @default true
+             */
+            revoke_other_sessions: boolean;
+            /** @description Step-up verification, required to change the username */
+            step_up: components["schemas"]["StepUpVerification"];
             /**
              * Username
              * @description Unique username (alphanumeric, dots, hyphen, underscore)
@@ -30337,6 +30330,115 @@ export interface operations {
             };
         };
     };
+    edit_profile_username: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
+                "X-Client-Type"?: "web" | "mobile";
+                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
+                "X-CSRF-Token"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UsernameChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description The version of the resource, to send back as `If-Match` on the next write. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserMe"];
+                };
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The request conflicts with the current state. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The body is larger than the route accepts. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     list_public_activity_exercise_titles: {
         parameters: {
             query?: {
@@ -30932,7 +31034,7 @@ export interface operations {
                     "application/json": components["schemas"]["EmailChangeCancelRead"];
                 };
             };
-            /** @description The token is malformed, expired, already used, or names a change that a later change has replaced. */
+            /** @description The token is malformed, expired, already used, or names a change that was already reverted or replaced before it was confirmed. */
             400: {
                 headers: {
                     [name: string]: unknown;

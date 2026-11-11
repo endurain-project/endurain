@@ -134,6 +134,10 @@
       "unknown": {
         "title": "Tilin turvallisuus muuttui",
         "body": "Tilisi turvallisuusasetus muuttui. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi."
+      },
+      "usernameChanged": {
+        "title": "Käyttäjänimi muutettu",
+        "body": "Käyttäjänimesi muutettiin. Jos et tehnyt sitä itse, nollaa salasanasi ja tarkista suojausasetuksesi."
       }
     },
     "newDeviceSignIn": {

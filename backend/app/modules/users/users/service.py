@@ -378,6 +378,7 @@ def _stage_user(
     fields.update(username=user.username.lower(), email=user.email.lower(), access_type=access_type)
     if not user.active:
         fields["deactivated_at"] = datetime.now(UTC)
+    require_email_available(None, user.email, db)
     created = users_crud.create_user(fields, db)
 
     # An administrator knows the password they created an account with, so its owner must choose a new one at the
@@ -538,6 +539,7 @@ def _stage_signup_user(
             email=profile.email,
         )
 
+    require_email_available(None, profile.email, db)
     created = users_crud.create_user(fields, db)
 
     if hashed_password is not None:
@@ -663,7 +665,8 @@ def stage_user_edit(user_id: int, user: users_schema.UserEdit, db: Session, *, i
     """Stage an administrative edit of a user.
 
     Intended for admin endpoints that legitimately set fields like ``access_type`` or ``active``.
-    Approval goes only through :func:`approve_user`. Self-service updates go through :func:`stage_profile_edit`,
+    Only the submitted fields are applied. Approval goes only through :func:`approve_user`: an edit that activates a
+    user awaiting approval is refused. Self-service updates go through :func:`stage_profile_edit`,
     whose allow-list prevents privilege escalation through mass assignment. A changed email also
     voids the user's unused password-reset tokens, so this covers every writer of this edit,
     such as the identity-provider sync.
@@ -679,28 +682,46 @@ def stage_user_edit(user_id: int, user: users_schema.UserEdit, db: Session, *, i
 
     Raises:
         NotFoundError: If the user does not exist.
+        ApprovalPendingError: If the edit activates a user awaiting approval.
         ConflictError: If the username or email is already taken.
         LastAdministratorError: If the edit would demote or deactivate the only administrator.
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
     existing = require_user(user_id, db)
-    email = user.email.lower()
-    if existing.email != email or (existing.active and not user.active):
+    if user.active and not existing.active and existing.pending_admin_approval:
+        logger.debug("Refused to activate a user awaiting approval", extra=core_logger.context(user_id=user_id))
+        jasil_audit.record_detached(
+            users_audit_actions.USER_UPDATE,
+            outcome=jasil_audit.Outcome.DENIED,
+            target_type="user",
+            target_id=str(user_id),
+            target_owner_id=str(user_id),
+        )
+        raise core_exceptions.ApprovalPendingError(
+            f"User is awaiting approval, approve them with POST /users/{user_id}/approve"
+        )
+    changes = user.model_dump(exclude_unset=True)
+    if user.username is not None:
+        changes["username"] = user.username.lower()
+    email_changed = user.email is not None and existing.email != user.email.lower()
+    if user.email is not None:
+        changes["email"] = user.email.lower()
+        if email_changed:
+            require_email_available(user_id, changes["email"], db)
+    deactivated = user.active is False and existing.active
+    if email_changed or deactivated:
         # A proof started before the address moved or the account was deactivated must not be redeemed after it. The
         # generation row is locked before the administrator rows and the user row.
         security_generation_integration.stage_bump(user_id, db)
-    if not user.active:
+    if user.active is False:
         _refuse_to_remove_last_admin(existing, "deactivated", db)
-    if users_schema.normalize_access_type(user.access_type) != users_schema.UserAccessType.ADMIN.value:
+    if (
+        user.access_type is not None
+        and users_schema.normalize_access_type(user.access_type) != users_schema.UserAccessType.ADMIN.value
+    ):
         _refuse_to_remove_last_admin(existing, "demoted", db)
 
-    changes = user.model_dump(exclude_unset=True)
-    changes["username"] = user.username.lower()
-    changes["email"] = email
-
     updated = users_crud.update_user(user_id, changes, db, if_match=if_match)
-    email_changed = existing.email != updated.email
-    deactivated = existing.active and not updated.active
     if email_changed:
         # A reset link mailed to the old address must not set a password once the recovery address moved.
         password_reset_tokens_integration.revoke_unused_tokens(user_id, db)
@@ -788,19 +809,22 @@ def _edit_ends_sessions(before: users_schema.UserRead, requested: users_schema.U
         requested: The edit as the administrator submitted it.
 
     Returns:
-        True when the requested email, access type or active flag differs from the stored one, so
+        True when a submitted email, access type or active flag differs from the stored one, so
         sessions issued under the old values must not outlive the edit.
     """
     return (
-        before.email != requested.email.lower()
-        or users_schema.normalize_access_type(before.access_type)
-        != users_schema.normalize_access_type(requested.access_type)
-        or before.active != requested.active
+        (requested.email is not None and before.email != requested.email.lower())
+        or (
+            requested.access_type is not None
+            and users_schema.normalize_access_type(before.access_type)
+            != users_schema.normalize_access_type(requested.access_type)
+        )
+        or (requested.active is not None and before.active != requested.active)
     )
 
 
 def _stage_edit_with_email_change(
-    existing: users_schema.UserRead, user: users_schema.UserEdit, db: Session, *, if_match: str
+    existing: users_schema.UserRead, user: users_schema.UserEdit, email: str, db: Session, *, if_match: str
 ) -> tuple[users_schema.UserRead, bool]:
     """Stage an edit that changes the user's email, applying the address now or only requesting it.
 
@@ -814,6 +838,7 @@ def _stage_edit_with_email_change(
     Args:
         existing: The user as stored.
         user: The edit, whose email differs from the stored one.
+        email: The edit's email, lowercased.
         db: Database session.
         if_match: The ``If-Match`` precondition.
 
@@ -826,21 +851,22 @@ def _stage_edit_with_email_change(
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
     if not user.email_verified:
-        requested = user.email.lower()
-        require_email_available(existing.id, requested, db)
-        if existing.active and not user.active:
+        require_email_available(existing.id, email, db)
+        if existing.active and user.active is False:
             # The edit bumps the generation too; this is taken first because the token write below comes before it.
             security_generation_integration.stage_bump(existing.id, db)
         # Staged before the edit, so an edit that also deactivates the user revokes the new link with the old ones.
-        if sign_up_tokens_integration.request_email_change(existing.id, requested, existing.email, db):
+        if sign_up_tokens_integration.request_email_change(existing.id, email, existing.email, db):
             kept = user.model_copy(update={"email": existing.email, "email_verified": existing.email_verified})
             return stage_user_edit(existing.id, kept, db, if_match=if_match), False
 
-    updated = stage_user_edit(existing.id, user, db, if_match=if_match)
+    # An address applied without being marked verified is unproven, whatever the stored flag says.
+    applied = user if user.email_verified else user.model_copy(update={"email_verified": False})
+    updated = stage_user_edit(existing.id, applied, db, if_match=if_match)
     if server_settings_integration.is_mail_configured(db):
         # The notice row also uses up every earlier link, so no link for the old or a pending address can confirm
         # over the address just applied.
-        sign_up_tokens_integration.stage_email_changed_notice(existing.id, user.email.lower(), existing.email, db)
+        sign_up_tokens_integration.stage_email_changed_notice(existing.id, email, existing.email, db)
     else:
         sign_up_tokens_integration.revoke_pending_tokens(existing.id, db)
     return updated, not user.email_verified
@@ -885,12 +911,13 @@ def edit_user(
         PermissionDeniedError: If the administrator changes their own email, which needs their account settings.
         StepUpFailedError: If the edit changes the email, access type or active flag and the step-up fails.
         NotFoundError: If the user does not exist.
+        ApprovalPendingError: If the edit activates a user awaiting approval.
         ConflictError: If the username or email is already taken.
         PreconditionFailedError: If the user changed since the client read them.
     """
     existing = require_user(user_id, db)
-    email_changed = existing.email != user.email.lower()
-    if email_changed:
+    email = user.email.lower() if user.email is not None else None
+    if email is not None and existing.email != email:
         require_other_user(user_id, actor_id, "change your email")
     if _edit_ends_sessions(existing, user):
         account_security_integration.verify_step_up(
@@ -906,8 +933,10 @@ def edit_user(
         db, "user", lambda: users_crud.get_user_by_id(user_id, db) is not None, "User not found"
     ):
         try:
-            if email_changed:
-                updated, applied_unverified = _stage_edit_with_email_change(existing, user, db, if_match=if_match)
+            if email is not None and existing.email != email:
+                updated, applied_unverified = _stage_edit_with_email_change(
+                    existing, user, email, db, if_match=if_match
+                )
             else:
                 updated = stage_user_edit(user_id, user, db, if_match=if_match)
         except core_exceptions.ConflictError:
@@ -954,20 +983,42 @@ def stage_profile_edit(
 
     Raises:
         NotFoundError: If the user does not exist.
-        ConflictError: If the username or email is already taken.
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
     existing = require_user(user_id, db)
 
     provided = profile.model_dump(exclude_unset=True)
     changes = {key: value for key, value in provided.items() if key in users_constants.PROFILE_SELF_SERVICE_FIELDS}
-    if isinstance(changes.get("username"), str):
-        changes["username"] = changes["username"].lower()
 
     updated = users_crud.update_user(user_id, changes, db, if_match=if_match)
     if "height" in changes:
         _recalculate_bmi_if_height_changed(existing, updated, db)
     return updated
+
+
+def stage_username_change(user_id: int, username: str, db: Session) -> bool:
+    """Stage a new username for a user, stored in lower case.
+
+    Does nothing when the username is the one the user already has. The security generation is not bumped: a
+    username is not a credential, so a proof started before the change stays valid.
+
+    Args:
+        user_id: ID of the user whose username changes.
+        username: The new username, in any case.
+        db: Database session.
+
+    Returns:
+        True when the username changed, False when it was already the user's.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+        ConflictError: If another account uses the username.
+    """
+    normalized = username.lower()
+    if require_user(user_id, db).username == normalized:
+        return False
+    users_crud.update_user(user_id, {"username": normalized}, db)
+    return True
 
 
 def stage_email_change(user_id: int, email: str, db: Session) -> bool:
@@ -994,6 +1045,7 @@ def stage_email_change(user_id: int, email: str, db: Session) -> bool:
     if existing.email == normalized:
         return False
 
+    require_email_available(user_id, normalized, db)
     security_generation_integration.stage_bump(user_id, db)
     users_crud.update_user(user_id, {"email": normalized, "email_verified": False}, db)
     # A link issued for the old address or a pending one must not confirm over the address just applied.
@@ -1002,22 +1054,41 @@ def stage_email_change(user_id: int, email: str, db: Session) -> bool:
     return True
 
 
-def require_email_available(user_id: int, email: str, db: Session) -> None:
-    """Refuse an address that another account uses.
+def is_email_available(user_id: int | None, email: str, db: Session) -> bool:
+    """Tell whether an address can be given to a user: no other account uses it or has it reserved.
 
-    A write to the user's own row trips the unique index on its own; this is for a path that stores the
-    address elsewhere first, such as a pending email change.
+    An address a confirmed email change left behind is reserved for that account while the change can still be
+    reverted.
 
     Args:
-        user_id: ID of the user who wants the address.
+        user_id: ID of the user who wants the address, or ``None`` for an account not yet created.
+        email: The address, in any case.
+        db: Database session.
+
+    Returns:
+        False when another account uses the address or has it reserved.
+    """
+    holder = users_crud.get_user_by_email(email.lower(), db)
+    if holder is not None and holder.id != user_id:
+        return False
+    return sign_up_tokens_integration.get_email_reserver_id(email, user_id, db) is None
+
+
+def require_email_available(user_id: int | None, email: str, db: Session) -> None:
+    """Refuse an address that another account uses or has reserved.
+
+    The unique index refuses a held address on a write to the user's own row; this also refuses a reserved one,
+    and serves a path that stores the address elsewhere first, such as a pending email change.
+
+    Args:
+        user_id: ID of the user who wants the address, or ``None`` for an account not yet created.
         email: The address, in any case.
         db: Database session.
 
     Raises:
-        ConflictError: If another account uses the address.
+        ConflictError: If another account uses or has reserved the address.
     """
-    holder = users_crud.get_user_by_email(email.lower(), db)
-    if holder is not None and holder.id != user_id:
+    if not is_email_available(user_id, email, db):
         raise core_exceptions.ConflictError("Email is already in use.")
 
 

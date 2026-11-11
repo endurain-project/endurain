@@ -90,6 +90,16 @@ describe('UserFormDialog refusals', () => {
     ])
   })
 
+  it('points to the approve action when the server refuses to activate a user awaiting approval', async () => {
+    const wrapper = await saveRefusedWith(
+      new HttpError(409, 'Conflict', null, 'urn:endurain:error:approval-pending'),
+    )
+
+    expect(wrapper.emitted('error')?.[0]).toEqual([
+      i18n.global.t('settings.users.form.approvalPending'),
+    ])
+  })
+
   it('reports any other conflict as a username or email already in use', async () => {
     const wrapper = await saveRefusedWith(
       new HttpError(409, 'Conflict', null, 'urn:endurain:error:conflict'),

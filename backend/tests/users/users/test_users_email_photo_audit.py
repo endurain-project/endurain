@@ -27,6 +27,7 @@ class TestConfirmedEmailChange:
         entry = audit.assert_audited(users_audit_actions.USER_EMAIL_CHANGE.id, **_TARGET)
         assert entry.details is None
 
+    @pytest.mark.usefixtures("real_email_availability")
     def test_a_taken_address_writes_no_row(self, mock_db):
         with jasil_testing.capture_audit() as audit, patch(_SERVICE_CRUD) as crud:
             crud.get_user_by_email.return_value = MagicMock(id=8)

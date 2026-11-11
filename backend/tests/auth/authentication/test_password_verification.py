@@ -168,7 +168,7 @@ def test_a_bcrypt_hash_is_refused_like_a_wrong_password_and_counts_a_failure(has
             device_id=None,
         )
 
-    failed_attempts.record_failed_attempt.assert_called_once_with("alice", "127.0.0.1")
+    failed_attempts.record_failed_attempt.assert_called_once_with("alice", "127.0.0.1", user_id=7)
 
 
 _NFC = "café"

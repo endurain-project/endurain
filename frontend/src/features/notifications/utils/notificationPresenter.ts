@@ -43,6 +43,7 @@ const ACCOUNT_SECURITY_CHANGE_KEY: Record<string, string> = {
   refresh_token_reuse_detected: 'refreshTokenReuseDetected',
   role_changed_by_admin: 'roleChangedByAdmin',
   account_deactivated_by_admin: 'accountDeactivatedByAdmin',
+  username_changed: 'usernameChanged',
 }
 
 /**

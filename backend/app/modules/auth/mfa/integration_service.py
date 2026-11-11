@@ -62,17 +62,17 @@ def disable_user_mfa(user_id: int, db: Session) -> None:
     mfa_service.disable_user_mfa(user_id, db)
 
 
-def clear_mfa_account_lockout(username: str) -> None:
-    """Lift the account-wide MFA sign-in lock and wrong-code count of a username after its second factor changed.
+def clear_mfa_account_lockout(user_id: int) -> None:
+    """Lift the account-wide MFA sign-in lock and wrong-code count of an account after its second factor changed.
 
     A change that follows an outage of the shared state still succeeds; the lock then ends on its own or at the next
     successful MFA sign-in.
 
     Args:
-        username: The username whose account-wide wrong MFA codes are forgotten.
+        user_id: The account whose account-wide wrong MFA codes are forgotten.
     """
     try:
-        pending_login_store.PendingMFALogin(core_dependencies.get_platform_state()).reset_account(username)
+        pending_login_store.PendingMFALogin(core_dependencies.get_platform_state()).reset_account(user_id)
     except lockout_contracts.AuthSecurityStoreUnavailableError:
         logger.warning("Account MFA sign-in lock was not cleared because the shared state is unavailable")
 

@@ -309,6 +309,7 @@ class TestWebExchange:
                 db,
                 oauth_state_id=state_id,
                 amr=["pwd"],
+                device_hash=None,
             )
             db.commit()
         return session_id

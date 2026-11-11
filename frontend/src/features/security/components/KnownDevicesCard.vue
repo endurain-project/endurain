@@ -35,8 +35,9 @@ const props = defineProps<{
 
 /**
  * The Known devices card: the devices the account is known to sign in from, with the
- * current one badged. Forgetting a device needs step-up; the next sign-in from it counts
- * as a new device.
+ * current one badged. Forgetting a device needs step-up, signs the device out (this browser
+ * included, when it is the current device) and makes the next sign-in from it count as a new
+ * device.
  */
 const { t, locale } = useI18n()
 const toasts = useToasts()
@@ -49,6 +50,11 @@ const forgetMutation = useForgetKnownDeviceMutation()
 const isStepUpOpen = ref(false)
 const idpReauth = ref<IdpReauth | null>(null)
 const deviceIdToForget = ref<number | null>(null)
+const forgetDescription = computed(() =>
+  devices.value.some((device) => device.id === deviceIdToForget.value && device.current)
+    ? t('settings.security.devices.forgetCurrentDescription')
+    : t('settings.security.devices.forgetDescription'),
+)
 
 /** A device label built from browser + OS, falling back to the device type. */
 function deviceLabel(device: KnownDevice): string {
@@ -177,7 +183,7 @@ function onConfirm(input: StepUpInput): void {
       action="profile_device_forget"
       :pending-context="deviceIdToForget === null ? {} : { deviceId: deviceIdToForget }"
       :title="t('settings.security.devices.forgetTitle')"
-      :description="t('settings.security.devices.forgetDescription')"
+      :description="forgetDescription"
       :confirm-label="t('settings.security.devices.forgetConfirm')"
       :require-password="props.hasLocalPassword"
       :require-mfa="props.mfaEnabled"

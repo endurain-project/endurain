@@ -134,6 +134,10 @@
       "unknown": {
         "title": "Sigurnost računa promijenjena",
         "body": "Promijenjena je sigurnosna postavka vašeg računa. Ako to niste bili vi, resetirajte lozinku i pregledajte svoje sigurnosne postavke."
+      },
+      "usernameChanged": {
+        "title": "Korisničko ime promijenjeno",
+        "body": "Vaše korisničko ime je promijenjeno. Ako to niste bili vi, resetirajte lozinku i pregledajte sigurnosne postavke."
       }
     },
     "newDeviceSignIn": {

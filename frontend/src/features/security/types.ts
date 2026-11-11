@@ -33,6 +33,9 @@ export type StepUpRequestDto = Schemas['StepUpRequest']
 /** Email-change request body: the new address plus the step-up credentials. */
 export type EmailChangeDto = Schemas['EmailChange']
 
+/** Username-change request body: the new username plus the step-up credentials. */
+export type UsernameChangeDto = Schemas['UsernameChange']
+
 /** Profile payload the email-change request answers with. */
 export type EmailChangeResultDto = Schemas['UserMe']
 

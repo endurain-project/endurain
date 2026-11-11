@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
+import jasil.audit as jasil_audit
 import pytest
 from pydantic import TypeAdapter
 
@@ -16,6 +17,7 @@ import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.schema as auth_schema
 import modules.auth.sign_up_tokens.contracts as sign_up_contracts
+import modules.users.users.audit_actions as users_audit_actions
 import modules.users.users.models as users_models
 import modules.users.users.router as users_router
 import modules.users.users.schema as users_schema
@@ -86,6 +88,7 @@ def sign_up():
     """Replace the sign-up-token boundary: no pending change, and mail configured."""
     with patch("modules.users.users.service.sign_up_tokens_integration") as integration:
         integration.get_pending_email_changes.return_value = {}
+        integration.get_email_reserver_id.return_value = None
         integration.request_email_change.return_value = True
         yield integration
 
@@ -402,6 +405,7 @@ class TestPendingEmailChanges:
         assert "deletion_requested_at" not in edit.model_dump()
 
 
+@pytest.mark.usefixtures("real_email_availability")
 class TestRequireEmailAvailable:
     @patch(_CRUD)
     def test_another_accounts_address_is_a_conflict(self, mock_crud, mock_db):
@@ -1010,6 +1014,7 @@ class TestEdits:
         names = [call[0] for call in order.mock_calls]
         assert names.index("bump") < names.index("request")
 
+    @pytest.mark.usefixtures("real_email_availability")
     def test_a_requested_email_is_checked_for_another_account_before_it_is_staged(
         self, mock_crud, mock_weight, mock_db, sign_up
     ):
@@ -1064,6 +1069,22 @@ class TestEdits:
         assert (result.email, result.email_verified) == ("other@example.com", False)
         mock_db.commit.assert_called_once()
         _delete_all_sessions_mock.assert_called_once_with(1, mock_db)
+
+    def test_without_outgoing_mail_an_email_edit_that_omits_the_verified_flag_is_stored_unverified(
+        self, mock_crud, mock_weight, mock_db, sign_up
+    ):
+        mock_crud.get_user_by_id.return_value = _user(1, email_verified=True)
+        mock_crud.get_user_by_email.return_value = None
+        mock_crud.update_user.return_value = _user(1, email="other@example.com", email_verified=False)
+        sign_up.request_email_change.return_value = False
+        _identity()
+
+        with patch(_SETTINGS) as mock_settings:
+            mock_settings.is_mail_configured.return_value = False
+            _admin_edit(1, users_schema.UserEdit(email="other@example.com"), 9, mock_db)
+
+        changes = mock_crud.update_user.call_args.args[1]
+        assert (changes["email"], changes["email_verified"]) == ("other@example.com", False)
 
     def test_an_email_applied_now_voids_the_reset_tokens(self, mock_crud, mock_weight, mock_db, password_reset):
         mock_crud.get_user_by_id.return_value = _user(1)
@@ -1221,6 +1242,79 @@ class TestEdits:
         mock_db.rollback.assert_called_once()
         mock_db.commit.assert_not_called()
 
+    def test_an_admin_edit_of_one_field_writes_only_that_field(self, mock_crud, mock_weight, mock_db):
+        mock_crud.get_user_by_id.return_value = _user(1)
+        mock_crud.update_user.return_value = _user(1, name="Renamed")
+        body = users_schema.UserAdminEdit(name="Renamed")
+
+        _admin_edit(1, body.to_edit(), 9, mock_db)
+
+        assert mock_crud.update_user.call_args.args[1] == {"name": "Renamed"}
+        _verify_step_up_mock.assert_not_called()
+        _delete_all_sessions_mock.assert_not_called()
+
+    def test_an_admin_edit_of_the_active_flag_alone_needs_the_step_up_and_ends_sessions(
+        self, mock_crud, mock_weight, mock_db
+    ):
+        mock_crud.get_user_by_id.return_value = _user(1)
+        mock_crud.update_user.return_value = _user(1, active=False)
+        mock_crud.lock_active_admin_ids.return_value = [1, 2]
+        _identity()
+
+        _admin_edit(1, users_schema.UserAdminEdit(active=False).to_edit(), 9, mock_db)
+
+        assert mock_crud.update_user.call_args.args[1] == {"active": False}
+        _verify_step_up_mock.assert_called_once()
+        _delete_all_sessions_mock.assert_called_once_with(1, mock_db)
+
+    def test_an_admin_edit_that_resubmits_the_stored_role_and_email_changes_no_session(
+        self, mock_crud, mock_weight, mock_db
+    ):
+        mock_crud.get_user_by_id.return_value = _user(1)
+        mock_crud.update_user.return_value = _user(1, name="Renamed")
+        body = users_schema.UserAdminEdit(name="Renamed", email="USER1@example.com", access_type="regular")
+
+        _admin_edit(1, body.to_edit(), 9, mock_db)
+
+        _verify_step_up_mock.assert_not_called()
+        _delete_all_sessions_mock.assert_not_called()
+
+    def test_an_edit_cannot_activate_a_user_awaiting_approval(self, mock_crud, mock_weight, mock_db):
+        mock_crud.get_user_by_id.return_value = _user(1, active=False, pending_admin_approval=True)
+
+        with (
+            patch("modules.users.users.service.jasil_audit.record_detached") as record,
+            pytest.raises(core_exceptions.ApprovalPendingError, match="/users/1/approve") as refused,
+        ):
+            users_service.stage_user_edit(1, users_schema.UserEdit(active=True), mock_db, if_match="*")
+
+        assert refused.value.code == "approval-pending"
+        assert isinstance(refused.value, core_exceptions.ConflictError)
+        record.assert_called_once_with(
+            users_audit_actions.USER_UPDATE,
+            outcome=jasil_audit.Outcome.DENIED,
+            target_type="user",
+            target_id="1",
+            target_owner_id="1",
+        )
+        mock_crud.update_user.assert_not_called()
+
+    def test_an_edit_of_other_fields_of_a_user_awaiting_approval_is_applied(self, mock_crud, mock_weight, mock_db):
+        mock_crud.get_user_by_id.return_value = _user(1, active=False, pending_admin_approval=True)
+        mock_crud.update_user.return_value = _user(1, active=False, pending_admin_approval=True, name="Renamed")
+
+        users_service.stage_user_edit(1, users_schema.UserEdit(name="Renamed", active=False), mock_db, if_match="*")
+
+        assert mock_crud.update_user.call_args.args[1] == {"name": "Renamed", "active": False}
+
+    def test_an_edit_activates_a_deactivated_user_who_is_not_awaiting_approval(self, mock_crud, mock_weight, mock_db):
+        mock_crud.get_user_by_id.return_value = _user(1, active=False)
+        mock_crud.update_user.return_value = _user(1)
+
+        users_service.stage_user_edit(1, users_schema.UserEdit(active=True), mock_db, if_match="*")
+
+        assert mock_crud.update_user.call_args.args[1] == {"active": True}
+
     def test_profile_edit_keeps_only_allow_listed_fields(self, mock_crud, mock_weight, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1)
         mock_crud.update_user.return_value = _user(1)
@@ -1231,7 +1325,7 @@ class TestEdits:
 
         users_service.stage_profile_edit(1, profile, mock_db, if_match="*")
 
-        assert mock_crud.update_user.call_args.args[1] == {"name": "New", "username": "mixed"}
+        assert mock_crud.update_user.call_args.args[1] == {"name": "New"}
 
     def test_profile_edit_can_set_the_timezone(self, mock_crud, mock_weight, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1)
@@ -1705,6 +1799,7 @@ class TestStageEmailChange:
             users_service.stage_email_change(1, "a@example.com", mock_db)
 
 
+@pytest.mark.usefixtures("real_email_availability")
 class TestStageConfirmedEmailChange:
     @patch(_CRUD)
     def test_a_confirmed_address_voids_the_reset_tokens(self, mock_crud, mock_db, password_reset):

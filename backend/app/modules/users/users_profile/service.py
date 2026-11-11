@@ -16,6 +16,7 @@ import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.activities.activity.integration_service as activities_integration
+import modules.auth.account_security.events as account_security_events
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_providers.constants as identity_providers_constants
@@ -174,7 +175,6 @@ def edit_profile(
 
     Raises:
         NotFoundError: If the user does not exist.
-        ConflictError: If the username or email is already taken.
         PreconditionFailedError: If the user changed since the client read them.
     """
     with core_etag.refuse_stale_write(
@@ -194,6 +194,70 @@ def edit_profile(
             )
         db.commit()
     logger.info("Profile updated", extra=core_logger.context(user_id=user_id))
+    return get_profile(user_id, db)
+
+
+def change_username(
+    user_id: int,
+    change: users_schema.UsernameChange,
+    session_id: str,
+    step_up_store: "auth_dependencies.StepUpStore",
+    db: Session,
+) -> users_schema.UserMe:
+    """Change the user's username after step-up verification.
+
+    The username is the sign-in name, so a stolen access token alone must not be able to rename the account.
+    Re-submitting the current username changes nothing and is neither audited nor announced. Otherwise the
+    account's email address is told, and when the request asks for it the user's other sessions are revoked, so
+    a session an attacker holds does not outlive the change. A username is not a credential, so the security
+    generation stays as it is.
+
+    Args:
+        user_id: The authenticated user.
+        change: The new username with the step-up verification.
+        session_id: The caller's current session, which stays signed in when other sessions are revoked.
+        step_up_store: Step-up lockout store.
+        db: Database session.
+
+    Returns:
+        The profile after the change, whose ``version`` the client sends as its next ``If-Match``.
+
+    Raises:
+        StepUpFailedError: If step-up verification fails.
+        NotFoundError: If the user does not exist.
+        ConflictError: If another account uses the username.
+    """
+    account_security_integration.verify_step_up(
+        change.step_up,
+        user_id,
+        session_id,
+        identity_providers_constants.StepUpAction.USERNAME_CHANGE,
+        step_up_store,
+        db,
+    )
+    try:
+        changed = users_integration.stage_username_change(user_id, change.username, db)
+    except core_exceptions.ConflictError:
+        db.rollback()
+        raise
+    if not changed:
+        db.commit()
+        return get_profile(user_id, db)
+    if change.revoke_other_sessions:
+        account_security_integration.delete_other_user_sessions(user_id, session_id, db)
+    account_security_integration.stage_account_change_notice(
+        user_id, account_security_events.AccountSecurityChange.USERNAME_CHANGED, db
+    )
+    jasil_audit.stage(
+        db,
+        profile_audit_actions.USERNAME_CHANGE,
+        target_type="user",
+        target_id=str(user_id),
+        target_owner_id=str(user_id),
+        details=profile_audit_actions.UsernameChangeDetails(other_sessions_revoked=change.revoke_other_sessions),
+    )
+    db.commit()
+    logger.info("Username changed", extra=core_logger.context(user_id=user_id))
     return get_profile(user_id, db)
 
 

@@ -99,7 +99,7 @@ export async function fetchProfile(signal?: AbortSignal): Promise<ProfileDetails
  *
  * @param input - The clean profile edit input.
  * @param version - The profile version the form was loaded at, for `If-Match`.
- * @throws {HttpError} When the request fails (e.g. duplicate username/email), including 412 when stale.
+ * @throws {HttpError} When the request fails, including 412 when stale.
  */
 export async function updateProfile(
   input: Partial<ProfileEditInput>,
@@ -107,7 +107,6 @@ export async function updateProfile(
 ): Promise<void> {
   const payload: ProfileUpdateDto = {
     name: input.name,
-    username: input.username,
     city: input.city,
     birthdate: input.birthdate,
     gender: input.gender,

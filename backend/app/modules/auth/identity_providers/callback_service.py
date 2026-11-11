@@ -925,6 +925,7 @@ class CallbackService:
             db,
             oauth_state_id=oauth_state.id,
             amr=[auth_constants.AuthMethod.FEDERATED],
+            device_hash=None,
             app_redirect_uri=(
                 oauth_state.redirect_path
                 if identity_provider_utils.is_native_redirect(oauth_state.redirect_path)

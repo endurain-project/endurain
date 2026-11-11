@@ -134,6 +134,10 @@
       "unknown": {
         "title": "Segurança da conta alterada",
         "body": "Uma definição de segurança da tua conta foi alterada. Se não foste tu, repõe a palavra-passe e revê as tuas definições de segurança."
+      },
+      "usernameChanged": {
+        "title": "Nome de utilizador alterado",
+        "body": "O seu nome de utilizador foi alterado. Se não foi você, reponha a palavra-passe e reveja as definições de segurança."
       }
     },
     "newDeviceSignIn": {

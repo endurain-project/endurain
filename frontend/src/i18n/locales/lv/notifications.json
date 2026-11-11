@@ -134,6 +134,10 @@
       "unknown": {
         "title": "Konta drošība mainīta",
         "body": "Mainīts kāds jūsu konta drošības iestatījums. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
+      },
+      "usernameChanged": {
+        "title": "Lietotājvārds mainīts",
+        "body": "Jūsu lietotājvārds tika mainīts. Ja tas nebijāt jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
       }
     },
     "newDeviceSignIn": {

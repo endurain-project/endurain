@@ -316,3 +316,52 @@ class TestUnexchangedSessions:
         assert claimed.tokens_exchanged is True
         assert claimed.amr == ["fed", "otp", "mfa"]
         assert claimed.expires_at.replace(tzinfo=UTC) == real_expiry
+
+
+class TestDeviceHash:
+    """A session is tied to the device it signed in from, and a device's sessions are deleted together."""
+
+    @staticmethod
+    def _add(db, session_id, *, user_id=7, device_hash=None):
+        now = datetime.now(UTC)
+        values = vars(_row(id=session_id, user_id=user_id))
+        values.update(
+            token_family_id=session_id,
+            expires_at=now + timedelta(days=1),
+            tokens_exchanged=True,
+            device_hash=device_hash,
+        )
+        db.add(sessions_models.UsersSessions(**values))
+        db.flush()
+
+    @pytest.fixture
+    def db(self):
+        from tests._helpers.db import create_sqlite_session
+
+        session = create_sqlite_session()
+        yield session
+        session.close()
+
+    def test_the_delete_removes_only_the_users_sessions_of_that_device(self, db):
+        self._add(db, "same-device-1", device_hash="a" * 64)
+        self._add(db, "same-device-2", device_hash="a" * 64)
+        self._add(db, "other-device", device_hash="b" * 64)
+        self._add(db, "no-device")
+        self._add(db, "other-user", user_id=8, device_hash="a" * 64)
+
+        deleted = sessions_crud.delete_sessions_by_device(7, "a" * 64, db)
+
+        assert sorted(session.id for session in deleted) == ["same-device-1", "same-device-2"]
+        for kept in ("other-device", "no-device", "other-user"):
+            assert sessions_crud.get_session_by_id(kept, db) is not None
+        assert sessions_crud.get_session_by_id("same-device-1", db) is None
+
+    def test_setting_the_hash_ties_a_session_to_a_device(self, db):
+        self._add(db, "pending")
+
+        sessions_crud.set_session_device_hash("pending", "c" * 64, db)
+
+        db.expire_all()
+        stored = sessions_crud.get_session_by_id("pending", db)
+        assert stored is not None
+        assert stored.device_hash == "c" * 64

@@ -31,17 +31,17 @@ def resolve_from_api_key(raw_key: str, request: Request, db: Session) -> auth_co
     return principal_service.resolve_from_api_key(raw_key, request.url.path, core_network.get_ip_address(request), db)
 
 
-def clear_account_login_lockout(username: str) -> None:
-    """Lift the account-wide sign-in lock and failure count of a username after its password was replaced.
+def clear_account_login_lockout(user_id: int) -> None:
+    """Lift the account-wide sign-in lock and failure count of an account after its password was replaced.
 
     A credential change that follows an outage of the shared state still succeeds; the lock then ends on its own or at
     the next successful sign-in.
 
     Args:
-        username: The username whose account-wide failed sign-ins are forgotten.
+        user_id: The account whose account-wide failed sign-ins are forgotten.
     """
     try:
-        failed_login_store.FailedLoginAttempts(core_dependencies.get_platform_state()).reset_account(username)
+        failed_login_store.FailedLoginAttempts(core_dependencies.get_platform_state()).reset_account(user_id)
     except lockout_contracts.AuthSecurityStoreUnavailableError:
         logger.warning("Account sign-in lock was not cleared because the shared state is unavailable")
 

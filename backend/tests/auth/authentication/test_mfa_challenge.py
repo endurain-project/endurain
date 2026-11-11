@@ -314,7 +314,10 @@ def _exchange(stack, *, claimed: bool):
             f"{_SSO}.sessions_integration.claim_session_for_token_exchange",
             return_value=datetime(2999, 1, 1, tzinfo=UTC) if claimed else None,
         ),
-        patch(f"{_SSO}.known_devices_integration.record_sign_in", return_value=MagicMock(new_device=False)),
+        patch(
+            f"{_SSO}.known_devices_integration.record_sign_in",
+            return_value=MagicMock(device_id="d" * 43, new_device=False),
+        ),
         patch(f"{_SSO}.authentication_token_service.build_web_token_response"),
         stack.factory() as db,
     ):
@@ -341,7 +344,7 @@ class TestSsoExchangeCommitOrder:
     def test_a_backup_code_stays_unused_when_the_exchange_claim_is_lost(self, mfa_plain_signin):
         err = _exchange(mfa_plain_signin, claimed=False)
 
-        assert isinstance(err, core_exceptions.ConflictError)
+        assert isinstance(err, core_exceptions.NotFoundError)
         assert _unused_codes(mfa_plain_signin) == 1
 
     def test_a_backup_code_is_consumed_by_the_exchange_it_completes(self, mfa_plain_signin):

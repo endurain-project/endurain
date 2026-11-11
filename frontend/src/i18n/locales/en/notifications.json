@@ -134,6 +134,10 @@
       "unknown": {
         "title": "Account security changed",
         "body": "A security setting of your account changed. If this wasn't you, reset your password and review your security settings."
+      },
+      "usernameChanged": {
+        "title": "Username changed",
+        "body": "Your username was changed. If this wasn't you, reset your password and review your security settings."
       }
     },
     "newDeviceSignIn": {

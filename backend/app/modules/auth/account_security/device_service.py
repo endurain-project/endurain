@@ -12,6 +12,7 @@ import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.known_devices.integration_service as known_devices_integration
 import modules.auth.known_devices.schema as known_devices_schema
 import modules.auth.schema as auth_schema
+import modules.auth.sessions.audit_actions as sessions_audit_actions
 
 logger = core_logger.get_logger(__name__)
 
@@ -31,7 +32,9 @@ def forget_user_device(
     step_up_store: step_up_store_module.StepUpStore,
     db: Session,
 ) -> None:
-    """Verify step-up, then forget one of the user's known devices and commit.
+    """Verify step-up, then forget one of the user's known devices, end the sessions that signed in from it and commit.
+
+    The caller's own session ends too when it is on that device.
 
     Args:
         device_id: ID of the device to forget.
@@ -54,13 +57,14 @@ def forget_user_device(
         session_id=session_id,
         action=identity_providers_constants.StepUpAction.PROFILE_DEVICE_FORGET,
     )
-    known_devices_integration.forget_device(device_id, user_id, db)
+    sessions_ended = known_devices_integration.forget_device(device_id, user_id, db)
     jasil_audit.stage(
         db,
         account_security_audit_actions.DEVICE_FORGET,
         target_type="device",
         target_id=str(device_id),
         target_owner_id=str(user_id),
+        details=sessions_audit_actions.SessionsRevokedDetails(sessions_revoked=sessions_ended),
     )
     db.commit()
     logger.info("Known device forgotten", extra=core_logger.context(user_id=user_id, device_id=device_id))

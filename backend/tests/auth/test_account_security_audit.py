@@ -79,6 +79,7 @@ class TestPayloadAndPublisher:
             "role_changed_by_admin",
             "account_deactivated_by_admin",
             "account_deletion_requested",
+            "username_changed",
             "step_up_session_ended",
             "step_up_locked",
         }
@@ -133,7 +134,7 @@ class TestPasswordAudit:
     def test_own_password_change_lifts_the_account_sign_in_lock(self, mock_db, published):
         clear_lock = self._stage_own(mock_db)
 
-        clear_lock.assert_called_once_with("alice")
+        clear_lock.assert_called_once_with(7)
 
     def test_own_password_change_without_revoking_records_zero(self, mock_db, published):
         with jasil_testing.capture_audit() as audit:
@@ -161,7 +162,7 @@ class TestPasswordAudit:
             require_user.return_value.username = "alice"
             account_security_service.change_managed_user_password(7, "new", mock_db)
 
-        clear_lock.assert_called_once_with("alice")
+        clear_lock.assert_called_once_with(7)
         clear_step_up.assert_called_once_with(7)
 
         entry = audit.assert_audited(
@@ -190,7 +191,7 @@ class TestAdministratorCredentialAudit:
             account_security_service.reset_managed_user_mfa(7, mock_db)
 
         disable.assert_called_once_with(7, mock_db)
-        clear_lock.assert_called_once_with("alice")
+        clear_lock.assert_called_once_with(7)
         sessions.assert_called_once_with(7, mock_db)
         entry = audit.assert_audited(
             account_security_audit_actions.MFA_RESET.id, target_type="user", target_id="7", target_owner_id="7"
@@ -317,7 +318,7 @@ class TestMfaAudit:
         )
         assert entry.details == {"sessions_revoked": 3}
         assert_event(published, Change.MFA_ENABLED)
-        self.cleared.assert_called_once_with("alice")
+        self.cleared.assert_called_once_with(7)
 
     def test_enable_keeps_every_session_when_told_to(self, mock_db, published):
         with self._revoker(3) as delete:
@@ -343,7 +344,7 @@ class TestMfaAudit:
         )
         assert entry.details == {"sessions_revoked": 2}
         assert_event(published, Change.MFA_DISABLED)
-        self.cleared.assert_called_once_with("alice")
+        self.cleared.assert_called_once_with(7)
 
     def test_disable_keeps_every_session_when_told_to(self, mock_db, published):
         with self._revoker(2) as delete:

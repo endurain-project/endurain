@@ -23,7 +23,6 @@ vi.mock('@/features/profile/services/profile', async (importOriginal) => ({
 
 const profileInput: ProfileEditInput = {
   name: 'Ada Lovelace',
-  username: 'ada',
   city: null,
   birthdate: null,
   gender: 'unspecified',

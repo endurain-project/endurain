@@ -29,7 +29,7 @@ _NO_LOCK = failed_login_store.FailedLoginRecord(client_count=1, account_locked_n
 @pytest.fixture(autouse=True)
 def _known_device():
     """Answer every sign-in as one from a device the user already signs in from."""
-    record = known_devices_contracts.SignInRecord(device_id=None, new_device=False)
+    record = known_devices_contracts.SignInRecord(device_id="d" * 43, new_device=False)
     with patch(f"{_SERVICE}.known_devices_integration.record_sign_in", return_value=record):
         yield
 
@@ -100,7 +100,11 @@ class TestRefusedPasswordSignIn:
         failed_attempts = MagicMock()
         failed_attempts.is_locked_out.return_value = True
         failed_attempts.get_lockout_time.return_value = datetime(2999, 1, 1, tzinfo=UTC)
-        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.TooManyRequestsError) as refusal:
+        with (
+            patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=None),
+            jasil_testing.capture_audit() as audit,
+            pytest.raises(core_exceptions.TooManyRequestsError) as refusal,
+        ):
             _login(mock_db, failed_attempts=failed_attempts)
 
         assert refusal.value.retry_at == datetime(2999, 1, 1, tzinfo=UTC)

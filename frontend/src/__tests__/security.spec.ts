@@ -7,6 +7,7 @@ import {
   cancelEmailChange,
   changeEmail,
   changePassword,
+  changeUsername,
   deleteAccount,
   disableMfa,
   enableMfa,
@@ -388,6 +389,28 @@ describe('changeEmail', () => {
     await expect(
       changeEmail('new@example.com', { currentPassword: 'pw', mfaCode: null }, false),
     ).resolves.toBe(false)
+  })
+})
+
+describe('changeUsername', () => {
+  beforeEach(() => {
+    vi.mocked(apiFetch).mockReset()
+  })
+
+  it('POSTs the new username together with the step-up credentials', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined)
+
+    await changeUsername('new_name', { currentPassword: 'pw', mfaCode: '123456' }, false)
+
+    expect(apiFetch).toHaveBeenCalledWith('/profile/username/change', {
+      method: 'POST',
+      body: JSON.stringify({
+        username: 'new_name',
+        revoke_other_sessions: false,
+        step_up: { current_password: 'pw', mfa_code: '123456' },
+      }),
+      responseType: 'void',
+    })
   })
 })
 

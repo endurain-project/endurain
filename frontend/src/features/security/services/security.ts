@@ -25,6 +25,7 @@ import type {
   SecuritySessionDto,
   EmailChangeDto,
   EmailChangeResultDto,
+  UsernameChangeDto,
   IdpReauth,
   IdpReauthDto,
   StepUpDto,
@@ -526,6 +527,32 @@ export async function changeEmail(
     body: JSON.stringify(payload),
   })
   return profile.pending_email != null
+}
+
+/**
+ * Changes the account username after step-up verification. The username is the sign-in name, so it
+ * applies at once; the account's email address is told of the change.
+ *
+ * @param username - The new username.
+ * @param input - The step-up credentials (password and, with MFA, a code).
+ * @param revokeOtherSessions - Whether to sign out every other session after the change.
+ * @throws {HttpError} When the request fails (403 step-up, 409 username already in use).
+ */
+export async function changeUsername(
+  username: string,
+  input: StepUpInput,
+  revokeOtherSessions: boolean,
+): Promise<void> {
+  const payload: UsernameChangeDto = {
+    username,
+    revoke_other_sessions: revokeOtherSessions,
+    step_up: toStepUpWire(input),
+  }
+  await apiFetch('/profile/username/change', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    responseType: 'void',
+  })
 }
 
 /**

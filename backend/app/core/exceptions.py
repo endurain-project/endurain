@@ -298,6 +298,17 @@ class LastAdministratorError(ConflictError):
     default_detail = "The only administrator cannot be changed"
 
 
+class ApprovalPendingError(ConflictError):
+    """An edit would activate a user who is awaiting administrator approval.
+
+    Renders as ``409``. Clients branch on the ``approval-pending`` problem type to tell the administrator to use the
+    approve action instead.
+    """
+
+    code = "approval-pending"
+    default_detail = "User is awaiting approval"
+
+
 class IssuerInUseError(ConflictError):
     """Another identity provider already uses the issuer URL being set.
 

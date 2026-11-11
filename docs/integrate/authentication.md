@@ -1,6 +1,9 @@
 # Handling authentication
 
-Endurain supports integration with other apps through an authentication system that includes username/password authentication, Multi-Factor Authentication (MFA), OAuth/SSO integration with PKCE (S256), and JWT-based session management with refresh token rotation and reuse detection. `/auth/login` is a username/password grant, which OAuth 2.1 does not include, so Endurain does not claim to be OAuth 2.1 compliant.
+Endurain's web and mobile apps sign in through an authentication system that includes username/password authentication, Multi-Factor Authentication (MFA), OAuth/SSO integration with PKCE (S256), and JWT-based session management with refresh token rotation and reuse detection. `/auth/login` is a username/password grant, which OAuth 2.1 does not include, so Endurain does not claim to be OAuth 2.1 compliant.
+
+!!! warning "First-party sign-in"
+    The `/auth` sign-in routes (login, MFA verification, password change, token exchange and refresh) and the SSO hand-off through `ALLOWED_REDIRECT_URIS` are first-party protocols for Endurain's own web and mobile apps. Other applications use [API keys](api-keys.md) today, and the OAuth endpoints, reserved under `/oauth/*`, when they exist. A later release may refuse other applications on the first-party routes.
 
 ## API Requirements
 
@@ -37,9 +40,9 @@ Endurain splits web tokens between memory and an httpOnly cookie:
 | **Access Token** | In-memory (JavaScript) | 15 minutes | Short-lived, never written to storage |
 | **Refresh Token** | httpOnly cookie | 7 days | `SameSite=Strict`, `Path=/`, no `Domain` |
 | **CSRF Token** | In-memory (JavaScript) | Session | Sent as `X-CSRF-Token` on state-changing requests; its value is checked only by `/auth/refresh` |
-| **Device id** | Web: httpOnly cookie (`endurain_device`, or `__Secure-endurain_device` in production and demo, path `/api/v1`, `SameSite=Strict`). Mobile: the app's own storage, sent as the `X-Device-Id` header | 400 days from the last sign-in | Recognises the browser or app, so a sign-in from a new one sends a [security notice](../features/accounts-and-sign-in.md#security-notifications), and a known one is not held by the [account lock](account-security.md#progressive-account-lockout). Not a credential; the server stores only its SHA-256 hash |
+| **Device id** | Web: httpOnly cookie (`endurain_device`, or `__Host-endurain_device` in production and demo, path `/`, `SameSite=Strict`). Mobile: the app's own storage, sent as the `X-Device-Id` header | 400 days from the last sign-in | Recognises the browser or app, so a sign-in from a new one sends a [security notice](../features/accounts-and-sign-in.md#security-notifications), and a known one is not held by the [account lock](account-security.md#progressive-account-lockout). Not a credential; the server stores only its SHA-256 hash |
 
-**Cookie names:** In `production` and `demo`, where the cookies carry `Secure`, their names carry a prefix: the refresh cookie `__Host-` (`__Host-endurain_refresh_token`), which a browser stores only with `Secure`, `Path=/` and no `Domain` so a sibling subdomain cannot plant one, and the others `__Secure-` (`__Secure-endurain_device`, `__Secure-endurain_idp_binding`), so a browser stores one only when it was set over HTTPS with `Secure`. Development serves plain HTTP and keeps the plain names. A web session that signed in under the old name has no refresh cookie under the new one, so after an upgrade every web user signs in again once. The device cookie is not carried over either, so the first sign-in after the upgrade counts as a new device and sends a new-device notice.
+**Cookie names:** In `production` and `demo`, where the cookies carry `Secure`, their names carry a prefix: the refresh, device and identity provider binding cookies carry `__Host-` (`__Host-endurain_refresh_token`, `__Host-endurain_device`, `__Host-endurain_idp_binding`), which a browser stores only with `Secure`, `Path=/` and no `Domain` so a sibling subdomain cannot plant one. Development serves plain HTTP and keeps the plain names. A web session that signed in under the old name has no refresh cookie under the new one, so after an upgrade every web user signs in again once. Cookies under the old `__Secure-` names are ignored and the device cookie is not carried over, so the first sign-in after the upgrade counts as a new device and sends a new-device notice.
 
 **Security Properties:**
 

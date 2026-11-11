@@ -15,7 +15,7 @@ _USER = SimpleNamespace(id=5, username="alice", active=True, access_type="regula
 
 
 def _exchange(
-    db, *, tokens_exchanged=False, pkce_error=None, inactive=False, claimed=True, header="web", stamp=0, between=None
+    db, *, state_cleared=False, pkce_error=None, inactive=False, claimed=True, header="web", stamp=0, between=None
 ):
     oauth_state = SimpleNamespace(
         id="state",
@@ -28,7 +28,7 @@ def _exchange(
     )
     session = SimpleNamespace(
         user_id=5,
-        tokens_exchanged=tokens_exchanged,
+        tokens_exchanged=False,
         expires_at=datetime(2027, 1, 1, tzinfo=UTC),
         client_type="web",
         amr=["fed"],
@@ -36,7 +36,10 @@ def _exchange(
     inactive_error = core_exceptions.PermissionDeniedError("Inactive user") if inactive else None
     tokens = ("sid", datetime(2026, 11, 1, tzinfo=UTC), "at", datetime(2026, 12, 1, tzinfo=UTC), "rt", "csrf")
     with (
-        patch(f"{_SERVICE}.sessions_integration.get_session_with_oauth_state", return_value=(session, oauth_state)),
+        patch(
+            f"{_SERVICE}.sessions_integration.get_session_with_oauth_state",
+            return_value=(session, None if state_cleared else oauth_state),
+        ),
         patch(f"{_SERVICE}.auth_computation.validate_pkce_verifier", side_effect=pkce_error),
         patch(f"{_SERVICE}.users_integration.require_user", return_value=_USER),
         patch(f"{_SERVICE}.users_integration.require_active_user", side_effect=inactive_error),
@@ -47,7 +50,10 @@ def _exchange(
             f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange",
             return_value=datetime(2027, 1, 1, tzinfo=UTC) if claimed else None,
         ),
-        patch(f"{_SERVICE}.known_devices_integration.record_sign_in", return_value=MagicMock(new_device=False)),
+        patch(
+            f"{_SERVICE}.known_devices_integration.record_sign_in",
+            return_value=MagicMock(device_id="d" * 43, new_device=False),
+        ),
         jasil_testing.capture_audit() as audit,
     ):
         if between is not None:
@@ -93,18 +99,18 @@ def test_a_header_other_than_the_stored_client_type_is_audited_like_a_pkce_misma
     _assert_refusal(audit, outcome="failure", reason="pkce_mismatch")
 
 
-def test_a_replayed_exchange_is_audited_and_still_refused(mock_db):
-    audit, raised = _exchange(mock_db, tokens_exchanged=True)
+def test_a_lost_exchange_race_answers_like_a_replay(mock_db):
+    _, raised = _exchange(mock_db, claimed=False)
 
-    assert isinstance(raised, core_exceptions.ConflictError)
-    _assert_refusal(audit, outcome="failure", reason="exchange_replayed")
+    assert isinstance(raised, core_exceptions.NotFoundError)
+    assert raised.detail == "Session not found or not eligible for token exchange"
 
 
-def test_a_lost_exchange_race_is_audited(mock_db):
-    audit, raised = _exchange(mock_db, claimed=False)
+def test_a_replay_after_the_first_exchange_finds_no_state_and_answers_not_found(mock_db):
+    _, raised = _exchange(mock_db, state_cleared=True)
 
-    assert isinstance(raised, core_exceptions.ConflictError)
-    _assert_refusal(audit, outcome="failure", reason="exchange_replayed")
+    assert isinstance(raised, core_exceptions.NotFoundError)
+    assert raised.detail == "Session not found or not eligible for token exchange"
 
 
 def test_an_inactive_user_is_audited(mock_db):

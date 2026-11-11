@@ -3,6 +3,7 @@ import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ChangeEmailCard from '@/features/security/components/ChangeEmailCard.vue'
+import ChangeUsernameCard from '@/features/security/components/ChangeUsernameCard.vue'
 import ChangePasswordCard from '@/features/security/components/ChangePasswordCard.vue'
 import KnownDevicesCard from '@/features/security/components/KnownDevicesCard.vue'
 import LinkedAccountsCard from '@/features/security/components/LinkedAccountsCard.vue'
@@ -102,6 +103,12 @@ const mfaEnabled = computed(() => profile.value?.mfaEnabled ?? false)
         :email="profile.email"
         :pending-email="profile.pendingEmail"
         :pending-email-expires-at="profile.pendingEmailExpiresAt"
+        :has-local-password="profile.hasLocalPassword"
+        :mfa-enabled="mfaEnabled"
+        :resume="resume"
+      />
+      <ChangeUsernameCard
+        :username="profile.username"
         :has-local-password="profile.hasLocalPassword"
         :mfa-enabled="mfaEnabled"
         :resume="resume"

@@ -120,6 +120,17 @@ describe('ProfileFormDialog height', () => {
   })
 })
 
+describe('ProfileFormDialog username', () => {
+  it('has no username field and never sends one, as it is changed in the security settings', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ ...profile })
+    const wrapper = await mountDialog()
+    await wrapper.find('input[name="name"]').setValue('Renamed')
+
+    expect(wrapper.find('input[name="username"]').exists()).toBe(false)
+    expect(await saveBody(wrapper)).not.toHaveProperty('username')
+  })
+})
+
 describe('ProfileFormDialog number validation', () => {
   it('rejects a metric height outside 50-272 cm and blocks saving', async () => {
     const wrapper = await mountDialog()

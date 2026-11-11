@@ -134,6 +134,10 @@
       "unknown": {
         "title": "Kontosikkerheden er ændret",
         "body": "En sikkerhedsindstilling på din konto er ændret. Hvis det ikke var dig, så nulstil din adgangskode og gennemgå dine sikkerhedsindstillinger."
+      },
+      "usernameChanged": {
+        "title": "Brugernavn ændret",
+        "body": "Dit brugernavn blev ændret. Hvis det ikke var dig, så nulstil din adgangskode og gennemgå dine sikkerhedsindstillinger."
       }
     },
     "newDeviceSignIn": {

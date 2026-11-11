@@ -28,7 +28,7 @@ _TOKENS = ("sid", datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, t
 def _store_locked_by_100_failures():
     store = failed_login_store.FailedLoginAttempts(MemoryState())
     for i in range(100):
-        store.record_failed_attempt("alice", f"198.51.100.{i}")
+        store.record_failed_attempt("alice", f"198.51.100.{i}", user_id=5)
     return store
 
 
@@ -82,15 +82,15 @@ class TestKnownDeviceBypass:
         ):
             _login(mock_db, store)
 
-    def test_a_client_without_a_device_id_is_refused_without_a_lookup(self, mock_db, password_sign_in):
+    def test_a_client_without_a_device_id_is_refused_with_one_account_lookup(self, mock_db, password_sign_in):
         store = _store_locked_by_100_failures()
         with (
-            patch(f"{_SERVICE}.users_integration.get_user_by_username") as get_user,
+            patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=_USER) as get_user,
             pytest.raises(core_exceptions.TooManyRequestsError),
         ):
             _login(mock_db, store, device_id=None)
 
-        get_user.assert_not_called()
+        get_user.assert_called_once_with("alice", mock_db)
 
     def test_a_known_device_of_the_account_signs_in_and_lifts_the_lock(self, mock_db, password_sign_in):
         store = _store_locked_by_100_failures()
@@ -102,12 +102,12 @@ class TestKnownDeviceBypass:
 
         known.assert_called_once_with(5, _DEVICE_ID, mock_db)
         assert outcome.body.session_id == "sid"
-        assert store.is_locked_out("alice", _IP) is False
+        assert store.is_locked_out("alice", _IP, user_id=5) is False
 
     def test_a_known_device_is_still_refused_by_the_client_lock(self, mock_db, password_sign_in):
         store = failed_login_store.FailedLoginAttempts(MemoryState())
         for _ in range(5):
-            store.record_failed_attempt("alice", _IP)
+            store.record_failed_attempt("alice", _IP, user_id=5)
         with (
             patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=_USER),
             patch(f"{_SERVICE}.known_devices_integration.is_known_device", return_value=True),
@@ -131,7 +131,7 @@ class TestKnownDeviceBypass:
     def test_an_unknown_username_is_refused_exactly_like_a_locked_one(self, mock_db):
         store = failed_login_store.FailedLoginAttempts(MemoryState())
         for i in range(100):
-            store.record_failed_attempt("ghost", f"198.51.100.{i}")
+            store.record_failed_attempt("ghost", f"198.51.100.{i}", user_id=None)
         with (
             patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=None),
             pytest.raises(core_exceptions.TooManyRequestsError) as unknown,
@@ -149,6 +149,66 @@ class TestKnownDeviceBypass:
         assert unknown.value.status_code == locked.value.status_code
 
 
+class TestRenamedAccount:
+    def test_the_lock_follows_the_user_id_across_a_username_change(self):
+        store = _store_locked_by_100_failures()
+
+        assert store.is_locked_out("alicia", "192.0.2.1", user_id=5) is True
+        assert store.is_locked_out("alicia", "192.0.2.1", user_id=5, known_device=True) is False
+        assert store.record_failed_attempt("alicia", "192.0.2.1", user_id=5).account_locked_now is False
+
+    def test_a_sign_in_under_the_new_username_is_refused_while_the_account_is_locked(self, mock_db, password_sign_in):
+        store = _store_locked_by_100_failures()
+        renamed = SimpleNamespace(id=5, username="alicia", active=True, access_type="regular")
+        with (
+            patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=renamed),
+            patch(f"{_SERVICE}.known_devices_integration.is_known_device", return_value=False),
+            pytest.raises(core_exceptions.TooManyRequestsError),
+        ):
+            _login(mock_db, store, username="alicia")
+
+    def test_the_failures_before_and_after_a_rename_count_together(self):
+        store = failed_login_store.FailedLoginAttempts(MemoryState())
+        for i in range(50):
+            store.record_failed_attempt("alice", f"198.51.100.{i}", user_id=5)
+        records = [store.record_failed_attempt("alicia", f"198.51.101.{i}", user_id=5) for i in range(50)]
+
+        assert [r.account_locked_now for r in records] == [False] * 49 + [True]
+
+    def test_reset_account_by_id_clears_the_lock_under_any_username(self):
+        store = _store_locked_by_100_failures()
+
+        store.reset_account(5)
+
+        assert store.is_locked_out("alicia", _IP, user_id=5) is False
+
+
+class TestUnknownUsername:
+    def test_an_unknown_username_locks_after_100_failures_from_any_addresses(self):
+        store = failed_login_store.FailedLoginAttempts(MemoryState())
+        records = [store.record_failed_attempt("ghost", f"198.51.100.{i}", user_id=None) for i in range(100)]
+
+        assert [r.account_locked_now for r in records] == [False] * 99 + [True]
+        assert store.is_locked_out("Ghost", _IP, user_id=None) is True
+        assert store.is_locked_out("ghost", _IP, user_id=None, known_device=True) is False
+
+    def test_an_unknown_username_never_locks_an_account_whose_id_spells_it(self):
+        store = failed_login_store.FailedLoginAttempts(MemoryState())
+        for i in range(100):
+            store.record_failed_attempt("5", f"198.51.100.{i}", user_id=None)
+
+        assert store.is_locked_out("alice", _IP, user_id=5) is False
+
+    def test_clear_all_clears_the_unknown_username_counters(self):
+        store = failed_login_store.FailedLoginAttempts(MemoryState())
+        for i in range(100):
+            store.record_failed_attempt("ghost", f"198.51.100.{i}", user_id=None)
+
+        store.clear_all()
+
+        assert store.is_locked_out("ghost", _IP, user_id=None) is False
+
+
 class TestAccountLockNotice:
     def _fail_login(self, db, store, *, user):
         with (
@@ -164,7 +224,7 @@ class TestAccountLockNotice:
     def _store_one_failure_short(self):
         store = failed_login_store.FailedLoginAttempts(MemoryState())
         for i in range(99):
-            store.record_failed_attempt("alice", f"198.51.100.{i}")
+            store.record_failed_attempt("alice", f"198.51.100.{i}", user_id=5)
         return store
 
     def test_the_failure_that_reaches_100_tells_the_owner_once_and_audits_it(self, mock_db):
@@ -240,16 +300,16 @@ class TestClearAccountLoginLockout:
         state = MemoryState()
         store = failed_login_store.FailedLoginAttempts(state)
         for i in range(100):
-            store.record_failed_attempt("alice", f"198.51.100.{i}")
-        assert store.is_locked_out("alice", _IP) is True
+            store.record_failed_attempt("alice", f"198.51.100.{i}", user_id=5)
+        assert store.is_locked_out("alice", _IP, user_id=5) is True
 
         with patch(
             "modules.auth.authentication.integration_service.core_dependencies.get_platform_state", return_value=state
         ):
-            authentication_integration.clear_account_login_lockout("Alice")
+            authentication_integration.clear_account_login_lockout(5)
 
-        assert store.is_locked_out("alice", _IP) is False
-        assert store.record_failed_attempt("alice", _IP).account_locked_now is False
+        assert store.is_locked_out("alice", _IP, user_id=5) is False
+        assert store.record_failed_attempt("alice", _IP, user_id=5).account_locked_now is False
 
     def test_a_state_outage_does_not_fail_the_credential_change(self):
         state = MagicMock()
@@ -258,4 +318,4 @@ class TestClearAccountLoginLockout:
         with patch(
             "modules.auth.authentication.integration_service.core_dependencies.get_platform_state", return_value=state
         ):
-            authentication_integration.clear_account_login_lockout("alice")
+            authentication_integration.clear_account_login_lockout(5)

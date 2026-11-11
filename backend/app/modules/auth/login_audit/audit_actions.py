@@ -40,7 +40,6 @@ class LoginFailureReason(StrEnum):
     INVALID_ID_TOKEN = "invalid_id_token"
     PROVISIONING_REFUSED = "provisioning_refused"
     PKCE_MISMATCH = "pkce_mismatch"
-    EXCHANGE_REPLAYED = "exchange_replayed"
     TOKEN_EXCHANGE_FAILED = "token_exchange_failed"
     NO_SUBJECT = "no_subject"
     PROVIDER_ERROR = "provider_error"
@@ -98,7 +97,7 @@ class LoginDetails(VersionedPayload):
 
     model_config = ConfigDict(extra="forbid")
 
-    SCHEMA_VERSION: ClassVar[int] = 6
+    SCHEMA_VERSION: ClassVar[int] = 7
 
     method: LoginMethod
     mfa: bool = False

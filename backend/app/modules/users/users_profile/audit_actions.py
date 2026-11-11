@@ -1,9 +1,9 @@
 """Audit actions written by the users-profile package.
 
-They cover the user's own profile, privacy and email-change requests, and the profile export and import.
+They cover the user's own profile, privacy, username-change and email-change requests, and the profile export and import.
 
 Ids are stable forever: rows outlive the code. ``details`` carry changed field names and flags only, never a
-field's value, an email address or a file name.
+field's value, a username, an email address or a file name.
 """
 
 from typing import ClassVar
@@ -58,6 +58,20 @@ class EmailChangeRequestDetails(VersionedPayload):
     other_sessions_revoked: bool
 
 
+class UsernameChangeDetails(VersionedPayload):
+    """Details of ``users.username.change``.
+
+    Attributes:
+        other_sessions_revoked: Whether the user's other sessions were signed out with the change.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    SCHEMA_VERSION: ClassVar[int] = 1
+
+    other_sessions_revoked: bool
+
+
 PROFILE_UPDATE = jasil_audit.AuditAction(
     id="users.profile.update",
     category=jasil_audit.Category.IDENTITY,
@@ -83,6 +97,15 @@ EMAIL_CHANGE_REQUEST = jasil_audit.AuditAction(
     description_key="audit.users.email.change_request",
     description_default="A user requested an email address change",
     details_model=EmailChangeRequestDetails,
+)
+
+USERNAME_CHANGE = jasil_audit.AuditAction(
+    id="users.username.change",
+    category=jasil_audit.Category.IDENTITY,
+    severity=jasil_audit.Severity.MEDIUM,
+    description_key="audit.users.username.change",
+    description_default="A user changed their username",
+    details_model=UsernameChangeDetails,
 )
 
 PROFILE_EXPORT_REQUEST = jasil_audit.AuditAction(
@@ -122,6 +145,7 @@ ACTIONS: tuple[jasil_audit.AuditAction, ...] = (
     PROFILE_UPDATE,
     PRIVACY_UPDATE,
     EMAIL_CHANGE_REQUEST,
+    USERNAME_CHANGE,
     PROFILE_EXPORT_REQUEST,
     PROFILE_EXPORT_DOWNLOAD,
     PROFILE_IMPORT_REQUEST,

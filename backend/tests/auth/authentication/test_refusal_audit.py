@@ -480,6 +480,7 @@ class TestLockoutAppliedByFailedCodes:
         ):
             authentication_service.require_valid_mfa_code(
                 "alice",
+                "203.0.113.5",
                 5,
                 login_audit_actions.LoginMethod.PASSWORD,
                 "123456",

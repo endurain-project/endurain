@@ -300,22 +300,6 @@ class TestSecureCompare:
         assert result is False
 
 
-class TestAuthCookieName:
-    """The auth cookies carry the ``__Secure-`` prefix wherever ``Secure`` is set."""
-
-    @pytest.mark.parametrize("environment", ["production", "demo"])
-    def test_a_deployed_environment_prefixes_the_name(self, environment):
-        assert token_hashing.auth_cookie_name("endurain_device", environment) == "__Secure-endurain_device"
-
-    def test_development_keeps_the_plain_name(self):
-        assert token_hashing.auth_cookie_name("endurain_device", "development") == "endurain_device"
-
-    def test_the_prefix_follows_the_secure_attribute(self):
-        for environment in ("production", "demo", "development"):
-            prefixed = token_hashing.auth_cookie_name("x", environment).startswith("__Secure-")
-            assert prefixed == token_hashing.secure_cookie(environment)
-
-
 class TestHostCookieName:
     """The host-locked cookies carry the ``__Host-`` prefix wherever ``Secure`` is set."""
 

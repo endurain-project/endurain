@@ -220,8 +220,25 @@ def stage_email_changed_notice(user_id: int, email: str, previous_email: str, db
     sign_up_event_publishers.publish_email_changed(user_id, token.id, db)
 
 
-def _holder_of(email: str, user_id: int, db: Session) -> users_schema.UserRead | None:
-    """Return the other account that holds an address, or None when it is free or the user's own.
+def get_email_reserver_id(email: str, except_user_id: int | None, db: Session) -> int | None:
+    """Return the user an address is reserved for during the revert window of their confirmed email change.
+
+    The address a confirmed change left behind stays the account's own until its "this wasn't me" link can no
+    longer be used, so nobody else can take it and the revert can always put it back.
+
+    Args:
+        email: The address, in any case.
+        except_user_id: A user who does not count as the reserver, such as the one asking, or None for every user.
+        db: Database session.
+
+    Returns:
+        The reserving user, or None when the address is not reserved for another user.
+    """
+    return sign_up_crud.get_email_reserver_id(email, except_user_id, datetime.now(UTC), db)
+
+
+def _holder_of(email: str, user_id: int, db: Session) -> int | None:
+    """Return the other account that holds or reserves an address, or None when it is free or the user's own.
 
     Args:
         email: The address.
@@ -229,10 +246,12 @@ def _holder_of(email: str, user_id: int, db: Session) -> users_schema.UserRead |
         db: Database session.
 
     Returns:
-        The holder, when it is not ``user_id``.
+        The id of the account that uses the address, or that it is reserved for, when it is not ``user_id``.
     """
     holder = users_integration.get_user_by_email(email, db)
-    return holder if holder is not None and holder.id != user_id else None
+    if holder is not None and holder.id != user_id:
+        return holder.id
+    return get_email_reserver_id(email, user_id, db)
 
 
 def _notify_address_holder(holder_id: int, state: StateProvider, db: Session) -> None:
@@ -293,7 +312,7 @@ def request_self_service_email_change(
     if holder is None:
         sign_up_event_publishers.publish_email_change_verification_requested(user_id, db)
     else:
-        _notify_address_holder(holder.id, state, db)
+        _notify_address_holder(holder, state, db)
     return True
 
 
@@ -344,7 +363,7 @@ def request_email_change_resend(user_id: int, state: StateProvider, db: Session)
         return
     holder = None if pending.email is None else _holder_of(pending.email, user_id, db)
     if holder is not None:
-        _notify_address_holder(holder.id, state, db)
+        _notify_address_holder(holder, state, db)
         return
     try:
         if not core_email_cooldown.claim_email(
@@ -744,9 +763,11 @@ def cancel_email_change(token: str, db: Session) -> sign_up_schema.EmailChangeCa
     else may reach: the security generation advances, every session ends and the API keys are revoked. The password
     is not changed; the notice tells the owner to reset it. The link works once, for seven days after the request.
 
-    Before the change is confirmed the pending change is voided. After it, the link applies only while the account
-    still uses the address the change moved to, and a later change of any kind ends it, and it puts the previous address back
-    unless another account holds that address now; the account is secured either way.
+    The link puts the account back on the address it was mailed to, whether or not the change was confirmed and
+    whatever the account's address is now, and voids every later change of the account that is still inside its
+    revert window, so a change requested after the first one cannot end the link. The previous address is put back
+    unless another account holds it now; the account is secured either way. Before any change is confirmed, the
+    pending change is voided.
 
     Args:
         token: The token of the link emailed to the account's address.
@@ -756,8 +777,8 @@ def cancel_email_change(token: str, db: Session) -> sign_up_schema.EmailChangeCa
         Whether the change had been confirmed and whether the previous address was restored.
 
     Raises:
-        InvalidInputError: If the link is malformed, forged, expired, already used, or names a change that a later
-            change has replaced.
+        InvalidInputError: If the link is malformed, forged, expired, already used, or names a change that was
+            already reverted or replaced before it was confirmed.
     """
     now = datetime.now(UTC)
     named = _email_change_of_link(token, now, db)
@@ -768,27 +789,32 @@ def cancel_email_change(token: str, db: Session) -> sign_up_schema.EmailChangeCa
     # confirmation that commits first is seen.
     security_generation_integration.stage_bump(user_id, db)
     rows = sign_up_crud.get_email_change_tokens(change_id, now, db)
-    confirmed = next((row for row in rows if row.confirmed_at is not None), None)
     user = users_integration.get_user(user_id, db)
     if user is None or not rows or any(row.reverted_at is not None for row in rows):
         _refuse_revert(db)
-    if sign_up_crud.has_later_email_change(user_id, change_id, min(row.created_at for row in rows), now, db):
-        _refuse_revert(db)
-    if confirmed is not None:
-        if confirmed.email is None or confirmed.previous_email is None or user.email != confirmed.email.lower():
+    later_ids = sign_up_crud.get_later_email_change_ids(
+        user_id, change_id, min(row.created_at for row in rows), now, db
+    )
+    run_rows = [*rows]
+    for later_id in later_ids:
+        run_rows.extend(sign_up_crud.get_email_change_tokens(later_id, now, db))
+    confirmed = any(row.confirmed_at is not None for row in run_rows)
+    previous_email = next((row.previous_email for row in rows if row.previous_email is not None), None)
+    if confirmed:
+        if previous_email is None:
             _refuse_revert(db)
     elif not any(
         pending.change_id == change_id for pending in sign_up_crud.get_pending_email_change_tokens([user_id], now, db)
     ):
         _refuse_revert(db)
-    if sign_up_crud.mark_email_change_reverted(change_id, db) == 0:
+    if sign_up_crud.mark_email_changes_reverted([change_id, *later_ids], db) == 0:
         _refuse_revert(db)
     sign_up_crud.mark_user_sign_up_tokens_used(user_id, db)
 
     email_restored = False
-    if confirmed is not None and confirmed.previous_email is not None:
-        if _holder_of(confirmed.previous_email, user_id, db) is None:
-            users_integration.stage_confirmed_email_change(user_id, confirmed.previous_email, db)
+    if confirmed and previous_email is not None:
+        if _holder_of(previous_email, user_id, db) is None:
+            users_integration.stage_confirmed_email_change(user_id, previous_email, db)
             email_restored = True
         else:
             logger.info("Previous email address not restored", extra=core_logger.context(user_id=user_id))
@@ -803,13 +829,13 @@ def cancel_email_change(token: str, db: Session) -> sign_up_schema.EmailChangeCa
         details=sign_up_audit_actions.EmailChangeCancelDetails(
             sessions_revoked=sessions_revoked,
             api_keys_revoked=api_keys_revoked,
-            change_applied=confirmed is not None,
+            change_applied=confirmed,
             email_restored=email_restored,
         ),
     )
     db.commit()
     logger.info("Email change reported by the account owner", extra=core_logger.context(user_id=user_id))
-    return sign_up_schema.EmailChangeCancelRead(change_applied=confirmed is not None, email_restored=email_restored)
+    return sign_up_schema.EmailChangeCancelRead(change_applied=confirmed, email_restored=email_restored)
 
 
 def prepare_email_change_address_taken_email(
@@ -980,11 +1006,13 @@ def signup(
         # A sign-up that took the username after the check above is refused like one that found it taken.
         _require_username_free(user.username, db)
         existing = users_integration.get_user_by_email(user.email, db)
-        if existing is None:
+        # An address reserved for an account's revert window is answered like a held one.
+        holder_id = existing.id if existing is not None else get_email_reserver_id(user.email, None, db)
+        if holder_id is None:
             raise core_exceptions.ConflictError("That username is already taken") from None
-        request_sign_up_existing_account_notice(existing.id, state, db)
+        request_sign_up_existing_account_notice(holder_id, state, db)
         db.commit()
-        logger.info("Sign-up used an existing email address", extra=core_logger.context(user_id=existing.id))
+        logger.info("Sign-up used an existing email address", extra=core_logger.context(user_id=holder_id))
         return _signup_response(server_settings)
 
     if server_settings.signup_require_email_verification:

@@ -242,6 +242,8 @@ class TestCompleteLogin:
                 token_manager,
                 mock_db,
                 mfa=False,
+                security_generation=0,
+                device_hash=None,
             )
             result = authentication_dependencies.deliver_auth_outcome(response, outcome).model_dump()
 
@@ -292,6 +294,8 @@ class TestCompleteLogin:
                 token_manager,
                 mock_db,
                 mfa=False,
+                security_generation=0,
+                device_hash=None,
             )
             result = authentication_dependencies.deliver_auth_outcome(response, outcome).model_dump()
 
@@ -336,6 +340,8 @@ class TestCompleteLogin:
                 token_manager,
                 mock_db,
                 mfa=False,
+                security_generation=0,
+                device_hash=None,
             )
             result = authentication_dependencies.deliver_auth_outcome(response, outcome).model_dump()
 
@@ -365,6 +371,8 @@ class TestCompleteLogin:
                 token_manager,
                 mock_db,
                 mfa=False,
+                security_generation=0,
+                device_hash=None,
             )
             result = authentication_dependencies.deliver_auth_outcome(response, outcome).model_dump()
 
@@ -403,6 +411,8 @@ class TestCompleteLogin:
                 token_manager,
                 mock_db,
                 mfa=False,
+                security_generation=0,
+                device_hash=None,
             )
             authentication_dependencies.deliver_auth_outcome(response, outcome)
 
@@ -434,6 +444,8 @@ class TestCompleteLogin:
                 token_manager,
                 mock_db,
                 mfa=False,
+                security_generation=0,
+                device_hash=None,
             )
             authentication_dependencies.deliver_auth_outcome(response, outcome)
 
@@ -462,6 +474,8 @@ class TestCompleteLogin:
                 token_manager,
                 mock_db,
                 mfa=False,
+                security_generation=0,
+                device_hash=None,
             )
             authentication_dependencies.deliver_auth_outcome(response, outcome)
 
@@ -548,6 +562,8 @@ class TestCompleteLogin:
                 token_manager,
                 mock_db,
                 mfa=False,
+                security_generation=0,
+                device_hash=None,
             )
             result1 = authentication_dependencies.deliver_auth_outcome(response1, outcome).model_dump()
 
@@ -559,6 +575,8 @@ class TestCompleteLogin:
                 token_manager,
                 mock_db,
                 mfa=False,
+                security_generation=0,
+                device_hash=None,
             )
             result2 = authentication_dependencies.deliver_auth_outcome(response2, outcome).model_dump()
 
@@ -643,6 +661,7 @@ class TestCreateMobilePkceSessionResponse:
                 db=mock_db,
                 security_generation=0,
                 mfa=False,
+                device_hash=None,
             )
         assert exc_info.value.status_code == 400
 
@@ -668,6 +687,7 @@ class TestCreateMobilePkceSessionResponse:
                 db=mock_db,
                 security_generation=0,
                 mfa=False,
+                device_hash=None,
             )
 
         assert isinstance(result, auth_schema.MobileSessionRead)

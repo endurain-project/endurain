@@ -49,19 +49,21 @@ class FakeFailedLoginStore:
         self._locked = False
         self._lockout_time = None
 
-    def is_locked_out(self, username: str, ip_address: str, *, known_device: bool = False) -> bool:
+    def is_locked_out(self, username: str, ip_address: str, *, user_id: int | None, known_device: bool = False) -> bool:
         """Return locked state."""
         return self._locked
 
-    def get_lockout_time(self, username: str, ip_address: str, *, known_device: bool = False):
+    def get_lockout_time(self, username: str, ip_address: str, *, user_id: int | None, known_device: bool = False):
         """Return lockout time."""
         return self._lockout_time
 
-    def record_failed_attempt(self, username: str, ip_address: str) -> failed_login_store.FailedLoginRecord:
+    def record_failed_attempt(
+        self, username: str, ip_address: str, *, user_id: int | None
+    ) -> failed_login_store.FailedLoginRecord:
         """Record a failed attempt."""
         return failed_login_store.FailedLoginRecord(client_count=1, account_locked_now=False)
 
-    def reset_attempts(self, username: str, ip_address: str) -> None:
+    def reset_attempts(self, username: str, ip_address: str, *, user_id: int) -> None:
         """Reset attempts."""
         pass
 
@@ -79,11 +81,11 @@ class FakePendingMFAStore:
         self._locked = False
         self._lockout_time = None
 
-    def is_locked_out(self, username: str, *, known_device: bool = False) -> bool:
+    def is_locked_out(self, username: str, ip_address: str, *, user_id: int | None, known_device: bool = False) -> bool:
         """Return locked state."""
         return self._locked
 
-    def get_lockout_time(self, username: str, *, known_device: bool = False):
+    def get_lockout_time(self, username: str, ip_address: str, *, user_id: int | None, known_device: bool = False):
         """Return lockout time."""
         return self._lockout_time
 
@@ -105,11 +107,13 @@ class FakePendingMFAStore:
         """Leave the challenge live."""
         return False
 
-    def record_failed_attempt(self, username: str) -> pending_login_store.FailedMfaRecord:
+    def record_failed_attempt(
+        self, username: str, ip_address: str, *, user_id: int | None
+    ) -> pending_login_store.FailedMfaRecord:
         """Record failed MFA attempt."""
         return pending_login_store.FailedMfaRecord(count=1, account_locked_now=False)
 
-    def reset_attempts(self, username: str) -> None:
+    def reset_attempts(self, username: str, ip_address: str, *, user_id: int) -> None:
         """Reset MFA failed attempts."""
         pass
 

@@ -288,7 +288,7 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
     )
     password_reset_event_publishers.publish_password_reset_completed(token_user_id, db)
     db.commit()
-    authentication_integration.clear_account_login_lockout(user.username)
+    authentication_integration.clear_account_login_lockout(token_user_id)
     lockout_integration.clear_step_up_account_lockout(token_user_id)
     logger.info("Password reset completed", extra=core_logger.context(user_id=token_user_id))
 

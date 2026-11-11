@@ -15,10 +15,12 @@ import modules.auth.known_devices.events as known_devices_events
 import modules.auth.known_devices.models as known_devices_models
 import modules.auth.known_devices.service as known_devices_service
 import modules.auth.security_generation.integration_service as security_generation_integration
+import modules.auth.sessions.models as sessions_models
 import modules.users.users.models as users_models
 from tests._helpers.db import create_sqlite_session
 
 _PUBLISH = "modules.auth.known_devices.event_publishers.platform_publisher.publish_on_commit"
+_PUBLISH_REVOKED = "modules.auth.sessions.event_publishers.platform_publisher.publish_on_commit"
 _FIREFOX_ON_LINUX = "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0"
 _DEVICE_ID = "d" * 43
 _OTHER_DEVICE_ID = "o" * 43
@@ -73,6 +75,38 @@ def _known(db, user_id, device_id):
     known_devices_crud.create_device(
         user_id, core_hashing.sha256_hex(device_id), 0, datetime.now(UTC), _DESCRIPTION, db
     )
+
+
+def _session(db, session_id, user_id, device_hash):
+    now = datetime.now(UTC)
+    db.add(
+        sessions_models.UsersSessions(
+            id=session_id,
+            user_id=user_id,
+            refresh_token="hashed",
+            ip_address="203.0.113.7",
+            device_type="PC",
+            operating_system="Linux",
+            operating_system_version="1",
+            browser="Firefox",
+            browser_version="1",
+            created_at=now,
+            last_activity_at=now,
+            expires_at=now + timedelta(days=1),
+            tokens_exchanged=True,
+            token_family_id=session_id,
+            rotation_count=0,
+            client_type="web",
+            auth_time=now,
+            amr=["pwd"],
+            device_hash=device_hash,
+        )
+    )
+    db.flush()
+
+
+def _session_ids(db):
+    return set(db.execute(select(sessions_models.UsersSessions.id)).scalars())
 
 
 class TestWebSignIn:
@@ -362,6 +396,44 @@ class TestListAndForget:
         with pytest.raises(core_exceptions.NotFoundError):
             known_devices_service.forget_device(device_id + 99, 1, db)
         assert known_devices_service.is_known_device(1, _DEVICE_ID, db) is True
+
+    def test_forgetting_a_device_ends_its_sessions_and_only_those(self, db, publish):
+        _account(db, age=timedelta(days=30))
+        _account(db, user_id=2, age=timedelta(days=30))
+        _record(db, device_id=_DEVICE_ID)
+        _record(db, device_id=_OTHER_DEVICE_ID)
+        device_hash = core_hashing.sha256_hex(_DEVICE_ID)
+        _session(db, "on-device-1", 1, device_hash)
+        _session(db, "on-device-2", 1, device_hash)
+        _session(db, "on-other-device", 1, core_hashing.sha256_hex(_OTHER_DEVICE_ID))
+        _session(db, "before-the-migration", 1, None)
+        _session(db, "another-user", 2, device_hash)
+        device_id = known_devices_service.list_devices(1, _DEVICE_ID, core_pagination.PageParams(1, 10), db)
+        device_id = next(item.id for item in device_id.items if item.current)
+
+        with patch(_PUBLISH_REVOKED) as revoked:
+            ended = known_devices_service.forget_device(device_id, 1, db)
+
+        assert ended == 2
+        assert _session_ids(db) == {"on-other-device", "before-the-migration", "another-user"}
+        assert revoked.call_count == 2
+
+    def test_a_device_nothing_signed_in_from_ends_no_session(self, db, publish):
+        _account(db, age=timedelta(days=30))
+        _record(db, device_id=_DEVICE_ID)
+        device_id = known_devices_service.list_devices(1, None, core_pagination.PageParams(1, 10), db).items[0].id
+
+        assert known_devices_service.forget_device(device_id, 1, db) == 0
+
+    def test_a_missing_device_ends_no_session(self, db, publish):
+        _account(db, age=timedelta(days=30))
+        _record(db, device_id=_DEVICE_ID)
+        _session(db, "kept", 1, core_hashing.sha256_hex(_DEVICE_ID))
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            known_devices_service.forget_device(999, 1, db)
+
+        assert _session_ids(db) == {"kept"}
 
     def test_a_device_of_an_older_generation_cannot_be_forgotten_through_the_api(self, db, publish):
         _account(db, age=timedelta(days=30))

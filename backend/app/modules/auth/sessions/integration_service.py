@@ -74,9 +74,10 @@ def create_session(
     csrf_token: str | None = None,
     *,
     amr: Sequence[str],
+    device_hash: str | None,
     app_redirect_uri: str | None = None,
 ) -> sessions_contracts.SessionRead:
-    """Stage a session."""
+    """Stage a session, tied to the known device its sign-in recorded when ``device_hash`` names one."""
     return sessions_service.create_session(
         session_id,
         user,
@@ -90,6 +91,7 @@ def create_session(
         oauth_state_id,
         csrf_token,
         amr=amr,
+        device_hash=device_hash,
         app_redirect_uri=app_redirect_uri,
     )
 
@@ -135,6 +137,16 @@ def delete_session_if_present(session_id: str, user_id: int, db: Session) -> boo
 def delete_sessions_by_user(user_id: int, db: Session, exclude_session_id: str | None = None) -> int:
     """Stage deletion of a user's sessions."""
     return sessions_service.delete_sessions_by_user(user_id, db, exclude_session_id)
+
+
+def set_session_device_hash(session_id: str, device_hash: str, db: Session) -> None:
+    """Stage the known device a session signed in from."""
+    sessions_service.set_session_device_hash(session_id, device_hash, db)
+
+
+def delete_sessions_by_device(user_id: int, device_hash: str, db: Session) -> int:
+    """Stage deletion of a user's sessions that signed in from a known device; returns how many."""
+    return sessions_service.delete_sessions_by_device(user_id, device_hash, db)
 
 
 def claim_session_for_token_exchange(

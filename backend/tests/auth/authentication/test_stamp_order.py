@@ -11,6 +11,7 @@ import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.authentication.service as authentication_service
 import modules.auth.constants as auth_constants
 import modules.auth.known_devices.contracts as known_devices_contracts
+import modules.auth.login_audit.audit_actions as login_audit_actions
 from tests._helpers.auth import pending_login
 
 _SERVICE = "modules.auth.authentication.service"
@@ -21,7 +22,7 @@ _CHALLENGE = "a" * 43
 
 @pytest.fixture(autouse=True)
 def _known_device():
-    record = known_devices_contracts.SignInRecord(device_id=None, new_device=False)
+    record = known_devices_contracts.SignInRecord(device_id="d" * 43, new_device=False)
     with patch(f"{_SERVICE}.known_devices_integration.record_sign_in", return_value=record):
         yield
 
@@ -111,6 +112,129 @@ class TestLoginReadsTheStampBeforeTheCredential:
 
         assert self._names(reset_during_the_hash) == ["read_generation", "authenticate_user"]
         assert pkce.call_args.kwargs["security_generation"] == 4
+
+
+class TestWebSignInChecksTheStamp:
+    """A web session is created only when the account's generation is still the one the sign-in's proof carries."""
+
+    @staticmethod
+    def _complete(db, security_generation, hasher=None, token_manager=None):
+        return authentication_service.complete_login(
+            "127.0.0.1",
+            "agent",
+            _USER,
+            hasher or MagicMock(),
+            token_manager or MagicMock(),
+            db,
+            mfa=False,
+            security_generation=security_generation,
+            device_hash=None,
+        )
+
+    @pytest.mark.parametrize("stamp", [3, None])
+    def test_a_stale_or_missing_stamp_creates_no_session_and_is_refused_like_a_wrong_password(
+        self, mock_db, security_generations, stamp
+    ):
+        security_generations.generations[5] = 4
+        with (
+            patch(f"{_SERVICE}.authentication_token_service.create_tokens") as create_tokens,
+            patch(f"{_SERVICE}.sessions_integration.create_session") as create_session,
+            patch(f"{_SERVICE}.login_audit_integration.record_login_refusal") as refusal,
+            pytest.raises(
+                core_exceptions.UnauthenticatedError, match="Unable to authenticate with provided credentials"
+            ),
+        ):
+            self._complete(mock_db, stamp)
+
+        create_tokens.assert_not_called()
+        create_session.assert_not_called()
+        mock_db.commit.assert_not_called()
+        refusal.assert_called_once()
+        assert refusal.call_args.args[2] == login_audit_actions.LoginFailureReason.SECURITY_CHANGED
+        assert refusal.call_args.kwargs["user_id"] == 5
+
+    def test_the_current_stamp_creates_the_session(self, mock_db, security_generations):
+        security_generations.generations[5] = 4
+        with (
+            patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
+            patch(f"{_SERVICE}.authentication_token_service.create_tokens", return_value=tuple(range(6))),
+            patch(f"{_SERVICE}.authentication_token_service.build_web_token_response"),
+            patch(f"{_SERVICE}.sessions_integration.create_session") as create_session,
+        ):
+            self._complete(mock_db, 4)
+
+        create_session.assert_called_once()
+        mock_db.commit.assert_called_once()
+
+    def test_a_reset_that_commits_during_the_hash_leaves_a_web_sign_in_without_a_session(
+        self, mock_db, security_generations
+    ):
+        security_generations.generations[5] = 4
+
+        def verify(*args, **kwargs):
+            security_generations.stage_bump(5, mock_db)
+            return _USER
+
+        with (
+            patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=_USER),
+            patch(f"{_SERVICE}.authenticate_user", side_effect=verify),
+            patch(f"{_SERVICE}.server_settings_integration.get_server_settings"),
+            patch(f"{_SERVICE}.credentials_integration.allows_password_sign_in", return_value=True),
+            patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=False),
+            patch(f"{_SERVICE}.credentials_integration.is_password_change_required", return_value=False),
+            patch(f"{_SERVICE}.login_audit_integration.record_login_refusal"),
+            patch(f"{_SERVICE}.sessions_integration.create_session") as create_session,
+            pytest.raises(core_exceptions.UnauthenticatedError, match="Unable to authenticate"),
+        ):
+            _login(mock_db)
+
+        create_session.assert_not_called()
+
+    def test_the_stamp_read_before_the_password_check_reaches_the_web_session(self, mock_db, security_generations):
+        security_generations.generations[5] = 4
+        with (
+            patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=_USER),
+            patch(f"{_SERVICE}.authenticate_user", return_value=_USER),
+            patch(f"{_SERVICE}.server_settings_integration.get_server_settings"),
+            patch(f"{_SERVICE}.credentials_integration.allows_password_sign_in", return_value=True),
+            patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=False),
+            patch(f"{_SERVICE}.credentials_integration.is_password_change_required", return_value=False),
+            patch(f"{_SERVICE}.complete_login") as complete,
+        ):
+            _login(mock_db)
+
+        assert complete.call_args.kwargs["security_generation"] == 4
+
+    def test_the_mfa_challenges_stamp_reaches_the_web_session(self, mock_db, security_generations):
+        security_generations.generations[5] = 9
+        store = MagicMock()
+        pending = pending_login(5, security_generation=9)
+        store.get_pending_login.return_value = pending
+        store.claim_pending_login.return_value = pending
+        store.is_locked_out.return_value = False
+        request = SimpleNamespace(mfa_challenge="challenge", mfa_code="123456")
+        with (
+            patch(f"{_SERVICE}.users_integration.get_user", return_value=_USER),
+            patch(f"{_SERVICE}.users_integration.require_active_user"),
+            patch(f"{_SERVICE}.mfa_integration.verify_user_mfa", return_value=True),
+            patch(f"{_SERVICE}.credentials_integration.is_password_change_required", return_value=False),
+            patch(f"{_SERVICE}.complete_login") as complete,
+        ):
+            authentication_service.verify_mfa_and_login(
+                "127.0.0.1",
+                "agent",
+                request,
+                "web",
+                MagicMock(),
+                store,
+                MagicMock(),
+                MagicMock(),
+                mock_db,
+                password_change_store=MagicMock(),
+                device_id=None,
+            )
+
+        assert complete.call_args.kwargs["security_generation"] == 9
 
 
 class TestMfaStepCarriesTheChallengesStamp:

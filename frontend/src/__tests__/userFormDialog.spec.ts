@@ -241,7 +241,7 @@ describe('UserFormDialog weight units', () => {
   const weightUnitsSelect = (wrapper: Awaited<ReturnType<typeof mountDialog>>) =>
     wrapper.findAll('select').find((select) => select.find('option[value="default"]').exists())!
 
-  it('seeds the override and sends it back unchanged', async () => {
+  it('seeds the override and leaves it out of an edit that keeps it', async () => {
     vi.mocked(apiFetch).mockClear()
     vi.mocked(apiFetch).mockResolvedValue({ ...user })
     const wrapper = await mountDialog(false, { ...user, weightUnits: 'imperial' })
@@ -250,7 +250,7 @@ describe('UserFormDialog weight units', () => {
     await wrapper.find('input[name="name"]').setValue('Renamed')
     await wrapper.find('form').trigger('submit')
 
-    expect(await sentUpdate()).toMatchObject({ weight_units: 'imperial' })
+    expect(await sentUpdate()).toEqual({ name: 'Renamed' })
   })
 
   it('sends null when set to follow units', async () => {
@@ -317,7 +317,7 @@ describe('UserFormDialog height', () => {
     await unitsSelect(wrapper).setValue('imperial')
     await wrapper.find('form').trigger('submit')
 
-    expect(await sentUpdate()).toMatchObject({ units: 'imperial', height: 172 })
+    expect(await sentUpdate()).toEqual({ units: 'imperial' })
   })
 
   it.each(['49', '273'])('rejects a height of %s cm and does not submit', async (cm) => {

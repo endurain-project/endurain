@@ -17,6 +17,9 @@ import { apiFetch } from '@/services/http'
 import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
 import { toStepUpWire } from '@/features/security/services/security'
 
+/** Problem type of an edit refused because it would activate a user who awaits approval. */
+export const APPROVAL_PENDING_TYPE = 'urn:endurain:error:approval-pending'
+
 /**
  * Maps a raw `UserRead` payload to the clean {@link ManagedUser} model — the
  * single boundary where the backend wire format (snake_case, optional-with-
@@ -58,8 +61,7 @@ export function mapManagedUser(dto: UserDto): ManagedUser {
 
 /**
  * Rebuilds the `UserEdit` wire payload from a {@link ManagedUser}.
- * Every stored column is sent so fields the admin form doesn't expose round-trip
- * untouched, but the derived, read-only fields are omitted: `id` is the path,
+ * Every editable stored column is listed; the derived, read-only fields are omitted: `id` is the path,
  * `mfa_enabled`, `pending_admin_approval` and `external_auth_count` are not editable, and the edit body rejects them.
  *
  * @param user - The managed user (already merged with any edits).
@@ -186,9 +188,10 @@ export async function createUser(
 
 /**
  * Updates a user's admin-editable fields (scope `users:write`). The edits are
- * merged onto the existing record and the editable columns are sent; the
- * derived read-only fields (`mfa_enabled`, `external_auth_count`) are omitted
- * because the edit body rejects them.
+ * merged onto the existing record and only the fields whose value differs from
+ * the stored one are sent, because the edit is a partial one that keeps every
+ * omitted field. A changed email always carries `email_verified`, which decides
+ * whether the address is applied at once or confirmed through a link.
  * An edit that changes the email, access type or active flag carries the
  * administrator's own step-up; any other edit sends none.
  *
@@ -203,8 +206,14 @@ export async function updateUser(
   edits: EditUserFields,
   stepUp: StepUpInput | null = null,
 ): Promise<ManagedUser> {
-  const merged: ManagedUser = { ...user, ...edits }
-  const wire = toUserWire(merged)
+  const stored = toUserWire(user)
+  const merged = toUserWire({ ...user, ...edits })
+  const changed = Object.fromEntries(
+    Object.entries(merged).filter(([key, value]) => value !== stored[key as keyof UserEditDto]),
+  ) as UserEditDto
+  // A changed address is applied at once only when the same body marks it verified, so the flag travels with it.
+  const wire: UserEditDto =
+    'email' in changed ? { ...changed, email_verified: merged.email_verified } : changed
   const dto = await apiFetch<UserDto>(`/users/${user.id}`, {
     method: 'PATCH',
     headers: ifMatchHeaders(user.version),

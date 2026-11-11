@@ -134,6 +134,10 @@
       "unknown": {
         "title": "Zabezpečení účtu změněno",
         "body": "Změnilo se některé nastavení zabezpečení vašeho účtu. Pokud jste to nebyli vy, obnovte heslo a zkontrolujte nastavení zabezpečení."
+      },
+      "usernameChanged": {
+        "title": "Uživatelské jméno změněno",
+        "body": "Vaše uživatelské jméno bylo změněno. Pokud jste to nebyli vy, obnovte si heslo a zkontrolujte nastavení zabezpečení."
       }
     },
     "newDeviceSignIn": {

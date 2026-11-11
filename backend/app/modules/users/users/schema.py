@@ -3,7 +3,7 @@
 from datetime import date as datetime_date
 from datetime import datetime
 from enum import Enum, StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, ClassVar, Literal
 from zoneinfo import available_timezones
 
 from pydantic import (
@@ -453,70 +453,6 @@ class UserPublicRead(BaseModel):
 UserPublicPage = core_pagination.Page[UserPublicRead]
 
 
-class UserEdit(User):
-    """Users schema for an administrative edit.
-
-    The stored columns of a user and nothing a read adds: ``id`` is the path, and
-    ``external_auth_count``, the photo URL and the pending email change are derived. ``mfa_enabled`` and
-    ``pending_admin_approval`` are read-only projections and are not fields. A name already stored is re-applied
-    as it is, even if it would not pass as new input.
-    """
-
-    name: UserRequestName
-    height: UserRequestHeight | None = None
-
-    @classmethod
-    def from_read(cls, user: "UserRead") -> "UserEdit":
-        """Build the edit that re-applies a user as stored, for a caller that changes a few fields.
-
-        Args:
-            user: The user as read, usually with the changes already applied.
-
-        Returns:
-            The same user as an edit.
-        """
-        return cls.model_validate(
-            user.model_dump(
-                exclude={
-                    "id",
-                    "mfa_enabled",
-                    "pending_admin_approval",
-                    "photo_path",
-                    "external_auth_count",
-                    "version",
-                    "pending_email",
-                    "pending_email_expires_at",
-                    "deletion_requested_at",
-                }
-            ),
-            context={core_types.STORED_CONTEXT: True},
-        )
-
-
-class UserAdminEdit(UserEdit):
-    """An administrator's edit of another user, the body of ``PATCH /users/{user_id}``.
-
-    Attributes:
-        step_up: The administrator's own step-up verification. Required when the edit changes the email,
-            the access type or the active flag; it is never a user field.
-    """
-
-    step_up: auth_schema.StepUpVerification | None = Field(
-        default=None,
-        description=(
-            "The administrator's step-up verification, required to change the email, access type or active flag"
-        ),
-    )
-
-    def to_edit(self) -> UserEdit:
-        """Return the user fields of the request, without the step-up.
-
-        Returns:
-            The edit as a :class:`UserEdit`, with the same fields set.
-        """
-        return UserEdit.model_validate(self.model_dump(exclude={"step_up"}, exclude_unset=True))
-
-
 class UserMe(UserRead):
     """Extended users schema for current user profile.
 
@@ -796,6 +732,30 @@ class EmailChange(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class UsernameChange(BaseModel):
+    """Self-service username change, authorised by step-up verification.
+
+    Attributes:
+        username: The new username.
+        revoke_other_sessions: Whether to sign out the user's other sessions after the change.
+        step_up: The caller's step-up verification.
+    """
+
+    username: UserUsername
+    revoke_other_sessions: StrictBool = Field(
+        default=True,
+        description=(
+            "After the username change, all of the user's other sessions "
+            "(keeping the current one) are revoked unless the client sends false."
+        ),
+    )
+    step_up: auth_schema.StepUpVerification = Field(
+        ..., description="Step-up verification, required to change the username"
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class ProfileUpdate(core_partial_update.NotClearable, BaseModel):
     """Schema for self-service profile updates.
 
@@ -809,7 +769,6 @@ class ProfileUpdate(core_partial_update.NotClearable, BaseModel):
 
     Attributes:
         name: User's full name.
-        username: Unique username.
         city: User's city.
         birthdate: User's birthdate.
         preferred_language: Preferred application language.
@@ -824,7 +783,8 @@ class ProfileUpdate(core_partial_update.NotClearable, BaseModel):
 
     Note:
         ``email`` is deliberately absent. It is the address password resets go to, so changing
-        it needs fresh proof of identity and is :class:`EmailChange`.
+        it needs fresh proof of identity and is :class:`EmailChange`. ``username`` is deliberately absent
+        for the same reason: it is the sign-in name, so changing it is :class:`UsernameChange`.
 
         ``photo_path`` is deliberately absent. The photo is a
         server-issued storage key written only by the upload and
@@ -832,9 +792,8 @@ class ProfileUpdate(core_partial_update.NotClearable, BaseModel):
         repoint their avatar at another user's blob.
     """
 
-    not_clearable = (
+    not_clearable: ClassVar[tuple[str, ...]] = (
         "name",
-        "username",
         "preferred_language",
         "gender",
         "units",
@@ -843,12 +802,6 @@ class ProfileUpdate(core_partial_update.NotClearable, BaseModel):
     )
 
     name: core_types.DisplayName | None = None
-    username: StrictStr | None = Field(
-        default=None,
-        min_length=1,
-        max_length=250,
-        pattern=r"^[a-zA-Z0-9._-]+$",
-    )
     city: StrictStr | None = Field(default=None, max_length=250)
     birthdate: core_types.RecordDate | None = None
     preferred_language: Language | None = None
@@ -908,6 +861,90 @@ class ProfileUpdate(core_partial_update.NotClearable, BaseModel):
         if value not in available_timezones():
             raise ValueError(f"Unknown IANA timezone: {value}")
         return value
+
+
+class UserEdit(ProfileUpdate):
+    """Users schema for an administrative edit, a partial one: a field left out is kept.
+
+    The profile fields a user may edit, plus the ones only an administrator sets. The stored columns of a user and
+    nothing a read adds: ``id`` is the path, and ``external_auth_count``, the photo URL and the pending email
+    change are derived. ``mfa_enabled`` and ``pending_admin_approval`` are read-only projections and are not
+    fields. A name already stored is re-applied as it is, even if it would not pass as new input. A writer that
+    re-applies a whole user sends every field, as :meth:`from_read` does.
+
+    Attributes:
+        username: Unique username.
+        email: User's email address.
+        access_type: User access level.
+        active: Whether the user is active.
+        email_verified: Whether email is verified.
+    """
+
+    not_clearable: ClassVar[tuple[str, ...]] = (
+        *ProfileUpdate.not_clearable,
+        "username",
+        "email",
+        "access_type",
+        "active",
+        "email_verified",
+    )
+
+    username: UserUsername | None = None
+    email: UserEmail | None = None
+    access_type: UserAccessType | None = Field(default=None, description="User access level")
+    active: StrictBool | None = Field(default=None, description="Whether the user is active")
+    email_verified: StrictBool | None = Field(default=None, description="Whether email is verified")
+
+    @classmethod
+    def from_read(cls, user: "UserRead") -> "UserEdit":
+        """Build the edit that re-applies a user as stored, for a caller that changes a few fields.
+
+        Args:
+            user: The user as read, usually with the changes already applied.
+
+        Returns:
+            The same user as an edit.
+        """
+        return cls.model_validate(
+            user.model_dump(
+                exclude={
+                    "id",
+                    "mfa_enabled",
+                    "pending_admin_approval",
+                    "photo_path",
+                    "external_auth_count",
+                    "version",
+                    "pending_email",
+                    "pending_email_expires_at",
+                    "deletion_requested_at",
+                }
+            ),
+            context={core_types.STORED_CONTEXT: True},
+        )
+
+
+class UserAdminEdit(UserEdit):
+    """An administrator's edit of another user, the body of ``PATCH /users/{user_id}``.
+
+    Attributes:
+        step_up: The administrator's own step-up verification. Required when the edit changes the email,
+            the access type or the active flag; it is never a user field.
+    """
+
+    step_up: auth_schema.StepUpVerification | None = Field(
+        default=None,
+        description=(
+            "The administrator's step-up verification, required to change the email, access type or active flag"
+        ),
+    )
+
+    def to_edit(self) -> UserEdit:
+        """Return the user fields of the request, without the step-up.
+
+        Returns:
+            The edit as a :class:`UserEdit`, with the same fields set.
+        """
+        return UserEdit.model_validate(self.model_dump(exclude={"step_up"}, exclude_unset=True))
 
 
 class UserDeletionStatus(core_job_status.JobStatus):

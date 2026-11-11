@@ -1,11 +1,13 @@
 """Account security generations, against real PostgreSQL."""
 
 from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
+import core.exceptions as core_exceptions
 import modules.auth.constants as auth_constants
 import modules.auth.security_generation.integration_service as security_generation_integration
 import modules.auth.sessions.models as sessions_models
@@ -214,3 +216,69 @@ def test_a_revoke_waits_for_a_refresh_holding_the_session_and_a_refresh_after_it
         revoke.commit()
     with pg_factory() as refresh:
         assert sessions_integration.lock_live_session("s1", refresh, exclusive=True) is None
+
+
+def _web_sign_in(db, user_id, stamp, password_hasher, token_manager, session_policy):
+    import modules.auth.authentication.service as authentication_service
+    import modules.users.users.schema as users_schema
+
+    user = users_schema.UserRead(
+        id=user_id,
+        name=f"User {user_id}",
+        username=f"user{user_id}",
+        email=f"user{user_id}@example.com",
+        active=True,
+        access_type=users_schema.UserAccessType.REGULAR.value,
+    )
+    with patch(
+        "modules.auth.authentication.service.server_settings_integration.get_session_policy",
+        return_value=session_policy,
+    ):
+        return authentication_service.complete_login(
+            "127.0.0.1",
+            "agent",
+            user,
+            password_hasher,
+            token_manager,
+            db,
+            mfa=False,
+            security_generation=stamp,
+            device_hash=None,
+        )
+
+
+def test_a_web_sign_in_whose_generation_was_read_before_a_committed_bump_creates_no_session(
+    pg_factory, password_hasher, token_manager, session_policy
+):
+    ensure_user(pg_factory, 1)
+    with pg_factory() as login:
+        # The sign-in reads the generation, then verifies the password.
+        stamp = security_generation_integration.current_generation(1, login)
+        login.rollback()
+
+        # A reset commits while the hash runs: the generation advances and the account's sessions end.
+        with pg_factory() as change:
+            security_generation_integration.stage_bump(1, change)
+            change.execute(text("DELETE FROM users_sessions WHERE user_id = 1"))
+            change.commit()
+
+        with (
+            patch("modules.auth.authentication.service.login_audit_integration.record_login_refusal"),
+            pytest.raises(core_exceptions.UnauthenticatedError),
+        ):
+            _web_sign_in(login, 1, stamp, password_hasher, token_manager, session_policy)
+        login.rollback()
+
+    assert _session_ids(pg_factory) == set()
+
+
+def test_a_web_sign_in_with_the_current_generation_creates_its_session(
+    pg_factory, password_hasher, token_manager, session_policy
+):
+    ensure_user(pg_factory, 1)
+    with pg_factory() as login:
+        stamp = security_generation_integration.current_generation(1, login)
+        login.rollback()
+        _web_sign_in(login, 1, stamp, password_hasher, token_manager, session_policy)
+
+    assert len(_session_ids(pg_factory)) == 1

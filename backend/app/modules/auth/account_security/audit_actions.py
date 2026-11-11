@@ -159,7 +159,8 @@ DEVICE_FORGET = jasil_audit.AuditAction(
     category=jasil_audit.Category.IDENTITY,
     severity=jasil_audit.Severity.MEDIUM,
     description_key="audit.auth.device.forget",
-    description_default="A known sign-in device was forgotten",
+    description_default="A known sign-in device was forgotten and its sessions were signed out",
+    details_model=sessions_audit_actions.SessionsRevokedDetails,
 )
 
 STEP_UP_SESSION_END = jasil_audit.AuditAction(

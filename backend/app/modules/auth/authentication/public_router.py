@@ -82,7 +82,7 @@ def login_for_access_token(
       * 5 failures: 5 minute lockout
       * 10 failures: 30 minute lockout
       * 20 failures: 24 hour lockout
-    - Account lock: 100 failed password sign-ins in a row for one username, from any addresses, lock the account for
+    - Account lock: 100 failed password sign-ins in a row for one account, from any addresses, lock the account for
       30 days. A device the account has signed in from since its last security change is not held by it. A successful
       sign-in, a completed password reset, a password change or an administrator setting the password lifts it.
 

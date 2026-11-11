@@ -31,6 +31,9 @@ import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
 
+#: The answer to a session that is gone, outdated by a security change, or already exchanged.
+_SESSION_NOT_ELIGIBLE_MESSAGE = "Session not found or not eligible for token exchange"
+
 #: The one answer to a verifier that does not match, whether the code or the client type was wrong.
 _INVALID_VERIFIER_MESSAGE = "Invalid code_verifier"
 
@@ -39,7 +42,7 @@ def _record_refusal(outcome: jasil_audit.Outcome, reason: login_audit_actions.Lo
     """Audit a refused SSO token exchange, which signs in the account its session was created for.
 
     Args:
-        outcome: ``FAILURE`` for a bad verifier or a replayed session, ``DENIED`` for a refusal by policy.
+        outcome: ``FAILURE`` for a bad verifier or an outdated session, ``DENIED`` for a refusal by policy.
         reason: Why the exchange was refused.
         user_id: The account the session belongs to.
     """
@@ -66,8 +69,8 @@ def exchange_tokens_for_session(
 
     The session was created by a mobile password sign-in or the identity-provider callback and holds no tokens yet.
     The caller proves it holds the verifier whose challenge the OAuth state stored; the exchange succeeds once per
-    session. The client type recorded when the sign-in started is the only one that can redeem it, and a different
-    ``X-Client-Type`` is refused like a wrong verifier.
+    session; a second one finds the session without its OAuth state and is answered like an unknown session. The
+    client type recorded when the sign-in started is the only one that can redeem it, and a different ``X-Client-Type`` is refused like a wrong verifier.
 
     A session that came from an identity provider also needs an MFA code when the account has MFA enabled, since
     the provider's sign-in does not replace the account's own second factor. The code is checked after the PKCE
@@ -94,9 +97,8 @@ def exchange_tokens_for_session(
         the mobile app.
 
     Raises:
-        NotFoundError: If the session does not exist, has no OAuth state, or was created before a security change of
-            the account.
-        ConflictError: If the tokens were already exchanged, or another exchange won the race.
+        NotFoundError: If the session does not exist, has no OAuth state (an exchange that finished clears it), was
+            created before a security change of the account, or another exchange claimed it first.
         InvalidInputError: If the OAuth state holds no PKCE data, the verifier does not match, or the client type
             differs from the one recorded when the sign-in started.
         MfaRequiredError: If the account has MFA enabled and no code was sent.
@@ -109,7 +111,7 @@ def exchange_tokens_for_session(
         logger.warning(
             "Token exchange failed: session <value_1> not found", extra=core_logger.context(value_1=fingerprint)
         )
-        raise core_exceptions.NotFoundError("Session not found or not eligible for token exchange")
+        raise core_exceptions.NotFoundError(_SESSION_NOT_ELIGIBLE_MESSAGE)
 
     session_obj, oauth_state = session_with_state
     if not oauth_state:
@@ -117,24 +119,13 @@ def exchange_tokens_for_session(
             "Token exchange failed: session <value_1> has no OAuth state",
             extra=core_logger.context(value_1=fingerprint),
         )
-        raise core_exceptions.NotFoundError("Session not eligible for PKCE token exchange")
+        raise core_exceptions.NotFoundError(_SESSION_NOT_ELIGIBLE_MESSAGE)
     if oauth_state.purpose != oauth_state_constants.OAuthStatePurpose.LOGIN:
         logger.warning(
             "Token exchange failed: session <value_1> belongs to a <purpose> flow, not a login",
             extra=core_logger.context(value_1=fingerprint, purpose=oauth_state.purpose),
         )
-        raise core_exceptions.NotFoundError("Session not eligible for PKCE token exchange")
-
-    # Fast-path check; the atomic conditional update below is the authoritative guard against two concurrent
-    # exchanges with the same verifier.
-    if session_obj.tokens_exchanged:
-        logger.warning(
-            "Token exchange replay attempt for session <value_1>", extra=core_logger.context(value_1=fingerprint)
-        )
-        _record_refusal(
-            jasil_audit.Outcome.FAILURE, login_audit_actions.LoginFailureReason.EXCHANGE_REPLAYED, session_obj.user_id
-        )
-        raise core_exceptions.ConflictError("Tokens already exchanged for this session")
+        raise core_exceptions.NotFoundError(_SESSION_NOT_ELIGIBLE_MESSAGE)
 
     if not oauth_state.code_challenge or not oauth_state.code_challenge_method:
         logger.warning(
@@ -187,7 +178,7 @@ def exchange_tokens_for_session(
             extra=core_logger.context(value_1=fingerprint),
         )
         _record_refusal(jasil_audit.Outcome.FAILURE, login_audit_actions.LoginFailureReason.SECURITY_CHANGED, user.id)
-        raise core_exceptions.NotFoundError("Session not found or not eligible for token exchange")
+        raise core_exceptions.NotFoundError(_SESSION_NOT_ELIGIBLE_MESSAGE)
 
     mfa_verified = oauth_state.idp_id is not None and mfa_integration.is_mfa_enabled_for_user(user.id, db)
     if mfa_verified:
@@ -198,13 +189,13 @@ def exchange_tokens_for_session(
             raise core_exceptions.MfaRequiredError()
         sso_method = login_audit_actions.LoginMethod.IDENTITY_PROVIDER
         authentication_service.refuse_while_mfa_locked_out(
-            user.username, user.id, sso_method, pending_mfa_store, device_id, db
+            user.username, ip_address, user.id, sso_method, pending_mfa_store, device_id, db
         )
         authentication_service.require_valid_mfa_code(
-            user.username, user.id, sso_method, mfa_code, pending_mfa_store, password_hasher, db
+            user.username, ip_address, user.id, sso_method, mfa_code, pending_mfa_store, password_hasher, db
         )
         try:
-            pending_mfa_store.reset_attempts(user.username)
+            pending_mfa_store.reset_attempts(user.username, ip_address, user_id=user.id)
         except lockout_contracts.AuthSecurityStoreUnavailableError as err:
             authentication_service.raise_auth_security_store_unavailable(err)
 
@@ -230,9 +221,9 @@ def exchange_tokens_for_session(
         session_id, password_hasher.hash_password(refresh_token), refresh_token_exp, amr, db
     )
     if session_expires_at is None:
+        # Another exchange claimed the session first; to this caller it is the session of a finished exchange.
         logger.warning("Token exchange lost race for session <value_1>", extra=core_logger.context(value_1=fingerprint))
-        _record_refusal(jasil_audit.Outcome.FAILURE, login_audit_actions.LoginFailureReason.EXCHANGE_REPLAYED, user.id)
-        raise core_exceptions.ConflictError("Tokens already exchanged for this session")
+        raise core_exceptions.NotFoundError(_SESSION_NOT_ELIGIBLE_MESSAGE)
     issued_device_id = None
     if oauth_state.idp_id is not None:
         # An SSO sign-in is complete once its tokens are issued; a password sign-in was audited, and its device
@@ -246,6 +237,7 @@ def exchange_tokens_for_session(
             db,
         )
         issued_device_id = sign_in.device_id
+        sessions_integration.set_session_device_hash(session_id, core_hashing.sha256_hex(issued_device_id), db)
         with login_audit_integration.acting_as_user(user.id):
             jasil_audit.stage(
                 db,

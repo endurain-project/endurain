@@ -31,6 +31,7 @@ import {
 } from '@/features/security/composables/useIdpStepUp'
 import { useAdminStepUp, useResumeOnce } from '@/features/security/composables/useAdminStepUp'
 import { LAST_ADMINISTRATOR_TYPE } from '@/features/security/services/security'
+import { APPROVAL_PENDING_TYPE } from '@/features/users/services/users'
 import { toNumberOrNull } from '@/utils/number'
 import { cmToFeetInches } from '@/utils/units'
 import { compose, email, maxLength, pattern, required } from '@/utils/validators'
@@ -246,6 +247,8 @@ async function submitForm(
       emit('error', t('app.staleError'))
     } else if (error instanceof HttpError && error.type === LAST_ADMINISTRATOR_TYPE) {
       emit('error', t('settings.users.form.lastAdministrator'))
+    } else if (error instanceof HttpError && error.type === APPROVAL_PENDING_TYPE) {
+      emit('error', t('settings.users.form.approvalPending'))
     } else if (error instanceof HttpError && error.status === 409) {
       // Any other conflict is a username or email another account already uses.
       emit('error', t('settings.users.form.conflict'))

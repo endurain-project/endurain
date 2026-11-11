@@ -88,6 +88,7 @@ class UserSessionsInternal(UserSessionsBase):
         client_type: The client the session was created for.
         auth_time: When the user signed in.
         amr: Authentication methods of the sign-in.
+        device_hash: SHA-256 hex digest of the known-device id the session signed in from, or null.
     """
 
     user_id: StrictInt = Field(..., ge=1, description="User ID that owns this session")
@@ -119,6 +120,11 @@ class UserSessionsInternal(UserSessionsBase):
     client_type: auth_constants.ClientType = Field(..., description="Client type the session was created for")
     auth_time: datetime = Field(..., description="When the user signed in")
     amr: list[StrictStr] = Field(..., description="Authentication methods of the sign-in (RFC 8176 values)")
+    device_hash: StrictStr | None = Field(
+        None,
+        max_length=64,
+        description="SHA-256 hex digest of the known-device id the session signed in from",
+    )
 
     model_config = ConfigDict(
         from_attributes=True,

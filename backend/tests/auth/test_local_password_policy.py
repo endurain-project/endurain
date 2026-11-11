@@ -82,7 +82,7 @@ class TestPasswordLogin:
 
         assert isinstance(result, core_exceptions.UnauthenticatedError)
         assert result.detail == "Unable to authenticate with provided credentials"
-        failed_attempts.record_failed_attempt.assert_called_once_with("alice", "1.2.3.4")
+        failed_attempts.record_failed_attempt.assert_called_once_with("alice", "1.2.3.4", user_id=7)
         finish.assert_not_called()
 
     def test_an_administrator_still_signs_in_while_local_sign_in_is_off(self):

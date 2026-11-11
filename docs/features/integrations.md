@@ -8,9 +8,13 @@ Endurain works with other apps and services. For building your own integration, 
 
 RunnerUp currently **does not** support login with MFA.
 
+RunnerUp signs in through the first-party `/auth/login` route, which is meant for Endurain's own apps. A later release may refuse other applications there. [API keys](../integrate/api-keys.md) and the planned `/oauth/*` endpoints are the supported path for other applications; see the [first-party sign-in note](../integrate/authentication.md).
+
 ## Gadgetbridge
 
 [Gadgetbridge](https://gadgetbridge.org/) is an Android app for wearables. It signs in to Endurain through the system browser using SSO and a custom redirect scheme. An administrator must allow its redirect address by adding it to `ALLOWED_REDIRECT_URIS` (`nodomain.freeyourgadget.gadgetbridge://endurain/oauth/callback` for the release build; other builds, such as nightly, use their own application ID as the scheme). Keep `com.endurain.endurain:/auth/sso/callback` in the list, and add `endurain://auth/sso/callback` until an Endurain mobile app release uses the new address, so the Endurain mobile app keeps working; see [advanced setup](../getting-started/advanced-setup.md) and [OAuth/SSO and PKCE](../integrate/oauth-sso-pkce.md).
+
+The SSO hand-off through `ALLOWED_REDIRECT_URIS` is a first-party protocol for Endurain's own apps, and a later release may refuse other applications. [API keys](../integrate/api-keys.md) and the planned `/oauth/*` endpoints are the supported path for other applications; see the [first-party sign-in note](../integrate/authentication.md).
 
 ## Garmin Connect
 

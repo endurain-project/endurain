@@ -75,6 +75,7 @@ class SessionRead(BaseModel):
     auth_time: datetime
     amr: list[str]
     app_redirect_uri: str | None = None
+    device_hash: str | None = None
 
 
 class DeviceType(Enum):

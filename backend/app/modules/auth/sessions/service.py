@@ -92,12 +92,15 @@ def create_session(
     csrf_token: str | None = None,
     *,
     amr: Sequence[str],
+    device_hash: str | None,
     app_redirect_uri: str | None = None,
 ) -> sessions_contracts.SessionRead:
     """Stage a session with hashed tokens, its client type, the client's IP address and user agent.
 
     ``amr`` records how the user signed in; ``auth_time`` is the moment the session is created.
-    ``app_redirect_uri`` names the native app an SSO sign-in handed the session to. The caller commits.
+    ``device_hash`` is the digest of the known-device id the sign-in recorded, or ``None`` when the device is not
+    known yet (an SSO session, whose exchange records it). ``app_redirect_uri`` names the native app an SSO sign-in
+    handed the session to. The caller commits.
     """
     device = sessions_utils.parse_user_agent(user_agent)
     csrf_hash = _hash_csrf_token(csrf_token) if csrf_token else None
@@ -125,6 +128,7 @@ def create_session(
         auth_time=now,
         amr=list(amr),
         app_redirect_uri=app_redirect_uri,
+        device_hash=device_hash,
     )
     session = sessions_crud.create_session(session_data, db)
     logger.info(
@@ -206,6 +210,25 @@ def _stage_deleted_session_cleanup(
         oauth_state_integration.delete_oauth_state(session.oauth_state_id, db)
     rotated_refresh_tokens_integration.delete_by_family(session.token_family_id, db)
     sessions_event_publishers.publish_sessions_revoked(user_id, db, session_id=session_id)
+
+
+def delete_sessions_by_device(user_id: int, device_hash: str, db: Session) -> int:
+    """Stage deletion of a user's sessions that signed in from a known device, with their token records.
+
+    The caller commits.
+
+    Returns:
+        The number of sessions deleted.
+    """
+    sessions = sessions_crud.delete_sessions_by_device(user_id, device_hash, db)
+    for session in sessions:
+        _stage_deleted_session_cleanup(session, session.id, user_id, db)
+    return len(sessions)
+
+
+def set_session_device_hash(session_id: str, device_hash: str, db: Session) -> None:
+    """Stage the known device a session signed in from; the caller commits."""
+    sessions_crud.set_session_device_hash(session_id, device_hash, db)
 
 
 def delete_session(

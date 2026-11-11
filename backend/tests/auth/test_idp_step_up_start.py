@@ -158,7 +158,7 @@ class TestStartRoute:
         cookie = response.headers["set-cookie"].lower()
         assert "httponly" in cookie
         assert "samesite=lax" in cookie
-        assert f"path={idp_dependencies.BINDING_COOKIE_PATH}".lower() in cookie
+        assert "path=/;" in cookie or cookie.endswith("path=/")
         assert start.call_args.args[3:5] == (7, SESSION_ID)
 
     @pytest.mark.parametrize(

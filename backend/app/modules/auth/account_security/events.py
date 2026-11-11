@@ -11,7 +11,7 @@ from pydantic import ConfigDict
 
 # Published after a change to how a user proves who they are (a credential, a second factor, an API key or a
 # sign-in provider link), after the account or its MFA sign-in is locked by repeated failed sign-ins, and after an
-# administrator changed the account's role or deactivated it or its deletion was requested.
+# administrator changed the account's role or deactivated it, its deletion was requested or its username changed.
 ACCOUNT_SECURITY_CHANGED = "auth.account_security_changed"
 # Published when the last per-session tier of failed step-ups ends a session, so its owner is told.
 STEP_UP_SESSION_ENDED = "auth.step_up_session_ended"
@@ -39,6 +39,7 @@ class AccountSecurityChange(StrEnum):
     ROLE_CHANGED_BY_ADMIN = "role_changed_by_admin"
     ACCOUNT_DEACTIVATED_BY_ADMIN = "account_deactivated_by_admin"
     ACCOUNT_DELETION_REQUESTED = "account_deletion_requested"
+    USERNAME_CHANGED = "username_changed"
     STEP_UP_SESSION_ENDED = "step_up_session_ended"
     STEP_UP_LOCKED = "step_up_locked"
 

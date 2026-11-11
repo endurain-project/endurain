@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr, ValidationErro
 
 import core.dependencies as core_dependencies
 import core.hashing as core_hashing
+import core.network as core_network
 import modules.auth.constants as auth_constants
 import modules.auth.lockout.contracts as lockout_contracts
 import modules.auth.lockout.integration_service as lockout_integration
@@ -90,24 +91,26 @@ class PendingMFAStore(Protocol):
         """Record an accepted TOTP step as used; False when it already was."""
         ...
 
-    def is_locked_out(self, username: str, *, known_device: bool = False) -> bool:
-        """Return whether the username is locked out by the tiered or the account-wide lock."""
+    def is_locked_out(self, username: str, ip_address: str, *, user_id: int, known_device: bool = False) -> bool:
+        """Return whether the account is locked out for this client network or account-wide."""
         ...
 
-    def get_lockout_time(self, username: str, *, known_device: bool = False) -> datetime | None:
+    def get_lockout_time(
+        self, username: str, ip_address: str, *, user_id: int, known_device: bool = False
+    ) -> datetime | None:
         """Return the active lockout expiry, if one exists; a known device is not held by the account-wide lock."""
         ...
 
-    def record_failed_attempt(self, username: str) -> FailedMfaRecord:
-        """Record a wrong code against the tiered and the account-wide counters."""
+    def record_failed_attempt(self, username: str, ip_address: str, *, user_id: int) -> FailedMfaRecord:
+        """Record a wrong code against the username and client network and against the account."""
         ...
 
-    def reset_attempts(self, username: str) -> None:
-        """Clear both failed-attempt counts of the username."""
+    def reset_attempts(self, username: str, ip_address: str, *, user_id: int) -> None:
+        """Clear the failed-attempt counts of the username and client network, and the account's."""
         ...
 
-    def reset_account(self, username: str) -> None:
-        """Clear the account-wide failed-attempt count and lock of the username."""
+    def reset_account(self, user_id: int) -> None:
+        """Clear the account-wide failed-attempt count and lock of the account."""
         ...
 
     def clear_all(self) -> None:
@@ -131,8 +134,10 @@ def _decode(value: bytes) -> PendingLogin | None:
 class PendingMFALogin:
     """Store pending MFA logins and their progressive failure lockouts.
 
-    Wrong codes count toward a tiered lock that always applies and toward a much higher account-wide count that locks
-    the account across every challenge, except for a known device of the account.
+    Wrong codes count per username and client network (an IPv6 address by its /64) toward a tiered lock that always
+    applies, so one client cannot lock the owner out for everyone. They also count toward a much higher account-wide
+    count, keyed by the user id so a username change cannot drop it, that locks the account across every network,
+    except for a known device of the account.
     """
 
     def __init__(self, state: StateProvider) -> None:
@@ -143,15 +148,18 @@ class PendingMFALogin:
             name="mfa",
             tiers=lockout_contracts.MFA_LOCKOUT_TIERS,
             attempts_ttl_seconds=2 * 60 * 60,
-            normalize_key=lockout_integration.normalize_username_key,
         )
         self._by_account = lockout_integration.new_progressive_lockout(
             state,
             name="mfa_account",
             tiers=lockout_contracts.ACCOUNT_MFA_LOCKOUT_TIERS,
             attempts_ttl_seconds=lockout_contracts.ACCOUNT_MFA_ATTEMPTS_TTL_SECONDS,
-            normalize_key=lockout_integration.normalize_username_key,
         )
+
+    @staticmethod
+    def _client_key(username: str, ip_address: str) -> str:
+        """Build the per-client key; a network never contains ``|``, so the pair cannot be forged by a username."""
+        return f"{lockout_integration.normalize_username_key(username)}|{core_network.client_network(ip_address)}"
 
     @staticmethod
     def _pending_key(challenge: str) -> str:
@@ -236,32 +244,34 @@ class PendingMFALogin:
         """Record an accepted TOTP step as used; False when it already was."""
         return mfa_totp_replay_store.claim_totp_step(self._state, user_id, step)
 
-    def is_locked_out(self, username: str, *, known_device: bool = False) -> bool:
-        """Return whether MFA attempts are locked for a username by the tiered or, unless a known device, account lock."""
-        return self.get_lockout_time(username, known_device=known_device) is not None
+    def is_locked_out(self, username: str, ip_address: str, *, user_id: int, known_device: bool = False) -> bool:
+        """Return whether MFA is locked for the account on this network or, unless a known device, account-wide."""
+        return self.get_lockout_time(username, ip_address, user_id=user_id, known_device=known_device) is not None
 
-    def get_lockout_time(self, username: str, *, known_device: bool = False) -> datetime | None:
-        """Return the later of the tiered and account-wide lockout expiries; a known device ignores the latter."""
+    def get_lockout_time(
+        self, username: str, ip_address: str, *, user_id: int, known_device: bool = False
+    ) -> datetime | None:
+        """Return the later of the client and account-wide lockout expiries; a known device ignores the latter."""
         expiries = (
-            self._lockout.get_lockout_time(username),
-            None if known_device else self._by_account.get_lockout_time(username),
+            self._lockout.get_lockout_time(self._client_key(username, ip_address)),
+            None if known_device else self._by_account.get_lockout_time(str(user_id)),
         )
         return max((expiry for expiry in expiries if expiry is not None), default=None)
 
-    def record_failed_attempt(self, username: str) -> FailedMfaRecord:
-        """Record a wrong MFA code against the account and against the tiered counter."""
-        account = self._by_account.record_failure(username)
-        tiered = self._lockout.record_failure(username)
+    def record_failed_attempt(self, username: str, ip_address: str, *, user_id: int) -> FailedMfaRecord:
+        """Record a wrong MFA code against the account and against the tiered counter of the client network."""
+        account = self._by_account.record_failure(str(user_id))
+        tiered = self._lockout.record_failure(self._client_key(username, ip_address))
         return FailedMfaRecord(count=tiered.count, account_locked_now=account.newly_locked)
 
-    def reset_attempts(self, username: str) -> None:
-        """Reset both MFA failure counts after a successful challenge."""
-        self._lockout.reset_attempts(username)
-        self.reset_account(username)
+    def reset_attempts(self, username: str, ip_address: str, *, user_id: int) -> None:
+        """Reset the client network's and the account-wide MFA failure counts after a successful challenge."""
+        self._lockout.reset_attempts(self._client_key(username, ip_address))
+        self.reset_account(user_id)
 
-    def reset_account(self, username: str) -> None:
-        """Clear the account-wide MFA failure count and lock of the username."""
-        self._by_account.reset_attempts(username)
+    def reset_account(self, user_id: int) -> None:
+        """Clear the account-wide MFA failure count and lock of the account."""
+        self._by_account.reset_attempts(str(user_id))
 
     def clear_all(self) -> None:
         """Clear pending challenges, their wrong-code counts and MFA failure counters."""

@@ -154,6 +154,15 @@ def claim_session_for_token_exchange(
     return matched == 1
 
 
+def set_session_device_hash(session_id: str, device_hash: str, db: Session) -> None:
+    """Stage the known device a session signed in from."""
+    db.execute(
+        update(sessions_models.UsersSessions)
+        .where(sessions_models.UsersSessions.id == session_id)
+        .values(device_hash=device_hash)
+    )
+
+
 def clear_oauth_state_reference(session_id: str, db: Session) -> None:
     """Stage removal of a session's OAuth-state reference."""
     db.execute(
@@ -221,6 +230,27 @@ def delete_session(session_id: str, user_id: int, db: Session) -> sessions_contr
     if session is None:
         raise core_exceptions.NotFoundError("Session not found")
     return session
+
+
+def delete_sessions_by_device(user_id: int, device_hash: str, db: Session) -> list[sessions_contracts.SessionRead]:
+    """Stage deletion of a user's sessions that signed in from a known device.
+
+    Returns:
+        The deleted sessions.
+    """
+    rows = list(
+        db.execute(
+            select(sessions_models.UsersSessions).where(
+                sessions_models.UsersSessions.user_id == user_id,
+                sessions_models.UsersSessions.device_hash == device_hash,
+            )
+        ).scalars()
+    )
+    sessions = [sessions_serializers.to_read_schema(row) for row in rows]
+    for row in rows:
+        db.delete(row)
+    db.flush()
+    return sessions
 
 
 def delete_expired_sessions(now: datetime, limit: int, db: Session) -> list[tuple[int, str]]:

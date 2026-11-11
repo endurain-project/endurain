@@ -38,8 +38,8 @@ def signup(
     response_model=sign_up_schema.EmailChangeCancelRead,
     responses={
         400: {
-            "description": "The token is malformed, expired, already used, or names a change that a later change has "
-            "replaced."
+            "description": "The token is malformed, expired, already used, or names a change that was already "
+            "reverted or replaced before it was confirmed."
         },
     },
 )
@@ -51,10 +51,11 @@ def cancel_email_change(
 ) -> sign_up_schema.EmailChangeCancelRead:
     """Report an email change as not made by its owner, with the link emailed to the account's address.
 
-    The link works once, for seven days after the change was requested. A pending change is cancelled; a confirmed one
-    puts the previous address back unless another account holds it now. Every session of the account ends and its
-    API keys are revoked either way. The answer says whether the change had been confirmed and whether the previous
-    address was restored.
+    The link works once, for seven days after the change was requested. A later change of the account does not end the
+    link: using it voids every later change still inside its window. A pending change is cancelled; after a
+    confirmed one the address the link was mailed to is put back unless another account holds it now. Every session
+    of the account ends and its API keys are revoked either way. The answer says whether any change of the run had
+    been confirmed and whether the previous address was restored.
     """
     return sign_up_service.cancel_email_change(cancel_data.token, db)
 

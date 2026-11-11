@@ -88,7 +88,7 @@ class TestAuthRouterErrors:
         class PendingMFAStore:
             """Minimal pending MFA store for router testing."""
 
-            def is_locked_out(self, username, *, known_device=False):
+            def is_locked_out(self, username, ip_address, *, user_id, known_device=False):
                 """Return unlocked for test user."""
                 return False
 
@@ -100,7 +100,7 @@ class TestAuthRouterErrors:
                 """Return a claimed pending login."""
                 return pending_login(123)
 
-            def record_failed_attempt(self, username):
+            def record_failed_attempt(self, username, ip_address, *, user_id):
                 """Return a count that must stay server-side only."""
                 return pending_login_store.FailedMfaRecord(count=4, account_locked_now=False)
 
@@ -162,7 +162,7 @@ class TestAuthRouterErrors:
         class PendingMFAStore:
             """Minimal pending MFA store for claim testing."""
 
-            def is_locked_out(self, username):
+            def is_locked_out(self, username, ip_address, *, user_id):
                 """Return unlocked for test user."""
                 return False
 

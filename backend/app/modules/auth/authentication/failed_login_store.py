@@ -29,24 +29,26 @@ class FailedLoginRecord:
 class FailedLoginStore(Protocol):
     """Operations supported by the failed-login lockout store."""
 
-    def is_locked_out(self, username: str, ip_address: str, *, known_device: bool = False) -> bool:
-        """Return whether the username is locked out for the client network or account-wide."""
+    def is_locked_out(self, username: str, ip_address: str, *, user_id: int | None, known_device: bool = False) -> bool:
+        """Return whether the sign-in is locked out for the client network or account-wide."""
         ...
 
-    def get_lockout_time(self, username: str, ip_address: str, *, known_device: bool = False) -> datetime | None:
+    def get_lockout_time(
+        self, username: str, ip_address: str, *, user_id: int | None, known_device: bool = False
+    ) -> datetime | None:
         """Return the active lockout expiry, if one exists; a known device is not held by the account-wide lock."""
         ...
 
-    def record_failed_attempt(self, username: str, ip_address: str) -> FailedLoginRecord:
-        """Record a failed attempt against the username and client network and the account."""
+    def record_failed_attempt(self, username: str, ip_address: str, *, user_id: int | None) -> FailedLoginRecord:
+        """Record a failed attempt against the username and client network and against the account."""
         ...
 
-    def reset_attempts(self, username: str, ip_address: str) -> None:
+    def reset_attempts(self, username: str, ip_address: str, *, user_id: int) -> None:
         """Clear the failed-attempt counts for the username and client network, and the account's."""
         ...
 
-    def reset_account(self, username: str) -> None:
-        """Clear the account-wide failed-attempt count and lock of the username."""
+    def reset_account(self, user_id: int) -> None:
+        """Clear the account-wide failed-attempt count and lock of the account."""
         ...
 
     def clear_all(self) -> None:
@@ -59,7 +61,9 @@ class FailedLoginAttempts:
 
     Failures count per username and client network (an IPv6 address by its /64), so one client cannot lock an account
     for everyone. A second, much higher count of failures in a row locks the account across every address, except for
-    a known device of the account.
+    a known device of the account. That count is keyed by the user id, so a username change cannot drop it. A username
+    that names no account has a counter of its own, keyed by the username, so an unknown name is locked and refused
+    exactly like an existing one.
     """
 
     def __init__(self, state: StateProvider) -> None:
@@ -75,6 +79,12 @@ class FailedLoginAttempts:
             name="login_account",
             tiers=lockout_contracts.ACCOUNT_LOGIN_LOCKOUT_TIERS,
             attempts_ttl_seconds=lockout_contracts.ACCOUNT_LOGIN_ATTEMPTS_TTL_SECONDS,
+        )
+        self._by_unknown_username = lockout_integration.new_progressive_lockout(
+            state,
+            name="login_account_unknown",
+            tiers=lockout_contracts.ACCOUNT_LOGIN_LOCKOUT_TIERS,
+            attempts_ttl_seconds=lockout_contracts.ACCOUNT_LOGIN_ATTEMPTS_TTL_SECONDS,
             normalize_key=lockout_integration.normalize_username_key,
         )
 
@@ -83,37 +93,48 @@ class FailedLoginAttempts:
         """Build the per-client key; a network never contains ``|``, so the pair cannot be forged by a username."""
         return f"{lockout_integration.normalize_username_key(username)}|{core_network.client_network(ip_address)}"
 
-    def is_locked_out(self, username: str, ip_address: str, *, known_device: bool = False) -> bool:
-        """Check if a username is locked out for this client network or, unless a known device, account-wide."""
-        return self.get_lockout_time(username, ip_address, known_device=known_device) is not None
+    def _account_counter(self, username: str, user_id: int | None) -> tuple[lockout_contracts.LockoutStore, str]:
+        """Return the account-wide counter of a sign-in and its key: the user id, or the username of no account."""
+        if user_id is None:
+            return self._by_unknown_username, username
+        return self._by_account, str(user_id)
 
-    def get_lockout_time(self, username: str, ip_address: str, *, known_device: bool = False) -> datetime | None:
+    def is_locked_out(self, username: str, ip_address: str, *, user_id: int | None, known_device: bool = False) -> bool:
+        """Check if a sign-in is locked out for this client network or, unless a known device, account-wide."""
+        return self.get_lockout_time(username, ip_address, user_id=user_id, known_device=known_device) is not None
+
+    def get_lockout_time(
+        self, username: str, ip_address: str, *, user_id: int | None, known_device: bool = False
+    ) -> datetime | None:
         """Return the later of the client and account-wide lockout expiries; a known device ignores the latter."""
+        account, account_key = self._account_counter(username, user_id)
         expiries = (
             self._by_client.get_lockout_time(self._client_key(username, ip_address)),
-            None if known_device else self._by_account.get_lockout_time(username),
+            None if known_device else account.get_lockout_time(account_key),
         )
         return max((expiry for expiry in expiries if expiry is not None), default=None)
 
-    def record_failed_attempt(self, username: str, ip_address: str) -> FailedLoginRecord:
+    def record_failed_attempt(self, username: str, ip_address: str, *, user_id: int | None) -> FailedLoginRecord:
         """Record a failed login against the username and client network and against the account."""
-        account = self._by_account.record_failure(username)
+        account, account_key = self._account_counter(username, user_id)
+        account_failure = account.record_failure(account_key)
         client = self._by_client.record_failure(self._client_key(username, ip_address))
-        return FailedLoginRecord(client_count=client.count, account_locked_now=account.newly_locked)
+        return FailedLoginRecord(client_count=client.count, account_locked_now=account_failure.newly_locked)
 
-    def reset_attempts(self, username: str, ip_address: str) -> None:
+    def reset_attempts(self, username: str, ip_address: str, *, user_id: int) -> None:
         """Clear the failed-login counters for the username and client network, and the account's."""
         self._by_client.reset_attempts(self._client_key(username, ip_address))
-        self.reset_account(username)
+        self.reset_account(user_id)
 
-    def reset_account(self, username: str) -> None:
-        """Clear the account-wide failed-login count and lock of the username."""
-        self._by_account.reset_attempts(username)
+    def reset_account(self, user_id: int) -> None:
+        """Clear the account-wide failed-login count and lock of the account."""
+        self._by_account.reset_attempts(str(user_id))
 
     def clear_all(self) -> None:
         """Clear all failed-login records."""
         self._by_client.clear_all()
         self._by_account.clear_all()
+        self._by_unknown_username.clear_all()
 
 
 def get_failed_login_attempts(

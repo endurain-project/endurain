@@ -159,6 +159,7 @@ describe('presentNotification', () => {
     ['step_up_locked', 'stepUpLocked'],
     ['refresh_token_reuse_detected', 'refreshTokenReuseDetected'],
     ['account_deactivated_by_admin', 'accountDeactivatedByAdmin'],
+    ['username_changed', 'usernameChanged'],
   ])('presents the %s account-security change', (change, key) => {
     const result = presentNotification(make('account_security_changed', { change }))
 

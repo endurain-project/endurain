@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.exceptions as core_exceptions
+import core.hashing as core_hashing
 import core.logger as core_logger
 import core.network as core_network
 import core.timezone as core_timezone
@@ -81,34 +82,19 @@ def _refuse_credentials(
     raise core_exceptions.UnauthenticatedError("Unable to authenticate with provided credentials", scheme="Bearer")
 
 
-def _is_known_device_of(username: str, device_id: str | None, db: Session) -> bool:
-    """Return whether the device id is one the account named by the username signs in from.
-
-    A username that matches no account has no known device, so a locked unknown name and a locked account answer
-    alike.
-
-    Args:
-        username: The username presented.
-        device_id: The device id the client sent, or None when it sent no valid one.
-        db: Database session.
-
-    Returns:
-        True when the id belongs to a known device of the matched account.
-    """
-    if device_id is None:
-        return False
-    user = users_integration.get_user_by_username(username, db)
-    return user is not None and known_devices_integration.is_known_device(user.id, device_id, db)
-
-
 def _record_failed_login(
-    username: str, ip_address: str, failed_attempts: failed_login_store.FailedLoginStore, db: Session
+    username: str,
+    ip_address: str,
+    user: users_schema.UserRead | None,
+    failed_attempts: failed_login_store.FailedLoginStore,
+    db: Session,
 ) -> None:
     """Count a refused password sign-in and, when it locks the account, audit that and tell the account's owner.
 
     Args:
         username: The username presented.
         ip_address: The client address of the sign-in.
+        user: The account the username names, or None when it names none.
         failed_attempts: Failed login attempts tracker for progressive lockout.
         db: Database session.
 
@@ -116,7 +102,7 @@ def _record_failed_login(
         ServiceUnavailableError: If the shared lockout state is unavailable.
     """
     try:
-        failure = failed_attempts.record_failed_attempt(username, ip_address)
+        failure = failed_attempts.record_failed_attempt(username, ip_address, user_id=user.id if user else None)
     except lockout_contracts.AuthSecurityStoreUnavailableError as store_err:
         raise_auth_security_store_unavailable(store_err)
     lockout_integration.report_lockout_applied(
@@ -124,7 +110,6 @@ def _record_failed_login(
     )
     if not failure.account_locked_now:
         return
-    user = users_integration.get_user_by_username(username, db)
     if user is None:
         return
     lockout_integration.report_lockout_applied(
@@ -221,12 +206,18 @@ def complete_login(
     db: Session,
     *,
     mfa: bool,
+    security_generation: int | None,
+    device_hash: str | None,
 ) -> auth_schema.AuthOutcome[auth_schema.TokenWebRead]:
     """Complete the password sign-in of a web client: create its session and tokens.
 
     The access token and the CSRF token are returned in the body (for in-memory storage) and the refresh token as
     an ``HttpOnly`` cookie with ``SameSite=Strict``. A mobile client's session is created by
     :func:`create_mobile_pkce_session_response` and its tokens by the token exchange.
+
+    The session is created only while the account's security generation is still ``security_generation``; the lock
+    that check takes lasts until the session is committed, so a security change cannot end the account's sessions
+    between the check and the insert.
 
     Args:
         ip_address (str): Client address, recorded on the session.
@@ -236,11 +227,21 @@ def complete_login(
         token_manager (access_tokens_integration.TokenManager): Utility for token generation and management.
         db (Session): Database session for storing session information.
         mfa (bool): Whether a second factor was verified for this sign-in.
+        security_generation (int | None): The generation read before the credential that justifies this sign-in was
+            verified, or the one the sign-in's MFA or password-change challenge carries.
+        device_hash (str | None): Digest of the known-device id the sign-in recorded, stored on the session so that
+            forgetting the device ends it.
 
     Returns:
         The token body (session_id, access_token, csrf_token, token_type, expires_in, refresh_token_expires_in) and
         the refresh cookie.
+
+    Raises:
+        UnauthenticatedError: If the account's security changed after the sign-in's proof was created.
     """
+    if not security_generation_integration.matches_locked(user.id, security_generation, db):
+        _refuse_credentials(user.username, user.id, reason=login_audit_actions.LoginFailureReason.SECURITY_CHANGED)
+
     (
         session_id,
         access_token_exp,
@@ -265,6 +266,7 @@ def complete_login(
         refresh_token_exp,
         db,
         amr=password_amr(mfa=mfa),
+        device_hash=device_hash,
     )
     db.commit()
     logger.info("Login completed for user <user_id>", extra=core_logger.context(user_id=user.id))
@@ -291,6 +293,7 @@ def create_mobile_pkce_session_response(
     *,
     security_generation: int | None,
     mfa: bool,
+    device_hash: str | None,
 ) -> auth_schema.MobileSessionRead:
     """Create the session of a mobile sign-in, which the client exchanges for tokens with its PKCE verifier.
 
@@ -308,6 +311,8 @@ def create_mobile_pkce_session_response(
         security_generation: The generation the exchange must still find; read before the credential that justifies
             this sign-in was verified, or the one the sign-in's MFA or password-change challenge carries.
         mfa: Whether a second factor was verified for this sign-in.
+        device_hash: Digest of the known-device id the sign-in recorded, stored on the session so that forgetting the
+            device ends it.
 
     Returns:
         auth_schema.MobileSessionRead: Contains the session_id to exchange for tokens
@@ -350,6 +355,7 @@ def create_mobile_pkce_session_response(
         db,
         oauth_state_id=state_id,
         amr=password_amr(mfa=mfa),
+        device_hash=device_hash,
     )
     db.commit()
     logger.debug("Mobile sign-in session created", extra=core_logger.context(user_id=user.id))
@@ -377,6 +383,7 @@ def raise_auth_security_store_unavailable(
 
 def refuse_while_mfa_locked_out(
     username: str,
+    ip_address: str,
     user_id: int,
     method: login_audit_actions.LoginMethod,
     pending_mfa_store: mfa_dependencies.PendingMFAStore,
@@ -389,6 +396,7 @@ def refuse_while_mfa_locked_out(
 
     Args:
         username: The account's username.
+        ip_address: The client address of the request, whose network the tiered lock is kept for.
         user_id: The account's id.
         method: How the sign-in being completed started, for the audit trail.
         pending_mfa_store: Store for pending MFA logins and the MFA lockout.
@@ -400,9 +408,11 @@ def refuse_while_mfa_locked_out(
         ServiceUnavailableError: If the lockout store is down.
     """
     try:
-        if pending_mfa_store.is_locked_out(username):
+        if pending_mfa_store.is_locked_out(username, ip_address, user_id=user_id):
             known_device = known_devices_integration.is_known_device(user_id, device_id, db)
-            lockout_until = pending_mfa_store.get_lockout_time(username, known_device=known_device)
+            lockout_until = pending_mfa_store.get_lockout_time(
+                username, ip_address, user_id=user_id, known_device=known_device
+            )
             if lockout_until:
                 seconds_remaining = int((lockout_until - datetime.now(UTC)).total_seconds())
                 logger.warning(
@@ -429,6 +439,7 @@ def refuse_while_mfa_locked_out(
 
 def require_valid_mfa_code(
     username: str,
+    ip_address: str,
     user_id: int,
     method: login_audit_actions.LoginMethod,
     mfa_code: str,
@@ -443,6 +454,7 @@ def require_valid_mfa_code(
 
     Args:
         username: The account's username.
+        ip_address: The client address of the request, whose network the wrong code is counted for.
         user_id: The account's id.
         method: How the sign-in being completed started, for the audit trail.
         mfa_code: The submitted TOTP or backup code.
@@ -465,7 +477,7 @@ def require_valid_mfa_code(
     if not code_is_valid:
         # Record failed attempt and apply lockout if threshold exceeded
         try:
-            failure = pending_mfa_store.record_failed_attempt(username)
+            failure = pending_mfa_store.record_failed_attempt(username, ip_address, user_id=user_id)
         except lockout_contracts.AuthSecurityStoreUnavailableError as err:
             raise_auth_security_store_unavailable(err)
         lockout_integration.report_lockout_applied(
@@ -594,7 +606,8 @@ def finish_login(
         mfa: Whether a second factor was verified for this sign-in.
         device_id: Device id from the browser's device cookie or the mobile app's ``X-Device-Id`` header, or None
             when the client sent no valid one.
-        security_generation: The generation a mobile client's exchange must still find; see
+        security_generation: The generation the sign-in's session must still find, which a web client's
+            :func:`complete_login` checks and a mobile client's exchange checks; see
             :func:`create_mobile_pkce_session_response`.
 
     Returns:
@@ -618,6 +631,7 @@ def finish_login(
             ),
         )
 
+    device_hash = core_hashing.sha256_hex(sign_in.device_id)
     # A mobile client never gets tokens from a sign-in: it exchanges the session with its PKCE verifier.
     if client_type == auth_constants.ClientType.MOBILE:
         session = create_mobile_pkce_session_response(
@@ -630,11 +644,22 @@ def finish_login(
             db,
             security_generation=security_generation,
             mfa=mfa,
+            device_hash=device_hash,
         )
         return auth_schema.AuthOutcome(session.model_copy(update={"device_id": sign_in.device_id}))
 
     # A web browser gets its refresh token as a cookie, and keeps its device id in a cookie that the router sets.
-    outcome = complete_login(ip_address, user_agent, user, password_hasher, token_manager, db, mfa=mfa)
+    outcome = complete_login(
+        ip_address,
+        user_agent,
+        user,
+        password_hasher,
+        token_manager,
+        db,
+        mfa=mfa,
+        security_generation=security_generation,
+        device_hash=device_hash,
+    )
     return auth_schema.AuthOutcome(outcome.body, outcome.refresh_cookie, device_id=sign_in.device_id)
 
 
@@ -715,7 +740,7 @@ def login_for_access_token(
       * 5 failures: 5 minute lockout
       * 10 failures: 30 minute lockout
       * 20 failures: 24 hour lockout
-    - Account lock: 100 failed password sign-ins in a row for one username, from any addresses, lock the account for
+    - Account lock: 100 failed password sign-ins in a row for one account, from any addresses, lock the account for
       30 days. The count restarts on a successful sign-in and expires after 30 days without a failure. A device the
       account has signed in from since its last security change (its device id is known) is not held by this lock,
       only by the client-network lockout and the password check. A successful sign-in, a completed password reset, a password change or an
@@ -761,12 +786,19 @@ def login_for_access_token(
         DomainError: If authentication fails (an inactive account included, with the same answer), or the
             account is locked
     """
-    # Check if username is locked out from too many failed login attempts. A known device of the account is held
+    # Looked up before the lock check, which is keyed by the account's id, and for an unknown username too, so the
+    # work does not tell a name that has an account from one that has none.
+    known = users_integration.get_user_by_username(username, db)
+    known_id = known.id if known else None
+
+    # Check if the account is locked out from too many failed login attempts. A known device of the account is held
     # by the client-network lockout and the password check but not by the account-wide lock.
     try:
-        if failed_attempts.is_locked_out(username, ip_address):
-            known_device = _is_known_device_of(username, device_id, db)
-            lockout_until = failed_attempts.get_lockout_time(username, ip_address, known_device=known_device)
+        if failed_attempts.is_locked_out(username, ip_address, user_id=known_id):
+            known_device = known is not None and known_devices_integration.is_known_device(known.id, device_id, db)
+            lockout_until = failed_attempts.get_lockout_time(
+                username, ip_address, user_id=known_id, known_device=known_device
+            )
             if lockout_until:
                 seconds_remaining = int((lockout_until - datetime.now(UTC)).total_seconds())
                 logger.warning(
@@ -792,7 +824,6 @@ def login_for_access_token(
     try:
         # Read before the password is verified, so a security change that commits while the hash runs outdates the
         # proof this sign-in creates. An unknown username is refused by the verification, so its 0 is never stamped.
-        known = users_integration.get_user_by_username(username, db)
         security_generation = security_generation_integration.current_generation(known.id, db) if known else 0
         user = authenticate_user(known, username, password, password_hasher, db)
         if not user.active:
@@ -822,7 +853,7 @@ def login_for_access_token(
     except core_exceptions.UnauthenticatedError as err:
         # Record failed attempt on authentication errors (401 Unauthorized)
         if err.status_code == 401:
-            _record_failed_login(username, ip_address, failed_attempts, db)
+            _record_failed_login(username, ip_address, known, failed_attempts, db)
         raise err
 
     # Check if MFA is enabled for this user
@@ -854,7 +885,7 @@ def login_for_access_token(
     # Password authentication successful and no MFA required
     # Reset failed login attempts counter
     try:
-        failed_attempts.reset_attempts(username, ip_address)
+        failed_attempts.reset_attempts(username, ip_address, user_id=user.id)
     except lockout_contracts.AuthSecurityStoreUnavailableError as err:
         raise_auth_security_store_unavailable(err)
 
@@ -966,10 +997,17 @@ def verify_mfa_and_login(
         _end_outdated_mfa_challenge(mfa_request.mfa_challenge, user_id, pending_mfa_store)
 
     password_method = login_audit_actions.LoginMethod.PASSWORD
-    refuse_while_mfa_locked_out(user.username, user_id, password_method, pending_mfa_store, device_id, db)
+    refuse_while_mfa_locked_out(user.username, ip_address, user_id, password_method, pending_mfa_store, device_id, db)
     try:
         require_valid_mfa_code(
-            user.username, user_id, password_method, mfa_request.mfa_code, pending_mfa_store, password_hasher, db
+            user.username,
+            ip_address,
+            user_id,
+            password_method,
+            mfa_request.mfa_code,
+            pending_mfa_store,
+            password_hasher,
+            db,
         )
     except core_exceptions.InvalidMfaCodeError:
         _end_challenge_after_wrong_code(mfa_request.mfa_challenge, user_id, pending_mfa_store)
@@ -987,8 +1025,8 @@ def verify_mfa_and_login(
 
     # MFA verification successful - reset both MFA and login failed attempts counters
     try:
-        pending_mfa_store.reset_attempts(user.username)
-        failed_attempts.reset_attempts(user.username, ip_address)
+        pending_mfa_store.reset_attempts(user.username, ip_address, user_id=user.id)
+        failed_attempts.reset_attempts(user.username, ip_address, user_id=user.id)
     except lockout_contracts.AuthSecurityStoreUnavailableError as err:
         raise_auth_security_store_unavailable(err)
 

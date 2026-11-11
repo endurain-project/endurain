@@ -54,5 +54,8 @@ def forget_user_device(
     ],
     db: core_dependencies.DbSession,
 ) -> None:
-    """Forget a device after step-up verification, so the next sign-in from it is announced as a new device."""
+    """Forget a device after step-up verification, which also signs it out.
+
+    The sessions that signed in from the device end, and the next sign-in from it is announced as a new device.
+    """
     device_service.forget_user_device(device_id, token_user_id, token_session_id, body.step_up, step_up_store, db)

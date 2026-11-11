@@ -1,6 +1,9 @@
 # Compatibility between releases
 
-The rules a client can rely on when the server is upgraded. They hold for the Endurain web and mobile apps and for third-party clients, such as an app that signs in through [SSO](oauth-sso-pkce.md), from v0.21.0 on. A change that breaks one of them is announced as a breaking change in the release notes.
+The rules a client can rely on when the server is upgraded. They hold for the Endurain web and mobile apps from v0.21.0 on, and for other clients that use [API keys](api-keys.md). A change that breaks one of them is announced as a breaking change in the release notes.
+
+!!! warning "First-party sign-in"
+    The `/auth` sign-in routes (login, MFA verification, password change, token exchange and refresh) and the SSO hand-off through `ALLOWED_REDIRECT_URIS` are first-party protocols for Endurain's own web and mobile apps. Other applications use API keys today and the OAuth endpoints, reserved under `/oauth/*`, when they exist, and may be refused on the first-party routes then.
 
 ## Responses gain members
 

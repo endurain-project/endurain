@@ -134,6 +134,10 @@
       "unknown": {
         "title": "Sécurité du compte modifiée",
         "body": "Un paramètre de sécurité de votre compte a été modifié. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité."
+      },
+      "usernameChanged": {
+        "title": "Nom d'utilisateur modifié",
+        "body": "Votre nom d'utilisateur a été modifié. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité."
       }
     },
     "newDeviceSignIn": {

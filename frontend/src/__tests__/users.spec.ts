@@ -272,50 +272,16 @@ describe('users service requests', () => {
     })
   })
 
-  it('updateUser sends the whole record so unedited fields are preserved', async () => {
+  it('updateUser sends only the fields that changed', async () => {
     vi.mocked(apiFetch).mockResolvedValue(makeUserDto({ name: 'Ada L.', active: false }))
     const user = mapManagedUser(makeUserDto())
 
-    await updateUser(user, {
-      name: 'Ada L.',
-      username: 'ada',
-      email: 'ada@example.com',
-      accessType: 'regular',
-      active: false,
-      emailVerified: true,
-      preferredLanguage: 'en',
-      gender: 'female',
-      units: 'metric',
-      weightUnits: null,
-      currency: 'euro',
-      firstDayOfWeek: 'monday',
-      city: 'London',
-      birthdate: '1815-12-10',
-      height: 170,
-      maxHeartRate: 190,
-    })
+    await updateUser(user, { ...user, name: 'Ada L.', active: false })
 
     expect(apiFetch).toHaveBeenCalledWith('/users/7', {
       method: 'PATCH',
       headers: { 'If-Match': '"5"' },
-      body: JSON.stringify({
-        name: 'Ada L.',
-        username: 'ada',
-        email: 'ada@example.com',
-        access_type: 'regular',
-        active: false,
-        email_verified: true,
-        preferred_language: 'en',
-        gender: 'female',
-        units: 'metric',
-        weight_units: null,
-        currency: 'euro',
-        first_day_of_week: 'monday',
-        city: 'London',
-        birthdate: '1815-12-10',
-        height: 170,
-        max_heart_rate: 190,
-      }),
+      body: JSON.stringify({ name: 'Ada L.', active: false }),
     })
   })
 

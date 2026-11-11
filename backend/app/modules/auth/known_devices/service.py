@@ -155,20 +155,27 @@ def list_devices(
     )
 
 
-def forget_device(device_id: int, user_id: int, db: Session) -> None:
-    """Stage the deletion of one of the user's known devices; the caller commits.
+def forget_device(device_id: int, user_id: int, db: Session) -> int:
+    """Stage the deletion of a known device and of the sessions that signed in from it; the caller commits.
+
+    A session created before sessions recorded their device has no hash and is not ended.
 
     Args:
         device_id: ID of the device to forget.
         user_id: The user who owns the device.
         db: Database session.
 
+    Returns:
+        The number of sessions ended.
+
     Raises:
         NotFoundError: When the user has no such known device.
     """
     generation = security_generation_integration.current_generation(user_id, db)
-    if not known_devices_crud.delete_device(device_id, user_id, generation, db):
+    device_hash = known_devices_crud.delete_device(device_id, user_id, generation, db)
+    if device_hash is None:
         raise core_exceptions.NotFoundError("Device not found")
+    return sessions_integration.delete_sessions_by_device(user_id, device_hash, db)
 
 
 def delete_unseen_devices(now: datetime, db: Session) -> int:

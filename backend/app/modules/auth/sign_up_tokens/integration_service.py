@@ -62,6 +62,20 @@ def request_self_service_email_change(
     return sign_up_service.request_self_service_email_change(user_id, email, previous_email, state, db)
 
 
+def get_email_reserver_id(email: str, except_user_id: int | None, db: Session) -> int | None:
+    """Return the user an address is reserved for while their confirmed email change can still be reverted.
+
+    Args:
+        email: The address, in any case.
+        except_user_id: A user who does not count as the reserver, or None for every user.
+        db: Database session.
+
+    Returns:
+        The reserving user, or None when the address is not reserved for another user.
+    """
+    return sign_up_service.get_email_reserver_id(email, except_user_id, db)
+
+
 def get_pending_email_changes(
     user_ids: Collection[int], db: Session
 ) -> dict[int, sign_up_contracts.PendingEmailChange]:

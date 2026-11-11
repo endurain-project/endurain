@@ -44,6 +44,8 @@ class UsersSessions(Base):
         auth_time: When the owner signed in; refresh and step-up leave it unchanged.
         app_redirect_uri: The native-app redirect address an SSO sign-in handed the session to; null for a web
             session and for a sign-in that carried no redirect.
+        device_hash: SHA-256 hex digest of the known-device id the session signed in from (as ``known_devices``
+            stores it); null for a session created before the column existed, which forgetting a device does not end.
         amr: How the owner proved themselves (RFC 8176 values); a session awaiting its SSO token exchange has
             only ``fed``, and the exchange adds the second factor.
     """
@@ -167,4 +169,9 @@ class UsersSessions(Base):
         String(500),
         nullable=True,
         comment="Native-app redirect address an SSO sign-in handed the session to",
+    )
+    device_hash: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        comment="SHA-256 hex digest of the device id the session signed in from",
     )

@@ -38,7 +38,7 @@ def test_a_reset_is_audited_and_announced(mock_db):
         require_user.return_value.username = "alice"
         password_reset_service.use_password_reset_token("raw-token", "new-password", mock_db)
 
-    clear_lock.assert_called_once_with("alice")
+    clear_lock.assert_called_once_with(7)
     clear_step_up.assert_called_once_with(7)
     audit.assert_audited(
         password_reset_audit_actions.PASSWORD_RESET.id, target_type="user", target_id="7", target_owner_id="7"

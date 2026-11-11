@@ -134,6 +134,10 @@
       "unknown": {
         "title": "Securitatea contului a fost modificată",
         "body": "O setare de securitate a contului tău a fost modificată. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate."
+      },
+      "usernameChanged": {
+        "title": "Nume de utilizator schimbat",
+        "body": "Numele tău de utilizator a fost schimbat. Dacă nu ai fost tu, resetează parola și verifică setările de securitate."
       }
     },
     "newDeviceSignIn": {

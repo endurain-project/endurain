@@ -21,12 +21,16 @@ The system is extensible and can be configured to work with:
 ### OAuth Configuration
 Identity providers are configured by an administrator with these parameters:
 
-- `name`, `slug` and `provider_type`: `oidc` (the default) or `oauth2`; any other value, including `saml`, is refused with `422`. An `oauth2` provider whose `scopes` include `openid` (the default scopes do) must return an ID token that verifies, nonce included, like an `oidc` one
+- `name`, `slug` and `provider_type`. The slug is 1 to 50 lowercase letters, numbers and hyphens, and cannot be `login`, `callback`, `icon` or `backchannel-logout`, the words the public routes use (refused with `422`). `provider_type` is `oidc` (the default) or `oauth2`; any other value, including `saml`, is refused with `422`. An `oauth2` provider whose `scopes` include `openid` (the default scopes do) must return an ID token that verifies, nonce included, like an `oidc` one
 - `client_id` and `client_secret`: OAuth client identifier and secret
-- `issuer_url`: the OIDC issuer. Endurain reads `{issuer_url}/.well-known/openid-configuration` and requires its `issuer` to match. An `oidc` provider needs it: sign-in verifies the ID token against the issuer and the signing keys (`jwks_uri`) the discovery document publishes, and a provider without them is refused. Step-up re-authentication also needs it
+- `issuer_url`: the OIDC issuer. Endurain reads `{issuer_url}/.well-known/openid-configuration` and requires its `issuer` to match. An `oidc` provider needs it, and creating one without it is refused with `422`; an edit that would leave one without it is refused with `400`. Sign-in verifies the ID token against the issuer and the signing keys the discovery document publishes (`jwks_uri` in that document), and a provider without them is refused. Step-up re-authentication also needs it
 - `authorization_endpoint`, `token_endpoint`, `userinfo_endpoint`: optional. A blank endpoint is discovered from the issuer; a value set here takes precedence
-- `scopes`: `openid profile email` by default
+- `scopes`: `openid profile email` by default. An `oidc` provider must include `openid`; creating one without it is refused with `422`, and an edit that would remove it is refused with `400`. An edit is checked against the stored values of the fields it does not send, and one that leaves `provider_type`, `issuer_url` and `scopes` equal to the stored values, whether it omits them or sends them back unchanged, is not checked, so a provider saved before this rule can still be renamed or disabled
 - `auto_create_users` (`true` by default), `link_by_email` (`false` by default), `sync_user_info` (`true` by default) and `sync_email` (`false` by default). `link_by_email` lets an unlinked sign-in join the local account that has the provider's verified email; when it is `false` that sign-in is refused. `sync_user_info` syncs the mapped name and not the email; `sync_email` syncs the email the provider verified, which marks it verified, voids unused password-reset tokens, is audited and notifies the previous address
+- `enabled`: setting it from `true` to `false` ends, in the same transaction as the edit, every session the provider signed in, for all users; the `auth.identity_provider.update` audit row carries the number as `sessions_ended`. Setting it back to `true` does not restore them. If ending the sessions fails, the provider stays enabled
+
+!!! warning "Breaking change"
+    The `jwks_uri` field is removed from the identity provider request and response bodies and from the database. Signing keys always come from the provider's discovery document, so a body that still sends `jwks_uri` is refused with `422`. Creating an `oidc` provider without an `issuer_url` or without the `openid` scope is refused too.
 
 The callback URL is not a setting. Endurain always uses `{frontend host}/api/v1/public/idp/callback/{idp_slug}`, so register exactly that URL as the redirect URI at the provider.
 
@@ -103,14 +107,14 @@ POST /api/v1/auth/login
 Content-Type: application/x-www-form-urlencoded
 X-Client-Type: mobile
 
-username=user@example.com&password=userpassword&code_challenge={challenge}&code_challenge_method=S256
+username=username&password=userpassword&code_challenge={challenge}&code_challenge_method=S256
 ```
 
 **Form Fields:**
 
 | Field | Required | Description |
 | ----- | -------- | ----------- |
-| `username` | Yes | Username or email |
+| `username` | Yes | The account username (case-insensitive). An email address is not accepted: it is refused like a wrong password and counts toward the failed-login lockout |
 | `password` | Yes | User's password |
 | `code_challenge` | Yes (mobile) | Base64url-encoded SHA256 hash of code_verifier, 43 to 128 characters of `A-Z a-z 0-9 - _` |
 | `code_challenge_method` | Yes (mobile) | Must be `S256` |
@@ -167,8 +171,7 @@ This is the mobile token body that `/auth/refresh` answers. Send the device id t
 | Status | Error | Description |
 | ------ | ----- | ----------- |
 | 400 | `invalid-input` (Invalid code_verifier) | Verifier doesn't match the challenge, or `X-Client-Type` differs from the client type that started the sign-in (the same answer for both) |
-| 404 | Session not found | Invalid session_id |
-| 409 | Tokens already exchanged | Replay attack prevention |
+| 404 | Session not found | Invalid session_id, or the tokens were already exchanged |
 | 422 | Missing or unknown `X-Client-Type` | The header is required |
 | 429 | Rate limit exceeded | Max 10 requests/minute per IP |
 
@@ -308,7 +311,7 @@ Open the initiate URL in the system browser, with the app's redirect address as 
 https://your-endurain-instance.com/api/v1/public/idp/login/{idp_slug}?code_challenge={challenge}&code_challenge_method=S256&redirect={custom_scheme}://callback
 ```
 
-The route answers `307` to the identity provider and sets an httpOnly cookie (`endurain_idp_binding`, `__Secure-endurain_idp_binding` in production and demo, `SameSite=Lax`, path `/api/v1/public/idp/callback`, valid for the 10 minutes the OAuth state lives) that binds the sign-in to this browser. The callback refuses a sign-in that finishes in another browser or without the cookie, with the same `400` as an unknown `state`, and audits it as `auth.session.login` with the reason `browser_mismatch`. Open the URL in a browser that keeps cookies and finish the whole flow in that same browser: the system browser, Custom Tabs or `ASWebAuthenticationSession`. A WebView that drops cookies, or a flow that moves from one browser to another, cannot finish. The provider's callback always goes to `ENDURAIN_HOST`, so the app must start the login on the `ENDURAIN_HOST` origin, not a LAN IP or another host name, and over `https` in production and demo, where the cookie is `Secure` and a browser drops it over plain `http`. Otherwise the callback is refused as an unknown `state`.
+The route answers `307` to the identity provider and sets an httpOnly cookie (`endurain_idp_binding`, `__Host-endurain_idp_binding` in production and demo, `SameSite=Lax`, path `/`, valid for the 10 minutes the OAuth state lives) that binds the sign-in to this browser. The callback refuses a sign-in that finishes in another browser or without the cookie, with the same `400` as an unknown `state`, and audits it as `auth.session.login` with the reason `browser_mismatch`. Open the URL in a browser that keeps cookies and finish the whole flow in that same browser: the system browser, Custom Tabs or `ASWebAuthenticationSession`. A WebView that drops cookies, or a flow that moves from one browser to another, cannot finish. The provider's callback always goes to `ENDURAIN_HOST`, so the app must start the login on the `ENDURAIN_HOST` origin, not a LAN IP or another host name, and over `https` in production and demo, where the cookie is `Secure` and a browser drops it over plain `http`. Otherwise the callback is refused as an unknown `state`.
 
 **Query Parameters:**
 
@@ -373,11 +376,10 @@ A web client gets the web token body instead (`csrf_token`, no `refresh_token`, 
 | Status | Error | Description |
 | ------ | ----- | ----------- |
 | 400 | `invalid-input` (Invalid code_verifier) | Verifier doesn't match the challenge, or `X-Client-Type` differs from the value stored on the PKCE/OAuth state (the same answer for both) |
-| 404 | Session not found | Invalid session_id or not a PKCE flow |
+| 404 | Session not found | Invalid session_id, not a PKCE flow, or the tokens were already exchanged |
 | 422 | Missing or unknown `X-Client-Type` | The header is required |
 | 403 | `mfa-required` | The account has MFA enabled and the request had no `mfa_code`; see below |
 | 400 | `invalid-mfa-code` | The `mfa_code` was wrong, expired or an already used backup code |
-| 409 | Tokens already exchanged | Replay attack prevention |
 | 429 | Rate limit exceeded | Max 10 requests/minute per IP, or the account is locked out after too many wrong MFA codes |
 
 **Accounts with MFA enabled:** signing in with an identity provider does not replace the account's own MFA. When the account has MFA enabled, the exchange is refused with `403` and the problem type `urn:endurain:error:mfa-required` until the request also carries `"mfa_code"` (a TOTP code or a backup code). The refusal does not use up the session: ask the user for a code and send the same request again with it. A later release may add members to this `403` (for example the factors on offer) and optional proof fields to the exchange body next to `mfa_code`; see [Compatibility between releases](compatibility.md#responses-gain-members). Ignore a member you do not know, and send only the fields described here. The verifier is checked first, so only the client that started the flow can try codes, and wrong codes count toward the same lockout as the password login.

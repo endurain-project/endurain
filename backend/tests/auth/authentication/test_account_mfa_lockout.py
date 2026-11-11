@@ -10,6 +10,7 @@ from jasil.providers import StateBackendUnavailableError
 
 import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
+import core.network as core_network
 import modules.auth.account_security.account_security_service as account_security_service
 import modules.auth.account_security.mfa_workflow_service as mfa_workflow
 import modules.auth.authentication.event_publishers as authentication_event_publishers
@@ -32,6 +33,8 @@ _PUBLISH = "modules.auth.authentication.event_publishers.platform_publisher.publ
 _WRONG = "000000"
 _DEVICE_ID = "d" * 43
 _LOCK = lockout_audit_actions.LOCKOUT_APPLY.id
+_IP = "testclient"
+_TIER_KEY = f"{USERNAME}|{_IP}"
 
 
 def _store() -> pending_login_store.PendingMFALogin:
@@ -42,7 +45,7 @@ def _record_account_failures(count: int) -> None:
     """Count wrong codes against the account only, as if earlier challenges had spent them."""
     store = _store()
     for _ in range(count):
-        store._by_account.record_failure(USERNAME)
+        store._by_account.record_failure(str(USER_ID))
 
 
 def _lock_account() -> None:
@@ -59,6 +62,26 @@ def _verify(stack, code, *, device_id=None):
 
 def _mfa_locked_events(publish: MagicMock) -> list:
     return [c for c in publish.call_args_list if c.args[0] == authentication_events.MFA_LOCKED]
+
+
+def _verify_from(stack, ip, code):
+    """Sign in with the password and verify the code, both from the client address ``ip``."""
+    with patch.object(core_network, "get_ip_address", return_value=ip):
+        return _verify(stack, code)
+
+
+class TestTieredLockIsPerNetwork:
+    def test_wrong_codes_from_one_network_do_not_stop_a_correct_code_from_another(self, mfa_plain_signin):
+        for _ in range(5):
+            assert _verify_from(mfa_plain_signin, "203.0.113.5", _WRONG).status_code == 400
+        assert _verify_from(mfa_plain_signin, "203.0.113.5", BACKUP_CODE).status_code == 429
+
+        assert _verify_from(mfa_plain_signin, "198.51.100.9", BACKUP_CODE).status_code == 200
+
+    def test_the_account_wide_lock_still_holds_across_networks(self, mfa_plain_signin):
+        _lock_account()
+
+        assert _verify_from(mfa_plain_signin, "198.51.100.9", BACKUP_CODE).status_code == 429
 
 
 class TestHundredthWrongCode:
@@ -82,7 +105,7 @@ class TestHundredthWrongCode:
         events = _mfa_locked_events(publish)
         assert len(events) == 1
         assert events[0].args[1] == {"user_id": USER_ID}
-        assert _store().is_locked_out(USERNAME) is True
+        assert _store().is_locked_out(USERNAME, _IP, user_id=USER_ID) is True
 
     def test_the_ninety_ninth_wrong_code_locks_nothing_and_tells_nobody(self, mfa_plain_signin):
         _record_account_failures(98)
@@ -93,7 +116,7 @@ class TestHundredthWrongCode:
         assert response.status_code == 400
         assert [r for r in audit.matching(_LOCK) if r.details["counter"] == "mfa_account"] == []
         assert _mfa_locked_events(publish) == []
-        assert _store().is_locked_out(USERNAME) is False
+        assert _store().is_locked_out(USERNAME, _IP, user_id=USER_ID) is False
 
     def test_the_exchange_records_the_second_factor_it_verified(self, mfa_plain_signin):
         claims = []
@@ -106,10 +129,10 @@ class TestHundredthWrongCode:
     def test_wrong_codes_across_many_challenges_reach_the_cap(self, mfa_plain_signin):
         store = _store()
         for _ in range(100):
-            store.record_failed_attempt(USERNAME)
-            store._lockout.reset_attempts(USERNAME)
+            store.record_failed_attempt(USERNAME, _IP, user_id=USER_ID)
+            store._lockout.reset_attempts(_TIER_KEY)
 
-        assert store.is_locked_out(USERNAME) is True
+        assert store.is_locked_out(USERNAME, _IP, user_id=USER_ID) is True
 
     def test_a_known_device_that_gets_the_code_wrong_still_counts_toward_the_cap(self, mfa_plain_signin):
         _record_account_failures(99)
@@ -122,7 +145,7 @@ class TestHundredthWrongCode:
 
         assert response.status_code == 400
         assert len(_mfa_locked_events(publish)) == 1
-        assert _store().is_locked_out(USERNAME) is True
+        assert _store().is_locked_out(USERNAME, _IP, user_id=USER_ID) is True
 
     def test_a_wrong_code_while_locked_does_not_tell_again(self, mfa_plain_signin):
         _lock_account()
@@ -169,12 +192,12 @@ class TestLockedAccount:
 
         assert response.status_code == 200
         assert known.call_args.args[:2] == (USER_ID, _DEVICE_ID)
-        assert _store().is_locked_out(USERNAME) is False
+        assert _store().is_locked_out(USERNAME, _IP, user_id=USER_ID) is False
 
     def test_a_known_device_is_still_held_by_the_tiered_lock(self, mfa_plain_signin):
         store = _store()
         for _ in range(5):
-            store._lockout.record_failure(USERNAME)
+            store._lockout.record_failure(_TIER_KEY)
 
         with patch(f"{_SERVICE}.known_devices_integration.is_known_device", return_value=True):
             response = _verify(mfa_plain_signin, BACKUP_CODE, device_id=_DEVICE_ID)
@@ -198,7 +221,7 @@ class TestLockedAccount:
         with patch(_PUBLISH) as publish:
             assert _verify(mfa_plain_signin, _WRONG).status_code == 400
         assert _mfa_locked_events(publish) == []
-        assert _store().is_locked_out(USERNAME) is False
+        assert _store().is_locked_out(USERNAME, _IP, user_id=USER_ID) is False
 
 
 def _exchange(stack, store, *, device_id=None, code=BACKUP_CODE, claims=None):
@@ -234,7 +257,10 @@ def _exchange(stack, store, *, device_id=None, code=BACKUP_CODE, claims=None):
                 (claims.append(args) if claims is not None else None) or datetime(2999, 1, 1, tzinfo=UTC)
             ),
         ),
-        patch(f"{_SSO}.known_devices_integration.record_sign_in", return_value=MagicMock(new_device=False)),
+        patch(
+            f"{_SSO}.known_devices_integration.record_sign_in",
+            return_value=MagicMock(device_id="d" * 43, new_device=False),
+        ),
         patch(f"{_SSO}.authentication_token_service.build_web_token_response"),
         stack.factory() as db,
     ):
@@ -271,7 +297,7 @@ class TestSsoExchange:
 
         assert refusal is None
         assert known.call_args.args[:2] == (USER_ID, _DEVICE_ID)
-        assert _store().is_locked_out(USERNAME) is False
+        assert _store().is_locked_out(USERNAME, _IP, user_id=USER_ID) is False
 
     def test_the_hundredth_wrong_code_locks_and_tells_the_owner_once(self, mfa_plain_signin):
         _record_account_failures(99)
@@ -320,7 +346,7 @@ class TestLiftingTheLock:
         ):
             mfa_workflow.enable_mfa(request, USER_ID, "sid", MagicMock(), secrets, db)
 
-        assert _store().is_locked_out(USERNAME) is False
+        assert _store().is_locked_out(USERNAME, _IP, user_id=USER_ID) is False
 
     def test_turning_mfa_off_lifts_it(self, mfa_plain_signin):
         _lock_account()
@@ -338,7 +364,7 @@ class TestLiftingTheLock:
                 revoke_other_sessions=False,
             )
 
-        assert _store().is_locked_out(USERNAME) is False
+        assert _store().is_locked_out(USERNAME, _IP, user_id=USER_ID) is False
 
     def test_an_administrator_resetting_mfa_lifts_it(self, mfa_plain_signin):
         _lock_account()
@@ -346,7 +372,7 @@ class TestLiftingTheLock:
             account_security_service.reset_managed_user_mfa(USER_ID, db)
             db.commit()
 
-        assert _store().is_locked_out(USERNAME) is False
+        assert _store().is_locked_out(USERNAME, _IP, user_id=USER_ID) is False
 
     def test_the_count_is_cleared_too(self, mfa_plain_signin):
         _record_account_failures(99)
@@ -354,25 +380,25 @@ class TestLiftingTheLock:
             account_security_service.reset_managed_user_mfa(USER_ID, db)
             db.commit()
 
-        assert _store().record_failed_attempt(USERNAME).account_locked_now is False
+        assert _store().record_failed_attempt(USERNAME, _IP, user_id=USER_ID).account_locked_now is False
 
     def test_the_username_is_matched_regardless_of_case(self):
         state = core_dependencies.get_platform_state()
         store = pending_login_store.PendingMFALogin(state)
         for _ in range(100):
-            store.record_failed_attempt("Alice")
-        store._lockout.reset_attempts("Alice")
+            store.record_failed_attempt("Alice", _IP, user_id=USER_ID)
+        store._lockout.reset_attempts(f"alice|{_IP}")
 
-        mfa_integration.clear_mfa_account_lockout("alice")
+        mfa_integration.clear_mfa_account_lockout(USER_ID)
 
-        assert store.is_locked_out("Alice") is False
+        assert store.is_locked_out("Alice", _IP, user_id=USER_ID) is False
 
     def test_a_state_outage_does_not_fail_the_clear(self):
         state = MagicMock()
         state.delete.side_effect = StateBackendUnavailableError("down")
 
         with patch("modules.auth.mfa.integration_service.core_dependencies.get_platform_state", return_value=state):
-            mfa_integration.clear_mfa_account_lockout("alice")
+            mfa_integration.clear_mfa_account_lockout(USER_ID)
 
     def test_a_state_outage_does_not_fail_an_administrator_reset(self, mfa_plain_signin):
         state = MagicMock()
@@ -397,5 +423,5 @@ def test_a_store_outage_while_checking_the_lock_answers_503(device_id):
 
     with pytest.raises(core_exceptions.ServiceUnavailableError):
         authentication_service.refuse_while_mfa_locked_out(
-            USERNAME, USER_ID, login_audit_actions.LoginMethod.PASSWORD, store, device_id, MagicMock()
+            USERNAME, _IP, USER_ID, login_audit_actions.LoginMethod.PASSWORD, store, device_id, MagicMock()
         )

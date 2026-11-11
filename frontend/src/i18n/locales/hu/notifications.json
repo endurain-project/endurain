@@ -134,6 +134,10 @@
       "unknown": {
         "title": "A fiók biztonsága megváltozott",
         "body": "A fiókod egyik biztonsági beállítása megváltozott. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
+      },
+      "usernameChanged": {
+        "title": "Felhasználónév megváltoztatva",
+        "body": "A felhasználóneved megváltozott. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
       }
     },
     "newDeviceSignIn": {

@@ -36,6 +36,6 @@ def list_devices(
     return known_devices_service.list_devices(user_id, device_id, page, db)
 
 
-def forget_device(device_id: int, user_id: int, db: Session) -> None:
-    """Stage the deletion of one of the user's known devices; the caller commits."""
-    known_devices_service.forget_device(device_id, user_id, db)
+def forget_device(device_id: int, user_id: int, db: Session) -> int:
+    """Stage the deletion of one of the user's known devices and its sessions; returns how many sessions ended."""
+    return known_devices_service.forget_device(device_id, user_id, db)

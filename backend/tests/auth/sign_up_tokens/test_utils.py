@@ -125,13 +125,14 @@ class TestEmailPreparation:
     @patch("modules.auth.sign_up_tokens.service.sign_up_email_messages.get_email_change_confirmation_email")
     @patch("modules.auth.sign_up_tokens.service.create_sign_up_token", return_value="plain-token")
     @patch("modules.auth.sign_up_tokens.service.sign_up_crud.get_pending_email_change_tokens")
+    @patch("modules.auth.sign_up_tokens.service.get_email_reserver_id", return_value=None)
     @patch("modules.auth.sign_up_tokens.service.users_integration.get_user_by_email", return_value=None)
     @patch(
         "modules.auth.sign_up_tokens.service.users_integration.get_user",
         return_value=MagicMock(id=1, name="Test", email="old@example.test", preferred_language="en"),
     )
     def test_email_change_verification_prepares_its_own_message(
-        self, _get_user, _holder, pending, create_token, build_email, mock_db
+        self, _get_user, _holder, _reserver, pending, create_token, build_email, mock_db
     ):
         pending.return_value = [
             MagicMock(

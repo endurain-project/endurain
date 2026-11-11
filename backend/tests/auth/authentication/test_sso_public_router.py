@@ -76,17 +76,6 @@ class TestTokenExchange:
 
         assert response.status_code == 404
 
-    @patch(f"{_SERVICE}.sessions_integration.get_session_with_oauth_state")
-    def test_replay_is_refused(self, mock_get_session, mock_db):
-        session, oauth_state = _session_and_state()
-        session.tokens_exchanged = True
-        mock_get_session.return_value = (session, oauth_state)
-
-        response = _client(mock_db).post("/api/v1/auth/sessions/s/tokens", json={"code_verifier": _VERIFIER})
-
-        assert response.status_code == 409
-        mock_db.commit.assert_not_called()
-
     @patch(f"{_SERVICE}.users_integration.require_user")
     @patch(f"{_SERVICE}.users_integration.require_active_user")
     @patch("modules.auth.authentication.token_service.create_tokens")
@@ -206,7 +195,7 @@ class TestTokenExchange:
 
         response = _client(mock_db).post("/api/v1/auth/sessions/s/tokens", json={"code_verifier": _VERIFIER})
 
-        assert response.status_code == 409
+        assert response.status_code == 404
         mock_db.commit.assert_not_called()
 
 
@@ -282,7 +271,7 @@ class TestTokenExchangeMfa:
 
         assert response.status_code == 400
         assert response.json()["type"] == "urn:endurain:error:invalid-mfa-code"
-        store.record_failed_attempt.assert_called_once_with("testuser")
+        store.record_failed_attempt.assert_called_once_with("testuser", "testclient", user_id=42)
         exchange.claim.assert_not_called()
 
     def test_a_locked_out_account_is_refused_before_the_code_is_checked(self, mock_db, exchange):
@@ -303,7 +292,7 @@ class TestTokenExchangeMfa:
         assert response.status_code == 200
         assert exchange.verify.call_args.args[:2] == (42, "123456")
         assert exchange.verify.call_args.kwargs["replay_guard"] is store
-        store.reset_attempts.assert_called_once_with("testuser")
+        store.reset_attempts.assert_called_once_with("testuser", "testclient", user_id=42)
         exchange.claim.assert_called_once()
 
     def test_the_pkce_check_comes_before_the_code_is_checked(self, mock_db, exchange):

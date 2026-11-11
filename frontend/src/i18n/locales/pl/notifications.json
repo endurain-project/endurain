@@ -134,6 +134,10 @@
       "unknown": {
         "title": "Zmieniono zabezpieczenia konta",
         "body": "Zmieniono jedno z ustawień zabezpieczeń Twojego konta. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
+      },
+      "usernameChanged": {
+        "title": "Nazwa użytkownika zmieniona",
+        "body": "Twoja nazwa użytkownika została zmieniona. Jeśli to nie ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
       }
     },
     "newDeviceSignIn": {

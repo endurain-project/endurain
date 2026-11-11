@@ -90,6 +90,37 @@ class TestDocumentedLimits:
         assert lockout_contracts.ACCOUNT_STEP_UP_ATTEMPTS_TTL_SECONDS == 30 * 24 * 60 * 60
 
 
+class TestSessionCounterLifetime:
+    """The per-session count outlives the failures the account-wide count keeps, so a session reaches its end tier."""
+
+    def test_failures_spaced_beyond_two_hours_still_end_the_session(self):
+        store = _store()
+        now = [1_000_000.0]
+        db = MagicMock(spec=Session)
+
+        def advance(seconds: float) -> None:
+            now[0] += seconds
+
+        with (
+            _Spy(),
+            patch("jasil.backends.state_memory.time.monotonic", side_effect=lambda: now[0]),
+            patch("jasil.backends.state_memory.time.time", side_effect=lambda: now[0]),
+            jasil_testing.capture_audit() as audit,
+        ):
+            for _ in range(_LAST_TIER - 1):
+                _fail(store, db=db)
+                advance(2 * 60 * 60 + 1)
+            assert not any(e.action_id == "auth.session.step_up_end" for e in audit.entries)
+            _fail(store, db=db)
+
+        audit.assert_audited("auth.session.step_up_end", outcome="success")
+
+    def test_the_session_counter_lives_as_long_as_the_account_counter(self):
+        store = _store()
+        assert store._lockout._attempts_ttl_seconds == lockout_contracts.ACCOUNT_STEP_UP_ATTEMPTS_TTL_SECONDS
+        assert store._by_account._attempts_ttl_seconds == lockout_contracts.ACCOUNT_STEP_UP_ATTEMPTS_TTL_SECONDS
+
+
 class TestLastPerSessionTier:
     def test_the_last_tier_ends_the_session_audits_why_and_tells_the_owner(self):
         store = _store()

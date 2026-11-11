@@ -20,9 +20,8 @@ export type UserAccessType = Schemas['UserAccessType']
 
 /**
  * The clean, camel-cased user model used across the admin users zone. Carries
- * every `UserRead` field — not just the ones shown — because the backend's
- * edit endpoint replaces the whole record, so unedited fields must round-trip
- * untouched (see `toUserWire`). Mapped from {@link UserDto} at the service
+ * every `UserRead` field, not just the ones shown, so an edit can be compared
+ * with the stored record and send only what changed (see `updateUser`). Mapped from {@link UserDto} at the service
  * boundary so components never touch the raw DTO.
  *
  * @property id - Stable unique identifier.
@@ -159,8 +158,8 @@ export interface UsersListParams extends UserFilters {
 
 /**
  * The full set of user fields the admin form can edit, mirroring v1's add/edit
- * modal. Sent merged onto {@link ManagedUser} so the rest of the record (id,
- * mfa, external auth count, photo) round-trips untouched (see `toUserWire`).
+ * modal. Merged onto {@link ManagedUser}, and only the values that differ from
+ * the stored ones are sent (see `updateUser`).
  */
 export interface EditUserFields {
   name: string

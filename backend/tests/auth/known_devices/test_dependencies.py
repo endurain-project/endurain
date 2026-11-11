@@ -41,7 +41,7 @@ def test_a_malformed_cookie_reads_as_none():
 
 
 def test_a_cookie_under_the_plain_name_is_not_read_when_the_name_is_prefixed():
-    """The prefix is what stops a cookie planted from an insecure origin, so the plain name is ignored."""
+    """The prefix is what stops a cookie planted from a sibling subdomain, so the plain name is ignored."""
     client = _client()
     client.cookies.set("endurain_device", _DEVICE_ID)
 
@@ -80,7 +80,8 @@ def test_the_cookie_is_strict_http_only_and_lasts_400_days():
     assert "HttpOnly" in header
     assert "SameSite=strict" in header
     assert "Max-Age=34560000" in header
-    assert "Path=/api/v1;" in header or header.endswith("Path=/api/v1")
+    assert "Path=/;" in header or header.endswith("Path=/")
+    assert "Domain" not in header
 
 
 def test_the_cookie_is_secure_when_deployed():
@@ -88,8 +89,11 @@ def test_the_cookie_is_secure_when_deployed():
         response = Response()
         known_devices_dependencies.set_device_cookie(response, _DEVICE_ID)
 
-    assert response.headers["set-cookie"].startswith("__Secure-endurain_device=")
-    assert "Secure" in response.headers["set-cookie"].removeprefix("__Secure-")
+    header = response.headers["set-cookie"]
+    assert header.startswith("__Host-endurain_device=")
+    assert "Secure" in header.removeprefix("__Host-")
+    assert "Path=/;" in header or header.endswith("Path=/")
+    assert "Domain" not in header
 
 
 def test_the_cookie_is_not_secure_in_development():

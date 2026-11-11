@@ -18,7 +18,7 @@ import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
 import { cmToFeetInches } from '@/utils/units'
-import { compose, maxLength, pattern, required } from '@/utils/validators'
+import { compose, maxLength, required } from '@/utils/validators'
 import {
   CURRENCY_OPTIONS,
   GENDER_OPTIONS,
@@ -55,7 +55,6 @@ const updateMutation = useUpdateProfileMutation()
 /** Form shape — the user's editable identity fields. Height is captured per unit. */
 interface ProfileFormValues {
   name: string
-  username: string
   city: string
   birthdate: string
   gender: Schemas['Gender']
@@ -95,7 +94,7 @@ function detectBrowserTimezone(): string {
 
 /**
  * Persists the profile, emitting the outcome to the parent and closing on
- * success. A duplicate username (`409`) is surfaced specifically; other
+ * success. A conflict (`409`) is surfaced specifically; other
  * failures fall back to a generic message so the dialog stays open.
  *
  * @param values - The validated form values.
@@ -108,7 +107,6 @@ async function submitForm(values: ProfileFormValues): Promise<void> {
   }
   const input: ProfileEditInput = {
     name: values.name.trim(),
-    username: values.username.trim(),
     city: values.city.trim() ? values.city.trim() : null,
     birthdate: values.birthdate || null,
     gender: values.gender,
@@ -154,7 +152,6 @@ const activeUnits = ref<Schemas['Units']>('metric')
 
 const FORM_KEYS = [
   'name',
-  'username',
   'city',
   'birthdate',
   'heightCm',
@@ -177,7 +174,6 @@ const {
 } = useForm<ProfileFormValues>({
   initialValues: {
     name: '',
-    username: '',
     city: '',
     birthdate: '',
     gender: 'unspecified',
@@ -196,11 +192,6 @@ const {
     name: compose(
       required(t('settings.users.form.nameRequired')),
       maxLength(TEXT_MAX, t('settings.users.form.nameTooLong')),
-    ),
-    username: compose(
-      required(t('settings.users.form.usernameRequired')),
-      maxLength(TEXT_MAX, t('settings.users.form.usernameTooLong')),
-      pattern(/^[a-zA-Z0-9._-]+$/, t('settings.users.form.usernameInvalid')),
     ),
     heightCm: heightCmValidator(t('settings.users.form.heightInvalid')),
     maxHeartRate: maxHeartRateValidator(t('settings.users.form.maxHeartRateInvalid')),
@@ -240,7 +231,6 @@ function populate(): void {
   reset()
   const profile = props.profile
   values.name = profile.name
-  values.username = profile.username
   values.city = profile.city ?? ''
   values.birthdate = profile.birthdate ?? ''
   values.gender = profile.gender
@@ -298,21 +288,6 @@ watch(open, (isOpen) => {
             maxlength="250"
             :disabled="isSubmitting"
             @blur="handleBlur('name')"
-          />
-        </template>
-      </FormField>
-
-      <FormField :label="t('settings.users.form.username')" :error="errors.username" required>
-        <template #default="{ fieldId, describedBy, invalid }">
-          <Input
-            :id="fieldId"
-            v-model="values.username"
-            :aria-describedby="describedBy"
-            :aria-invalid="invalid"
-            name="username"
-            maxlength="250"
-            :disabled="isSubmitting"
-            @blur="handleBlur('username')"
           />
         </template>
       </FormField>

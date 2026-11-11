@@ -175,6 +175,13 @@ _AUDITED_WRITES: dict[tuple[str, str], tuple[str, ...]] = {
         "auth.step_up.verify",
         "users.email.change_request",
     ),
+    ("users/users_profile/router.py", "edit_profile_username"): (
+        "auth.backup_codes.use",
+        "auth.lockout.apply",
+        "auth.session.revoke",
+        "auth.step_up.verify",
+        "users.username.change",
+    ),
     ("users/users_profile/router.py", "edit_profile_password"): (
         "auth.backup_codes.use",
         "auth.lockout.apply",

@@ -233,8 +233,10 @@ def verify_step_up_credentials(
     the user another trip through the provider.
 
     Failed verifications are tracked per user and session with progressive lockout: 5 failures → 5 min, 10 → 30 min,
-    15 → 2 hours and the end of the session. Lockout is checked before any comparison so that guessing is bounded
-    even when the attacker has a valid access token. A session that has failed does not lock the user's other
+    15 → the end of the session (the 2 hours it also sets only matter if the session were still in use). A session's
+    count lives as long as the account-wide one, 30 days after its last failure, so slow guessing cannot stay below
+    the 15th failure while feeding the account count. Lockout is checked before any comparison so that guessing is
+    bounded even when the attacker has a valid access token. A session that has failed does not lock the user's other
     sessions out, so a stolen session cannot lock the owner out. Failures from all of the account's sessions also
     add up: the 100th locks step-up for 30 days in every session, whatever the credentials, until a successful
     step-up before that, a password reset or an administrator setting the password. A password-less request that carries no ticket at all is the challenge, not a

@@ -8,6 +8,7 @@ import pytest
 from jasil.backends.state_memory import MemoryState
 from jasil.providers import StateBackendUnavailableError
 
+import core.network as core_network
 import modules.auth.constants as auth_constants
 import modules.auth.mfa.pending_login_store as pending_mfa
 from tests._helpers.auth import pending_login
@@ -189,28 +190,37 @@ def test_dependency_builds_store_from_provided_state():
     assert store._state is state
 
 
+_UID = 5
+_IP = "203.0.113.5"
+_OTHER_IP = "198.51.100.9"
+
+
+def _client_key(username: str = "alice", ip_address: str = _IP) -> str:
+    return f"{username}|{core_network.client_network(ip_address)}"
+
+
 def _lock_account(store: pending_mfa.PendingMFALogin, username: str = "alice", *, keep_tiered: bool = False) -> None:
     """Record the wrong codes that reach the account-wide cap, leaving the tiered lock open unless asked to keep it."""
     for _ in range(100):
-        store.record_failed_attempt(username)
+        store.record_failed_attempt(username, _IP, user_id=_UID)
     if not keep_tiered:
-        store._lockout.reset_attempts(username)
+        store._lockout.reset_attempts(_client_key(username.casefold()))
 
 
 class TestAccountWideLock:
     def test_the_hundredth_wrong_code_locks_the_account_and_no_earlier_one_does(self):
         store = pending_mfa.PendingMFALogin(MemoryState())
 
-        records = [store.record_failed_attempt("alice") for _ in range(100)]
+        records = [store.record_failed_attempt("alice", _IP, user_id=_UID) for _ in range(100)]
 
         assert [r.account_locked_now for r in records] == [False] * 99 + [True]
 
     def test_the_tiered_count_is_reported_not_the_account_count(self):
         store = pending_mfa.PendingMFALogin(MemoryState())
 
-        store.record_failed_attempt("alice")
-        store.reset_account("alice")
-        record = store.record_failed_attempt("alice")
+        store.record_failed_attempt("alice", _IP, user_id=_UID)
+        store.reset_account(_UID)
+        record = store.record_failed_attempt("alice", _IP, user_id=_UID)
 
         assert record == pending_mfa.FailedMfaRecord(count=2, account_locked_now=False)
 
@@ -218,9 +228,9 @@ class TestAccountWideLock:
         store = pending_mfa.PendingMFALogin(MemoryState())
         _lock_account(store)
 
-        until = store.get_lockout_time("Alice")
+        until = store.get_lockout_time("Alice", _IP, user_id=_UID)
 
-        assert store.is_locked_out("alice") is True
+        assert store.is_locked_out("alice", _IP, user_id=_UID) is True
         assert until is not None
         assert abs((until - datetime.now(UTC)).total_seconds() - 30 * 24 * 60 * 60) < 60
 
@@ -228,54 +238,56 @@ class TestAccountWideLock:
         store = pending_mfa.PendingMFALogin(MemoryState())
         _lock_account(store)
 
-        assert store.is_locked_out("alice", known_device=True) is False
-        assert store.get_lockout_time("alice", known_device=True) is None
+        assert store.is_locked_out("alice", _IP, known_device=True, user_id=_UID) is False
+        assert store.get_lockout_time("alice", _IP, known_device=True, user_id=_UID) is None
 
     def test_a_known_device_is_still_held_by_the_tiered_lock(self):
         store = pending_mfa.PendingMFALogin(MemoryState())
         for _ in range(5):
-            store.record_failed_attempt("alice")
+            store.record_failed_attempt("alice", _IP, user_id=_UID)
 
-        assert store.is_locked_out("alice", known_device=True) is True
-        assert store.get_lockout_time("alice", known_device=True) is not None
+        assert store.is_locked_out("alice", _IP, known_device=True, user_id=_UID) is True
+        assert store.get_lockout_time("alice", _IP, known_device=True, user_id=_UID) is not None
 
     def test_the_later_of_the_two_expiries_is_reported(self):
         store = pending_mfa.PendingMFALogin(MemoryState())
         _lock_account(store, keep_tiered=True)
 
-        tiered = store._lockout.get_lockout_time("alice")
-        account = store._by_account.get_lockout_time("alice")
+        tiered = store._lockout.get_lockout_time(_client_key())
+        account = store._by_account.get_lockout_time(str(_UID))
 
         assert tiered is not None
         assert account is not None
         assert tiered < account
-        assert store.get_lockout_time("alice") == account
-        assert store.get_lockout_time("alice", known_device=True) == tiered
+        assert store.get_lockout_time("alice", _IP, user_id=_UID) == account
+        assert store.get_lockout_time("alice", _IP, known_device=True, user_id=_UID) == tiered
 
     def test_the_account_lock_is_keyed_on_the_normalized_username(self):
         store = pending_mfa.PendingMFALogin(MemoryState())
         _lock_account(store, "Alice")
 
-        assert store.is_locked_out("  alice ") is True
+        assert store.is_locked_out("  alice ", _IP, user_id=_UID) is True
 
     def test_reset_account_clears_only_the_account_counter(self):
         store = pending_mfa.PendingMFALogin(MemoryState())
         _lock_account(store, keep_tiered=True)
 
-        store.reset_account("alice")
+        store.reset_account(_UID)
 
-        assert store._by_account.get_lockout_time("alice") is None
-        assert store._lockout.get_lockout_time("alice") is not None
-        assert store.record_failed_attempt("alice").account_locked_now is False
+        assert store._by_account.get_lockout_time(str(_UID)) is None
+        assert store._lockout.get_lockout_time(_client_key()) is not None
+        assert store.record_failed_attempt("alice", _IP, user_id=_UID).account_locked_now is False
 
     def test_reset_attempts_clears_both_counters(self):
         store = pending_mfa.PendingMFALogin(MemoryState())
         _lock_account(store, keep_tiered=True)
 
-        store.reset_attempts("alice")
+        store.reset_attempts("alice", _IP, user_id=_UID)
 
-        assert store.is_locked_out("alice") is False
-        assert store.record_failed_attempt("alice") == pending_mfa.FailedMfaRecord(count=1, account_locked_now=False)
+        assert store.is_locked_out("alice", _IP, user_id=_UID) is False
+        assert store.record_failed_attempt("alice", _IP, user_id=_UID) == pending_mfa.FailedMfaRecord(
+            count=1, account_locked_now=False
+        )
 
     def test_clear_all_clears_both_counters(self):
         store = pending_mfa.PendingMFALogin(MemoryState())
@@ -284,16 +296,16 @@ class TestAccountWideLock:
 
         store.clear_all()
 
-        assert store.is_locked_out("alice") is False
-        assert store.is_locked_out("bob") is False
-        assert store.record_failed_attempt("alice").count == 1
+        assert store.is_locked_out("alice", _IP, user_id=_UID) is False
+        assert store.is_locked_out("bob", _IP, user_id=_UID) is False
+        assert store.record_failed_attempt("alice", _IP, user_id=_UID).count == 1
 
     def test_the_account_count_is_remembered_for_thirty_days(self):
         state = MagicMock()
         state.record_tiered_failure.return_value = MagicMock(count=1, newly_locked=False)
         store = pending_mfa.PendingMFALogin(state)
 
-        store.record_failed_attempt("alice")
+        store.record_failed_attempt("alice", _IP, user_id=_UID)
 
         ttls_by_tiers = {call.args[2]: call.args[3] for call in state.record_tiered_failure.call_args_list}
         assert ttls_by_tiers[((100, 30 * 24 * 60 * 60),)] == 30 * 24 * 60 * 60
@@ -305,4 +317,64 @@ class TestAccountWideLock:
         store = pending_mfa.PendingMFALogin(state)
 
         with pytest.raises(pending_mfa.AuthSecurityStoreUnavailableError):
-            store.record_failed_attempt("alice")
+            store.record_failed_attempt("alice", _IP, user_id=_UID)
+
+
+class TestTieredLockPerNetwork:
+    def test_wrong_codes_lock_only_their_own_network(self):
+        store = pending_mfa.PendingMFALogin(MemoryState())
+        for _ in range(5):
+            store.record_failed_attempt("alice", _IP, user_id=_UID)
+
+        assert store.is_locked_out("alice", _IP, user_id=_UID) is True
+        assert store.is_locked_out("alice", _OTHER_IP, user_id=_UID) is False
+        assert store.get_lockout_time("alice", _OTHER_IP, user_id=_UID) is None
+
+    def test_every_address_of_an_ipv6_64_is_one_network(self):
+        store = pending_mfa.PendingMFALogin(MemoryState())
+        for _ in range(5):
+            store.record_failed_attempt("alice", "2001:db8:1:2::1", user_id=_UID)
+
+        assert store.is_locked_out("alice", "2001:db8:1:2:ffff::9", user_id=_UID) is True
+        assert store.is_locked_out("alice", "2001:db8:1:3::1", user_id=_UID) is False
+
+    def test_the_account_lock_holds_every_network(self):
+        store = pending_mfa.PendingMFALogin(MemoryState())
+        _lock_account(store)
+
+        assert store.is_locked_out("alice", _OTHER_IP, user_id=_UID) is True
+        assert store.is_locked_out("alice", _OTHER_IP, known_device=True, user_id=_UID) is False
+
+    def test_a_wrong_code_counts_toward_the_account_from_every_network(self):
+        store = pending_mfa.PendingMFALogin(MemoryState())
+
+        records = [store.record_failed_attempt("alice", f"198.51.100.{i}", user_id=_UID) for i in range(100)]
+
+        assert [r.count for r in records] == [1] * 100
+        assert records[-1].account_locked_now is True
+
+    def test_a_success_clears_its_own_network_and_the_account_only(self):
+        store = pending_mfa.PendingMFALogin(MemoryState())
+        for _ in range(5):
+            store.record_failed_attempt("alice", _IP, user_id=_UID)
+            store.record_failed_attempt("alice", _OTHER_IP, user_id=_UID)
+
+        store.reset_attempts("alice", _IP, user_id=_UID)
+
+        assert store.is_locked_out("alice", _IP, user_id=_UID) is False
+        assert store.is_locked_out("alice", _OTHER_IP, user_id=_UID) is True
+
+
+class TestRenamedAccount:
+    def test_the_account_lock_follows_the_user_id_across_a_username_change(self):
+        store = pending_mfa.PendingMFALogin(MemoryState())
+        _lock_account(store)
+
+        assert store.is_locked_out("alicia", _OTHER_IP, user_id=_UID) is True
+        assert store.is_locked_out("alicia", _OTHER_IP, user_id=_UID, known_device=True) is False
+
+    def test_the_account_lock_is_not_held_by_another_user_id(self):
+        store = pending_mfa.PendingMFALogin(MemoryState())
+        _lock_account(store)
+
+        assert store.is_locked_out("alice", _OTHER_IP, user_id=_UID + 1) is False

@@ -134,6 +134,10 @@
       "unknown": {
         "title": "Bezbednost naloga promenjena",
         "body": "Promenjeno je bezbednosno podešavanje vašeg naloga. Ako to niste bili vi, resetujte lozinku i pregledajte svoja bezbednosna podešavanja."
+      },
+      "usernameChanged": {
+        "title": "Korisničko ime promenjeno",
+        "body": "Vaše korisničko ime je promenjeno. Ako to niste bili vi, resetujte lozinku i pregledajte bezbednosna podešavanja."
       }
     },
     "newDeviceSignIn": {

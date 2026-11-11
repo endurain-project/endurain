@@ -15,7 +15,6 @@ USER_IMAGE_STORAGE_AREA = "user_images"
 PROFILE_SELF_SERVICE_FIELDS: frozenset[str] = frozenset(
     {
         "name",
-        "username",
         "city",
         "birthdate",
         "preferred_language",

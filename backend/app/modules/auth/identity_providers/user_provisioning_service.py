@@ -460,7 +460,7 @@ def _synced_email(
 
     Returns:
         The email, when ``sync_email`` is on and the provider verified an address the account does not have and
-        no other account uses.
+        no other account uses or has reserved.
     """
     email = mapped_data.get("email")
     # An email the IdP did not verify is never copied onto the account, since it becomes the verified address.
@@ -469,8 +469,7 @@ def _synced_email(
     email = email.strip()
     if email.lower() == user.email.lower():
         return None
-    holder = users_integration.get_user_by_email(email, db)
-    if holder and holder.id != user.id:
+    if not users_integration.is_email_available(user.id, email, db):
         logger.warning(
             "Cannot sync email from IdP <name>: it is already in use by another user",
             extra=core_logger.context(name=idp.name),

@@ -134,6 +134,10 @@
       "unknown": {
         "title": "Accountbeveiliging gewijzigd",
         "body": "Een beveiligingsinstelling van je account is gewijzigd. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen."
+      },
+      "usernameChanged": {
+        "title": "Gebruikersnaam gewijzigd",
+        "body": "Je gebruikersnaam is gewijzigd. Als jij dit niet was, reset dan je wachtwoord en controleer je beveiligingsinstellingen."
       }
     },
     "newDeviceSignIn": {

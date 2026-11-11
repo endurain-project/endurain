@@ -147,7 +147,6 @@ describe('profile service requests', () => {
     })
     const input: ProfileEditInput = {
       name: 'Ada L',
-      username: 'ada',
       city: 'Paris',
       birthdate: '1990-01-01',
       gender: 'female',
@@ -170,7 +169,6 @@ describe('profile service requests', () => {
     expect(vi.mocked(apiFetch).mock.calls[0]?.[1]).not.toHaveProperty('responseType')
     expect(JSON.parse(body as string)).toEqual({
       name: 'Ada L',
-      username: 'ada',
       city: 'Paris',
       birthdate: '1990-01-01',
       gender: 'female',

@@ -134,6 +134,10 @@
       "unknown": {
         "title": "Seguridade da conta cambiada",
         "body": "Cambiou unha opción de seguridade da túa conta. Se non foches ti, restablece o contrasinal e revisa a túa configuración de seguridade."
+      },
+      "usernameChanged": {
+        "title": "Nome de usuario cambiado",
+        "body": "O teu nome de usuario cambiou. Se non foches ti, restablece o teu contrasinal e revisa a configuración de seguranza."
       }
     },
     "newDeviceSignIn": {

@@ -483,7 +483,7 @@ class TestUpdateUserFromIdp:
     def _sync(user, idp, userinfo, *, holder=None):
         refreshed = MagicMock(name="refreshed", username="alice")
         with (
-            patch(f"{_BASE}.users_integration.get_user_by_email", return_value=holder),
+            patch(f"{_BASE}.users_integration.is_email_available", return_value=holder is None),
             patch(f"{_BASE}.users_integration.edit_user", return_value=user) as edit,
             patch(f"{_BASE}.users_integration.stage_synced_email_change") as email_change,
             patch(f"{_BASE}.users_integration.get_user", return_value=refreshed) as get_user,
@@ -575,7 +575,7 @@ class TestUpdateUserFromIdp:
         idp.sync_email = True
         user = self._user()
         with (
-            patch(f"{_BASE}.users_integration.get_user_by_email", return_value=None),
+            patch(f"{_BASE}.users_integration.is_email_available", return_value=True),
             patch(f"{_BASE}.users_integration.stage_synced_email_change"),
             patch(f"{_BASE}.users_integration.get_user", return_value=MagicMock(username="alice")),
             patch(f"{_BASE}.logger") as mock_logger,

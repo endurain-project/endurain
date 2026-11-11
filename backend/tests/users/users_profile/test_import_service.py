@@ -382,6 +382,11 @@ class TestImportServiceUserData:
             service.collect_and_import_user_data([user_row], [], [], [])
         return mock_edit.call_args.args[1]
 
+    def test_an_archive_never_renames_the_account(self) -> None:
+        profile = self._imported_profile({"username": "someone_else", "city": "Porto"})
+
+        assert profile.model_dump(exclude_unset=True) == {"city": "Porto"}
+
     def test_an_archive_carries_the_weight_units_override_over(self) -> None:
         profile = self._imported_profile({"units": "metric", "weight_units": "imperial"})
 

@@ -134,6 +134,10 @@
       "unknown": {
         "title": "Hesap güvenliği değişti",
         "body": "Hesabınızın bir güvenlik ayarı değişti. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
+      },
+      "usernameChanged": {
+        "title": "Kullanıcı adı değiştirildi",
+        "body": "Kullanıcı adınız değiştirildi. Bu siz değilseniz parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
       }
     },
     "newDeviceSignIn": {

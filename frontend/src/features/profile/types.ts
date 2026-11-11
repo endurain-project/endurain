@@ -136,7 +136,6 @@ export interface ProfileDetails {
  */
 export interface ProfileEditInput {
   name: string
-  username: string
   city: string | null
   birthdate: string | null
   gender: Schemas['Gender']

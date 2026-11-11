@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   useCancelEmailChangeMutation,
   useChangeEmailMutation,
+  useChangeUsernameMutation,
   useDisableMfaMutation,
   useEnableMfaMutation,
   useResendEmailChangeMutation,
@@ -14,6 +15,7 @@ import {
 import {
   cancelEmailChange,
   changeEmail,
+  changeUsername,
   disableMfa,
   enableMfa,
   resendEmailChange,
@@ -37,6 +39,7 @@ vi.mock('@/features/auth/stores/auth', () => ({
 vi.mock('@/features/security/services/security', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/security/services/security')>()),
   changeEmail: vi.fn<typeof changeEmail>(),
+  changeUsername: vi.fn<typeof changeUsername>(),
   enableMfa: vi.fn<typeof enableMfa>(),
   disableMfa: vi.fn<typeof disableMfa>(),
   resendEmailChange: vi.fn<typeof resendEmailChange>(),
@@ -92,6 +95,27 @@ describe('useChangeEmailMutation', () => {
     })
     await flushPromises()
 
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.users.all() })
+  })
+})
+
+describe('useChangeUsernameMutation', () => {
+  it('refreshes the profile, so the new username and its version are read back', async () => {
+    const queryClient = new QueryClient()
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
+    vi.mocked(changeUsername).mockResolvedValue()
+    const mutation = mountMutation(queryClient, useChangeUsernameMutation)
+
+    await mutation.mutateAsync({
+      username: 'new_name',
+      stepUp: { currentPassword: 'secret', mfaCode: null },
+      revokeOtherSessions: true,
+    })
+    await flushPromises()
+
+    expect(changeUsername).toHaveBeenCalledWith('new_name', expect.anything(), true)
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.profile.all() })
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.currentUser() })
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.users.all() })
   })
 })

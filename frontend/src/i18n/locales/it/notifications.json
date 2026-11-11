@@ -134,6 +134,10 @@
       "unknown": {
         "title": "Sicurezza dell'account modificata",
         "body": "Un'impostazione di sicurezza del tuo account è stata modificata. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza."
+      },
+      "usernameChanged": {
+        "title": "Nome utente modificato",
+        "body": "Il tuo nome utente è stato modificato. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza."
       }
     },
     "newDeviceSignIn": {

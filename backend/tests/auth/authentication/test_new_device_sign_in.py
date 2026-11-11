@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 import core.database as core_database
 import core.exceptions as core_exceptions
+import core.hashing as core_hashing
 import modules.auth.access_tokens.service as auth_token_manager
 import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.authentication.public_router as auth_public_router
@@ -104,6 +105,23 @@ class TestPasswordSignIn:
         assert audit.matching(_LOGIN)
         assert outcome.device_id == _ISSUED
         assert audit.assert_audited(_LOGIN, outcome="success").details["new_device"] is True
+
+    def test_a_web_session_is_created_for_the_device_the_sign_in_recorded(self, mock_db, password_sign_in):
+        with patch(_RECORD, return_value=_signed(_ISSUED)):
+            _login(mock_db)
+
+        create = authentication_service.sessions_integration.create_session
+        assert create.call_args.kwargs["device_hash"] == core_hashing.sha256_hex(_ISSUED)
+
+    def test_a_mobile_session_is_created_for_the_device_the_sign_in_recorded(self, mock_db, password_sign_in):
+        with (
+            patch(f"{_SERVICE}.oauth_state_integration.create_oauth_state"),
+            patch(_RECORD, return_value=_signed(_ISSUED)),
+        ):
+            _login(mock_db, client_type="mobile", device_id=None)
+
+        create = authentication_service.sessions_integration.create_session
+        assert create.call_args.kwargs["device_hash"] == core_hashing.sha256_hex(_ISSUED)
 
     def test_a_sign_in_from_a_known_device_is_not_flagged_as_new(self, mock_db, password_sign_in):
         with jasil_testing.capture_audit() as audit, patch(_RECORD, return_value=_signed(_DEVICE_ID)):
@@ -204,7 +222,7 @@ class TestPasswordSignIn:
             patch(
                 f"{_SERVICE}.sessions_integration.create_session",
                 return_value=MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30)),
-            ),
+            ) as create,
             patch(_RECORD, return_value=_signed(_ISSUED)) as record,
         ):
             outcome = authentication_service.verify_mfa_and_login(
@@ -223,6 +241,7 @@ class TestPasswordSignIn:
 
         record.assert_called_once_with(5, None, "203.0.113.7", "agent", _PASSWORD, mock_db)
         assert outcome.device_id == _ISSUED
+        assert create.call_args.kwargs["device_hash"] == core_hashing.sha256_hex(_ISSUED)
 
 
 class TestSsoSignIn:
@@ -253,6 +272,7 @@ class TestSsoSignIn:
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
             patch("modules.auth.authentication.token_service.create_tokens", return_value=_TOKENS),
             patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=_CLAIMED_EXPIRY),
+            patch(f"{_SERVICE}.sessions_integration.set_session_device_hash") as set_hash,
             patch(_RECORD) as record,
         ):
             if callable(record_returns):
@@ -272,6 +292,7 @@ class TestSsoSignIn:
                 db,
                 device_id=_DEVICE_ID,
             )
+        self.set_hash = set_hash
         return outcome, record
 
     def test_an_sso_sign_in_records_the_device_before_the_audit_row_and_the_commit(self, mock_db):
@@ -292,6 +313,11 @@ class TestSsoSignIn:
         assert outcome.device_id == _ISSUED
         assert audit.assert_audited(_LOGIN, outcome="success").details["new_device"] is True
 
+    def test_an_sso_session_is_tied_to_the_device_the_exchange_recorded(self, mock_db):
+        self._exchange(mock_db, idp_id=3)
+
+        self.set_hash.assert_called_once_with("sid", core_hashing.sha256_hex(_ISSUED), mock_db)
+
     def test_an_sso_sign_in_from_a_known_device_is_not_flagged_as_new(self, mock_db):
         with jasil_testing.capture_audit() as audit:
             self._exchange(mock_db, idp_id=3)
@@ -310,6 +336,7 @@ class TestSsoSignIn:
         outcome, record = self._exchange(mock_db, idp_id=None, client_type="mobile", record_returns=None)
 
         record.assert_not_called()
+        self.set_hash.assert_not_called()
         assert outcome.device_id is None
         assert outcome.body.device_id is None
 
@@ -437,7 +464,20 @@ class TestLoginRoute:
         assert "HttpOnly" in cookie
         assert "SameSite=strict" in cookie
         assert "Max-Age=34560000" in cookie
-        assert "Path=/api/v1" in cookie
+        assert "Path=/;" in cookie or cookie.endswith("Path=/")
+        assert "Domain" not in cookie
+
+    def test_a_deployed_web_sign_in_sets_a_host_locked_device_cookie(self, mock_db, password_sign_in, web_login_body):
+        with (
+            patch.object(known_devices_dependencies.core_config.settings, "ENVIRONMENT", "production"),
+            patch(_RECORD, return_value=_signed(_ISSUED)),
+        ):
+            response = self._post(_login_app(mock_db, "web"))
+
+        cookie = next(h for h in response.headers.get_list("set-cookie") if h.startswith("__Host-endurain_device="))
+        assert "Secure" in cookie
+        assert "Path=/;" in cookie or cookie.endswith("Path=/")
+        assert "Domain" not in cookie
 
     def test_the_cookie_the_browser_sent_reaches_the_service(self, mock_db, password_sign_in, web_login_body):
         client = _login_app(mock_db, "web")

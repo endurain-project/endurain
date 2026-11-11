@@ -134,6 +134,10 @@
       "unknown": {
         "title": "Pasikeitė paskyros saugumas",
         "body": "Pasikeitė jūsų paskyros saugumo nustatymas. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus."
+      },
+      "usernameChanged": {
+        "title": "Naudotojo vardas pakeistas",
+        "body": "Jūsų naudotojo vardas buvo pakeistas. Jei tai buvote ne jūs, iš naujo nustatykite slaptažodį ir peržiūrėkite saugos nustatymus."
       }
     },
     "newDeviceSignIn": {

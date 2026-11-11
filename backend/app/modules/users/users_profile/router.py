@@ -150,6 +150,39 @@ def edit_profile(
 
 
 @router.post(
+    "/username/change",
+    response_model=users_schema.UserMe,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
+def edit_profile_username(
+    request: Request,
+    response: Response,
+    username_change: users_schema.UsernameChange,
+    token_user_id: auth_dependencies.CurrentUserId,
+    token_session_id: Annotated[
+        str,
+        Depends(auth_dependencies.get_sid_from_access_token),
+    ],
+    step_up_store: Annotated[
+        auth_dependencies.StepUpStore,
+        Depends(auth_dependencies.get_step_up_attempts),
+    ],
+    db: core_dependencies.DbSession,
+) -> users_schema.UserMe:
+    """Change the authenticated user's username after step-up verification.
+
+    The username is the sign-in name, so the caller must re-prove identity with the current password (and an
+    MFA code when MFA is enabled). It is stored in lower case, and re-submitting the current username changes
+    nothing. The user's other sessions are revoked when the request asks for it, and the account's email address
+    is told of the change. The answer is the updated profile.
+    """
+    profile = profile_service.change_username(token_user_id, username_change, token_session_id, step_up_store, db)
+    core_etag.set_etag(response, profile.version)
+    return profile
+
+
+@router.post(
     "/email/change",
     response_model=users_schema.UserMe,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],

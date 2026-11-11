@@ -1340,3 +1340,69 @@ class TestProfileEditsNeedIfMatch:
         response = profile_client.patch(PREFIX + path, json={})
 
         assert response.status_code == 428
+
+
+class TestEditProfileUsername:
+    """Tests for POST /profile/username/change — edit_profile_username."""
+
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
+    @patch("modules.users.users_profile.service.user_integrations_integration.get_user_integrations")
+    @patch("modules.users.users_profile.service.users_integration.stage_username_change", return_value=True)
+    @patch("modules.users.users_profile.service.users_integration.require_user")
+    def test_success_runs_the_step_up_and_answers_with_the_profile_and_its_etag(
+        self,
+        mock_require,
+        mock_stage,
+        mock_integrations,
+        mock_privacy,
+        profile_client,
+        mock_auth_services,
+    ):
+        mock_require.return_value = _make_user_mock().model_copy(update={"version": 4})
+        mock_integrations.return_value = _make_integration_mock()
+        mock_privacy.return_value = _make_privacy_mock()
+        mock_auth_services.has_local_password.return_value = True
+        mock_auth_services.get_mfa_status.return_value = mfa_schema.MFAStatusRead(mfa_enabled=False)
+
+        response = profile_client.post(
+            PREFIX + "/username/change",
+            json={"username": "New.Name", "step_up": {"current_password": "pw", "mfa_code": None}},
+        )
+
+        assert response.status_code == 200
+        assert response.headers["ETag"] == '"4"'
+        mock_auth_services.verify_step_up.assert_called_once()
+        assert mock_stage.call_args.args[:2] == (1, "New.Name")
+
+    @patch("modules.users.users_profile.service.users_integration.stage_username_change")
+    def test_step_up_fails(self, mock_stage, profile_client, mock_auth_services):
+        mock_auth_services.verify_step_up.side_effect = HTTPException(status_code=401, detail="Invalid credentials")
+
+        response = profile_client.post(
+            PREFIX + "/username/change", json={"username": "new", "step_up": {"current_password": "wrong"}}
+        )
+
+        assert response.status_code == 401
+        mock_stage.assert_not_called()
+
+    @patch("modules.users.users_profile.service.users_integration.stage_username_change")
+    def test_a_taken_username_is_a_conflict(self, mock_stage, profile_client, mock_auth_services):
+        mock_stage.side_effect = core_exceptions.ConflictError("taken")
+
+        response = profile_client.post(
+            PREFIX + "/username/change", json={"username": "taken", "step_up": {"current_password": "pw"}}
+        )
+
+        assert response.status_code == 409
+
+    def test_the_username_must_be_valid(self, profile_client):
+        response = profile_client.post(
+            PREFIX + "/username/change", json={"username": "no spaces", "step_up": {"current_password": "pw"}}
+        )
+
+        assert response.status_code == 422
+
+    def test_the_plain_profile_edit_refuses_a_username(self, profile_client):
+        response = profile_client.patch(PREFIX, json={"username": "new"}, headers={"If-Match": '"1"'})
+
+        assert response.status_code == 422

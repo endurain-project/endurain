@@ -744,6 +744,7 @@ class TestApiContract:
         security = (
             "/profile/password/change",
             "/profile/email/change",
+            "/profile/username/change",
             "/profile/delete-account",
             "/profile/sessions",
             "/profile/mfa",

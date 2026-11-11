@@ -178,7 +178,7 @@ def enable_mfa(
             db,
             replay_guard=step_up_store,
         )
-        mfa_integration.clear_mfa_account_lockout(users_integration.require_user(token_user_id, db).username)
+        mfa_integration.clear_mfa_account_lockout(token_user_id)
         revoked = _end_other_sessions(request.revoke_other_sessions, token_user_id, session_id, db)
         _stage_security_change(
             account_security_audit_actions.MFA_ENABLE,
@@ -222,7 +222,7 @@ def disable_mfa(
         action=identity_providers_constants.StepUpAction.MFA_DISABLE,
     )
     mfa_integration.disable_user_mfa(token_user_id, db)
-    mfa_integration.clear_mfa_account_lockout(users_integration.require_user(token_user_id, db).username)
+    mfa_integration.clear_mfa_account_lockout(token_user_id)
     revoked = _end_other_sessions(revoke_other_sessions, token_user_id, session_id, db)
     _stage_security_change(
         account_security_audit_actions.MFA_DISABLE,

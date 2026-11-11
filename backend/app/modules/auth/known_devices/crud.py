@@ -177,19 +177,20 @@ def count_devices(user_id: int, generation: int, db: Session) -> int:
     return db.execute(stmt).scalar_one()
 
 
-def delete_device(device_id: int, user_id: int, generation: int, db: Session) -> bool:
+def delete_device(device_id: int, user_id: int, generation: int, db: Session) -> str | None:
     """Stage the deletion of one of the user's devices known under the current security generation.
 
     Returns:
-        True when the device was deleted, False when the user has no such device.
+        The SHA-256 hex digest of the deleted device's id, or None when the user has no such device.
     """
     model = known_devices_models.KnownDevice
-    matched = core_database.rowcount(
-        db,
-        delete(model).where(model.id == device_id, model.user_id == user_id, model.security_generation == generation),
-    )
+    device_hash = db.execute(
+        delete(model)
+        .where(model.id == device_id, model.user_id == user_id, model.security_generation == generation)
+        .returning(model.device_hash)
+    ).scalar_one_or_none()
     db.flush()
-    return matched == 1
+    return device_hash
 
 
 def delete_unseen_since(cutoff: datetime, limit: int, db: Session) -> int:

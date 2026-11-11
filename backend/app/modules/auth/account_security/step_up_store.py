@@ -72,7 +72,7 @@ class StepUpAttempts:
             state,
             name="step_up",
             tiers=lockout_contracts.STEP_UP_LOCKOUT_TIERS,
-            attempts_ttl_seconds=2 * 60 * 60,
+            attempts_ttl_seconds=lockout_contracts.ACCOUNT_STEP_UP_ATTEMPTS_TTL_SECONDS,
         )
         self._by_account = lockout_integration.new_step_up_account_lockout(state)
 

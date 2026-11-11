@@ -65,6 +65,7 @@ def test_create_session_hashes_secrets_and_stages(mock_db):
             datetime.now(UTC) + timedelta(days=1),
             mock_db,
             amr=["pwd", "otp", "mfa"],
+            device_hash=None,
         )
     assert result.id == "session-id"
     assert create.call_args.args[0].amr == ["pwd", "otp", "mfa"]
@@ -76,6 +77,49 @@ def test_create_session_hashes_secrets_and_stages(mock_db):
     assert create.call_args.args[0].device_type == "PC"
     assert create.call_args.args[0].client_type == ClientType.MOBILE
     mock_db.commit.assert_not_called()
+
+
+def test_create_session_records_the_device_hash(mock_db):
+    with (
+        _policy_patch(),
+        patch("modules.auth.sessions.service.sessions_crud.create_session", return_value=_session()) as create,
+    ):
+        sessions_service.create_session(
+            "session-id",
+            SimpleNamespace(id=7),
+            ClientType.WEB,
+            "127.0.0.1",
+            _FIREFOX_UA,
+            None,
+            MagicMock(),
+            datetime.now(UTC) + timedelta(days=1),
+            mock_db,
+            amr=["pwd"],
+            device_hash="a" * 64,
+        )
+    assert create.call_args.args[0].device_hash == "a" * 64
+
+
+def test_deleting_the_sessions_of_a_device_cleans_up_each_one(mock_db):
+    first = _session(id="one", token_family_id="family-one", oauth_state_id="state-one")
+    second = _session(id="two", token_family_id="family-two")
+    with (
+        patch(
+            "modules.auth.sessions.service.sessions_crud.delete_sessions_by_device", return_value=[first, second]
+        ) as delete,
+        patch("modules.auth.sessions.service.oauth_state_integration") as oauth_state,
+        patch("modules.auth.sessions.service.rotated_refresh_tokens_integration") as rotated,
+        patch("modules.auth.sessions.service.sessions_event_publishers") as publishers,
+    ):
+        assert sessions_service.delete_sessions_by_device(7, "a" * 64, mock_db) == 2
+
+    delete.assert_called_once_with(7, "a" * 64, mock_db)
+    oauth_state.delete_oauth_state.assert_called_once_with("state-one", mock_db)
+    assert [call.args for call in rotated.delete_by_family.call_args_list] == [
+        ("family-one", mock_db),
+        ("family-two", mock_db),
+    ]
+    assert [call.kwargs["session_id"] for call in publishers.publish_sessions_revoked.call_args_list] == ["one", "two"]
 
 
 def test_create_session_records_the_app_redirect_uri(mock_db):
@@ -94,6 +138,7 @@ def test_create_session_records_the_app_redirect_uri(mock_db):
             datetime.now(UTC) + timedelta(days=1),
             mock_db,
             amr=["fed"],
+            device_hash=None,
             app_redirect_uri="gadgetbridge://auth/sso/callback",
         )
     assert create.call_args.args[0].app_redirect_uri == "gadgetbridge://auth/sso/callback"
@@ -120,6 +165,20 @@ def test_the_session_read_schema_shows_the_app_redirect_uri():
 
     assert read.app_redirect_uri == "app:/cb"
     assert sessions_schema.UserSessionsRead.model_validate(_session()).app_redirect_uri is None
+
+
+def test_a_rotation_keeps_the_device_hash(mock_db):
+    session = _session(device_hash="a" * 64)
+    hasher = MagicMock()
+    hasher.hash_password.return_value = "replacement-hash"
+    with (
+        _policy_patch(),
+        patch("modules.auth.sessions.service.sessions_crud.edit_session", return_value=session) as edit,
+    ):
+        sessions_service.edit_session(
+            session, "127.0.0.2", _FIREFOX_UA, "replacement", hasher, datetime.now(UTC) + timedelta(days=1), mock_db
+        )
+    assert edit.call_args.args[0].device_hash == "a" * 64
 
 
 def test_edit_session_stages_rotation(mock_db):
@@ -249,6 +308,7 @@ def test_a_session_created_with_a_refresh_token_needs_no_exchange(refresh_token,
             datetime.now(UTC) + timedelta(minutes=10),
             mock_db,
             amr=["pwd"],
+            device_hash=None,
         )
     assert create.call_args.args[0].tokens_exchanged is exchanged
 
@@ -382,6 +442,7 @@ def test_create_session_caps_expiry_at_the_absolute_timeout(mock_db):
             before + timedelta(days=3650),
             mock_db,
             amr=["pwd"],
+            device_hash=None,
         )
     staged = create.call_args.args[0]
     assert staged.expires_at == staged.created_at + _ABSOLUTE
@@ -404,6 +465,7 @@ def test_create_session_keeps_an_earlier_expiry(mock_db):
             requested,
             mock_db,
             amr=["pwd"],
+            device_hash=None,
         )
     assert create.call_args.args[0].expires_at == requested
 
