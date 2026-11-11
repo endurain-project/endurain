@@ -131,7 +131,7 @@ class TestRunRefreshJob:
             session_local.return_value.__enter__.return_value = session
             ingestion_jobs.run_refresh_job("job-1", "storage")
 
-        push.assert_called_once_with(7, "ingestion:job-1")
+        push.assert_called_once_with(7, "job-1", "activity_refresh")
         assert events.index("push") > events.index("commit")
 
     def _patches(self, scope=_SCOPE):

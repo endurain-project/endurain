@@ -25,6 +25,7 @@ import core.config as core_config
 import core.database as core_database
 import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
+import core.job_status as core_job_status
 import core.logger as core_logger
 import modules.users.users_profile.audit_actions as profile_audit_actions
 import modules.users.users_profile.constants as profile_constants
@@ -33,6 +34,7 @@ import modules.users.users_profile.events as profile_events
 import modules.users.users_profile.exceptions as profile_exceptions
 import modules.users.users_profile.import_service as profile_import_service
 import modules.users.users_profile.import_state_store as profile_import_state_store
+import modules.users.users_profile.schema as profile_schema
 import modules.users.users_profile.transfer_pool as profile_transfer_pool
 
 logger = core_logger.get_logger(__name__)
@@ -82,7 +84,7 @@ def request_import(
     states: profile_import_state_store.ProfileImportStateStore,
     storage: platform_providers.StorageProvider,
     db: Session,
-) -> profile_import_state_store.ProfileImportState:
+) -> profile_schema.ProfileImportStatus:
     """Validate an upload, stage it and queue its import.
 
     The claim and the pool are checked before the body is read, so a request that will be refused never
@@ -97,20 +99,16 @@ def request_import(
         db: Database session.
 
     Returns:
-        The import's initial state.
+        The import's initial status, with the id of the job that reads it.
 
     Raises:
-        ConflictError: When the user already has an import pending.
+        JobAlreadyRunningError: When the user already has an import pending.
         ServiceUnavailableError: When there is no durable worker and the in-process pool is full.
         DomainError: When the shared upload validators reject the archive.
     """
     if not core_config.settings.JOBS_ENABLED:
         profile_transfer_pool.pool.require_capacity()
-    if not states.begin(user_id):
-        logger.debug("Refused a second profile import while one is pending", extra=core_logger.context(user_id=user_id))
-        raise core_exceptions.JobAlreadyRunningError(
-            "A profile import is already in progress", status_route="read_profile_import_status"
-        )
+    job = states.begin(user_id, conflict="A profile import is already in progress")
 
     staged_key = f"{user_id}/{uuid4()}.zip"
     with tempfile.TemporaryDirectory(prefix="profile-import-") as incoming_dir:
@@ -140,7 +138,7 @@ def request_import(
             raise
 
     logger.info("Profile import queued", extra=core_logger.context(user_id=user_id))
-    return profile_import_state_store.ProfileImportState(status=_Status.QUEUED)
+    return import_status(job, profile_import_state_store.ProfileImportState(status=_Status.QUEUED))
 
 
 def _record_import_ended(user_id: int, outcome: jasil_audit.Outcome) -> None:
@@ -220,19 +218,26 @@ def close_dead_lettered_import(
     _discard_staged(payload.staged_key, storage)
 
 
-def get_import_status(
-    user_id: int, states: profile_import_state_store.ProfileImportStateStore
-) -> profile_import_state_store.ProfileImportState | None:
-    """Report where the user's profile import is.
+def import_status(
+    job: core_job_status.JobRef, state: profile_import_state_store.ProfileImportState
+) -> profile_schema.ProfileImportStatus:
+    """Build the status a client reads from a job and the recorded state of its import.
 
     Args:
-        user_id: The importing user.
-        states: Shared store of the import's state.
+        job: The import job's reference.
+        state: The recorded state.
 
     Returns:
-        The import's state, or None when no import is recorded or it has expired.
+        The import's status, whose two running phases both read ``running``.
     """
-    return states.get(user_id)
+    return profile_schema.ProfileImportStatus.model_validate(
+        {
+            **job.envelope(),
+            "status": state.status.job_state,
+            "error_code": state.error_code,
+            "imported": state.imported,
+        }
+    )
 
 
 def _discard_staged(staged_key: str, storage: platform_providers.StorageProvider) -> None:

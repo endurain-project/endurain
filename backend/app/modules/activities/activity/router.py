@@ -146,11 +146,11 @@ def edit_activities(
     bulk-editable field without another endpoint.
 
     The edit can touch a whole library, so it runs as a background job: poll
-    ``GET /activities/bulk-edit`` for the outcome.
+    ``GET /jobs/{job_id}`` for the outcome.
 
     Args:
         request: The incoming request, read by the rate limiter.
-        response: The response, which names the status route and when to poll it.
+        response: The response, which names the job and when to poll it.
         body: The fields to apply; only those present are changed.
         token_user_id: User ID from the access token.
         states: Shared store of the edit's state.
@@ -162,47 +162,12 @@ def edit_activities(
     Raises:
         InvalidInputError: When the body asks for no change at all. An empty
             patch is a client bug, not a no-op worth reporting as success.
-        ConflictError: When a bulk edit is already pending.
+        JobAlreadyRunningError: When a bulk edit is already pending.
     """
     if body.visibility is None:
         raise core_exceptions.InvalidInputError("No supported field to update was provided")
     edit = activity_bulk_edit_job_service.request_visibility_edit(token_user_id, body.visibility.stored, states, db)
-    core_location.set_status_location(
-        response, request, "read_bulk_edit_status", bulk_edit_constants.BULK_EDIT_POLL_SECONDS
-    )
-    return edit
-
-
-@router.get(
-    "/bulk-edit",
-    response_model=activity_schema.ActivitiesBulkEditStatus | None,
-    responses={200: {"headers": core_location.POLLED_STATUS_HEADERS}},
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-)
-def read_bulk_edit_status(
-    token_user_id: auth_dependencies.CurrentUserId,
-    states: activity_dependencies.ActivityBulkEditStateStoreDep,
-    response: Response,
-) -> activity_schema.ActivitiesBulkEditStatus | None:
-    """Report where the authenticated user's bulk edit is.
-
-    ``Retry-After`` says when to poll again while the edit is not finished.
-
-    Args:
-        token_user_id: User ID from the access token.
-        states: Shared store of the edit's state.
-        response: The response, which carries ``Retry-After`` while the edit runs.
-
-    Returns:
-        The edit's status.
-
-    Raises:
-        NotFoundError: If no bulk edit is recorded or it has expired.
-    """
-    edit = activity_bulk_edit_job_service.get_visibility_edit_status(token_user_id, states)
-    if edit is None:
-        return None
-    core_location.set_retry_after_while_running(response, edit.status, bulk_edit_constants.BULK_EDIT_POLL_SECONDS)
+    core_location.set_job_location(response, request, edit.id, bulk_edit_constants.BULK_EDIT_POLL_SECONDS)
     return edit
 
 

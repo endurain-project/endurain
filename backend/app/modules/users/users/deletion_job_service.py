@@ -26,6 +26,7 @@ import core.config as core_config
 import core.database as core_database
 import core.etag as core_etag
 import core.exceptions as core_exceptions
+import core.job_status as core_job_status
 import core.local_pool as core_local_pool
 import core.logger as core_logger
 import core.mail as core_mail
@@ -52,6 +53,22 @@ _Status = users_constants.DeletionStatus
 _Kind = users_constants.DeletionKind
 
 
+_CONFLICT = "An account deletion is already in progress"
+
+
+def _status(job: core_job_status.JobRef, status: _Status) -> users_schema.UserDeletionStatus:
+    """Build the status of a deletion job.
+
+    Args:
+        job: The deletion job's reference.
+        status: Where the deletion is.
+
+    Returns:
+        The deletion's status.
+    """
+    return users_schema.UserDeletionStatus.model_validate({**job.envelope(), "status": status})
+
+
 class _DeletionCancelledError(Exception):
     """An administrator reactivated the account, so the deletion queued for it must not go on."""
 
@@ -76,6 +93,7 @@ def shutdown_deletion_pool(*, wait: bool = False) -> None:
 
 def request_deletion(
     user_id: int,
+    owner_id: int,
     states: users_deletion_state_store.UserDeletionStateStore,
     storage: platform_providers.StorageProvider,
     mail: platform_providers.MailProvider,
@@ -90,6 +108,7 @@ def request_deletion(
 
     Args:
         user_id: The user to delete.
+        owner_id: The user who asked for the deletion and may read the job: an administrator, or the user.
         states: Shared store of the deletion's state.
         storage: The platform storage provider, for the in-process pool.
         mail: The platform mail provider, for the in-process pool.
@@ -97,13 +116,13 @@ def request_deletion(
         if_match: The ``If-Match`` precondition.
 
     Returns:
-        The deletion's initial status.
+        The deletion's initial status, with the id of the job that reads it.
 
     Raises:
         NotFoundError: If the user does not exist.
         PreconditionFailedError: If the user changed since the client read it.
         LastAdministratorError: If the user is the only administrator.
-        ConflictError: If a deletion is already pending.
+        JobAlreadyRunningError: If a deletion is already pending.
         PoolFullError: When there is no durable worker and the in-process pool is full.
     """
     users_service.require_user(user_id, db)
@@ -112,11 +131,7 @@ def request_deletion(
     users_service.require_deletable_user(user_id, db, if_match=if_match)
     if not core_config.settings.JOBS_ENABLED:
         _deletion_pool.require_capacity()
-    if not states.begin(user_id, _Kind.ACCOUNT):
-        logger.debug(
-            "Refused a second account deletion while one is pending", extra=core_logger.context(user_id=user_id)
-        )
-        raise core_exceptions.ConflictError("An account deletion is already in progress")
+    job = states.begin(user_id, _Kind.ACCOUNT, conflict=_CONFLICT, owner_id=owner_id)
 
     try:
         account_security_integration.delete_all_user_sessions(user_id, db)
@@ -136,7 +151,7 @@ def request_deletion(
         raise
 
     logger.info("Account deletion queued", extra=core_logger.context(user_id=user_id))
-    return users_schema.UserDeletionStatus(status=_Status.QUEUED)
+    return _status(job, _Status.QUEUED)
 
 
 def request_deletion_by_administrator(
@@ -167,7 +182,7 @@ def request_deletion_by_administrator(
         if_match: The ``If-Match`` precondition.
 
     Returns:
-        The deletion's initial status.
+        The deletion's initial status, with the id of the job that reads it.
 
     Raises:
         PermissionDeniedError: If the administrator targets their own account, which needs their account settings.
@@ -175,7 +190,7 @@ def request_deletion_by_administrator(
         NotFoundError: If the user does not exist.
         PreconditionFailedError: If the user changed since the client read it.
         LastAdministratorError: If the user is the only administrator.
-        ConflictError: If a deletion is already pending.
+        JobAlreadyRunningError: If a deletion is already pending.
         PoolFullError: When there is no durable worker and the in-process pool is full.
     """
     users_service.require_other_user(user_id, actor_id, "delete your account")
@@ -185,7 +200,7 @@ def request_deletion_by_administrator(
     with core_etag.refuse_stale_write(
         db, "user", lambda: users_crud.get_user_by_id(user_id, db) is not None, "User not found"
     ):
-        return request_deletion(user_id, states, storage, mail, db, if_match=if_match)
+        return request_deletion(user_id, actor_id, states, storage, mail, db, if_match=if_match)
 
 
 def _dispatch(
@@ -226,22 +241,6 @@ def _dispatch(
     logger.debug(
         "Account deletion queued on the in-process pool", extra=core_logger.context(user_id=user_id, source=source)
     )
-
-
-def get_deletion_status(
-    user_id: int, states: users_deletion_state_store.UserDeletionStateStore
-) -> users_schema.UserDeletionStatus | None:
-    """Report where a user's account deletion is.
-
-    Args:
-        user_id: The user being deleted.
-        states: Shared store of the deletion's state.
-
-    Returns:
-        The deletion's status, or None when no deletion is recorded or it has expired.
-    """
-    state = states.get(user_id, _Kind.ACCOUNT)
-    return users_schema.UserDeletionStatus(status=state.status) if state is not None else None
 
 
 def durable_pass_seconds() -> float:
@@ -588,7 +587,10 @@ def _requeue(
     if not core_config.settings.JOBS_ENABLED:
         # Before the claim and the attempt are spent on a deletion nothing can run.
         _deletion_pool.require_capacity()
-    if not states.begin(user_id, _Kind.ACCOUNT):
+    try:
+        # No request started the sweep, so the account being erased owns the job.
+        states.begin(user_id, _Kind.ACCOUNT, conflict=_CONFLICT, owner_id=user_id)
+    except core_exceptions.JobAlreadyRunningError:
         logger.debug("A stalled deletion is still held by a job", extra=core_logger.context(user_id=user_id))
         return 0
     try:

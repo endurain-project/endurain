@@ -160,7 +160,7 @@ class TestRunUploadJob:
             session_local.return_value.__enter__.return_value = MagicMock()
             ingestion_jobs.run_upload_job("job-1", MagicMock())
 
-        push.assert_called_once_with(7, "ingestion:job-1")
+        push.assert_called_once_with(7, "job-1", "activity_upload")
 
     def test_the_owner_is_told_when_nothing_could_be_parsed(self):
         with (
@@ -176,7 +176,7 @@ class TestRunUploadJob:
             session_local.return_value.__enter__.return_value = MagicMock()
             ingestion_jobs.run_upload_job("job-1", MagicMock())
 
-        push.assert_called_once_with(7, "ingestion:job-1")
+        push.assert_called_once_with(7, "job-1", "activity_upload")
 
     @pytest.mark.parametrize("created", [[MagicMock(id=11)], []], ids=["imported", "nothing_parsed"])
     def test_the_blob_is_discarded_only_after_the_outcome_is_committed(self, created):
@@ -493,37 +493,11 @@ class TestErrorCodeFor:
         assert code == activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED
 
 
-class TestGetJob:
-    """The status read is scoped to the caller in the service, not the route."""
-
-    @patch("modules.activities.activity_ingestion.service.activity_ingestion_crud")
-    def test_returns_the_caller_s_job(self, mock_crud):
-        import modules.activities.activity_ingestion.service as ingestion_jobs
-
-        db = MagicMock()
-        job = MagicMock()
-        mock_crud.get_ingestion_job.return_value = job
-
-        assert ingestion_jobs.get_job("job-1", 7, db) is job
-        mock_crud.get_ingestion_job.assert_called_once_with("job-1", 7, db)
-
-    @patch("modules.activities.activity_ingestion.service.activity_ingestion_crud")
-    def test_another_user_s_job_is_absent_not_forbidden(self, mock_crud):
-        """404 rather than 403, so the endpoint cannot confirm an id exists."""
-        import core.exceptions as core_exceptions
-        import modules.activities.activity_ingestion.service as ingestion_jobs
-
-        mock_crud.get_ingestion_job.return_value = None
-
-        with pytest.raises(core_exceptions.NotFoundError):
-            ingestion_jobs.get_job("someone-elses-job", 7, MagicMock())
-
-
 class TestFailIngestionJobTellsTheOwner:
-    def _fail(self, owner):
+    def _fail(self, failed):
         with (
             patch.object(ingestion_jobs.core_database, "SessionLocal"),
-            patch.object(ingestion_jobs.activity_ingestion_crud, "mark_failed", return_value=owner),
+            patch.object(ingestion_jobs.activity_ingestion_crud, "mark_failed", return_value=failed),
             patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_staged_upload"),
             patch.object(ingestion_jobs.websocket_integration, "push_job_changed") as push,
         ):
@@ -533,7 +507,9 @@ class TestFailIngestionJobTellsTheOwner:
         return push
 
     def test_the_owner_of_the_failed_job_is_told(self):
-        self._fail(7).assert_called_once_with(7, "ingestion:job-1")
+        self._fail((7, activity_ingestion_constants.IngestionJobKind.BULK_IMPORT)).assert_called_once_with(
+            7, "job-1", "activity_bulk_import"
+        )
 
     def test_nobody_is_told_when_the_job_was_already_terminal(self):
         self._fail(None).assert_not_called()

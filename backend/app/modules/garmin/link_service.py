@@ -1,4 +1,4 @@
-"""Linking a Garmin Connect account: the background login, the MFA hand-off and the link status.
+"""Linking a Garmin Connect account: the background login, the MFA hand-off and the link job.
 
 Owns the dedicated login threads. Unlinking and the sessions a linked account's syncs use live in
 :mod:`modules.garmin.service`.
@@ -66,7 +66,9 @@ def wait_for_mfa_code(
         _MfaCodeTimeoutError: When no code arrived within ``MFA_WAIT_SECONDS``.
     """
     link_states.set_status(user_id, core_job_status.JobState.RUNNING, mfa_required=True)
-    websocket_integration.push_job_changed(user_id, garmin_constants.LINK_JOB)
+    job = link_states.current_job(user_id)
+    if job is not None:
+        websocket_integration.push_job_changed(user_id, job.id, job.kind)
     for _ in range(garmin_constants.MFA_WAIT_SECONDS):
         code = mfa_codes.get_code(user_id)
         if code is not None:
@@ -102,9 +104,8 @@ def start_link(
     """
     # Checked before the attempt is recorded, so a refused login leaves no pending state to poll.
     _link_pool.require_capacity()
-    core_sync_runner.start_claimed(
-        lambda: link_states.begin(user_id),
-        "A Garmin Connect link is already in progress",
+    job = core_sync_runner.start_claimed(
+        lambda: link_states.begin(user_id, conflict="A Garmin Connect link is already in progress"),
         lambda: _link_pool.submit(
             link_garminconnect,
             user_id,
@@ -115,9 +116,8 @@ def start_link(
             login.is_cn,
         ),
         lambda: link_states.release(user_id),
-        status_route="garminconnect_link_status",
     )
-    return garmin_schema.GarminLinkStatus(status=core_job_status.JobState.RUNNING)
+    return garmin_schema.GarminLinkStatus.model_validate({**job.envelope(), "status": core_job_status.JobState.RUNNING})
 
 
 def link_garminconnect(
@@ -227,8 +227,6 @@ def link_garminconnect(
         link_states.set_status(user_id, core_job_status.JobState.SUCCEEDED)
     finally:
         mfa_codes.delete_code(user_id)
-        # Whatever the outcome was, it is recorded by now.
-        websocket_integration.push_job_changed(user_id, garmin_constants.LINK_JOB)
 
 
 def _record_refused_link(user_id: int, reason: garmin_audit_actions.LinkFailureReason) -> None:
@@ -245,27 +243,6 @@ def _record_refused_link(user_id: int, reason: garmin_audit_actions.LinkFailureR
         target_id=str(user_id),
         target_owner_id=str(user_id),
         details=garmin_audit_actions.LinkFailureDetails(reason=reason),
-    )
-
-
-def get_link_status(
-    user_id: int,
-    link_states: garmin_link_state_store.GarminLinkStateStore,
-) -> garmin_schema.GarminLinkStatus | None:
-    """Report where a user's Garmin Connect link attempt is.
-
-    Args:
-        user_id: The user linking Garmin Connect.
-        link_states: Shared store of the link attempt's state.
-
-    Returns:
-        The attempt's status and, when it failed, why; None when no attempt is recorded or it has expired.
-    """
-    state = link_states.get(user_id)
-    if state is None:
-        return None
-    return garmin_schema.GarminLinkStatus(
-        status=state.status, mfa_required=state.mfa_required, error_code=state.error_code
     )
 
 

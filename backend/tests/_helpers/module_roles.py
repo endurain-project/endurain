@@ -29,6 +29,7 @@ CONVERTED_MODULES: tuple[str, ...] = (
     "garmin",
     "gears",
     "health",
+    "jobs",
     "notifications",
     "server_settings",
     "strava",

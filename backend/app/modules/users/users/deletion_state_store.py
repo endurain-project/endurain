@@ -1,15 +1,16 @@
 """Shared state of a queued account deletion.
 
 A deletion is accepted with 202 and runs on a worker, possibly on another replica. The state is what
-``GET /users/{user_id}/deletion`` reads back, and its claim keeps a user from being queued for deletion
+``GET /jobs/{job_id}`` reads back, and its claim keeps a user from being queued for deletion
 twice. See :class:`core.attempt_state.SyncStateStore`.
 
 Interface::
 
-    begin(user_id, kind)                - queue a deletion; False while one is still pending
-    set_status(user_id, kind, status)   - record progress or the outcome
-    get(user_id, kind)                  - read the current state, or None once expired
-    close_pending(user_id, kind)        - fail a deletion that is still pending
+    begin(user_id, kind, conflict=, owner_id=) - queue a deletion; raises while one is still pending
+    set_status(user_id, kind, status)          - record progress or the outcome
+    get(user_id, kind)                         - read the current state, or None once expired
+    read_job(job)                              - read the deletion a job reference names
+    close_pending(user_id, kind)               - fail a deletion that is still pending
 """
 
 from jasil.providers import StateProvider
@@ -28,4 +29,4 @@ class UserDeletionStateStore(core_attempt_state.SyncStateStore):
             state: The platform state provider.
             ttl_seconds: How long a deletion's claim and state last.
         """
-        super().__init__(state, "users", ttl_seconds)
+        super().__init__(state, "users", ttl_seconds, job_kind=lambda _kind: users_constants.DELETION_JOB)

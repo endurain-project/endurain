@@ -1,6 +1,7 @@
 """Pydantic response shapes for the profile import and export."""
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -40,6 +41,7 @@ class ProfileImportStatus(core_job_status.JobStatus):
         imported: How many items of each kind were imported; set only when it succeeded.
     """
 
+    kind: Literal["profile_import"]
     error_code: profile_constants.ImportFailure | None = Field(default=None, description="Reason the import failed")
     imported: dict[str, int] | None = Field(default=None, description="Items imported per kind, once it succeeded")
 
@@ -53,8 +55,9 @@ class ProfileExportStatus(core_job_status.JobStatus):
         expires_at: When the download stops working; set only when it succeeded and can be downloaded.
     """
 
-    model_config = ConfigDict(from_attributes=True, extra="forbid")
+    model_config = ConfigDict(extra="forbid")
 
+    kind: Literal["profile_export"]
     error_code: profile_constants.ExportFailure | None = Field(default=None, description="Reason the export failed")
     size_bytes: int | None = Field(default=None, description="Archive size in bytes, once it succeeded")
     expires_at: datetime | None = Field(

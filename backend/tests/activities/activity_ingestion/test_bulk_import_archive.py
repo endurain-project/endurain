@@ -125,7 +125,7 @@ class TestAcceptArchive:
         ):
             job = bulk.accept_archive(_USER, "export.zip", _saver(archive), "generic", storage, factory())
 
-        assert job.kind is ingestion_constants.IngestionJobKind.BULK_IMPORT
+        assert job.kind == "activity_bulk_import"
         assert (job.import_source, job.files_total, job.files_done, job.files_failed) == ("generic", 2, 0, 0)
         row = _job(factory, job.id)
         # The archive is the only thing that travelled: held in storage under the job's key.
@@ -217,9 +217,9 @@ class TestRunLocally:
         job_id = self._accept(tmp_path, factory, storage, {"a.fit": b"1"})
         seen: list[str] = []
 
-        def announce(user_id: int, announced_job: str) -> None:
+        def announce(user_id: int, announced_job: str, kind) -> None:
             seen.append(_job(factory, job_id).status)
-            assert (user_id, announced_job) == (_USER, job_id)
+            assert (user_id, announced_job, kind) == (_USER, job_id, ingestion_constants.IngestionJobKind.BULK_IMPORT)
 
         with (
             patch.object(bulk.core_config.settings, "JOBS_ENABLED", False),
@@ -227,7 +227,7 @@ class TestRunLocally:
         ):
             bulk.run_bulk_import_job(job_id, storage)
 
-        hint.assert_called_once_with(_USER, job_id)
+        hint.assert_called_once_with(_USER, job_id, ingestion_constants.IngestionJobKind.BULK_IMPORT)
         assert seen == ["completed"]
 
     def test_one_bad_file_is_counted_kept_and_does_not_stop_the_rest(self, tmp_path, factory, storage, pipeline):

@@ -23,6 +23,7 @@ def _build_app(mock_db):
     core_exceptions.register_exception_handlers(app)
     app.include_router(activity_router.router, prefix="/activities")
     app.include_router(activity_user_router.router, prefix="/users")
+    app.add_api_route("/jobs/{job_id}", lambda job_id: None, name="read_job")
 
     def _mock():
         return None
@@ -535,41 +536,30 @@ class TestEdit:
 class TestEditVisibility:
     def test_success_queues_the_edit_and_answers_202(self, mock_db):
         with patch("modules.activities.activity.router.activity_bulk_edit_job_service.request_visibility_edit") as m:
-            m.return_value = activity_schema.ActivitiesBulkEditStatus(status="queued")
+            m.return_value = activity_schema.ActivitiesBulkEditStatus(
+                id="job-1",
+                kind="activities_bulk_edit",
+                status="queued",
+                created_at=datetime(2026, 1, 1, tzinfo=UTC),
+            )
             resp = TestClient(_build_app(mock_db)).patch(
                 "/activities", json={"visibility": "followers"}, headers={"Authorization": "Bearer x"}
             )
-            assert resp.status_code == 202 and resp.json() == {
-                "id": None,
-                "created_at": None,
+            assert resp.status_code == 202
+            assert resp.json() == {
+                "id": "job-1",
+                "kind": "activities_bulk_edit",
+                "created_at": "2026-01-01T00:00:00Z",
                 "finished_at": None,
                 "error_code": None,
                 "status": "queued",
             }
+            assert resp.headers["Content-Location"] == "/jobs/job-1"
             assert m.call_args.args[1] == 1
 
     def test_an_empty_patch_is_invalid_input(self, mock_db):
         resp = TestClient(_build_app(mock_db)).patch("/activities", json={}, headers={"Authorization": "Bearer x"})
         assert resp.status_code == 400
-
-    def test_no_recorded_edit_reads_as_null_not_404(self, mock_db):
-        with patch("modules.activities.activity.router.activity_bulk_edit_job_service.get_visibility_edit_status") as m:
-            m.return_value = None
-            resp = TestClient(_build_app(mock_db)).get("/activities/bulk-edit", headers={"Authorization": "Bearer x"})
-            assert resp.status_code == 200 and resp.json() is None
-            assert "Retry-After" not in resp.headers
-
-    def test_status_is_read_from_the_job_service(self, mock_db):
-        with patch("modules.activities.activity.router.activity_bulk_edit_job_service.get_visibility_edit_status") as m:
-            m.return_value = activity_schema.ActivitiesBulkEditStatus(status="running")
-            resp = TestClient(_build_app(mock_db)).get("/activities/bulk-edit", headers={"Authorization": "Bearer x"})
-            assert resp.status_code == 200 and resp.json() == {
-                "id": None,
-                "created_at": None,
-                "finished_at": None,
-                "error_code": None,
-                "status": "running",
-            }
 
     @pytest.mark.parametrize("visibility", [9, 1, "everyone"])
     def test_rejects_an_unknown_visibility_and_the_stored_integer(self, mock_db, visibility):

@@ -28,7 +28,6 @@ import core.location as core_location
 import core.middleware_body_limit as core_middleware_body_limit
 import core.rate_limit as core_rate_limit
 import modules.activities.activity_ingestion.bulk_import_service as activity_ingestion_bulk_import_service
-import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.dependencies as activity_ingestion_dependencies
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
@@ -78,7 +77,7 @@ def create_activity_with_uploaded_file(
 
     Returns ``202`` once the file is stored and queued: parsing is seconds of
     CPU work, and doing it inline held a shared request thread for the duration.
-    Poll ``GET /activities/ingestion-jobs/{job_id}`` for the outcome; ``Content-Location`` names it and
+    Poll ``GET /jobs/{job_id}`` for the outcome; ``Content-Location`` names it and
     ``Retry-After`` says when to look first.
 
     Rejections that can be decided cheaply — unsupported extension, failed
@@ -103,43 +102,6 @@ def create_activity_with_uploaded_file(
         idempotency_key=idempotency_key,
     )
     activity_ingestion_integration.set_job_location(response, request, job)
-    return job
-
-
-@api_upload_router.get(
-    "/ingestion-jobs/{job_id}",
-    response_model=activity_ingestion_schema.ActivityIngestionJobRead,
-    responses={200: {"headers": core_location.POLLED_STATUS_HEADERS}},
-    dependencies=[
-        Security(
-            auth_dependencies.check_auth_scopes,
-            scopes=["activities:upload"],
-        )
-    ],
-)
-def read_activity_ingestion_job(
-    job_id: activity_ingestion_dependencies.JobId,
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_user_id_from_auth),
-    ],
-    db: core_dependencies.DbSession,
-    response: Response,
-) -> activity_ingestion_schema.ActivityIngestionJobRead:
-    """Read the state of one of your ingestion requests.
-
-    Serves uploads, bulk imports and provider refreshes: the caller's question is the
-    same either way, so there is one route rather than three near-identical ones.
-    ``Retry-After`` says when to poll again while the job is still running.
-
-    Scoped to the caller: a job belonging to another user is reported as not
-    found rather than forbidden, so the endpoint does not confirm that an id
-    exists.
-    """
-    job = activity_ingestion_service.get_job(job_id, token_user_id, db)
-    core_location.set_retry_after_while_running(
-        response, job.status, activity_ingestion_constants.JOB_POLL_SECONDS[job.kind]
-    )
     return job
 
 
@@ -176,12 +138,12 @@ def create_bulk_import_from_archive(
 
     Returns ``202`` once the archive is stored and queued: nothing inside it is
     read in the request beyond its directory listing. Poll
-    ``GET /activities/ingestion-jobs/{job_id}`` for progress (``files_done`` and
+    ``GET /jobs/{job_id}`` for progress (``files_done`` and
     ``files_failed`` against ``files_total``); a finished import with failed files
     still ends ``completed``.
 
     One bulk import runs per user at a time; a second request while one is running
-    is answered ``409`` with the running job's ``job_id`` and a ``Content-Location`` naming its status.
+    is answered ``409`` with the running job's ``job_id`` and a ``Content-Location`` naming it.
 
     Send an ``Idempotency-Key`` to make a retry safe: a repeat of the same archive and ``source`` returns the
     original job instead of starting another, and the same key with a different archive is ``409``.
@@ -227,10 +189,10 @@ def create_bulk_import_from_folder(
     provider export's own per-user folder). Returns ``202`` with a job handle;
     packing and staging the folder happens in the background, and the files are
     removed from the folder only once they are safely staged. Poll
-    ``GET /activities/ingestion-jobs/{job_id}`` for progress.
+    ``GET /jobs/{job_id}`` for progress.
 
     One bulk import runs per user at a time; a second request while one is running
-    is answered ``409`` with the running job's ``job_id`` and a ``Content-Location`` naming its status.
+    is answered ``409`` with the running job's ``job_id`` and a ``Content-Location`` naming it.
     """
     job = activity_ingestion_bulk_import_service.start_from_directory(token_user_id, source, storage, db)
     activity_ingestion_integration.set_job_location(response, request, job)
@@ -255,7 +217,7 @@ def refresh_activities(
     """Queue a sync of the last 24h from the linked providers (Strava/Garmin).
 
     Returns ``202`` with a job handle; poll
-    ``GET /activities/ingestion-jobs/{job_id}`` for the outcome.
+    ``GET /jobs/{job_id}`` for the outcome.
 
     The sync runs as a job, so no provider call blocks a request thread or the
     event loop.

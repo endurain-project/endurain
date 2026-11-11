@@ -1,18 +1,17 @@
 """Shared state of a queued bulk activity edit.
 
 A bulk edit is accepted with 202 and runs on a worker, possibly on another replica. The state is what
-``GET /activities/bulk-edit`` reads back, and its claim keeps a user from queueing the same edit twice.
+``GET /jobs/{job_id}`` reads back, and its claim keeps a user from queueing the same edit twice.
 See :class:`core.attempt_state.SyncStateStore`.
 
 Interface::
 
-    begin(user_id, kind)                - queue an edit; False while one is still pending
+    begin(user_id, kind, conflict=...)  - queue an edit and return its job; raises while one is still pending
     set_status(user_id, kind, status)   - record progress or the outcome
     get(user_id, kind)                  - read the current state, or None once expired
+    read_job(job)                       - read the state a job reference names, or None once it is gone
     close_pending(user_id, kind)        - fail an edit that is still pending
 """
-
-from enum import StrEnum
 
 from jasil.providers import StateProvider
 
@@ -33,14 +32,10 @@ class ActivityBulkEditStateStore(core_attempt_state.SyncStateStore):
             state: The platform state provider.
             ttl_seconds: How long an edit's claim and state last.
         """
-        super().__init__(state, "activities", ttl_seconds, announce=self._announce_finished)
-
-    @staticmethod
-    def _announce_finished(user_id: int, kind: StrEnum) -> None:
-        """Tell the user's client that a bulk edit reached a final status.
-
-        Args:
-            user_id: The user whose edit ended.
-            kind: What the edit changes.
-        """
-        websocket_integration.push_job_changed(user_id, bulk_edit_constants.BULK_EDIT_JOB)
+        super().__init__(
+            state,
+            "activities",
+            ttl_seconds,
+            job_kind=lambda _: bulk_edit_constants.BULK_EDIT_JOB,
+            announce=websocket_integration.announce_job,
+        )

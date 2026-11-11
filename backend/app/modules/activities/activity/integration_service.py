@@ -9,10 +9,13 @@ Writes that publish events (bulk deletes, bulk re-gearing, ingestion) delegate t
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 
+from jasil.providers import StateProvider
 from sqlalchemy.orm import Session
 
+import core.job_status as core_job_status
 import core.pagination as core_pagination
 import modules.activities.activity.bulk_edit_job_service as activity_bulk_edit_job_service
+import modules.activities.activity.bulk_edit_state_store as bulk_edit_state_store
 import modules.activities.activity.child_access_service as activity_child_access_service
 import modules.activities.activity.child_collection_service as activity_child_collection_service
 import modules.activities.activity.contracts as activity_contracts
@@ -596,3 +599,22 @@ def get_public_activity(activity_id: int, db: Session) -> activity_schema.Activi
 def shutdown_bulk_edit_pool() -> None:
     """Stop the in-process pool bulk activity edits run on, without waiting for them."""
     activity_bulk_edit_job_service.shutdown_pool()
+
+
+def read_bulk_edit_job(
+    job: core_job_status.JobRef, state: StateProvider
+) -> activity_schema.ActivitiesBulkEditStatus | None:
+    """Read the bulk edit a job reference names.
+
+    Args:
+        job: The job's reference.
+        state: The platform state provider.
+
+    Returns:
+        The edit's status, or ``None`` when its record has expired or belongs to a later edit.
+    """
+    stored = bulk_edit_state_store.ActivityBulkEditStateStore(state).read_job(job)
+    if stored is None:
+        return None
+    current, edit_state = stored
+    return activity_schema.ActivitiesBulkEditStatus.model_validate({**current.envelope(), "status": edit_state.status})

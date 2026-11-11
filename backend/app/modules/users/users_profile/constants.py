@@ -11,7 +11,7 @@ IMPORT_STAGING_AREA = "profile_import_staging"
 IMPORT_POLL_SECONDS = 5
 
 #: The job name the import's realtime hints carry.
-IMPORT_JOB = "profile:import"
+IMPORT_JOB = "profile_import"
 
 #: How long an import's claim and state last. It must exceed the longest legitimate import, and
 #: every recorded progress renews the claim, so only a dead worker's claim runs out.
@@ -30,7 +30,7 @@ EXPORT_STAGING_AREA = "profile_export_staging"
 EXPORT_POLL_SECONDS = 5
 
 #: The job name the export's realtime hints carry.
-EXPORT_JOB = "profile:export"
+EXPORT_JOB = "profile_export"
 
 #: How long an export's claim and state last; the download is offered for this long.
 EXPORT_STATE_TTL_SECONDS = 2 * 60 * 60

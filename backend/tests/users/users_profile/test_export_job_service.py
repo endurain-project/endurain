@@ -78,7 +78,7 @@ class TestRequestExport:
         pool.require_capacity.assert_not_called()
 
     def test_an_export_the_pool_could_not_take_is_closed(self, states):
-        states.begin(7)
+        states.begin(7, conflict="held")
 
         job_service.fail_unstarted_export(_payload(7), states)
 
@@ -93,9 +93,9 @@ class TestRequestExport:
         publish.assert_called_once_with(7, mock_db, commit=mock_db.commit)
 
     def test_a_pending_export_refuses_a_second(self, states, mock_db, verify_step_up):
-        states.begin(7)
+        states.begin(7, conflict="held")
 
-        with pytest.raises(core_exceptions.ConflictError):
+        with pytest.raises(core_exceptions.JobAlreadyRunningError):
             _request(states, mock_db)
 
     def test_a_failure_to_queue_closes_the_state_and_frees_the_claim(self, states, mock_db, verify_step_up):
@@ -106,7 +106,7 @@ class TestRequestExport:
             _request(states, mock_db)
 
         assert states.get(7).status == _Status.FAILED
-        assert states.begin(7) is True
+        states.begin(7, conflict="held")
 
     def test_the_step_up_is_verified_for_this_action_before_anything_is_claimed(self, states, mock_db, verify_step_up):
         verify_step_up.side_effect = core_exceptions.UnauthenticatedError("Invalid credentials")
@@ -128,17 +128,17 @@ class TestRequestExport:
 
 class TestRunExport:
     def test_a_finished_export_records_its_size(self, states):
-        states.begin(1)
+        states.begin(1, conflict="held")
 
         _run(states, 42)
 
         state = states.get(1)
         assert (state.status, state.size_bytes) == (_Status.SUCCEEDED, 42)
-        assert states.begin(1) is True
+        states.begin(1, conflict="held")
 
     @pytest.mark.parametrize("finished", [_Status.SUCCEEDED, _Status.FAILED])
     def test_a_redelivery_of_a_finished_export_does_nothing(self, states, finished):
-        states.begin(1)
+        states.begin(1, conflict="held")
         states.set_status(1, finished)
 
         stage = _run(states, 1)
@@ -146,7 +146,7 @@ class TestRunExport:
         stage.assert_not_called()
 
     def test_a_redelivery_after_a_worker_died_builds_again(self, states):
-        states.begin(1)
+        states.begin(1, conflict="held")
         states.set_status(1, _Status.RUNNING)
 
         stage = _run(states, 5)
@@ -155,7 +155,7 @@ class TestRunExport:
         assert states.get(1).status == _Status.SUCCEEDED
 
     def test_a_transient_failure_is_retried(self, states):
-        states.begin(1)
+        states.begin(1, conflict="held")
 
         with pytest.raises(OperationalError):
             _run(states, OperationalError("s", {}, Exception("db down")), will_retry=True)
@@ -163,7 +163,7 @@ class TestRunExport:
         assert states.get(1).status == _Status.QUEUED
 
     def test_a_database_failure_wrapped_by_the_collection_is_retried(self, states):
-        states.begin(1)
+        states.begin(1, conflict="held")
         try:
             raise OperationalError("s", {}, Exception("db down"))
         except OperationalError as db_err:
@@ -176,21 +176,21 @@ class TestRunExport:
         assert states.get(1).status == _Status.QUEUED
 
     def test_a_transient_failure_on_the_last_attempt_is_final(self, states):
-        states.begin(1)
+        states.begin(1, conflict="held")
 
         _run(states, OperationalError("s", {}, Exception("db down")), will_retry=False)
 
         assert (states.get(1).status, states.get(1).error_code) == (_Status.FAILED, _Failure.PROCESSING_FAILED)
 
     def test_a_timeout_is_reported_as_one_and_never_retried(self, states):
-        states.begin(1)
+        states.begin(1, conflict="held")
 
         _run(states, profile_exceptions.TransferTimeoutError("slow"), will_retry=True)
 
         assert (states.get(1).status, states.get(1).error_code) == (_Status.FAILED, _Failure.TIMED_OUT)
 
     def test_any_other_failure_is_final_with_a_sanitized_code(self, states):
-        states.begin(1)
+        states.begin(1, conflict="held")
 
         _run(states, RuntimeError("secret detail"), will_retry=True)
 
@@ -199,19 +199,9 @@ class TestRunExport:
         assert "secret" not in state.model_dump_json()
 
 
-class TestGetExportStatus:
-    def test_returns_the_state(self, states):
-        states.begin(1)
-
-        assert job_service.get_export_status(1, states).status == _Status.QUEUED
-
-    def test_unknown_is_none(self, states):
-        assert job_service.get_export_status(1, states) is None
-
-
 class TestOpenExport:
     def test_streams_the_staged_archive(self, states):
-        states.begin(1)
+        states.begin(1, conflict="held")
         states.set_status(1, _Status.SUCCEEDED, size_bytes=8)
         storage = MagicMock()
         storage.open_stream.return_value = io.BytesIO(b"zip-data")
@@ -223,14 +213,14 @@ class TestOpenExport:
 
     @pytest.mark.parametrize("status", [_Status.QUEUED, _Status.RUNNING, _Status.FAILED])
     def test_an_export_that_is_not_finished_has_no_download(self, states, status):
-        states.begin(1)
+        states.begin(1, conflict="held")
         states.set_status(1, status)
 
         with pytest.raises(core_exceptions.NotFoundError):
             job_service.open_export(1, states, MagicMock())
 
     def test_a_missing_archive_is_not_found(self, states):
-        states.begin(1)
+        states.begin(1, conflict="held")
         states.set_status(1, _Status.SUCCEEDED, size_bytes=8)
         storage = MagicMock()
         storage.open_stream.side_effect = FileNotFoundError
@@ -291,17 +281,17 @@ class TestDiscardStagedExport:
 class TestCloseDeadLetteredExport:
     @pytest.mark.parametrize("status", [_Status.QUEUED, _Status.RUNNING])
     def test_a_pending_export_is_failed_and_its_claim_released(self, states, status):
-        states.begin(1)
+        states.begin(1, conflict="held")
         states.set_status(1, status)
 
         job_service.close_dead_lettered_export(_payload(1), states)
 
         assert states.get(1).status == _Status.FAILED
         assert states.get(1).error_code == _Failure.PROCESSING_FAILED
-        assert states.begin(1) is True
+        states.begin(1, conflict="held")
 
     def test_an_export_that_already_finished_keeps_its_outcome(self, states):
-        states.begin(1)
+        states.begin(1, conflict="held")
         states.set_status(1, _Status.SUCCEEDED)
 
         job_service.close_dead_lettered_export(_payload(1), states)

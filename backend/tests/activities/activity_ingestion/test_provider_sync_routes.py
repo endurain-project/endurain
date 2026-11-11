@@ -7,7 +7,6 @@ import pytest
 from fastapi.exceptions import RequestValidationError
 
 import core.job_status as core_job_status
-import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.garmin.constants as garmin_constants
 import modules.garmin.router as garmin_router
@@ -36,7 +35,7 @@ def _refresh_job():
     now = datetime(2026, 1, 8, tzinfo=UTC)
     return activity_ingestion_schema.ActivityIngestionJobRead(
         id="job-1",
-        kind=activity_ingestion_constants.IngestionJobKind.REFRESH,
+        kind="activity_refresh",
         status=core_job_status.JobState.QUEUED,
         created_at=now,
         updated_at=now,

@@ -29,8 +29,8 @@ def pushes():
         yield push
 
 
-def _hint(job: str) -> tuple[int, dict[str, str]]:
-    return _USER, {"message": "JOB_STATUS_CHANGED", "job": job}
+def _hint(job_id: str, kind: str) -> tuple[int, dict[str, str]]:
+    return _USER, {"message": "JOB_STATUS_CHANGED", "job_id": job_id, "kind": kind}
 
 
 def _sync_cases():
@@ -38,12 +38,12 @@ def _sync_cases():
     strava = strava_sync_state_store.StravaSyncStateStore(MemoryState())
     bulk_edit = bulk_edit_state_store.ActivityBulkEditStateStore(MemoryState())
     return [
-        pytest.param(garmin, garmin_constants.SyncKind.GEAR, "garmin:gear", id="garmin-gear"),
-        pytest.param(garmin, garmin_constants.SyncKind.HEALTH, "garmin:health", id="garmin-health"),
-        pytest.param(strava, strava_constants.SyncKind.GEAR, "strava:gear", id="strava-gear"),
-        pytest.param(strava, strava_constants.SyncKind.LINK, "strava:link", id="strava-link"),
-        pytest.param(strava, strava_constants.SyncKind.UNLINK, "strava:unlink", id="strava-unlink"),
-        pytest.param(bulk_edit, bulk_edit_constants.BulkEditKind.VISIBILITY, "activities:bulk-edit", id="bulk-edit"),
+        pytest.param(garmin, garmin_constants.SyncKind.GEAR, "garmin_sync_gear", id="garmin-gear"),
+        pytest.param(garmin, garmin_constants.SyncKind.HEALTH, "garmin_sync_health", id="garmin-health"),
+        pytest.param(strava, strava_constants.SyncKind.GEAR, "strava_gear", id="strava-gear"),
+        pytest.param(strava, strava_constants.SyncKind.LINK, "strava_link", id="strava-link"),
+        pytest.param(strava, strava_constants.SyncKind.UNLINK, "strava_unlink", id="strava-unlink"),
+        pytest.param(bulk_edit, bulk_edit_constants.BulkEditKind.VISIBILITY, "activities_bulk_edit", id="bulk-edit"),
     ]
 
 
@@ -51,25 +51,25 @@ class TestQueuedSyncs:
     @pytest.mark.parametrize(("states", "kind", "job"), _sync_cases())
     @pytest.mark.parametrize("final", ["succeeded", "failed"])
     def test_a_final_status_is_announced(self, pushes, states, kind, job, final):
-        states.begin(_USER, kind)
+        started = states.begin(_USER, kind, conflict="Busy")
         states.set_status(_USER, kind, "running")
         pushes.assert_not_called()
 
         states.set_status(_USER, kind, final)
 
-        pushes.assert_called_once_with(*_hint(job))
+        pushes.assert_called_once_with(*_hint(started.id, job))
 
     @pytest.mark.parametrize(("states", "kind", "job"), _sync_cases())
     def test_closing_a_dead_lettered_sync_is_announced(self, pushes, states, kind, job):
-        states.begin(_USER, kind)
+        started = states.begin(_USER, kind, conflict="Busy")
 
         assert states.close_pending(_USER, kind) is True
 
-        pushes.assert_called_once_with(*_hint(job))
+        pushes.assert_called_once_with(*_hint(started.id, job))
 
     @pytest.mark.parametrize(("states", "kind", "job"), _sync_cases())
     def test_closing_a_sync_that_already_ended_announces_nothing_more(self, pushes, states, kind, job):
-        states.begin(_USER, kind)
+        states.begin(_USER, kind, conflict="Busy")
         states.set_status(_USER, kind, "succeeded")
         pushes.reset_mock()
 
@@ -81,23 +81,23 @@ class TestQueuedSyncs:
 class TestProfileExport:
     def test_a_completed_export_is_announced(self, pushes):
         states = export_state_store.ProfileExportStateStore(MemoryState())
-        states.begin(_USER)
+        started = states.begin(_USER, conflict="Busy")
         states.set_status(_USER, profile_constants.ExportStatus.RUNNING)
         pushes.assert_not_called()
 
         states.set_status(_USER, profile_constants.ExportStatus.SUCCEEDED, size_bytes=10)
 
-        pushes.assert_called_once_with(*_hint("profile:export"))
+        pushes.assert_called_once_with(*_hint(started.id, "profile_export"))
 
     def test_a_failed_export_is_announced(self, pushes):
         states = export_state_store.ProfileExportStateStore(MemoryState())
-        states.begin(_USER)
+        started = states.begin(_USER, conflict="Busy")
 
         states.set_status(
             _USER, profile_constants.ExportStatus.FAILED, error_code=profile_constants.ExportFailure.PROCESSING_FAILED
         )
 
-        pushes.assert_called_once_with(*_hint("profile:export"))
+        pushes.assert_called_once_with(*_hint(started.id, "profile_export"))
 
 
 class TestProfileImport:
@@ -106,7 +106,7 @@ class TestProfileImport:
     )
     def test_progress_is_not_announced(self, pushes, progress):
         states = import_state_store.ProfileImportStateStore(MemoryState())
-        states.begin(_USER)
+        states.begin(_USER, conflict="Busy")
 
         states.set_status(_USER, progress)
 
@@ -114,18 +114,18 @@ class TestProfileImport:
 
     def test_a_completed_import_is_announced(self, pushes):
         states = import_state_store.ProfileImportStateStore(MemoryState())
-        states.begin(_USER)
+        started = states.begin(_USER, conflict="Busy")
 
         states.set_status(_USER, profile_constants.ImportStatus.SUCCEEDED, imported={"activities": 1})
 
-        pushes.assert_called_once_with(*_hint("profile:import"))
+        pushes.assert_called_once_with(*_hint(started.id, "profile_import"))
 
     def test_a_failed_import_is_announced(self, pushes):
         states = import_state_store.ProfileImportStateStore(MemoryState())
-        states.begin(_USER)
+        started = states.begin(_USER, conflict="Busy")
 
         states.set_status(
             _USER, profile_constants.ImportStatus.FAILED, error_code=profile_constants.ImportFailure.PROCESSING_FAILED
         )
 
-        pushes.assert_called_once_with(*_hint("profile:import"))
+        pushes.assert_called_once_with(*_hint(started.id, "profile_import"))

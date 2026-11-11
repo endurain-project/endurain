@@ -142,13 +142,13 @@ def _queue(
         The sync's initial status.
 
     Raises:
-        ConflictError: When a sync of this kind is already pending for the user.
+        JobAlreadyRunningError: When a sync of this kind is already pending for the user.
         PoolFullError: When the in-process pool is full.
     """
     durable = core_config.settings.JOBS_ENABLED
     if audit is not None and durable:
         jasil_audit.stage(db, audit, target_type="user", target_id=str(user_id), target_owner_id=str(user_id))
-    core_sync_runner.queue_sync(
+    job = core_sync_runner.queue_sync(
         states,
         user_id,
         kind,
@@ -160,7 +160,6 @@ def _queue(
         submit=lambda: _sync_pool.submit(
             run_sync, strava_events.SyncRequestedPayload(user_id=user_id, kind=kind), states, rate_limits
         ),
-        status_route="strava_sync_status",
     )
     if audit is not None and not durable:
         jasil_audit.record_detached(
@@ -174,7 +173,9 @@ def _queue(
         "Strava sync queued",
         extra=core_logger.context(user_id=user_id, kind=kind, durable=durable),
     )
-    return strava_schema.StravaSyncStatus(kind=kind, status=strava_constants.SyncStatus.QUEUED)
+    return strava_schema.StravaSyncStatus.model_validate(
+        {**job.envelope(), "status": strava_constants.SyncStatus.QUEUED}
+    )
 
 
 def request_gear_sync(
@@ -226,23 +227,6 @@ def request_unlink(
     )
 
 
-def get_sync_status(
-    user_id: int, kind: strava_constants.SyncKind, states: strava_sync_state_store.StravaSyncStateStore
-) -> strava_schema.StravaSyncStatus | None:
-    """Report where a user's gear sync or unlink is.
-
-    Args:
-        user_id: The user being synced.
-        kind: What the sync does.
-        states: Shared store of the sync's state.
-
-    Returns:
-        The sync's status, or None when no sync is recorded or it has expired.
-    """
-    state = states.get(user_id, kind)
-    return strava_schema.StravaSyncStatus(kind=kind, status=state.status) if state is not None else None
-
-
 def request_activities_sync(
     user_id: int,
     start_date: date,
@@ -263,7 +247,7 @@ def request_activities_sync(
         db: Database session.
 
     Returns:
-        The accepted refresh job, whose outcome is polled on the ingestion-jobs route.
+        The accepted refresh job, whose outcome is polled at ``GET /jobs/{job_id}``.
 
     Raises:
         InvalidInputError: When ``end_date`` is in the future or

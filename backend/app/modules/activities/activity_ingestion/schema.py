@@ -39,7 +39,7 @@ class ActivityIngestionJobRead(core_job_status.JobStatus):
     """
 
     id: str
-    kind: activity_ingestion_constants.IngestionJobKind
+    kind: activity_ingestion_constants.JobKindName
     filename: str | None = None
     import_source: str | None = None
     files_total: int | None = None

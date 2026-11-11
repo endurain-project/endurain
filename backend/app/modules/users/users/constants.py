@@ -81,6 +81,9 @@ DELETION_SOURCE_API = "api:delete_user"
 DELETION_SOURCE_SWEEP = "scheduler:users_deletion_sweep"
 
 
+#: The job kind of a queued account deletion.
+DELETION_JOB = "user_deletion"
+
 #: Where a queued deletion is; shared by every queued job's state.
 DeletionStatus = core_job_status.JobState
 

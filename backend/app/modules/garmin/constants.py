@@ -6,8 +6,8 @@ import core.job_status as core_job_status
 
 PROVIDER_NAME = "garminconnect"
 
-#: The job name the link's realtime hints carry.
-LINK_JOB = "garmin-link"
+#: The job kind of a link attempt.
+LINK_JOB = "garmin_link"
 
 #: Seconds a client waits before polling a Garmin Connect link attempt (a login takes a few seconds).
 LINK_POLL_SECONDS = 2
@@ -49,15 +49,15 @@ SyncStatus = core_job_status.JobState
 
 
 def job_name(kind: SyncKind) -> str:
-    """Name a queued sync in the realtime hints.
+    """Name the job kind of a queued sync.
 
     Args:
         kind: What the sync pulls.
 
     Returns:
-        The job name, such as ``garmin:gear``.
+        The job kind, such as ``garmin_sync_gear``.
     """
-    return f"garmin:{kind.value}"
+    return f"garmin_sync_{kind.value}"
 
 
 class LinkFailure(StrEnum):

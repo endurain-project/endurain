@@ -43,7 +43,7 @@ class TestBulkVisibilityRequest:
         assert entry.details == {"visibility": 2}
 
     def test_a_refused_second_request_is_not_audited(self, states, mock_db):
-        states.begin(4, _Kind)
+        states.begin(4, _Kind, conflict="x")
 
         with jasil_testing.capture_audit() as audit, pytest.raises(Exception, match="already in progress"):
             self._request(states, mock_db, jobs_enabled=True)
@@ -51,7 +51,7 @@ class TestBulkVisibilityRequest:
         audit.assert_not_audited(activity_audit_actions.VISIBILITY_BULK_UPDATE.id)
 
     def test_the_job_writes_no_row_per_activity(self, states):
-        states.begin(4, _Kind)
+        states.begin(4, _Kind, conflict="x")
         payload = activity_events.VisibilityEditRequestedPayload(user_id=4, visibility=2)
 
         with (

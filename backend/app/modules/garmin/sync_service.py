@@ -169,7 +169,7 @@ def _queue(
         ConflictError: When a sync of this kind is already pending for the user.
         PoolFullError: When the in-process pool is still full after the wait.
     """
-    core_sync_runner.queue_sync(
+    job = core_sync_runner.queue_sync(
         states,
         user_id,
         kind,
@@ -185,13 +185,14 @@ def _queue(
             states,
             rate_limits,
         ),
-        status_route="garminconnect_sync_status",
     )
     logger.info(
         "Garmin Connect sync queued",
         extra=core_logger.context(user_id=user_id, kind=kind, durable=core_config.settings.JOBS_ENABLED),
     )
-    return garmin_schema.GarminSyncStatus(kind=kind, status=garmin_constants.SyncStatus.QUEUED)
+    return garmin_schema.GarminSyncStatus.model_validate(
+        {**job.envelope(), "status": garmin_constants.SyncStatus.QUEUED}
+    )
 
 
 def request_gear_sync(
@@ -246,23 +247,6 @@ def request_health_sync(
         users_integration.local_today(user_id, db),
     )
     return _queue(user_id, garmin_constants.SyncKind.HEALTH, start_date, end_date, states, rate_limits, db)
-
-
-def get_sync_status(
-    user_id: int, kind: garmin_constants.SyncKind, states: garmin_sync_state_store.GarminSyncStateStore
-) -> garmin_schema.GarminSyncStatus | None:
-    """Report where a user's gear or health sync is.
-
-    Args:
-        user_id: The user being synced.
-        kind: What the sync pulls.
-        states: Shared store of the sync's state.
-
-    Returns:
-        The sync's status, or None when no sync is recorded or it has expired.
-    """
-    state = states.get(user_id, kind)
-    return garmin_schema.GarminSyncStatus(kind=kind, status=state.status) if state is not None else None
 
 
 def request_activities_sync(

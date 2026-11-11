@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from fastapi import Response
 
 import modules.gears.gear.schema as gears_schema
 import modules.strava.router as strava_router
@@ -166,3 +167,38 @@ def test_setting_the_client_requires_the_version_that_was_read():
 
     assert response.status_code == 428
     set_client.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("call", "queued", "kind"),
+    [
+        ("strava_link", "start_link", "strava_link"),
+        ("strava_retrieve_gear", "request_gear_sync", "strava_gear"),
+        ("strava_unlink", "request_unlink", "strava_unlink"),
+    ],
+)
+def test_a_queued_sync_names_its_job_in_content_location(call, queued, kind):
+    status = strava_schema.StravaSyncStatus.model_validate(
+        {"id": "job-1", "kind": kind, "created_at": "2026-01-01T00:00:00Z", "status": "queued"}
+    )
+    response = Response()
+    kwargs = {"request": MagicMock(), "response": response, "token_user_id": 7, "sync_states": MagicMock()}
+    if call == "strava_link":
+        kwargs.update(link=MagicMock(), oauth_states=MagicMock())
+        service = strava_router.strava_link_service
+    else:
+        kwargs.update(db=MagicMock(), rate_limits=MagicMock())
+        service = strava_router.strava_sync_service
+    with (
+        patch.object(service, queued, return_value=status),
+        patch.object(strava_router.core_location, "set_job_location") as set_location,
+    ):
+        result = getattr(strava_router, call)(**kwargs)
+
+    assert result is status
+    assert set_location.call_args.args[:1] == (response,)
+    assert set_location.call_args.args[2] == "job-1"
+
+
+def test_the_per_kind_status_route_is_gone():
+    assert not [path for path, _methods in _routes() if path.startswith("/sync")]

@@ -166,7 +166,7 @@ class TestDeletionRequest:
             patch(f"{_JOBS}.security_generation_integration"),
             patch(f"{_JOBS}._deletion_pool"),
         ):
-            job_service.request_deletion(4, states, MagicMock(), MagicMock(), mock_db, if_match="*")
+            job_service.request_deletion(4, 4, states, MagicMock(), MagicMock(), mock_db, if_match="*")
 
         account_security.stage_account_change_notice.assert_not_called()
 

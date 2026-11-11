@@ -64,7 +64,7 @@ class TestRequestDeletion:
             patch(f"{_MODULE}._deletion_pool") as pool,
             patch(f"{_MODULE}.security_generation_integration.stage_bump") as bump,
         ):
-            result = job_service.request_deletion(1, states, MagicMock(), MagicMock(), db, if_match='"1"')
+            result = job_service.request_deletion(1, 1, states, MagicMock(), MagicMock(), db, if_match='"1"')
         self.revoke_tokens = revoke_tokens
         self.bump = bump
         return result, identity, users_service, users_crud, publishers, pool
@@ -108,7 +108,7 @@ class TestRequestDeletion:
             patch(f"{_MODULE}.users_event_publishers"),
             patch(f"{_MODULE}.security_generation_integration.stage_bump", side_effect=_record("bump")),
         ):
-            job_service.request_deletion(1, states, MagicMock(), MagicMock(), mock_db, if_match='"1"')
+            job_service.request_deletion(1, 1, states, MagicMock(), MagicMock(), mock_db, if_match='"1"')
 
         names = [call.args[0] for call in order.record.call_args_list]
         assert names[:3] == ["require_user", "bump", "lock_admins"]
@@ -123,10 +123,10 @@ class TestRequestDeletion:
         publishers.publish_deletion_requested.assert_not_called()
 
     def test_a_pending_deletion_is_refused_without_touching_the_account(self, states, mock_db):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
         identity = MagicMock()
 
-        with pytest.raises(core_exceptions.ConflictError):
+        with pytest.raises(core_exceptions.JobAlreadyRunningError):
             self._request(states, mock_db, jobs_enabled=True, identity=identity)
 
         identity.delete_all_user_sessions.assert_not_called()
@@ -139,7 +139,7 @@ class TestRequestDeletion:
             self._request(states, mock_db, jobs_enabled=True, identity=identity)
 
         assert states.get(1, _Kind).status == _Status.FAILED
-        assert states.begin(1, _Kind) is True
+        states.begin(1, _Kind, conflict="held")
 
     def test_a_full_local_pool_refuses_before_the_claim_is_taken(self, states, mock_db):
         with (
@@ -149,7 +149,7 @@ class TestRequestDeletion:
         ):
             pool.require_capacity.side_effect = core_exceptions.ServiceUnavailableError("full")
             with pytest.raises(core_exceptions.ServiceUnavailableError):
-                job_service.request_deletion(1, states, MagicMock(), MagicMock(), mock_db, if_match='"1"')
+                job_service.request_deletion(1, 1, states, MagicMock(), MagicMock(), mock_db, if_match='"1"')
 
         assert states.get(1, _Kind) is None
 
@@ -161,7 +161,7 @@ class TestRequestDeletion:
         ):
             users_service.require_deletable_user.side_effect = core_exceptions.ConflictError("only admin")
             with pytest.raises(core_exceptions.ConflictError):
-                job_service.request_deletion(1, states, MagicMock(), MagicMock(), mock_db, if_match='"1"')
+                job_service.request_deletion(1, 1, states, MagicMock(), MagicMock(), mock_db, if_match='"1"')
 
         identity.delete_all_user_sessions.assert_not_called()
         users_crud.stage_deletion_request.assert_not_called()
@@ -212,7 +212,7 @@ class TestRequestDeletionByAdministrator:
         account_security.verify_step_up.assert_called_once_with(
             step_up, 9, "sid-9", identity_providers_constants.StepUpAction.ADMIN_USER_DELETE, store, mock_db
         )
-        request.assert_called_once_with(1, states, storage, request.call_args.args[3], mock_db, if_match='"4"')
+        request.assert_called_once_with(1, 9, states, storage, request.call_args.args[4], mock_db, if_match='"4"')
         assert result is request.return_value
 
     def test_a_failed_step_up_queues_nothing(self, states, mock_db):
@@ -265,7 +265,7 @@ class TestRunDeletion:
         return erasers, users_crud, photos, session_local, storage
 
     def test_erases_in_batches_then_the_photo_then_the_row_then_the_staged_files(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
 
         erasers, users_crud, photos, session_local, storage = self._run(states, batches=[100, 40])
 
@@ -283,7 +283,7 @@ class TestRunDeletion:
 
     def test_the_photo_is_erased_while_the_row_still_marks_the_deletion(self, states):
         """The row is the deletion's record: a photo erased after it went could not be retried."""
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
         order: list[str] = []
         with patch(f"{_MODULE}.users_photo_service") as photos, patch(f"{_MODULE}.users_crud") as users_crud:
             photos.delete_photo_files.side_effect = lambda *_: order.append("photo")
@@ -299,7 +299,7 @@ class TestRunDeletion:
         assert order == ["photo", "row"]
 
     def test_a_row_an_earlier_attempt_deleted_is_not_deleted_again(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
 
         _, users_crud, photos, _, storage = self._run(states, batches=[], row_exists=False)
 
@@ -310,7 +310,7 @@ class TestRunDeletion:
 
     def test_a_photo_storage_failure_nothing_retries_fails_the_deletion_and_keeps_the_row(self, states):
         """A deletion is only complete once the photo is gone; the kept row lets the sweep queue it again."""
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
 
         _, users_crud, _, _, _ = self._run(states, batches=[], photo_error=OSError("storage down"))
 
@@ -318,7 +318,7 @@ class TestRunDeletion:
         assert states.get(1, _Kind).status == _Status.FAILED
 
     def test_a_photo_storage_failure_a_worker_will_retry_stays_queued_and_raises(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
 
         with pytest.raises(OSError):
             self._run(states, batches=[], photo_error=OSError("storage down"), will_retry=True)
@@ -332,7 +332,7 @@ class TestRunDeletion:
         users_crud.delete_user.assert_not_called()
 
     def test_a_reactivated_account_is_not_erased(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
 
         erasers, users_crud, photos, _, _ = self._run(states, batches=[100], cancelled=(True,))
 
@@ -341,10 +341,10 @@ class TestRunDeletion:
         photos.delete_photo_files.assert_not_called()
         # Nothing is left for the status route to report, and a later deletion can be queued.
         assert states.get(1, _Kind) is None
-        assert states.begin(1, _Kind) is True
+        states.begin(1, _Kind, conflict="held")
 
     def test_a_reactivation_between_batches_stops_the_erasure(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
 
         erasers, users_crud, photos, _, _ = self._run(states, batches=[100, 100], cancelled=(False, True))
 
@@ -354,7 +354,7 @@ class TestRunDeletion:
         assert states.get(1, _Kind) is None
 
     def test_a_reactivation_before_the_row_is_deleted_keeps_the_row(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
 
         erasers, users_crud, photos, _, _ = self._run(states, batches=[], cancelled=(False, True))
 
@@ -364,23 +364,24 @@ class TestRunDeletion:
         assert states.get(1, _Kind) is None
 
     def test_a_failure_nothing_retries_fails_the_deletion_and_frees_the_claim(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
 
         _, users_crud, photos, _, _ = self._run(states, batches=[], delete_error=RuntimeError("boom"))
 
         users_crud.delete_user.assert_not_called()
         photos.delete_photo_files.assert_not_called()
         assert states.get(1, _Kind).status == _Status.FAILED
-        assert states.begin(1, _Kind) is True
+        states.begin(1, _Kind, conflict="held")
 
     def test_a_failure_a_worker_will_retry_stays_queued_and_raises(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
 
         with pytest.raises(RuntimeError):
             self._run(states, batches=[], delete_error=RuntimeError("boom"), will_retry=True)
 
         assert states.get(1, _Kind).status == _Status.QUEUED
-        assert states.begin(1, _Kind) is False
+        with pytest.raises(core_exceptions.JobAlreadyRunningError):
+            states.begin(1, _Kind, conflict="held")
 
 
 class TestRunDeletionInPasses:
@@ -402,7 +403,7 @@ class TestRunDeletionInPasses:
         return more, users_crud, photos
 
     def test_a_pass_that_spends_its_budget_with_activities_left_asks_to_continue(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
         erasers = MagicMock()
         erasers.delete_activities.side_effect = [100, 100, 40, 0]
 
@@ -416,10 +417,11 @@ class TestRunDeletionInPasses:
         erasers.delete_bulk_import_errors.assert_not_called()
         # Still the same deletion: running, with its claim held.
         assert states.get(1, _Kind).status == _Status.RUNNING
-        assert states.begin(1, _Kind) is False
+        with pytest.raises(core_exceptions.JobAlreadyRunningError):
+            states.begin(1, _Kind, conflict="held")
 
     def test_the_next_pass_deletes_what_is_left_then_the_photo_and_the_row(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
         erasers = MagicMock()
         erasers.delete_activities.side_effect = [100, 40, 0]
 
@@ -433,7 +435,7 @@ class TestRunDeletionInPasses:
         assert states.get(1, _Kind).status == _Status.SUCCEEDED
 
     def test_a_pass_that_finishes_inside_its_budget_does_not_continue(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
         erasers = MagicMock()
         erasers.delete_activities.side_effect = [40, 0]
 
@@ -444,7 +446,7 @@ class TestRunDeletionInPasses:
         assert states.get(1, _Kind).status == _Status.SUCCEEDED
 
     def test_a_reactivation_between_passes_cancels_the_deletion(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
         erasers = MagicMock()
         erasers.delete_activities.side_effect = [100, 100, 0]
         first, *_ = self._pass(states, erasers, time_budget=5.0)
@@ -458,7 +460,7 @@ class TestRunDeletionInPasses:
         assert states.get(1, _Kind) is None
 
     def test_without_a_budget_every_batch_runs_in_one_pass(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
         erasers = MagicMock()
         erasers.delete_activities.side_effect = [100, 100, 40, 0]
 
@@ -476,25 +478,17 @@ class TestRunDeletionInPasses:
             assert job_service.durable_pass_seconds() == seconds
 
 
-class TestStatusAndDeadLetter:
-    def test_status_is_none_when_none_is_recorded(self, states):
-        assert job_service.get_deletion_status(1, states) is None
-
-    def test_status_reports_the_recorded_state(self, states):
-        states.begin(1, _Kind)
-
-        assert job_service.get_deletion_status(1, states).status == _Status.QUEUED
-
+class TestDeadLetter:
     def test_a_dead_lettered_deletion_is_failed_and_its_claim_freed(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
 
         job_service.close_dead_lettered_deletion(_payload(), states)
 
         assert states.get(1, _Kind).status == _Status.FAILED
-        assert states.begin(1, _Kind) is True
+        states.begin(1, _Kind, conflict="held")
 
     def test_a_finished_deletion_is_left_as_it_is(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
         states.set_status(1, _Kind, _Status.SUCCEEDED)
 
         job_service.close_dead_lettered_deletion(_payload(), states)
@@ -536,7 +530,7 @@ class TestRequeueStalledDeletions:
         assert [c.args[2] for c in users_crud.list_stalled_deletion_ids.call_args_list] == [0, 2, 3]
 
     def test_a_deletion_a_live_job_holds_is_left_alone(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
 
         queued, users_crud, publishers, _ = self._sweep(states, [[1]])
 
@@ -549,7 +543,7 @@ class TestRequeueStalledDeletions:
 
         assert queued == 0
         publishers.publish_deletion_requested.assert_not_called()
-        assert states.begin(1, _Kind) is True
+        states.begin(1, _Kind, conflict="held")
 
     def test_one_failure_does_not_stop_the_rest(self, states):
         queued, _, publishers, _ = self._sweep(states, [[1, 2]], publish_error=[RuntimeError("boom"), None])
@@ -616,7 +610,7 @@ class TestDeletionNotice:
         return order, prepare, send_email, mail
 
     def test_the_first_attempt_sends_one_email_to_the_row_before_erasing(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
 
         order, prepare, send_email, mail = self._run(states)
 
@@ -627,7 +621,7 @@ class TestDeletionNotice:
         assert "erase" in order
 
     def test_a_later_delivery_of_the_job_does_not_send_again(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
 
         _, _, send_email, _ = self._run(states, first_pass=False)
 
@@ -635,14 +629,14 @@ class TestDeletionNotice:
         assert states.get(1, _Kind).status == _Status.SUCCEEDED
 
     def test_a_requeue_by_the_sweep_does_not_send_again(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
 
         _, _, send_email, _ = self._run(states, attempts=1)
 
         send_email.assert_not_called()
 
     def test_without_mail_configured_nothing_is_prepared_or_sent(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
 
         _, prepare, send_email, _ = self._run(states, mail_configured=False)
 
@@ -651,7 +645,7 @@ class TestDeletionNotice:
         assert states.get(1, _Kind).status == _Status.SUCCEEDED
 
     def test_a_missing_row_sends_nothing_and_the_deletion_goes_on(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
 
         _, _, send_email, _ = self._run(states, message=None)
 
@@ -659,7 +653,7 @@ class TestDeletionNotice:
         assert states.get(1, _Kind).status == _Status.SUCCEEDED
 
     def test_a_mail_failure_is_logged_without_the_address_and_the_deletion_proceeds(self, states, caplog):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="held")
 
         order, _, _, _ = self._run(states, send_error=platform_providers.MailError("refused owner@example.test"))
 

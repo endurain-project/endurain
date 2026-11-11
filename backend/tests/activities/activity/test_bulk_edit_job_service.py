@@ -55,11 +55,20 @@ class TestRequestVisibilityEdit:
         pool.submit.assert_called_once()
         publishers.publish_visibility_edit_requested.assert_not_called()
 
-    def test_a_pending_edit_is_refused(self, states, mock_db):
-        states.begin(1, _Kind)
+    def test_a_pending_edit_is_refused_naming_the_running_job(self, states, mock_db):
+        running = states.begin(1, _Kind, conflict="x")
 
-        with pytest.raises(core_exceptions.ConflictError):
+        with pytest.raises(core_exceptions.JobAlreadyRunningError) as refused:
             self._request(states, mock_db, jobs_enabled=True)
+
+        assert refused.value.job_id == running.id
+
+    def test_the_answer_is_the_new_job(self, states, mock_db):
+        result, _, _ = self._request(states, mock_db, jobs_enabled=True)
+
+        assert result.kind == bulk_edit_constants.BULK_EDIT_JOB
+        assert result.status == _Status.QUEUED
+        assert result.id
 
     def test_a_failure_before_the_job_starts_frees_the_claim(self, states, mock_db):
         with (
@@ -71,7 +80,7 @@ class TestRequestVisibilityEdit:
             job_service.request_visibility_edit(1, 2, states, mock_db)
 
         assert states.get(1, _Kind).status == _Status.FAILED
-        assert states.begin(1, _Kind) is True
+        states.begin(1, _Kind, conflict="x")
 
 
 class TestRunVisibilityEdit:
@@ -87,7 +96,7 @@ class TestRunVisibilityEdit:
         return crud, publishers, session_local
 
     def test_it_edits_batch_by_batch_until_nothing_is_left_to_change(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="x")
 
         crud, publishers, session_local = self._run(states, batches=[[1, 2], [3]])
 
@@ -108,36 +117,29 @@ class TestRunVisibilityEdit:
         crud.edit_user_activities_visibility_batch.assert_not_called()
 
     def test_a_failure_nothing_retries_fails_the_edit_and_frees_the_claim(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="x")
 
         self._run(states, batches=[], error=RuntimeError("boom"))
 
         assert states.get(1, _Kind).status == _Status.FAILED
-        assert states.begin(1, _Kind) is True
+        states.begin(1, _Kind, conflict="x")
 
     def test_a_failure_a_worker_will_retry_stays_queued_and_raises(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="x")
 
         with pytest.raises(RuntimeError):
             self._run(states, batches=[], error=RuntimeError("boom"), will_retry=True)
 
         assert states.get(1, _Kind).status == _Status.QUEUED
-        assert states.begin(1, _Kind) is False
+        with pytest.raises(core_exceptions.JobAlreadyRunningError):
+            states.begin(1, _Kind, conflict="x")
 
 
-class TestStatusAndDeadLetter:
-    def test_status_is_none_when_none_is_recorded(self, states):
-        assert job_service.get_visibility_edit_status(1, states) is None
-
-    def test_status_reports_the_recorded_state(self, states):
-        states.begin(1, _Kind)
-
-        assert job_service.get_visibility_edit_status(1, states).status == _Status.QUEUED
-
+class TestDeadLetter:
     def test_a_dead_lettered_edit_is_failed_and_its_claim_freed(self, states):
-        states.begin(1, _Kind)
+        states.begin(1, _Kind, conflict="x")
 
         job_service.close_dead_lettered_visibility_edit(_payload(), states)
 
         assert states.get(1, _Kind).status == _Status.FAILED
-        assert states.begin(1, _Kind) is True
+        states.begin(1, _Kind, conflict="x")

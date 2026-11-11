@@ -42,7 +42,7 @@ def start_link(
 
     The state is consumed first, so a callback is accepted once and only for the user who stored
     it. The stored client credentials survive a failed exchange, so the user can retry without
-    entering them again. Poll ``GET /strava/sync/link`` for the outcome.
+    entering them again. Poll ``GET /jobs/{job_id}`` for the outcome.
 
     Args:
         user_id: The authenticated user.
@@ -57,7 +57,7 @@ def start_link(
         ProviderScopeInsufficientError: When the granted scopes lack one the link needs; the state is left unused.
         PoolFullError: When every link slot of this process is busy; the state is left unused.
         InvalidInputError: When the state is unknown or expired, or the user has not stored a client ID and secret.
-        ConflictError: When a link is already in progress for the user.
+        JobAlreadyRunningError: When a link is already in progress for the user.
     """
     granted = set(link.scope.split(","))
     missing = [scope for scope in strava_constants.REQUIRED_OAUTH_SCOPES if scope not in granted]
@@ -83,17 +83,14 @@ def start_link(
         or user_integrations.strava_client_secret is None
     ):
         raise core_exceptions.InvalidInputError("Strava client ID and secret not set")
-    core_sync_runner.start_claimed(
-        lambda: states.begin(user_id, strava_constants.SyncKind.LINK),
-        "A Strava link is already in progress",
+    job = core_sync_runner.start_claimed(
+        lambda: states.begin(user_id, strava_constants.SyncKind.LINK, conflict="A Strava link is already in progress"),
         lambda: _link_pool.submit(run_link, user_id, link.code, states),
         lambda: states.set_status(user_id, strava_constants.SyncKind.LINK, strava_constants.SyncStatus.FAILED),
-        status_route="strava_sync_status",
-        status_params={"kind": strava_constants.SyncKind.LINK.value},
     )
     logger.info("Strava link queued", extra=core_logger.context(user_id=user_id))
-    return strava_schema.StravaSyncStatus(
-        kind=strava_constants.SyncKind.LINK, status=strava_constants.SyncStatus.QUEUED
+    return strava_schema.StravaSyncStatus.model_validate(
+        {**job.envelope(), "status": strava_constants.SyncStatus.QUEUED}
     )
 
 

@@ -16,7 +16,6 @@ from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.database as core_database
-import core.exceptions as core_exceptions
 import core.local_pool as core_local_pool
 import core.logger as core_logger
 import modules.activities.activity.audit_actions as activity_audit_actions
@@ -86,17 +85,13 @@ def request_visibility_edit(
         The edit's initial status.
 
     Raises:
-        ConflictError: When an edit is already pending for the user.
+        JobAlreadyRunningError: When an edit is already pending for the user.
         PoolFullError: When there is no durable worker and the in-process pool is full.
     """
     durable = core_config.settings.JOBS_ENABLED
     if not durable:
         _pool.require_capacity()
-    if not states.begin(user_id, _Kind):
-        logger.debug("Refused a second bulk edit while one is pending", extra=core_logger.context(user_id=user_id))
-        raise core_exceptions.JobAlreadyRunningError(
-            "A bulk edit is already in progress", status_route="read_bulk_edit_status"
-        )
+    job = states.begin(user_id, _Kind, conflict="A bulk edit is already in progress")
 
     try:
         _stage_visibility_request(user_id, visibility, db)
@@ -118,23 +113,7 @@ def request_visibility_edit(
         "Bulk visibility edit queued",
         extra=core_logger.context(user_id=user_id, visibility=visibility, durable=durable),
     )
-    return activity_schema.ActivitiesBulkEditStatus(status=_Status.QUEUED)
-
-
-def get_visibility_edit_status(
-    user_id: int, states: bulk_edit_state_store.ActivityBulkEditStateStore
-) -> activity_schema.ActivitiesBulkEditStatus | None:
-    """Report where a user's bulk visibility edit is.
-
-    Args:
-        user_id: The user whose edit to report.
-        states: Shared store of the edit's state.
-
-    Returns:
-        The edit's status, or None when no edit is recorded or it has expired.
-    """
-    state = states.get(user_id, _Kind)
-    return activity_schema.ActivitiesBulkEditStatus(status=state.status) if state is not None else None
+    return activity_schema.ActivitiesBulkEditStatus.model_validate({**job.envelope(), "status": _Status.QUEUED})
 
 
 def run_visibility_edit(

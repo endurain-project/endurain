@@ -7,6 +7,14 @@ the provider modules that call this in production (Strava/Garmin) mock it out.
 
 from unittest.mock import MagicMock, patch
 
+from jasil.backends.state_memory import MemoryState
+
+import modules.activities.activity.bulk_edit_constants as bulk_edit_constants
+import modules.activities.activity.bulk_edit_state_store as bulk_edit_state_store
+
+_Kind = bulk_edit_constants.BulkEditKind.VISIBILITY
+_Status = bulk_edit_constants.BulkEditStatus
+
 
 class TestIntegrationService:
     @patch("modules.activities.activity.integration_service.activity_crud")
@@ -163,3 +171,39 @@ class TestReadableActivity:
 
         assert integration_service.get_public_activity(5, db) == "public"
         mock_service.get_public_activity.assert_called_once_with(5, db)
+
+
+class TestReadBulkEditJob:
+    def test_the_current_job_reads_as_its_status(self):
+        from modules.activities.activity import integration_service
+
+        state = MemoryState()
+        job = bulk_edit_state_store.ActivityBulkEditStateStore(state).begin(7, _Kind, conflict="x")
+
+        result = integration_service.read_bulk_edit_job(job, state)
+
+        assert result is not None
+        assert (result.id, result.kind, result.status) == (job.id, "activities_bulk_edit", _Status.QUEUED)
+
+    def test_a_job_whose_subject_started_a_later_one_reads_as_none(self):
+        from modules.activities.activity import integration_service
+
+        state = MemoryState()
+        store = bulk_edit_state_store.ActivityBulkEditStateStore(state)
+        earlier = store.begin(7, _Kind, conflict="x")
+        store.set_status(7, _Kind, _Status.SUCCEEDED)
+        later = store.begin(7, _Kind, conflict="x")
+
+        assert integration_service.read_bulk_edit_job(earlier, state) is None
+        current = integration_service.read_bulk_edit_job(later, state)
+        assert current is not None and current.id == later.id
+
+    def test_an_expired_job_reads_as_none(self):
+        from modules.activities.activity import integration_service
+
+        state = MemoryState()
+        store = bulk_edit_state_store.ActivityBulkEditStateStore(state)
+        job = store.begin(7, _Kind, conflict="x")
+        store.discard(7, _Kind)
+
+        assert integration_service.read_bulk_edit_job(job, state) is None

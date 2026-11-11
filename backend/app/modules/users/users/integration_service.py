@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from sqlalchemy import Select
 from sqlalchemy.orm import Session
 
+import core.job_status as core_job_status
 import modules.server_settings.schema as server_settings_schema
 import modules.users.users.crud as users_crud
 import modules.users.users.deletion_job_service as users_deletion_job_service
@@ -454,17 +455,36 @@ def request_user_deletion(
         db: Database session.
 
     Returns:
-        The deletion's initial status.
+        The deletion's initial status, with the id of the job that reads it.
 
     Raises:
         NotFoundError: If the user does not exist.
         LastAdministratorError: If the user is the only administrator.
-        ConflictError: If a deletion is already pending.
+        JobAlreadyRunningError: If a deletion is already pending.
     """
     # The account owner confirmed with step-up and names no version, so the wildcard overwrites whatever is there.
     return users_deletion_job_service.request_deletion(
-        user_id, users_deletion_state_store.UserDeletionStateStore(state), storage, mail, db, if_match="*"
+        user_id, user_id, users_deletion_state_store.UserDeletionStateStore(state), storage, mail, db, if_match="*"
     )
+
+
+def read_deletion_job(
+    job: core_job_status.JobRef, state: platform_providers.StateProvider
+) -> users_schema.UserDeletionStatus | None:
+    """Read the account deletion a job reference names.
+
+    Args:
+        job: The job's reference.
+        state: The platform state provider.
+
+    Returns:
+        The deletion's status, or None when its record is gone or belongs to a later deletion.
+    """
+    read = users_deletion_state_store.UserDeletionStateStore(state).read_job(job)
+    if read is None:
+        return None
+    ref, deletion = read
+    return users_schema.UserDeletionStatus.model_validate({**ref.envelope(), "status": deletion.status})
 
 
 def stage_unverified_sign_up_purge(

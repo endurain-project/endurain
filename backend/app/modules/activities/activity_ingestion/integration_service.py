@@ -6,7 +6,7 @@ the source types they need to describe where a file came from, including the
 :class:`BulkImportSource` base a provider export subclasses.
 """
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Collection, Iterable
 from datetime import UTC, date, datetime
 
 import jasil.providers as platform_providers
@@ -14,6 +14,7 @@ import jasil.runtime as platform_runtime
 from fastapi import Request, Response
 from sqlalchemy.orm import Session
 
+import core.job_status as core_job_status
 import core.location as core_location
 import core.logger as core_logger
 import core.sync_runner as core_sync_runner
@@ -21,6 +22,7 @@ import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_ingestion.background as activity_ingestion_background
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.contracts as activity_ingestion_contracts
+import modules.activities.activity_ingestion.crud as activity_ingestion_crud
 import modules.activities.activity_ingestion.provider_entry_service as activity_ingestion_provider_entry_service
 import modules.activities.activity_ingestion.provider_registry as activity_ingestion_provider_registry
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
@@ -219,17 +221,51 @@ def delete_bulk_import_errors(user_id: int, storage: platform_providers.StorageP
 def set_job_location(
     response: Response, request: Request, job: activity_ingestion_schema.ActivityIngestionJobRead
 ) -> None:
-    """Name the ingestion job's status route and the wait before the first poll on a ``202``.
+    """Name the ingestion job's read route and the wait before the first poll on a ``202``.
 
     Args:
         response: The response of the route that accepted the job.
-        request: The request, which resolves the status route's path.
+        request: The request, which resolves the job route's path.
         job: The accepted job.
     """
-    core_location.set_status_location(
-        response,
-        request,
-        activity_ingestion_constants.JOB_STATUS_ROUTE,
-        activity_ingestion_constants.JOB_POLL_SECONDS[job.kind],
-        job_id=job.id,
-    )
+    kind = activity_ingestion_constants.IngestionJobKind.from_job_kind(job.kind)
+    core_location.set_job_location(response, request, job.id, activity_ingestion_constants.JOB_POLL_SECONDS[kind])
+
+
+def read_job(job_id: str, user_id: int, db: Session) -> activity_ingestion_schema.ActivityIngestionJobRead | None:
+    """Return one of a user's ingestion jobs.
+
+    Args:
+        job_id: The job identifier.
+        user_id: The user who must own the job.
+        db: Database session.
+
+    Returns:
+        The job, or ``None`` when it does not exist or belongs to someone else.
+    """
+    return activity_ingestion_crud.get_ingestion_job(job_id, user_id, db)
+
+
+def list_jobs(
+    user_id: int,
+    db: Session,
+    *,
+    kinds: Collection[str],
+    status: core_job_status.JobState | None,
+    before: tuple[datetime, str] | None,
+    limit: int,
+) -> list[activity_ingestion_schema.ActivityIngestionJobRead]:
+    """List a user's ingestion jobs, newest first.
+
+    Args:
+        user_id: The job owner.
+        db: Database session.
+        kinds: The job kinds to list, as clients name them (``activity_upload``).
+        status: Only jobs in this state, or ``None`` for any.
+        before: Only jobs strictly older than this ``(created_at, id)`` position, or ``None`` from the newest.
+        limit: The most jobs to return.
+
+    Returns:
+        The jobs, at most ``limit``.
+    """
+    return activity_ingestion_service.list_jobs(user_id, db, kinds=kinds, status=status, before=before, limit=limit)

@@ -686,11 +686,14 @@ class TestExportProfileData:
             response = profile_client.post(PREFIX + "/export", json=self._BODY)
 
         assert response.status_code == 202
-        assert response.json() == {
-            "id": None,
+        body = response.json()
+        assert response.headers["Content-Location"].endswith(f"/jobs/{body['id']}")
+        assert body == {
+            "id": body["id"],
+            "kind": "profile_export",
             "status": "queued",
             "error_code": None,
-            "created_at": None,
+            "created_at": body["created_at"],
             "finished_at": None,
             "size_bytes": None,
             "expires_at": None,
@@ -731,40 +734,11 @@ class TestExportProfileData:
         assert (first.status_code, second.status_code) == (202, 409)
 
 
-class TestReadProfileExportStatus:
-    """Tests for GET /profile/export — read_profile_export_status."""
-
-    def test_reports_the_recorded_state(self, profile_client, export_states):
-        export_states.begin(1)
-        export_states.set_status(1, "succeeded", size_bytes=9)
-
-        response = profile_client.get(PREFIX + "/export")
-
-        assert response.status_code == 200
-        body = response.json()
-        assert (body["status"], body["error_code"], body["size_bytes"]) == ("succeeded", None, 9)
-        assert datetime.fromisoformat(body["expires_at"]) > datetime.now(UTC)
-
-    def test_is_null_when_nothing_was_exported(self, profile_client):
-        response = profile_client.get(PREFIX + "/export")
-
-        assert response.status_code == 200
-        assert response.json() is None
-
-    def test_one_user_cannot_read_another_users_export(self, profile_client, export_states):
-        export_states.begin(2)
-
-        response = profile_client.get(PREFIX + "/export")
-
-        assert response.status_code == 200
-        assert response.json() is None
-
-
 class TestDownloadProfileExport:
     """Tests for GET /profile/export/download — download_profile_export."""
 
     def test_streams_the_finished_archive(self, profile_app, profile_client, export_states):
-        export_states.begin(1)
+        export_states.begin(1, conflict="held")
         export_states.set_status(1, "succeeded", size_bytes=8)
         storage = MagicMock()
         storage.open_stream.return_value = io.BytesIO(b"zip-data")
@@ -780,7 +754,7 @@ class TestDownloadProfileExport:
         storage.open_stream.assert_called_once_with("profile_export_staging", "1.zip")
 
     def test_is_not_found_before_the_export_has_finished(self, profile_client, export_states):
-        export_states.begin(1)
+        export_states.begin(1, conflict="held")
 
         assert profile_client.get(PREFIX + "/export/download").status_code == 404
 
@@ -812,11 +786,14 @@ class TestImportProfileData:
             )
 
         assert response.status_code == 202
-        assert response.json() == {
-            "id": None,
+        body = response.json()
+        assert response.headers["Content-Location"].endswith(f"/jobs/{body['id']}")
+        assert body == {
+            "id": body["id"],
+            "kind": "profile_import",
             "status": "queued",
             "error_code": None,
-            "created_at": None,
+            "created_at": body["created_at"],
             "finished_at": None,
             "imported": None,
         }
@@ -846,40 +823,6 @@ class TestImportProfileData:
         assert import_states.get(1).status == "failed"
         with patch(self._PUBLISH):
             assert profile_client.post(PREFIX + "/import", files=files).status_code == 202
-
-
-class TestReadProfileImportStatus:
-    """Tests for GET /profile/import — read_profile_import_status."""
-
-    def test_reports_the_recorded_state(self, profile_client, import_states):
-        import_states.begin(1)
-        import_states.set_status(1, "succeeded", imported={"activities": 5})
-
-        response = profile_client.get(PREFIX + "/import")
-
-        assert response.status_code == 200
-        assert response.json() == {
-            "id": None,
-            "status": "succeeded",
-            "error_code": None,
-            "created_at": None,
-            "finished_at": None,
-            "imported": {"activities": 5},
-        }
-
-    def test_is_null_when_nothing_was_imported(self, profile_client):
-        response = profile_client.get(PREFIX + "/import")
-
-        assert response.status_code == 200
-        assert response.json() is None
-
-    def test_one_user_cannot_read_another_users_import(self, profile_client, import_states):
-        import_states.begin(2)
-
-        response = profile_client.get(PREFIX + "/import")
-
-        assert response.status_code == 200
-        assert response.json() is None
 
 
 # ===================================================================
@@ -1346,16 +1289,20 @@ class TestDeleteMyAccount:
     @patch("modules.users.users_profile.router.profile_service.delete_account")
     @patch("modules.users.users_profile.router.authentication_dependencies.clear_refresh_token_cookies")
     def test_success(self, mock_clear_cookies, mock_delete, profile_client, mock_auth_services):
-        mock_delete.return_value = users_schema.UserDeletionStatus(status="queued")
+        mock_delete.return_value = users_schema.UserDeletionStatus(
+            id="job-1", kind="user_deletion", created_at=datetime(2026, 1, 1, tzinfo=UTC), status="queued"
+        )
         response = profile_client.post(
             PREFIX + "/delete-account",
             json={"step_up": {"current_password": "secret-password", "mfa_code": "123456"}},
         )
 
         assert response.status_code == 202
+        assert "Content-Location" not in response.headers
         assert response.json() == {
-            "id": None,
-            "created_at": None,
+            "id": "job-1",
+            "kind": "user_deletion",
+            "created_at": "2026-01-01T00:00:00Z",
             "finished_at": None,
             "error_code": None,
             "status": "queued",

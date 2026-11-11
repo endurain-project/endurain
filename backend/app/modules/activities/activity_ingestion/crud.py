@@ -4,10 +4,10 @@ Pure persistence: staging, parsing and executor choice live in ``service``,
 so this module never touches the filesystem and never publishes events.
 """
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import and_, delete, func, or_, select, update
+from sqlalchemy import and_, delete, func, or_, select, tuple_, update
 from sqlalchemy.orm import Session
 
 import core.database as core_database
@@ -131,6 +131,37 @@ def get_ingestion_job(
     )
     orm_job = db.scalars(stmt).first()
     return activity_ingestion_serializers.to_read_schema(orm_job) if orm_job else None
+
+
+def list_ingestion_jobs(
+    user_id: int,
+    kinds: Collection[activity_ingestion_constants.IngestionJobKind],
+    statuses: Collection[activity_ingestion_constants.IngestionJobStatus] | None,
+    before: tuple[datetime, str] | None,
+    limit: int,
+    db: Session,
+) -> list[activity_ingestion_schema.ActivityIngestionJobRead]:
+    """List a user's ingestion jobs newest first, by ``(created_at, id)``.
+
+    Args:
+        user_id: The owner.
+        kinds: Only jobs of these kinds.
+        statuses: Only jobs in these stored statuses, or ``None`` for any.
+        before: Only jobs strictly older than this ``(created_at, id)`` position, or ``None`` from the newest.
+        limit: The most jobs to return.
+        db: Database session.
+
+    Returns:
+        The jobs, at most ``limit``.
+    """
+    model = activity_ingestion_models.ActivityIngestionJob
+    stmt = select(model).where(model.user_id == user_id, model.kind.in_([kind.value for kind in kinds]))
+    if statuses is not None:
+        stmt = stmt.where(model.status.in_([status.value for status in statuses]))
+    if before is not None:
+        stmt = stmt.where(tuple_(model.created_at, model.id) < before)
+    stmt = stmt.order_by(model.created_at.desc(), model.id.desc()).limit(limit)
+    return [activity_ingestion_serializers.to_read_schema(orm_job) for orm_job in db.scalars(stmt)]
 
 
 def get_job_work_item(job_id: str, db: Session) -> tuple[int, str] | None:
@@ -578,7 +609,7 @@ def mark_failed(
     job_id: str,
     error_code: activity_ingestion_constants.IngestionJobErrorCode,
     db: Session,
-) -> int | None:
+) -> tuple[int, activity_ingestion_constants.IngestionJobKind] | None:
     """Stage a move of a job to the failed state with a sanitized reason.
 
     Args:
@@ -587,14 +618,15 @@ def mark_failed(
         db: Database session.
 
     Returns:
-        The owner's user id, or ``None`` when the job is unknown or already terminal (nothing changed).
+        The owner's user id and the job's kind, or ``None`` when the job is unknown or already terminal
+        (nothing changed).
     """
     orm_job = _get_open_job_for_update(job_id, db)
     if orm_job is None:
         return None
     _fail(orm_job, error_code, datetime.now(UTC))
     db.flush()
-    return orm_job.user_id
+    return orm_job.user_id, activity_ingestion_constants.IngestionJobKind(orm_job.kind)
 
 
 def fail_jobs_idle_since(

@@ -28,23 +28,6 @@ import modules.strava.sync_service as strava_sync_service
 router = APIRouter()
 
 
-def _set_sync_location(response: Response, request: Request, sync: strava_schema.StravaSyncStatus) -> None:
-    """Name the status route of a queued link, gear sync or unlink on its ``202``.
-
-    Args:
-        response: The response of the route that queued the sync.
-        request: The request, which resolves the status route's path.
-        sync: The queued sync.
-    """
-    core_location.set_status_location(
-        response,
-        request,
-        "strava_sync_status",
-        strava_constants.SYNC_POLL_SECONDS[sync.kind],
-        kind=sync.kind.value,
-    )
-
-
 @router.post(
     "/link",
     status_code=status.HTTP_202_ACCEPTED,
@@ -66,11 +49,13 @@ def strava_link(
     Send the ``state``, ``code`` and ``scope`` Strava put on the callback. ``scope`` is the comma-separated
     list of permissions the user granted; a link whose grant lacks ``read``, ``profile:read_all`` or
     ``activity:read_all`` is refused with 400 and ``urn:endurain:error:provider-scope-insufficient`` before
-    the code is exchanged. Poll ``GET /strava/sync/link`` for the outcome. A second request while one is
+    the code is exchanged. Poll ``GET /jobs/{job_id}`` for the outcome. A second request while one is
     pending is answered 409.
     """
     sync = strava_link_service.start_link(token_user_id, link, oauth_states, sync_states)
-    _set_sync_location(response, request, sync)
+    core_location.set_job_location(
+        response, request, sync.id, strava_constants.SYNC_POLL_SECONDS[strava_constants.SyncKind.LINK]
+    )
     return sync
 
 
@@ -93,7 +78,7 @@ def strava_retrieve_activities_days(
 ) -> activity_ingestion_schema.ActivityIngestionJobRead:
     """Queue a Strava sync of an explicit date range.
 
-    Returns ``202`` with a job handle; poll ``GET /activities/ingestion-jobs/{job_id}``
+    Returns ``202`` with a job handle; poll ``GET /jobs/{job_id}``
     for the outcome. The range is fetched by a background job, never on this
     request or an API worker thread.
     """
@@ -121,34 +106,13 @@ def strava_retrieve_gear(
 ) -> strava_schema.StravaSyncStatus:
     """Queue a sync of the user's Strava gear; a background job runs it.
 
-    Poll ``GET /strava/sync/gear`` for the outcome. A second request while one is
+    Poll ``GET /jobs/{job_id}`` for the outcome. A second request while one is
     pending is answered 409.
     """
     sync = strava_sync_service.request_gear_sync(token_user_id, sync_states, rate_limits, db)
-    _set_sync_location(response, request, sync)
-    return sync
-
-
-@router.get(
-    "/sync/{kind}",
-    response_model=strava_schema.StravaSyncStatus | None,
-    responses={200: {"headers": core_location.POLLED_STATUS_HEADERS}},
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
-)
-def strava_sync_status(
-    kind: strava_constants.SyncKind,
-    token_user_id: auth_dependencies.CurrentUserId,
-    sync_states: strava_dependencies.StravaSyncStateStoreDep,
-    response: Response,
-) -> strava_schema.StravaSyncStatus | None:
-    """Report where the authenticated user's queued link, gear sync or unlink is.
-
-    ``Retry-After`` says when to poll again while the sync is not finished.
-    """
-    sync = strava_sync_service.get_sync_status(token_user_id, kind, sync_states)
-    if sync is None:
-        return None
-    core_location.set_retry_after_while_running(response, sync.status, strava_constants.SYNC_POLL_SECONDS[kind])
+    core_location.set_job_location(
+        response, request, sync.id, strava_constants.SYNC_POLL_SECONDS[strava_constants.SyncKind.GEAR]
+    )
     return sync
 
 
@@ -242,8 +206,10 @@ def strava_unlink(
     """Queue the disconnection of the user's Strava account; a background job runs it.
 
     The job revokes the authorization with Strava and deletes the activities and gear
-    imported from it. Poll ``GET /strava/sync/unlink`` for the outcome.
+    imported from it. Poll ``GET /jobs/{job_id}`` for the outcome.
     """
     sync = strava_sync_service.request_unlink(token_user_id, sync_states, rate_limits, db)
-    _set_sync_location(response, request, sync)
+    core_location.set_job_location(
+        response, request, sync.id, strava_constants.SYNC_POLL_SECONDS[strava_constants.SyncKind.UNLINK]
+    )
     return sync

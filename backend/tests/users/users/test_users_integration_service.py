@@ -3,6 +3,10 @@
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
+from jasil.backends.state_memory import MemoryState
+
+import modules.users.users.constants as users_constants
+import modules.users.users.deletion_state_store as users_deletion_state_store
 import modules.users.users.integration_service as users_integration
 
 
@@ -103,3 +107,25 @@ def test_stage_first_admin_reaches_the_service():
         assert users_integration.stage_first_admin(admin, db) == "admin"
 
     stage.assert_called_once_with(admin, db)
+
+
+def test_read_deletion_job_returns_the_current_deletion_with_its_id_and_kind():
+    state = MemoryState()
+    job = users_deletion_state_store.UserDeletionStateStore(state).begin(
+        5, users_constants.DeletionKind.ACCOUNT, conflict="held", owner_id=9
+    )
+
+    status = users_integration.read_deletion_job(job, state)
+
+    assert (status.id, status.kind, status.status) == (job.id, "user_deletion", "queued")
+
+
+def test_read_deletion_job_is_none_for_an_earlier_job_and_once_expired():
+    state = MemoryState()
+    store = users_deletion_state_store.UserDeletionStateStore(state)
+    first = store.begin(5, users_constants.DeletionKind.ACCOUNT, conflict="held", owner_id=9)
+    store.set_status(5, users_constants.DeletionKind.ACCOUNT, users_constants.DeletionStatus.FAILED)
+    store.begin(5, users_constants.DeletionKind.ACCOUNT, conflict="held", owner_id=9)
+
+    assert users_integration.read_deletion_job(first, state) is None
+    assert users_integration.read_deletion_job(first, MemoryState()) is None

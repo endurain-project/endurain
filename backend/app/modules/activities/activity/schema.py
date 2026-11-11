@@ -8,7 +8,7 @@ stays exactly what the API serializes.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import (
     BaseModel,
@@ -350,6 +350,8 @@ class ActivityFeedPage(core_pagination.CursorPage[ActivityRead]):
 
 class ActivitiesBulkEditStatus(core_job_status.JobStatus):
     """Where a queued bulk edit across a user's activities is."""
+
+    kind: Literal["activities_bulk_edit"]
 
 
 class ActivitiesBulkEdit(core_partial_update.NotClearable):

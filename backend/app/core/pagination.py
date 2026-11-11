@@ -182,8 +182,8 @@ class Page[ItemT](BaseModel):
 # instead of counting how many to discard, so concurrent inserts cannot shift
 # the window. It also drops the ``COUNT(*)`` and the ``OFFSET n`` scan.
 
-# Separates the two cursor components. Neither an ISO-8601 timestamp nor an
-# integer id can contain it, so no escaping is needed.
+# Separates the two cursor components. An ISO-8601 timestamp cannot contain it, and
+# the id is everything after the last one, so no escaping is needed.
 _CURSOR_SEPARATOR = "|"
 
 
@@ -206,7 +206,7 @@ class CursorPage[ItemT](BaseModel):
     next_cursor: str | None = None
 
 
-def encode_cursor(sort_value: datetime, tiebreak_id: int) -> str:
+def encode_cursor(sort_value: datetime, tiebreak_id: int | str) -> str:
     """Encode a keyset position into an opaque cursor.
 
     The cursor is ``{sort_value}|{id}`` encrypted with the server key. It is encrypted, not merely
@@ -227,7 +227,26 @@ def encode_cursor(sort_value: datetime, tiebreak_id: int) -> str:
 
 
 def decode_cursor(cursor: str) -> tuple[datetime, int]:
-    """Decode an opaque cursor back into a keyset position.
+    """Decode an opaque cursor whose id is an integer back into a keyset position.
+
+    Args:
+        cursor: A cursor previously produced by :func:`encode_cursor`.
+
+    Returns:
+        The ``(sort_value, id)`` pair the cursor encodes.
+
+    Raises:
+        InvalidInputError: When the cursor is not one this server issued.
+    """
+    sort_value, tiebreak_id = decode_text_cursor(cursor)
+    try:
+        return sort_value, int(tiebreak_id)
+    except ValueError as err:
+        raise core_exceptions.InvalidInputError("Invalid pagination cursor") from err
+
+
+def decode_text_cursor(cursor: str) -> tuple[datetime, str]:
+    """Decode an opaque cursor back into a keyset position whose id is text, such as a UUID.
 
     Args:
         cursor: A cursor previously produced by :func:`encode_cursor`.
@@ -240,7 +259,9 @@ def decode_cursor(cursor: str) -> tuple[datetime, int]:
     """
     try:
         raw = core_cryptography.decrypt_token_fernet(cursor)
-        sort_value, _, tiebreak_id = (raw or "").rpartition(_CURSOR_SEPARATOR)
-        return datetime.fromisoformat(sort_value), int(tiebreak_id)
+        sort_value, separator, tiebreak_id = (raw or "").rpartition(_CURSOR_SEPARATOR)
+        if not separator or not tiebreak_id:
+            raise ValueError("The cursor has no id")
+        return datetime.fromisoformat(sort_value), tiebreak_id
     except (ValueError, core_exceptions.UndecryptableError) as err:
         raise core_exceptions.InvalidInputError("Invalid pagination cursor") from err

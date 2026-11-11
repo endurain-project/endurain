@@ -94,6 +94,8 @@ def profile_app(
     app.include_router(auth_mfa_profile_router.router, prefix=core_config.ROOT_PATH + "/profile/mfa")
     app.include_router(auth_idp_profile_router.router, prefix=core_config.ROOT_PATH + "/profile/identity-providers")
 
+    app.add_api_route("/jobs/{job_id}", lambda job_id: None, name="read_job")
+
     core_exceptions.register_exception_handlers(app)
 
     app.dependency_overrides[core_database.get_db] = lambda: local_mock_db

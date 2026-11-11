@@ -8,10 +8,12 @@ from jasil.backends.state_memory import MemoryState
 from jasil.events import Event
 from jasil.jobs.registry import JobHandlerRegistry
 
+import core.attempt_state as core_attempt_state
 import core.exceptions as core_exceptions
 import core.sync_runner as core_sync_runner
 import modules.garmin.constants as garmin_constants
 import modules.garmin.events as garmin_events
+import modules.garmin.integration_service as garmin_integration
 import modules.garmin.subscribers as garmin_subscribers
 import modules.garmin.sync_service as garmin_sync_service
 import modules.garmin.sync_state_store as garmin_sync_state_store
@@ -63,6 +65,7 @@ def test_a_gear_sync_goes_to_the_pool_without_durable_jobs(rate_limits, local, s
     local.submit_waiting.assert_called_once()
     assert local.submit_waiting.call_args.args[2].kind == Kind.GEAR
     assert result.status == Status.QUEUED
+    assert result.kind == "garmin_sync_gear"
     assert states.get(1, Kind.GEAR).status == Status.QUEUED
 
 
@@ -179,12 +182,39 @@ def test_a_range_ending_after_the_users_today_is_refused(rate_limits, local, sta
     local.submit_waiting.assert_not_called()
 
 
-def test_an_unrecorded_sync_reads_as_none(states):
-    assert garmin_sync_service.get_sync_status(1, Kind.GEAR, states) is None
+class TestReadSyncJob:
+    def test_a_job_reads_with_its_id_and_kind(self):
+        state = MemoryState()
+        store = garmin_sync_state_store.GarminSyncStateStore(state=state)
+        job = store.begin(1, Kind.HEALTH, conflict="busy")
+
+        read = garmin_integration.read_sync_job(job, state)
+
+        assert (read.id, read.kind, read.status) == (job.id, "garmin_sync_health", Status.QUEUED)
+
+    def test_an_earlier_job_reads_as_gone_once_the_next_one_started(self):
+        state = MemoryState()
+        store = garmin_sync_state_store.GarminSyncStateStore(state=state)
+        first = store.begin(1, Kind.GEAR, conflict="busy")
+        store.set_status(1, Kind.GEAR, Status.SUCCEEDED)
+        second = store.begin(1, Kind.GEAR, conflict="busy")
+
+        assert garmin_integration.read_sync_job(first, state) is None
+        assert garmin_integration.read_sync_job(second, state).id == second.id
+
+    def test_an_expired_job_reads_as_gone(self):
+        state = MemoryState()
+        store = garmin_sync_state_store.GarminSyncStateStore(state=state)
+        job = store.begin(1, Kind.GEAR, conflict="busy")
+        state.delete(core_attempt_state.key("garmin", "sync:state", job.subject))
+
+        assert garmin_integration.read_sync_job(job, state) is None
 
 
 class TestRunSync:
     def test_it_dispatches_by_kind_and_records_the_outcome(self, rate_limits, states):
+        states.begin(1, Kind.GEAR, conflict="busy")
+        states.begin(2, Kind.HEALTH, conflict="busy")
         with (
             patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear") as gear,
             patch.object(garmin_sync_service.garmin_health_service, "sync_health_for_dates") as health,
@@ -204,6 +234,8 @@ class TestRunSync:
         assert states.get(2, Kind.HEALTH).status == Status.SUCCEEDED
 
     def test_a_completed_sync_tells_the_browser_what_to_refetch(self, rate_limits, states):
+        states.begin(1, Kind.GEAR, conflict="busy")
+        states.begin(2, Kind.HEALTH, conflict="busy")
         with (
             patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", return_value=True),
             patch.object(garmin_sync_service.garmin_health_service, "sync_health_for_dates", return_value=True),
@@ -218,14 +250,16 @@ class TestRunSync:
                 rate_limits,
             )
 
-        assert [call.args for call in push.call_args_list] == [
-            (1, {"message": "JOB_STATUS_CHANGED", "job": "garmin:gear"}),
-            (1, {"message": "GEARS_CHANGED"}),
-            (2, {"message": "JOB_STATUS_CHANGED", "job": "garmin:health"}),
-            (2, {"message": "HEALTH_CHANGED"}),
+        messages = [(call.args[0], call.args[1]["message"], call.args[1].get("kind")) for call in push.call_args_list]
+        assert messages == [
+            (1, "JOB_STATUS_CHANGED", "garmin_sync_gear"),
+            (1, "GEARS_CHANGED", None),
+            (2, "JOB_STATUS_CHANGED", "garmin_sync_health"),
+            (2, "HEALTH_CHANGED", None),
         ]
 
     def test_a_sync_that_did_not_complete_announces_its_job_but_not_a_refetch(self, rate_limits, states):
+        job = states.begin(1, Kind.GEAR, conflict="busy")
         with (
             patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", return_value=False),
             patch.object(garmin_sync_service.websocket_integration, "push_to_user") as push,
@@ -234,10 +268,10 @@ class TestRunSync:
                 garmin_events.SyncRequestedPayload(user_id=1, kind=Kind.GEAR), states, rate_limits
             )
 
-        push.assert_called_once_with(1, {"message": "JOB_STATUS_CHANGED", "job": "garmin:gear"})
+        push.assert_called_once_with(1, {"message": "JOB_STATUS_CHANGED", "job_id": job.id, "kind": "garmin_sync_gear"})
 
     def test_a_failure_nothing_retries_is_recorded_released_and_raised(self, rate_limits, states):
-        states.begin(1, Kind.GEAR)
+        states.begin(1, Kind.GEAR, conflict="busy")
         with (
             patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", side_effect=RuntimeError("boom")),
             pytest.raises(RuntimeError),
@@ -247,10 +281,10 @@ class TestRunSync:
             )
 
         assert states.get(1, Kind.GEAR).status == Status.FAILED
-        assert states.begin(1, Kind.GEAR) is True
+        states.begin(1, Kind.GEAR, conflict="busy")
 
     def test_a_failure_with_attempts_left_stays_queued_and_claimed_for_its_retry(self, rate_limits, states):
-        states.begin(1, Kind.GEAR)
+        states.begin(1, Kind.GEAR, conflict="busy")
         with (
             patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", side_effect=RuntimeError("boom")),
             pytest.raises(RuntimeError),
@@ -260,10 +294,11 @@ class TestRunSync:
             )
 
         assert states.get(1, Kind.GEAR).status == Status.QUEUED
-        assert states.begin(1, Kind.GEAR) is False
+        with pytest.raises(core_exceptions.JobAlreadyRunningError):
+            states.begin(1, Kind.GEAR, conflict="busy")
 
     def test_a_rate_limited_sync_is_failed_without_a_retry(self, rate_limits, durable, states):
-        states.begin(1, Kind.GEAR)
+        states.begin(1, Kind.GEAR, conflict="busy")
         error = garmin_sync_service.garminconnect.GarminConnectTooManyRequestsError("429")
         with patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", side_effect=error):
             garmin_sync_service.run_sync(
@@ -271,10 +306,10 @@ class TestRunSync:
             )
 
         assert states.get(1, Kind.GEAR).status == Status.FAILED
-        assert states.begin(1, Kind.GEAR) is True
+        states.begin(1, Kind.GEAR, conflict="busy")
 
     def test_a_rate_limited_sync_records_the_limit_for_every_replica(self, durable, states, rate_limits):
-        states.begin(1, Kind.GEAR)
+        states.begin(1, Kind.GEAR, conflict="busy")
         error = garmin_sync_service.garminconnect.GarminConnectTooManyRequestsError("429")
         with patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", side_effect=error):
             garmin_sync_service.run_sync(
@@ -284,7 +319,7 @@ class TestRunSync:
         assert rate_limits.rate_limited_until(1) is not None
 
     def test_a_sync_refused_by_an_active_limit_is_failed_without_a_retry(self, durable, states, rate_limits):
-        states.begin(1, Kind.GEAR)
+        states.begin(1, Kind.GEAR, conflict="busy")
         error = core_exceptions.TooManyRequestsError("slow down")
         with patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", side_effect=error):
             garmin_sync_service.run_sync(
@@ -292,17 +327,17 @@ class TestRunSync:
             )
 
         assert states.get(1, Kind.GEAR).status == Status.FAILED
-        assert states.begin(1, Kind.GEAR) is True
+        states.begin(1, Kind.GEAR, conflict="busy")
 
     def test_a_sync_that_did_not_run_is_recorded_as_failed_without_a_retry(self, rate_limits, states):
-        states.begin(1, Kind.GEAR)
+        states.begin(1, Kind.GEAR, conflict="busy")
         with patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", return_value=False):
             garmin_sync_service.run_sync(
                 garmin_events.SyncRequestedPayload(user_id=1, kind=Kind.GEAR), states, rate_limits
             )
 
         assert states.get(1, Kind.GEAR).status == Status.FAILED
-        assert states.begin(1, Kind.GEAR) is True
+        states.begin(1, Kind.GEAR, conflict="busy")
 
     def test_a_health_payload_needs_a_date_range(self):
         with pytest.raises(ValueError):
@@ -337,7 +372,7 @@ class TestRecentHealth:
 
     def test_a_user_with_a_pending_sync_is_skipped(self, rate_limits, durable, states):
         publish, _ = durable
-        states.begin(1, Kind.HEALTH)
+        states.begin(1, Kind.HEALTH, conflict="busy")
         with (
             patch.object(garmin_sync_service.garmin_service, "linked_user_ids", side_effect=[[1, 2], []]),
             patch.object(garmin_sync_service.core_database, "SessionLocal"),
@@ -394,7 +429,7 @@ class TestRecentHealth:
             garmin_sync_service.sync_recent_health(states, rate_limits)
 
         assert listing.call_count == 1
-        assert states.begin(1, Kind.HEALTH) is True
+        states.begin(1, Kind.HEALTH, conflict="busy")
 
     def test_a_user_waits_for_a_slot_to_free_instead_of_being_skipped(
         self, rate_limits, full_pool, states, monkeypatch
@@ -493,16 +528,16 @@ class TestDeadLetter:
 
     @pytest.mark.parametrize("status", [Status.QUEUED, Status.RUNNING])
     def test_a_pending_sync_is_failed_and_its_claim_released(self, stores, status):
-        stores.begin(1, Kind.GEAR)
+        stores.begin(1, Kind.GEAR, conflict="busy")
         stores.set_status(1, Kind.GEAR, status)
 
         _dead_letter(_sync_event(3), "lease expired")
 
         assert stores.get(1, Kind.GEAR).status == Status.FAILED
-        assert stores.begin(1, Kind.GEAR) is True
+        stores.begin(1, Kind.GEAR, conflict="busy")
 
     def test_a_sync_that_already_finished_is_left_alone(self, stores):
-        stores.begin(1, Kind.GEAR)
+        stores.begin(1, Kind.GEAR, conflict="busy")
         stores.set_status(1, Kind.GEAR, Status.SUCCEEDED)
 
         _dead_letter(_sync_event(3), None)

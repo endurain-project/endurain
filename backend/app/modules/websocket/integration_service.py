@@ -12,6 +12,7 @@ That is why this never raises over a push that could not be sent.
 
 import jasil.runtime as platform_runtime
 
+import core.job_status as core_job_status
 import core.logger as core_logger
 import modules.websocket.constants as websocket_constants
 import modules.websocket.keys as websocket_keys
@@ -44,14 +45,26 @@ def push_to_user(user_id: int, message: dict[str, str | int]) -> None:
         )
 
 
-def push_job_changed(user_id: int, job: str) -> None:
+def push_job_changed(user_id: int, job_id: str, kind: str) -> None:
     """Tell a user's browser that a background job it may be waiting on changed state.
 
-    The client checks the job's status through its normal route; the hint only saves it waiting for its
-    next poll. Best-effort like every push, so the poll stays as the fallback.
+    The client reads the job at ``GET /jobs/{job_id}``; the hint only saves it waiting for its next poll.
+    Best-effort like every push, so the poll stays as the fallback.
 
     Args:
-        user_id: The user who owns the job.
-        job: The job's name, e.g. ``garmin-link`` or ``ingestion:<id>``.
+        user_id: The user who started the job.
+        job_id: The job's identifier.
+        kind: What the job does, e.g. ``garmin_link``.
     """
-    push_to_user(user_id, {"message": websocket_constants.JOB_STATUS_CHANGED_MESSAGE, "job": job})
+    push_to_user(user_id, {"message": websocket_constants.JOB_STATUS_CHANGED_MESSAGE, "job_id": job_id, "kind": kind})
+
+
+def announce_job(job: core_job_status.JobRef) -> None:
+    """Tell the browser of the user who started a job that it changed state; see :func:`push_job_changed`.
+
+    The shape a state store's ``announce`` hook takes.
+
+    Args:
+        job: The job's reference.
+    """
+    push_job_changed(job.owner_id, job.id, job.kind)

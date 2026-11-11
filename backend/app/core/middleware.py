@@ -48,7 +48,7 @@ CORS_ALLOW_HEADERS: tuple[str, ...] = (
 #: Response headers a browser client may read. Anything not listed is invisible
 #: to JavaScript even though it is on the wire — which is why ``ETag`` belongs
 #: here: it is the tag the client echoes back in ``If-Match``. ``Retry-After`` says when to try again and
-#: ``Content-Location`` names the status resource of accepted background work.
+#: ``Content-Location`` names the job of accepted background work.
 CORS_EXPOSE_HEADERS: tuple[str, ...] = ("ETag", "X-Request-ID", "Retry-After", "Content-Location")
 
 

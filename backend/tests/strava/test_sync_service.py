@@ -1,7 +1,7 @@
 """Queued Strava gear syncs, unlinks and activity ranges run off the request, once per user, and record their outcome."""
 
 from datetime import date, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import jasil.runtime as platform_runtime
 import pytest
@@ -10,6 +10,7 @@ import core.exceptions as core_exceptions
 import core.sync_runner as core_sync_runner
 import modules.strava.constants as strava_constants
 import modules.strava.events as strava_events
+import modules.strava.integration_service as strava_integration
 import modules.strava.rate_limit_store as strava_rate_limit_store
 import modules.strava.sync_service as strava_sync_service
 import modules.strava.sync_state_store as strava_sync_state_store
@@ -47,7 +48,7 @@ class TestRequest:
         ):
             status = strava_sync_service.request_gear_sync(7, states, rate_limits, db)
 
-        assert (status.kind, status.status) == (GEAR, Status.QUEUED)
+        assert (status.kind, status.status) == ("strava_gear", Status.QUEUED)
         publish.assert_called_once()
         assert publish.call_args.args[:2] == (7, GEAR)
         pool.submit.assert_not_called()
@@ -56,7 +57,7 @@ class TestRequest:
         with _settings(False), patch.object(strava_sync_service, "_sync_pool") as pool:
             status = strava_sync_service.request_unlink(7, states, rate_limits, MagicMock())
 
-        assert (status.kind, status.status) == (UNLINK, Status.QUEUED)
+        assert (status.kind, status.status) == ("strava_unlink", Status.QUEUED)
         submitted = pool.submit.call_args.args
         assert submitted[0] is strava_sync_service.run_sync
         assert submitted[1].kind == UNLINK
@@ -64,7 +65,7 @@ class TestRequest:
     def test_a_second_request_while_one_is_pending_is_a_conflict(self, states, rate_limits):
         with _settings(False), patch.object(strava_sync_service, "_sync_pool"):
             strava_sync_service.request_gear_sync(7, states, rate_limits, MagicMock())
-            with pytest.raises(core_exceptions.ConflictError):
+            with pytest.raises(core_exceptions.JobAlreadyRunningError):
                 strava_sync_service.request_gear_sync(7, states, rate_limits, MagicMock())
 
     def test_gear_and_unlink_do_not_block_each_other(self, states, rate_limits):
@@ -85,7 +86,7 @@ class TestRequest:
 
 class TestRunSync:
     def test_a_gear_sync_runs_and_completes(self, states, rate_limits):
-        states.begin(7, GEAR)
+        states.begin(7, GEAR, conflict="busy")
         with patch.object(strava_sync_service.strava_gear_service, "get_user_gear", return_value=True) as run:
             strava_sync_service.run_sync(_payload(GEAR), states, rate_limits)
 
@@ -93,7 +94,7 @@ class TestRunSync:
         assert states.get(7, GEAR).status == Status.SUCCEEDED
 
     def test_a_completed_gear_sync_tells_the_browser_to_refetch_gears(self, states, rate_limits):
-        states.begin(7, GEAR)
+        states.begin(7, GEAR, conflict="busy")
         with (
             patch.object(strava_sync_service.strava_gear_service, "get_user_gear", return_value=True),
             patch.object(strava_sync_service.websocket_integration, "push_to_user") as push,
@@ -101,32 +102,32 @@ class TestRunSync:
             strava_sync_service.run_sync(_payload(GEAR), states, rate_limits)
 
         assert [call.args for call in push.call_args_list] == [
-            (7, {"message": "JOB_STATUS_CHANGED", "job": "strava:gear"}),
+            (7, {"message": "JOB_STATUS_CHANGED", "job_id": ANY, "kind": "strava_gear"}),
             (7, {"message": "GEARS_CHANGED"}),
         ]
 
     def test_a_failed_gear_sync_announces_its_job_but_not_a_gear_change(self, states, rate_limits):
-        states.begin(7, GEAR)
+        states.begin(7, GEAR, conflict="busy")
         with (
             patch.object(strava_sync_service.strava_gear_service, "get_user_gear", return_value=False),
             patch.object(strava_sync_service.websocket_integration, "push_to_user") as push,
         ):
             strava_sync_service.run_sync(_payload(GEAR), states, rate_limits)
 
-        push.assert_called_once_with(7, {"message": "JOB_STATUS_CHANGED", "job": "strava:gear"})
+        push.assert_called_once_with(7, {"message": "JOB_STATUS_CHANGED", "job_id": ANY, "kind": "strava_gear"})
 
     def test_a_finished_unlink_announces_its_job_and_no_gear_change(self, states, rate_limits):
-        states.begin(7, UNLINK)
+        states.begin(7, UNLINK, conflict="busy")
         with (
             patch.object(strava_sync_service.strava_service, "unlink_account", return_value=True),
             patch.object(strava_sync_service.websocket_integration, "push_to_user") as push,
         ):
             strava_sync_service.run_sync(_payload(UNLINK), states, rate_limits)
 
-        push.assert_called_once_with(7, {"message": "JOB_STATUS_CHANGED", "job": "strava:unlink"})
+        push.assert_called_once_with(7, {"message": "JOB_STATUS_CHANGED", "job_id": ANY, "kind": "strava_unlink"})
 
     def test_an_unlink_runs_and_completes_even_when_strava_was_not_linked(self, states, rate_limits):
-        states.begin(7, UNLINK)
+        states.begin(7, UNLINK, conflict="busy")
         with patch.object(strava_sync_service.strava_service, "unlink_account", return_value=False) as run:
             strava_sync_service.run_sync(_payload(UNLINK), states, rate_limits)
 
@@ -135,7 +136,7 @@ class TestRunSync:
 
     def test_a_link_is_never_run_as_a_sync_job_and_leaves_the_link_state_alone(self, states, rate_limits):
         link = strava_constants.SyncKind.LINK
-        states.begin(7, link)
+        states.begin(7, link, conflict="busy")
 
         with patch.object(strava_sync_service.strava_service, "unlink_account") as unlink, pytest.raises(ValueError):
             strava_sync_service.run_sync(_payload(link), states, rate_limits)
@@ -144,14 +145,14 @@ class TestRunSync:
         assert states.get(7, link).status == Status.QUEUED
 
     def test_a_gear_sync_for_an_unlinked_account_is_recorded_as_failed(self, states, rate_limits):
-        states.begin(7, GEAR)
+        states.begin(7, GEAR, conflict="busy")
         with patch.object(strava_sync_service.strava_gear_service, "get_user_gear", return_value=False):
             strava_sync_service.run_sync(_payload(GEAR), states, rate_limits)
 
         assert states.get(7, GEAR).status == Status.FAILED
 
     def test_a_rate_limit_fails_the_sync_without_raising_so_nothing_retries_into_it(self, states, rate_limits):
-        states.begin(7, GEAR)
+        states.begin(7, GEAR, conflict="busy")
         with patch.object(
             strava_sync_service.strava_gear_service,
             "get_user_gear",
@@ -162,7 +163,7 @@ class TestRunSync:
         assert states.get(7, GEAR).status == Status.FAILED
 
     def test_a_failure_a_worker_will_retry_keeps_the_claim_held(self, states, rate_limits):
-        states.begin(7, GEAR)
+        states.begin(7, GEAR, conflict="busy")
         with (
             patch.object(
                 strava_sync_service.strava_gear_service, "get_user_gear", side_effect=RuntimeError("transient")
@@ -172,10 +173,11 @@ class TestRunSync:
             strava_sync_service.run_sync(_payload(GEAR), states, rate_limits, will_retry=True)
 
         assert states.get(7, GEAR).status == Status.QUEUED
-        assert states.begin(7, GEAR) is False
+        with pytest.raises(core_exceptions.JobAlreadyRunningError):
+            states.begin(7, GEAR, conflict="busy")
 
     def test_a_last_failure_is_recorded_and_frees_the_claim(self, states, rate_limits):
-        states.begin(7, GEAR)
+        states.begin(7, GEAR, conflict="busy")
         with (
             patch.object(
                 strava_sync_service.strava_gear_service, "get_user_gear", side_effect=RuntimeError("permanent")
@@ -185,20 +187,20 @@ class TestRunSync:
             strava_sync_service.run_sync(_payload(GEAR), states, rate_limits, will_retry=False)
 
         assert states.get(7, GEAR).status == Status.FAILED
-        assert states.begin(7, GEAR) is True
+        states.begin(7, GEAR, conflict="busy")
 
 
 class TestDeadLetter:
     def test_a_pending_sync_is_closed_so_the_user_can_queue_another(self, states):
-        states.begin(7, GEAR)
+        states.begin(7, GEAR, conflict="busy")
 
         strava_sync_service.close_dead_lettered_sync(_payload(GEAR), states)
 
         assert states.get(7, GEAR).status == Status.FAILED
-        assert states.begin(7, GEAR) is True
+        states.begin(7, GEAR, conflict="busy")
 
     def test_a_finished_sync_is_left_as_it_is(self, states):
-        states.begin(7, GEAR)
+        states.begin(7, GEAR, conflict="busy")
         states.set_status(7, GEAR, Status.SUCCEEDED)
 
         strava_sync_service.close_dead_lettered_sync(_payload(GEAR), states)
@@ -206,19 +208,35 @@ class TestDeadLetter:
         assert states.get(7, GEAR).status == Status.SUCCEEDED
 
 
-class TestStatus:
-    def test_the_recorded_status_is_reported(self, states):
-        states.begin(7, GEAR)
+class TestReadSyncJob:
+    def test_the_current_job_reads_with_its_id_and_kind(self, states):
+        job = states.begin(7, GEAR, conflict="busy")
 
-        assert strava_sync_service.get_sync_status(7, GEAR, states).status == Status.QUEUED
+        read = strava_integration.read_sync_job(job, platform_runtime.get_state())
 
-    def test_an_unknown_sync_reads_as_none(self, states):
-        assert strava_sync_service.get_sync_status(7, UNLINK, states) is None
+        assert (read.id, read.kind, read.status) == (job.id, "strava_gear", Status.QUEUED)
 
-    def test_users_cannot_see_each_others_syncs(self, states):
-        states.begin(7, GEAR)
+    def test_a_finished_job_reads_with_its_outcome(self, states):
+        job = states.begin(7, UNLINK, conflict="busy")
+        states.set_status(7, UNLINK, Status.SUCCEEDED)
 
-        assert strava_sync_service.get_sync_status(8, GEAR, states) is None
+        read = strava_integration.read_sync_job(job, platform_runtime.get_state())
+
+        assert (read.kind, read.status) == ("strava_unlink", Status.SUCCEEDED)
+        assert read.finished_at is not None
+
+    def test_a_job_replaced_by_a_later_sync_of_its_subject_reads_as_none(self, states):
+        earlier = states.begin(7, GEAR, conflict="busy")
+        states.set_status(7, GEAR, Status.SUCCEEDED)
+        states.begin(7, GEAR, conflict="busy")
+
+        assert strava_integration.read_sync_job(earlier, platform_runtime.get_state()) is None
+
+    def test_an_expired_job_reads_as_none(self, states):
+        job = states.begin(7, GEAR, conflict="busy")
+        states.discard(7, GEAR)
+
+        assert strava_integration.read_sync_job(job, platform_runtime.get_state()) is None
 
 
 @pytest.fixture(autouse=False)

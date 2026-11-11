@@ -19,6 +19,7 @@ import core.blob_sweep as core_blob_sweep
 import core.config as core_config
 import core.database as core_database
 import core.exceptions as core_exceptions
+import core.job_status as core_job_status
 import core.logger as core_logger
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.identity_providers.constants as identity_providers_constants
@@ -29,6 +30,7 @@ import modules.users.users_profile.event_publishers as profile_event_publishers
 import modules.users.users_profile.events as profile_events
 import modules.users.users_profile.exceptions as profile_exceptions
 import modules.users.users_profile.export_state_store as profile_export_state_store
+import modules.users.users_profile.schema as profile_schema
 import modules.users.users_profile.service as profile_service
 import modules.users.users_profile.transfer_pool as profile_transfer_pool
 
@@ -47,7 +49,7 @@ def request_export(
     step_up_store: account_security_integration.StepUpStore,
     states: profile_export_state_store.ProfileExportStateStore,
     db: Session,
-) -> profile_export_state_store.ProfileExportState:
+) -> profile_schema.ProfileExportStatus:
     """Queue an export of the user's profile.
 
     The caller must prove their identity again first, so a stolen access token cannot take the account's data.
@@ -62,11 +64,11 @@ def request_export(
         db: Database session.
 
     Returns:
-        The export's initial state.
+        The export's initial status, with the id of the job that reads it.
 
     Raises:
         StepUpFailedError: If step-up verification fails.
-        ConflictError: When the user already has an export pending.
+        JobAlreadyRunningError: When the user already has an export pending.
         ServiceUnavailableError: When there is no durable worker and the in-process pool is full.
     """
     account_security_integration.verify_step_up(
@@ -74,11 +76,7 @@ def request_export(
     )
     if not core_config.settings.JOBS_ENABLED:
         profile_transfer_pool.pool.require_capacity()
-    if not states.begin(user_id):
-        logger.debug("Refused a second profile export while one is pending", extra=core_logger.context(user_id=user_id))
-        raise core_exceptions.JobAlreadyRunningError(
-            "A profile export is already in progress", status_route="read_profile_export_status"
-        )
+    job = states.begin(user_id, conflict="A profile export is already in progress")
 
     try:
         jasil_audit.stage(
@@ -95,7 +93,7 @@ def request_export(
         raise
 
     logger.info("Profile export queued", extra=core_logger.context(user_id=user_id))
-    return profile_export_state_store.ProfileExportState(status=_Status.QUEUED)
+    return export_status(job, profile_export_state_store.ProfileExportState(status=_Status.QUEUED))
 
 
 def fail_unstarted_export(
@@ -135,19 +133,27 @@ def close_dead_lettered_export(
     logger.error("A profile export was dead-lettered", extra=core_logger.context(user_id=payload.user_id))
 
 
-def get_export_status(
-    user_id: int, states: profile_export_state_store.ProfileExportStateStore
-) -> profile_export_state_store.ProfileExportState | None:
-    """Report where the user's profile export is.
+def export_status(
+    job: core_job_status.JobRef, state: profile_export_state_store.ProfileExportState
+) -> profile_schema.ProfileExportStatus:
+    """Build the status a client reads from a job and the recorded state of its export.
 
     Args:
-        user_id: The exporting user.
-        states: Shared store of the export's state.
+        job: The export job's reference.
+        state: The recorded state.
 
     Returns:
-        The export's state, or None when no export is recorded or it has expired.
+        The export's status.
     """
-    return states.get(user_id)
+    return profile_schema.ProfileExportStatus.model_validate(
+        {
+            **job.envelope(),
+            "status": state.status,
+            "error_code": state.error_code,
+            "size_bytes": state.size_bytes,
+            "expires_at": state.expires_at,
+        }
+    )
 
 
 def open_export(

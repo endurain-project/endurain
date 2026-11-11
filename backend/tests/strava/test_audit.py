@@ -74,7 +74,7 @@ class TestClientUpdate:
 
 
 def _run(states, *, exchange_error=None, stage_error=None):
-    states.begin(1, LINK)
+    states.begin(1, LINK, conflict="busy")
     client = MagicMock()
     client.exchange_code_for_token.return_value = {"access_token": "t"}
     if exchange_error:
@@ -207,7 +207,7 @@ class TestAccountUnlink:
         assert entry.details is None
 
     def test_with_durable_jobs_an_unlink_already_pending_never_commits_its_row(self, states, rate_limits):
-        states.begin(7, UNLINK)
+        states.begin(7, UNLINK, conflict="busy")
         db = MagicMock()
         with (
             self._settings(True),
@@ -220,7 +220,7 @@ class TestAccountUnlink:
         db.commit.assert_not_called()
 
     def test_without_durable_jobs_an_unlink_already_pending_is_not_audited(self, states, rate_limits):
-        states.begin(7, UNLINK)
+        states.begin(7, UNLINK, conflict="busy")
         with (
             self._settings(False),
             patch.object(strava_sync_service, "_sync_pool"),

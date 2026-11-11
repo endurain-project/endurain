@@ -22,7 +22,7 @@ def stores():
 
 def _link(stores, *, login=None, has_token=True, prompt_mfa=False):
     mfa_codes, link_states = stores
-    link_states.begin(1)
+    link_states.begin(1, conflict="busy")
     garmin = MagicMock()
     garmin.client.di_token = "enc" if has_token else None
 

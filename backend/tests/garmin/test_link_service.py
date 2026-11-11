@@ -7,11 +7,13 @@ import jasil.testing as jasil_testing
 import pytest
 from jasil.backends.state_memory import MemoryState
 
+import core.attempt_state as core_attempt_state
 import core.exceptions as core_exceptions
 import core.job_status as core_job_status
 import core.sync_runner as core_sync_runner
 import modules.garmin.audit_actions as garmin_audit_actions
 import modules.garmin.constants as garmin_constants
+import modules.garmin.integration_service as garmin_integration
 import modules.garmin.link_service as garmin_link_service
 import modules.garmin.link_state_store as link_state_store
 import modules.garmin.mfa_code_store as mfa_code_store
@@ -36,7 +38,7 @@ def _garmin(login=None, has_token=True):
 
 def _link(stores, garmin):
     mfa_codes, link_states = stores
-    link_states.begin(1)
+    _link.job = link_states.begin(1, conflict="busy")
     with (
         patch.object(garmin_link_service.websocket_integration, "push_job_changed") as push,
         patch.object(garmin_link_service.garminconnect, "Garmin", return_value=garmin) as factory,
@@ -57,22 +59,22 @@ class TestLinkTellsTheBrowser:
     def test_a_completed_link_is_announced_once(self, stores):
         _link(stores, _garmin())
 
-        _link.push.assert_called_once_with(1, "garmin-link")
+        _link.push.assert_called_once_with(1, _link.job.id, "garmin_link")
 
     def test_a_failed_link_is_announced_once(self, stores):
         _link(stores, _garmin(login=RuntimeError("boom")))
 
-        _link.push.assert_called_once_with(1, "garmin-link")
+        _link.push.assert_called_once_with(1, _link.job.id, "garmin_link")
 
     def test_asking_for_the_mfa_code_is_announced(self, stores):
         mfa_codes, link_states = stores
-        link_states.begin(1)
+        job = link_states.begin(1, conflict="busy")
         mfa_codes.add_code(1, "123456")
 
         with patch.object(garmin_link_service.websocket_integration, "push_job_changed") as push:
             garmin_link_service.wait_for_mfa_code(1, mfa_codes, link_states)
 
-        push.assert_called_once_with(1, "garmin-link")
+        push.assert_called_once_with(1, job.id, "garmin_link")
 
 
 class TestLinkGarminconnect:
@@ -144,7 +146,7 @@ class TestLinkGarminconnect:
 
     def test_an_mfa_timeout_is_an_incorrect_code_through_the_librarys_login_wrapping(self, stores):
         mfa_codes, link_states = stores
-        link_states.begin(1)
+        link_states.begin(1, conflict="busy")
 
         def client_login(_self, _email, _password, prompt_mfa=None, **_kwargs):
             prompt_mfa()
@@ -190,7 +192,7 @@ class TestLinkGarminconnect:
 class TestWaitForMfaCode:
     def test_the_prompt_is_the_shared_state_and_the_code_resumes_the_attempt(self, stores):
         mfa_codes, link_states = stores
-        link_states.begin(1)
+        link_states.begin(1, conflict="busy")
         states = []
         real_set = link_states.set_status
         link_states.set_status = lambda user_id, status, reason=None, *, mfa_required=False: (
@@ -204,7 +206,7 @@ class TestWaitForMfaCode:
 
     def test_no_code_in_time_raises_and_stays_waiting(self, stores):
         mfa_codes, link_states = stores
-        link_states.begin(1)
+        link_states.begin(1, conflict="busy")
 
         with (
             patch.object(garmin_constants, "MFA_WAIT_SECONDS", 2),
@@ -250,7 +252,7 @@ def test_a_refused_duplicate_link_takes_no_capacity(stores, blocked_pool, monkey
 
 class TestSubmitMfaCode:
     def test_a_code_is_taken_while_the_login_waits_for_it(self, stores):
-        stores[1].begin(1)
+        stores[1].begin(1, conflict="busy")
         stores[1].set_status(1, Status.RUNNING, mfa_required=True)
 
         garmin_link_service.submit_mfa_code(1, "123456", *stores)
@@ -258,7 +260,7 @@ class TestSubmitMfaCode:
         assert stores[0].get_code(1) == "123456"
 
     def test_a_code_with_no_login_waiting_is_a_conflict(self, stores):
-        stores[1].begin(1)
+        stores[1].begin(1, conflict="busy")
 
         with pytest.raises(core_exceptions.ConflictError):
             garmin_link_service.submit_mfa_code(1, "123456", *stores)
@@ -266,14 +268,35 @@ class TestSubmitMfaCode:
         assert stores[0].get_code(1) is None
 
 
-class TestLinkStatus:
-    def test_an_expired_attempt_reads_as_none(self, stores):
-        assert garmin_link_service.get_link_status(1, stores[1]) is None
+class TestReadLinkJob:
+    def test_a_job_reads_with_its_id_and_kind(self):
+        state = MemoryState()
+        store = link_state_store.GarminLinkStateStore(state=state)
+        job = store.begin(1, conflict="busy")
+        store.set_status(1, Status.RUNNING, mfa_required=True)
 
-    def test_a_recorded_attempt_is_reported(self, stores):
-        stores[1].begin(1)
+        read = garmin_integration.read_link_job(job, state)
 
-        assert garmin_link_service.get_link_status(1, stores[1]).status == Status.RUNNING
+        assert (read.id, read.kind, read.status, read.mfa_required) == (job.id, "garmin_link", Status.RUNNING, True)
+
+    def test_an_earlier_job_reads_as_gone_once_the_user_links_again(self):
+        state = MemoryState()
+        store = link_state_store.GarminLinkStateStore(state=state)
+        first = store.begin(1, conflict="busy")
+        store.set_status(1, Status.FAILED, garmin_constants.LinkFailure.INVALID_CREDENTIALS)
+        second = store.begin(1, conflict="busy")
+
+        assert garmin_integration.read_link_job(first, state) is None
+        assert garmin_integration.read_link_job(second, state).id == second.id
+
+    def test_an_expired_job_reads_as_gone(self):
+        state = MemoryState()
+        store = link_state_store.GarminLinkStateStore(state=state)
+        job = store.begin(1, conflict="busy")
+        store.release(1)
+        state.delete(core_attempt_state.key("garmin", "link:state", "1"))
+
+        assert garmin_integration.read_link_job(job, state) is None
 
 
 def test_a_link_that_cannot_start_releases_its_claim(stores):
@@ -285,7 +308,7 @@ def test_a_link_that_cannot_start_releases_its_claim(stores):
                 1, garmin_schema.GarminLogin(username="u", password="p"), mfa_codes, link_states
             )
 
-    assert link_states.begin(1) is True
+    link_states.begin(1, conflict="busy")
 
 
 def test_the_password_does_not_appear_in_the_login_repr():

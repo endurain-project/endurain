@@ -1,5 +1,6 @@
 """Tests for the users management router endpoints."""
 
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -33,6 +34,7 @@ def _app_client(mock_db, scopes: frozenset[str]) -> TestClient:
 
     app = FastAPI()
     app.include_router(router, prefix="/users")
+    app.add_api_route("/jobs/{job_id}", lambda job_id: None, name="read_job")
     core_exceptions.register_exception_handlers(app)
     app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
     app.dependency_overrides[auth_dependencies.get_sub_from_access_token] = lambda: 9
@@ -537,14 +539,18 @@ class TestDeleteUserPhoto:
 class TestDeleteUser:
     @patch("modules.users.users.router.users_deletion_job_service.request_deletion_by_administrator")
     def test_queues_the_deletion(self, mock_request, client, mock_db):
-        mock_request.return_value = users_schema.UserDeletionStatus(status="queued")
+        mock_request.return_value = users_schema.UserDeletionStatus(
+            id="job-1", kind="user_deletion", created_at=datetime(2026, 1, 1, tzinfo=UTC), status="queued"
+        )
 
         response = client.post("/users/1/delete", json={"step_up": _STEP_UP}, headers={"If-Match": '"3"'})
 
         assert response.status_code == 202
+        assert response.headers["Content-Location"] == "/jobs/job-1"
         assert response.json() == {
-            "id": None,
-            "created_at": None,
+            "id": "job-1",
+            "kind": "user_deletion",
+            "created_at": "2026-01-01T00:00:00Z",
             "finished_at": None,
             "error_code": None,
             "status": "queued",
@@ -631,30 +637,9 @@ class TestUnlinkUserIdentityProvider:
         assert client.post("/users/4/identity-providers/2/unlink", json={"step_up": {}}).status_code == 403
 
 
-class TestReadUserDeletionStatus:
-    @patch("modules.users.users.router.users_deletion_job_service.get_deletion_status")
-    def test_reports_the_status(self, mock_status, client):
-        mock_status.return_value = users_schema.UserDeletionStatus(status="running")
-
-        response = client.get("/users/1/deletion")
-
-        assert response.status_code == 200
-        assert response.json() == {
-            "id": None,
-            "created_at": None,
-            "finished_at": None,
-            "error_code": None,
-            "status": "running",
-        }
-
-    @patch("modules.users.users.router.users_deletion_job_service.get_deletion_status")
-    def test_none_recorded_is_null(self, mock_status, client):
-        mock_status.return_value = None
-
-        response = client.get("/users/1/deletion")
-
-        assert response.status_code == 200
-        assert response.json() is None
+class TestDeletionStatusRouteIsGone:
+    def test_the_status_read_moved_to_the_jobs_route(self, client):
+        assert client.get("/users/1/deletion").status_code in (404, 405)
 
 
 class TestReadUserIdentityProviders:

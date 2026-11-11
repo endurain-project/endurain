@@ -3,9 +3,9 @@
 A ``201`` that carries the new resource still leaves the client to build its URL; ``Location`` (RFC 9110
 §10.2.2) states it. It is set only where a GET-by-id route exists to point at.
 
-A ``202`` answers only "queued". ``Content-Location`` (RFC 9110 §8.7) names the status resource the client
-polls and ``Retry-After`` (RFC 9110 §10.2.3) says in seconds when to poll. The status read repeats
-``Retry-After`` while the work is not finished.
+A ``202`` answers only "queued". ``Content-Location`` (RFC 9110 §8.7) names the job the client polls,
+``GET /jobs/{job_id}``, and ``Retry-After`` (RFC 9110 §10.2.3) says in seconds when to poll. The job read
+repeats ``Retry-After`` while the work is not finished.
 """
 
 from typing import Any
@@ -14,13 +14,13 @@ from fastapi import Request, Response
 
 import core.job_status as core_job_status
 
-#: The OpenAPI declaration of a ``202`` that names its status resource, for a route's ``responses``.
+#: The OpenAPI declaration of a ``202`` that names the job it started, for a route's ``responses``.
 ACCEPTED_RESPONSE: dict[int | str, dict[str, Any]] = {
     202: {
-        "description": "Accepted. The work runs in the background and `Content-Location` names where to poll it.",
+        "description": "Accepted. The work runs in the background as a job; `Content-Location` names where to poll it.",
         "headers": {
             "Content-Location": {
-                "description": "Path of the status resource to poll for the outcome.",
+                "description": "Path of the job to poll for the outcome, `/jobs/{job_id}`.",
                 "schema": {"type": "string"},
             },
             "Retry-After": {
@@ -56,7 +56,7 @@ def set_location(response: Response, request: Request, route_name: str, **path_p
 
 
 def set_retry_after(response: Response, seconds: int) -> None:
-    """Send how long a client waits before it polls a status resource.
+    """Send how long a client waits before it polls a job.
 
     Args:
         response: The response of the route.
@@ -65,21 +65,18 @@ def set_retry_after(response: Response, seconds: int) -> None:
     response.headers["Retry-After"] = str(seconds)
 
 
-def set_status_location(
-    response: Response, request: Request, route_name: str, retry_after: int, **path_params: Any
-) -> None:
-    """Name the status resource of a ``202`` and say when to poll it.
+def set_job_location(response: Response, request: Request, job_id: str, retry_after: int) -> None:
+    """Name the job a ``202`` started and say when to poll it.
 
-    The value is a path, for the reason given on :func:`set_location`.
+    ``Content-Location`` is the path of ``GET /jobs/{job_id}``, for the reason given on :func:`set_location`.
 
     Args:
         response: The response of the route that answers ``202``.
         request: The request, which resolves the route's path.
-        route_name: The name of the route that reads the status.
+        job_id: The id of the job the route started.
         retry_after: Seconds before the first poll.
-        **path_params: The route's path parameters.
     """
-    response.headers["Content-Location"] = request.url_for(route_name, **path_params).path
+    response.headers["Content-Location"] = request.url_for(core_job_status.JOB_ROUTE, job_id=job_id).path
     set_retry_after(response, retry_after)
 
 
@@ -87,7 +84,7 @@ def set_retry_after_while_running(response: Response, status: core_job_status.Jo
     """Ask for another poll unless the status read reports the work is over.
 
     Args:
-        response: The response of the status route.
+        response: The response of the job read.
         status: The status the read reports.
         seconds: The wait before the next poll.
     """

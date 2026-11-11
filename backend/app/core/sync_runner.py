@@ -137,35 +137,31 @@ def run_recorded(
 
 
 def start_claimed(
-    claim: Callable[[], bool],
-    conflict: str,
+    claim: Callable[[], core_job_status.JobRef],
     start: Callable[[], object],
     release: Callable[[], None],
-    *,
-    status_route: str,
-    status_params: dict[str, str] | None = None,
-) -> None:
+) -> core_job_status.JobRef:
     """Take a claim and start the work it guards, giving the claim back when the work never started.
 
     Args:
-        claim: Takes the claim; False when the work is already pending.
-        conflict: The detail of the error for a claim already taken.
+        claim: Takes the claim and returns the new job; raises when the work is already pending.
         start: Hands the work to a worker or a pool.
         release: Gives the claim back.
-        status_route: The name of the route that reads the status of the work holding the claim.
-        status_params: The path parameters of that route.
+
+    Returns:
+        The started job's reference.
 
     Raises:
         JobAlreadyRunningError: When the claim is already taken.
     """
-    if not claim():
-        raise core_exceptions.JobAlreadyRunningError(conflict, status_route=status_route, status_params=status_params)
+    job = claim()
     try:
         start()
     except BaseException:
         # The work never started, so nothing else would release its claim.
         release()
         raise
+    return job
 
 
 def queue_sync(
@@ -177,8 +173,7 @@ def queue_sync(
     durable: bool,
     publish: Callable[[], None],
     submit: Callable[[], object],
-    status_route: str,
-) -> None:
+) -> core_job_status.JobRef:
     """Claim a sync and hand it to a durable worker, or to the in-process pool without durable jobs.
 
     Args:
@@ -189,18 +184,17 @@ def queue_sync(
         durable: Whether a durable worker takes the sync.
         publish: Stages the work for a durable worker.
         submit: Submits the work to the in-process pool.
-        status_route: The name of the route that reads a sync's status by ``kind``.
+
+    Returns:
+        The queued sync's job reference.
 
     Raises:
         JobAlreadyRunningError: When a sync of this kind is already pending for the user.
     """
-    start_claimed(
-        lambda: states.begin(user_id, kind),
-        f"A {label} {kind.value} sync is already in progress",
+    return start_claimed(
+        lambda: states.begin(user_id, kind, conflict=f"A {label} {kind.value} sync is already in progress"),
         publish if durable else submit,
         lambda: states.set_status(user_id, kind, _Status.FAILED),
-        status_route=status_route,
-        status_params={"kind": kind.value},
     )
 
 

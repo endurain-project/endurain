@@ -49,6 +49,7 @@ import modules.health.health_steps.router as health_steps_router
 import modules.health.health_targets.router as health_targets_router
 import modules.health.health_water.router as health_water_router
 import modules.health.health_weight.router as health_weight_router
+import modules.jobs.router as jobs_router
 import modules.notifications.router as notifications_router
 import modules.server_settings.logs_router as server_settings_logs_router
 import modules.server_settings.public_router as server_settings_public_router
@@ -113,6 +114,7 @@ OPENAPI_TAGS = [
     {"name": "health_targets", "description": "Health targets of the signed-in user."},
     {"name": "health_water", "description": "Water intake records."},
     {"name": "health_weight", "description": "Weight and body composition records."},
+    {"name": "jobs", "description": "Background jobs: read one by id or list your own."},
     {"name": "identity_providers", "description": "Administration of SSO identity providers."},
     {"name": "identity_providers_public", "description": "Public SSO sign-in flow and provider icons."},
     {"name": "notifications", "description": "Notifications of the signed-in user."},
@@ -268,6 +270,11 @@ router.include_router(
     prefix=core_config.ROOT_PATH + "/profile/follow-requests",
     tags=["followers"],
     dependencies=[Depends(auth_dependencies.validate_access_token)],
+)
+router.include_router(
+    jobs_router.router,
+    prefix=core_config.ROOT_PATH + "/jobs",
+    tags=["jobs"],
 )
 router.include_router(
     garmin_router.router,

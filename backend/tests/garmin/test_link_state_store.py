@@ -7,6 +7,7 @@ from jasil.backends.state_memory import MemoryState
 from jasil.providers import StateBackendUnavailableError
 
 import core.attempt_state as core_attempt_state
+import core.exceptions as core_exceptions
 import core.job_status as core_job_status
 import modules.garmin.constants as garmin_constants
 import modules.garmin.link_state_store as link_state_store
@@ -23,50 +24,53 @@ class TestBegin:
     def test_a_first_attempt_starts_running(self):
         store = _store()
 
-        assert store.begin(1) is True
+        store.begin(1, conflict="busy")
         assert store.get(1) == link_state_store.LinkState(status=Status.RUNNING)
 
     def test_an_attempt_in_progress_blocks_another(self):
         store = _store()
-        store.begin(1)
+        store.begin(1, conflict="busy")
 
-        assert store.begin(1) is False
+        with pytest.raises(core_exceptions.JobAlreadyRunningError):
+            store.begin(1, conflict="busy")
 
     def test_an_attempt_waiting_for_mfa_still_blocks_another(self):
         store = _store()
-        store.begin(1)
+        store.begin(1, conflict="busy")
         store.set_status(1, Status.RUNNING, mfa_required=True)
 
-        assert store.begin(1) is False
+        with pytest.raises(core_exceptions.JobAlreadyRunningError):
+            store.begin(1, conflict="busy")
 
     def test_a_failed_attempt_can_be_retried(self):
         store = _store()
-        store.begin(1)
+        store.begin(1, conflict="busy")
         store.set_status(1, Status.FAILED, Failure.INVALID_CREDENTIALS)
 
-        assert store.begin(1) is True
+        store.begin(1, conflict="busy")
         assert store.get(1) == link_state_store.LinkState(status=Status.RUNNING)
 
     def test_a_completed_attempt_can_be_repeated(self):
         store = _store()
-        store.begin(1)
+        store.begin(1, conflict="busy")
         store.set_status(1, Status.SUCCEEDED)
 
-        assert store.begin(1) is True
+        store.begin(1, conflict="busy")
 
     def test_the_claim_holds_even_when_the_state_entry_is_gone(self):
         state = MemoryState()
         store = link_state_store.GarminLinkStateStore(state=state)
-        store.begin(1)
+        store.begin(1, conflict="busy")
         state.delete(core_attempt_state.key("garmin", "link:state", "1"))
 
-        assert store.begin(1) is False
+        with pytest.raises(core_exceptions.JobAlreadyRunningError):
+            store.begin(1, conflict="busy")
 
     def test_users_do_not_block_each_other(self):
         store = _store()
-        store.begin(1)
+        store.begin(1, conflict="busy")
 
-        assert store.begin(2) is True
+        store.begin(2, conflict="busy")
 
 
 class TestState:
@@ -75,7 +79,7 @@ class TestState:
 
     def test_a_failure_carries_its_error_code(self):
         store = _store()
-        store.begin(1)
+        store.begin(1, conflict="busy")
 
         store.set_status(1, Status.FAILED, Failure.INCORRECT_MFA)
 
@@ -95,15 +99,15 @@ def test_a_claim_is_not_left_behind_when_the_pending_state_cannot_be_written():
         patch.object(state, "set", side_effect=StateBackendUnavailableError("down")),
         pytest.raises(core_attempt_state.StateUnavailableError),
     ):
-        store.begin(1)
+        store.begin(1, conflict="busy")
 
-    assert store.begin(1) is True
+    store.begin(1, conflict="busy")
 
 
 def test_progress_renews_the_claim():
     state = MemoryState()
     store = link_state_store.GarminLinkStateStore(state=state, ttl_seconds=60)
-    store.begin(1)
+    store.begin(1, conflict="busy")
     with patch.object(state, "set") as write:
         store.set_status(1, Status.RUNNING, mfa_required=True)
 

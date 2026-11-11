@@ -59,16 +59,16 @@ class SyncKind(StrEnum):
 SYNC_POLL_SECONDS: dict[SyncKind, int] = {SyncKind.LINK: 2, SyncKind.GEAR: 5, SyncKind.UNLINK: 5}
 
 
-def job_name(kind: SyncKind) -> str:
-    """Name a queued sync in the realtime hints; the web client follows the same names.
+def job_kind(kind: SyncKind) -> str:
+    """Name the job kind of a queued sync.
 
     Args:
         kind: What the sync does.
 
     Returns:
-        The job name, such as ``strava:link``.
+        The job kind, such as ``strava_link``.
     """
-    return f"{PROVIDER_NAME}:{kind.value}"
+    return f"{PROVIDER_NAME}_{kind.value}"
 
 
 #: Where a queued sync is; shared by every provider's sync state.

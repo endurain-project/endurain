@@ -36,26 +36,11 @@ import modules.users.users_profile.constants as profile_constants
 import modules.users.users_profile.dependencies as profile_dependencies
 import modules.users.users_profile.export_job_service as profile_export_job_service
 import modules.users.users_profile.import_job_service as profile_import_job_service
-import modules.users.users_profile.import_state_store as profile_import_state_store
 import modules.users.users_profile.schema as profile_schema
 import modules.users.users_profile.service as profile_service
 
 # Define the API router
 router = APIRouter()
-
-
-def _import_status(state: profile_import_state_store.ProfileImportState) -> profile_schema.ProfileImportStatus:
-    """Build the status a client reads from the recorded state of an import.
-
-    Args:
-        state: The recorded state.
-
-    Returns:
-        The status, whose two running phases both read ``running``.
-    """
-    return profile_schema.ProfileImportStatus(
-        status=state.status.job_state, error_code=state.error_code, imported=state.imported
-    )
 
 
 @router.get(
@@ -476,11 +461,11 @@ def export_profile_data(
 
     Requires step-up verification: the current password (or, for an account without one, a fresh
     identity-provider sign-in), and an MFA code when MFA is enabled. A worker builds the archive;
-    poll ``GET /profile/export`` for the outcome and fetch it from ``GET /profile/export/download``.
+    poll ``GET /jobs/{job_id}`` for the outcome and fetch it from ``GET /profile/export/download``.
 
     Args:
         request: The incoming request, read by the rate limiter.
-        response: The response, which names the status route and when to poll it.
+        response: The response, which names the job and when to poll it.
         body: The step-up verification.
         token_user_id: User ID from access token.
         token_session_id: Session ID from access token.
@@ -489,45 +474,13 @@ def export_profile_data(
         db: Database session.
 
     Returns:
-        The queued export's state.
+        The queued export's status.
     """
-    state = profile_export_job_service.request_export(
+    queued = profile_export_job_service.request_export(
         token_user_id, token_session_id, body.step_up, step_up_store, export_states, db
     )
-    core_location.set_status_location(
-        response, request, "read_profile_export_status", profile_constants.EXPORT_POLL_SECONDS
-    )
-    return profile_schema.ProfileExportStatus.model_validate(state)
-
-
-@router.get(
-    "/export",
-    response_model=profile_schema.ProfileExportStatus | None,
-    responses={200: {"headers": core_location.POLLED_STATUS_HEADERS}},
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:export"])],
-)
-def read_profile_export_status(
-    token_user_id: auth_dependencies.CurrentUserId,
-    export_states: profile_dependencies.ProfileExportStateStoreDep,
-    response: Response,
-) -> profile_schema.ProfileExportStatus | None:
-    """Report where the authenticated user's profile export is.
-
-    ``Retry-After`` says when to poll again while the export is not finished.
-
-    Args:
-        token_user_id: User ID from access token.
-        export_states: Shared store of the export's state.
-        response: The response, which carries ``Retry-After`` while the export runs.
-
-    Returns:
-        The export's state, or None when no export is recorded.
-    """
-    state = profile_export_job_service.get_export_status(token_user_id, export_states)
-    if state is None:
-        return None
-    core_location.set_retry_after_while_running(response, state.status, profile_constants.EXPORT_POLL_SECONDS)
-    return profile_schema.ProfileExportStatus.model_validate(state)
+    core_location.set_job_location(response, request, queued.id, profile_constants.EXPORT_POLL_SECONDS)
+    return queued
 
 
 @router.get(
@@ -592,12 +545,12 @@ def import_profile_data(
 ) -> profile_schema.ProfileImportStatus:
     """Queue a profile import from a ZIP archive.
 
-    The archive is validated and staged, and a worker imports it; poll ``GET /profile/import`` for
+    The archive is validated and staged, and a worker imports it; poll ``GET /jobs/{job_id}`` for
     the outcome. The database part is all-or-nothing, so a failed import leaves nothing behind.
 
     Args:
         request: The incoming request, read by the rate limiter.
-        response: The response, which names the status route and when to poll it.
+        response: The response, which names the job and when to poll it.
         file: ZIP file containing profile data.
         token_user_id: User ID from access token.
         import_states: Shared store of the import's state.
@@ -605,47 +558,14 @@ def import_profile_data(
         db: Database session.
 
     Returns:
-        The queued import's state.
+        The queued import's status.
     """
-    state = profile_import_job_service.request_import(
+    queued = profile_import_job_service.request_import(
         token_user_id,
         partial(core_file_uploads.save_validated_upload_sync, file),
         import_states,
         storage,
         db,
     )
-    core_location.set_status_location(
-        response, request, "read_profile_import_status", profile_constants.IMPORT_POLL_SECONDS
-    )
-    return _import_status(state)
-
-
-@router.get(
-    "/import",
-    response_model=profile_schema.ProfileImportStatus | None,
-    responses={200: {"headers": core_location.POLLED_STATUS_HEADERS}},
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:export"])],
-)
-def read_profile_import_status(
-    token_user_id: auth_dependencies.CurrentUserId,
-    import_states: profile_dependencies.ProfileImportStateStoreDep,
-    response: Response,
-) -> profile_schema.ProfileImportStatus | None:
-    """Report where the authenticated user's profile import is.
-
-    ``Retry-After`` says when to poll again while the import is not finished.
-
-    Args:
-        token_user_id: User ID from access token.
-        import_states: Shared store of the import's state.
-        response: The response, which carries ``Retry-After`` while the import runs.
-
-    Returns:
-        The import's state, or None when no import is recorded.
-    """
-    state = profile_import_job_service.get_import_status(token_user_id, import_states)
-    if state is None:
-        return None
-    status = _import_status(state)
-    core_location.set_retry_after_while_running(response, status.status, profile_constants.IMPORT_POLL_SECONDS)
-    return status
+    core_location.set_job_location(response, request, queued.id, profile_constants.IMPORT_POLL_SECONDS)
+    return queued

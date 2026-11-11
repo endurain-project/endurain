@@ -171,7 +171,7 @@ class TestIdempotencyKey:
 
         job = _accept(factory, storage, archive, key="key-1")
 
-        assert job.kind is ingestion_constants.IngestionJobKind.BULK_IMPORT
+        assert job.kind == "activity_bulk_import"
 
     def test_two_requests_racing_with_the_same_key_return_the_winner(self, tmp_path, factory, storage):
         """Both passed the lookup; the unique key decides, and the loser answers with the winner's job."""
@@ -200,8 +200,7 @@ class TestTheRefusalNamesTheRunningJob:
         with pytest.raises(core_exceptions.JobAlreadyRunningError) as refused:
             _accept(factory, storage, archive)
 
-        assert refused.value.status_route == ingestion_constants.JOB_STATUS_ROUTE
-        assert refused.value.status_params == {"job_id": first.id}
+        assert refused.value.job_id == first.id
         assert refused.value.extensions == {"job_id": first.id}
         assert refused.value.status_code == 409 and refused.value.code == "conflict"
 

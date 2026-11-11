@@ -1,5 +1,7 @@
 """Garmin Connect request and response shapes."""
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 import core.job_status as core_job_status
@@ -36,11 +38,13 @@ class GarminLinkStatus(core_job_status.JobStatus):
     """Where a Garmin Connect link attempt is.
 
     Attributes:
+        kind: Always ``garmin_link``.
         mfa_required: ``true`` while the login waits for a code the user submits through ``POST /garmin/mfa``;
             ``status`` is ``running`` then.
         error_code: Why the attempt failed; set only when ``status`` is ``failed``.
     """
 
+    kind: Literal["garmin_link"]
     mfa_required: bool = Field(default=False, description="The login waits for an MFA code")
     error_code: garmin_constants.LinkFailure | None = Field(default=None, description="Why the attempt failed")
 
@@ -49,7 +53,7 @@ class GarminSyncStatus(core_job_status.JobStatus):
     """Where a queued Garmin Connect gear or health sync is.
 
     Attributes:
-        kind: What the sync pulls.
+        kind: What the sync pulls, as its job kind.
     """
 
-    kind: garmin_constants.SyncKind
+    kind: Literal["garmin_sync_gear", "garmin_sync_health"]

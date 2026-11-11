@@ -1,7 +1,7 @@
 """Strava account linking: the state is single-use and the caller's, the exchange runs off the request."""
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import jasil.runtime as platform_runtime
 import pytest
@@ -74,7 +74,7 @@ class TestStartLink:
         result, error = _start(oauth_states, states)
 
         assert error is None
-        assert result == strava_schema.StravaSyncStatus(kind=LINK, status=Status.QUEUED)
+        assert (result.kind, result.status) == ("strava_link", Status.QUEUED)
         assert states.get(1, LINK).status == Status.QUEUED
         pool.submit.assert_called_once_with(strava_link_service.run_link, 1, "c", states)
 
@@ -137,11 +137,12 @@ class TestStartLink:
         assert states.get(1, LINK) is None
 
     def test_a_link_already_running_is_a_conflict(self, oauth_states, states, pool):
-        _start(oauth_states, states)
+        first, _error = _start(oauth_states, states)
 
         _result, error = _start(oauth_states, states)
 
-        assert isinstance(error, core_exceptions.ConflictError)
+        assert isinstance(error, core_exceptions.JobAlreadyRunningError)
+        assert error.job_id == first.id
         pool.submit.assert_called_once()
 
     def test_a_full_pool_is_refused_before_the_state_is_used_up(self, oauth_states, states, pool):
@@ -160,11 +161,11 @@ class TestStartLink:
 
         assert isinstance(error, core_local_pool.PoolFullError)
         assert states.get(1, LINK).status == Status.FAILED
-        assert states.begin(1, LINK) is True
+        states.begin(1, LINK, conflict="busy")
 
 
 def _run(states, *, exchange_error=None):
-    states.begin(1, LINK)
+    states.begin(1, LINK, conflict="busy")
     integrations = SimpleNamespace(strava_client_id="123", strava_client_secret="stored")
     client = MagicMock()
     client.exchange_code_for_token.return_value = {"access_token": "t"}
@@ -194,7 +195,7 @@ class TestRunLinkTellsTheBrowser:
         with patch.object(strava_sync_state_store.websocket_integration, "push_job_changed") as push:
             _run(states, exchange_error=exchange_error)
 
-        push.assert_called_once_with(1, "strava:link")
+        push.assert_called_once_with(1, ANY, "strava_link")
 
 
 class TestRunLink:
@@ -211,4 +212,4 @@ class TestRunLink:
         link.assert_not_called()
         db.commit.assert_not_called()
         assert states.get(1, LINK).status == Status.FAILED
-        assert states.begin(1, LINK) is True
+        states.begin(1, LINK, conflict="busy")

@@ -3,7 +3,7 @@
 from datetime import date as datetime_date
 from datetime import datetime
 from enum import Enum, StrEnum
-from typing import Annotated
+from typing import Annotated, Literal
 from zoneinfo import available_timezones
 
 from pydantic import (
@@ -912,3 +912,5 @@ class ProfileUpdate(core_partial_update.NotClearable, BaseModel):
 
 class UserDeletionStatus(core_job_status.JobStatus):
     """Where a queued account deletion is."""
+
+    kind: Literal["user_deletion"]

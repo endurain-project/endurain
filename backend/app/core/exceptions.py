@@ -39,6 +39,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+import core.job_status as core_job_status
 import core.logger as core_logger
 import core.middleware_request_id as core_middleware_request_id
 import core.problem_details as core_problem_details
@@ -322,34 +323,24 @@ class IssuerLockedError(ConflictError):
 class JobAlreadyRunningError(ConflictError):
     """A start route refused a second run of work that is still running.
 
-    Renders as the same ``409`` and ``conflict`` problem as :class:`ConflictError`, plus a ``Content-Location``
-    header naming the status resource of the run in progress and, when that run has an id, a ``job_id`` member,
-    so a client that lost the ``202`` of the first request can pick the run up again.
+    Renders as the same ``409`` and ``conflict`` problem as :class:`ConflictError`, plus, when the running job
+    can be named, a ``Content-Location`` header pointing at ``GET /jobs/{job_id}`` and a ``job_id`` member, so a
+    client that lost the ``202`` of the first request can pick the run up again.
 
     Attributes:
-        status_route: The name of the route that reads the running work's status.
-        status_params: The path parameters of that route.
+        job_id: The id of the running job, or None when it cannot be named.
     """
 
-    def __init__(
-        self,
-        detail: str | None = None,
-        *,
-        status_route: str,
-        status_params: dict[str, str] | None = None,
-        job_id: str | None = None,
-    ) -> None:
-        """Initialise the error with the status resource of the work in progress.
+    def __init__(self, detail: str | None = None, *, job_id: str | None) -> None:
+        """Initialise the error with the job in progress.
 
         Args:
             detail: Message returned to the client.
-            status_route: The name of the route that reads the running work's status.
-            status_params: The path parameters of that route.
-            job_id: The id of the running job, for work that has one.
+            job_id: The id of the running job, or None when it cannot be named (it finished meanwhile, or the
+                previous release started it).
         """
         super().__init__(detail)
-        self.status_route = status_route
-        self.status_params = status_params or {}
+        self.job_id = job_id
         if job_id is not None:
             self.extensions = {"job_id": job_id}
 
@@ -569,8 +560,8 @@ async def domain_error_handler(request: Request, exc: DomainError) -> JSONRespon
         # Rendered when the response is built, so the seconds count from the moment the client is told.
         seconds = max(0, math.ceil((exc.retry_at - datetime.now(UTC)).total_seconds()))
         headers = {**(headers or {}), "Retry-After": str(seconds)}
-    if isinstance(exc, JobAlreadyRunningError):
-        location = request.url_for(exc.status_route, **exc.status_params).path
+    if isinstance(exc, JobAlreadyRunningError) and exc.job_id is not None:
+        location = request.url_for(core_job_status.JOB_ROUTE, job_id=exc.job_id).path
         headers = {**(headers or {}), "Content-Location": location}
 
     return build_problem_response(

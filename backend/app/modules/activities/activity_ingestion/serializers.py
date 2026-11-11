@@ -21,7 +21,7 @@ def to_read_schema(
     """
     return activity_ingestion_schema.ActivityIngestionJobRead(
         id=orm_job.id,
-        kind=activity_ingestion_constants.IngestionJobKind(orm_job.kind),
+        kind=activity_ingestion_constants.IngestionJobKind(orm_job.kind).job_kind,
         filename=orm_job.filename,
         import_source=orm_job.import_source,
         files_total=orm_job.files_total,

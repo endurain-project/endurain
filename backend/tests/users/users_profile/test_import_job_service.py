@@ -61,7 +61,7 @@ def _payload(user_id: int = 1, key: str | None = None) -> profile_events.Profile
 
 
 def _queued(states, user_id: int = 1) -> None:
-    states.begin(user_id)
+    states.begin(user_id, conflict="held")
 
 
 def _run(states, storage, importer, *, will_retry=False, payload=None):
@@ -116,10 +116,10 @@ class TestRequestImport:
         assert states.get(7).status == _Status.QUEUED
 
     def test_a_pending_import_refuses_a_second_and_stages_nothing(self, states, storage, mock_db):
-        states.begin(7)
+        states.begin(7, conflict="held")
 
         saver = MagicMock()
-        with pytest.raises(core_exceptions.ConflictError):
+        with pytest.raises(core_exceptions.JobAlreadyRunningError):
             job_service.request_import(7, saver, states, storage, mock_db)
 
         saver.assert_not_called()
@@ -143,7 +143,7 @@ class TestRequestImport:
         storage.save_stream.assert_not_called()
         storage.delete.assert_not_called()
         assert states.get(7) is None
-        assert states.begin(7) is True
+        states.begin(7, conflict="held")
 
     def test_a_failure_to_queue_removes_the_archive_and_closes_the_state(self, states, storage, mock_db):
         with (
@@ -154,17 +154,7 @@ class TestRequestImport:
 
         storage.delete.assert_called_once()
         assert states.get(7).status == _Status.FAILED
-        assert states.begin(7) is True
-
-
-class TestGetImportStatus:
-    def test_returns_the_state(self, states):
-        states.begin(1)
-
-        assert job_service.get_import_status(1, states).status == _Status.QUEUED
-
-    def test_unknown_is_none(self, states):
-        assert job_service.get_import_status(1, states) is None
+        states.begin(7, conflict="held")
 
 
 class TestRunImport:
@@ -176,7 +166,7 @@ class TestRunImport:
         state = states.get(1)
         assert (state.status, state.imported) == (_Status.SUCCEEDED, {"activities": 3})
         storage.delete.assert_called_once_with(_AREA, "1/abc.zip")
-        assert states.begin(1) is True
+        states.begin(1, conflict="held")
 
     def test_it_reads_the_archive_the_event_names(self, states, storage):
         _queued(states)
@@ -409,14 +399,14 @@ class TestCloseDeadLetteredImport:
         ],
     )
     def test_a_pending_import_is_failed_with_the_reason_its_state_implies(self, states, storage, status, failure):
-        states.begin(1)
+        states.begin(1, conflict="held")
         states.set_status(1, status)
 
         job_service.close_dead_lettered_import(_payload(1), states, storage)
 
         assert states.get(1).status == _Status.FAILED
         assert states.get(1).error_code == failure
-        assert states.begin(1) is True
+        states.begin(1, conflict="held")
 
     def test_the_staged_archive_is_always_removed(self, states, storage):
         job_service.close_dead_lettered_import(_payload(1), states, storage)
@@ -424,7 +414,7 @@ class TestCloseDeadLetteredImport:
         storage.delete.assert_called_once_with(_AREA, "1/abc.zip")
 
     def test_an_import_that_already_finished_keeps_its_outcome(self, states, storage):
-        states.begin(1)
+        states.begin(1, conflict="held")
         states.set_status(1, _Status.SUCCEEDED)
 
         job_service.close_dead_lettered_import(_payload(1), states, storage)

@@ -8,15 +8,20 @@ instead of importing this module.
 from datetime import datetime
 
 import jasil.runtime as platform_runtime
+from jasil.providers import StateProvider
 
+import core.job_status as core_job_status
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.garmin.activity_service as garmin_activity_service
 import modules.garmin.constants as garmin_constants
 import modules.garmin.link_service as garmin_link_service
+import modules.garmin.link_state_store as garmin_link_state_store
 import modules.garmin.rate_limit_store as garmin_rate_limit_store
+import modules.garmin.schema as garmin_schema
 import modules.garmin.service as garmin_service
 import modules.garmin.sync_service as garmin_sync_service
+import modules.garmin.sync_state_store as garmin_sync_state_store
 
 
 def _fetch_window(
@@ -51,3 +56,44 @@ def shutdown_pools() -> None:
     """Stop the Garmin Connect link and sync pools."""
     garmin_link_service.shutdown_link_pool()
     garmin_sync_service.shutdown_sync_pool()
+
+
+def read_link_job(job: core_job_status.JobRef, state: StateProvider) -> garmin_schema.GarminLinkStatus | None:
+    """Read the status of a Garmin Connect link job.
+
+    Args:
+        job: The job's reference.
+        state: The platform state provider.
+
+    Returns:
+        The job's status, or None when its record is gone or belongs to a later attempt.
+    """
+    found = garmin_link_state_store.GarminLinkStateStore(state).read_job(job)
+    if found is None:
+        return None
+    current, link_state = found
+    return garmin_schema.GarminLinkStatus.model_validate(
+        {
+            **current.envelope(),
+            "status": link_state.status,
+            "mfa_required": link_state.mfa_required,
+            "error_code": link_state.error_code,
+        }
+    )
+
+
+def read_sync_job(job: core_job_status.JobRef, state: StateProvider) -> garmin_schema.GarminSyncStatus | None:
+    """Read the status of a Garmin Connect gear or health sync job.
+
+    Args:
+        job: The job's reference.
+        state: The platform state provider.
+
+    Returns:
+        The job's status, or None when its record is gone or belongs to a later sync.
+    """
+    found = garmin_sync_state_store.GarminSyncStateStore(state).read_job(job)
+    if found is None:
+        return None
+    current, sync_state = found
+    return garmin_schema.GarminSyncStatus.model_validate({**current.envelope(), "status": sync_state.status})

@@ -205,17 +205,12 @@ def _already_running(running_id: str | None) -> core_exceptions.ConflictError:
         running_id: The running import's job id, or ``None`` when it finished after the refusal was decided.
 
     Returns:
-        A conflict that carries the running job's id and status route, or a plain one without an id.
+        A conflict that carries the running job's id, or a plain one without an id.
     """
     detail = "A bulk import is already running"
     if running_id is None:
         return core_exceptions.ConflictError(detail)
-    return core_exceptions.JobAlreadyRunningError(
-        detail,
-        status_route=activity_ingestion_constants.JOB_STATUS_ROUTE,
-        status_params={"job_id": running_id},
-        job_id=running_id,
-    )
+    return core_exceptions.JobAlreadyRunningError(detail, job_id=running_id)
 
 
 def _ensure_none_running(user_id: int, db: Session) -> None:
@@ -769,7 +764,9 @@ def _run_batch(job_id: str, storage: platform_providers.StorageProvider) -> bool
     with core_database.SessionLocal() as db:
         activity_ingestion_crud.mark_bulk_completed(job_id, cursor, done, failed, db)
         db.commit()
-    activity_ingestion_service.announce_job(state.user_id, job_id)
+    activity_ingestion_service.announce_job(
+        state.user_id, job_id, activity_ingestion_constants.IngestionJobKind.BULK_IMPORT
+    )
     activity_ingestion_upload_entry_service.discard_staged_upload(state.staged_key, storage)
     logger.info(
         "Bulk import finished",

@@ -432,12 +432,12 @@ def delete_user(
 
     Requires the administrator's own step-up verification: their current password (or, for an account
     without one, a fresh identity-provider sign-in), and an MFA code when MFA is enabled. The user is signed
-    out and deactivated at once and a background job erases their data. Poll ``GET /users/{user_id}/deletion``
-    for the outcome; a failed deletion is requested again.
+    out and deactivated at once and a background job erases their data. Poll ``GET /jobs/{job_id}`` for the
+    outcome; a failed deletion is requested again.
 
     Args:
         request: The incoming request, read by the rate limiter.
-        response: The response, which names the status route and when to poll it.
+        response: The response, which names the job and when to poll it.
         user_id: ID of user to delete.
         body: The administrator's step-up verification.
         token_user_id: ID of the administrator making the request.
@@ -450,14 +450,14 @@ def delete_user(
         db: Database session dependency.
 
     Returns:
-        The deletion's initial status.
+        The deletion's initial status, with the id of the job that reads it.
 
     Raises:
         PermissionDeniedError: If the administrator targets their own account.
         NotFoundError: If the user does not exist.
         PreconditionFailedError: If the user changed since the client read it.
         LastAdministratorError: If the user is the only administrator.
-        ConflictError: If a deletion is already pending.
+        JobAlreadyRunningError: If a deletion is already pending.
     """
     deletion = users_deletion_job_service.request_deletion_by_administrator(
         user_id,
@@ -471,43 +471,7 @@ def delete_user(
         db,
         if_match=if_match,
     )
-    core_location.set_status_location(
-        response,
-        request,
-        "read_user_deletion_status",
-        users_constants.DELETION_POLL_SECONDS,
-        user_id=str(user_id),
-    )
-    return deletion
-
-
-@router.get(
-    "/{user_id}/deletion",
-    response_model=users_schema.UserDeletionStatus | None,
-    responses={200: {"headers": core_location.POLLED_STATUS_HEADERS}},
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:read_all"])],
-)
-def read_user_deletion_status(
-    user_id: core_dependencies.PositiveId,
-    states: users_dependencies.UserDeletionStateStoreDep,
-    response: Response,
-) -> users_schema.UserDeletionStatus | None:
-    """Report where a user's account deletion is.
-
-    ``Retry-After`` says when to poll again while the deletion is not finished.
-
-    Args:
-        user_id: ID of the user being deleted.
-        states: Shared store of the deletion's state.
-        response: The response, which carries ``Retry-After`` while the deletion runs.
-
-    Returns:
-        The deletion's status, or None when no deletion is recorded.
-    """
-    deletion = users_deletion_job_service.get_deletion_status(user_id, states)
-    if deletion is None:
-        return None
-    core_location.set_retry_after_while_running(response, deletion.status, users_constants.DELETION_POLL_SECONDS)
+    core_location.set_job_location(response, request, deletion.id, users_constants.DELETION_POLL_SECONDS)
     return deletion
 
 

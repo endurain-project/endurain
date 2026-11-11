@@ -1,6 +1,7 @@
 """Strava request and response shapes."""
 
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
@@ -71,10 +72,10 @@ class StravaGearImportResult(BaseModel):
 
 
 class StravaSyncStatus(core_job_status.JobStatus):
-    """Where a queued Strava gear sync or unlink is.
+    """Where a queued Strava link, gear sync or unlink is.
 
     Attributes:
-        kind: What the sync does.
+        kind: The job kind: ``strava_link``, ``strava_gear`` or ``strava_unlink``.
     """
 
-    kind: strava_constants.SyncKind
+    kind: Literal["strava_link", "strava_gear", "strava_unlink"]

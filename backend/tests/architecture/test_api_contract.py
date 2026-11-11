@@ -89,7 +89,7 @@ _UNAUTHENTICATED_OUTSIDE_PUBLIC: dict[str, str] = {
 #: Route handlers whose docstring carries a Google section, as ``{path relative to app/: handlers}``. Move the
 #: section's content into ``Field``/``Query`` descriptions or ``responses`` and lower the count (HTTP-10).
 _DOCSTRING_SECTIONS: dict[str, int] = {
-    "modules/activities/activity/router.py": 2,
+    "modules/activities/activity/router.py": 1,
     "modules/activities/activity_exercise_titles/public_router.py": 1,
     "modules/activities/activity_exercise_titles/router.py": 1,
     "modules/auth/account_security/api_keys_router.py": 1,
@@ -115,10 +115,10 @@ _DOCSTRING_SECTIONS: dict[str, int] = {
     "modules/server_settings/router.py": 7,
     "modules/strava/router.py": 1,
     "modules/users/users/photo_router.py": 1,
-    "modules/users/users/router.py": 10,
+    "modules/users/users/router.py": 9,
     "modules/users/users_default_gear/router.py": 2,
     "modules/users/users_goals/router.py": 5,
-    "modules/users/users_profile/router.py": 15,
+    "modules/users/users_profile/router.py": 13,
     "modules/websocket/router.py": 1,
 }
 
@@ -352,9 +352,8 @@ class TestApiContract:
     def test_a_202_declares_where_to_poll_and_when(self):
         """Every ``202`` declares ``Content-Location`` and ``Retry-After`` in OpenAPI, and sets them.
 
-        The ``202`` answers only "queued"; the headers say which resource reports the outcome and when to look.
-        The handler must call ``set_status_location``, or ``set_job_location`` / ``_set_sync_location``, which
-        wrap it.
+        The ``202`` answers only "queued"; the headers say which job reports the outcome and when to look. The
+        handler must call ``set_job_location`` (``core.location``, or the ingestion surface's wrapper of it).
         """
         undeclared: set[str] = set()
         unset: set[str] = set()
@@ -368,22 +367,22 @@ class TestApiContract:
             if not {"Content-Location", "Retry-After"} <= headers.keys():
                 undeclared.add(route)
             _, function = _handlers()[(method, path)]
-            if not {"set_status_location", "set_job_location", "_set_sync_location"} & _calls(function):
+            if "set_job_location" not in _calls(function):
                 unset.add(route)
 
         _compare("A 202 does not declare where to poll", undeclared, _NO_STATUS_RESOURCE, "Add ACCEPTED_RESPONSE")
-        _compare("A 202 does not set where to poll", unset, _NO_STATUS_RESOURCE, "Call set_status_location")
+        _compare("A 202 does not set where to poll", unset, _NO_STATUS_RESOURCE, "Call set_job_location")
         stale = sorted(_NO_STATUS_RESOURCE.keys() - accepted)
         assert not stale, "Remove from _NO_STATUS_RESOURCE, the route no longer answers 202:\n  " + "\n  ".join(stale)
 
     def test_a_job_status_is_the_job_envelope(self):
-        """Every ``202`` body and every polled status read has the shared job fields, and a poll can answer ``null``.
+        """Every ``202`` body and every polled status read has the shared job fields, and only a job is polled.
 
-        A client reads one ``status`` vocabulary, one ``error_code`` and the same ids and timestamps whatever the
-        job is (``core.job_status.JobStatus``). A status read that finds nothing recorded answers ``200`` with
-        ``null``, so its schema is nullable; a job that has an id of its own is read by it and is ``404`` when unknown.
+        A client reads one id, one ``kind``, one ``status`` vocabulary, one ``error_code`` and the same timestamps
+        whatever the job is (``core.job_status.JobStatus``). Every job is read at ``GET /jobs/{job_id}``, which is
+        ``404`` for an unknown id rather than ``null``, so it is the only read that asks to be polled.
         """
-        envelope = {"id", "status", "error_code", "created_at", "finished_at"}
+        envelope = {"id", "kind", "status", "error_code", "created_at", "finished_at"}
         states = {"queued", "running", "succeeded", "failed"}
         broken: set[str] = set()
         for method, path, operation in _operations():
@@ -394,15 +393,18 @@ class TestApiContract:
                     continue
                 if code == "200" and not polled:
                     continue
+                route = f"{method.upper()} {path}"
+                if polled and path != "/jobs/{job_id}":
+                    broken.add(f"{route}: only GET /jobs/{{job_id}} is polled")
                 schema = response["content"]["application/json"]["schema"]
-                options = [option for option in schema.get("anyOf", [schema]) if option.get("type") != "null"]
-                if polled and "{job_id}" not in path and len(options) == len(schema.get("anyOf", [schema])):
-                    broken.add(f"{method.upper()} {path}: a polled status read must be nullable")
-                for option in options:
+                alternatives = schema.get("oneOf") or schema.get("anyOf") or [schema]
+                if any(option.get("type") == "null" for option in alternatives):
+                    broken.add(f"{route}: a job read is never null")
+                for option in alternatives:
                     properties = _resolve(option).get("properties", {})
                     status = _resolve(properties["status"]) if "status" in properties else {}
                     if not envelope <= properties.keys() or set(status.get("enum", [])) != states:
-                        broken.add(f"{method.upper()} {path}: {code} is not a JobStatus")
+                        broken.add(f"{route}: {code} is not a JobStatus")
 
         assert not broken, "Extend core.job_status.JobStatus:\n  " + "\n  ".join(sorted(broken))
 

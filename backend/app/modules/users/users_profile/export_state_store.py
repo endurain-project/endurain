@@ -1,14 +1,15 @@
 """Shared state of a profile export.
 
 An export is accepted with 202 and built on a worker, possibly on another replica. The state is
-what ``GET /profile/export`` reads back, and its claim keeps a user from queueing two exports at
+what ``GET /jobs/{job_id}`` reads back, and its claim keeps a user from queueing two exports at
 once. It lives in the platform ``StateProvider`` (see :mod:`core.attempt_state`).
 
 Interface::
 
-    begin(user_id)                          - queue an export; False while one is pending
+    begin(user_id, conflict=)               - queue an export, returning its job; raises while one is pending
     set_status(user_id, status, ...)        - record progress or the outcome
     get(user_id)                            - read the current state, or None once expired
+    read_job(job)                           - read the export a job reference names
 """
 
 from datetime import UTC, datetime, timedelta
@@ -64,21 +65,31 @@ class ProfileExportStateStore:
             ttl_seconds: How long an export's claim and state last.
         """
         self._ttl_seconds = ttl_seconds
-        self._attempts = core_attempt_state.AttemptStateStore(state, "users", "profile_export", ttl_seconds)
+        self._attempts = core_attempt_state.AttemptStateStore(
+            state, "users", "profile_export", ttl_seconds, announce=websocket_integration.announce_job
+        )
 
-    def begin(self, user_id: int) -> bool:
+    def begin(self, user_id: int, *, conflict: str) -> core_job_status.JobRef:
         """Record an export as queued unless one is still pending.
 
         Args:
             user_id: The exporting user.
+            conflict: The detail of the error for an export already pending.
 
         Returns:
-            True when the export was recorded as queued, False when one is already pending.
+            The new job's reference.
 
         Raises:
+            JobAlreadyRunningError: When an export is already pending.
             StateUnavailableError: When storage is unavailable.
         """
-        return self._attempts.begin(str(user_id), ProfileExportState(status=profile_constants.ExportStatus.QUEUED))
+        return self._attempts.begin(
+            str(user_id),
+            ProfileExportState(status=profile_constants.ExportStatus.QUEUED),
+            kind=profile_constants.EXPORT_JOB,
+            owner_id=user_id,
+            conflict=conflict,
+        )
 
     def set_status(
         self,
@@ -108,8 +119,6 @@ class ProfileExportStateStore:
             ProfileExportState(status=status, error_code=error_code, size_bytes=size_bytes, expires_at=expires_at),
             finished=status in _FINISHED,
         )
-        if status in _FINISHED:
-            websocket_integration.push_job_changed(user_id, profile_constants.EXPORT_JOB)
 
     def get(self, user_id: int) -> ProfileExportState | None:
         """Read a user's export state.
@@ -125,3 +134,18 @@ class ProfileExportStateStore:
         """
         value = self._attempts.read(str(user_id))
         return ProfileExportState.model_validate_json(value) if value is not None else None
+
+    def read_job(self, job: core_job_status.JobRef) -> tuple[core_job_status.JobRef, ProfileExportState] | None:
+        """Read the export a job reference names.
+
+        Args:
+            job: The job's reference, from :class:`core.attempt_state.JobIndex`.
+
+        Returns:
+            The job's current reference and state, or None when its record is gone or belongs to a later export.
+
+        Raises:
+            StateUnavailableError: When storage is unavailable.
+        """
+        stored = self._attempts.read_job(job)
+        return (stored.job, ProfileExportState.model_validate_json(stored.state_json())) if stored is not None else None

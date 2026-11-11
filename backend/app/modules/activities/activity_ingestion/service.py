@@ -17,7 +17,7 @@ from a future CLI or scheduled trigger without constructing an HTTP response.
 """
 
 import uuid
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Collection, Iterator
 from datetime import UTC, datetime, timedelta
 from itertools import batched
 
@@ -278,7 +278,7 @@ def _pending_view(
     now = datetime.now(UTC)
     return activity_ingestion_schema.ActivityIngestionJobRead(
         id=job_id,
-        kind=kind,
+        kind=kind.job_kind,
         filename=filename,
         status=core_job_status.JobState.QUEUED,
         created_at=now,
@@ -286,34 +286,36 @@ def _pending_view(
     )
 
 
-def get_job(
-    job_id: str,
-    token_user_id: int,
+def list_jobs(
+    user_id: int,
     db: Session,
-) -> activity_ingestion_schema.ActivityIngestionJobRead:
-    """Return one of the caller's ingestion jobs.
+    *,
+    kinds: Collection[str],
+    status: core_job_status.JobState | None,
+    before: tuple[datetime, str] | None,
+    limit: int,
+) -> list[activity_ingestion_schema.ActivityIngestionJobRead]:
+    """List a user's ingestion jobs, newest first.
 
     Args:
-        job_id: The job identifier returned by the upload or refresh route.
-        token_user_id: The authenticated caller.
+        user_id: The job owner.
         db: Database session.
+        kinds: The job kinds to list, as clients name them (``activity_upload``).
+        status: Only jobs in this state, or ``None`` for any.
+        before: Only jobs strictly older than this ``(created_at, id)`` position, or ``None`` from the newest.
+        limit: The most jobs to return.
 
     Returns:
-        The ingestion job.
-
-    Raises:
-        NotFoundError: When no such job belongs to the caller. A job owned by
-            someone else is reported as missing rather than forbidden, so the
-            endpoint does not confirm that an id exists.
+        The jobs, at most ``limit``.
     """
-    job = activity_ingestion_crud.get_ingestion_job(job_id, token_user_id, db)
-    if job is None:
-        logger.debug(
-            "Ingestion job read resolved to nothing for this caller",
-            extra=core_logger.context(job_id=job_id, user_id=token_user_id),
-        )
-        raise core_exceptions.NotFoundError("Upload job not found")
-    return job
+    return activity_ingestion_crud.list_ingestion_jobs(
+        user_id,
+        [activity_ingestion_constants.IngestionJobKind.from_job_kind(kind) for kind in kinds],
+        activity_ingestion_constants.statuses_for_state(status) if status is not None else None,
+        before,
+        limit,
+        db,
+    )
 
 
 def accept_refresh(
@@ -428,7 +430,7 @@ def run_refresh_job(job_id: str, storage: platform_providers.StorageProvider) ->
     with core_database.SessionLocal() as db:
         activity_ingestion_crud.mark_completed(job_id, activity_ids, db)
         db.commit()
-    announce_job(owner, job_id)
+    announce_job(owner, job_id, activity_ingestion_constants.IngestionJobKind.REFRESH)
     logger.info(
         "Refresh job synced provider activities",
         extra=core_logger.context(user_id=owner, job_id=job_id, activity_count=len(activity_ids)),
@@ -652,7 +654,7 @@ def run_upload_job(job_id: str, storage: platform_providers.StorageProvider) -> 
                 db,
             )
             db.commit()
-            announce_job(user_id, job_id)
+            announce_job(user_id, job_id, activity_ingestion_constants.IngestionJobKind.UPLOAD)
             # After the outcome is committed: a crash before this line retries
             # against the blob rather than finding it gone.
             activity_ingestion_upload_entry_service.discard_staged_upload(staged_key, storage)
@@ -663,7 +665,7 @@ def run_upload_job(job_id: str, storage: platform_providers.StorageProvider) -> 
             return
         activity_ingestion_crud.mark_completed(job_id, activity_ids, db)
         db.commit()
-        announce_job(user_id, job_id)
+        announce_job(user_id, job_id, activity_ingestion_constants.IngestionJobKind.UPLOAD)
         activity_ingestion_upload_entry_service.discard_staged_upload(staged_key, storage)
         logger.info(
             "Upload job imported activities",
@@ -731,7 +733,7 @@ def run_in_background_or_fail(
         raise
 
 
-def announce_job(user_id: int, job_id: str) -> None:
+def announce_job(user_id: int, job_id: str, kind: activity_ingestion_constants.IngestionJobKind) -> None:
     """Tell the job's owner it reached a terminal state, so their client stops waiting for its poll.
 
     Call it after the state is committed.
@@ -739,8 +741,9 @@ def announce_job(user_id: int, job_id: str) -> None:
     Args:
         user_id: The job's owner.
         job_id: The job identifier.
+        kind: What the job ingests.
     """
-    websocket_integration.push_job_changed(user_id, f"ingestion:{job_id}")
+    websocket_integration.push_job_changed(user_id, job_id, kind.job_kind)
 
 
 def fail_ingestion_job(
@@ -767,7 +770,7 @@ def fail_ingestion_job(
             if staged_key is None:
                 work_item = activity_ingestion_crud.get_job_work_item(job_id, db)
                 staged_key = work_item[1] if work_item else None
-            owner = activity_ingestion_crud.mark_failed(job_id, error_code, db)
+            failed = activity_ingestion_crud.mark_failed(job_id, error_code, db)
             db.commit()
     except SQLAlchemyError as err:
         # Never mask the original failure with a bookkeeping one.
@@ -778,8 +781,8 @@ def fail_ingestion_job(
         )
         return
 
-    if owner is not None:
-        announce_job(owner, job_id)
+    if failed is not None:
+        announce_job(failed[0], job_id, failed[1])
     # After the row is terminal, so a crash in between leaves a readable blob
     # rather than a job pointing at bytes that are gone.
     if staged_key is not None:

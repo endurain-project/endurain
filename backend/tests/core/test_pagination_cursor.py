@@ -46,6 +46,27 @@ class TestCursorRoundTrip:
         with pytest.raises(core_exceptions.InvalidInputError):
             core_pagination.decode_cursor(bad)
 
+    def test_a_text_id_round_trips(self):
+        moment = datetime(2026, 7, 29, 12, 30, tzinfo=UTC)
+        job_id = "0b9f3c1e-7a4d-4f6b-9a51-2f0c8d7e6b12"
+
+        assert core_pagination.decode_text_cursor(core_pagination.encode_cursor(moment, job_id)) == (moment, job_id)
+
+    def test_a_text_id_is_not_an_integer_cursor(self):
+        cursor = core_pagination.encode_cursor(datetime(2026, 7, 29, tzinfo=UTC), "not-a-number")
+
+        with pytest.raises(core_exceptions.InvalidInputError):
+            core_pagination.decode_cursor(cursor)
+
+    @pytest.mark.parametrize("bad", ["", "YWJj"], ids=["empty", "not-issued-by-the-server"])
+    def test_a_text_cursor_this_server_did_not_issue_is_refused(self, bad):
+        with pytest.raises(core_exceptions.InvalidInputError):
+            core_pagination.decode_text_cursor(bad)
+
+    def test_a_text_cursor_without_an_id_is_refused(self):
+        with pytest.raises(core_exceptions.InvalidInputError):
+            core_pagination.decode_text_cursor(core_pagination.encode_cursor(datetime(2026, 7, 29, tzinfo=UTC), ""))
+
 
 class TestCursorPage:
     def test_defaults_to_no_next_cursor(self):

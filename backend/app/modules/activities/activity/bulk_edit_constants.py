@@ -17,8 +17,8 @@ class BulkEditKind(StrEnum):
 #: Seconds a client waits before polling a bulk edit, which can touch a whole library.
 BULK_EDIT_POLL_SECONDS = 5
 
-#: The job name the bulk edit's realtime hints carry.
-BULK_EDIT_JOB = "activities:bulk-edit"
+#: The job kind of a bulk edit, as ``GET /jobs/{job_id}`` and the realtime hints name it.
+BULK_EDIT_JOB = "activities_bulk_edit"
 
 #: Lifetime of a queued bulk edit's claim and state: longer than any edit takes, so a stuck claim does not
 #: block the user from queueing another for long.

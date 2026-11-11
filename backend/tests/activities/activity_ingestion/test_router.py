@@ -7,7 +7,6 @@ import pytest
 
 import core.exceptions as core_exceptions
 import core.job_status as core_job_status
-import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.router as router
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 
@@ -17,7 +16,7 @@ def _upload_job(**overrides):
     now = datetime(2026, 7, 28, 10, 0, 0, tzinfo=UTC)
     defaults = {
         "id": "job-1",
-        "kind": activity_ingestion_constants.IngestionJobKind.UPLOAD,
+        "kind": "activity_upload",
         "filename": "ride.gpx",
         "status": core_job_status.JobState.QUEUED,
         "created_at": now,
@@ -28,7 +27,7 @@ def _upload_job(**overrides):
 
 def _bulk_job(**overrides):
     """Build a pending bulk-import job for the route tests."""
-    return _upload_job(kind=activity_ingestion_constants.IngestionJobKind.BULK_IMPORT, filename=None, **overrides)
+    return _upload_job(kind="activity_bulk_import", filename=None, **overrides)
 
 
 class TestUploadRoute:
@@ -80,6 +79,7 @@ class TestUploadRoute:
         db = MagicMock()
         app = FastAPI()
         app.include_router(router.api_upload_router, prefix="/activities")
+        app.add_api_route("/jobs/{job_id}", lambda job_id: None, name="read_job")
         app.dependency_overrides[core_db.get_db] = lambda: db
         app.dependency_overrides[core_dependencies.get_storage] = lambda: "storage"
         app.dependency_overrides[auth_dependencies.get_user_id_from_auth] = lambda: 7
@@ -101,42 +101,11 @@ class TestUploadRoute:
         body = response.json()
         assert body["id"] == "job-1"
         assert body["status"] == "queued"
+        assert body["kind"] == "activity_upload"
+        assert response.headers["Content-Location"] == "/jobs/job-1"
+        assert response.headers["Retry-After"] == "2"
         # The activity is attributed to the authenticated user, not any body field.
         assert accept.call_args.args[0] == 7
-
-    def test_status_route_is_scoped_to_the_caller(self):
-        db = MagicMock()
-        with (
-            patch.object(
-                router.activity_ingestion_service,
-                "get_job",
-                side_effect=core_exceptions.NotFoundError("Upload job not found"),
-            ) as get_job,
-            pytest.raises(core_exceptions.NotFoundError),
-        ):
-            router.read_activity_ingestion_job(
-                job_id="someone-elses-job",
-                token_user_id=7,
-                db=db,
-                response=MagicMock(),
-            )
-
-        # The owner is part of the lookup, so another user's job is simply absent
-        # rather than being fetched and then rejected.
-        get_job.assert_called_once_with("someone-elses-job", 7, db)
-
-    def test_status_route_returns_the_job(self):
-        db = MagicMock()
-        job = _upload_job()
-        with patch.object(router.activity_ingestion_service, "get_job", return_value=job):
-            result = router.read_activity_ingestion_job(
-                job_id="job-1",
-                token_user_id=7,
-                db=db,
-                response=MagicMock(),
-            )
-
-        assert result == job
 
 
 class TestBulkImportRoutesDelegate:
