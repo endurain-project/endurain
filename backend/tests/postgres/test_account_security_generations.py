@@ -193,3 +193,24 @@ def test_a_locked_live_session_cannot_be_revoked_until_the_transaction_ends(pg_f
         revoke.commit()
     with pg_factory() as db:
         assert sessions_integration.lock_live_session("start", db) is None
+
+
+def test_a_revoke_waits_for_a_refresh_holding_the_session_and_a_refresh_after_it_finds_none(pg_factory):
+    import modules.auth.sessions.integration_service as sessions_integration
+
+    ensure_user(pg_factory, 1)
+    with pg_factory() as db:
+        _add_session(db, "s1")
+        db.commit()
+    with pg_factory() as refresh, pg_factory() as revoke:
+        assert sessions_integration.lock_live_session("s1", refresh, exclusive=True) is not None
+        revoke.execute(text("SET lock_timeout = '200ms'"))
+        with pytest.raises(OperationalError):
+            sessions_integration.delete_session_if_present("s1", 1, revoke)
+        revoke.rollback()
+        refresh.commit()
+    with pg_factory() as revoke:
+        sessions_integration.delete_session_if_present("s1", 1, revoke)
+        revoke.commit()
+    with pg_factory() as refresh:
+        assert sessions_integration.lock_live_session("s1", refresh, exclusive=True) is None

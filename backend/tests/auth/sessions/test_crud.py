@@ -96,6 +96,16 @@ def test_lock_live_session_takes_a_shared_row_lock_on_the_unexpired_session(mock
     assert "expires_at >" in statement
 
 
+def test_lock_live_session_takes_an_exclusive_row_lock_when_the_caller_will_write_the_session(mock_db):
+    mock_db.execute.return_value = _result(_row())
+
+    sessions_crud.lock_live_session("session-id", mock_db, exclusive=True)
+
+    statement = str(mock_db.execute.call_args.args[0].compile(dialect=postgresql.dialect()))
+    assert "FOR UPDATE" in statement
+    assert "FOR SHARE" not in statement
+
+
 def test_session_lookup_lets_database_errors_reach_the_global_handler(mock_db):
     mock_db.execute.side_effect = SQLAlchemyError("database unavailable")
     with pytest.raises(SQLAlchemyError):

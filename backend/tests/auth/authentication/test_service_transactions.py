@@ -34,7 +34,7 @@ def _session(**overrides):
 def test_a_reused_refresh_token_keeps_the_family_invalidated_although_the_request_is_refused(mock_db):
     with (
         patch(
-            f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired",
+            f"{_SERVICE}.sessions_integration.lock_live_session",
             return_value=_session(client_type="mobile"),
         ),
         patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
@@ -54,6 +54,21 @@ def test_a_reused_refresh_token_keeps_the_family_invalidated_although_the_reques
     mock_db.commit.assert_called_once()
 
 
+def test_a_refresh_reads_the_session_under_an_exclusive_row_lock_and_refuses_one_that_is_gone(mock_db):
+    """A revoke that removed the session before the refresh decides is a 401, never an edit of a missing row."""
+    with (
+        patch(f"{_SERVICE}.sessions_integration.lock_live_session", return_value=None) as lock,
+        patch(f"{_SERVICE}.sessions_integration.edit_session") as edit,
+        pytest.raises(core_exceptions.InvalidTokenError),
+    ):
+        authentication_service_refresh_service.refresh_token(
+            "127.0.0.1", "agent", 1, "sid", "old", _OLD_EXP, MagicMock(), MagicMock(), "web", mock_db
+        )
+
+    lock.assert_called_once_with("sid", mock_db, exclusive=True)
+    edit.assert_not_called()
+
+
 def test_a_rotation_records_the_presented_tokens_own_expiry(mock_db):
     """Reuse detection keeps the record until the old token could no longer be presented."""
     hasher = MagicMock()
@@ -61,7 +76,7 @@ def test_a_rotation_records_the_presented_tokens_own_expiry(mock_db):
     tokens = ("sid", datetime(2026, 11, 1, tzinfo=UTC), "at", datetime(2026, 12, 1, tzinfo=UTC), "rt", "csrf")
     with (
         patch(
-            f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired",
+            f"{_SERVICE}.sessions_integration.lock_live_session",
             return_value=_session(client_type="mobile"),
         ),
         patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
@@ -100,7 +115,7 @@ def test_a_rotation_reports_the_sessions_capped_expiry_for_the_body_and_the_cook
     session_expiry = datetime.now(UTC) + timedelta(hours=2)
     tokens = ("sid", datetime.now(UTC) + timedelta(minutes=15), "at", datetime.now(UTC) + timedelta(days=7), "rt", "c")
     with (
-        patch(f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired", return_value=_session()),
+        patch(f"{_SERVICE}.sessions_integration.lock_live_session", return_value=_session()),
         patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
         patch(f"{_SERVICE}.sessions_integration.validate_session_timeout"),
         patch(

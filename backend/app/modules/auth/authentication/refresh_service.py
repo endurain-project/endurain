@@ -209,8 +209,10 @@ def refresh_token(
             inactive.
         PermissionDeniedError: If the CSRF token is invalid (when provided).
     """
-    # Get the session from the database
-    session = sessions_integration.get_session_by_id_not_expired(token_session_id, db)
+    # Read the session under an exclusive row lock held until the commit below: a revoke or logout of it either
+    # committed before (the session is gone: refused here) or waits until this rotation commits, and a concurrent
+    # refresh of the same session queues behind this one instead of racing the rotation.
+    session = sessions_integration.lock_live_session(token_session_id, db, exclusive=True)
 
     # Check if the session was found
     if session is None:

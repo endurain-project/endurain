@@ -326,7 +326,7 @@ class TestLogoutAndReuse:
 
     def test_a_replayed_refresh_token_is_denied_and_targets_the_user(self, mock_db):
         with (
-            patch(f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired", return_value=self._session()),
+            patch(f"{_SERVICE}.sessions_integration.lock_live_session", return_value=self._session()),
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
             patch(f"{_SERVICE}.sessions_integration.validate_session_timeout"),
             patch(
@@ -361,7 +361,7 @@ class TestLogoutAndReuse:
 
     def test_a_replay_inside_the_grace_window_writes_nothing(self, mock_db):
         with (
-            patch(f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired", return_value=self._session()),
+            patch(f"{_SERVICE}.sessions_integration.lock_live_session", return_value=self._session()),
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
             patch(f"{_SERVICE}.sessions_integration.validate_session_timeout"),
             patch(

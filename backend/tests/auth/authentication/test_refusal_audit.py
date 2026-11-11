@@ -117,7 +117,7 @@ def _session(**overrides):
 
 def _refresh(db, *, session, x_csrf_token=None, hasher=None, token_user_id=5):
     with (
-        patch(f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired", return_value=session),
+        patch(f"{_SERVICE}.sessions_integration.lock_live_session", return_value=session),
         patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
     ):
         return authentication_service_refresh_service.refresh_token(

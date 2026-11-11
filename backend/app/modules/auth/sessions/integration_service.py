@@ -37,9 +37,14 @@ def get_session_by_id_not_expired(session_id: str, db: Session) -> sessions_cont
     return sessions_crud.get_session_by_id_not_expired(session_id, db)
 
 
-def lock_live_session(session_id: str, db: Session) -> sessions_contracts.SessionRead | None:
-    """Return an unexpired session by ID, holding a shared row lock until the caller's transaction ends."""
-    return sessions_crud.lock_live_session(session_id, db)
+def lock_live_session(
+    session_id: str, db: Session, *, exclusive: bool = False
+) -> sessions_contracts.SessionRead | None:
+    """Return an unexpired session by ID, holding a row lock until the caller's transaction ends.
+
+    The lock is shared unless ``exclusive`` is set, which a caller that will write the session needs.
+    """
+    return sessions_crud.lock_live_session(session_id, db, exclusive=exclusive)
 
 
 def get_existing_session_ids(session_ids: Sequence[str], db: Session) -> set[str]:
