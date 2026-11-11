@@ -30,6 +30,8 @@ A collection that is not a child of another resource (`/gears`, `/gear-component
 
 `GET /activities` also takes `gear_id` to keep only the activities recorded with that gear, on top of the other filters; the page and its `total` both follow it. Another user's list (`GET /users/{user_id}/activities`) has no gear filter, so a gear its owner hides cannot be probed.
 
+The activity lists (`GET /activities`, `GET /users/{user_id}/activities` and `GET /activities/feed`) return a summary of each activity: every field of the activity except `private_notes` and `import_info`, which only `GET /activities/{activity_id}` and the detail read carry. Read the activity before editing those fields.
+
 `GET /activities/feed` is a cursor feed rather than a page: pass the `next_cursor` of the previous slice as `cursor` and stop when it is `null`. `scope` picks what it lists: `following` (the default) is the activities of the users the caller follows, as the caller may see them; `mine` is the caller's own activities of every visibility, as their owner sees them. Both are newest first, with a hidden start time ordered by when the activity was recorded, and both carry the owners' public profiles in `users`.
 
 `GET /activities/{activity_id}/detail` returns the activity with the first page of its laps, workout sets and workout steps in one read. Each collection is the page its own route returns, so a `next` page continues on that route. The activity carries its `media` when the caller owns it, as the activity lists do, and `owner` is the owner's public profile (`null` when the owner is not visible). Streams stay on their own route. The `ETag` is the activity's.

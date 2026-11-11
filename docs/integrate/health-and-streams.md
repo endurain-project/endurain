@@ -39,6 +39,7 @@ Weight, steps, sleep, water, poop and fasting each have a list (`GET /health/{me
 - **Without any of the three parameters nothing changes.** A list returns every record and a chart covers the last 7 days.
 - **Days are the athlete's own.** Poop records belong to the day they happened in the user's time zone. Fasting sessions belong to the UTC day they started on.
 - **A list's `total` counts the window**, not only the records on the page.
+- **The sleep list leaves out the sleep stages.** A night in `GET /health/sleep` has every field of the record except `sleep_stages`, and `has_sleep_stages` says whether it has any. `GET /health/sleep/{health_sleep_id}` returns the night with its stages; read it before editing them.
 - **The sleep list can keep only the nights with a resting heart rate.** `GET /health/sleep?has_resting_heart_rate=true` returns those nights, and `false` the nights without one; the `total` counts the same nights.
 - **A chart is aggregated.** It answers with a `bucket` (`day`, `week` or `month`, the finest that keeps it to 366 points) and one point per bucket that holds a value, so a long range stays small.
 

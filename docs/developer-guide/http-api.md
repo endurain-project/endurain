@@ -196,4 +196,3 @@ These rules are not met everywhere yet. Each is tracked in the test registers ab
 - Most endpoint docstrings still carry Google sections. The OpenAPI document cuts them, but the source should lose them.
 - No collection offers [incremental sync](#incremental-sync): `updated_at` exists only on activities, notifications and
   users, and nothing reports deletions.
-- `GET /health/sleep` and the activity lists return their heavy fields on every row.
