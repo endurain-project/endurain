@@ -67,6 +67,21 @@ const locationLabel = computed(() => {
   return [place, props.activity.country].filter(Boolean).join(', ') || null
 })
 
+/** Recording device, without repeating a manufacturer the model already contains. */
+const deviceLabel = computed(() => {
+  const manufacturer = props.activity.trackerManufacturer?.trim() || ''
+  const model = props.activity.trackerModel?.trim() || ''
+  if (manufacturer && model) {
+    const maker = manufacturer.toLowerCase()
+    const device = model.toLowerCase()
+    if (device.startsWith(maker) || maker.includes(device)) {
+      return model.length >= manufacturer.length ? model : manufacturer
+    }
+    return `${manufacturer} ${model}`
+  }
+  return manufacturer || model || null
+})
+
 const stravaUrl = computed(() =>
   props.activity.stravaActivityId
     ? `https://www.strava.com/activities/${props.activity.stravaActivityId}`
@@ -113,9 +128,11 @@ const showPrivateNotes = computed(
               t('activities.hidden')
             }}</Badge>
           </div>
-          <p v-if="dateTimeLabel || locationLabel" class="text-caption mt-1.5">
+          <p v-if="dateTimeLabel || deviceLabel || locationLabel" class="text-hint mt-1.5">
             <span v-if="dateTimeLabel">{{ dateTimeLabel }}</span>
-            <span v-if="dateTimeLabel && locationLabel"> · </span>
+            <span v-if="dateTimeLabel && deviceLabel"> · </span>
+            <span v-if="deviceLabel">{{ deviceLabel }}</span>
+            <span v-if="(dateTimeLabel || deviceLabel) && locationLabel"> · </span>
             <span v-if="locationLabel">{{ locationLabel }}</span>
           </p>
         </div>

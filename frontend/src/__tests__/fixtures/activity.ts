@@ -39,6 +39,8 @@ export function makeActivity(overrides: Partial<Activity> = {}): Activity {
     city: 'Lisbon',
     town: null,
     country: 'Portugal',
+    trackerManufacturer: null,
+    trackerModel: null,
     distance: 10000,
     pace: 0.3,
     averageSpeed: null,

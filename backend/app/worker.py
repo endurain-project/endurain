@@ -22,6 +22,7 @@ import jasil.runtime as platform_runtime
 import jasil.settings as jasil_settings
 
 import core.config as core_config
+import core.geocoding_place as core_geocoding_place
 import core.logger as core_logger
 import core.platform_settings as core_platform_settings
 import model_registry as orm_model_registry
@@ -67,6 +68,7 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
     # This process is a dedicated consumer whatever the API's flag says, so the
     # substrate must see the standalone topology it is part of.
     worker_settings = core_config.settings.model_copy(update={"JOBS_RUN_IN_PROCESS_WORKER": False})
+    core_geocoding_place.install()
     substrate_settings = core_platform_settings.build_jasil_settings(worker_settings)
     jasil_settings.configure(substrate_settings)
     platform = platform_container.build_platform(substrate_settings)

@@ -110,6 +110,8 @@ export function mapActivity(dto: ActivityDto): Activity {
     city: dto.city ?? null,
     town: dto.town ?? null,
     country: dto.country ?? null,
+    trackerManufacturer: dto.tracker_manufacturer ?? null,
+    trackerModel: dto.tracker_model ?? null,
 
     distance: dto.distance,
     pace: dto.pace ?? null,

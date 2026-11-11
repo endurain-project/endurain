@@ -75,27 +75,73 @@ describe('buildActivityMetrics', () => {
     elevation: true,
   }
 
-  it('shows a curated set of six running stats (distance/time/pace/power/elevation/calories)', () => {
+  it('shows running pace, power, elevation, and heart rate when they are stored', () => {
     const tiles = buildActivityMetrics(
       makeActivity({ activityType: 1, averagePower: 250 }),
       'metric',
       visible,
     )
     const keys = tiles.map((tile) => tile.key)
-    expect(keys).toEqual(['distance', 'time', 'pace', 'avgPower', 'elevationGain', 'calories'])
+    expect(keys).toEqual([
+      'distance',
+      'time',
+      'pace',
+      'avgPower',
+      'elevationGain',
+      'avgHr',
+      'maxHr',
+      'calories',
+    ])
     expect(keys).not.toContain('avgSpeed')
-    expect(tiles.length).toBeLessThanOrEqual(6)
   })
 
-  it('shows speed (not pace) for cycling and caps at six', () => {
+  it('shows speed and heart rate for cycling, not pace', () => {
     const tiles = buildActivityMetrics(
       makeActivity({ activityType: 4, averageSpeed: 8, averagePower: 200, pace: null }),
       'metric',
       visible,
     )
     const keys = tiles.map((tile) => tile.key)
-    expect(keys).toEqual(['distance', 'time', 'elevationGain', 'avgPower', 'avgSpeed', 'calories'])
+    expect(keys).toEqual([
+      'distance',
+      'time',
+      'elevationGain',
+      'avgPower',
+      'avgSpeed',
+      'avgHr',
+      'maxHr',
+      'calories',
+    ])
     expect(keys).not.toContain('pace')
+  })
+
+  it('shows elevation and heart rate together for a walk', () => {
+    const tiles = buildActivityMetrics(makeActivity({ activityType: 11 }), 'metric', visible)
+    const keys = tiles.map((tile) => tile.key)
+    expect(keys).toEqual([
+      'distance',
+      'time',
+      'pace',
+      'avgHr',
+      'maxHr',
+      'elevationGain',
+      'calories',
+    ])
+  })
+
+  it('omits elevation for swimming even when gain is stored', () => {
+    const tiles = buildActivityMetrics(makeActivity({ activityType: 8 }), 'metric', visible)
+    expect(tiles.map((tile) => tile.key)).not.toContain('elevationGain')
+  })
+
+  it('omits a walk elevation tile when gain was not stored', () => {
+    const tiles = buildActivityMetrics(
+      makeActivity({ activityType: 11, elevationGain: null }),
+      'metric',
+      visible,
+    )
+    expect(tiles.map((tile) => tile.key)).not.toContain('elevationGain')
+    expect(tiles.map((tile) => tile.key)).toContain('avgHr')
   })
 
   it('shows only calories/time/HR for non-distance activities (e.g. strength)', () => {
