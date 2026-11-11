@@ -4,7 +4,7 @@ This page describes how an account is created, how a forgotten password is recov
 
 ## Signing up
 
-Sign-up is available only when an administrator has enabled it. The rules for new accounts are two independent switches:
+Sign-up is available only when an administrator has enabled it. With **Allow sign-up** off, the form, the confirmation of a verification link and a request for a new verification email are all refused, and the answer is the same whatever the token or the address. Accounts that signed up earlier and are still unconfirmed stay that way until sign-up is turned on again, or until an administrator activates them in [user management](user-management.md); an email-change link still works. The rules for new accounts are two independent switches:
 
 | Switch | Effect |
 | ------ | ------ |

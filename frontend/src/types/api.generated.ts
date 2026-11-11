@@ -3431,6 +3431,8 @@ export interface paths {
         /**
          * Confirm Sign Up
          * @description Confirm a sign-up with the token of its emailed link and choose the account's password.
+         *
+         *     Refused while sign-up is turned off, whatever the token; the account stays pending.
          */
         post: operations["confirm_sign_up"];
         delete?: never;
@@ -3471,6 +3473,8 @@ export interface paths {
         /**
          * Resend Verification Email
          * @description Send a sign-up's verification email again; the answer is the same whether or not the address is registered.
+         *
+         *     Refused while sign-up is turned off, whatever the address.
          */
         post: operations["resend_verification_email"];
         delete?: never;
@@ -31670,7 +31674,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description The sign-up is confirmed while email verification is turned off on this server (the `email-verification-disabled` problem type). */
+            /** @description Sign-up is not enabled on this server (the `permission-denied` problem type), or the sign-up is confirmed while email verification is turned off on this server (the `email-verification-disabled` problem type). */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -31859,6 +31863,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SignUpRead"];
+                };
+            };
+            /** @description Sign-up is not enabled on this server (the `permission-denied` problem type). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description The request conflicts with the current state. */

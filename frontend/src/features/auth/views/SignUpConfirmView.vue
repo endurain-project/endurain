@@ -25,6 +25,7 @@ import { compose, required } from '@/utils/validators'
 type Status = 'password' | 'success' | 'error' | 'resend'
 
 const EMAIL_VERIFICATION_DISABLED_TYPE = 'urn:endurain:error:email-verification-disabled'
+const SIGN_UP_DISABLED_TYPE = 'urn:endurain:error:permission-denied'
 
 /** Form field shape backing the choose-password form. */
 interface ChoosePasswordValues {
@@ -42,6 +43,8 @@ const token = ref(verifyCredential.value)
 const status = ref<Status>(token.value.length > 0 ? 'password' : 'resend')
 const errorMessage = ref('')
 const adminApprovalRequired = ref(false)
+// A new email is refused too while sign-up is off, so the error state does not offer one.
+const signUpDisabled = ref(false)
 
 // The account tier is unknown before submitting, so the regular policy applies;
 // a stricter server-side policy answers 422 (see `submitPassword`).
@@ -62,6 +65,11 @@ async function submitPassword(formValues: ChoosePasswordValues): Promise<void> {
   } catch (error) {
     if (error instanceof HttpError && error.status === 422) {
       throw new Error(policyError(error) ?? t('resetPassword.errorWeakPassword'))
+    }
+    if (error instanceof HttpError && error.type === SIGN_UP_DISABLED_TYPE) {
+      signUpDisabled.value = true
+      showError(t('signup.errorSignupDisabled'))
+      return
     }
     if (error instanceof HttpError && error.type === EMAIL_VERIFICATION_DISABLED_TYPE) {
       verifyCredential.clear()
@@ -207,7 +215,10 @@ function showError(message: string): void {
         </template>
       </ErrorState>
 
-      <ResendVerificationForm v-if="status === 'error'" class="mt-6 border-t border-border pt-6" />
+      <ResendVerificationForm
+        v-if="status === 'error' && !signUpDisabled"
+        class="mt-6 border-t border-border pt-6"
+      />
     </div>
   </section>
 </template>

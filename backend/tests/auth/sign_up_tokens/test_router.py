@@ -701,6 +701,48 @@ class TestResendEndpoint:
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
+class TestSignUpOffEndpoints:
+    """With sign-up off, the confirm and resend routes answer like the request route."""
+
+    @pytest.fixture(autouse=True)
+    def sign_up_off(self):
+        with patch(
+            "modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings",
+            return_value=MagicMock(signup_enabled=False, signup_require_email_verification=True),
+        ):
+            yield
+
+    @pytest.mark.parametrize(
+        ("path", "body"),
+        [
+            ("/sign-up/sign-up/request", {"name": "N", "username": "nobody", "email": "u@example.com"}),
+            ("/sign-up/sign-up/confirm", {"token": "tok", "password": "ChosenPass1!"}),
+            ("/sign-up/sign-up/resend", {"email": "u@example.com"}),
+        ],
+    )
+    def test_the_three_routes_refuse_alike(self, signup_client, path, body) -> None:
+        body = body | {"preferred_language": "en"} if path.endswith("request") else body
+
+        response = signup_client.post(path, json=body)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.json()["type"] == "urn:endurain:error:permission-denied"
+        assert "not enabled" in response.json()["detail"].lower()
+
+    @patch("modules.auth.sign_up_tokens.service.sign_up_event_publishers")
+    @patch("modules.auth.sign_up_tokens.service.users_integration")
+    @patch("modules.auth.sign_up_tokens.service.verify_sign_up_token")
+    def test_an_email_change_is_still_confirmed(self, mock_use_token, mock_users, _publishers, signup_client) -> None:
+        mock_use_token.return_value = MagicMock(
+            id="t", user_id=10, email="new@example.com", previous_email="old@example.com"
+        )
+        mock_users.get_user.return_value = MagicMock(id=10, active=True)
+
+        response = signup_client.post("/sign-up/email-change/confirm", json={"token": "valid-token"})
+
+        assert response.status_code == status.HTTP_200_OK
+
+
 class TestCancelEmailChangeEndpoint:
     @patch("modules.auth.sign_up_tokens.service.cancel_email_change")
     def test_a_valid_link_answers_200_with_what_happened(self, cancel, signup_client) -> None:

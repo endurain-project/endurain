@@ -68,7 +68,8 @@ def cancel_email_change(
             "password from a link."
         },
         403: {
-            "description": "The sign-up is confirmed while email verification is turned off on this server (the "
+            "description": "Sign-up is not enabled on this server (the `permission-denied` problem type), or the "
+            "sign-up is confirmed while email verification is turned off on this server (the "
             "`email-verification-disabled` problem type)."
         },
     },
@@ -79,7 +80,10 @@ def confirm_sign_up(
     confirm_data: sign_up_schema.SignUpConfirm,
     db: core_dependencies.DbSession,
 ) -> sign_up_schema.SignUpRead:
-    """Confirm a sign-up with the token of its emailed link and choose the account's password."""
+    """Confirm a sign-up with the token of its emailed link and choose the account's password.
+
+    Refused while sign-up is turned off, whatever the token; the account stays pending.
+    """
     return sign_up_service.confirm_sign_up(confirm_data.token, confirm_data.password, db)
 
 
@@ -107,6 +111,7 @@ def confirm_email_change(
 @router.post(
     "/sign-up/resend",
     response_model=sign_up_schema.SignUpRead,
+    responses={403: {"description": "Sign-up is not enabled on this server (the `permission-denied` problem type)."}},
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def resend_verification_email(
@@ -115,5 +120,8 @@ def resend_verification_email(
     state: core_dependencies.PlatformState,
     db: core_dependencies.DbSession,
 ) -> sign_up_schema.SignUpRead:
-    """Send a sign-up's verification email again; the answer is the same whether or not the address is registered."""
+    """Send a sign-up's verification email again; the answer is the same whether or not the address is registered.
+
+    Refused while sign-up is turned off, whatever the address.
+    """
     return sign_up_service.resend_sign_up_verification_email(resend_data.email, state, db)

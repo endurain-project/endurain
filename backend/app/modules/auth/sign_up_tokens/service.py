@@ -367,7 +367,7 @@ def resend_sign_up_verification_email(email: str, state: StateProvider, db: Sess
     cooldown. The resend stages a live verification token in its own transaction, so the unverified-sign-up purge
     keeps the account while the mail is still queued. The answer is the same for every outcome, so it does not
     reveal which addresses are registered. An unreachable cooldown store skips the resend instead of failing the
-    request.
+    request. With sign-up turned off the request is refused before the address is looked at.
 
     Args:
         email: The address the sign-up used.
@@ -376,9 +376,13 @@ def resend_sign_up_verification_email(email: str, state: StateProvider, db: Sess
 
     Returns:
         The same next step for every outcome.
+
+    Raises:
+        PermissionDeniedError: If registration is disabled.
     """
-    response = sign_up_schema.SignUpRead(next_step=sign_up_schema.SignUpNextStep.CHECK_EMAIL)
     server_settings = server_settings_integration.get_server_settings(db)
+    _require_sign_up_enabled(server_settings)
+    response = sign_up_schema.SignUpRead(next_step=sign_up_schema.SignUpNextStep.CHECK_EMAIL)
     if not (server_settings.signup_require_email_verification and server_settings_integration.is_mail_configured(db)):
         return response
     user = users_integration.get_user_by_email(email, db)
@@ -896,6 +900,20 @@ def _signup_response(server_settings: server_settings_schema.ServerSettingsRead)
     return sign_up_schema.SignUpRead(next_step=next_step)
 
 
+def _require_sign_up_enabled(server_settings: server_settings_schema.ServerSettingsRead) -> None:
+    """Raise when an administrator turned sign-up off.
+
+    Args:
+        server_settings: The server settings.
+
+    Raises:
+        PermissionDeniedError: If registration is disabled.
+    """
+    if not server_settings.signup_enabled:
+        logger.warning("Sign-up refused because registration is disabled")
+        raise core_exceptions.PermissionDeniedError("User sign-up is not enabled on this server")
+
+
 def _require_username_free(username: str, db: Session) -> None:
     """Raise when an account already holds the username, normalised as the users module does.
 
@@ -945,9 +963,7 @@ def signup(
             policy.
     """
     server_settings = server_settings_integration.get_server_settings(db)
-    if not server_settings.signup_enabled:
-        logger.warning("Sign-up refused because registration is disabled")
-        raise core_exceptions.PermissionDeniedError("User sign-up is not enabled on this server")
+    _require_sign_up_enabled(server_settings)
     if server_settings.signup_require_email_verification and user.password is not None:
         raise core_exceptions.InvalidInputError("A password is chosen when the email address is verified")
     if not server_settings.signup_require_email_verification and user.password is None:
@@ -994,7 +1010,9 @@ def confirm_sign_up(token: str, password: str, db: Session) -> sign_up_schema.Si
     password-reset tokens, as a password reset does. The address is marked verified. Only a sign-up (an inactive
     account that no administrator deactivated) is activated, and it goes on to the administrators' approval when the
     server requires it. An account an administrator activated before it was confirmed has no password yet and chooses
-    one here too; an account that takes no password from a link refuses the confirmation.
+    one here too; an account that takes no password from a link refuses the confirmation. With sign-up turned off the
+    confirmation is refused before the token or the password is looked at, and pending accounts wait until sign-up is
+    turned on again or an administrator activates them.
 
     Args:
         token: The raw sign-up token.
@@ -1005,6 +1023,7 @@ def confirm_sign_up(token: str, password: str, db: Session) -> sign_up_schema.Si
         What happens next for the account.
 
     Raises:
+        PermissionDeniedError: If registration is disabled.
         InvalidInputError: If the token is unknown, used, expired or not a sign-up token, or the account takes no
             password from a link.
         PasswordPolicyError: If the password fails the configured policy.
@@ -1012,6 +1031,7 @@ def confirm_sign_up(token: str, password: str, db: Session) -> sign_up_schema.Si
         NotFoundError: If the token's user no longer exists.
     """
     server_settings = server_settings_integration.get_server_settings(db)
+    _require_sign_up_enabled(server_settings)
     # The breach check is a network call, so it runs before the claim opens the write transaction.
     credentials_integration.reject_breached_password(server_settings, password, db)
     claim = verify_sign_up_token(token, db, email_change=False)

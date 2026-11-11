@@ -513,6 +513,60 @@ class TestConfirmSignUp:
             sign_up_service.confirm_sign_up("tok", "ChosenPass1!", mock_db)
 
 
+class TestSignUpOff:
+    """With sign-up off, a confirmation or a resend is refused before anything of the request is looked at."""
+
+    @pytest.fixture
+    def deps(self):
+        names = ["credentials_integration", "users_integration", "sign_up_event_publishers", "core_email_cooldown"]
+        mocks = {name: MagicMock() for name in names}
+        settings = _settings(verification=True)
+        settings.signup_enabled = False
+        with (
+            patch(f"{_MODULE}.server_settings_integration.get_server_settings", return_value=settings),
+            patch(f"{_MODULE}.verify_sign_up_token") as verify_token,
+            patch.multiple(_MODULE, **mocks),
+        ):
+            yield mocks | {"verify_token": verify_token}
+
+    def test_a_confirmation_is_refused_like_the_sign_up_request(self, deps, mock_db):
+        with pytest.raises(core_exceptions.PermissionDeniedError) as refused:
+            sign_up_service.confirm_sign_up("tok", "ChosenPass1!", mock_db)
+
+        assert refused.value.status_code == 403
+        deps["credentials_integration"].reject_breached_password.assert_not_called()
+        deps["verify_token"].assert_not_called()
+        deps["users_integration"].get_user.assert_not_called()
+        mock_db.commit.assert_not_called()
+
+    def test_a_resend_is_refused_like_the_sign_up_request(self, deps, mock_db, state):
+        with pytest.raises(core_exceptions.PermissionDeniedError) as refused:
+            sign_up_service.resend_sign_up_verification_email("u@example.com", state, mock_db)
+
+        assert refused.value.status_code == 403
+        deps["users_integration"].get_user_by_email.assert_not_called()
+        deps["sign_up_event_publishers"].publish_sign_up_verification_requested.assert_not_called()
+        mock_db.commit.assert_not_called()
+
+    def test_the_refusal_is_the_one_the_sign_up_request_gives(self, deps, mock_db, state):
+        with pytest.raises(core_exceptions.PermissionDeniedError) as signed_up:
+            sign_up_service.signup(_signup_user(), state, mock_db)
+        with pytest.raises(core_exceptions.PermissionDeniedError) as confirmed:
+            sign_up_service.confirm_sign_up("tok", "ChosenPass1!", mock_db)
+        with pytest.raises(core_exceptions.PermissionDeniedError) as resent:
+            sign_up_service.resend_sign_up_verification_email("u@example.com", state, mock_db)
+
+        assert signed_up.value.detail == confirmed.value.detail == resent.value.detail
+
+    def test_an_email_change_confirmation_is_not_affected(self, deps, mock_db):
+        deps["verify_token"].return_value = _claim(previous_email="old@example.com")
+        deps["users_integration"].get_user.return_value = MagicMock(id=7, active=True)
+
+        result = sign_up_service.confirm_email_change("tok", mock_db)
+
+        assert result.next_step is sign_up_schema.SignUpNextStep.SIGN_IN
+
+
 class TestConfirmEmailChange:
     @pytest.fixture
     def deps(self):

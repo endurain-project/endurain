@@ -12,6 +12,8 @@ import { resendSignUpVerification } from '@/features/auth/services/signUp'
 import { HttpError } from '@/services/http'
 import { compose, email, required } from '@/utils/validators'
 
+const SIGN_UP_DISABLED_TYPE = 'urn:endurain:error:permission-denied'
+
 /** Form field shape backing the resend form. */
 interface ResendValues {
   email: string
@@ -31,6 +33,9 @@ async function submitForm(formValues: ResendValues): Promise<void> {
     await resendSignUpVerification({ email: formValues.email.trim().toLowerCase() })
     toasts.success(t('verifyEmail.resendSent'))
   } catch (error) {
+    if (error instanceof HttpError && error.type === SIGN_UP_DISABLED_TYPE) {
+      throw new Error(t('signup.errorSignupDisabled'))
+    }
     throw new Error(
       error instanceof HttpError && error.status === 429
         ? t('verifyEmail.resendTooManyAttempts')

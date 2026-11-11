@@ -177,6 +177,33 @@ describe('SignUpConfirmView', () => {
     expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.errorVerificationDisabled'))
   })
 
+  it('says sign-up is turned off, without offering a resend, when the server refuses the confirmation', async () => {
+    confirmSignUp.mockRejectedValue(
+      new HttpError(403, 'Forbidden', null, 'urn:endurain:error:permission-denied'),
+    )
+    const wrapper = await mountView()
+    await submitPassword(wrapper)
+
+    expect(wrapper.text()).toContain(i18n.global.t('signup.errorSignupDisabled'))
+    expect(wrapper.text()).not.toContain(i18n.global.t('verifyEmail.errorGeneral'))
+    expect(wrapper.find('input[name="email"]').exists()).toBe(false)
+  })
+
+  it('says sign-up is turned off when the server refuses a new email', async () => {
+    route.query = {}
+    resendSignUpVerification.mockRejectedValue(
+      new HttpError(403, 'Forbidden', null, 'urn:endurain:error:permission-denied'),
+    )
+    const wrapper = await mountView()
+
+    await wrapper.get('input[name="email"]').setValue('new@example.com')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(i18n.global.t('signup.errorSignupDisabled'))
+    expect(wrapper.text()).not.toContain(i18n.global.t('verifyEmail.resendError'))
+  })
+
   it('does not offer a resend once the sign-up is confirmed', async () => {
     confirmSignUp.mockResolvedValue({ next_step: 'sign_in' })
     const wrapper = await mountView()
