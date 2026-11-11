@@ -128,6 +128,7 @@ nav:
     - Health data and activity streams: integrate/health-and-streams.md
     - Data conventions: integrate/data-conventions.md
     - Background operations: integrate/background-operations.md
+    - Keeping a local copy in sync: integrate/sync.md
     - Realtime updates: integrate/realtime.md
     - Supported types: integrate/supported-types.md
     - API reference (OpenAPI): integrate/api-reference.md

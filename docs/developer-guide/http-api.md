@@ -179,9 +179,18 @@ These rules are for new fields and parameters; existing names are not renamed to
 
 ## Incremental sync
 
-A client that keeps a local copy (a mobile app) refreshes it by asking what changed. A resource a client can edit
-carries `updated_at`, its collection takes `updated_since`, and a deletion stays visible to that query. No resource
-meets this yet; see below.
+A client that keeps a local copy (a mobile app) refreshes it from `GET /sync`, one keyset walk over every synced
+record type (`modules/sync`, client docs in `docs/integrate/sync.md`). A record type a client keeps a copy of:
+
+- carries `updated_at` from `core.sync.UpdatedAtMixin`, stamped by the database on every write, a derived one
+  included (`version` moves only on an editable change);
+- records each deletion as a tombstone on `core.sync.TombstoneMixin`, in the delete's own transaction, and prunes
+  tombstones past `core.sync.TOMBSTONE_RETENTION`;
+- publishes `list_changed_<type>` and `list_<type>_deletions` on its `integration_service`, paged in
+  `(stamp, id)` order through `core.sync`, and is added to `modules/sync/service.py`.
+
+A list route takes no `updated_since`: offset paging over a changing order skips rows, so a copy is kept through
+`GET /sync` alone.
 
 ## Not yet met
 
@@ -194,5 +203,3 @@ These rules are not met everywhere yet. Each is tracked in the test registers ab
 - Uploaded images are stored as received, with their metadata.
 - Some enums are integers and some request schemas accept server-owned fields.
 - Most endpoint docstrings still carry Google sections. The OpenAPI document cuts them, but the source should lose them.
-- No collection offers [incremental sync](#incremental-sync): `updated_at` exists only on activities, notifications and
-  users, and nothing reports deletions.
