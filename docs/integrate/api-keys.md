@@ -64,7 +64,7 @@ If both the `X-API-Key` header and the `?api_key=` query parameter are present, 
 | Method | Endpoint | Required Scope | Description |
 | ------ | -------- | -------------- | ----------- |
 | `POST` | `/activities/upload` | `activities:upload` | Upload a .gpx, .tcx, .fit, or .gz activity file. Answers `202` with an ingestion job |
-| `GET` | `/activities/ingestion-jobs/{job_id}` | `activities:upload` | Poll the state of an ingestion job you started |
+| `GET` | `/jobs/{job_id}`, `/jobs` | `activities:upload` | Poll an upload, import or refresh job you started, or list them |
 
 Both endpoints also accept JWT authentication through the same unified-auth dependency. JWT requests still require `Authorization: Bearer <access token>` and the `activities:upload` scope, but these endpoints do not require `X-Client-Type`. No other endpoint accepts an API key. The upload may carry an `Idempotency-Key` header so a retry does not import the file twice, and so may the [bulk import](background-operations.md#bulk-import).
 

@@ -55,7 +55,7 @@ A resource has a collection and an item:
 - An action that is neither a replacement nor a partial edit is `POST /things/{thing_id}/<verb>` (`approve`,
   `revoke`, `read`, `complete`) **(test)**.
 - A `POST` that creates a resource answers `201`. The exception is the public sign-up request (`POST /public/sign-up/request`): it answers `200` with a `next_step`, because it answers from the server's policy alone and must not reveal whether the address is registered, so it has no resource to return.
-- Removing a thing that needs the caller's step-up in the body is `POST /things/{thing_id}/delete`, `.../unlink` or `.../revoke`, not `DELETE`, which carries no body: `POST /profile/delete-account`, `POST /profile/identity-providers/{idp_id}/unlink`, `POST /users/{user_id}/delete` and `POST /users/{user_id}/identity-providers/{idp_id}/unlink`, `POST /users/{user_id}/sessions/{session_id}/revoke` and `POST /users/{user_id}/sessions/revoke`. `POST /users/{user_id}/delete` keeps `If-Match` and the `202` status resource of a delete.
+- Removing a thing that needs the caller's step-up in the body is `POST /things/{thing_id}/delete`, `.../unlink` or `.../revoke`, not `DELETE`, which carries no body: `POST /profile/delete-account`, `POST /profile/identity-providers/{idp_id}/unlink`, `POST /users/{user_id}/delete` and `POST /users/{user_id}/identity-providers/{idp_id}/unlink`, `POST /users/{user_id}/sessions/{session_id}/revoke` and `POST /users/{user_id}/sessions/revoke`. `POST /users/{user_id}/delete` keeps `If-Match` and the `202` job of a delete.
 
 ## Status codes
 
@@ -63,7 +63,7 @@ A resource has a collection and an item:
 | --- | --- | --- |
 | `200` | A read, an edit that returns the resource, an action answered at once | `ETag` for a versioned resource |
 | `201` | A resource was created | The resource, `Location` and `ETag` when it can be read by id **(test)** |
-| `202` | Work was accepted for a background job | The status (a `core.job_status.JobStatus`: `queued`, `running`, `succeeded` or `failed`, `error_code`, `id` and the timestamps the kind records), `Content-Location` of the status resource, `Retry-After` **(test)**. A status read addressed by caller (one per user and operation, such as `GET /profile/export`) with nothing recorded is `200` with `null`, not `404`; a job read by its id (`GET /activities/ingestion-jobs/{job_id}`) is `404` for an unknown id |
+| `202` | Work was accepted for a background job | The job (a `core.job_status.JobStatus`: `id`, `kind`, `status` `queued`, `running`, `succeeded` or `failed`, `error_code`, `created_at`, `finished_at`), `Content-Location: /jobs/{job_id}` and `Retry-After` **(test)**. Every job is read at `GET /jobs/{job_id}`, `404` for an unknown, expired or foreign id, and listed at `GET /jobs`; there is no per-operation status route. A refused second start is `409` naming the running job in `job_id` and `Content-Location` |
 | `204` | A write with nothing to return | No body. A body that only carries a message is a `204` **(test)** |
 | `400` | Input the schema accepted but the domain refuses | Problem document |
 | `401` | The credential is missing, invalid or no longer valid (expired session, deleted or deactivated user) | `WWW-Authenticate` |
@@ -189,7 +189,7 @@ These rules are not met everywhere yet. Each is tracked in the test registers ab
 
 - Several resources that can be edited have no `GET /{id}`, and their creates send no `Location`; no create sends an
   `ETag` yet.
-- The one `202` with no status resource is the account owner's `POST /profile/delete-account`.
+- The one `202` whose job the caller cannot read is the account owner's `POST /profile/delete-account`.
 - Some secret-bearing responses lack `no-store`.
 - Uploaded images are stored as received, with their metadata.
 - Some enums are integers and some request schemas accept server-owned fields.

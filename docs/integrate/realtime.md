@@ -60,7 +60,7 @@ The server sends JSON text frames. The client sends nothing: a text or binary fr
 | `ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST_NOTIFICATION` | A sign-up waits for an administrator |
 | `GEARS_CHANGED` | A Garmin Connect or Strava gear sync finished and stored your gear |
 | `HEALTH_CHANGED` | A Garmin Connect health sync finished and stored your health data |
-| `JOB_STATUS_CHANGED` | A background job you started finished, failed or needs input. The frame also carries `job`: `ingestion:<job id>`, `garmin-link`, `garmin:gear`, `garmin:health`, `strava:link`, `strava:gear`, `strava:unlink`, `profile:export`, `profile:import` or `activities:bulk-edit`. Account deletion sends none; see [which jobs send the hint](background-operations.md#realtime-hint) |
+| `JOB_STATUS_CHANGED` | A background job you started finished, failed or needs input. The frame also carries the job's `job_id` and `kind`; read the job at `GET /jobs/{job_id}`. Account deletion sends none; see [which jobs send the hint](background-operations.md#realtime-hint) |
 
 Ignore a `message` you do not recognise: new types can be added. The notification meanings are in [Notifications](../features/notifications.md).
 
