@@ -6,7 +6,15 @@
  * The pure {@link toLatLngs} and {@link boundsOf} helpers are exported so the
  * seam → Leaflet data translation can be unit-tested without a real map.
  */
-import { circleMarker, map as createMap, polyline, tileLayer, type Layer } from 'leaflet'
+import {
+  circleMarker,
+  map as createMap,
+  polyline,
+  tileLayer,
+  type CircleMarker,
+  type Layer,
+  type LeafletMouseEvent,
+} from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
 import type {
@@ -15,7 +23,9 @@ import type {
   MapProvider,
   MapRenderOptions,
   MapTrack,
+  TrackHoverHandler,
 } from '@/composables/useMapProvider'
+import { nearestTrackIndex } from '@/features/activities/utils/scrub'
 
 import { DEFAULT_MAP_CONFIG } from '@/features/config/defaults'
 import { themeColor } from '@/lib/themeColor'
@@ -135,6 +145,8 @@ export function createLeafletMapProvider(config: LeafletMapProviderConfig = {}):
 
       let overlays: Layer[] = []
       let currentTrack: MapTrack = options.track
+      let onTrackHover: TrackHoverHandler | null = null
+      let cursor: CircleMarker | null = null
 
       /** Re-fits the viewport to a track's bounds (or the world when empty). */
       const fit = (track: MapTrack): void => {
@@ -155,7 +167,21 @@ export function createLeafletMapProvider(config: LeafletMapProviderConfig = {}):
 
         const linePoints = toLatLngs(track.points)
         if (linePoints.length > 0) {
-          overlays.push(polyline(linePoints, { color: trackColor, weight: 4 }).addTo(map))
+          const visible = polyline(linePoints, { color: trackColor, weight: 4, interactive: false })
+          const hit = polyline(linePoints, { color: trackColor, weight: 20, opacity: 0.01 })
+          const move = (event: LeafletMouseEvent): void => {
+            if (!onTrackHover || track.points.length === 0) {
+              return
+            }
+            const index = nearestTrackIndex(track.points, event.latlng.lat, event.latlng.lng)
+            onTrackHover(track.points.length === 1 ? 0 : index / (track.points.length - 1))
+          }
+          const leave = (): void => {
+            onTrackHover?.(null)
+          }
+          hit.on('mousemove', move)
+          hit.on('mouseout', leave)
+          overlays.push(visible.addTo(map), hit.addTo(map))
         }
         if (track.start) {
           overlays.push(emphasisMarker(track.start, START_MARKER_COLOR).addTo(map))
@@ -165,6 +191,7 @@ export function createLeafletMapProvider(config: LeafletMapProviderConfig = {}):
         }
 
         fit(track)
+        cursor?.bringToFront()
       }
 
       draw(options.track)
@@ -176,7 +203,32 @@ export function createLeafletMapProvider(config: LeafletMapProviderConfig = {}):
         recenter(): void {
           fit(currentTrack)
         },
+        setCursor(point: GeoPoint | null): void {
+          if (!point) {
+            cursor?.remove()
+            cursor = null
+            return
+          }
+          if (!cursor) {
+            cursor = circleMarker([point.lat, point.lng], {
+              radius: 8,
+              color: '#ffffff',
+              weight: 3,
+              fillColor: '#2c2c2a',
+              fillOpacity: 1,
+              interactive: false,
+            }).addTo(map)
+          } else {
+            cursor.setLatLng([point.lat, point.lng])
+          }
+          cursor.bringToFront()
+        },
+        setTrackHover(handler: TrackHoverHandler | null): void {
+          onTrackHover = handler
+        },
         destroy(): void {
+          cursor?.remove()
+          cursor = null
           map.remove()
         },
       }

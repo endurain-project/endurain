@@ -13,9 +13,17 @@ const props = withDefaults(
     points: GeoPoint[]
     /** Whether the map responds to pan/zoom. */
     interactive?: boolean
+    /** Point on the route that follows the chart cursor. `null` hides it. */
+    cursor?: GeoPoint | null
+    /** Reports hover along the route so the charts can follow. */
+    follow?: boolean
   }>(),
-  { interactive: true },
+  { interactive: true, cursor: null, follow: false },
 )
+
+const emit = defineEmits<{
+  trackHover: [fraction: number | null]
+}>()
 
 const ready = useRenderProvidersReady()
 const container = ref<HTMLElement | null>(null)
@@ -38,6 +46,13 @@ function mountMap(): void {
     track: { points: props.points, ...endpoints(props.points) },
     interactive: props.interactive,
   })
+  syncCursor()
+}
+
+/** Moves the route marker and listens for hover without redrawing the line. */
+function syncCursor(): void {
+  instance?.setCursor(props.cursor ?? null)
+  instance?.setTrackHover(props.follow ? (fraction) => emit('trackHover', fraction) : null)
 }
 
 /** Re-fits the map to the whole track after the user has panned or zoomed. */
@@ -47,6 +62,7 @@ function recenter(): void {
 
 onMounted(mountMap)
 watch(ready, mountMap)
+watch(() => [props.cursor, props.follow] as const, syncCursor)
 watch(
   () => props.points,
   (points) => {

@@ -452,6 +452,7 @@ export function buildStreamChart(
       xUnit: xAxis.unit,
       valueFormat: valueFormatter(metric, type, units),
       zoom: true,
+      showTooltip: false,
     },
     stats: buildStreamStats(metric, activity, units),
   }

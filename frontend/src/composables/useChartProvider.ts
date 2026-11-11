@@ -60,12 +60,34 @@ export interface ChartRenderOptions {
    * pinch on touch). Providers without zoom support ignore this.
    */
   zoom?: boolean
+  /**
+   * Draws the library tooltip. Activity charts turn this off and draw one
+   * shared cursor instead, so a hover does not open a second box.
+   */
+  showTooltip?: boolean
+}
+
+/** Position of the shared cursor inside a chart's plot, in CSS pixels. */
+export interface ChartCursorGeometry {
+  /** Distance from the canvas left edge to the cursor. */
+  left: number
+  /** Distance from the canvas top edge to the plot. */
+  top: number
+  /** Plot height. */
+  height: number
 }
 
 /** Imperative handle to a mounted chart, returned by {@link ChartProvider.mount}. */
 export interface ChartInstance {
   /** Re-renders the chart with new options (e.g. after data refresh). */
   update(options: ChartRenderOptions): void
+  /**
+   * Position along the series for a pointer x, from 0 to 1. `null` when the
+   * pointer is outside the plot.
+   */
+  fractionAt(clientX: number): number | null
+  /** Where to draw a cursor for a series fraction, or `null` when it is off-plot. */
+  cursorGeometry(fraction: number): ChartCursorGeometry | null
   /** Tears down the chart and releases resources. */
   destroy(): void
 }
@@ -90,6 +112,12 @@ const noopChartProvider: ChartProvider = {
   mount() {
     return {
       update() {},
+      fractionAt() {
+        return null
+      },
+      cursorGeometry() {
+        return null
+      },
       destroy() {},
     }
   },

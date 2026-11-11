@@ -17,6 +17,9 @@ export type ThemeColorToken =
   | '--color-hr'
   | '--color-info'
   | '--color-goal'
+  | '--color-popover'
+  | '--color-popover-foreground'
+  | '--color-border'
 
 /**
  * Bundled fallbacks mirroring `main.css`, used when the live stylesheet is not
@@ -29,6 +32,25 @@ const TOKEN_FALLBACKS: Record<ThemeColorToken, string> = {
   '--color-hr': '#e24b4a',
   '--color-info': '#378add',
   '--color-goal': '#639922',
+  '--color-popover': '#ffffff',
+  '--color-popover-foreground': '#2c2c2a',
+  '--color-border': 'rgba(0, 0, 0, 0.08)',
+}
+
+/**
+ * Reads a custom property, following one `@theme` alias such as
+ * `var(--popover)`. The alias target is what `.dark` overrides.
+ */
+function readToken(name: string, depth = 0): string {
+  if (depth > 4) {
+    return ''
+  }
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+  const alias = /^var\(\s*(--[\w-]+)\s*\)$/.exec(value)
+  if (alias?.[1]) {
+    return readToken(alias[1], depth + 1)
+  }
+  return value
 }
 
 /**
@@ -40,7 +62,7 @@ const TOKEN_FALLBACKS: Record<ThemeColorToken, string> = {
  */
 export function themeColor(token: ThemeColorToken): string {
   if (typeof document !== 'undefined') {
-    const resolved = getComputedStyle(document.documentElement).getPropertyValue(token).trim()
+    const resolved = readToken(token)
     if (resolved) {
       return resolved
     }

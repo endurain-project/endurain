@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { setChartProvider, useChartProvider } from '@/composables/useChartProvider'
+import { themeColor } from '@/lib/themeColor'
 import {
   buildChartConfiguration,
   createChartJsChartProvider,
@@ -127,6 +128,14 @@ describe('buildChartConfiguration', () => {
     const tooltip = config.options?.plugins?.tooltip as
       { callbacks?: { title?: (items: { label: string }[]) => string } } | undefined
     expect(tooltip?.callbacks?.title?.([{ label: '0.7' }])).toBe('0.7 km')
+    const colors = tooltip as {
+      backgroundColor?: string
+      titleColor?: string
+      bodyColor?: string
+    }
+    expect(colors.backgroundColor).toBe(themeColor('--color-popover'))
+    expect(colors.titleColor).toBe(themeColor('--color-popover-foreground'))
+    expect(colors.bodyColor).toBe(themeColor('--color-popover-foreground'))
   })
 
   it('leaves the y-axis upright without explicit options', () => {
