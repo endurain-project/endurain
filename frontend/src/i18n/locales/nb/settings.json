@@ -383,12 +383,7 @@
     "retention": {
       "title": "Datalagring",
       "readNotifications": "Slett leste varsler etter (dager)",
-      "readNotificationsHint": "0 beholder leste varsler for alltid. Uleste varsler slettes aldri.",
-      "auditTrail": "Slett revisjonssporoppføringer etter (dager)",
-      "auditTrailHint": "0 beholder alt. Ellers er minimum 30 dager; oppføringer slettes en hel dag om gangen.",
-      "auditTrailInvalid": "Skriv inn 0, eller et heltall mellom {min} og {max}.",
-      "auditLegalHold": "Juridisk oppbevaringspålegg på revisjonssporet",
-      "auditLegalHoldHint": "Når dette er på, settes all opprydding av revisjonssporet på pause, uansett oppbevaringstid."
+      "readNotificationsHint": "0 beholder leste varsler for alltid. Uleste varsler slettes aldri."
     },
     "signup": {
       "title": "Registrering",

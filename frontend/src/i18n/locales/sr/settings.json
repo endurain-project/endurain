@@ -383,12 +383,7 @@
     "retention": {
       "title": "Čuvanje podataka",
       "readNotifications": "Obriši pročitana obaveštenja nakon (dana)",
-      "readNotificationsHint": "0 zauvek zadržava pročitana obaveštenja. Nepročitana obaveštenja se nikada ne brišu.",
-      "auditTrail": "Obriši stavke revizorskog traga nakon (dana)",
-      "auditTrailHint": "0 zadržava sve. Inače je minimum 30 dana; stavke se brišu čitav dan odjednom.",
-      "auditTrailInvalid": "Unesite 0 ili ceo broj između {min} i {max}.",
-      "auditLegalHold": "Pravna zadrška revizorskog traga",
-      "auditLegalHoldHint": "Dok je uključena, zaustavlja svako brisanje revizorskog traga, bez obzira na čuvanje."
+      "readNotificationsHint": "0 zauvek zadržava pročitana obaveštenja. Nepročitana obaveštenja se nikada ne brišu."
     },
     "signup": {
       "title": "Registracija",

@@ -63,10 +63,6 @@ PUBLISHED_EXAMPLE_SECRETS: dict[str, tuple[frozenset[str], str]] = {
     ),
 }
 
-#: The youngest audit-trail partition the database lets anyone drop. Baked into the guard function when the
-#: substrate's audit migration first runs; a later change here does not alter an existing database.
-AUDIT_RETENTION_FLOOR_DAYS = 30
-
 
 SERVER_IMAGES_URL_PATH = "server_images"
 
@@ -219,8 +215,8 @@ class Settings(BaseSettings):
 
     # --- Audit trail (jasil_audit_log) ---
     # Append-only record of security-relevant actions, written in the same
-    # transaction as the change it describes. Retention and legal hold are
-    # server settings an administrator edits at run time.
+    # transaction as the change it describes. The trail is kept for the
+    # platform's default retention (90 days) with no legal hold.
     # Optional write-once copy of every audit checkpoint, kept outside the
     # database: file:///absolute/directory or s3://bucket/prefix. The signing
     # key (AUDIT_SIGNING_KEY) is a secret and read separately via ``read_secret``.

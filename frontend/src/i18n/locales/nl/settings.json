@@ -383,12 +383,7 @@
     "retention": {
       "title": "Gegevensbewaring",
       "readNotifications": "Gelezen meldingen verwijderen na (dagen)",
-      "readNotificationsHint": "Bij 0 blijven gelezen meldingen voor altijd bewaard. Ongelezen meldingen worden nooit verwijderd.",
-      "auditTrail": "Auditlogvermeldingen verwijderen na (dagen)",
-      "auditTrailHint": "Bij 0 blijft alles bewaard. Anders is het minimum 30 dagen; vermeldingen worden per hele dag verwijderd.",
-      "auditTrailInvalid": "Voer 0 in, of een geheel getal tussen {min} en {max}.",
-      "auditLegalHold": "Juridische bewaarplicht voor het auditlog",
-      "auditLegalHoldHint": "Zolang dit aan staat, wordt het opschonen van het auditlog gepauzeerd, ongeacht de bewaartermijn."
+      "readNotificationsHint": "Bij 0 blijven gelezen meldingen voor altijd bewaard. Ongelezen meldingen worden nooit verwijderd."
     },
     "signup": {
       "title": "Registratie",

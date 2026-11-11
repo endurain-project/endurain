@@ -70,11 +70,9 @@ class TestReadServerSettings:
             refresh_token_expire_days=7,
             api_key_max_lifetime_days=365,
             read_notification_retention_days=90,
-            audit_retention_days=90,
-            audit_legal_hold=False,
             geocoding_api_key_set=False,
             env_managed={},
-            step_up_fields=["audit_legal_hold"],
+            step_up_fields=["sso_enabled"],
             logs_viewer_enabled=True,
         )
 
@@ -92,7 +90,7 @@ class TestReadServerSettings:
         assert data["id"] == 1
         assert data["units"] == "metric"
         assert data["public_shareable_links"] is False
-        assert data["step_up_fields"] == ["audit_legal_hold"]
+        assert data["step_up_fields"] == ["sso_enabled"]
         assert data["logs_viewer_enabled"] is True
 
     @patch("modules.server_settings.router.server_settings_service.get_server_settings_for_admin")
@@ -155,8 +153,6 @@ class TestEditServerSettings:
             refresh_token_expire_days=7,
             api_key_max_lifetime_days=365,
             read_notification_retention_days=90,
-            audit_retention_days=90,
-            audit_legal_hold=False,
             geocoding_api_key_set=False,
             env_managed={},
             step_up_fields=[],
@@ -202,8 +198,6 @@ class TestEditServerSettings:
                 "refresh_token_expire_days": 7,
                 "api_key_max_lifetime_days": 365,
                 "read_notification_retention_days": 90,
-                "audit_retention_days": 90,
-                "audit_legal_hold": False,
             },
         )
 
@@ -262,8 +256,6 @@ class TestEditServerSettings:
                 "refresh_token_expire_days": 7,
                 "api_key_max_lifetime_days": 365,
                 "read_notification_retention_days": 90,
-                "audit_retention_days": 90,
-                "audit_legal_hold": False,
             },
         )
 
@@ -309,8 +301,6 @@ class TestEditServerSettingsStepUp:
             "refresh_token_expire_days": 7,
             "api_key_max_lifetime_days": 365,
             "read_notification_retention_days": 90,
-            "audit_retention_days": 90,
-            "audit_legal_hold": False,
         }
         body.update(extra)
         return body
@@ -428,8 +418,6 @@ def _edit_body(**overrides) -> dict:
         "refresh_token_expire_days": 7,
         "api_key_max_lifetime_days": 365,
         "read_notification_retention_days": 90,
-        "audit_retention_days": 90,
-        "audit_legal_hold": False,
     }
     body.update(overrides)
     return body
@@ -443,7 +431,7 @@ class TestEditRejectsReadOnlyFields:
         [
             ("id", 2),
             ("login_photo_set", False),
-            ("step_up_fields", ["audit_legal_hold"]),
+            ("step_up_fields", ["sso_enabled"]),
             ("logs_viewer_enabled", True),
         ],
     )
@@ -478,19 +466,6 @@ class TestEditValidatesAccessTokenLifetime:
         assert response.status_code == 422
         assert "The access token lifetime must be shorter than the idle timeout" in response.text
         mock_edit.assert_not_called()
-
-
-class TestEditValidatesAuditRetention:
-    @pytest.mark.parametrize("days", [1, 29])
-    def test_a_retention_below_the_floor_is_a_422_naming_the_rule(self, days, fast_api_client, fast_api_app):
-        response = fast_api_client.put(
-            "/server_settings",
-            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
-            json=_edit_body(audit_retention_days=days),
-        )
-
-        assert response.status_code == 422
-        assert "Audit trail retention must be 0 or between 30 and 36500 days" in response.text
 
 
 class TestUploadLoginPhoto:

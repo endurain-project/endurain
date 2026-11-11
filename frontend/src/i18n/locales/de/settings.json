@@ -383,12 +383,7 @@
     "retention": {
       "title": "Datenaufbewahrung",
       "readNotifications": "Gelesene Benachrichtigungen löschen nach (Tage)",
-      "readNotificationsHint": "Bei 0 bleiben gelesene Benachrichtigungen für immer erhalten. Ungelesene Benachrichtigungen werden nie gelöscht.",
-      "auditTrail": "Einträge im Audit-Protokoll löschen nach (Tage)",
-      "auditTrailHint": "Bei 0 bleibt alles erhalten. Andernfalls beträgt das Minimum 30 Tage; Einträge werden jeweils tageweise gelöscht.",
-      "auditTrailInvalid": "Gib 0 oder eine ganze Zahl zwischen {min} und {max} ein.",
-      "auditLegalHold": "Legal Hold für das Audit-Protokoll",
-      "auditLegalHoldHint": "Solange aktiv, wird jegliches Bereinigen des Audit-Protokolls ausgesetzt, unabhängig von der Aufbewahrung."
+      "readNotificationsHint": "Bei 0 bleiben gelesene Benachrichtigungen für immer erhalten. Ungelesene Benachrichtigungen werden nie gelöscht."
     },
     "signup": {
       "title": "Registrierung",

@@ -46,19 +46,6 @@ class SessionPolicy:
     api_key_max_lifetime: timedelta
 
 
-@dataclass(frozen=True)
-class AuditRetention:
-    """How long the audit trail is kept.
-
-    Attributes:
-        retention_days: Days after which audit trail partitions are dropped; 0 keeps everything.
-        legal_hold: Suspend all pruning of the audit trail.
-    """
-
-    retention_days: int
-    legal_hold: bool
-
-
 class RequireMfa(StrEnum):
     """Which accounts the server requires to have MFA.
 

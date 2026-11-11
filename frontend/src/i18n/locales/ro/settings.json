@@ -383,12 +383,7 @@
     "retention": {
       "title": "Păstrarea datelor",
       "readNotifications": "Șterge notificările citite după (zile)",
-      "readNotificationsHint": "0 păstrează notificările citite pentru totdeauna. Notificările necitite nu sunt șterse niciodată.",
-      "auditTrail": "Șterge intrările din jurnalul de audit după (zile)",
-      "auditTrailHint": "0 păstrează totul. Altfel, minimul este de 30 de zile; intrările se șterg pe zile întregi.",
-      "auditTrailInvalid": "Introdu 0 sau un număr întreg între {min} și {max}.",
-      "auditLegalHold": "Blocare legală a jurnalului de audit",
-      "auditLegalHoldHint": "Cât timp este activă, oprește toate ștergerile din jurnalul de audit, indiferent de perioada de păstrare."
+      "readNotificationsHint": "0 păstrează notificările citite pentru totdeauna. Notificările necitite nu sunt șterse niciodată."
     },
     "signup": {
       "title": "Înregistrare",

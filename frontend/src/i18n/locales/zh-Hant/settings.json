@@ -383,12 +383,7 @@
     "retention": {
       "title": "資料保留",
       "readNotifications": "已讀通知保留天數",
-      "readNotificationsHint": "0 表示永久保留已讀通知。未讀通知永遠不會被刪除。",
-      "auditTrail": "稽核紀錄保留天數",
-      "auditTrailHint": "0 表示全部保留。否則最少為 30 天，紀錄會以整天為單位刪除。",
-      "auditTrailInvalid": "請輸入 0，或介於 {min} 和 {max} 之間的整數。",
-      "auditLegalHold": "稽核紀錄法律保留",
-      "auditLegalHoldHint": "開啟後，無論保留期限為何，都會暫停對稽核紀錄的所有清理。"
+      "readNotificationsHint": "0 表示永久保留已讀通知。未讀通知永遠不會被刪除。"
     },
     "signup": {
       "title": "註冊",

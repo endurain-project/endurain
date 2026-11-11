@@ -11236,16 +11236,6 @@ export interface components {
              * @description Longest lifetime of a new API key, and its default, in days
              */
             api_key_max_lifetime_days: number;
-            /**
-             * Audit Legal Hold
-             * @description Suspend all pruning of the audit trail (true - yes, false - no)
-             */
-            audit_legal_hold: boolean;
-            /**
-             * Audit Retention Days
-             * @description Days after which audit trail partitions are dropped: 0 (never) or 30 to 36500
-             */
-            audit_retention_days: number;
             /** @description Currency (euro, dollar, pound) */
             currency: components["schemas"]["Currency"];
             /**
@@ -11441,16 +11431,6 @@ export interface components {
              * @description Longest lifetime of a new API key, and its default, in days
              */
             api_key_max_lifetime_days: number;
-            /**
-             * Audit Legal Hold
-             * @description Suspend all pruning of the audit trail (true - yes, false - no)
-             */
-            audit_legal_hold: boolean;
-            /**
-             * Audit Retention Days
-             * @description Days after which audit trail partitions are dropped: 0 (never) or 30 to 36500
-             */
-            audit_retention_days: number;
             /** @description Currency (euro, dollar, pound) */
             currency: components["schemas"]["Currency"];
             /**

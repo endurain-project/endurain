@@ -383,12 +383,7 @@
     "retention": {
       "title": "Andmete säilitamine",
       "readNotifications": "Kustuta loetud teavitused pärast (päeva)",
-      "readNotificationsHint": "0 säilitab loetud teavitused igaveseks. Lugemata teavitusi ei kustutata kunagi.",
-      "auditTrail": "Kustuta auditilogi kirjed pärast (päeva)",
-      "auditTrailHint": "0 säilitab kõik. Muidu on miinimum 30 päeva; kirjed kustutatakse terve päeva kaupa.",
-      "auditTrailInvalid": "Sisesta 0 või täisarv vahemikus {min}–{max}.",
-      "auditLegalHold": "Auditilogi õiguslik säilitamine",
-      "auditLegalHoldHint": "Kui see on sees, peatatakse auditilogi igasugune puhastamine, olenemata säilitusajast."
+      "readNotificationsHint": "0 säilitab loetud teavitused igaveseks. Lugemata teavitusi ei kustutata kunagi."
     },
     "signup": {
       "title": "Registreerimine",

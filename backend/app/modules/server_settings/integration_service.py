@@ -188,24 +188,6 @@ def get_read_notification_retention_days(db: Session) -> int:
     return server_settings_service.get_server_settings(db).read_notification_retention_days
 
 
-def get_audit_retention(db: Session) -> server_settings_contracts.AuditRetention:
-    """Return how long the audit trail is kept and whether a legal hold suspends pruning.
-
-    Args:
-        db: Database session.
-
-    Returns:
-        The audit retention; 0 days keeps everything.
-
-    Raises:
-        ServiceUnavailableError: If the settings row does not exist.
-    """
-    settings = server_settings_service.get_server_settings(db)
-    return server_settings_contracts.AuditRetention(
-        retention_days=settings.audit_retention_days, legal_hold=settings.audit_legal_hold
-    )
-
-
 def import_deprecated_env_settings(db: Session) -> None:
     """Save the deprecated environment variables into the database and warn about them.
 

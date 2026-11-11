@@ -40,8 +40,6 @@ const ACCESS_MINUTES_RANGE = { min: 1, max: 1440 } as const
 const REFRESH_DAYS_RANGE = { min: 1, max: 365 } as const
 const API_KEY_DAYS_RANGE = { min: 1, max: 3650 } as const
 const RETENTION_DAYS_RANGE = { min: 0, max: 3650 } as const
-/** Accepted audit trail retention besides 0 (keep everything): the database-side floor to the substrate maximum. */
-const AUDIT_RETENTION_DAYS_RANGE = { min: 30, max: 36500 } as const
 /** The write-only API key fields; a draft kept across the identity-provider sign-in never holds them. */
 const SECRET_FIELDS = ['tileserverApiKey', 'geocodingApiKey'] as const
 /** Placeholders every valid tile URL template must contain. */
@@ -93,8 +91,6 @@ function toFormValues(settings: ServerSettings): ServerSettingsFormValues {
     refreshTokenExpireDays: String(settings.refreshTokenExpireDays),
     apiKeyMaxLifetimeDays: String(settings.apiKeyMaxLifetimeDays),
     readNotificationRetentionDays: String(settings.readNotificationRetentionDays),
-    auditRetentionDays: String(settings.auditRetentionDays),
-    auditLegalHold: settings.auditLegalHold,
   }
 }
 
@@ -293,7 +289,6 @@ export function useServerSettingsForm(props: {
       refreshTokenExpireDays,
       apiKeyMaxLifetimeDays,
       readNotificationRetentionDays,
-      auditRetentionDays,
       ...editable
     } = formValues
     // undefined keeps the stored key, null removes it, a string replaces it.
@@ -312,7 +307,6 @@ export function useServerSettingsForm(props: {
           refreshTokenExpireDays: Number(refreshTokenExpireDays.trim()),
           apiKeyMaxLifetimeDays: Number(apiKeyMaxLifetimeDays.trim()),
           readNotificationRetentionDays: Number(readNotificationRetentionDays.trim()),
-          auditRetentionDays: Number(auditRetentionDays.trim()),
           tileserverApiKey: apiKey,
           geocodingApiKey: geocodingKey,
         },
@@ -443,13 +437,6 @@ export function useServerSettingsForm(props: {
         RETENTION_DAYS_RANGE,
         rangeMessage(RETENTION_DAYS_RANGE),
       ),
-      auditRetentionDays: (value: string): string | null =>
-        value.trim() === '0'
-          ? null
-          : integerRangeValidator(
-              AUDIT_RETENTION_DAYS_RANGE,
-              t('settings.server.retention.auditTrailInvalid', AUDIT_RETENTION_DAYS_RANGE),
-            )(value),
     },
     onSubmit: submitForm,
   })

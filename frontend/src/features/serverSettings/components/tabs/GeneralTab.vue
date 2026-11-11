@@ -5,7 +5,6 @@ import { Card } from '@/components/ui/card'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
 import EnvManagedNotice from '@/features/serverSettings/components/EnvManagedNotice.vue'
 import LoginPhotoCard from '@/features/serverSettings/components/LoginPhotoCard.vue'
 import { useServerSettingsFormContext } from '@/features/serverSettings/composables/useServerSettingsForm'
@@ -92,34 +91,6 @@ const NUM_RECORDS_OPTIONS = [5, 10, 25, 50, 100] as const
           />
         </template>
       </FormField>
-      <FormField
-        data-setting="retention-audit-trail"
-        :label="t('settings.server.retention.auditTrail')"
-        :hint="t('settings.server.retention.auditTrailHint')"
-        :error="errors.auditRetentionDays"
-      >
-        <template #default="{ fieldId, describedBy, invalid }">
-          <Input
-            :id="fieldId"
-            v-model="values.auditRetentionDays"
-            :aria-describedby="describedBy"
-            :aria-invalid="invalid"
-            type="text"
-            inputmode="numeric"
-            maxlength="5"
-            :disabled="isSubmitting"
-            @blur="handleBlur('auditRetentionDays')"
-          />
-        </template>
-      </FormField>
-      <Switch
-        v-model="values.auditLegalHold"
-        data-setting="retention-audit-legal-hold"
-        :disabled="isSubmitting"
-      >
-        {{ t('settings.server.retention.auditLegalHold') }}
-      </Switch>
-      <p class="text-hint">{{ t('settings.server.retention.auditLegalHoldHint') }}</p>
     </Card>
 
     <LoginPhotoCard data-setting="section-photo" :login-photo-set="settings.loginPhotoSet" />

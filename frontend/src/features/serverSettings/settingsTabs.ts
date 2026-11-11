@@ -28,8 +28,6 @@ export const FIELD_TABS: Record<keyof ServerSettingsFormValues, SettingsTab> = {
   currency: 'general',
   numRecordsPerPage: 'general',
   readNotificationRetentionDays: 'general',
-  auditRetentionDays: 'general',
-  auditLegalHold: 'general',
   signupEnabled: 'access',
   signupSsoEnabled: 'access',
   signupRequireAdminApproval: 'access',

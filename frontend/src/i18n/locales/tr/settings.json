@@ -383,12 +383,7 @@
     "retention": {
       "title": "Veri saklama",
       "readNotifications": "Okunmuş bildirimleri şu süre sonra sil (gün)",
-      "readNotificationsHint": "0 değeri okunmuş bildirimleri süresiz saklar. Okunmamış bildirimler hiçbir zaman silinmez.",
-      "auditTrail": "Denetim kaydı girdilerini şu süre sonra sil (gün)",
-      "auditTrailHint": "0 değeri her şeyi saklar. Aksi halde en az 30 gün olmalıdır; girdiler tam gün olarak silinir.",
-      "auditTrailInvalid": "0 girin veya {min} ile {max} arasında bir tam sayı girin.",
-      "auditLegalHold": "Denetim kaydında yasal saklama",
-      "auditLegalHoldHint": "Açıkken, saklama süresinden bağımsız olarak denetim kaydının tüm temizlenmesini durdurur."
+      "readNotificationsHint": "0 değeri okunmuş bildirimleri süresiz saklar. Okunmamış bildirimler hiçbir zaman silinmez."
     },
     "signup": {
       "title": "Kayıt",

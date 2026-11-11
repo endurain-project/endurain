@@ -383,12 +383,7 @@
     "retention": {
       "title": "Adatmegőrzés",
       "readNotifications": "Olvasott értesítések törlése ennyi nap után",
-      "readNotificationsHint": "A 0 az olvasott értesítéseket örökre megőrzi. Az olvasatlan értesítések soha nem törlődnek.",
-      "auditTrail": "Auditnapló-bejegyzések törlése ennyi nap után",
-      "auditTrailHint": "A 0 mindent megőriz. Egyébként a minimum 30 nap; a bejegyzések egész napokban törlődnek.",
-      "auditTrailInvalid": "Adj meg 0-t, vagy egy egész számot {min} és {max} között.",
-      "auditLegalHold": "Jogi zárolás az auditnaplón",
-      "auditLegalHoldHint": "Bekapcsolt állapotban az auditnapló minden törlését szünetelteti, a megőrzési időtől függetlenül."
+      "readNotificationsHint": "A 0 az olvasott értesítéseket örökre megőrzi. Az olvasatlan értesítések soha nem törlődnek."
     },
     "signup": {
       "title": "Regisztráció",

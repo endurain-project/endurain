@@ -65,8 +65,6 @@ export function mapServerSettings(dto: ServerSettingsDto): ServerSettings {
     refreshTokenExpireDays: dto.refresh_token_expire_days,
     apiKeyMaxLifetimeDays: dto.api_key_max_lifetime_days,
     readNotificationRetentionDays: dto.read_notification_retention_days,
-    auditRetentionDays: dto.audit_retention_days,
-    auditLegalHold: dto.audit_legal_hold,
     geocodingApiKeySet: dto.geocoding_api_key_set,
     envManaged: dto.env_managed,
     logsViewerEnabled: dto.logs_viewer_enabled,
@@ -145,8 +143,6 @@ export function toServerSettingsWire(
     refresh_token_expire_days: settings.refreshTokenExpireDays,
     api_key_max_lifetime_days: settings.apiKeyMaxLifetimeDays,
     read_notification_retention_days: settings.readNotificationRetentionDays,
-    audit_retention_days: settings.auditRetentionDays,
-    audit_legal_hold: settings.auditLegalHold,
     // Omitted keeps the stored key; the backend never returns it, so it cannot round-trip.
     ...(settings.tileserverApiKey !== undefined && {
       tileserver_api_key: settings.tileserverApiKey,

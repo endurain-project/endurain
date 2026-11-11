@@ -63,16 +63,10 @@ SESSION_ENV_VARS: dict[str, str] = {
     "refresh_token_expire_days": "REFRESH_TOKEN_EXPIRE_DAYS",
 }
 
-#: The audit trail retention an administrator may set, besides 0 (keep everything): from the database-side floor
-#: of the audit trail (``core.config.AUDIT_RETENTION_FLOOR_DAYS``) to the substrate's maximum. The
-#: ``audit_retention_days_check`` constraint states the same range.
-AUDIT_RETENTION_MIN_DAYS = 30
-AUDIT_RETENTION_MAX_DAYS = 36500
-
-#: The settings that govern who can sign up or sign in, whether MFA is required, how long a session or token lives,
-#: how long the audit trail is kept and whether public links reveal their owner. Changing the stored value of any of
-#: them needs the administrator's step-up, so a stolen access token cannot weaken authentication, shorten the evidence
-#: or expose users. Appearance, map, geocoding, paging, the public-links switch and notification-retention settings are not here.
+#: The settings that govern who can sign up or sign in, whether MFA is required, how long a session or token lives
+#: and whether public links reveal their owner. Changing the stored value of any of them needs the administrator's
+#: step-up, so a stolen access token cannot weaken authentication or expose users. Appearance, map, geocoding, paging, the public-links switch and notification-retention settings are
+#: not here.
 SECURITY_FIELDS: frozenset[str] = frozenset(
     {
         "signup_enabled",
@@ -92,8 +86,6 @@ SECURITY_FIELDS: frozenset[str] = frozenset(
         "access_token_expire_minutes",
         "refresh_token_expire_days",
         "api_key_max_lifetime_days",
-        "audit_retention_days",
-        "audit_legal_hold",
         "public_shareable_links_user_info",
     }
 )

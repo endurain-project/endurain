@@ -383,12 +383,7 @@
     "retention": {
       "title": "Duomenų saugojimas",
       "readNotifications": "Ištrinti perskaitytus pranešimus po (dienų)",
-      "readNotificationsHint": "0 perskaitytus pranešimus saugo amžinai. Neperskaityti pranešimai niekada netrinami.",
-      "auditTrail": "Ištrinti audito žurnalo įrašus po (dienų)",
-      "auditTrailHint": "0 saugo viską. Kitu atveju mažiausia reikšmė yra 30 dienų; įrašai trinami po visą dieną.",
-      "auditTrailInvalid": "Įveskite 0 arba sveikąjį skaičių nuo {min} iki {max}.",
-      "auditLegalHold": "Teisinis audito žurnalo saugojimo įpareigojimas",
-      "auditLegalHoldHint": "Kai įjungta, bet koks audito žurnalo valymas sustabdomas, nepaisant saugojimo trukmės."
+      "readNotificationsHint": "0 perskaitytus pranešimus saugo amžinai. Neperskaityti pranešimai niekada netrinami."
     },
     "signup": {
       "title": "Registracija",

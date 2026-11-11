@@ -383,12 +383,7 @@
     "retention": {
       "title": "Lagring av data",
       "readNotifications": "Ta bort lästa aviseringar efter (dagar)",
-      "readNotificationsHint": "0 sparar lästa aviseringar för alltid. Olästa aviseringar tas aldrig bort.",
-      "auditTrail": "Ta bort poster i granskningsloggen efter (dagar)",
-      "auditTrailHint": "0 sparar allt. Annars är minimum 30 dagar; poster tas bort hela dagar i taget.",
-      "auditTrailInvalid": "Ange 0, eller ett heltal mellan {min} och {max}.",
-      "auditLegalHold": "Rättslig spärr på granskningsloggen",
-      "auditLegalHoldHint": "När den är på pausas all rensning av granskningsloggen, oavsett lagringstid."
+      "readNotificationsHint": "0 sparar lästa aviseringar för alltid. Olästa aviseringar tas aldrig bort."
     },
     "signup": {
       "title": "Registrering",

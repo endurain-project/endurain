@@ -383,12 +383,7 @@
     "retention": {
       "title": "Uchovávání dat",
       "readNotifications": "Smazat přečtená oznámení po (dnech)",
-      "readNotificationsHint": "0 uchovává přečtená oznámení navždy. Nepřečtená oznámení se nikdy nemažou.",
-      "auditTrail": "Smazat záznamy auditní stopy po (dnech)",
-      "auditTrailHint": "0 uchovává vše. Jinak je minimum 30 dní; záznamy se mažou po celých dnech.",
-      "auditTrailInvalid": "Zadejte 0 nebo celé číslo mezi {min} a {max}.",
-      "auditLegalHold": "Právní blokace auditní stopy",
-      "auditLegalHoldHint": "Je-li zapnuta, pozastaví veškeré mazání auditní stopy bez ohledu na dobu uchovávání."
+      "readNotificationsHint": "0 uchovává přečtená oznámení navždy. Nepřečtená oznámení se nikdy nemažou."
     },
     "signup": {
       "title": "Registrace",

@@ -383,12 +383,7 @@
     "retention": {
       "title": "Retención de datos",
       "readNotifications": "Eliminar notificaciones leídas tras (días)",
-      "readNotificationsHint": "0 conserva las notificaciones leídas para siempre. Las notificaciones sin leer nunca se eliminan.",
-      "auditTrail": "Eliminar entradas del registro de auditoría tras (días)",
-      "auditTrailHint": "0 lo conserva todo. De lo contrario, el mínimo es de 30 días; las entradas se eliminan por días completos.",
-      "auditTrailInvalid": "Introduce 0, o un número entero entre {min} y {max}.",
-      "auditLegalHold": "Retención legal del registro de auditoría",
-      "auditLegalHoldHint": "Mientras esté activada, pausa toda la depuración del registro de auditoría, sea cual sea la retención."
+      "readNotificationsHint": "0 conserva las notificaciones leídas para siempre. Las notificaciones sin leer nunca se eliminan."
     },
     "signup": {
       "title": "Registro",

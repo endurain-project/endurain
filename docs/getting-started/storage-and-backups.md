@@ -99,7 +99,7 @@ Leftovers do not pile up forever. Scheduled sweeps remove:
 | Identity provider icons whose provider is gone or has no icon | Daily |
 | Ingestion job records past their retention | Daily |
 | Failed bulk-import files past the job retention (`JOBS_RETENTION_DAYS`) | Daily |
-| Audit trail days older than the audit trail retention in Settings > Server > General (90 days by default) | Checked every 5 minutes, unless a legal hold is on |
+| Audit trail days older than 90 days | Checked every 5 minutes |
 
 Failed bulk-import files in `bulk_import_errors` are removed after `JOBS_RETENTION_DAYS` (90 days by default), so copy out any you still need before then. Setting `JOBS_RETENTION_DAYS` to `0` keeps them until the account is deleted.
 

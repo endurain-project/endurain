@@ -5,12 +5,9 @@ This module tests the ServerSettings SQLAlchemy model,
 including field defaults and constraints.
 """
 
-import pytest
 from sqlalchemy import inspect
-from sqlalchemy.exc import IntegrityError
 
 import modules.server_settings.models as server_settings_models
-from tests._helpers.db import create_sqlite_session
 
 
 class TestServerSettingsModel:
@@ -125,7 +122,6 @@ class TestServerSettingsModel:
             "refresh_token_expire_days_check",
             "api_key_max_lifetime_days_check",
             "read_notification_retention_days_check",
-            "audit_retention_days_check",
             "require_mfa_check",
         }
 
@@ -146,38 +142,3 @@ class TestApiKeyMaxLifetimeDefault:
         column = server_settings_models.ServerSettings.__table__.c.api_key_max_lifetime_days
         assert column.default.arg == 365
         assert str(column.server_default.arg) == "365"
-
-
-class TestAuditRetentionColumns:
-    """Audit-trail retention and legal hold, kept with the other data-retention settings."""
-
-    def test_defaults_keep_ninety_days_without_a_hold(self):
-        table = server_settings_models.ServerSettings.__table__
-        assert (table.c.audit_retention_days.default.arg, str(table.c.audit_retention_days.server_default.arg)) == (
-            90,
-            "90",
-        )
-        assert (table.c.audit_legal_hold.default.arg, str(table.c.audit_legal_hold.server_default.arg)) == (
-            False,
-            "false",
-        )
-        assert not table.c.audit_retention_days.nullable
-        assert not table.c.audit_legal_hold.nullable
-
-    @staticmethod
-    def _store(days: int) -> None:
-        db = create_sqlite_session()
-        try:
-            db.add(server_settings_models.ServerSettings(audit_retention_days=days))
-            db.commit()
-        finally:
-            db.close()
-
-    @pytest.mark.parametrize("days", [0, 30, 36500])
-    def test_the_constraint_accepts_zero_or_the_floor_to_the_maximum(self, days):
-        self._store(days)
-
-    @pytest.mark.parametrize("days", [-1, 1, 29, 36501])
-    def test_the_constraint_refuses_anything_else(self, days):
-        with pytest.raises(IntegrityError, match="audit_retention_days_check"):
-            self._store(days)

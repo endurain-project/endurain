@@ -69,16 +69,9 @@ function makeSettings(overrides: Partial<ServerSettings> = {}): ServerSettings {
     refreshTokenExpireDays: 7,
     apiKeyMaxLifetimeDays: 365,
     readNotificationRetentionDays: 90,
-    auditRetentionDays: 90,
-    auditLegalHold: false,
     geocodingApiKeySet: false,
     envManaged: {},
-    stepUpFields: [
-      'publicShareableLinksUserInfo',
-      'auditRetentionDays',
-      'auditLegalHold',
-      'requireMfa',
-    ],
+    stepUpFields: ['publicShareableLinksUserInfo', 'requireMfa'],
     logsViewerEnabled: false,
     ...overrides,
   }
@@ -114,60 +107,6 @@ describe('GeneralTab audit trail retention', () => {
     mutateAsync.mockResolvedValue(makeSettings())
   })
 
-  it('shows the retention and legal hold with their hints', () => {
-    const { wrapper } = mountGeneralTab(
-      makeSettings({ auditRetentionDays: 365, auditLegalHold: true }),
-    )
-
-    const retention = wrapper.get('[data-setting="retention-audit-trail"]')
-    expect(retention.get('input').element.value).toBe('365')
-    expect(retention.text()).toContain('0 keeps everything')
-    expect(retention.text()).toContain('minimum is 30 days')
-    const hold = wrapper.get('[data-setting="retention-audit-legal-hold"]')
-    expect(hold.get<HTMLInputElement>('input[role="switch"]').element.checked).toBe(true)
-    expect(wrapper.text()).toContain('pauses all pruning of the audit trail')
-  })
-
-  it.each(['1', '29', '36501', 'abc'])('refuses %s and does not save', async (value) => {
-    const { wrapper } = mountGeneralTab()
-
-    await wrapper.get('[data-setting="retention-audit-trail"] input').setValue(value)
-    await wrapper.get('form').trigger('submit')
-    await flushPromises()
-
-    expect(wrapper.get('[data-setting="retention-audit-trail"]').text()).toContain(
-      'Enter 0, or a whole number between 30 and 36500.',
-    )
-    expect(mutateAsync).not.toHaveBeenCalled()
-  })
-
-  it.each([
-    ['0', 0],
-    ['30', 30],
-    ['36500', 36500],
-  ])('saves %s with the legal hold, the version it read and the step-up', async (value, days) => {
-    const { wrapper, form } = mountGeneralTab()
-
-    await wrapper.get('[data-setting="retention-audit-trail"] input').setValue(value)
-    await wrapper.get('[data-setting="retention-audit-legal-hold"] input').setValue(true)
-    await wrapper.get('form').trigger('submit')
-    await flushPromises()
-
-    // A security-relevant change waits for the administrator's step-up.
-    expect(mutateAsync).not.toHaveBeenCalled()
-    expect(form.isStepUpOpen.value).toBe(true)
-
-    await form.confirmStepUp(STEP_UP)
-
-    expect(mutateAsync).toHaveBeenCalledOnce()
-    expect(mutateAsync.mock.calls[0]?.[0].stepUp).toEqual(STEP_UP)
-    expect(mutateAsync.mock.calls[0]?.[0].settings).toMatchObject({
-      version: 3,
-      auditRetentionDays: days,
-      auditLegalHold: true,
-    })
-  })
-
   it('waits for the step-up, then saves it, when the MFA requirement changes', async () => {
     const { wrapper, form } = mountGeneralTab()
 
@@ -196,7 +135,7 @@ describe('GeneralTab audit trail retention', () => {
   })
 
   it('waits for the step-up only for the settings the server lists', async () => {
-    const { wrapper, form } = mountGeneralTab(makeSettings({ stepUpFields: ['auditLegalHold'] }))
+    const { wrapper, form } = mountGeneralTab(makeSettings({ stepUpFields: ['ssoEnabled'] }))
 
     form.values.publicShareableLinksUserInfo = true
     await wrapper.get('form').trigger('submit')
@@ -227,7 +166,7 @@ describe('GeneralTab audit trail retention', () => {
     )
     const { wrapper, form } = mountGeneralTab()
 
-    await wrapper.get('[data-setting="retention-audit-legal-hold"] input').setValue(true)
+    form.values.requireMfa = 'everyone'
     await wrapper.get('form').trigger('submit')
     await flushPromises()
     await form.confirmStepUp(STEP_UP)
@@ -239,7 +178,7 @@ describe('GeneralTab audit trail retention', () => {
     mutateAsync.mockRejectedValue(new HttpError(412, 'Precondition Failed'))
     const { wrapper, form } = mountGeneralTab()
 
-    await wrapper.get('[data-setting="retention-audit-legal-hold"] input').setValue(true)
+    form.values.requireMfa = 'everyone'
     await wrapper.get('form').trigger('submit')
     await flushPromises()
     await form.confirmStepUp(STEP_UP)

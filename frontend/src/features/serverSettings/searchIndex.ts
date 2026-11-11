@@ -85,8 +85,6 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
     'settings.server.retention.readNotifications',
     ['READ_NOTIFICATION_RETENTION_DAYS'],
   ),
-  field('retention', 'retention-audit-trail', 'settings.server.retention.auditTrail'),
-  field('retention', 'retention-audit-legal-hold', 'settings.server.retention.auditLegalHold'),
   SECTIONS.photo,
 
   SECTIONS.sso,

@@ -69,11 +69,9 @@ def _build_audit_settings(settings: core_config.Settings) -> jasil_settings.Audi
     """Map the audit-trail variables onto ``AuditSettings``.
 
     The signing key is a secret, so it is read through ``read_secret`` (and its ``_FILE`` variant) rather than
-    kept on ``Settings``. Retention and legal hold are server settings, which audit maintenance reads through the
-    retention source ``module_registry.configure_audit`` installs.
+    kept on ``Settings``. Retention and legal hold keep the platform defaults.
     """
     return jasil_settings.AuditSettings(
-        retention_floor_days=core_config.AUDIT_RETENTION_FLOOR_DAYS,
         signing_key=core_config.read_secret("AUDIT_SIGNING_KEY") or None,
         external_sink_uri=settings.AUDIT_EXTERNAL_SINK_URI or None,
         app_name="endurain",

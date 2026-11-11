@@ -383,12 +383,7 @@
     "retention": {
       "title": "Conservazione dei dati",
       "readNotifications": "Elimina le notifiche lette dopo (giorni)",
-      "readNotificationsHint": "0 conserva le notifiche lette per sempre. Le notifiche non lette non vengono mai eliminate.",
-      "auditTrail": "Elimina le voci del registro di controllo dopo (giorni)",
-      "auditTrailHint": "0 conserva tutto. Altrimenti il minimo è 30 giorni; le voci vengono eliminate per giorni interi.",
-      "auditTrailInvalid": "Inserisci 0, oppure un numero intero compreso tra {min} e {max}.",
-      "auditLegalHold": "Blocco legale sul registro di controllo",
-      "auditLegalHoldHint": "Se attivo, sospende ogni pulizia del registro di controllo, indipendentemente dalla conservazione."
+      "readNotificationsHint": "0 conserva le notifiche lette per sempre. Le notifiche non lette non vengono mai eliminate."
     },
     "signup": {
       "title": "Registrazione",

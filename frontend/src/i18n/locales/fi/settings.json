@@ -383,12 +383,7 @@
     "retention": {
       "title": "Tietojen säilytys",
       "readNotifications": "Poista luetut ilmoitukset, kun on kulunut (päivää)",
-      "readNotificationsHint": "0 säilyttää luetut ilmoitukset ikuisesti. Lukemattomia ilmoituksia ei koskaan poisteta.",
-      "auditTrail": "Poista tarkastuslokin merkinnät, kun on kulunut (päivää)",
-      "auditTrailHint": "0 säilyttää kaiken. Muuten vähimmäisaika on 30 päivää; merkinnät poistetaan kokonainen päivä kerrallaan.",
-      "auditTrailInvalid": "Anna 0 tai kokonaisluku väliltä {min}–{max}.",
-      "auditLegalHold": "Tarkastuslokin oikeudellinen säilytysvelvoite",
-      "auditLegalHoldHint": "Kun käytössä, tarkastuslokin kaikki siivous keskeytetään säilytysajasta riippumatta."
+      "readNotificationsHint": "0 säilyttää luetut ilmoitukset ikuisesti. Lukemattomia ilmoituksia ei koskaan poisteta."
     },
     "signup": {
       "title": "Rekisteröityminen",

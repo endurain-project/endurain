@@ -4,7 +4,7 @@ Administrators configure the instance in **Settings → Server settings**. The p
 
 If someone else changed the settings while you were editing, your save is refused with a message to reload, so you never overwrite their change by accident.
 
-Saving a change to a setting that decides who can sign up or sign in, whether two-step verification is required, how long a session or token lives, how long the audit trail is kept or whether public links show who shared them asks for your own password and MFA code (or a fresh identity-provider sign-in if your account has no password), so a stolen session cannot weaken them. These are the sign-up and sign-in switches (including **Allow local username and password login**, single sign-on and its auto-redirect), the two-step verification requirement, the password rules and breach check, the session and token lifetimes, the API key lifetime, the audit trail retention and legal hold, and showing the owner's info on public links. Changing any other setting, such as units, maps or notification retention, needs no confirmation.
+Saving a change to a setting that decides who can sign up or sign in, whether two-step verification is required, how long a session or token lives, whether public links show who shared them asks for your own password and MFA code (or a fresh identity-provider sign-in if your account has no password), so a stolen session cannot weaken them. These are the sign-up and sign-in switches (including **Allow local username and password login**, single sign-on and its auto-redirect), the two-step verification requirement, the password rules and breach check, the session and token lifetimes, the API key lifetime, the audit trail retention and legal hold, and showing the owner's info on public links. Changing any other setting, such as units, maps or notification retention, needs no confirmation.
 
 ## Settings that an environment variable controls
 
@@ -84,8 +84,6 @@ Every API key expires. A new key lasts the API key maximum lifetime unless its o
 ### Data retention
 
 How many days **read** notifications are kept before they are deleted, from 0 to 3650. 0 keeps them forever. Unread notifications are never deleted.
-
-How many days the [audit trail](../getting-started/advanced-setup.md#audit-trail) is kept, 90 by default: 0 keeps everything, otherwise at least 30 days, the floor the database enforces. The **legal hold** switch pauses all pruning of the audit trail while it is on, whatever the retention.
 
 ### Public sharing
 

@@ -65,11 +65,9 @@ function makeSettingsDto(overrides: Partial<ServerSettingsDto> = {}): ServerSett
     refresh_token_expire_days: 7,
     api_key_max_lifetime_days: 365,
     read_notification_retention_days: 90,
-    audit_retention_days: 90,
-    audit_legal_hold: false,
     geocoding_api_key_set: false,
     env_managed: {},
-    step_up_fields: ['audit_legal_hold', 'sso_enabled'],
+    step_up_fields: ['sso_enabled'],
     logs_viewer_enabled: true,
     ...overrides,
   }
@@ -144,11 +142,9 @@ describe('mapServerSettings', () => {
       refreshTokenExpireDays: 7,
       apiKeyMaxLifetimeDays: 365,
       readNotificationRetentionDays: 90,
-      auditRetentionDays: 90,
-      auditLegalHold: false,
       geocodingApiKeySet: false,
       envManaged: {},
-      stepUpFields: ['auditLegalHold', 'ssoEnabled'],
+      stepUpFields: ['ssoEnabled'],
       logsViewerEnabled: true,
     })
   })
@@ -180,8 +176,8 @@ describe('mapServerSettings step-up fields', () => {
   })
 
   it('drops a name the settings do not have', () => {
-    const dto = makeSettingsDto({ step_up_fields: ['audit_legal_hold', 'not_a_setting'] })
-    expect(mapServerSettings(dto).stepUpFields).toEqual(['auditLegalHold'])
+    const dto = makeSettingsDto({ step_up_fields: ['sso_enabled', 'not_a_setting'] })
+    expect(mapServerSettings(dto).stepUpFields).toEqual(['ssoEnabled'])
   })
 
   it('is not sent back with the edit', () => {
@@ -287,14 +283,6 @@ describe('toServerSettingsWire', () => {
       null,
     )
     expect(wire).toHaveProperty('signup_sso_enabled', true)
-  })
-
-  it('sends the audit trail retention and legal hold', () => {
-    const wire = toServerSettingsWire(
-      mapServerSettings(makeSettingsDto({ audit_retention_days: 0, audit_legal_hold: true })),
-      null,
-    )
-    expect(wire).toMatchObject({ audit_retention_days: 0, audit_legal_hold: true })
   })
 
   it('never sends the env-managed map or the key-stored flags', () => {

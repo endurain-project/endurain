@@ -18,7 +18,6 @@ import core.geocoding as core_geocoding
 import core.mail as core_mail
 import core.sanitization as core_sanitization
 import modules.auth.schema as auth_schema
-import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.contracts as server_settings_contracts
 
 
@@ -328,49 +327,11 @@ class ServerSettingsRetention(BaseModel):
 
     Attributes:
         read_notification_retention_days: Days after which read notifications are purged (0 disables pruning).
-        audit_retention_days: Days after which audit trail partitions are dropped; 0 keeps everything, otherwise
-            from the database-side floor to the substrate's maximum.
-        audit_legal_hold: Suspend all pruning of the audit trail.
     """
 
     read_notification_retention_days: StrictInt = Field(
         ..., ge=0, le=3650, description="Days after which read notifications are purged (0 - never)"
     )
-    audit_retention_days: StrictInt = Field(
-        ...,
-        ge=0,
-        le=server_settings_constants.AUDIT_RETENTION_MAX_DAYS,
-        description=(
-            "Days after which audit trail partitions are dropped: 0 (never) or "
-            f"{server_settings_constants.AUDIT_RETENTION_MIN_DAYS} to "
-            f"{server_settings_constants.AUDIT_RETENTION_MAX_DAYS}"
-        ),
-    )
-    audit_legal_hold: StrictBool = Field(
-        ..., description="Suspend all pruning of the audit trail (true - yes, false - no)"
-    )
-
-    @field_validator("audit_retention_days", mode="after")
-    @classmethod
-    def validate_audit_retention_days(cls, value: int) -> int:
-        """Refuse a positive audit retention below the audit trail's database-side floor.
-
-        Args:
-            value: The submitted retention in days.
-
-        Returns:
-            The retention.
-
-        Raises:
-            ValueError: If the retention is positive but below the floor.
-        """
-        if 0 < value < server_settings_constants.AUDIT_RETENTION_MIN_DAYS:
-            raise ValueError(
-                "Audit trail retention must be 0 or between "
-                f"{server_settings_constants.AUDIT_RETENTION_MIN_DAYS} and "
-                f"{server_settings_constants.AUDIT_RETENTION_MAX_DAYS} days"
-            )
-        return value
 
 
 class ServerSettingsEdit(

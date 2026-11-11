@@ -383,12 +383,7 @@
     "retention": {
       "title": "Conservació de dades",
       "readNotifications": "Elimina les notificacions llegides després de (dies)",
-      "readNotificationsHint": "0 conserva les notificacions llegides per sempre. Les notificacions no llegides mai s'eliminen.",
-      "auditTrail": "Elimina les entrades del registre d'auditoria després de (dies)",
-      "auditTrailHint": "0 ho conserva tot. Altrament el mínim és de 30 dies; les entrades s'eliminen per dies sencers.",
-      "auditTrailInvalid": "Introdueix 0 o un nombre enter entre {min} i {max}.",
-      "auditLegalHold": "Retenció legal del registre d'auditoria",
-      "auditLegalHoldHint": "Mentre està activada, atura tota l'eliminació del registre d'auditoria, sigui quina sigui la conservació."
+      "readNotificationsHint": "0 conserva les notificacions llegides per sempre. Les notificacions no llegides mai s'eliminen."
     },
     "signup": {
       "title": "Registre",

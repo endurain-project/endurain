@@ -383,12 +383,7 @@
     "retention": {
       "title": "Dataopbevaring",
       "readNotifications": "Slet læste notifikationer efter (dage)",
-      "readNotificationsHint": "0 beholder læste notifikationer for evigt. Ulæste notifikationer slettes aldrig.",
-      "auditTrail": "Slet poster i revisionssporet efter (dage)",
-      "auditTrailHint": "0 beholder alt. Ellers er minimum 30 dage; poster slettes en hel dag ad gangen.",
-      "auditTrailInvalid": "Indtast 0 eller et helt tal mellem {min} og {max}.",
-      "auditLegalHold": "Juridisk tilbageholdelse af revisionssporet",
-      "auditLegalHoldHint": "Når det er slået til, pauses al oprydning i revisionssporet, uanset opbevaringstiden."
+      "readNotificationsHint": "0 beholder læste notifikationer for evigt. Ulæste notifikationer slettes aldrig."
     },
     "signup": {
       "title": "Registrering",

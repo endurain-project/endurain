@@ -2,14 +2,11 @@
 
 from unittest.mock import MagicMock, patch
 
-import jasil.audit as jasil_audit
 import jasil.settings as jasil_settings
-import pytest
 
 import core.geocoding as core_geocoding
 import core.mail as core_mail
 import module_registry
-import modules.server_settings.contracts as server_settings_contracts
 
 
 class TestRuntimeSources:
@@ -94,54 +91,3 @@ class TestGeocodingSource:
             patch.object(module_registry.server_settings_integration, "get_geocoding_config", return_value=None),
         ):
             assert module_registry.runtime_sources().geocoding() == jasil_settings.GeocodingSettings()
-
-
-class TestAuditRetentionSource:
-    @staticmethod
-    def _installed_source():
-        """Run ``configure_audit`` and return the retention source it installs."""
-        with (
-            patch.object(module_registry.jasil_audit, "get_catalog"),
-            patch.object(module_registry.jasil_audit, "configure_provider"),
-            patch.object(module_registry.jasil_audit, "configure_retention_source") as install,
-        ):
-            module_registry.configure_audit()
-        install.assert_called_once()
-        return install.call_args.args[0]
-
-    def test_configure_audit_installs_the_stored_retention(self):
-        stored = server_settings_contracts.AuditRetention(retention_days=365, legal_hold=True)
-        source = self._installed_source()
-        with (
-            patch.object(module_registry.core_database, "SessionLocal") as session_local,
-            patch.object(
-                module_registry.server_settings_integration, "get_audit_retention", return_value=stored
-            ) as read,
-        ):
-            result = source()
-
-        assert result == jasil_audit.AuditRetention(retention_days=365, legal_hold=True)
-        read.assert_called_once_with(session_local.return_value.__enter__.return_value)
-
-    def test_the_source_is_cached_between_maintenance_runs(self):
-        stored = server_settings_contracts.AuditRetention(retention_days=0, legal_hold=False)
-        source = self._installed_source()
-        with (
-            patch.object(module_registry.core_database, "SessionLocal", return_value=MagicMock()),
-            patch.object(
-                module_registry.server_settings_integration, "get_audit_retention", return_value=stored
-            ) as read,
-        ):
-            assert source() == source()
-
-        read.assert_called_once()
-
-    def test_the_source_does_not_swallow_a_failed_read(self):
-        """Maintenance logs the failure and seals and prunes nothing, which it can only do if it sees the error."""
-        source = self._installed_source()
-        with (
-            patch.object(module_registry.core_database, "SessionLocal", return_value=MagicMock()),
-            patch.object(module_registry.server_settings_integration, "get_audit_retention", side_effect=RuntimeError),
-            pytest.raises(RuntimeError),
-        ):
-            source()

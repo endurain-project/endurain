@@ -383,12 +383,7 @@
     "retention": {
       "title": "数据保留",
       "readNotifications": "已读通知保留天数",
-      "readNotificationsHint": "0 表示永久保留已读通知。未读通知永远不会被删除。",
-      "auditTrail": "审计记录保留天数",
-      "auditTrailHint": "0 表示全部保留。否则最少为 30 天，记录按整天删除。",
-      "auditTrailInvalid": "请输入 0，或介于 {min} 和 {max} 之间的整数。",
-      "auditLegalHold": "审计记录法律保留",
-      "auditLegalHoldHint": "开启后，无论保留期限如何，都会暂停对审计记录的所有清理。"
+      "readNotificationsHint": "0 表示永久保留已读通知。未读通知永远不会被删除。"
     },
     "signup": {
       "title": "注册",

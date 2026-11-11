@@ -51,8 +51,6 @@ def _settings_row(**overrides):
         refresh_token_expire_days=7,
         api_key_max_lifetime_days=365,
         read_notification_retention_days=90,
-        audit_retention_days=90,
-        audit_legal_hold=False,
         tileserver_api_key=None,
         geocoding_api_key=None,
     )
@@ -104,8 +102,6 @@ def _edit(**overrides):
         refresh_token_expire_days=7,
         api_key_max_lifetime_days=365,
         read_notification_retention_days=90,
-        audit_retention_days=90,
-        audit_legal_hold=False,
     )
     values.update(overrides)
     return server_settings_schema.ServerSettingsEdit(**values)

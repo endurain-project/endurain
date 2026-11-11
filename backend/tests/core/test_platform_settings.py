@@ -337,7 +337,8 @@ class TestAuditSettings:
 
         assert result.enabled is True
         assert result.retention_days == 90
-        assert result.retention_floor_days == core_config.AUDIT_RETENTION_FLOOR_DAYS
+        assert result.retention_floor_days == jasil_settings.AuditSettings().retention_floor_days
+        assert result.legal_hold is False
         assert result.signing_key is None
         assert result.external_sink_uri is None
         assert result.app_name == "endurain"
@@ -354,8 +355,8 @@ class TestAuditSettings:
         assert result.signing_key == signing_key
         assert result.external_sink_uri == "file:///var/lib/endurain-audit"
 
-    def test_retention_comes_from_the_runtime_source_not_the_environment(self, monkeypatch):
-        """``AUDIT_RETENTION_DAYS`` is not mapped: the substrate default stands until the retention source answers."""
+    def test_retention_is_not_read_from_the_environment(self, monkeypatch):
+        """``AUDIT_RETENTION_DAYS`` is not mapped: the substrate default stands."""
         monkeypatch.setenv("AUDIT_RETENTION_DAYS", "365")
 
         result = _build(core_config.Settings(_env_file=None)).audit

@@ -383,12 +383,7 @@
     "retention": {
       "title": "Conservation des données",
       "readNotifications": "Supprimer les notifications lues après (jours)",
-      "readNotificationsHint": "0 conserve les notifications lues indéfiniment. Les notifications non lues ne sont jamais supprimées.",
-      "auditTrail": "Supprimer les entrées du journal d'audit après (jours)",
-      "auditTrailHint": "0 conserve tout. Sinon, le minimum est de 30 jours ; les entrées sont supprimées par jour entier.",
-      "auditTrailInvalid": "Saisissez 0, ou un nombre entier compris entre {min} et {max}.",
-      "auditLegalHold": "Conservation légale du journal d'audit",
-      "auditLegalHoldHint": "Lorsqu'elle est activée, suspend tout nettoyage du journal d'audit, quelle que soit la durée de conservation."
+      "readNotificationsHint": "0 conserve les notifications lues indéfiniment. Les notifications non lues ne sont jamais supprimées."
     },
     "signup": {
       "title": "Inscription",

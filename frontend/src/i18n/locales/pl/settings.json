@@ -383,12 +383,7 @@
     "retention": {
       "title": "Przechowywanie danych",
       "readNotifications": "Usuwaj przeczytane powiadomienia po (dniach)",
-      "readNotificationsHint": "0 oznacza, że przeczytane powiadomienia są przechowywane bez końca. Nieprzeczytane powiadomienia nigdy nie są usuwane.",
-      "auditTrail": "Usuwaj wpisy dziennika audytu po (dniach)",
-      "auditTrailHint": "0 oznacza przechowywanie wszystkiego. W przeciwnym razie minimum to 30 dni; wpisy są usuwane całymi dniami.",
-      "auditTrailInvalid": "Wpisz 0 lub liczbę całkowitą od {min} do {max}.",
-      "auditLegalHold": "Blokada prawna dziennika audytu",
-      "auditLegalHoldHint": "Gdy włączona, wstrzymuje wszelkie czyszczenie dziennika audytu, niezależnie od okresu przechowywania."
+      "readNotificationsHint": "0 oznacza, że przeczytane powiadomienia są przechowywane bez końca. Nieprzeczytane powiadomienia nigdy nie są usuwane."
     },
     "signup": {
       "title": "Rejestracja",

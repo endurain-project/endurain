@@ -383,12 +383,7 @@
     "retention": {
       "title": "Hramba podatkov",
       "readNotifications": "Izbriši prebrana obvestila po (dneh)",
-      "readNotificationsHint": "0 prebrana obvestila hrani za vedno. Neprebrana obvestila se nikoli ne izbrišejo.",
-      "auditTrail": "Izbriši vnose revizijske sledi po (dneh)",
-      "auditTrailHint": "0 ohrani vse. Sicer je najmanj 30 dni; vnosi se brišejo po celih dnevih.",
-      "auditTrailInvalid": "Vnesi 0 ali celo število med {min} in {max}.",
-      "auditLegalHold": "Pravna zadržitev revizijske sledi",
-      "auditLegalHoldHint": "Ko je vklopljena, zaustavi vse čiščenje revizijske sledi, ne glede na hrambo."
+      "readNotificationsHint": "0 prebrana obvestila hrani za vedno. Neprebrana obvestila se nikoli ne izbrišejo."
     },
     "signup": {
       "title": "Registracija",

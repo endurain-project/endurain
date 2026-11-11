@@ -383,12 +383,7 @@
     "retention": {
       "title": "Datu glabāšana",
       "readNotifications": "Dzēst izlasītos paziņojumus pēc (dienas)",
-      "readNotificationsHint": "0 glabā izlasītos paziņojumus uz visiem laikiem. Neizlasītie paziņojumi netiek dzēsti nekad.",
-      "auditTrail": "Dzēst audita žurnāla ierakstus pēc (dienas)",
-      "auditTrailHint": "0 saglabā visu. Citādi minimums ir 30 dienas; ieraksti tiek dzēsti veselām dienām.",
-      "auditTrailInvalid": "Ievadiet 0 vai veselu skaitli no {min} līdz {max}.",
-      "auditLegalHold": "Audita žurnāla juridiskā iesaldēšana",
-      "auditLegalHoldHint": "Kamēr ieslēgta, aptur visu audita žurnāla tīrīšanu neatkarīgi no glabāšanas perioda."
+      "readNotificationsHint": "0 glabā izlasītos paziņojumus uz visiem laikiem. Neizlasītie paziņojumi netiek dzēsti nekad."
     },
     "signup": {
       "title": "Reģistrācija",

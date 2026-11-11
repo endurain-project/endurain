@@ -88,8 +88,6 @@ export type GeocodingService = Schemas['GeocodingService']
  * @property refreshTokenExpireDays - Refresh token lifetime in days.
  * @property apiKeyMaxLifetimeDays - Longest lifetime of a new API key, and its default, in days.
  * @property readNotificationRetentionDays - Days after which read notifications are purged (0 keeps them forever).
- * @property auditRetentionDays - Days after which audit trail days are dropped (0 keeps everything, otherwise at least 30).
- * @property auditLegalHold - Whether all pruning of the audit trail is paused.
  * @property geocodingApiKeySet - Whether a geocoding API key is stored (the key itself is never returned).
  * @property envManaged - Field name (snake_case) to the environment variable that sets it; those fields are read-only.
  * @property stepUpFields - Keys (camelCase) of the settings whose change needs the administrator's step-up.
@@ -131,8 +129,6 @@ export interface ServerSettings {
   refreshTokenExpireDays: number
   apiKeyMaxLifetimeDays: number
   readNotificationRetentionDays: number
-  auditRetentionDays: number
-  auditLegalHold: boolean
   geocodingApiKeySet: boolean
   envManaged: Record<string, string>
   stepUpFields: (keyof ServerSettings)[]
@@ -190,7 +186,6 @@ export type ServerSettingsFormValues = Omit<
   | 'refreshTokenExpireDays'
   | 'apiKeyMaxLifetimeDays'
   | 'readNotificationRetentionDays'
-  | 'auditRetentionDays'
 > & {
   tileserverApiKey: string
   removeTileserverApiKey: boolean
@@ -204,7 +199,6 @@ export type ServerSettingsFormValues = Omit<
   refreshTokenExpireDays: string
   apiKeyMaxLifetimeDays: string
   readNotificationRetentionDays: string
-  auditRetentionDays: string
 }
 
 /**
