@@ -29,7 +29,6 @@ class IdentityProvider(Base):
         authorization_endpoint (str | None): OAuth2/OIDC authorization endpoint.
         token_endpoint (str | None): OAuth2/OIDC token endpoint.
         userinfo_endpoint (str | None): OIDC userinfo endpoint.
-        jwks_uri (str | None): OIDC JWKS URI for token verification.
         scopes (str | None): OAuth2/OIDC scopes to request
             (default: "openid profile email").
         icon (str | None): Icon name (FontAwesome) or custom URL for the provider.
@@ -105,11 +104,6 @@ class IdentityProvider(Base):
         String(500),
         nullable=True,
         comment="OIDC userinfo endpoint",
-    )
-    jwks_uri: Mapped[str | None] = mapped_column(
-        String(500),
-        nullable=True,
-        comment="OIDC JWKS URI for token verification",
     )
     scopes: Mapped[str | None] = mapped_column(
         String(500),

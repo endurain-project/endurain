@@ -14,7 +14,9 @@ _STEP_UP = auth_schema.StepUpVerification(current_password="admin-password")
 
 
 def _create_data() -> idp_schema.IdentityProviderCreate:
-    return idp_schema.IdentityProviderCreate(name="Pocket", slug="pocket", client_id="cid", client_secret="secret")
+    return idp_schema.IdentityProviderCreate(
+        name="Pocket", slug="pocket", provider_type="oauth2", client_id="cid", client_secret="secret"
+    )
 
 
 def _refusing() -> MagicMock:

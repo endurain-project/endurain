@@ -44,7 +44,6 @@ def _idp():
         authorization_endpoint=None,
         token_endpoint=None,
         userinfo_endpoint=None,
-        jwks_uri=None,
         scopes=None,
         icon=None,
         icon_uploaded=False,

@@ -28,7 +28,6 @@ def _row(**overrides):
         "authorization_endpoint": None,
         "token_endpoint": None,
         "userinfo_endpoint": None,
-        "jwks_uri": None,
         "scopes": "openid profile email",
         "icon": None,
         "icon_uploaded": False,
@@ -58,6 +57,7 @@ def test_create_provider_stages_and_returns_encrypted_state(mock_db):
     data = idp_schema.IdentityProviderCreate(
         name="Provider",
         slug="provider",
+        issuer_url="https://idp.example.com",
         client_id="client-id",
         client_secret="client-secret",
     )
@@ -97,6 +97,17 @@ def test_update_provider_stages_without_committing(mock_db):
     assert state.client_id != "new-client-id"
     mock_db.flush.assert_called_once()
     mock_db.commit.assert_not_called()
+
+
+def test_update_provider_without_credentials_keeps_the_stored_ones(mock_db):
+    row = _row()
+    mock_db.execute.return_value.scalar_one_or_none.return_value = row
+    data = idp_schema.IdentityProviderUpdate(name="Updated", slug="updated")
+
+    state = idp_crud.update_identity_provider(1, data, mock_db, if_match='"1"')
+
+    assert state.client_id == "encrypted-client-id"
+    assert state.client_secret == "encrypted-client-secret"
 
 
 def test_update_provider_checks_the_version_before_mutating(mock_db):
@@ -214,7 +225,7 @@ def test_enabled_providers_page_leaves_out_disabled_providers():
 
 def _provider(slug, issuer):
     return idp_schema.IdentityProviderCreate(
-        name=slug, slug=slug, client_id="c", client_secret="s", provider_type="oidc", issuer_url=issuer
+        name=slug, slug=slug, client_id="c", client_secret="s", provider_type="oauth2", issuer_url=issuer
     )
 
 

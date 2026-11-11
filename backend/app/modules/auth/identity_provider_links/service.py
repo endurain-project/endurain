@@ -54,6 +54,23 @@ def end_idp_sessions(user_id: int, idp_id: int, db: Session) -> int:
     return _end_live_sessions([(session_id, user_id) for session_id in session_ids], db).get(user_id, 0)
 
 
+def end_all_idp_sessions(idp_id: int, db: Session) -> int:
+    """Stage the end of every session signed in through the provider; the caller commits.
+
+    The sessions go through the sessions surface, which publishes the revocation, so each sign-in's token is
+    revoked at the provider afterwards.
+
+    Args:
+        idp_id: The provider whose sign-ins end.
+        db: SQLAlchemy database session.
+
+    Returns:
+        How many sessions ended.
+    """
+    owners = identity_links_crud.get_idp_session_owners(idp_id, db)
+    return sum(_end_live_sessions(owners, db).values())
+
+
 def end_idp_sessions_by_sid(idp_id: int, idp_sid: str, db: Session, *, user_id: int | None = None) -> dict[int, int]:
     """Stage the end of every session signed in through the provider under a provider session id; the caller commits.
 

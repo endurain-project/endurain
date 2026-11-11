@@ -13,11 +13,14 @@ from pydantic import (
     StrictStr,
     field_serializer,
     field_validator,
+    model_validator,
 )
 
 import core.cryptography as core_cryptography
 import core.pagination as core_pagination
+import core.partial_update as core_partial_update
 import modules.auth.identity_providers.constants as idp_constants
+import modules.auth.identity_providers.utils as idp_utils
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.schema as auth_schema
 
@@ -34,7 +37,6 @@ class IdentityProviderBase(BaseModel):
         authorization_endpoint (str | None): OAuth2/OIDC authorization endpoint (max 500 characters).
         token_endpoint (str | None): OAuth2/OIDC token endpoint (max 500 characters).
         userinfo_endpoint (str | None): OIDC userinfo endpoint (max 500 characters).
-        jwks_uri (str | None): OIDC JWKS URI (max 500 characters).
         scopes (str): OAuth2/OIDC scopes (max 500 characters). Defaults to "openid profile email".
         icon (str | None): Built-in icon key; any other logo is uploaded instead.
         auto_create_users (bool): Whether to auto-create users on first login. Defaults to True.
@@ -47,7 +49,7 @@ class IdentityProviderBase(BaseModel):
         client_id (str | None): The client ID for the provider (1-512 characters).
 
     Validators:
-        - slug: Ensures the slug contains only lowercase letters, numbers, and hyphens.
+        - slug: Ensures the slug contains only lowercase letters, numbers, and hyphens and is not reserved.
         - icon: Ensures the icon is a built-in icon key.
     """
 
@@ -67,7 +69,6 @@ class IdentityProviderBase(BaseModel):
     )
     token_endpoint: StrictStr | None = Field(default=None, max_length=500, description="OAuth2/OIDC token endpoint")
     userinfo_endpoint: StrictStr | None = Field(default=None, max_length=500, description="OIDC userinfo endpoint")
-    jwks_uri: StrictStr | None = Field(default=None, max_length=500, description="OIDC JWKS URI")
     scopes: StrictStr = Field(
         default=idp_constants.DEFAULT_SCOPES,
         max_length=500,
@@ -94,7 +95,7 @@ class IdentityProviderBase(BaseModel):
     @field_validator("slug")
     @classmethod
     def validate_slug(cls, v: str) -> str:
-        """Validates that the provided slug contains only lowercase letters, numbers, and hyphens.
+        """Validates that the provided slug contains only lowercase letters, numbers, and hyphens and is not reserved.
 
         Args:
             v (str): The slug string to validate.
@@ -103,10 +104,13 @@ class IdentityProviderBase(BaseModel):
             str: The validated slug string.
 
         Raises:
-            ValueError: If the slug contains characters other than lowercase letters, numbers, or hyphens.
+            ValueError: If the slug contains characters other than lowercase letters, numbers, or hyphens, or is a
+                word the public identity-provider routes use.
         """
         if not re.match(r"^[a-z0-9-]+$", v):
             raise ValueError("Slug must contain only lowercase letters, numbers, and hyphens")
+        if v in idp_constants.RESERVED_SLUGS:
+            raise ValueError(f"Slug '{v}' is reserved; choose another")
         return v
 
     @field_validator("icon")
@@ -136,22 +140,45 @@ class IdentityProviderCreate(IdentityProviderBase):
 
     Attributes:
         client_secret (str): OAuth2/OIDC client secret. Must be between 1 and 512 characters.
+
+    Validators:
+        - OIDC requirements: an ``oidc`` provider needs an issuer URL and the ``openid`` scope.
     """
 
     client_secret: StrictStr = Field(..., min_length=1, max_length=512, description="OAuth2/OIDC client secret")
 
     model_config = ConfigDict(extra="forbid")
 
+    @model_validator(mode="after")
+    def validate_oidc_requirements(self) -> "IdentityProviderCreate":
+        """Refuse an ``oidc`` provider that has no issuer URL or no ``openid`` scope.
 
-class IdentityProviderUpdate(IdentityProviderBase):
+        Returns:
+            The validated provider.
+
+        Raises:
+            ValueError: If the provider is ``oidc`` and the issuer URL or the ``openid`` scope is missing.
+        """
+        problem = idp_utils.oidc_requirements_problem(self.provider_type, self.issuer_url, self.scopes)
+        if problem is not None:
+            raise ValueError(problem)
+        return self
+
+
+class IdentityProviderUpdate(core_partial_update.NotClearable, IdentityProviderBase):
     """Schema for updating an existing Identity Provider.
 
+    An omitted ``client_id`` or ``client_secret`` keeps the stored credential; sending either as null is refused.
+
     Inherits from:
+        NotClearable
         IdentityProviderBase
 
     Attributes:
         client_secret (str | None): The client secret for the provider (1-512 characters).
     """
+
+    not_clearable = ("client_id", "client_secret")
 
     client_secret: StrictStr | None = Field(default=None, min_length=1, max_length=512)
 

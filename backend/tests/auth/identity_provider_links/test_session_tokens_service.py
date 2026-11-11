@@ -102,6 +102,23 @@ class TestEndIdpSessions:
         assert identity_links_crud.get_idp_session_token("s1", db) is not None
 
 
+class TestEndAllIdpSessions:
+    """Disabling a provider ends every session it signed in, whoever the user, and no other provider's."""
+
+    def test_each_live_session_of_the_provider_is_ended_for_its_owner(self, db):
+        with _live("s1", "s4") as delete_session:
+            ended = identity_links_integration.end_all_idp_sessions(3, db)
+
+        assert ended == 2
+        assert sorted(call.args[:2] for call in delete_session.call_args_list) == [("s1", 7), ("s2", 7), ("s4", 8)]
+
+    def test_a_provider_with_no_sign_in_ends_nothing(self, db):
+        with _live() as delete_session:
+            assert identity_links_integration.end_all_idp_sessions(99, db) == 0
+
+        delete_session.assert_not_called()
+
+
 class TestEndIdpSessionsBySid:
     """A back-channel logout that names a provider session ends the sessions signed in under it."""
 

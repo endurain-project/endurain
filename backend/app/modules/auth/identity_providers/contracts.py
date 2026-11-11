@@ -24,7 +24,6 @@ class IdentityProviderState(BaseModel):
     authorization_endpoint: str | None
     token_endpoint: str | None
     userinfo_endpoint: str | None
-    jwks_uri: str | None
     scopes: str | None
     icon: str | None
     icon_uploaded: bool

@@ -139,7 +139,7 @@ Save the generated **Client ID** and **Client Secret**.
 | Field | Description | Example |
 | ----- | ----------- | ------- |
 | **Provider Name** | Display name shown on login button | `Google`, `GitHub`, etc. |
-| **Slug** | URL-safe identifier (lowercase, hyphens) | `google`, `github` |
+| **Slug** | URL-safe identifier (lowercase letters, numbers, hyphens). `login`, `callback`, `icon` and `backchannel-logout` are reserved for the sign-in routes and refused | `google`, `github` |
 | **Provider Type** | Protocol type: `OIDC` (the default) or `OAuth2`. An `OAuth2` provider whose scopes include `openid` issues an ID token, so its sign-in must carry a verified ID token and needs an issuer URL, like an `OIDC` one. Without `openid` the provider is identified by its userinfo endpoint alone | `OIDC` or `OAuth2` |
 | **Issuer URL** | Provider's issuer URL, exactly as the `issuer` in its `/.well-known/openid-configuration` document, trailing slash included. Another provider cannot use the same issuer, and the issuer cannot change while any user is linked to the provider | `https://accounts.google.com` |
 | **Client ID** | OAuth client identifier | From Step 1 |
@@ -162,6 +162,8 @@ Both refusals are answered with `409` and nothing is saved.
 
 Upgrading from a version that allowed it is refused while two providers share an issuer URL. The error names the providers' slugs for each shared issuer: change the issuer URL of, or delete, all but one of them (unlinking their users first if the issuer must change), then start the new version again.
 
+Upgrading is also refused while a provider's slug is one of the reserved words (`login`, `callback`, `icon`, `backchannel-logout`). The error names the slugs: change each one, register the new callback URL (`https://<your-endurain-domain>/api/v1/public/idp/callback/<slug>`) at the provider, then start the new version again.
+
 #### Linking by email and syncing the email
 
 Both switches act on an email address, so both are off for a new provider: turn them on only for a provider whose email addresses you trust.
@@ -175,6 +177,10 @@ Both switches act on an email address, so both are off for a new provider: turn 
 - Every provider URL must use `https://`: the issuer and any endpoint you enter, and the endpoints the provider's discovery document lists. Endurain checks this when you save the provider and before every call to it.
 - A provider on a private network, or one served over plain `http://`, must have its host listed in [`SSRF_ALLOWED_HOSTS`](../getting-started/advanced-setup.md). Plain `http://` is accepted only for a listed host.
 - Saving a provider applies the change at once. When the provider rotates its signing keys, Endurain fetches the new keys on the next sign-in.
+
+#### Disabling a provider
+
+Turning **Enabled** off stops new sign-ins, links and confirmations through the provider and also signs out every session it signed in, for every user, in the same change. Their provider refresh tokens are revoked as for any other sign-out, and the provider's update in the audit trail records how many sessions ended (`sessions_ended`). Turning the provider on again does not restore them: those users sign in again. Sessions that signed in another way, such as with a password, are not affected.
 
 #### Choosing an icon
 
@@ -211,7 +217,7 @@ Endurain supports [OpenID Connect Back-Channel Logout](https://openid.net/specs/
 - **Which sessions end.** At each sign-in Endurain keeps the provider's session id (the `sid` claim of the verified ID token) with the Endurain session it created. A logout token that names a `sid` ends the sessions signed in under it; when it also names the user (`sub`), only that user's. A token that names only the user ends every session that user signed in to through the provider. A token that matches no session is answered as a success: the user is already signed out.
 - **What else happens.** The ended sessions are recorded in the audit trail (`auth.session.revoke`, one row per user) and their provider refresh tokens are revoked as for any other sign-out.
 - **What is checked.** The token must be signed with one of the provider's published keys, name the provider's issuer and Endurain's client ID, be unexpired, carry the back-channel logout event and no `nonce`, and is accepted only once. A refused token is answered with `400` and recorded in the audit trail as `auth.backchannel_logout.refuse`.
-- **Which providers.** Only an enabled provider that issues ID tokens (`OIDC`, or `OAuth2` with the `openid` scope) has the URL; for any other it answers `404`. The provider must reach Endurain over the network, so a provider that cannot reach your server cannot sign anyone out this way.
+- **Which providers.** Only a provider that issues ID tokens (`OIDC`, or `OAuth2` with the `openid` scope) has the URL; for any other it answers `404`. A disabled provider is still served. The provider must reach Endurain over the network, so a provider that cannot reach your server cannot sign anyone out this way.
 - **Sessions from before this behaviour** have no provider session id stored: a logout token that names only a `sid` does not find them, while one that names the user still ends them.
 
 ## Accounts with MFA enabled

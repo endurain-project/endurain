@@ -28,7 +28,6 @@ def _idp(enabled: bool = True) -> identity_provider_contracts.IdentityProviderSt
         authorization_endpoint="https://idp.example.com/auth",
         token_endpoint=None,
         userinfo_endpoint=None,
-        jwks_uri=None,
         scopes=None,
         icon=None,
         icon_uploaded=False,

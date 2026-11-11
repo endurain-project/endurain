@@ -39,7 +39,6 @@ class TestIdentityProviderBase:
             authorization_endpoint="https://auth.example.com/authorize",
             token_endpoint="https://auth.example.com/token",
             userinfo_endpoint="https://auth.example.com/userinfo",
-            jwks_uri="https://auth.example.com/jwks",
             scopes="openid profile email",
             icon="keycloak",
             auto_create_users=True,
@@ -243,7 +242,7 @@ class TestIdentityProviderBase:
 
         Asserts:
             - issuer_url, authorization_endpoint, token_endpoint can be None
-            - userinfo_endpoint, jwks_uri, icon can be None
+            - userinfo_endpoint, icon can be None
             - user_mapping can be None
         """
         # Arrange & Act
@@ -254,7 +253,6 @@ class TestIdentityProviderBase:
             authorization_endpoint=None,
             token_endpoint=None,
             userinfo_endpoint=None,
-            jwks_uri=None,
             icon=None,
             user_mapping=None,
             client_id="client-123",
@@ -265,7 +263,6 @@ class TestIdentityProviderBase:
         assert idp.authorization_endpoint is None
         assert idp.token_endpoint is None
         assert idp.userinfo_endpoint is None
-        assert idp.jwks_uri is None
         assert idp.icon is None
         assert idp.user_mapping is None
 
@@ -284,6 +281,7 @@ class TestIdentityProviderCreate:
         idp = IdentityProviderCreate(
             name="Test Provider",
             slug="test-provider",
+            issuer_url="https://auth.example.com",
             client_id="test-client-id",
             client_secret="test-client-secret",
         )
@@ -293,6 +291,21 @@ class TestIdentityProviderCreate:
         assert idp.slug == "test-provider"
         assert idp.client_id == "test-client-id"
         assert idp.client_secret == "test-client-secret"
+
+    def test_client_id_may_be_omitted_on_create(self):
+        """A provider can be created without a client id, so an update never has to send one.
+
+        Asserts:
+            - client_id is None when omitted
+        """
+        idp = IdentityProviderCreate(
+            name="Test Provider",
+            slug="test-provider",
+            provider_type="oauth2",
+            client_secret="test-client-secret",
+        )
+
+        assert idp.client_id is None
 
     def test_client_secret_required(self):
         """Test client_secret is required for IdentityProviderCreate.
@@ -318,6 +331,7 @@ class TestIdentityProviderCreate:
             IdentityProviderCreate(
                 name="Test",
                 slug="test",
+                issuer_url="https://auth.example.com",
                 client_id="client-123",
                 client_secret="",
             )
@@ -335,6 +349,7 @@ class TestIdentityProviderCreate:
             IdentityProviderCreate(
                 name="Test",
                 slug="test",
+                issuer_url="https://auth.example.com",
                 client_id="client-123",
                 client_secret="x" * 513,
             )
@@ -383,17 +398,27 @@ class TestIdentityProviderUpdate:
         # Assert
         assert idp.client_secret is None
 
-    def test_client_secret_can_be_none(self):
-        """Test client_secret can explicitly be None.
+    @pytest.mark.parametrize("field", ["client_id", "client_secret"])
+    def test_a_credential_cannot_be_cleared_with_null(self, field):
+        """Test an explicit null credential is refused.
 
         Asserts:
-            - client_secret can be set to None
+            - client_id and client_secret sent as null raise a ValidationError
         """
-        # Arrange & Act
-        idp = IdentityProviderUpdate(name="Test", slug="test", client_id="client-123", client_secret=None)
+        payload = {"name": "Test", "slug": "test", field: None}
 
-        # Assert
-        assert idp.client_secret is None
+        with pytest.raises(ValidationError, match=f"{field} cannot be null"):
+            IdentityProviderUpdate(**payload)
+
+    def test_omitted_credentials_stay_unset(self):
+        """Test an update without credentials leaves them out of the changed fields.
+
+        Asserts:
+            - client_id and client_secret are not in model_fields_set
+        """
+        idp = IdentityProviderUpdate(name="Test", slug="test")
+
+        assert not {"client_id", "client_secret"} & idp.model_fields_set
 
     def test_client_secret_min_length_when_provided(self):
         """Test client_secret minimum length when provided.
@@ -715,7 +740,12 @@ class TestStepUpRequests:
 
     def test_a_create_request_hands_over_only_the_provider_fields(self):
         request = idp_schema.IdentityProviderCreateRequest(
-            name="P", slug="p", client_id="c", client_secret="s", step_up={"current_password": "pw"}
+            name="P",
+            slug="p",
+            issuer_url="https://idp.example.com",
+            client_id="c",
+            client_secret="s",
+            step_up={"current_password": "pw"},
         )
 
         created = request.to_create()
@@ -730,7 +760,7 @@ class TestStepUpRequests:
 
     def test_an_update_request_keeps_only_the_fields_the_client_sent(self):
         request = idp_schema.IdentityProviderUpdateRequest(
-            name="P", slug="p", step_up={"current_password": "pw"}, client_id=None
+            name="P", slug="p", step_up={"current_password": "pw"}, client_id="c"
         )
 
         update = request.to_update()
@@ -741,3 +771,98 @@ class TestStepUpRequests:
     def test_the_step_up_does_not_accept_unknown_fields(self):
         with pytest.raises(ValidationError):
             idp_schema.IdentityProviderUpdateRequest(name="P", slug="p", step_up={"current_password": "pw", "x": 1})
+
+
+class TestOidcProviderRequirements:
+    """An OIDC provider is created with an issuer and the openid scope; its stored row stays readable either way."""
+
+    def _create(self, **overrides):
+        fields = {"name": "P", "slug": "p", "client_id": "c", "client_secret": "s", "provider_type": "oidc"}
+        return IdentityProviderCreate(**{**fields, **overrides})
+
+    def test_an_oidc_provider_without_an_issuer_is_refused(self):
+        with pytest.raises(ValidationError, match="issuer_url"):
+            self._create()
+
+    @pytest.mark.parametrize("issuer", ["", "   "])
+    def test_a_blank_issuer_counts_as_missing(self, issuer):
+        with pytest.raises(ValidationError, match="issuer_url"):
+            self._create(issuer_url=issuer)
+
+    @pytest.mark.parametrize("scopes", ["profile email", "", "openid2 profile", "OpenID"])
+    def test_an_oidc_provider_without_the_openid_scope_is_refused(self, scopes):
+        with pytest.raises(ValidationError, match="openid"):
+            self._create(issuer_url="https://idp.example.com", scopes=scopes)
+
+    def test_the_default_scopes_carry_openid(self):
+        assert self._create(issuer_url="https://idp.example.com").provider_type == "oidc"
+
+    def test_openid_is_found_among_other_scopes(self):
+        self._create(issuer_url="https://idp.example.com", scopes="profile  openid\temail")
+
+    def test_an_oauth2_provider_needs_neither(self):
+        idp = self._create(provider_type="oauth2", scopes="read")
+        assert idp.issuer_url is None
+
+    def test_a_create_request_is_checked_too(self):
+        with pytest.raises(ValidationError, match="issuer_url"):
+            idp_schema.IdentityProviderCreateRequest(
+                name="P", slug="p", client_id="c", client_secret="s", step_up={"current_password": "pw"}
+            )
+
+    def test_an_update_alone_is_not_checked_here(self):
+        assert IdentityProviderUpdate(name="P", slug="p", scopes="profile").scopes == "profile"
+
+    def test_a_stored_row_that_breaks_the_rule_is_still_readable(self):
+        row = {
+            "id": 1,
+            "name": "Old",
+            "slug": "old",
+            "provider_type": "oidc",
+            "scopes": "profile",
+            "issuer_url": None,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+        }
+        assert idp_schema.IdentityProviderRead.model_validate(row).issuer_url is None
+
+
+class TestJwksUriIsGone:
+    """The JWKS URI is read from the discovery document, so no schema carries it."""
+
+    def test_a_create_request_with_a_jwks_uri_is_refused(self):
+        with pytest.raises(ValidationError, match="jwks_uri"):
+            IdentityProviderCreate(
+                name="P",
+                slug="p",
+                issuer_url="https://idp.example.com",
+                client_id="c",
+                client_secret="s",
+                jwks_uri="https://idp.example.com/jwks",
+            )
+
+    def test_an_update_with_a_jwks_uri_is_refused(self):
+        with pytest.raises(ValidationError, match="jwks_uri"):
+            IdentityProviderUpdate(jwks_uri="https://idp.example.com/jwks")
+
+    def test_the_read_model_has_no_jwks_uri(self):
+        assert "jwks_uri" not in idp_schema.IdentityProviderRead.model_fields
+
+
+class TestReservedSlugs:
+    """The slug is refused when it is a fixed word of the public identity-provider routes."""
+
+    @pytest.mark.parametrize("slug", ["login", "callback", "icon", "backchannel-logout"])
+    def test_identity_provider_base_rejects_a_reserved_slug(self, slug):
+        """Test a reserved slug is refused, since it would shadow a public route."""
+        # Arrange, Act & Assert
+        with pytest.raises(ValidationError, match="reserved"):
+            IdentityProviderBase(name="Test", slug=slug, provider_type="oidc", client_id="client")
+
+    def test_identity_provider_base_accepts_a_slug_that_only_contains_a_reserved_word(self):
+        """Test a slug is refused only when it equals a reserved word."""
+        # Arrange & Act
+        idp = IdentityProviderBase(name="Test", slug="login-sso", provider_type="oidc", client_id="client")
+
+        # Assert
+        assert idp.slug == "login-sso"

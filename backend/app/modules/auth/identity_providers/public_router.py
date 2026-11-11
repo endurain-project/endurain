@@ -290,7 +290,7 @@ def backchannel_logout(
     named too, or every session the user signed in to through the provider when only a `sub` is named. A token is
     accepted once. The answer is 200 with no body when the sessions ended or none was signed in, and 400 when the
     token is refused. A provider that does not exist or issues no ID token answers 404; a disabled provider is still
-    served, because disabling it does not end the sessions it signed in.
+    served, so a logout token for a sign-in recorded before it was disabled still succeeds.
     """
     service.logout(idp_slug, logout_token, db)
     return Response(headers=core_cache_control.NO_STORE_HEADERS)

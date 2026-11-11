@@ -1,5 +1,7 @@
 """Administration of identity-provider configuration."""
 
+from typing import Any
+
 import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
@@ -25,7 +27,7 @@ import modules.auth.schema as auth_schema
 
 logger = core_logger.get_logger(__name__)
 
-_URL_FIELDS = ("issuer_url", "authorization_endpoint", "token_endpoint", "userinfo_endpoint", "jwks_uri")
+_URL_FIELDS = ("issuer_url", "authorization_endpoint", "token_endpoint", "userinfo_endpoint")
 
 
 def _issuer_changes(current: str | None, new: str | None) -> bool:
@@ -140,6 +142,34 @@ def _reject_unsafe_urls(values: dict[str, object]) -> None:
             raise core_exceptions.InvalidInputError(f"{field}: {reason}")
 
 
+def _require_oidc_requirements(
+    current: identity_provider_contracts.IdentityProviderState, values: dict[str, Any]
+) -> None:
+    """Refuse an edit that leaves an ``oidc`` provider without an issuer URL or the ``openid`` scope.
+
+    The stored provider and the request are merged first, so an edit of one field is checked against the stored
+    others. An edit whose merged ``provider_type``, ``issuer_url`` and ``scopes`` equal the stored ones is not
+    checked, so a stored provider that already breaks the rule can still be renamed or disabled even when the
+    client re-sends the whole record.
+
+    Args:
+        current: The provider as stored.
+        values: The fields the client sent, by name.
+
+    Raises:
+        InvalidInputError: If the merged provider is ``oidc``, lacks the issuer URL or the ``openid`` scope, and
+            differs from the stored one in those fields.
+    """
+    fields = ("provider_type", "issuer_url", "scopes")
+    stored = {field: getattr(current, field) for field in fields}
+    merged = {field: values.get(field, stored[field]) for field in fields}
+    if merged == stored:
+        return
+    problem = idp_utils.oidc_requirements_problem(**merged)
+    if problem is not None:
+        raise core_exceptions.InvalidInputError(problem)
+
+
 def _changed_fields(
     before: identity_provider_contracts.IdentityProviderState,
     after: identity_provider_contracts.IdentityProviderState,
@@ -229,6 +259,7 @@ def update_identity_provider(
 ) -> identity_provider_schema.IdentityProviderRead:
     """Update a provider after the administrator's step-up, only when the client's version is current.
 
+    Disabling a provider ends the sessions it signed in, in the same transaction, and the audit row counts them.
     Drops the provider's cached discovery document afterwards. A rogue provider configuration can claim accounts,
     so the step-up is verified before anything else is checked or written.
 
@@ -247,7 +278,8 @@ def update_identity_provider(
     Raises:
         StepUpFailedError: When the step-up does not verify.
         InvalidInputError: When a URL field being set is plain http to a host outside SSRF_ALLOWED_HOSTS, or
-            resolves to a non-public address.
+            resolves to a non-public address, or when the edit leaves an ``oidc`` provider without an issuer URL
+            or the ``openid`` scope.
         NotFoundError: When the provider is missing or removed during the update.
         PreconditionFailedError: When the provider changed since the client read it.
         ConflictError: When the new slug is already in use.
@@ -260,6 +292,7 @@ def update_identity_provider(
     current = idp_crud.get_identity_provider(idp_id, db)
     if current is None:
         raise core_exceptions.NotFoundError("Identity provider not found")
+    _require_oidc_requirements(current, values)
     slug = values.get("slug")
     if slug and slug.lower() != current.slug and idp_crud.get_identity_provider_by_slug(slug.lower(), db):
         raise core_exceptions.ConflictError(f"Identity provider with slug '{slug.lower()}' already exists")
@@ -277,13 +310,20 @@ def update_identity_provider(
         if state is None:
             raise core_exceptions.NotFoundError("Identity provider not found")
         changed_fields = _changed_fields(current, state, values)
+        sessions_ended = (
+            identity_provider_links_integration.end_all_idp_sessions(idp_id, db)
+            if current.enabled and not state.enabled
+            else 0
+        )
         if changed_fields:
             jasil_audit.stage(
                 db,
                 idp_audit_actions.IDENTITY_PROVIDER_UPDATE,
                 target_type="identity_provider",
                 target_id=str(idp_id),
-                details=idp_audit_actions.IdentityProviderUpdateDetails(changed_fields=changed_fields),
+                details=idp_audit_actions.IdentityProviderUpdateDetails(
+                    changed_fields=changed_fields, sessions_ended=sessions_ended
+                ),
             )
         db.commit()
     oidc.forget_discovery(idp_id)

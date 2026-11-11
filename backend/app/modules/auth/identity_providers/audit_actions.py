@@ -99,13 +99,15 @@ class IdentityProviderUpdateDetails(VersionedPayload):
 
     Attributes:
         changed_fields: The names of the fields whose value changed; a credential is named, never shown.
+        sessions_ended: How many sessions the provider had signed in that ending ended, 0 unless the update disabled it.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    SCHEMA_VERSION: ClassVar[int] = 1
+    SCHEMA_VERSION: ClassVar[int] = 2
 
     changed_fields: list[str]
+    sessions_ended: int = 0
 
 
 class IdentityLinkDetails(VersionedPayload):

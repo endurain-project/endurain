@@ -146,6 +146,58 @@ describe('IdentityProviderFormDialog save errors', () => {
   })
 })
 
+describe('IdentityProviderFormDialog scopes', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('refuses an OpenID Connect provider whose scopes lack openid, and sends nothing', async () => {
+    const wrapper = mountDialog()
+    await wrapper.find('input[name="scopes"]').setValue('profile email')
+    await submitValidForm(wrapper)
+
+    expect(wrapper.text()).toContain(i18n.global.t('settings.idp.form.scopesOpenidRequired'))
+    expect(apiFetch).not.toHaveBeenCalled()
+  })
+})
+
+describe('IdentityProviderFormDialog slug', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it.each(['login', 'backchannel-logout'])(
+    'refuses the reserved slug %s and sends nothing',
+    async (slug) => {
+      const wrapper = mountDialog()
+      await wrapper.find('input[name="name"]').setValue('Authentik')
+      await wrapper.find('input[name="issuerUrl"]').setValue('https://auth.example.com')
+      await wrapper.find('input[name="clientId"]').setValue('endurain')
+      await wrapper.find('input[name="clientSecret"]').setValue('secret')
+      await wrapper.find('input[name="slug"]').setValue(slug)
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+
+      expect(wrapper.text()).toContain(i18n.global.t('settings.idp.form.slugReserved'))
+      expect(apiFetch).not.toHaveBeenCalled()
+    },
+  )
+
+  it('accepts a slug that only starts with a reserved word', async () => {
+    const wrapper = mountDialog()
+    await wrapper.find('input[name="name"]').setValue('Authentik')
+    await wrapper.find('input[name="issuerUrl"]').setValue('https://auth.example.com')
+    await wrapper.find('input[name="clientId"]').setValue('endurain')
+    await wrapper.find('input[name="clientSecret"]').setValue('secret')
+    await wrapper.find('input[name="slug"]').setValue('login-sso')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain(i18n.global.t('settings.idp.form.slugReserved'))
+    expect(wrapper.find('#stepup-password').exists()).toBe(true)
+  })
+})
+
 describe('IdentityProviderFormDialog step-up', () => {
   beforeEach(() => {
     vi.clearAllMocks()

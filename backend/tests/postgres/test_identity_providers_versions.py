@@ -23,6 +23,7 @@ def _create_provider(factory) -> idp_schema.IdentityProviderRead:
     data = idp_schema.IdentityProviderCreate(
         name="Keycloak",
         slug="keycloak",
+        issuer_url="https://idp.example.com",
         client_id="endurain",
         client_secret="secret",
     )

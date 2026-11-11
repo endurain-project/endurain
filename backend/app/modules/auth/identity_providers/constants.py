@@ -6,6 +6,11 @@ from typing import TypedDict
 #: Icon keys that ship with a bundled logo; the only values the ``icon`` field accepts. Any other logo is uploaded.
 BUILTIN_ICONS = frozenset({"authelia", "authentik", "casdoor", "keycloak", "pocketid"})
 
+#: Slugs no provider may use: the fixed words of the public identity-provider routes, which a slug in the same
+#: position would make ambiguous (``/public/idp/login/icon`` is both a login and the icon of ``login``). A test walks
+#: the route table and fails when a route adds a word that is not listed.
+RESERVED_SLUGS = frozenset({"login", "callback", "icon", "backchannel-logout"})
+
 #: Storage area of the uploaded provider icons, keyed by identity-provider id.
 ICON_STORAGE_AREA = "identity_provider_icons"
 
@@ -41,6 +46,7 @@ class StepUpAction(StrEnum):
         IDP_LINK: Mint a token that links an identity provider.
         IDP_UNLINK: Unlink an identity provider.
         EMAIL_CHANGE: Change the account's email address.
+        USERNAME_CHANGE: Change the account's username, which is its sign-in name.
         ACCOUNT_DELETE: Delete the account.
         PROFILE_EXPORT: Export all of the account's data.
         PROFILE_DEVICE_FORGET: Forget a device the account is known to sign in from.
@@ -68,6 +74,7 @@ class StepUpAction(StrEnum):
     IDP_LINK = "idp_link"
     IDP_UNLINK = "idp_unlink"
     EMAIL_CHANGE = "email_change"
+    USERNAME_CHANGE = "username_change"
     ACCOUNT_DELETE = "account_delete"
     PROFILE_EXPORT = "profile_export"
     PROFILE_DEVICE_FORGET = "profile_device_forget"

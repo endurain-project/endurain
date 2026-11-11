@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import jasil.testing as jasil_testing
+import pytest
 
 import core.cryptography as core_cryptography
 import modules.auth.identity_providers.audit_actions as idp_audit_actions
@@ -29,7 +30,6 @@ def _state(**overrides) -> idp_contracts.IdentityProviderState:
         "authorization_endpoint": None,
         "token_endpoint": None,
         "userinfo_endpoint": None,
-        "jwks_uri": None,
         "scopes": "openid",
         "icon": None,
         "icon_uploaded": False,
@@ -47,7 +47,9 @@ def _state(**overrides) -> idp_contracts.IdentityProviderState:
 
 
 def test_creating_a_provider_is_audited_with_its_type_only(mock_db):
-    data = idp_schema.IdentityProviderCreate(name="Pocket", slug="pocket", client_id="cid", client_secret="secret")
+    data = idp_schema.IdentityProviderCreate(
+        name="Pocket", slug="pocket", provider_type="oauth2", client_id="cid", client_secret="secret"
+    )
     with (
         patch.object(provider_service, "idp_crud") as crud,
         patch.object(provider_service.identity_provider_serializers, "to_read_schema"),
@@ -95,7 +97,7 @@ class TestUpdate:
         entry = audit.assert_audited(
             idp_audit_actions.IDENTITY_PROVIDER_UPDATE.id, target_type="identity_provider", target_id="3"
         )
-        assert entry.details == {"changed_fields": ["client_id", "client_secret", "name"]}
+        assert entry.details == {"changed_fields": ["client_id", "client_secret", "name"], "sessions_ended": 0}
 
     def test_a_secret_the_administrator_sends_is_a_change_without_reading_the_stored_one(self, mock_db):
         # A stored secret the server can no longer decrypt is what an administrator replaces; that must still work.
@@ -110,8 +112,59 @@ class TestUpdate:
         )
 
         entry = audit.assert_audited(idp_audit_actions.IDENTITY_PROVIDER_UPDATE.id)
-        assert entry.details == {"changed_fields": ["client_secret"]}
+        assert entry.details == {"changed_fields": ["client_secret"], "sessions_ended": 0}
         mock_db.commit.assert_called_once()
+
+    def test_disabling_ends_the_providers_sessions_and_audits_only_their_count(self, mock_db):
+        with patch.object(
+            provider_service.identity_provider_links_integration, "end_all_idp_sessions", return_value=4
+        ) as end_all:
+            audit = self._update(
+                mock_db,
+                _state(),
+                _state(enabled=False),
+                idp_schema.IdentityProviderUpdate(name="Pocket", slug="pocket", enabled=False),
+            )
+
+        end_all.assert_called_once_with(3, mock_db)
+        entry = audit.assert_audited(idp_audit_actions.IDENTITY_PROVIDER_UPDATE.id)
+        assert entry.details == {"changed_fields": ["enabled"], "sessions_ended": 4}
+        mock_db.commit.assert_called_once()
+
+    def test_a_failure_while_ending_sessions_commits_nothing(self, mock_db):
+        with (
+            patch.object(
+                provider_service.identity_provider_links_integration, "end_all_idp_sessions", side_effect=RuntimeError
+            ),
+            pytest.raises(RuntimeError),
+        ):
+            self._update(
+                mock_db,
+                _state(),
+                _state(enabled=False),
+                idp_schema.IdentityProviderUpdate(name="Pocket", slug="pocket", enabled=False),
+            )
+
+        mock_db.commit.assert_not_called()
+
+    def test_enabling_or_editing_an_enabled_provider_ends_no_session(self, mock_db):
+        with patch.object(provider_service.identity_provider_links_integration, "end_all_idp_sessions") as end_all:
+            audit = self._update(
+                mock_db,
+                _state(enabled=False),
+                _state(enabled=True),
+                idp_schema.IdentityProviderUpdate(name="Pocket", slug="pocket", enabled=True),
+            )
+            self._update(
+                mock_db,
+                _state(),
+                _state(name="Renamed"),
+                idp_schema.IdentityProviderUpdate(name="Renamed", slug="pocket", enabled=True),
+            )
+
+        end_all.assert_not_called()
+        entry = audit.assert_audited(idp_audit_actions.IDENTITY_PROVIDER_UPDATE.id)
+        assert entry.details == {"changed_fields": ["enabled"], "sessions_ended": 0}
 
     def test_an_update_that_changes_nothing_writes_no_row(self, mock_db):
         before = _state()

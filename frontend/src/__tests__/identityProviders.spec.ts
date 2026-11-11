@@ -41,7 +41,6 @@ function makeProviderDto(overrides: Partial<IdentityProviderDto> = {}): Identity
     authorization_endpoint: 'https://idp.test/auth',
     token_endpoint: 'https://idp.test/token',
     userinfo_endpoint: 'https://idp.test/userinfo',
-    jwks_uri: 'https://idp.test/certs',
     scopes: 'openid profile email',
     icon: 'keycloak',
     icon_uploaded: false,
@@ -281,6 +280,18 @@ describe('identity providers service requests', () => {
       enabled: true,
       step_up: { current_password: 'admin-pw', mfa_code: null },
     })
+  })
+
+  it('updateIdentityProvider leaves out a null client id, which the backend refuses', async () => {
+    let body: unknown
+    vi.mocked(apiFetch).mockImplementation((_path, init) => {
+      body = init?.body
+      return Promise.resolve(makeProviderDto())
+    })
+
+    await updateIdentityProvider(3, makeInput({ clientId: null, clientSecret: null }), 4, stepUp)
+
+    expect(JSON.parse(body as string) as Record<string, unknown>).not.toHaveProperty('client_id')
   })
 
   it('updateIdentityProvider includes the client secret when provided', async () => {

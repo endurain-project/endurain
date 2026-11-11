@@ -10,7 +10,7 @@ import modules.auth.mfa.schema as mfa_schema
 import modules.auth.schema as step_up_schema
 import modules.users.users.schema as users_schema
 
-_PROVIDER = {"name": "Provider", "slug": "provider"}
+_PROVIDER = {"name": "Provider", "slug": "provider", "issuer_url": "https://idp.example.com"}
 
 _CASES = [
     (

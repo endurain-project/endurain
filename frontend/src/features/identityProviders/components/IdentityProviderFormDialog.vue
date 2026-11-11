@@ -118,6 +118,9 @@ function defaultValues(): ProviderFormValues {
   }
 }
 
+/** Matches a slug that is not one of the fixed words of the public identity-provider routes (the backend's reserved slugs). */
+const RESERVED_SLUG_PATTERN = /^(?!(?:login|callback|icon|backchannel-logout)$)/
+
 /**
  * Derives a URL-safe slug from a display name (lowercase, spaces to hyphens,
  * invalid characters dropped) so it satisfies the backend's slug pattern.
@@ -293,6 +296,7 @@ const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset }
         required(t('settings.idp.form.slugRequired')),
         maxLength(50, t('settings.idp.form.slugTooLong')),
         pattern(/^[a-z0-9-]+$/, t('settings.idp.form.slugInvalid')),
+        pattern(RESERVED_SLUG_PATTERN, t('settings.idp.form.slugReserved')),
       ),
       issuerUrl: compose(
         required(t('settings.idp.form.issuerUrlRequired')),
@@ -310,7 +314,14 @@ const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset }
               required(t('settings.idp.form.clientSecretRequired')),
               maxLength(512, t('settings.idp.form.clientSecretTooLong')),
             )(value),
-      scopes: maxLength(500, t('settings.idp.form.scopesTooLong')),
+      // A blank value falls back to the default scopes on submit, which include openid.
+      scopes: compose(
+        maxLength(500, t('settings.idp.form.scopesTooLong')),
+        (value: string): string | null =>
+          values.providerType === 'oidc' && value.trim() && !value.split(/\s+/).includes('openid')
+            ? t('settings.idp.form.scopesOpenidRequired')
+            : null,
+      ),
     },
     onSubmit: submitForm,
   })

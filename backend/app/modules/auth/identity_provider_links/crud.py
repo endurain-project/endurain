@@ -210,6 +210,15 @@ def get_idp_session_token_ids_by_user_and_idp(user_id: int, idp_id: int, db: Ses
     return list(db.execute(select(model.session_id).where(model.user_id == user_id, model.idp_id == idp_id)).scalars())
 
 
+def get_idp_session_owners(idp_id: int, db: Session) -> list[tuple[str, int]]:
+    """Return the session id and user of every sign-in through the provider."""
+    model = identity_link_models.IdpSessionToken
+    return [
+        (row.session_id, row.user_id)
+        for row in db.execute(select(model.session_id, model.user_id).where(model.idp_id == idp_id))
+    ]
+
+
 def get_idp_session_owners_by_sid(
     idp_id: int, idp_sid: str, db: Session, *, user_id: int | None = None
 ) -> list[tuple[str, int]]:

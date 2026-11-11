@@ -38,8 +38,8 @@ def oidc():
     client.decrypt_client_secret.return_value = "secret"
     client.resolve_token_endpoint.return_value = "https://idp.example.com/token"
     client.get_oidc_configuration.return_value = {
-        "jwks_uri": "https://idp.example.com/jwks",
         "issuer": "https://idp.example.com",
+        "jwks_uri": "https://idp.example.com/jwks",
     }
     oauth_client = client.create_oauth_client.return_value.__enter__.return_value
     oauth_client.fetch_token.return_value = {"id_token": "header.payload.signature", "access_token": "at"}

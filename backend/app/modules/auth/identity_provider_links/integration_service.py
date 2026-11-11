@@ -133,6 +133,11 @@ def end_idp_sessions(user_id: int, idp_id: int, db: Session) -> int:
     return identity_link_service.end_idp_sessions(user_id, idp_id, db)
 
 
+def end_all_idp_sessions(idp_id: int, db: Session) -> int:
+    """Stage the end of every session signed in through the provider; the caller commits."""
+    return identity_link_service.end_all_idp_sessions(idp_id, db)
+
+
 def end_idp_sessions_by_sid(idp_id: int, idp_sid: str, db: Session, *, user_id: int | None = None) -> dict[int, int]:
     """Stage the end of the sessions signed in under a provider session id; returns how many ended per user."""
     return identity_link_service.end_idp_sessions_by_sid(idp_id, idp_sid, db, user_id=user_id)

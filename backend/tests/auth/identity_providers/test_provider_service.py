@@ -1,5 +1,6 @@
 """Administration of identity-provider configuration."""
 
+from typing import ClassVar
 from unittest.mock import MagicMock, call, patch
 
 import pytest
@@ -50,17 +51,16 @@ def _network(addresses, allowed=()):
 
 
 def _create_data(**overrides):
+    fields = {"issuer_url": "https://idp.example.com", **overrides}
     return idp_schema.IdentityProviderCreate(
-        name="Pocket", slug="pocket", client_id="cid", client_secret="secret", **overrides
+        name="Pocket", slug="pocket", client_id="cid", client_secret="secret", **fields
     )
 
 
 class TestSaveRefusesUnsafeUrls:
     """A provider URL the server would later refuse to dial is refused when it is saved."""
 
-    @pytest.mark.parametrize(
-        "field", ["issuer_url", "authorization_endpoint", "token_endpoint", "userinfo_endpoint", "jwks_uri"]
-    )
+    @pytest.mark.parametrize("field", ["issuer_url", "authorization_endpoint", "token_endpoint", "userinfo_endpoint"])
     def test_create_refuses_http_to_a_public_host_and_writes_nothing(self, mock_db, field):
         resolve, allowlist = _network(PUBLIC)
         with (
@@ -139,6 +139,87 @@ class TestSaveRefusesUnsafeUrls:
             provider_service.update_identity_provider(3, data, STEP_UP, VERIFIER, oidc, mock_db, if_match='"1"')
         getaddrinfo.assert_not_called()
         crud.update_identity_provider.assert_called_once()
+
+
+class TestUpdateKeepsOidcRequirements:
+    """An update is checked as the merged result of the stored provider and the request, before anything is written."""
+
+    def _update(self, mock_db, stored, **changes):
+        data = idp_schema.IdentityProviderUpdate.model_validate({"name": "Pocket", "slug": "pocket", **changes})
+        resolve, allowlist = _network(PUBLIC)
+        with (
+            resolve,
+            allowlist,
+            patch.object(provider_service, "idp_crud") as crud,
+            patch.object(
+                provider_service.identity_provider_links_integration,
+                "check_user_identity_providers_by_idp_id",
+                return_value=False,
+            ),
+            patch.object(provider_service.identity_provider_serializers, "to_read_schema"),
+        ):
+            crud.get_identity_provider_by_issuer.return_value = None
+            crud.get_identity_provider.return_value = MagicMock(slug="pocket", **stored)
+            crud.update_identity_provider.return_value = MagicMock()
+            try:
+                provider_service.update_identity_provider(
+                    3, data, STEP_UP, VERIFIER, MagicMock(), mock_db, if_match='"1"'
+                )
+            finally:
+                self.crud = crud
+
+    OIDC: ClassVar[dict[str, str]] = {
+        "provider_type": "oidc",
+        "issuer_url": "https://idp.example.com",
+        "scopes": "openid profile",
+    }
+
+    def test_dropping_openid_from_an_oidc_provider_is_refused(self, mock_db):
+        with pytest.raises(core_exceptions.InvalidInputError, match="openid"):
+            self._update(mock_db, self.OIDC, scopes="profile email")
+        self.crud.update_identity_provider.assert_not_called()
+        mock_db.commit.assert_not_called()
+
+    def test_clearing_the_issuer_of_an_oidc_provider_is_refused(self, mock_db):
+        with pytest.raises(core_exceptions.InvalidInputError, match="issuer_url"):
+            self._update(mock_db, self.OIDC, issuer_url=None)
+        self.crud.update_identity_provider.assert_not_called()
+
+    def test_switching_an_oauth2_provider_to_oidc_is_checked_against_the_stored_values(self, mock_db):
+        stored = {"provider_type": "oauth2", "issuer_url": None, "scopes": "openid"}
+        with pytest.raises(core_exceptions.InvalidInputError, match="issuer_url"):
+            self._update(mock_db, stored, provider_type="oidc")
+        self.crud.update_identity_provider.assert_not_called()
+
+    def test_a_scopes_only_change_passes_when_the_stored_issuer_satisfies_the_rule(self, mock_db):
+        self._update(mock_db, self.OIDC, scopes="openid email")
+        self.crud.update_identity_provider.assert_called_once()
+
+    def test_an_oauth2_provider_may_drop_openid_and_the_issuer(self, mock_db):
+        stored = {"provider_type": "oauth2", "issuer_url": "https://idp.example.com", "scopes": "openid"}
+        self._update(mock_db, stored, scopes="read", issuer_url=None)
+        self.crud.update_identity_provider.assert_called_once()
+
+    def test_a_stored_row_that_breaks_the_rule_can_be_renamed(self, mock_db):
+        stored = {"provider_type": "oidc", "issuer_url": None, "scopes": "profile"}
+        self._update(mock_db, stored, name="Renamed", enabled=False)
+        self.crud.update_identity_provider.assert_called_once()
+
+    def test_a_stored_row_that_breaks_the_rule_can_be_toggled_with_the_whole_record_re_sent(self, mock_db):
+        stored = {"provider_type": "oidc", "issuer_url": None, "scopes": "profile"}
+        self._update(mock_db, stored, enabled=False, **stored)
+        self.crud.update_identity_provider.assert_called_once()
+
+    def test_a_stored_row_that_breaks_the_rule_is_still_checked_when_one_field_changes(self, mock_db):
+        stored = {"provider_type": "oidc", "issuer_url": None, "scopes": "profile"}
+        with pytest.raises(core_exceptions.InvalidInputError, match="issuer_url"):
+            self._update(mock_db, stored, **{**stored, "scopes": "openid"})
+        self.crud.update_identity_provider.assert_not_called()
+
+    def test_a_stored_row_that_breaks_the_rule_can_be_repaired_in_one_request(self, mock_db):
+        stored = {"provider_type": "oidc", "issuer_url": None, "scopes": "profile"}
+        self._update(mock_db, stored, issuer_url="https://idp.example.com", scopes="openid profile")
+        self.crud.update_identity_provider.assert_called_once()
 
 
 class TestDiscoveryCacheEviction:
@@ -457,7 +538,9 @@ class TestIssuerBinding:
         ):
             crud.get_identity_provider_by_slug.return_value = None
             crud.create_identity_provider.return_value = MagicMock(id=3, provider_type="oidc")
-            provider_service.create_identity_provider(_create_data(), STEP_UP, VERIFIER, mock_db)
+            provider_service.create_identity_provider(
+                _create_data(provider_type="oauth2", issuer_url=None), STEP_UP, VERIFIER, mock_db
+            )
         crud.get_identity_provider_by_issuer.assert_not_called()
         crud.create_identity_provider.assert_called_once()
 

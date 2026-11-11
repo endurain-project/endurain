@@ -22,6 +22,29 @@ def normalize_issuer_url(issuer_url: str) -> str:
     return issuer_url.rstrip("/")
 
 
+def oidc_requirements_problem(provider_type: str, issuer_url: str | None, scopes: str | None) -> str | None:
+    """Return what keeps a provider from signing users in as OpenID Connect, or ``None`` when nothing does.
+
+    An ``oidc`` provider verifies the ID token against its issuer, so it needs the issuer URL and the ``openid``
+    scope. Any other provider type has no such requirement.
+
+    Args:
+        provider_type: The provider's protocol.
+        issuer_url: The issuer URL; blank counts as missing.
+        scopes: The space-separated scopes.
+
+    Returns:
+        A message naming the field that is wrong, or ``None``.
+    """
+    if provider_type != idp_constants.ProviderType.OIDC:
+        return None
+    if not issuer_url or not issuer_url.strip():
+        return "issuer_url: an OIDC provider needs an issuer URL"
+    if "openid" not in (scopes or "").split():
+        return "scopes: an OIDC provider needs the openid scope"
+    return None
+
+
 def requires_id_token(idp: identity_provider_contracts.IdentityProviderState) -> bool:
     """Return whether a sign-in through a provider must carry a verified ID token, and so its nonce.
 

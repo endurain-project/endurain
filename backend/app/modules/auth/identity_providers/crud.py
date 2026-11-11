@@ -156,7 +156,6 @@ def create_identity_provider(
         authorization_endpoint=data.authorization_endpoint,
         token_endpoint=data.token_endpoint,
         userinfo_endpoint=data.userinfo_endpoint,
-        jwks_uri=data.jwks_uri,
         scopes=data.scopes,
         icon=data.icon,
         icon_uploaded=False,

@@ -104,7 +104,8 @@ export function toProviderInput(provider: IdentityProvider): IdentityProviderInp
  * Builds the shared editable wire fields from a {@link IdentityProviderInput}.
  *
  * @param input - The clean provider input from the form.
- * @returns The snake-cased fields common to create and update.
+ * @returns The snake-cased fields common to create and update; a missing client id is left out, because the
+ * backend refuses an explicit null.
  */
 function toWireBase(input: IdentityProviderInput) {
   return {
@@ -113,7 +114,7 @@ function toWireBase(input: IdentityProviderInput) {
     provider_type: input.providerType,
     enabled: input.enabled,
     issuer_url: input.issuerUrl,
-    client_id: input.clientId,
+    ...(input.clientId === null ? {} : { client_id: input.clientId }),
     scopes: input.scopes,
     icon: input.icon,
     auto_create_users: input.autoCreateUsers,

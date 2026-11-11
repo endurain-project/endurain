@@ -127,8 +127,8 @@ def _require_logout_provider(idp_slug: str, db: Session) -> identity_provider_co
     """Return the provider a back-channel logout URL names, if its sign-ins are identified by ID token.
 
     A provider that issues no ID token has no signing keys a sign-in was verified with and no ``sid`` stored, so
-    the endpoint does not exist for it, as for an unknown provider. A disabled provider is still served: disabling
-    it stops new sign-ins but does not end the sessions it signed in, and ending them is what the request asks.
+    the endpoint does not exist for it, as for an unknown provider. A disabled provider is still served: a
+    logout token naming a sign-in recorded before it was disabled succeeds, as for any session already ended.
 
     Args:
         idp_slug: The provider slug.

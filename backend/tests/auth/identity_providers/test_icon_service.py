@@ -37,7 +37,6 @@ def _state(**overrides) -> idp_contracts.IdentityProviderState:
         "authorization_endpoint": None,
         "token_endpoint": None,
         "userinfo_endpoint": None,
-        "jwks_uri": None,
         "scopes": None,
         "icon": None,
         "icon_uploaded": True,
@@ -249,7 +248,7 @@ class TestIconAudit:
         entry = audit.assert_audited(
             idp_audit_actions.IDENTITY_PROVIDER_UPDATE.id, target_type="identity_provider", target_id="7"
         )
-        assert entry.details == {"changed_fields": ["icon_uploaded"]}
+        assert entry.details == {"changed_fields": ["icon_uploaded"], "sessions_ended": 0}
 
     def test_a_refused_upload_is_not_audited(self):
         with (
@@ -271,7 +270,7 @@ class TestIconAudit:
         entry = audit.assert_audited(
             idp_audit_actions.IDENTITY_PROVIDER_UPDATE.id, target_type="identity_provider", target_id="7"
         )
-        assert entry.details == {"changed_fields": ["icon_uploaded"]}
+        assert entry.details == {"changed_fields": ["icon_uploaded"], "sessions_ended": 0}
 
     def test_removing_from_a_missing_provider_is_not_audited(self):
         with (

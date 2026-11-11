@@ -80,7 +80,14 @@ def test_create_identity_provider_delegates_to_service(service):
 
     response = _client().post(
         "/auth/identity_providers",
-        json={"name": "Google", "slug": "google", "client_id": "client", "client_secret": "secret", "step_up": STEP_UP},
+        json={
+            "name": "Google",
+            "slug": "google",
+            "issuer_url": "https://accounts.example.com",
+            "client_id": "client",
+            "client_secret": "secret",
+            "step_up": STEP_UP,
+        },
         headers={"Authorization": "Bearer x"},
     )
 
@@ -130,7 +137,14 @@ def test_create_returns_400_for_a_refused_url(service):
 
     response = _client().post(
         "/auth/identity_providers",
-        json={"name": "Google", "slug": "google", "client_id": "client", "client_secret": "secret", "step_up": STEP_UP},
+        json={
+            "name": "Google",
+            "slug": "google",
+            "issuer_url": "https://accounts.example.com",
+            "client_id": "client",
+            "client_secret": "secret",
+            "step_up": STEP_UP,
+        },
         headers={"Authorization": "Bearer x"},
     )
 
@@ -305,7 +319,13 @@ class TestStepUp:
     def test_create_without_a_step_up_is_422_and_never_reaches_the_service(self, service):
         response = _client().post(
             "/auth/identity_providers",
-            json={"name": "Google", "slug": "google", "client_id": "client", "client_secret": "secret"},
+            json={
+                "name": "Google",
+                "slug": "google",
+                "issuer_url": "https://accounts.example.com",
+                "client_id": "client",
+                "client_secret": "secret",
+            },
             headers={"Authorization": "Bearer x"},
         )
 
@@ -320,6 +340,7 @@ class TestStepUp:
             json={
                 "name": "Google",
                 "slug": "google",
+                "issuer_url": "https://accounts.example.com",
                 "client_id": "client",
                 "client_secret": "secret",
                 "step_up": STEP_UP,
@@ -341,6 +362,7 @@ class TestStepUp:
             json={
                 "name": "Google",
                 "slug": "google",
+                "issuer_url": "https://accounts.example.com",
                 "client_id": "client",
                 "client_secret": "secret",
                 "step_up": STEP_UP,
