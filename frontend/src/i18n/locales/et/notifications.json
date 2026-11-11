@@ -90,6 +90,10 @@
         "title": "Uus API-võti loodud",
         "body": "Sinu kontole loodi uus API-võti. Kui see ei olnud sina, lähtesta oma parool ja vaata üle oma turvaseaded."
       },
+      "apiKeysRevokedByAdmin": {
+        "title": "Administraator tühistas API võtmed",
+        "body": "Administraator tühistas ühe või mitu sinu API võtit, nii et miski, mis neid kasutab, ei pääse enam sinu kontole ligi. Kui sa seda ei oodanud, võta ühendust oma administraatoriga."
+      },
       "identityProviderUnlinked": {
         "title": "Sisselogimispakkuja eemaldatud",
         "body": "{name} eemaldati sinu kontolt. Kui see ei olnud sina, lähtesta oma parool ja vaata üle oma turvaseaded.",

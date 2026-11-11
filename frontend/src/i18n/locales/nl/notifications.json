@@ -90,6 +90,10 @@
         "title": "Nieuwe API-sleutel aangemaakt",
         "body": "Er is een nieuwe API-sleutel aangemaakt voor je account. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen."
       },
+      "apiKeysRevokedByAdmin": {
+        "title": "API-sleutels ingetrokken door een beheerder",
+        "body": "Een beheerder heeft een of meer van je API-sleutels ingetrokken, waardoor niets dat ze gebruikt nog toegang heeft tot je account. Als je dit niet verwachtte, neem dan contact op met je beheerder."
+      },
       "identityProviderUnlinked": {
         "title": "Inlogprovider ontkoppeld",
         "body": "{name} is losgekoppeld van je account. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen.",

@@ -90,6 +90,10 @@
         "title": "Napravljen je novi API ključ",
         "body": "Za vaš nalog je napravljen novi API ključ. Ako to niste bili vi, resetujte lozinku i pregledajte svoja bezbednosna podešavanja."
       },
+      "apiKeysRevokedByAdmin": {
+        "title": "Administrator je opozvao API ključeve",
+        "body": "Administrator je opozvao jedan ili više vaših API ključeva, pa ništa što ih koristi više nema pristup vašem nalogu. Ako ovo niste očekivali, obratite se svom administratoru."
+      },
       "identityProviderUnlinked": {
         "title": "Provajder prijave odvezan",
         "body": "{name} je odvezan od vašeg naloga. Ako to niste bili vi, resetujte lozinku i pregledajte svoja bezbednosna podešavanja.",

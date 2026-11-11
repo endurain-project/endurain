@@ -90,6 +90,10 @@
         "title": "Uusi API-avain luotu",
         "body": "Tilillesi luotiin uusi API-avain. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi."
       },
+      "apiKeysRevokedByAdmin": {
+        "title": "Ylläpitäjä peruutti API-avaimet",
+        "body": "Ylläpitäjä peruutti yhden tai useamman API-avaimistasi, joten mikään niitä käyttävä ei enää pääse tilillesi. Jos et odottanut tätä, ota yhteyttä ylläpitäjääsi."
+      },
       "identityProviderUnlinked": {
         "title": "Kirjautumispalvelun linkitys poistettu",
         "body": "{name} irrotettiin tilistäsi. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi.",

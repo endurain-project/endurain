@@ -90,6 +90,10 @@
         "title": "Ny API-nyckel skapades",
         "body": "En ny API-nyckel skapades för ditt konto. Om det inte var du, återställ ditt lösenord och granska dina säkerhetsinställningar."
       },
+      "apiKeysRevokedByAdmin": {
+        "title": "API-nycklar återkallade av en administratör",
+        "body": "En administratör har återkallat en eller flera av dina API-nycklar, så inget som använder dem har längre åtkomst till ditt konto. Om du inte väntade dig detta, kontakta din administratör."
+      },
       "identityProviderUnlinked": {
         "title": "Inloggningsleverantör bortkopplad",
         "body": "{name} kopplades bort från ditt konto. Om det inte var du, återställ ditt lösenord och granska dina säkerhetsinställningar.",

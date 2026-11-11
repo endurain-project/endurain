@@ -21,6 +21,7 @@ import {
 } from '@/features/security/composables/useIdpStepUp'
 import {
   useForgetKnownDeviceMutation,
+  useForgetOtherKnownDevicesMutation,
   useKnownDevicesQuery,
 } from '@/features/security/composables/useSecurity'
 
@@ -46,10 +47,15 @@ const handleIdpChallenge = useIdpReauthChallenge()
 const { data, isPending, isError, refetch } = useKnownDevicesQuery()
 const devices = computed(() => data.value ?? [])
 const forgetMutation = useForgetKnownDeviceMutation()
+const forgetOthersMutation = useForgetOtherKnownDevicesMutation()
+/** The number of devices that aren't the current one (forgettable in bulk). */
+const otherDevicesCount = computed(() => devices.value.filter((device) => !device.current).length)
 
 const isStepUpOpen = ref(false)
 const idpReauth = ref<IdpReauth | null>(null)
 const deviceIdToForget = ref<number | null>(null)
+const isForgetOthersOpen = ref(false)
+const forgetOthersReauth = ref<IdpReauth | null>(null)
 const forgetDescription = computed(() =>
   devices.value.some((device) => device.id === deviceIdToForget.value && device.current)
     ? t('settings.security.devices.forgetCurrentDescription')
@@ -79,6 +85,9 @@ onMounted(() => {
     deviceIdToForget.value = id
     idpReauth.value = resume.reauth
     isStepUpOpen.value = true
+  } else if (resume?.action === 'profile_devices_forget_others') {
+    forgetOthersReauth.value = resume.reauth
+    isForgetOthersOpen.value = true
   }
 })
 
@@ -114,13 +123,46 @@ function onConfirm(input: StepUpInput): void {
     },
   )
 }
+
+/** Forgets every device except the current one after step-up. */
+function onConfirmOthers(input: StepUpInput): void {
+  forgetOthersMutation.mutate(input, {
+    onSuccess: () => {
+      isForgetOthersOpen.value = false
+      forgetOthersReauth.value = null
+      toasts.success(t('settings.security.devices.forgetOthersSuccess'))
+    },
+    onError: (error) => {
+      if (handleIdpChallenge(error)) {
+        return
+      }
+      if (isStepUpLocked(error)) {
+        toasts.error(t('settings.security.stepUp.tooManyAttempts'))
+      } else if (isStepUpFailed(error)) {
+        toasts.error(t('settings.security.linked.invalidCredentials'))
+      } else {
+        toasts.error(t('settings.security.devices.forgetOthersError'))
+      }
+    },
+  })
+}
 </script>
 
 <template>
   <Card class="flex flex-col gap-3">
-    <div class="flex flex-col gap-1">
-      <h2 class="text-card-heading">{{ t('settings.security.devices.title') }}</h2>
-      <p class="text-hint">{{ t('settings.security.devices.subtitle') }}</p>
+    <div class="flex flex-wrap items-start justify-between gap-2">
+      <div class="flex flex-col gap-1">
+        <h2 class="text-card-heading">{{ t('settings.security.devices.title') }}</h2>
+        <p class="text-hint">{{ t('settings.security.devices.subtitle') }}</p>
+      </div>
+      <Button
+        v-if="otherDevicesCount > 0"
+        variant="outline"
+        size="sm"
+        @click="isForgetOthersOpen = true"
+      >
+        {{ t('settings.security.devices.forgetOthers') }}
+      </Button>
     </div>
 
     <!-- Loading -->
@@ -190,6 +232,20 @@ function onConfirm(input: StepUpInput): void {
       destructive
       :pending="forgetMutation.isPending.value"
       @confirm="onConfirm"
+    />
+
+    <StepUpDialog
+      v-model:open="isForgetOthersOpen"
+      v-model:reauth="forgetOthersReauth"
+      action="profile_devices_forget_others"
+      :title="t('settings.security.devices.forgetOthersTitle')"
+      :description="t('settings.security.devices.forgetOthersDescription')"
+      :confirm-label="t('settings.security.devices.forgetOthersConfirm')"
+      :require-password="props.hasLocalPassword"
+      :require-mfa="props.mfaEnabled"
+      destructive
+      :pending="forgetOthersMutation.isPending.value"
+      @confirm="onConfirmOthers"
     />
   </Card>
 </template>

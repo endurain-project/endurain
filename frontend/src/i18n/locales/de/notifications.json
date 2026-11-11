@@ -90,6 +90,10 @@
         "title": "Neuer API-Schlüssel erstellt",
         "body": "Für dein Konto wurde ein neuer API-Schlüssel erstellt. Wenn du das nicht warst, setze dein Passwort zurück und prüfe deine Sicherheitseinstellungen."
       },
+      "apiKeysRevokedByAdmin": {
+        "title": "API-Schlüssel von einem Administrator widerrufen",
+        "body": "Ein Administrator hat einen oder mehrere deiner API-Schlüssel widerrufen, sodass nichts, was sie verwendet, noch auf dein Konto zugreifen kann. Wenn du das nicht erwartet hast, wende dich an deinen Administrator."
+      },
       "identityProviderUnlinked": {
         "title": "Anmeldeanbieter getrennt",
         "body": "{name} wurde von deinem Konto getrennt. Wenn du das nicht warst, setze dein Passwort zurück und prüfe deine Sicherheitseinstellungen.",

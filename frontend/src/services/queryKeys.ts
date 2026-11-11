@@ -350,6 +350,11 @@ export const queryKeys = {
      */
     sessions: (userId: number) => ['users', 'sessions', userId] as const,
     /**
+     * @param userId - The key owner's id.
+     * @returns A query key for a user's API-keys list.
+     */
+    apiKeys: (userId: number) => ['users', 'api-keys', userId] as const,
+    /**
      * @param userId - The user whose identity-provider links to key.
      * @returns A query key for a user's linked identity providers.
      */

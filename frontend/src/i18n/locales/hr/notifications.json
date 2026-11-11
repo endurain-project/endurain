@@ -90,6 +90,10 @@
         "title": "Stvoren je novi API ključ",
         "body": "Za vaš je račun stvoren novi API ključ. Ako to niste bili vi, resetirajte lozinku i pregledajte svoje sigurnosne postavke."
       },
+      "apiKeysRevokedByAdmin": {
+        "title": "Administrator je opozvao API ključeve",
+        "body": "Administrator je opozvao jedan ili više vaših API ključeva pa više ništa što ih koristi nema pristup vašem računu. Ako to niste očekivali, obratite se svom administratoru."
+      },
       "identityProviderUnlinked": {
         "title": "Pružatelj prijave odspojen",
         "body": "{name} je odspojen od vašeg računa. Ako to niste bili vi, resetirajte lozinku i pregledajte svoje sigurnosne postavke.",

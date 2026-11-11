@@ -26,6 +26,7 @@ import {
   revokeSession,
   fetchKnownDevices,
   forgetKnownDevice,
+  forgetOtherKnownDevices,
   signOutEverywhere,
   setupMfa,
 } from '@/features/security/services/security'
@@ -494,6 +495,18 @@ describe('known devices', () => {
     await forgetKnownDevice(4, { currentPassword: 'pw', mfaCode: null })
 
     expect(apiFetch).toHaveBeenCalledWith('/profile/devices/4/delete', {
+      method: 'POST',
+      body: JSON.stringify({ step_up: { current_password: 'pw', mfa_code: null } }),
+      responseType: 'void',
+    })
+  })
+
+  it('forgetOtherKnownDevices POSTs the step-up body to the bulk revoke route', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined)
+
+    await forgetOtherKnownDevices({ currentPassword: 'pw', mfaCode: null })
+
+    expect(apiFetch).toHaveBeenCalledWith('/profile/devices/revoke', {
       method: 'POST',
       body: JSON.stringify({ step_up: { current_password: 'pw', mfa_code: null } }),
       responseType: 'void',

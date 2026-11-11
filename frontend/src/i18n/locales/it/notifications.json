@@ -90,6 +90,10 @@
         "title": "Nuova chiave API creata",
         "body": "È stata creata una nuova chiave API per il tuo account. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza."
       },
+      "apiKeysRevokedByAdmin": {
+        "title": "Chiavi API revocate da un amministratore",
+        "body": "Un amministratore ha revocato una o più delle tue chiavi API, quindi nulla che le usi può più accedere al tuo account. Se non te lo aspettavi, contatta il tuo amministratore."
+      },
       "identityProviderUnlinked": {
         "title": "Provider di accesso scollegato",
         "body": "{name} è stato scollegato dal tuo account. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza.",

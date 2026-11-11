@@ -90,6 +90,10 @@
         "title": "Izveidota jauna API atslēga",
         "body": "Jūsu kontam tika izveidota jauna API atslēga. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
       },
+      "apiKeysRevokedByAdmin": {
+        "title": "Administrators atsauca API atslēgas",
+        "body": "Administrators atsauca vienu vai vairākas jūsu API atslēgas, tāpēc nekas, kas tās izmanto, vairs nevar piekļūt jūsu kontam. Ja to negaidījāt, sazinieties ar savu administratoru."
+      },
       "identityProviderUnlinked": {
         "title": "Pieteikšanās pakalpojuma sniedzējs atsaistīts",
         "body": "{name} tika atsaistīts no jūsu konta. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus.",

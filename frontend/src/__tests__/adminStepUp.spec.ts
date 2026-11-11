@@ -367,6 +367,7 @@ describe('UserDetailView identity-provider return', () => {
           UserPasswordDialog: { props: ['resume'], template: '<i data-test="password" />' },
           UserIdentityProvidersList: { props: ['resume'], template: '<i data-test="idps" />' },
           UserSessionsList: true,
+          UserApiKeysList: true,
         },
       },
     })
@@ -411,6 +412,7 @@ describe('UserDetailView identity-provider return', () => {
           UserCredentialActionDialog: true,
           UserIdentityProvidersList: true,
           UserSessionsList: true,
+          UserApiKeysList: true,
         },
       },
     })

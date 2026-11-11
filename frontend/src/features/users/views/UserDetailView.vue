@@ -21,6 +21,7 @@ import UserDeleteDialog from '@/features/users/components/UserDeleteDialog.vue'
 import UserFormDialog from '@/features/users/components/UserFormDialog.vue'
 import UserIdentityProvidersList from '@/features/users/components/UserIdentityProvidersList.vue'
 import UserPasswordDialog from '@/features/users/components/UserPasswordDialog.vue'
+import UserApiKeysList from '@/features/users/components/UserApiKeysList.vue'
 import UserSessionsList from '@/features/users/components/UserSessionsList.vue'
 import UserStatusBadges from '@/features/users/components/UserStatusBadges.vue'
 import { Button } from '@/components/ui/button'
@@ -376,6 +377,8 @@ function approve(): void {
       <UserIdentityProvidersList :user-id="user.id" :resume="resume" />
 
       <UserSessionsList :user-id="user.id" :resume="resume" />
+
+      <UserApiKeysList :user-id="user.id" :resume="resume" />
 
       <UserPasswordDialog
         v-model:open="isPasswordOpen"

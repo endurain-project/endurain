@@ -90,6 +90,10 @@
         "title": "Ny API-nøkkel opprettet",
         "body": "En ny API-nøkkel ble opprettet for kontoen din. Hvis dette ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine."
       },
+      "apiKeysRevokedByAdmin": {
+        "title": "API-nøkler tilbakekalt av en administrator",
+        "body": "En administrator har tilbakekalt én eller flere av API-nøklene dine, så ingenting som bruker dem har lenger tilgang til kontoen din. Hvis du ikke forventet dette, kontakt administratoren din."
+      },
       "identityProviderUnlinked": {
         "title": "Innloggingsleverandør frakoblet",
         "body": "{name} ble koblet fra kontoen din. Hvis dette ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine.",

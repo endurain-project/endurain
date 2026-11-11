@@ -90,6 +90,10 @@
         "title": "Utworzono nowy klucz API",
         "body": "Dla Twojego konta utworzono nowy klucz API. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
       },
+      "apiKeysRevokedByAdmin": {
+        "title": "Klucze API unieważnione przez administratora",
+        "body": "Administrator unieważnił jeden lub więcej Twoich kluczy API, więc nic, co ich używa, nie ma już dostępu do Twojego konta. Jeśli nie spodziewałeś się tego, skontaktuj się z administratorem."
+      },
       "identityProviderUnlinked": {
         "title": "Odłączono dostawcę logowania",
         "body": "{name} został odłączony od Twojego konta. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń.",

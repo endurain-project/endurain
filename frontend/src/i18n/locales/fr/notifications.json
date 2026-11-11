@@ -90,6 +90,10 @@
         "title": "Nouvelle clé API créée",
         "body": "Une nouvelle clé API a été créée pour votre compte. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité."
       },
+      "apiKeysRevokedByAdmin": {
+        "title": "Clés d'API révoquées par un administrateur",
+        "body": "Un administrateur a révoqué une ou plusieurs de vos clés d'API, donc rien de ce qui les utilise ne peut plus accéder à votre compte. Si vous ne vous y attendiez pas, contactez votre administrateur."
+      },
       "identityProviderUnlinked": {
         "title": "Fournisseur de connexion dissocié",
         "body": "{name} a été dissocié de votre compte. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité.",

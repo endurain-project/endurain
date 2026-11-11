@@ -90,6 +90,10 @@
         "title": "Ustvarjen nov ključ API",
         "body": "Za tvoj račun je bil ustvarjen nov ključ API. Če to nisi bil ti, ponastavi geslo in preglej varnostne nastavitve."
       },
+      "apiKeysRevokedByAdmin": {
+        "title": "Skrbnik je preklical API ključe",
+        "body": "Skrbnik je preklical enega ali več vaših API ključev, zato nič, kar jih uporablja, nima več dostopa do vašega računa. Če tega niste pričakovali, se obrnite na skrbnika."
+      },
       "identityProviderUnlinked": {
         "title": "Ponudnik prijave odklopljen",
         "body": "{name} je bil odklopljen od tvojega računa. Če to nisi bil ti, ponastavi geslo in preglej varnostne nastavitve.",

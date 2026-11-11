@@ -34,6 +34,7 @@ const ACCOUNT_SECURITY_CHANGE_KEY: Record<string, string> = {
   password_change_required_by_admin: 'passwordChangeRequiredByAdmin',
   backup_codes_generated: 'backupCodesGenerated',
   api_key_created: 'apiKeyCreated',
+  api_keys_revoked_by_admin: 'apiKeysRevokedByAdmin',
   identity_provider_unlinked: 'identityProviderUnlinked',
   account_locked: 'accountLocked',
   mfa_locked: 'mfaLocked',

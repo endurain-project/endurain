@@ -90,6 +90,10 @@
         "title": "Új API-kulcs létrehozva",
         "body": "A fiókodhoz új API-kulcsot hoztak létre. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
       },
+      "apiKeysRevokedByAdmin": {
+        "title": "Egy adminisztrátor visszavonta az API-kulcsokat",
+        "body": "Egy adminisztrátor visszavonta egy vagy több API-kulcsodat, így semmi, ami használja őket, nem fér hozzá többé a fiókodhoz. Ha nem számítottál erre, fordulj az adminisztrátorodhoz."
+      },
       "identityProviderUnlinked": {
         "title": "Bejelentkezési szolgáltató leválasztva",
         "body": "A(z) {name} leválasztva a fiókodról. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat.",

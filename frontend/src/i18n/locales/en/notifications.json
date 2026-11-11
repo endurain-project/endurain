@@ -90,6 +90,10 @@
         "title": "New API key created",
         "body": "A new API key was created for your account. If this wasn't you, reset your password and review your security settings."
       },
+      "apiKeysRevokedByAdmin": {
+        "title": "API keys revoked by an administrator",
+        "body": "An administrator revoked one or more of your API keys, so anything using them can no longer access your account. If you didn't expect this, contact your administrator."
+      },
       "identityProviderUnlinked": {
         "title": "Sign-in provider unlinked",
         "body": "{name} was unlinked from your account. If this wasn't you, reset your password and review your security settings.",

@@ -6,16 +6,15 @@ import { Ban, Plus, Trash2 } from '@lucide/vue'
 import type { ApiKey, ApiKeyCreateInput, ApiKeyDraft, IdpReauth } from '@/features/security/types'
 import type { IdpStepUpResume } from '@/features/security/composables/useIdpStepUp'
 
+import ApiKeyDetails from '@/features/security/components/ApiKeyDetails.vue'
 import ApiKeyCreateDialog from '@/features/security/components/ApiKeyCreateDialog.vue'
 import ApiKeyRevealDialog from '@/features/security/components/ApiKeyRevealDialog.vue'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { HttpError } from '@/services/http'
 import { useToasts } from '@/composables/useToasts'
-import { formatMediumDate } from '@/utils/datetime'
 import { API_KEY_SCOPES, apiKeyExpiryInstant } from '@/features/security/services/security'
 import {
   isStepUpFailed,
@@ -38,7 +37,7 @@ const props = defineProps<{
   resume: IdpStepUpResume | null
 }>()
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const toasts = useToasts()
 
 const { data, isPending, isError, refetch } = useApiKeysQuery()
@@ -81,11 +80,6 @@ onMounted(() => {
     isCreateOpen.value = true
   }
 })
-
-/** Formats an ISO date in the active locale, or `''` when unparseable. */
-function formatDate(iso: string): string {
-  return formatMediumDate(iso, locale.value)
-}
 
 /** Whether the server refused the request with a 422 on the given field. */
 function refusedField(error: unknown, field: string): boolean {
@@ -221,36 +215,7 @@ function confirmDelete(): void {
         :key="key.id"
         class="flex items-start justify-between gap-3 px-4 py-3"
       >
-        <div class="flex min-w-0 flex-col gap-1.5">
-          <div class="flex flex-wrap items-center gap-2">
-            <span class="text-body font-medium">{{ key.name }}</span>
-            <code class="rounded bg-muted-foreground/15 px-1.5 py-0.5 font-mono text-xs">
-              {{ key.keyPrefix }}…
-            </code>
-            <Badge :variant="key.isActive ? 'secondary' : 'destructive'">
-              {{
-                key.isActive
-                  ? t('settings.security.apiKeys.statusActive')
-                  : t('settings.security.apiKeys.statusRevoked')
-              }}
-            </Badge>
-          </div>
-          <div v-if="key.scopes.length > 0" class="flex flex-wrap gap-1">
-            <Badge v-for="scope in key.scopes" :key="scope" variant="outline" class="font-mono">
-              {{ scope }}
-            </Badge>
-          </div>
-          <p class="text-hint">
-            {{ t('settings.security.apiKeys.created', { date: formatDate(key.createdAt) }) }} ·
-            {{
-              key.lastUsedAt
-                ? t('settings.security.apiKeys.lastUsed', { date: formatDate(key.lastUsedAt) })
-                : t('settings.security.apiKeys.neverUsed')
-            }}
-            ·
-            {{ t('settings.security.apiKeys.expires', { date: formatDate(key.expiresAt) }) }}
-          </p>
-        </div>
+        <ApiKeyDetails :api-key="key" />
         <div class="flex shrink-0 gap-1">
           <Button
             v-if="key.isActive"

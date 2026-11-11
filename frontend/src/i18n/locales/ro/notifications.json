@@ -90,6 +90,10 @@
         "title": "A fost creată o cheie API nouă",
         "body": "A fost creată o cheie API nouă pentru contul tău. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate."
       },
+      "apiKeysRevokedByAdmin": {
+        "title": "Chei API revocate de un administrator",
+        "body": "Un administrator a revocat una sau mai multe dintre cheile tale API, așa că nimic din ce le folosește nu mai poate accesa contul tău. Dacă nu te așteptai la asta, contactează administratorul."
+      },
       "identityProviderUnlinked": {
         "title": "Furnizor de autentificare dezasociat",
         "body": "{name} a fost dezasociat de la contul tău. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate.",

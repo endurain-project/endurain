@@ -90,6 +90,10 @@
         "title": "Nova clau API creada",
         "body": "S'ha creat una clau API nova per al teu compte. Si no has estat tu, restableix la contrasenya i revisa la configuració de seguretat."
       },
+      "apiKeysRevokedByAdmin": {
+        "title": "Claus d'API revocades per un administrador",
+        "body": "Un administrador ha revocat una o més de les teves claus d'API, de manera que res que les utilitzi pot accedir ja al teu compte. Si no t'ho esperaves, contacta amb el teu administrador."
+      },
       "identityProviderUnlinked": {
         "title": "Proveïdor d'inici de sessió desvinculat",
         "body": "{name} s'ha desvinculat del teu compte. Si no has estat tu, restableix la contrasenya i revisa la configuració de seguretat.",

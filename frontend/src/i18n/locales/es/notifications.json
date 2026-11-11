@@ -90,6 +90,10 @@
         "title": "Nueva clave de API creada",
         "body": "Se creó una nueva clave de API para tu cuenta. Si no fuiste tú, restablece tu contraseña y revisa tus ajustes de seguridad."
       },
+      "apiKeysRevokedByAdmin": {
+        "title": "Claves de API revocadas por un administrador",
+        "body": "Un administrador revocó una o más de tus claves de API, por lo que nada que las use puede acceder ya a tu cuenta. Si no lo esperabas, ponte en contacto con tu administrador."
+      },
       "identityProviderUnlinked": {
         "title": "Proveedor de inicio de sesión desvinculado",
         "body": "{name} se desvinculó de tu cuenta. Si no fuiste tú, restablece tu contraseña y revisa tus ajustes de seguridad.",

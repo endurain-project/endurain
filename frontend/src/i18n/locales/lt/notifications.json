@@ -90,6 +90,10 @@
         "title": "Sukurtas naujas API raktas",
         "body": "Jūsų paskyrai sukurtas naujas API raktas. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus."
       },
+      "apiKeysRevokedByAdmin": {
+        "title": "Administratorius atšaukė API raktus",
+        "body": "Administratorius atšaukė vieną ar kelis jūsų API raktus, todėl niekas, kas juos naudoja, nebegali pasiekti jūsų paskyros. Jei to nesitikėjote, susisiekite su savo administratoriumi."
+      },
       "identityProviderUnlinked": {
         "title": "Prisijungimo teikėjas atsietas",
         "body": "{name} buvo atsietas nuo jūsų paskyros. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus.",

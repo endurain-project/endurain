@@ -90,6 +90,10 @@
         "title": "Yeni API anahtarı oluşturuldu",
         "body": "Hesabınız için yeni bir API anahtarı oluşturuldu. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
       },
+      "apiKeysRevokedByAdmin": {
+        "title": "API anahtarları bir yönetici tarafından iptal edildi",
+        "body": "Bir yönetici API anahtarlarınızdan birini veya birkaçını iptal etti, bu yüzden onları kullanan hiçbir şey artık hesabınıza erişemez. Bunu beklemiyorsanız yöneticinizle iletişime geçin."
+      },
       "identityProviderUnlinked": {
         "title": "Giriş sağlayıcısının bağlantısı kaldırıldı",
         "body": "{name} sağlayıcısının hesabınızla bağlantısı kaldırıldı. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin.",

@@ -30,6 +30,7 @@ import {
   fetchBackupCodeStatus,
   fetchKnownDevices,
   forgetKnownDevice,
+  forgetOtherKnownDevices,
   fetchMfaStatus,
   fetchSessions,
   regenerateBackupCodes,
@@ -118,6 +119,25 @@ export function useForgetKnownDeviceMutation() {
     mutationFn: ({ deviceId, input }) => forgetKnownDevice(deviceId, input),
     onSettled: () => {
       void client.invalidateQueries({ queryKey: queryKeys.security.devices() })
+    },
+  })
+}
+
+/**
+ * Forgets every other known device (step-up gated). Invalidates the devices and sessions lists on
+ * settle, since the forgotten devices' sessions end.
+ *
+ * @returns The TanStack Query mutation for forgetting the other devices.
+ */
+export function useForgetOtherKnownDevicesMutation() {
+  const client = useQueryClient()
+
+  return useMutation<void, Error, StepUpInput>({
+    mutationKey: queryKeys.security.all(),
+    mutationFn: (input) => forgetOtherKnownDevices(input),
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.security.devices() })
+      void client.invalidateQueries({ queryKey: queryKeys.security.sessions() })
     },
   })
 }

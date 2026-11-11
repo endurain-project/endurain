@@ -90,6 +90,10 @@
         "title": "Vytvořen nový klíč API",
         "body": "Pro váš účet byl vytvořen nový klíč API. Pokud jste to nebyli vy, obnovte heslo a zkontrolujte nastavení zabezpečení."
       },
+      "apiKeysRevokedByAdmin": {
+        "title": "Klíče API zrušené správcem",
+        "body": "Správce zrušil jeden nebo více vašich klíčů API, takže cokoli je používá, již nemá přístup k vašemu účtu. Pokud jste to nečekali, obraťte se na správce."
+      },
       "identityProviderUnlinked": {
         "title": "Poskytovatel přihlášení odpojen",
         "body": "{name} byl odpojen od vašeho účtu. Pokud jste to nebyli vy, obnovte heslo a zkontrolujte nastavení zabezpečení.",

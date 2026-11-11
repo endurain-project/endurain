@@ -153,6 +153,7 @@ describe('presentNotification', () => {
     ['password_change_required_by_admin', 'passwordChangeRequiredByAdmin'],
     ['backup_codes_generated', 'backupCodesGenerated'],
     ['api_key_created', 'apiKeyCreated'],
+    ['api_keys_revoked_by_admin', 'apiKeysRevokedByAdmin'],
     ['account_locked', 'accountLocked'],
     ['mfa_locked', 'mfaLocked'],
     ['step_up_session_ended', 'stepUpSessionEnded'],
