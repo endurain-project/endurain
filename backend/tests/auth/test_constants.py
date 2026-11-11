@@ -39,6 +39,7 @@ class TestScopeConstants:
         assert "account" in auth_constants.USERS_REGULAR_SCOPE
         assert "account:export" in auth_constants.USERS_REGULAR_SCOPE
         assert "account:security" in auth_constants.USERS_REGULAR_SCOPE
+        assert "account:integrations" in auth_constants.USERS_REGULAR_SCOPE
         assert "users:read" in auth_constants.USERS_REGULAR_SCOPE
 
     def test_users_admin_scope_defined(self):
@@ -108,6 +109,7 @@ class TestScopeConstants:
             "account",
             "account:export",
             "account:security",
+            "account:integrations",
             "users:read",
             "users:write",
             "gears:read",

@@ -33,7 +33,7 @@ router = APIRouter()
     status_code=status.HTTP_202_ACCEPTED,
     response_model=strava_schema.StravaSyncStatus,
     responses=core_location.ACCEPTED_RESPONSE,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:integrations"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def strava_link(
@@ -142,7 +142,7 @@ def import_gear_from_strava_export(
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
     responses={204: {"headers": core_openapi_contract.ETAG_HEADERS}},
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:integrations"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def strava_set_user_client(
@@ -172,7 +172,7 @@ def strava_set_user_client(
     "/state",
     status_code=status.HTTP_201_CREATED,
     response_model=strava_schema.StravaState,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:integrations"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def strava_begin_state(
@@ -192,7 +192,7 @@ def strava_begin_state(
     status_code=status.HTTP_202_ACCEPTED,
     response_model=strava_schema.StravaSyncStatus,
     responses=core_location.ACCEPTED_RESPONSE,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:integrations"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def strava_unlink(

@@ -47,10 +47,18 @@ MFA_ENROLMENT_ROUTES: Final[frozenset[tuple[str, str]]] = frozenset(
 )
 
 # scope (immutable)
-# ``account`` covers the account's own data (profile, photo, goals, privacy, provider links). Two narrower scopes
+# ``account`` covers the account's own data (profile, photo, goals, privacy, default gear). Three narrower scopes
 # split off what an integration token should not hold by default: taking the account's data out or in
-# (``account:export``), and changing how the account is protected or closing it (``account:security``).
-USERS_REGULAR_SCOPE: Final[tuple[str, ...]] = ("account", "account:export", "account:security", "users:read")
+# (``account:export``), changing how the account is protected or closing it (``account:security``), and linking or
+# unlinking a Garmin Connect or Strava account, which hands the provider's credentials to the server
+# (``account:integrations``).
+USERS_REGULAR_SCOPE: Final[tuple[str, ...]] = (
+    "account",
+    "account:export",
+    "account:security",
+    "account:integrations",
+    "users:read",
+)
 USERS_ADMIN_SCOPE: Final[tuple[str, ...]] = (
     "users:read-all",
     "users:write",
@@ -98,6 +106,7 @@ SCOPE_DICT: Final[dict[str, str]] = {
     "account:security": (
         "Change the user's own password, email, MFA, API keys, sessions and identity links, and delete the account"
     ),
+    "account:integrations": "Link and unlink the user's own Garmin Connect and Strava accounts",
     "users:read": "Read privileges over users",
     "users:read-all": "Read privileges over the full records of every user",
     "users:write": "Write privileges over users",

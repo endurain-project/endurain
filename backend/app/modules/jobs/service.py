@@ -64,19 +64,23 @@ _RULES: dict[_Kind, _KindRule] = {
     _Kind.ACTIVITIES_BULK_EDIT: _KindRule(
         "activities:read", bulk_edit_constants.BULK_EDIT_POLL_SECONDS, activity_integration.read_bulk_edit_job
     ),
-    _Kind.GARMIN_LINK: _KindRule("account", garmin_constants.LINK_POLL_SECONDS, garmin_integration.read_link_job),
+    _Kind.GARMIN_LINK: _KindRule(
+        "account:integrations", garmin_constants.LINK_POLL_SECONDS, garmin_integration.read_link_job
+    ),
     _Kind.GARMIN_SYNC_GEAR: _KindRule("account", garmin_constants.SYNC_POLL_SECONDS, garmin_integration.read_sync_job),
     _Kind.GARMIN_SYNC_HEALTH: _KindRule(
         "account", garmin_constants.SYNC_POLL_SECONDS, garmin_integration.read_sync_job
     ),
     _Kind.STRAVA_LINK: _KindRule(
-        "account", strava_constants.SYNC_POLL_SECONDS[strava_constants.SyncKind.LINK], strava_integration.read_sync_job
+        "account:integrations",
+        strava_constants.SYNC_POLL_SECONDS[strava_constants.SyncKind.LINK],
+        strava_integration.read_sync_job,
     ),
     _Kind.STRAVA_GEAR: _KindRule(
         "account", strava_constants.SYNC_POLL_SECONDS[strava_constants.SyncKind.GEAR], strava_integration.read_sync_job
     ),
     _Kind.STRAVA_UNLINK: _KindRule(
-        "account",
+        "account:integrations",
         strava_constants.SYNC_POLL_SECONDS[strava_constants.SyncKind.UNLINK],
         strava_integration.read_sync_job,
     ),

@@ -11,6 +11,7 @@ import core.attempt_state as core_attempt_state
 import core.exceptions as core_exceptions
 import core.job_status as core_job_status
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
+import modules.garmin.link_state_store as garmin_link_state_store
 import modules.jobs.schema as jobs_schema
 import modules.jobs.service as jobs_service
 import modules.strava.constants as strava_constants
@@ -19,7 +20,7 @@ import modules.users.users.constants as users_constants
 import modules.users.users.deletion_state_store as deletion_state_store
 
 Status = core_job_status.JobState
-_ALL = frozenset({"account", "activities:upload", "users:read-all"})
+_ALL = frozenset({"account", "account:integrations", "activities:upload", "users:read-all"})
 _INGESTION_READ = "modules.activities.activity_ingestion.integration_service.read_job"
 _INGESTION_LIST = "modules.activities.activity_ingestion.integration_service.list_jobs"
 
@@ -54,6 +55,21 @@ class TestGetJob:
         assert view.job.status == Status.QUEUED
         assert view.scope == "account"
         assert view.poll_seconds == strava_constants.SYNC_POLL_SECONDS[strava_constants.SyncKind.GEAR]
+
+    @pytest.mark.parametrize("kind", [strava_constants.SyncKind.LINK, strava_constants.SyncKind.UNLINK])
+    def test_a_strava_link_or_unlink_job_is_read_with_the_integrations_scope(self, state, kind):
+        job = _strava(state, kind=kind)
+
+        view = jobs_service.get_job(job.id, 1, _ALL, state, MagicMock())
+
+        assert view.scope == "account:integrations"
+
+    def test_a_garmin_link_job_is_read_with_the_integrations_scope(self, state):
+        job = garmin_link_state_store.GarminLinkStateStore(state).begin(1, conflict="Busy")
+
+        view = jobs_service.get_job(job.id, 1, _ALL, state, MagicMock())
+
+        assert view.scope == "account:integrations"
 
     def test_another_users_job_is_not_found(self, state):
         job = _strava(state, user_id=2)
@@ -132,6 +148,23 @@ class TestListJobs:
         assert ingestion.call_args.kwargs["before"] == (link.created_at, link.id)
         assert [job.id for job in second.items] == [gear.id, "upload-old"]
         assert second.next_cursor is None
+
+    def test_a_link_job_is_not_listed_without_the_integrations_scope(self, state):
+        _strava(state, kind=strava_constants.SyncKind.LINK)
+
+        with patch(_INGESTION_LIST, return_value=[]):
+            page = jobs_service.list_jobs(
+                1,
+                {"account", "activities:upload"},
+                state,
+                MagicMock(),
+                kind=None,
+                status=None,
+                cursor=None,
+                num_records=10,
+            )
+
+        assert page.items == []
 
     def test_only_the_callers_own_jobs_are_listed(self, state):
         _strava(state, user_id=2)

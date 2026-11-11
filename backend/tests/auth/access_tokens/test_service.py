@@ -616,7 +616,7 @@ class TestRefreshIssuesAccountScopes:
         )
 
         scopes = set(token_manager.get_token_claim(token, "scope", auth_token_manager.TokenType.ACCESS).split())
-        assert {"account", "account:export", "account:security"} <= scopes
+        assert {"account", "account:export", "account:security", "account:integrations"} <= scopes
         assert not {"profile", "profile:export", "profile:security"} & scopes
 
 

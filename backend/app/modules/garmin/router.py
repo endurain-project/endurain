@@ -26,7 +26,7 @@ router = APIRouter()
     status_code=status.HTTP_202_ACCEPTED,
     response_model=garmin_schema.GarminLinkStatus,
     responses=core_location.ACCEPTED_RESPONSE,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:integrations"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def garminconnect_link(
@@ -53,7 +53,7 @@ def garminconnect_link(
     "/mfa",
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:integrations"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def garminconnect_mfa_code(
@@ -156,7 +156,7 @@ def garminconnect_retrieve_health_days(
     "/link",
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:integrations"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def garminconnect_unlink(
