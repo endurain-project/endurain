@@ -52,7 +52,7 @@ MFA_ENROLMENT_ROUTES: Final[frozenset[tuple[str, str]]] = frozenset(
 # (``account:export``), and changing how the account is protected or closing it (``account:security``).
 USERS_REGULAR_SCOPE: Final[tuple[str, ...]] = ("account", "account:export", "account:security", "users:read")
 USERS_ADMIN_SCOPE: Final[tuple[str, ...]] = (
-    "users:read_all",
+    "users:read-all",
     "users:write",
     "sessions:read",
     "sessions:write",
@@ -65,7 +65,7 @@ ACTIVITIES_SCOPE: Final[tuple[str, ...]] = (
 )
 # The full provider configuration (client ids, endpoints, user mapping, disabled providers) is for administrators;
 # regular users see the public listing instead.
-IDENTITY_PROVIDERS_ADMIN_SCOPE: Final[tuple[str, ...]] = ("identity_providers:read", "identity_providers:write")
+IDENTITY_PROVIDERS_ADMIN_SCOPE: Final[tuple[str, ...]] = ("identity-providers:read", "identity-providers:write")
 # The social graph gets its own scopes rather than riding the broad ``account``
 # scope: following/unfollowing is a distinct, externally visible action, and an
 # integration token issued to edit a profile should not silently be able to
@@ -77,8 +77,8 @@ FOLLOWERS_SCOPE: Final[tuple[str, ...]] = (
 HEALTH_SCOPE: Final[tuple[str, ...]] = (
     "health:read",
     "health:write",
-    "health_targets:read",
-    "health_targets:write",
+    "health-targets:read",
+    "health-targets:write",
 )
 NOTIFICATIONS_REGULAR_SCOPE: Final[tuple[str, ...]] = (
     "notifications:read",
@@ -86,10 +86,10 @@ NOTIFICATIONS_REGULAR_SCOPE: Final[tuple[str, ...]] = (
 )
 SERVER_SETTINGS_REGULAR_SCOPE: Final[tuple[str, ...]] = ()
 SERVER_SETTINGS_ADMIN_SCOPE: Final[tuple[str, ...]] = (
-    "server_settings:read",
-    "server_settings:write",
-    "server_settings:logs",
-    "server_settings:logs_clear",
+    "server-settings:read",
+    "server-settings:write",
+    "server-settings:logs",
+    "server-settings:logs-clear",
 )
 
 SCOPE_DICT: Final[dict[str, str]] = {
@@ -99,7 +99,7 @@ SCOPE_DICT: Final[dict[str, str]] = {
         "Change the user's own password, email, MFA, API keys, sessions and identity links, and delete the account"
     ),
     "users:read": "Read privileges over users",
-    "users:read_all": "Read privileges over the full records of every user",
+    "users:read-all": "Read privileges over the full records of every user",
     "users:write": "Write privileges over users",
     "sessions:read": "Read privileges over sessions",
     "sessions:write": "Create/edit/delete privileges over sessions",
@@ -112,16 +112,16 @@ SCOPE_DICT: Final[dict[str, str]] = {
     "followers:write": "Follow, unfollow, accept and remove followers",
     "health:read": "Read privileges over health data",
     "health:write": "Write privileges over health data",
-    "health_targets:read": "Read privileges over health targets data",
-    "health_targets:write": "Write privileges over health targets data",
+    "health-targets:read": "Read privileges over health targets data",
+    "health-targets:write": "Write privileges over health targets data",
     "notifications:read": "Read privileges over notifications",
     "notifications:write": "Write privileges over notifications",
-    "server_settings:read": "Read privileges over server settings",
-    "server_settings:write": "Write privileges over server settings",
-    "server_settings:logs": "Read privileges over the server logs",
-    "server_settings:logs_clear": "Privileges to clear the server logs",
-    "identity_providers:read": "Read privileges over identity providers",
-    "identity_providers:write": "Write privileges over identity providers",
+    "server-settings:read": "Read privileges over server settings",
+    "server-settings:write": "Write privileges over server settings",
+    "server-settings:logs": "Read privileges over the server logs",
+    "server-settings:logs-clear": "Privileges to clear the server logs",
+    "identity-providers:read": "Read privileges over identity providers",
+    "identity-providers:write": "Write privileges over identity providers",
 }
 
 REGULAR_ACCESS_SCOPE: Final[tuple[str, ...]] = (

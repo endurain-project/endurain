@@ -55,7 +55,7 @@ export function mapEmbeddedUsers<T>(
  * authenticated, so this uses the authenticated user endpoint (the same one
  * activity feeds use to resolve other users), which any signed-in viewer may
  * call and which returns only the public projection (an administrator, who holds
- * `users:read_all`, gets the full record, a superset).
+ * `users:read-all`, gets the full record, a superset).
  *
  * @param userId - The profile owner's id.
  * @param signal - Optional abort signal (e.g. TanStack Query cancellation).

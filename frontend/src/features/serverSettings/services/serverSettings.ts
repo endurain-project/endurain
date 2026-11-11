@@ -158,7 +158,7 @@ export function toServerSettingsWire(
 }
 
 /**
- * Fetches the full server settings (admin scope `server_settings:read`). The
+ * Fetches the full server settings (admin scope `server-settings:read`). The
  * tile-server API key is never returned, only whether one is stored.
  *
  * @param signal - Optional abort signal for cancellation.
@@ -188,7 +188,7 @@ export async function fetchTileMapsTemplates(signal?: AbortSignal): Promise<Tile
 }
 
 /**
- * Updates the server settings (admin scope `server_settings:write`). The whole
+ * Updates the server settings (admin scope `server-settings:write`). The whole
  * record is sent; the backend validates the tile-server URL and may reject the
  * change with a `422`. A change to a security-relevant setting needs the administrator's own step-up.
  *
@@ -210,7 +210,7 @@ export async function updateServerSettings(
 }
 
 /**
- * Uploads a custom login-screen photo (admin scope `server_settings:write`).
+ * Uploads a custom login-screen photo (admin scope `server-settings:write`).
  * The file is sent as multipart form data under the `file` field; the backend
  * validates it (PNG image) and stores it under a server-generated name, so the
  * caller's filename is never used to build a path.
@@ -229,7 +229,7 @@ export async function uploadLoginPhoto(file: File): Promise<LoginPhotoDto> {
 }
 
 /**
- * Removes the custom login-screen photo (admin scope `server_settings:write`).
+ * Removes the custom login-screen photo (admin scope `server-settings:write`).
  *
  * @throws {HttpError} When the deletion fails.
  */
@@ -242,7 +242,7 @@ export async function deleteLoginPhoto(): Promise<void> {
 
 /**
  * Sends a test email to the calling admin's own address (admin scope
- * `server_settings:write`). The send is synchronous, so a failure surfaces the
+ * `server-settings:write`). The send is synchronous, so a failure surfaces the
  * mail server's failure category and SMTP status code in the error detail.
  *
  * @throws {HttpError} `503` when email is not configured, `502` when the mail
@@ -299,7 +299,7 @@ export function toMailSettingsWire(
 }
 
 /**
- * Fetches the mail server settings (admin scope `server_settings:read`). The
+ * Fetches the mail server settings (admin scope `server-settings:read`). The
  * password is never returned, only whether one is stored.
  *
  * @param signal - Optional abort signal for cancellation.
@@ -312,7 +312,7 @@ export async function fetchMailSettings(signal?: AbortSignal): Promise<MailSetti
 }
 
 /**
- * Updates the mail server settings (admin scope `server_settings:write`). The
+ * Updates the mail server settings (admin scope `server-settings:write`). The
  * backend validates the configuration and rejects a change to a field an
  * environment variable currently sets. Needs the administrator's own step-up.
  *
@@ -334,7 +334,7 @@ export async function updateMailSettings(
 }
 
 /**
- * Fetches records from the end of the server log (admin scope `server_settings:logs`).
+ * Fetches records from the end of the server log (admin scope `server-settings:logs`).
  *
  * @param filters - Severity and text filters.
  * @param cursor - `next_cursor` of an earlier page to read only newer records, or null for the newest.
@@ -361,7 +361,7 @@ export async function fetchLogs(
 }
 
 /**
- * Downloads the current server log file (admin scope `server_settings:logs`).
+ * Downloads the current server log file (admin scope `server-settings:logs`).
  *
  * @param signal - Optional abort signal for cancellation.
  * @returns The log file as a {@link Blob}.
@@ -377,7 +377,7 @@ export async function downloadLogs(signal?: AbortSignal): Promise<Blob> {
 
 /**
  * Empties the server log and deletes its rotated backups (admin scope
- * `server_settings:logs_clear`). The backend records the action in the new log.
+ * `server-settings:logs-clear`). The backend records the action in the new log.
  *
  * @throws {HttpError} When the request fails.
  */

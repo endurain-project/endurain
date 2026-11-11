@@ -19,7 +19,7 @@ from tests._helpers.gears import component_create, gear_create
 from tests.postgres.test_transaction_ownership import _add_activity
 
 _USER = 1
-_SCOPES = {"activities:read", "health:read", "health_targets:read", "gears:read"}
+_SCOPES = {"activities:read", "health:read", "health-targets:read", "gears:read"}
 
 
 @pytest.fixture

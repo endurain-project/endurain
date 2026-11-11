@@ -24,7 +24,7 @@ router = APIRouter()
 @router.get(
     "",
     response_model=idp_schema.IdentityProviderPage,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:read"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity-providers:read"])],
 )
 def list_identity_providers(
     page: core_pagination.ListPage,
@@ -45,7 +45,7 @@ def list_identity_providers(
 @router.get(
     "/templates",
     response_model=list[idp_schema.IdentityProviderTemplateRead],
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:read"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity-providers:read"])],
 )
 def list_idp_templates() -> list[idp_schema.IdentityProviderTemplateRead]:
     """Get the list of pre-configured IdP templates (admin only).
@@ -69,7 +69,7 @@ def list_idp_templates() -> list[idp_schema.IdentityProviderTemplateRead]:
             }
         }
     },
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:read"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity-providers:read"])],
 )
 def read_identity_provider(
     idp_id: core_dependencies.PositiveId,
@@ -115,7 +115,7 @@ def read_identity_provider(
             }
         }
     },
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:write"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity-providers:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def create_identity_provider(
@@ -183,7 +183,7 @@ def create_identity_provider(
         status.HTTP_412_PRECONDITION_FAILED: {"description": "The identity provider has changed"},
         status.HTTP_428_PRECONDITION_REQUIRED: {"description": "If-Match is required"},
     },
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:write"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity-providers:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def update_identity_provider(
@@ -229,7 +229,7 @@ def update_identity_provider(
     "/{idp_id}/delete",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:write"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity-providers:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_identity_provider(
@@ -272,7 +272,7 @@ def delete_identity_provider(
     response_model=idp_schema.IdentityProviderIconRead,
     status_code=status.HTTP_201_CREATED,
     responses=core_openapi_contract.replaced_response(idp_schema.IdentityProviderIconRead),
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:write"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity-providers:write"])],
     openapi_extra=core_middleware_body_limit.upload_limit(idp_constants.ICON_MAX_BYTES),
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
@@ -286,7 +286,7 @@ def put_identity_provider_icon(
 ) -> idp_schema.IdentityProviderIconRead:
     """Set the icon an identity provider shows on the login page.
 
-    Requires admin authentication with identity_providers:write scope. The icon replaces any custom icon URL
+    Requires admin authentication with identity-providers:write scope. The icon replaces any custom icon URL
     until it is removed. Answers 201 when the provider had no uploaded icon and 200 when it replaced one.
 
     Args:
@@ -319,7 +319,7 @@ def put_identity_provider_icon(
     "/{idp_id}/icon",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:write"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity-providers:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_identity_provider_icon(
@@ -330,7 +330,7 @@ def delete_identity_provider_icon(
 ) -> None:
     """Remove the uploaded icon of an identity provider.
 
-    Requires admin authentication with identity_providers:write scope.
+    Requires admin authentication with identity-providers:write scope.
 
     Args:
         idp_id: The identity provider the icon belongs to.

@@ -320,7 +320,7 @@ class TestTargetsScopes:
 
     @patch("modules.health.health_targets.router.health_targets_service.get_health_targets", return_value=None)
     def test_read_with_health_targets_read_is_allowed(self, _get, mock_db):
-        client, principal = self._client(mock_db, {"health_targets:read"})
+        client, principal = self._client(mock_db, {"health-targets:read"})
 
         with principal:
             response = client.get("/health/targets")
@@ -329,7 +329,7 @@ class TestTargetsScopes:
 
     @patch("modules.health.health_targets.router.health_targets_service.update_health_targets")
     def test_write_with_only_health_write_is_refused(self, mock_update, mock_db):
-        client, principal = self._client(mock_db, {"health:read", "health:write", "health_targets:read"})
+        client, principal = self._client(mock_db, {"health:read", "health:write", "health-targets:read"})
 
         with principal:
             response = client.patch("/health/targets", json={"steps": 1}, headers={"If-Match": '"1"'})
@@ -344,7 +344,7 @@ class TestTargetsScopes:
         mock_update.return_value = health_targets_schema.HealthTargetsRead(
             updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, version=2, steps=1
         )
-        client, principal = self._client(mock_db, {"health_targets:write"})
+        client, principal = self._client(mock_db, {"health-targets:write"})
 
         with principal:
             response = client.patch("/health/targets", json={"steps": 1}, headers={"If-Match": '"1"'})

@@ -618,3 +618,35 @@ class TestRefreshIssuesAccountScopes:
         scopes = set(token_manager.get_token_claim(token, "scope", auth_token_manager.TokenType.ACCESS).split())
         assert {"account", "account:export", "account:security"} <= scopes
         assert not {"profile", "profile:export", "profile:security"} & scopes
+
+
+class TestAdminTokenScopeNames:
+    """An administrator's access token carries the kebab-case scope names and none of the former snake_case ones."""
+
+    def test_an_admin_access_token_carries_the_renamed_scopes_and_no_former_name(self, token_manager):
+        admin = UserRead(
+            id=1,
+            name="Admin",
+            username="admin",
+            email="admin@example.com",
+            active=True,
+            access_type=UserAccessType.ADMIN.value,
+        )
+        policy = MagicMock()
+        policy.access_token_ttl = timedelta(minutes=15)
+
+        _, token = auth_token_service.mint_access_token(admin, ClientType.WEB, token_manager, "session-id", policy)
+
+        scopes = set(token_manager.get_token_claim(token, "scope", auth_token_manager.TokenType.ACCESS).split())
+        assert {
+            "health-targets:read",
+            "health-targets:write",
+            "identity-providers:read",
+            "identity-providers:write",
+            "server-settings:read",
+            "server-settings:write",
+            "server-settings:logs",
+            "server-settings:logs-clear",
+            "users:read-all",
+        } <= scopes
+        assert not {scope for scope in scopes if "_" in scope}

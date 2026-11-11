@@ -50,7 +50,7 @@ def _app_client(mock_db, scopes: frozenset[str]) -> TestClient:
 @pytest.fixture
 def client(mock_db):
     """A client whose token holds both read scopes, like an administrator's."""
-    return _app_client(mock_db, frozenset({"users:read", "users:read_all"}))
+    return _app_client(mock_db, frozenset({"users:read", "users:read-all"}))
 
 
 @pytest.fixture
@@ -162,7 +162,7 @@ class TestReadUsers:
         response = regular_client.get(f"/users?{query}")
 
         assert response.status_code == 403
-        assert response.json()["missing_scopes"] == ["users:read_all"]
+        assert response.json()["missing_scopes"] == ["users:read-all"]
         mock_search.assert_not_called()
 
     @patch(f"{_SERVICE}.list_public_users")
@@ -686,7 +686,7 @@ class TestReadScopes:
 
     @pytest.mark.parametrize("path", ["/{user_id}/identity-providers"])
     def test_full_records_need_the_admin_read_scope(self, path):
-        assert self._scopes(path) == {"users:read_all"}
+        assert self._scopes(path) == {"users:read-all"}
 
     @pytest.mark.parametrize("path", ["", "/{user_id}"])
     def test_reads_that_serve_both_projections_need_only_the_regular_read_scope(self, path):
@@ -726,7 +726,7 @@ class TestReadScopeEnforcement:
         response = self._client(auth_constants.REGULAR_ACCESS_SCOPE).get(path)
 
         assert response.status_code == 403
-        assert "users:read_all" in response.json()["detail"]
+        assert "users:read-all" in response.json()["detail"]
 
     @pytest.mark.parametrize(
         ("path", "target"),

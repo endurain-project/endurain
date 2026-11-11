@@ -19,7 +19,7 @@ import modules.users.users.constants as users_constants
 import modules.users.users.deletion_state_store as deletion_state_store
 
 Status = core_job_status.JobState
-_ALL = frozenset({"account", "activities:upload", "users:read_all"})
+_ALL = frozenset({"account", "activities:upload", "users:read-all"})
 _INGESTION_READ = "modules.activities.activity_ingestion.integration_service.read_job"
 _INGESTION_LIST = "modules.activities.activity_ingestion.integration_service.list_jobs"
 
@@ -101,7 +101,7 @@ class TestGetJob:
             7, users_constants.DeletionKind.ACCOUNT, conflict="Busy", owner_id=1
         )
 
-        view = jobs_service.get_job(job.id, 2, {"users:read_all"}, state, MagicMock())
+        view = jobs_service.get_job(job.id, 2, {"users:read-all"}, state, MagicMock())
 
         assert view.job.kind == "user_deletion"
         with pytest.raises(core_exceptions.NotFoundError):

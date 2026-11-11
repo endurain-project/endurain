@@ -1,5 +1,7 @@
 """Tests for auth.constants module."""
 
+import re
+
 import core.jwt_keys as core_jwt_keys
 import modules.auth.access_tokens.service as access_tokens_service
 import modules.auth.constants as auth_constants
@@ -24,6 +26,12 @@ class TestJWTConstants:
 class TestScopeConstants:
     """Test scope configuration constants."""
 
+    def test_every_scope_name_is_kebab_case_resource_and_action(self):
+        """A scope is ``resource:action`` in lowercase kebab-case, or a bare resource such as ``account``."""
+        name = re.compile(r"^[a-z]+(-[a-z]+)*(:[a-z]+(-[a-z]+)*)?$")
+
+        assert [scope for scope in auth_constants.SCOPE_DICT if not name.fullmatch(scope)] == []
+
     def test_users_regular_scope_defined(self):
         """Test that users regular scope is properly defined."""
         assert auth_constants.USERS_REGULAR_SCOPE is not None
@@ -38,8 +46,8 @@ class TestScopeConstants:
         assert auth_constants.USERS_ADMIN_SCOPE is not None
         assert isinstance(auth_constants.USERS_ADMIN_SCOPE, tuple)
         assert "users:write" in auth_constants.USERS_ADMIN_SCOPE
-        assert "users:read_all" in auth_constants.USERS_ADMIN_SCOPE
-        assert "users:read_all" not in auth_constants.REGULAR_ACCESS_SCOPE
+        assert "users:read-all" in auth_constants.USERS_ADMIN_SCOPE
+        assert "users:read-all" not in auth_constants.REGULAR_ACCESS_SCOPE
         assert "sessions:read" in auth_constants.USERS_ADMIN_SCOPE
         assert "sessions:write" in auth_constants.USERS_ADMIN_SCOPE
 
@@ -63,20 +71,20 @@ class TestScopeConstants:
         assert isinstance(auth_constants.HEALTH_SCOPE, tuple)
         assert "health:read" in auth_constants.HEALTH_SCOPE
         assert "health:write" in auth_constants.HEALTH_SCOPE
-        assert "health_targets:read" in auth_constants.HEALTH_SCOPE
-        assert "health_targets:write" in auth_constants.HEALTH_SCOPE
+        assert "health-targets:read" in auth_constants.HEALTH_SCOPE
+        assert "health-targets:write" in auth_constants.HEALTH_SCOPE
 
     def test_identity_providers_scope_defined(self):
         """Test that identity providers scopes are properly defined."""
         assert auth_constants.IDENTITY_PROVIDERS_ADMIN_SCOPE is not None
         assert isinstance(auth_constants.IDENTITY_PROVIDERS_ADMIN_SCOPE, tuple)
-        assert "identity_providers:read" in auth_constants.IDENTITY_PROVIDERS_ADMIN_SCOPE
-        assert "identity_providers:write" in auth_constants.IDENTITY_PROVIDERS_ADMIN_SCOPE
+        assert "identity-providers:read" in auth_constants.IDENTITY_PROVIDERS_ADMIN_SCOPE
+        assert "identity-providers:write" in auth_constants.IDENTITY_PROVIDERS_ADMIN_SCOPE
 
     def test_identity_provider_configuration_is_not_readable_by_regular_users(self):
         """The full provider configuration (client ids, endpoints, mappings) is administrator-only."""
-        assert "identity_providers:read" not in auth_constants.REGULAR_ACCESS_SCOPE
-        assert "identity_providers:read" in auth_constants.ADMIN_ACCESS_SCOPE
+        assert "identity-providers:read" not in auth_constants.REGULAR_ACCESS_SCOPE
+        assert "identity-providers:read" in auth_constants.ADMIN_ACCESS_SCOPE
 
     def test_server_settings_scope_defined(self):
         """Test that server settings scopes are properly defined."""
@@ -85,10 +93,10 @@ class TestScopeConstants:
 
         assert auth_constants.SERVER_SETTINGS_ADMIN_SCOPE is not None
         assert isinstance(auth_constants.SERVER_SETTINGS_ADMIN_SCOPE, tuple)
-        assert "server_settings:read" in auth_constants.SERVER_SETTINGS_ADMIN_SCOPE
-        assert "server_settings:write" in auth_constants.SERVER_SETTINGS_ADMIN_SCOPE
-        assert "server_settings:logs" in auth_constants.SERVER_SETTINGS_ADMIN_SCOPE
-        assert "server_settings:logs_clear" in auth_constants.SERVER_SETTINGS_ADMIN_SCOPE
+        assert "server-settings:read" in auth_constants.SERVER_SETTINGS_ADMIN_SCOPE
+        assert "server-settings:write" in auth_constants.SERVER_SETTINGS_ADMIN_SCOPE
+        assert "server-settings:logs" in auth_constants.SERVER_SETTINGS_ADMIN_SCOPE
+        assert "server-settings:logs-clear" in auth_constants.SERVER_SETTINGS_ADMIN_SCOPE
 
     def test_scope_dict_contains_all_scopes(self):
         """Test that SCOPE_DICT contains descriptions for all defined scopes."""
@@ -108,8 +116,8 @@ class TestScopeConstants:
             "activities:write",
             "health:read",
             "health:write",
-            "server_settings:read",
-            "server_settings:write",
+            "server-settings:read",
+            "server-settings:write",
         ]
 
         for scope in expected_scopes:

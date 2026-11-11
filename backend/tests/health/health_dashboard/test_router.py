@@ -7,7 +7,7 @@ import modules.health.health_dashboard.schema as health_dashboard_schema
 import modules.health.health_targets.schema as health_targets_schema
 
 
-def _build_app(mock_db, scopes=frozenset({"health:read", "health_targets:read"})):
+def _build_app(mock_db, scopes=frozenset({"health:read", "health-targets:read"})):
     import core.database as core_db
     import modules.auth.dependencies as auth_deps
     import modules.health.health_dashboard.router as router

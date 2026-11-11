@@ -89,7 +89,7 @@ function toUserWire(user: ManagedUser): UserEditDto {
 }
 
 /**
- * Fetches one page of all users (admin scope `users:read_all`).
+ * Fetches one page of all users (admin scope `users:read-all`).
  *
  * @param params - Page number, size, the five list filters and an optional username search.
  * @param signal - Optional abort signal for cancellation.
@@ -214,7 +214,7 @@ export async function updateUser(
 }
 
 /**
- * Fetches a single user by id (admin scope `users:read_all`).
+ * Fetches a single user by id (admin scope `users:read-all`).
  *
  * @param id - The user id.
  * @param signal - Optional abort signal for cancellation.

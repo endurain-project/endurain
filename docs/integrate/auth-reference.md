@@ -64,7 +64,7 @@ Endurain uses OAuth-style scopes to control API access. Each scope controls acce
 
 ### Available Scopes
 
-A scope name is `resource:action` in snake_case (`health_targets:read`), plus the bare `account`. The catalogue only grows: from v0.21.0 on, a scope's name and meaning do not change.
+A scope name is `resource:action` in lowercase kebab-case (`health-targets:read`), plus the bare `account`. The catalogue only grows: from v0.21.0 on, a scope's name and meaning do not change.
 
 <!-- generated:scopes -->
 

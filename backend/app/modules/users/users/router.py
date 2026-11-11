@@ -38,20 +38,20 @@ def read_users(
     page: users_dependencies.DirectoryPage,
     active: Annotated[
         bool | None,
-        Query(description="Keep only active (true) or inactive (false) users; needs `users:read_all`"),
+        Query(description="Keep only active (true) or inactive (false) users; needs `users:read-all`"),
     ] = None,
     email_verified: Annotated[
         bool | None,
-        Query(description="Keep only users whose email is verified (true) or not (false); needs `users:read_all`"),
+        Query(description="Keep only users whose email is verified (true) or not (false); needs `users:read-all`"),
     ] = None,
     pending_approval: Annotated[
         bool | None,
-        Query(description="Keep only users awaiting admin approval (true) or not (false); needs `users:read_all`"),
+        Query(description="Keep only users awaiting admin approval (true) or not (false); needs `users:read-all`"),
     ] = None,
     external_auth: Annotated[
         bool | None,
         Query(
-            description="Keep only users with (true) or without (false) a linked identity provider; needs `users:read_all`"
+            description="Keep only users with (true) or without (false) a linked identity provider; needs `users:read-all`"
         ),
     ] = None,
     username: Annotated[
@@ -69,12 +69,12 @@ def read_users(
 ) -> core_pagination.Page[users_schema.UserRead] | users_schema.UserPublicPage:
     """List users, one page at a time.
 
-    With `users:read_all` the page holds full records and every filter is available. With only `users:read` it
+    With `users:read-all` the page holds full records and every filter is available. With only `users:read` it
     holds public projections of active users who are discoverable (those who switched off "Let others find me
     in search" are left out; their profile stays reachable by id), and a state filter is refused with 403.
     `num_records` defaults to the server's page size and may not exceed it; a larger value is refused with 422.
     """
-    if "users:read_all" in scopes:
+    if "users:read-all" in scopes:
         return users_service.list_users(
             db,
             page_number=page.page_number,
@@ -87,7 +87,7 @@ def read_users(
             username_contains=username_contains,
         )
     if any(state is not None for state in (active, email_verified, pending_approval, external_auth)):
-        auth_dependencies.require_scopes(scopes, "users:read_all")
+        auth_dependencies.require_scopes(scopes, "users:read-all")
     return users_service.list_public_users(page, db, username=username, username_contains=username_contains)
 
 
@@ -104,10 +104,10 @@ def read_user(
 ) -> users_schema.UserRead | users_schema.UserPublicRead:
     """Get a user by ID.
 
-    With `users:read_all` the answer is the full record, with its `ETag`. With only `users:read` it is the
+    With `users:read-all` the answer is the full record, with its `ETag`. With only `users:read` it is the
     public projection, and a user who is inactive or awaits approval is 404.
     """
-    if "users:read_all" in scopes:
+    if "users:read-all" in scopes:
         user = users_service.require_user_with_pending_email(user_id, db)
         core_etag.set_etag(response, user.version)
         return user
@@ -478,7 +478,7 @@ def delete_user(
 @router.get(
     "/{user_id}/identity-providers",
     response_model=auth_identity_links_schema.IdentityProviderLinkPage,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:read_all"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:read-all"])],
 )
 def get_user_identity_providers(
     user_id: core_dependencies.PositiveId,

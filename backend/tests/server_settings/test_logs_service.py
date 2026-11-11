@@ -173,9 +173,9 @@ class TestLogsRouteScopes:
             route = next(r for r in logs_router.router.routes if r.path == path and method in r.methods)
             return {scope for dep in route.dependant.dependencies for scope in dep.own_oauth_scopes or []}
 
-        assert scopes("", "GET") == {"server_settings:logs"}
-        assert scopes("/download", "GET") == {"server_settings:logs"}
-        assert scopes("", "DELETE") == {"server_settings:logs_clear"}
+        assert scopes("", "GET") == {"server-settings:logs"}
+        assert scopes("/download", "GET") == {"server-settings:logs"}
+        assert scopes("", "DELETE") == {"server-settings:logs-clear"}
 
 
 class TestLogsAudit:

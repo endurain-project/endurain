@@ -1368,7 +1368,7 @@ export interface paths {
          * Read Health Daily Stats
          * @description Retrieve the user's health dashboard for today.
          *
-         *     The `targets` field is null unless the caller holds the `health_targets:read` scope.
+         *     The `targets` field is null unless the caller holds the `health-targets:read` scope.
          */
         get: operations["read_health_daily_stats"];
         put?: never;
@@ -1477,7 +1477,7 @@ export interface paths {
          * @description Retrieve all health targets for the authenticated user.
          *
          *     This endpoint fetches all health targets associated with the user identified by the
-         *     access token. It requires the 'health_targets:read' scope for authorization.
+         *     access token. It requires the 'health-targets:read' scope for authorization.
          */
         get: operations["read_health_targets_all"];
         put?: never;
@@ -1770,7 +1770,7 @@ export interface paths {
          * Put Identity Provider Icon
          * @description Set the icon an identity provider shows on the login page.
          *
-         *     Requires admin authentication with identity_providers:write scope. The icon replaces any custom icon URL
+         *     Requires admin authentication with identity-providers:write scope. The icon replaces any custom icon URL
          *     until it is removed. Answers 201 when the provider had no uploaded icon and 200 when it replaced one.
          */
         put: operations["put_identity_provider_icon"];
@@ -1779,7 +1779,7 @@ export interface paths {
          * Delete Identity Provider Icon
          * @description Remove the uploaded icon of an identity provider.
          *
-         *     Requires admin authentication with identity_providers:write scope.
+         *     Requires admin authentication with identity-providers:write scope.
          */
         delete: operations["delete_identity_provider_icon"];
         options?: never;
@@ -1824,10 +1824,10 @@ export interface paths {
          *
          *     ``kind`` says what the job does and which fields it carries. ``Retry-After`` says when to poll again while
          *     the job is not finished. A job the caller did not start, or one whose record has expired, is ``404``; an
-         *     account deletion is also readable by any holder of ``users:read_all``. Reading a job needs the scope its kind
+         *     account deletion is also readable by any holder of ``users:read-all``. Reading a job needs the scope its kind
          *     asks for: ``activities:upload`` for an activity upload, refresh or bulk import, ``activities:read`` for a bulk
          *     edit, ``account`` for a Garmin Connect or Strava link or sync, ``account:export`` for a profile export or
-         *     import and ``users:read_all`` for an account deletion.
+         *     import and ``users:read-all`` for an account deletion.
          */
         get: operations["read_job"];
         put?: never;
@@ -3443,14 +3443,14 @@ export interface paths {
          * Read Server Settings
          * @description Get current server settings.
          *
-         *     Requires admin authentication with server_settings:read scope.
+         *     Requires admin authentication with server-settings:read scope.
          */
         get: operations["read_server_settings"];
         /**
          * Edit Server Settings
          * @description Update server settings.
          *
-         *     Requires admin authentication with server_settings:write scope. A change to a setting that governs
+         *     Requires admin authentication with server-settings:write scope. A change to a setting that governs
          *     sign-up, sign-in, sessions, the audit trail or the owner info on public links also needs the administrator's
          *     own step-up verification in `step_up`; any other change needs none. The body replaces
          *     the whole configuration; only the API keys may be omitted, which keeps the stored
@@ -3476,14 +3476,14 @@ export interface paths {
          * Read Mail Settings
          * @description Get the mail server settings.
          *
-         *     Requires admin authentication with server_settings:read scope.
+         *     Requires admin authentication with server-settings:read scope.
          */
         get: operations["read_mail_settings"];
         /**
          * Edit Mail Settings
          * @description Update the mail server settings.
          *
-         *     Requires admin authentication with server_settings:write scope and the administrator's
+         *     Requires admin authentication with server-settings:write scope and the administrator's
          *     own step-up verification in `step_up`, as pointing mail at another server exposes
          *     every password-reset link. The body replaces the whole configuration; only the
          *     password may be omitted, which keeps the stored one.
@@ -3511,7 +3511,7 @@ export interface paths {
          * Send Test Email
          * @description Send a test email to the requesting admin.
          *
-         *     Requires admin authentication with server_settings:write scope. The recipient
+         *     Requires admin authentication with server-settings:write scope. The recipient
          *     is always the caller's own email address.
          */
         post: operations["send_test_email"];
@@ -3533,7 +3533,7 @@ export interface paths {
          * Put Login Photo
          * @description Set the custom login page photo.
          *
-         *     Requires admin authentication with server_settings:write scope. Answers 201 when there was no
+         *     Requires admin authentication with server-settings:write scope. Answers 201 when there was no
          *     custom photo and 200 when it replaced one.
          */
         put: operations["put_login_photo"];
@@ -3542,7 +3542,7 @@ export interface paths {
          * Delete Login Photo
          * @description Delete custom login page photo.
          *
-         *     Requires admin authentication with server_settings:write scope.
+         *     Requires admin authentication with server-settings:write scope.
          */
         delete: operations["delete_login_photo"];
         options?: never;
@@ -3561,7 +3561,7 @@ export interface paths {
          * Read Logs
          * @description Read records from the end of the server log.
          *
-         *     Requires admin authentication with server_settings:logs scope. Without ``cursor``
+         *     Requires admin authentication with server-settings:logs scope. Without ``cursor``
          *     the newest matching records are returned; pass the returned ``next_cursor`` as
          *     ``cursor`` to receive only what was written since.
          */
@@ -3572,7 +3572,7 @@ export interface paths {
          * Clear Logs
          * @description Empty the server log and delete its rotated backups.
          *
-         *     Requires admin authentication with server_settings:logs_clear scope. The action is
+         *     Requires admin authentication with server-settings:logs-clear scope. The action is
          *     recorded as the first line of the new log.
          */
         delete: operations["clear_logs"];
@@ -3592,7 +3592,7 @@ export interface paths {
          * Download Logs
          * @description Download the current log file.
          *
-         *     Requires admin authentication with server_settings:logs scope. Rotated backups
+         *     Requires admin authentication with server-settings:logs scope. Rotated backups
          *     are not included.
          */
         get: operations["download_logs"];
@@ -3761,7 +3761,7 @@ export interface paths {
          *     `cursor`: while `has_more` is true, ask again at once; once it is false, keep the cursor for the next sync.
          *     A change carries the record as its owner reads it; a deletion carries `record: null`. `types` limits the walk
          *     to some record types (repeat the parameter); without it, every type the caller's scopes can read is walked:
-         *     `activities:read` for activities, `health:read` for health records, `health_targets:read` for the targets and
+         *     `activities:read` for activities, `health:read` for health records, `health-targets:read` for the targets and
          *     `gears:read` for gear and components. A type asked for without its scope is `403`. A cursor older than
          *     90 days is `410` with `urn:endurain:error:sync-expired`: discard the local copy and sync from the start.
          *     Changes appear about two minutes after they happen.
@@ -3786,7 +3786,7 @@ export interface paths {
          * Read Users
          * @description List users, one page at a time.
          *
-         *     With `users:read_all` the page holds full records and every filter is available. With only `users:read` it
+         *     With `users:read-all` the page holds full records and every filter is available. With only `users:read` it
          *     holds public projections of active users who are discoverable (those who switched off "Let others find me
          *     in search" are left out; their profile stays reachable by id), and a state filter is refused with 403.
          *     `num_records` defaults to the server's page size and may not exceed it; a larger value is refused with 422.
@@ -3819,7 +3819,7 @@ export interface paths {
          * Read User
          * @description Get a user by ID.
          *
-         *     With `users:read_all` the answer is the full record, with its `ETag`. With only `users:read` it is the
+         *     With `users:read-all` the answer is the full record, with its `ETag`. With only `users:read` it is the
          *     public projection, and a user who is inactive or awaits approval is 404.
          */
         get: operations["read_user"];
@@ -6896,7 +6896,7 @@ export interface components {
          *         water: Today's water intake.
          *         poop: Today's bowel movement summary.
          *         targets: The user's configured health targets; null when the caller lacks
-         *             the ``health_targets:read`` scope.
+         *             the ``health-targets:read`` scope.
          */
         HealthDashboardResponse: {
             /** @description Active or latest fasting session */
@@ -6907,7 +6907,7 @@ export interface components {
             sleep?: components["schemas"]["HealthSleepDashboard"] | null;
             /** @description Latest steps data */
             steps?: components["schemas"]["HealthStepsDashboard"] | null;
-            /** @description The user's health targets; null when the caller lacks the health_targets:read scope */
+            /** @description The user's health targets; null when the caller lacks the health-targets:read scope */
             targets?: components["schemas"]["HealthTargetsRead"] | null;
             /** @description Today's water intake */
             water?: components["schemas"]["HealthWaterDashboard"] | null;
@@ -34129,13 +34129,13 @@ export interface operations {
     read_users: {
         parameters: {
             query?: {
-                /** @description Keep only active (true) or inactive (false) users; needs `users:read_all` */
+                /** @description Keep only active (true) or inactive (false) users; needs `users:read-all` */
                 active?: boolean | null;
-                /** @description Keep only users whose email is verified (true) or not (false); needs `users:read_all` */
+                /** @description Keep only users whose email is verified (true) or not (false); needs `users:read-all` */
                 email_verified?: boolean | null;
-                /** @description Keep only users awaiting admin approval (true) or not (false); needs `users:read_all` */
+                /** @description Keep only users awaiting admin approval (true) or not (false); needs `users:read-all` */
                 pending_approval?: boolean | null;
-                /** @description Keep only users with (true) or without (false) a linked identity provider; needs `users:read_all` */
+                /** @description Keep only users with (true) or without (false) a linked identity provider; needs `users:read-all` */
                 external_auth?: boolean | null;
                 /** @description Keep only the user with this exact username */
                 username?: string | null;

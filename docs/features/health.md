@@ -38,7 +38,7 @@ The dashboard reads each metric for your today and shows only what exists:
 
 A card with no data is empty rather than zero.
 
-The dashboard response (`GET /api/v1/health/stats/daily`) also carries your targets, but only for a caller that holds the `health_targets:read` scope. Without it `targets` is `null`.
+The dashboard response (`GET /api/v1/health/stats/daily`) also carries your targets, but only for a caller that holds the `health-targets:read` scope. Without it `targets` is `null`.
 
 ## Weight and BMI
 

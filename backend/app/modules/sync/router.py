@@ -37,7 +37,7 @@ def read_sync(
     `cursor`: while `has_more` is true, ask again at once; once it is false, keep the cursor for the next sync.
     A change carries the record as its owner reads it; a deletion carries `record: null`. `types` limits the walk
     to some record types (repeat the parameter); without it, every type the caller's scopes can read is walked:
-    `activities:read` for activities, `health:read` for health records, `health_targets:read` for the targets and
+    `activities:read` for activities, `health:read` for health records, `health-targets:read` for the targets and
     `gears:read` for gear and components. A type asked for without its scope is `403`. A cursor older than
     90 days is `410` with `urn:endurain:error:sync-expired`: discard the local copy and sync from the start.
     Changes appear about two minutes after they happen.

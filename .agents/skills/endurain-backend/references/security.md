@@ -11,7 +11,7 @@
 ## Access control
 - Deny by default; check rights explicitly against the resource.
 - Multi-activity bulk reads trust pre-scoped ids and stay behind the owner-scoped contributor; a new caller is a latent IDOR.
-- A route that names another user (`{user_id}`) requires an admin scope (`users:read_all`, `users:write`) or takes `CurrentUserId` and checks ownership; `users:read` and `profile` are held by every user.
+- A route that names another user (`{user_id}`) requires an admin scope (`users:read-all`, `users:write`) or takes `CurrentUserId` and checks ownership; `users:read` and `account` are held by every user.
 - Prevent path traversal on any user-influenced path.
 
 ## Injection and secrets

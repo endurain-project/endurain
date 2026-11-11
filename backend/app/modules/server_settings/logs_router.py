@@ -18,7 +18,7 @@ router = APIRouter()
 @router.get(
     "",
     response_model=logs_schema.LogPage,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["server_settings:logs"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["server-settings:logs"])],
 )
 def read_logs(
     num_records: Annotated[int, Query(ge=1, le=1000, description="Most records to return")] = 200,
@@ -39,7 +39,7 @@ def read_logs(
 ) -> logs_schema.LogPage:
     """Read records from the end of the server log.
 
-    Requires admin authentication with server_settings:logs scope. Without ``cursor``
+    Requires admin authentication with server-settings:logs scope. Without ``cursor``
     the newest matching records are returned; pass the returned ``next_cursor`` as
     ``cursor`` to receive only what was written since.
 
@@ -62,12 +62,12 @@ def read_logs(
     "/download",
     response_class=FileResponse,
     responses=core_openapi_contract.binary_response("text/plain", description="The current log file."),
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["server_settings:logs"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["server-settings:logs"])],
 )
 def download_logs() -> FileResponse:
     """Download the current log file.
 
-    Requires admin authentication with server_settings:logs scope. Rotated backups
+    Requires admin authentication with server-settings:logs scope. Rotated backups
     are not included.
 
     Returns:
@@ -87,7 +87,7 @@ def download_logs() -> FileResponse:
     "",
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["server_settings:logs_clear"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["server-settings:logs-clear"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def clear_logs(
@@ -96,7 +96,7 @@ def clear_logs(
 ) -> None:
     """Empty the server log and delete its rotated backups.
 
-    Requires admin authentication with server_settings:logs_clear scope. The action is
+    Requires admin authentication with server-settings:logs-clear scope. The action is
     recorded as the first line of the new log.
 
     Args:

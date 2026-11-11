@@ -36,6 +36,8 @@ Every response that carries a token or another secret is sent with `Cache-Contro
 
 The scopes `profile`, `profile:export` and `profile:security` were renamed `account`, `account:export` and `account:security` in v0.21.0, so they no longer clash with the OpenID Connect `profile` scope. The old names are refused like any unknown scope, and an access token issued before the upgrade lacks the new names until its next refresh, so those routes answer `403` for at most one access-token lifetime.
 
+The scopes with an underscore were renamed to kebab-case in v0.21.0, so every scope name follows one rule: `health_targets:read` and `health_targets:write` are `health-targets:read` and `health-targets:write`, `identity_providers:read` and `identity_providers:write` are `identity-providers:read` and `identity-providers:write`, `server_settings:read`, `server_settings:write`, `server_settings:logs` and `server_settings:logs_clear` are `server-settings:read`, `server-settings:write`, `server-settings:logs` and `server-settings:logs-clear`, and `users:read_all` is `users:read-all`. As with the `account` rename, the old names are refused and an access token issued before the upgrade answers `403` on those routes until its next refresh.
+
 ## Reserved paths
 
 These paths are reserved for planned features, such as third-party OAuth clients and passkeys. Endurain will not use them for anything else, and a client must not expect them to exist yet:

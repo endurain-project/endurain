@@ -71,10 +71,10 @@ def read_job(
 
     ``kind`` says what the job does and which fields it carries. ``Retry-After`` says when to poll again while
     the job is not finished. A job the caller did not start, or one whose record has expired, is ``404``; an
-    account deletion is also readable by any holder of ``users:read_all``. Reading a job needs the scope its kind
+    account deletion is also readable by any holder of ``users:read-all``. Reading a job needs the scope its kind
     asks for: ``activities:upload`` for an activity upload, refresh or bulk import, ``activities:read`` for a bulk
     edit, ``account`` for a Garmin Connect or Strava link or sync, ``account:export`` for a profile export or
-    import and ``users:read_all`` for an account deletion.
+    import and ``users:read-all`` for an account deletion.
     """
     view = jobs_service.get_job(job_id, caller.user_id, caller.scopes, state, db)
     auth_dependencies.require_scopes(caller.scopes, view.scope)

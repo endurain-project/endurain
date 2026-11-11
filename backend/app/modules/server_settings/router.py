@@ -35,7 +35,7 @@ router = APIRouter()
 @router.get(
     "",
     response_model=server_settings_schema.ServerSettingsAdminRead,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["server_settings:read"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["server-settings:read"])],
 )
 def read_server_settings(
     db: core_dependencies.DbSession,
@@ -43,7 +43,7 @@ def read_server_settings(
 ) -> server_settings_schema.ServerSettingsAdminRead:
     """Get current server settings.
 
-    Requires admin authentication with server_settings:read scope.
+    Requires admin authentication with server-settings:read scope.
 
     Args:
         db: Database session.
@@ -62,7 +62,7 @@ def read_server_settings(
 @router.put(
     "",
     response_model=server_settings_schema.ServerSettingsAdminRead,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["server_settings:write"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["server-settings:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_server_settings(
@@ -75,7 +75,7 @@ def edit_server_settings(
 ) -> server_settings_schema.ServerSettingsAdminRead:
     """Update server settings.
 
-    Requires admin authentication with server_settings:write scope. A change to a setting that governs
+    Requires admin authentication with server-settings:write scope. A change to a setting that governs
     sign-up, sign-in, sessions, the audit trail or the owner info on public links also needs the administrator's
     own step-up verification in `step_up`; any other change needs none. The body replaces
     the whole configuration; only the API keys may be omitted, which keeps the stored
@@ -113,7 +113,7 @@ def edit_server_settings(
     response_model=server_settings_schema.LoginPhotoRead,
     status_code=status.HTTP_201_CREATED,
     responses=core_openapi_contract.replaced_response(server_settings_schema.LoginPhotoRead),
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["server_settings:write"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["server-settings:write"])],
     openapi_extra=core_middleware_body_limit.upload_limit(server_settings_constants.LOGIN_PHOTO_MAX_BYTES),
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
@@ -126,7 +126,7 @@ def put_login_photo(
 ) -> server_settings_schema.LoginPhotoRead:
     """Set the custom login page photo.
 
-    Requires admin authentication with server_settings:write scope. Answers 201 when there was no
+    Requires admin authentication with server-settings:write scope. Answers 201 when there was no
     custom photo and 200 when it replaced one.
 
     Args:
@@ -149,7 +149,7 @@ def put_login_photo(
     "/login-photo",
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["server_settings:write"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["server-settings:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_login_photo(
@@ -159,7 +159,7 @@ def delete_login_photo(
 ) -> None:
     """Delete custom login page photo.
 
-    Requires admin authentication with server_settings:write scope.
+    Requires admin authentication with server-settings:write scope.
 
     Args:
         request: The HTTP request object.
@@ -172,7 +172,7 @@ def delete_login_photo(
 @router.get(
     "/email/settings",
     response_model=server_settings_schema.MailSettingsAdminRead,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["server_settings:read"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["server-settings:read"])],
 )
 def read_mail_settings(
     db: core_dependencies.DbSession,
@@ -180,7 +180,7 @@ def read_mail_settings(
 ) -> server_settings_schema.MailSettingsAdminRead:
     """Get the mail server settings.
 
-    Requires admin authentication with server_settings:read scope.
+    Requires admin authentication with server-settings:read scope.
 
     Args:
         db: Database session.
@@ -198,7 +198,7 @@ def read_mail_settings(
 @router.put(
     "/email/settings",
     response_model=server_settings_schema.MailSettingsAdminRead,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["server_settings:write"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["server-settings:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_mail_settings(
@@ -211,7 +211,7 @@ def edit_mail_settings(
 ) -> server_settings_schema.MailSettingsAdminRead:
     """Update the mail server settings.
 
-    Requires admin authentication with server_settings:write scope and the administrator's
+    Requires admin authentication with server-settings:write scope and the administrator's
     own step-up verification in `step_up`, as pointing mail at another server exposes
     every password-reset link. The body replaces the whole configuration; only the
     password may be omitted, which keeps the stored one.
@@ -246,7 +246,7 @@ def edit_mail_settings(
     "/email/test",
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["server_settings:write"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["server-settings:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def send_test_email(
@@ -260,7 +260,7 @@ def send_test_email(
 ) -> None:
     """Send a test email to the requesting admin.
 
-    Requires admin authentication with server_settings:write scope. The recipient
+    Requires admin authentication with server-settings:write scope. The recipient
     is always the caller's own email address.
 
     Args:

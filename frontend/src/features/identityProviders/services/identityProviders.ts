@@ -125,7 +125,7 @@ function toWireBase(input: IdentityProviderInput) {
 
 /**
  * Fetches all configured identity providers (admin scope
- * `identity_providers:read`), including disabled ones.
+ * `identity-providers:read`), including disabled ones.
  *
  * @param signal - Optional abort signal for cancellation.
  * @returns The providers, mapped to the clean model.
@@ -140,7 +140,7 @@ export async function fetchIdentityProviders(signal?: AbortSignal): Promise<Iden
 
 /**
  * Fetches the catalogue of provider presets (admin scope
- * `identity_providers:read`).
+ * `identity-providers:read`).
  *
  * @param signal - Optional abort signal for cancellation.
  * @returns The presets, mapped to the clean model.
@@ -157,7 +157,7 @@ export async function fetchIdentityProviderTemplates(
 }
 
 /**
- * Creates an identity provider (admin scope `identity_providers:write`). The
+ * Creates an identity provider (admin scope `identity-providers:write`). The
  * client secret is required here; the backend returns `409` on a duplicate slug.
  * The request carries the administrator's own step-up.
  *
@@ -183,7 +183,7 @@ export async function createIdentityProvider(
 }
 
 /**
- * Updates an identity provider (admin scope `identity_providers:write`). The
+ * Updates an identity provider (admin scope `identity-providers:write`). The
  * client secret is sent only when the admin entered a new one, so leaving the
  * field blank keeps the stored secret. The request carries the administrator's own step-up.
  *
@@ -216,7 +216,7 @@ export async function updateIdentityProvider(
 }
 
 /**
- * Deletes an identity provider (admin scope `identity_providers:write`). The
+ * Deletes an identity provider (admin scope `identity-providers:write`). The
  * backend returns `409` when users are still linked to the provider. The request
  * carries the administrator's own step-up.
  *
@@ -240,7 +240,7 @@ export async function deleteIdentityProvider(
 
 /**
  * Uploads the image a provider shows on the login screen (admin scope
- * `identity_providers:write`). The file is sent as multipart form data under the
+ * `identity-providers:write`). The file is sent as multipart form data under the
  * `file` field; the backend validates it and stores it under a server-generated
  * key, so the caller's filename is never used. The upload replaces any custom
  * icon URL until it is removed.
@@ -260,7 +260,7 @@ export async function uploadIdentityProviderIcon(id: number, file: File): Promis
 }
 
 /**
- * Removes a provider's uploaded icon (admin scope `identity_providers:write`).
+ * Removes a provider's uploaded icon (admin scope `identity-providers:write`).
  *
  * @param id - The provider id.
  * @throws {HttpError} When the deletion fails.

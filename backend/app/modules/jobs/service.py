@@ -3,7 +3,7 @@
 A job lives in one of two places. Activity ingestion jobs are database rows. Every other job is a record in the
 platform state store, found through :class:`core.attempt_state.JobIndex`; its reference names the kind, and the
 kind names the feature that reads it. A caller reads only the jobs they started, with the scope the kind asks for;
-an account deletion is also visible to every holder of ``users:read_all``, since any administrator may follow it.
+an account deletion is also visible to every holder of ``users:read-all``, since any administrator may follow it.
 """
 
 from collections.abc import Callable, Collection
@@ -81,10 +81,10 @@ _RULES: dict[_Kind, _KindRule] = {
         strava_integration.read_sync_job,
     ),
     _Kind.USER_DELETION: _KindRule(
-        "users:read_all",
+        "users:read-all",
         users_constants.DELETION_POLL_SECONDS,
         users_integration.read_deletion_job,
-        shared_scope="users:read_all",
+        shared_scope="users:read-all",
     ),
     _Kind.PROFILE_EXPORT: _KindRule(
         "account:export", profile_constants.EXPORT_POLL_SECONDS, users_profile_integration.read_export_job

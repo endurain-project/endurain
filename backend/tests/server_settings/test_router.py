@@ -599,8 +599,8 @@ class TestMailSettingsRoutes:
     """Test suite for the mail settings endpoints."""
 
     def test_the_routes_require_the_server_settings_scopes(self):
-        assert _route_scopes("/email/settings", "GET") == {"server_settings:read"}
-        assert _route_scopes("/email/settings", "PUT") == {"server_settings:write"}
+        assert _route_scopes("/email/settings", "GET") == {"server-settings:read"}
+        assert _route_scopes("/email/settings", "PUT") == {"server-settings:write"}
 
     @patch("modules.server_settings.router.server_settings_mail_service.get_mail_settings_for_admin")
     def test_read_returns_the_settings_and_env_managed(self, mock_get, fast_api_client):

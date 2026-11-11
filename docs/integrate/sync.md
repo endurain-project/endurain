@@ -8,7 +8,7 @@ A client that keeps its own copy of a user's records (a mobile app that works of
 | ------ | ------- | ----- |
 | `activity` | Activities, with `private_notes`, `media` and the thumbnail, as their owner reads them | `activities:read` |
 | `health_weight`, `health_steps`, `health_sleep`, `health_water`, `health_poop`, `health_fasting` | Health records; sleep carries its `sleep_stages` | `health:read` |
-| `health_targets` | The health targets | `health_targets:read` |
+| `health_targets` | The health targets | `health-targets:read` |
 | `gear` | Gear, with its totals | `gears:read` |
 | `gear_component` | Gear components | `gears:read` |
 

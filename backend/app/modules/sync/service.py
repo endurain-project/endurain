@@ -130,7 +130,7 @@ _TYPES: tuple[_TypeSources, ...] = (
     ),
     _TypeSources(
         _Type.HEALTH_TARGETS,
-        "health_targets:read",
+        "health-targets:read",
         health_targets_integration.list_changed_health_targets,
         health_targets_integration.list_health_targets_deletions,
         sync_schema.HealthTargetsChange,
