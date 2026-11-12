@@ -17,6 +17,7 @@ import { usePublicServerSettings } from '@/features/config/composables/usePublic
 import { useToasts } from '@/composables/useToasts'
 import { DEFAULT_LOCALE, isSupportedLocale } from '@/i18n'
 import { HttpError } from '@/services/http'
+import { isProblem, retryWaitMessage } from '@/services/problems'
 import { requestSignUp } from '@/features/auth/services/signUp'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
 import PasswordStrengthMeter from '@/features/security/components/PasswordStrengthMeter.vue'
@@ -61,19 +62,23 @@ function getSignUpErrorMessage(error: unknown): string {
   if (passwordProblem) {
     return passwordProblem
   }
-  switch (error.status) {
-    case 409:
-      return t('signup.errorUserExists')
-    case 403:
-      return t('signup.errorSignupDisabled')
-    case 400:
-    case 422:
-      return t('signup.errorValidation')
-    case 429:
-      return t('signup.errorTooManyAttempts')
-    default:
-      return t('signup.errorGeneral')
+  const wait = retryWaitMessage(error, t)
+  if (wait !== null) {
+    return wait
   }
+  if (isProblem(error, 'conflict')) {
+    return t('signup.errorUserExists')
+  }
+  if (isProblem(error, 'permission-denied')) {
+    return t('signup.errorSignupDisabled')
+  }
+  if (isProblem(error, 'invalid-input', 'password-required', 'validation-failed')) {
+    return t('signup.errorValidation')
+  }
+  if (isProblem(error, 'rate-limited')) {
+    return t('signup.errorTooManyAttempts')
+  }
+  return t('signup.errorGeneral')
 }
 
 /**

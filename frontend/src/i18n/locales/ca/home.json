@@ -4,6 +4,7 @@
     "uploading": "Pujant…",
     "success": "Activitat pujada correctament",
     "error": "No s'ha pogut pujar el fitxer d'activitat",
+    "tooLarge": "Aquest fitxer és massa gran",
     "timeout": "El teu fitxer encara s'està important. Apareixerà quan acabi.",
     "failed": {
       "unsupported_format": "Aquest tipus de fitxer no és compatible",

@@ -13,7 +13,7 @@ import { Switch } from '@/components/ui/switch'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
 import { useUnitFormat } from '@/composables/useUnitFormat'
-import { HttpError } from '@/services/http'
+import { isProblem } from '@/services/problems'
 import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
@@ -149,7 +149,7 @@ async function submitForm(values: GearFormValues): Promise<void> {
     if (isStaleWrite(error)) {
       open.value = false
       emit('error', t('app.staleError'))
-    } else if (error instanceof HttpError && error.status === 409) {
+    } else if (isProblem(error, 'conflict')) {
       emit('error', t('gears.form.nicknameTaken'))
     } else {
       emit('error', t('gears.form.saveError'))

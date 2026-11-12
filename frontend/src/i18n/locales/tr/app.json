@@ -65,5 +65,9 @@
       "good": "İyi",
       "strong": "Güçlü"
     }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Çok fazla deneme. {seconds} saniye sonra tekrar deneyin.",
+    "unavailable": "Kimlik doğrulama geçici olarak kullanılamıyor. {seconds} saniye sonra tekrar deneyin."
   }
 }

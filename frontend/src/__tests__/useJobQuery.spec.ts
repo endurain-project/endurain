@@ -123,7 +123,9 @@ describe('useJobQuery', () => {
 
   it('stops polling a job that answers 404', async () => {
     vi.useFakeTimers()
-    vi.mocked(fetchJob).mockRejectedValue(new HttpError(404, 'Not Found'))
+    vi.mocked(fetchJob).mockRejectedValue(
+      new HttpError(404, 'Not Found', null, 'urn:endurain:error:not-found'),
+    )
     mountHook(() => useJobQuery('job-1', { intervalMs: 1_000 }))
     await vi.advanceTimersByTimeAsync(0)
     expect(fetchJob).toHaveBeenCalledTimes(1)

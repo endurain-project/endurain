@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToasts } from '@/composables/useToasts'
-import { HttpError } from '@/services/http'
+import { isProblem } from '@/services/problems'
 import {
   isStepUpFailed,
   isStepUpLocked,
@@ -103,7 +103,7 @@ function onRevokeError(error: unknown, message: string, dialogOpen?: typeof isRe
     toasts.error(t('settings.security.stepUp.tooManyAttempts'))
   } else if (isStepUpFailed(error)) {
     toasts.error(t('settings.security.linked.invalidCredentials'))
-  } else if (dialogOpen && error instanceof HttpError && error.status === 404) {
+  } else if (dialogOpen && isProblem(error, 'not-found')) {
     dialogOpen.value = false
     toasts.error(t('settings.users.apiKeys.revokeNotFound'))
   } else {

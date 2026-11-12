@@ -1,5 +1,7 @@
 import type {
+  ActivityRefreshJob,
   DateRange,
+  GarminSyncStatus,
   GarminLinkStatus,
   GarminLoginDto,
   GarminLoginInput,
@@ -50,34 +52,37 @@ export async function submitGarminMfa(code: string): Promise<void> {
  * Kicks off a background import of Garmin Connect activities in the given window.
  *
  * @param range - The inclusive date window to import.
+ * @returns The queued sync job.
  * @throws {HttpError} When the request fails.
  */
-export async function retrieveGarminActivities(range: DateRange): Promise<void> {
-  await apiFetch(
+export async function retrieveGarminActivities(range: DateRange): Promise<ActivityRefreshJob> {
+  return apiFetch<ActivityRefreshJob>(
     `/garmin/activities?start_date=${encodeURIComponent(range.startDate)}&end_date=${encodeURIComponent(range.endDate)}`,
-    { method: 'POST', responseType: 'void' },
+    { method: 'POST' },
   )
 }
 
 /**
  * Kicks off a background import of the user's Garmin Connect gear.
  *
- * @throws {HttpError} When the request fails.
+ * @returns The queued sync job.
+ * @throws {HttpError} When the request fails, including 409 while a gear sync is running.
  */
-export async function retrieveGarminGear(): Promise<void> {
-  await apiFetch('/garmin/gear', { method: 'POST', responseType: 'void' })
+export async function retrieveGarminGear(): Promise<GarminSyncStatus> {
+  return apiFetch<GarminSyncStatus>('/garmin/gear', { method: 'POST' })
 }
 
 /**
  * Kicks off a background import of Garmin Connect health data in the given window.
  *
  * @param range - The inclusive date window to import.
- * @throws {HttpError} When the request fails.
+ * @returns The queued sync job.
+ * @throws {HttpError} When the request fails, including 409 while a health sync is running.
  */
-export async function retrieveGarminHealth(range: DateRange): Promise<void> {
-  await apiFetch(
+export async function retrieveGarminHealth(range: DateRange): Promise<GarminSyncStatus> {
+  return apiFetch<GarminSyncStatus>(
     `/garmin/health?start_date=${encodeURIComponent(range.startDate)}&end_date=${encodeURIComponent(range.endDate)}`,
-    { method: 'POST', responseType: 'void' },
+    { method: 'POST' },
   )
 }
 

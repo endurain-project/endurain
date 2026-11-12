@@ -65,5 +65,9 @@
       "good": "Dobre",
       "strong": "Silne"
     }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Zbyt wiele prób. Spróbuj ponownie za {seconds} s.",
+    "unavailable": "Uwierzytelnianie jest tymczasowo niedostępne. Spróbuj ponownie za {seconds} s."
   }
 }

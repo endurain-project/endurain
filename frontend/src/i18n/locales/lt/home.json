@@ -4,6 +4,7 @@
     "uploading": "Įkeliama…",
     "success": "Veikla sėkmingai įkelta",
     "error": "Nepavyko įkelti veiklos failo",
+    "tooLarge": "Failas per didelis",
     "timeout": "Jūsų failas dar importuojamas. Jis atsiras, kai importavimas baigsis.",
     "failed": {
       "unsupported_format": "Šio tipo failas nepalaikomas",

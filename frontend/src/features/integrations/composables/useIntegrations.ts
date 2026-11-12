@@ -1,10 +1,19 @@
 import { watch, type Ref } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
+import { useI18n } from 'vue-i18n'
 
-import type { DateRange, GarminLinkStatus, GarminLoginInput } from '@/features/integrations/types'
+import type {
+  ActivityRefreshJob,
+  DateRange,
+  GarminLinkStatus,
+  GarminLoginInput,
+  GarminSyncStatus,
+  StravaSyncStatus,
+} from '@/features/integrations/types'
 
 import { useJobQuery } from '@/composables/useJobQuery'
-import { seedJob } from '@/services/jobStatus'
+import { useToasts } from '@/composables/useToasts'
+import { followJob, JobTimeoutError, runningJobId, seedJob } from '@/services/jobStatus'
 import { queryKeys } from '@/services/queryKeys'
 import {
   linkGarmin,
@@ -31,16 +40,58 @@ function useProfileInvalidation(): () => void {
   }
 }
 
+/**
+ * Reports how a queued retrieval from a provider ended. The data it brings in refreshes through
+ * the realtime hints, so this only tells the user the outcome.
+ *
+ * @param provider - The provider's name, as shown to the user.
+ * @returns `follow`: follows a job to its end and toasts success or failure; `resumeOnConflict`:
+ *   when a start request failed because the same retrieval is already running, follows that job
+ *   and returns `true`, otherwise returns `false` and leaves the failure to the caller.
+ */
+export function useRetrievalOutcome(provider: string) {
+  const { t } = useI18n()
+  const toasts = useToasts()
+
+  async function follow(jobId: string): Promise<void> {
+    try {
+      const job = await followJob(jobId)
+      if (job.status === 'succeeded') {
+        toasts.success(t('settings.integrations.retrieveFinished', { provider }))
+      } else {
+        toasts.error(t('settings.integrations.retrieveFailed', { provider }))
+      }
+    } catch (error) {
+      // Giving up on a job that keeps running says nothing about its outcome, so stay quiet.
+      if (!(error instanceof JobTimeoutError)) {
+        toasts.error(t('settings.integrations.retrieveFailed', { provider }))
+      }
+    }
+  }
+
+  function resumeOnConflict(error: Error): boolean {
+    const jobId = runningJobId(error)
+    if (jobId === null) {
+      return false
+    }
+    toasts.info(t('settings.integrations.retrieveAlreadyRunning', { provider }))
+    void follow(jobId)
+    return true
+  }
+
+  return { follow, resumeOnConflict }
+}
+
 /** Imports Strava activities for a date window (background task on the server). */
 export function useRetrieveStravaActivitiesMutation() {
-  return useMutation<void, Error, DateRange>({
+  return useMutation<ActivityRefreshJob, Error, DateRange>({
     mutationFn: (range) => retrieveStravaActivities(range),
   })
 }
 
 /** Imports the user's Strava gear (background task on the server). */
 export function useRetrieveStravaGearMutation() {
-  return useMutation<void, Error, void>({ mutationFn: () => retrieveStravaGear() })
+  return useMutation<StravaSyncStatus, Error, void>({ mutationFn: () => retrieveStravaGear() })
 }
 
 /** Disconnects Strava and refreshes the profile link status. */
@@ -96,19 +147,19 @@ export function useSubmitGarminMfaMutation() {
 
 /** Imports Garmin Connect activities for a date window (background task). */
 export function useRetrieveGarminActivitiesMutation() {
-  return useMutation<void, Error, DateRange>({
+  return useMutation<ActivityRefreshJob, Error, DateRange>({
     mutationFn: (range) => retrieveGarminActivities(range),
   })
 }
 
 /** Imports the user's Garmin Connect gear (background task). */
 export function useRetrieveGarminGearMutation() {
-  return useMutation<void, Error, void>({ mutationFn: () => retrieveGarminGear() })
+  return useMutation<GarminSyncStatus, Error, void>({ mutationFn: () => retrieveGarminGear() })
 }
 
 /** Imports Garmin Connect health data for a date window (background task). */
 export function useRetrieveGarminHealthMutation() {
-  return useMutation<void, Error, DateRange>({
+  return useMutation<GarminSyncStatus, Error, DateRange>({
     mutationFn: (range) => retrieveGarminHealth(range),
   })
 }

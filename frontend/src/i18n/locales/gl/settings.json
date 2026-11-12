@@ -184,7 +184,8 @@
       "cancel": "Cancelar",
       "close": "Pechar",
       "success": "Usuario eliminado",
-      "error": "Non se puido eliminar o usuario. Por favor, téntao de novo."
+      "error": "Non se puido eliminar o usuario. Por favor, téntao de novo.",
+      "failed": "Non se puido eliminar o usuario. A conta segue desactivada; elimínaa de novo para tentalo outra vez."
     },
     "detail": {
       "back": "Volver aos usuarios",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain deixará de importar de Garmin Connect. Os teus datos existentes consérvanse.",
       "unlinkSuccess": "Garmin Connect desconectado",
       "unlinkError": "Non se puido desconectar Garmin Connect. Por favor, téntao de novo."
-    }
+    },
+    "retrieveFinished": "Rematou a recuperación dos teus datos de {provider}.",
+    "retrieveFailed": "Non se puideron recuperar os teus datos de {provider}. Téntao de novo.",
+    "retrieveAlreadyRunning": "Xa hai unha recuperación de {provider} en curso. Avisarémosche cando remate."
   },
   "import": {
     "title": "Importar",
@@ -1127,7 +1131,14 @@
       "preparing": "Preparando a importación…",
       "progress": "Importados {done} de {total} ficheiro ({failed} con erro)… | Importados {done} de {total} ficheiros ({failed} con erro)…",
       "finished": "Importación rematada: {done} de {total} ficheiro importado, {failed} con erro. | Importación rematada: {done} de {total} ficheiros importados, {failed} con erro.",
-      "failed": "Non se puido completar a importación."
+      "failed": "Non se puido completar a importación.",
+      "failure": {
+        "unsupported_format": "A importación fallou: os ficheiros teñen un formato non compatible.",
+        "invalid_file": "A importación fallou: o ficheiro non é válido.",
+        "no_activities_found": "A importación fallou: non se atopou ningunha actividade.",
+        "processing_failed": "A importación fallou ao procesar os ficheiros.",
+        "provider_unavailable": "A importación fallou: o provedor non está dispoñible. Téntao de novo máis tarde."
+      }
     }
   },
   "profile": {

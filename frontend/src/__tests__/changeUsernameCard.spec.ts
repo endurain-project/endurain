@@ -133,7 +133,9 @@ describe('ChangeUsernameCard', () => {
 
   it('says so when the username is already taken (409)', async () => {
     change.mockImplementation((_input, options) =>
-      (options as { onError: (error: Error) => void }).onError(new HttpError(409, 'Conflict')),
+      (options as { onError: (error: Error) => void }).onError(
+        new HttpError(409, 'Conflict', null, 'urn:endurain:error:conflict'),
+      ),
     )
     const wrapper = mountCard(resumed)
     await nextTick()
@@ -141,5 +143,31 @@ describe('ChangeUsernameCard', () => {
     await wrapper.find('form').trigger('submit')
 
     expect(toastError).toHaveBeenCalledWith('That username is already in use.')
+  })
+
+  it('shows a 422 on the username field instead of a toast', async () => {
+    change.mockImplementation((_input, options) =>
+      (options as { onError: (error: Error) => void }).onError(
+        new HttpError(
+          422,
+          'Unprocessable Content',
+          null,
+          'urn:endurain:error:validation-failed',
+          null,
+          [{ field: 'body.username', message: 'm', type: 'string_too_short' }],
+        ),
+      ),
+    )
+    const wrapper = mountCard(resumed)
+    await nextTick()
+    await wrapper.find('#security-new-username').setValue('other')
+    await wrapper.find('form').trigger('submit')
+
+    expect(wrapper.text()).toContain(i18n.global.t('app.fieldError.tooShort'))
+    expect(toastError).not.toHaveBeenCalled()
+
+    await wrapper.find('#security-new-username').setValue('another')
+
+    expect(wrapper.text()).not.toContain(i18n.global.t('app.fieldError.tooShort'))
   })
 })

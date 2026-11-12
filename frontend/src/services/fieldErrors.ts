@@ -1,5 +1,5 @@
 import type { FormErrors } from '@/composables/useForm'
-import { HttpError } from './http'
+import { isProblem } from './problems'
 
 /** Translation keys for the pydantic error types the API emits; any other type is `invalid`. */
 const MESSAGE_KEY_BY_TYPE: Readonly<Record<string, string>> = {
@@ -44,7 +44,7 @@ export function applyServerFieldErrors<Values extends object>(
   keys: readonly (keyof Values & string)[],
   map: Readonly<Record<string, keyof Values & string>> = {},
 ): boolean {
-  if (!(error instanceof HttpError) || error.status !== 422) {
+  if (!isProblem(error, 'validation-failed')) {
     return false
   }
   const mapped: FormErrors<Values> = {}

@@ -65,5 +65,9 @@
       "good": "Dobra",
       "strong": "Jaka"
     }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Previše pokušaja. Pokušajte ponovno za {seconds} sekundi.",
+    "unavailable": "Autentifikacija je privremeno nedostupna. Pokušajte ponovno za {seconds} sekundi."
   }
 }

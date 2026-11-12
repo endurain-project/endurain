@@ -184,7 +184,8 @@
       "cancel": "Atšaukti",
       "close": "Uždaryti",
       "success": "Naudotojas ištrintas",
-      "error": "Nepavyko ištrinti naudotojo. Bandykite dar kartą."
+      "error": "Nepavyko ištrinti naudotojo. Bandykite dar kartą.",
+      "failed": "Nepavyko ištrinti naudotojo. Paskyra lieka išjungta; norėdami bandyti dar kartą, ištrinkite ją iš naujo."
     },
     "detail": {
       "back": "Atgal į naudotojus",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain nustos importuoti iš Garmin Connect. Jūsų esami duomenys išsaugomi.",
       "unlinkSuccess": "Garmin Connect atjungta",
       "unlinkError": "Nepavyko atjungti Garmin Connect. Bandykite dar kartą."
-    }
+    },
+    "retrieveFinished": "Jūsų duomenų gavimas iš {provider} baigtas.",
+    "retrieveFailed": "Nepavyko gauti jūsų duomenų iš {provider}. Bandykite dar kartą.",
+    "retrieveAlreadyRunning": "Duomenų gavimas iš {provider} jau vyksta. Pranešime, kai jis baigsis."
   },
   "import": {
     "title": "Importavimas",
@@ -1127,7 +1131,14 @@
       "preparing": "Ruošiamas importavimas…",
       "progress": "Importuota {done} iš {total} failo (nepavyko {failed})… | Importuota {done} iš {total} failų (nepavyko {failed})… | Importuota {done} iš {total} failų (nepavyko {failed})…",
       "finished": "Importavimas baigtas: importuota {done} iš {total} failo, nepavyko {failed}. | Importavimas baigtas: importuota {done} iš {total} failų, nepavyko {failed}. | Importavimas baigtas: importuota {done} iš {total} failų, nepavyko {failed}.",
-      "failed": "Importavimo užbaigti nepavyko."
+      "failed": "Importavimo užbaigti nepavyko.",
+      "failure": {
+        "unsupported_format": "Importas nepavyko: failų formatas nepalaikomas.",
+        "invalid_file": "Importas nepavyko: failas netinkamas.",
+        "no_activities_found": "Importas nepavyko: veiklų nerasta.",
+        "processing_failed": "Importas nepavyko apdorojant failus.",
+        "provider_unavailable": "Importas nepavyko: teikėjas nepasiekiamas. Bandykite vėliau."
+      }
     }
   },
   "profile": {

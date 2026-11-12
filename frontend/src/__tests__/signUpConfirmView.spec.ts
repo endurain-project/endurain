@@ -105,7 +105,7 @@ describe('SignUpConfirmView', () => {
 
   it('keeps the form and shows the policy error on a 422', async () => {
     confirmSignUp.mockRejectedValueOnce(
-      new HttpError(422, 'Unprocessable', null, 'urn:endurain:error:invalid-input'),
+      new HttpError(422, 'Unprocessable', null, 'urn:endurain:error:validation-failed'),
     )
     const wrapper = await mountView()
     await submitPassword(wrapper)
@@ -156,7 +156,9 @@ describe('SignUpConfirmView', () => {
     confirmSignUp.mockRejectedValue(
       new HttpError(400, 'Bad Request', null, 'urn:endurain:error:invalid-input'),
     )
-    resendSignUpVerification.mockRejectedValue(new HttpError(429, 'Too Many Requests', null))
+    resendSignUpVerification.mockRejectedValue(
+      new HttpError(429, 'Too Many Requests', null, 'urn:endurain:error:rate-limited'),
+    )
     const wrapper = await mountView()
     await submitPassword(wrapper)
 
@@ -231,8 +233,13 @@ describe('SignUpConfirmView', () => {
     expect(sessionStorage.length).toBe(0)
   })
 
-  it.each([400, 404])('forgets the token when the link is refused with %i', async (status) => {
-    confirmSignUp.mockRejectedValue(new HttpError(status, 'Refused', null, 'urn:endurain:error:x'))
+  it.each([
+    [400, 'invalid-input'],
+    [404, 'not-found'],
+  ])('forgets the token when the link is refused with %i', async (status, code) => {
+    confirmSignUp.mockRejectedValue(
+      new HttpError(status, 'Refused', null, `urn:endurain:error:${code}`),
+    )
     const wrapper = await mountView()
     await submitPassword(wrapper)
 

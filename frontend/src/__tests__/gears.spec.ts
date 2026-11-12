@@ -116,6 +116,12 @@ describe('mapGear', () => {
   })
 })
 
+describe('mapGear version', () => {
+  it('maps a missing version to 0, so the write is refused instead of overwriting', () => {
+    expect(mapGear({ ...gearDto, version: undefined as unknown as number }).version).toBe(0)
+  })
+})
+
 describe('mapGearDetail', () => {
   it('adds the computed totals on top of the base gear fields', () => {
     const detailDto: GearDetailDto = {
@@ -201,7 +207,9 @@ describe('gear service requests', () => {
   })
 
   it('returns null when the gear does not exist', async () => {
-    vi.mocked(apiFetch).mockRejectedValue(new HttpError(404, 'Not Found'))
+    vi.mocked(apiFetch).mockRejectedValue(
+      new HttpError(404, 'Not Found', null, 'urn:endurain:error:not-found'),
+    )
     await expect(fetchGearById(5)).resolves.toBeNull()
   })
 

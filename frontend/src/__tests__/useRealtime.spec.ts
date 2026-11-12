@@ -208,6 +208,7 @@ describe('useRealtime', () => {
       'STRAVA_DATA_DELETED_NOTIFICATION',
       'ACCOUNT_SECURITY_CHANGED_NOTIFICATION',
       'NEW_DEVICE_SIGN_IN_NOTIFICATION',
+      'ADMIN_USER_PROMOTED_NOTIFICATION',
     ])('refetches notifications for a %s hint', async (message) => {
       const socket = await openSocket()
       // Opening the socket refetches notifications on its own; only the hint's refetch counts here.
@@ -216,6 +217,34 @@ describe('useRealtime', () => {
       send(socket, message)
 
       expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['notifications'] })
+    })
+
+    it('refetches only notifications on the first open, and everything a hint may have changed on a re-open', async () => {
+      vi.useFakeTimers()
+      const first = await openSocket()
+      expect(invalidateQueries.mock.calls.map(([filter]) => (filter as Filter).queryKey)).toEqual([
+        ['notifications'],
+      ])
+
+      invalidateQueries.mockClear()
+      first.readyState = MockWebSocket.CLOSED
+      first.onclose?.({ code: 1006 })
+      await vi.advanceTimersByTimeAsync(60_000)
+      await flushPromises()
+      latestSocket().open()
+      await vi.advanceTimersByTimeAsync(1_000)
+
+      const domains = invalidateQueries.mock.calls.map(([filter]) => (filter as Filter).queryKey)
+      expect(domains).toEqual([
+        ['notifications'],
+        ['gears'],
+        ['health'],
+        ['activities'],
+        ['goals', 'results'],
+      ])
+      expect(keptAlone(invalidationsOf('gears')[0], [['gears', 'component-types']])).toEqual([
+        ['gears', 'component-types'],
+      ])
     })
 
     it('refetches health data when a health sync finishes', async () => {
@@ -542,7 +571,6 @@ describe('useRealtime', () => {
     await flushPromises()
     latestSocket().open()
 
-    expect(invalidateQueries).toHaveBeenCalledTimes(2)
     expect(invalidateQueries).toHaveBeenNthCalledWith(2, { queryKey: ['notifications'] })
   })
 

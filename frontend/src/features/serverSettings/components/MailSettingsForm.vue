@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { useForm } from '@/composables/useForm'
+import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { useToasts } from '@/composables/useToasts'
 import EnvManagedNotice from '@/features/serverSettings/components/EnvManagedNotice.vue'
 import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
@@ -27,6 +28,7 @@ import {
 } from '@/features/security/composables/useIdpStepUp'
 import { useAdminStepUp, useResumeOnce } from '@/features/security/composables/useAdminStepUp'
 import { HttpError } from '@/services/http'
+import { isStaleWrite } from '@/services/ifMatch'
 
 const props = defineProps<{
   /** The loaded mail settings; seeds the form (the parent mounts this only after load). */
@@ -201,8 +203,11 @@ async function confirmSave(stepUp: StepUpInput): Promise<void> {
     }
     // The remaining failures are corrected in the form, so the step-up dialog gives way to it.
     isStepUpOpen.value = false
+    if (applyServerFieldErrors(error, setErrors, t, ['port'])) {
+      return
+    }
     // 412 is a refusal to overwrite: another admin saved since this form was loaded.
-    if (error instanceof HttpError && error.status === 412) {
+    if (isStaleWrite(error)) {
       toasts.error(t('settings.server.staleError'))
       return
     }
@@ -212,7 +217,7 @@ async function confirmSave(stepUp: StepUpInput): Promise<void> {
   }
 }
 
-const { values, errors, isValid, isDirty, isSubmitting, handleSubmit, handleBlur } =
+const { values, errors, isValid, isDirty, isSubmitting, handleSubmit, handleBlur, setErrors } =
   useForm<MailSettingsFormValues>({
     initialValues: toFormValues(props.settings),
     validators: { port: portValidator(t('settings.server.email.portInvalid')) },

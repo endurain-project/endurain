@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 
 import i18n from '@/i18n'
+import { HttpError } from '@/services/http'
 import { mapServerSettings } from '@/features/serverSettings/services/serverSettings'
 import type { ServerSettingsDto } from '@/features/serverSettings/types'
 import { useServerSettingsForm } from '@/features/serverSettings/composables/useServerSettingsForm'
@@ -159,5 +160,27 @@ describe('step-up for the geocoding and tile server settings', () => {
 
     expect(form.isStepUpOpen.value).toBe(false)
     expect(mutateAsync).toHaveBeenCalledOnce()
+  })
+})
+
+describe('a 422 from the server', () => {
+  it('shows the refusal on the field it names and keeps the form', async () => {
+    mutateAsync.mockReset()
+    mutateAsync.mockRejectedValue(
+      new HttpError(
+        422,
+        'Unprocessable Content',
+        null,
+        'urn:endurain:error:validation-failed',
+        null,
+        [{ field: 'body.geocoding_rate_limit', message: 'm', type: 'less_than_equal' }],
+      ),
+    )
+    const form = mountForm({})
+
+    form.setFieldValue('geocodingRateLimit', '2')
+    await form.handleSubmit()
+
+    expect(form.errors.value.geocodingRateLimit).toBe(i18n.global.t('app.fieldError.tooLarge'))
   })
 })

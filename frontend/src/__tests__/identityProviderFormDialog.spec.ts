@@ -93,7 +93,9 @@ describe('IdentityProviderFormDialog save errors', () => {
   })
 
   it('explains a refused issuer URL when the backend answers 400', async () => {
-    vi.mocked(apiFetch).mockRejectedValue(new HttpError(400, 'Bad Request'))
+    vi.mocked(apiFetch).mockRejectedValue(
+      new HttpError(400, 'Bad Request', null, 'urn:endurain:error:invalid-input'),
+    )
 
     const wrapper = mountDialog()
     await submitValidForm(wrapper)
@@ -106,7 +108,7 @@ describe('IdentityProviderFormDialog save errors', () => {
   })
 
   it.each([
-    [409, null, 'slugConflict'],
+    [409, 'urn:endurain:error:conflict', 'slugConflict'],
     [409, 'urn:endurain:error:issuer-in-use', 'issuerInUse'],
     [409, 'urn:endurain:error:issuer-locked', 'issuerLocked'],
   ])('maps a %i answer of type %s to %s', async (status, type, key) => {
@@ -363,5 +365,25 @@ describe('IdentityProviderFormDialog step-up', () => {
     await flushPromises()
 
     expect(wrapper.emitted('update:open')?.[0]).toEqual([true])
+  })
+
+  it('shows a 422 on the field it names instead of a toast', async () => {
+    vi.mocked(apiFetch).mockRejectedValue(
+      new HttpError(
+        422,
+        'Unprocessable Content',
+        null,
+        'urn:endurain:error:validation-failed',
+        null,
+        [{ field: 'body.client_id', message: 'm', type: 'string_too_long' }],
+      ),
+    )
+
+    const wrapper = mountDialog()
+    await submitValidForm(wrapper)
+    await confirmStepUp(wrapper)
+
+    expect(wrapper.text()).toContain(i18n.global.t('app.fieldError.tooLong'))
+    expect(wrapper.emitted('error')).toBeUndefined()
   })
 })

@@ -184,7 +184,8 @@
       "cancel": "Peruuta",
       "close": "Sulje",
       "success": "Käyttäjä poistettu",
-      "error": "Käyttäjää ei voitu poistaa. Yritä uudelleen."
+      "error": "Käyttäjää ei voitu poistaa. Yritä uudelleen.",
+      "failed": "Käyttäjän poistaminen epäonnistui. Tili pysyy poissa käytöstä; yritä uudelleen poistamalla se uudestaan."
     },
     "detail": {
       "back": "Takaisin käyttäjiin",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain lopettaa tuonnin Garmin Connectista. Olemassa olevat tietosi säilytetään.",
       "unlinkSuccess": "Garmin Connect -yhteys katkaistu",
       "unlinkError": "Garmin Connect -yhteyttä ei voitu katkaista. Yritä uudelleen."
-    }
+    },
+    "retrieveFinished": "Tietojesi nouto palvelusta {provider} on valmis.",
+    "retrieveFailed": "Tietojesi nouto palvelusta {provider} epäonnistui. Yritä uudelleen.",
+    "retrieveAlreadyRunning": "Nouto palvelusta {provider} on jo käynnissä. Saat ilmoituksen, kun se on valmis."
   },
   "import": {
     "title": "Tuonti",
@@ -1127,7 +1131,14 @@
       "preparing": "Valmistellaan tuontia…",
       "progress": "Tuotu {done} / {total} tiedosto ({failed} epäonnistui)… | Tuotu {done} / {total} tiedostoa ({failed} epäonnistui)…",
       "finished": "Tuonti valmis: {done} / {total} tiedosto tuotu, {failed} epäonnistui. | Tuonti valmis: {done} / {total} tiedostoa tuotu, {failed} epäonnistui.",
-      "failed": "Tuontia ei voitu suorittaa loppuun."
+      "failed": "Tuontia ei voitu suorittaa loppuun.",
+      "failure": {
+        "unsupported_format": "Tuonti epäonnistui: tiedostojen muotoa ei tueta.",
+        "invalid_file": "Tuonti epäonnistui: tiedosto ei ole kelvollinen.",
+        "no_activities_found": "Tuonti epäonnistui: aktiviteetteja ei löytynyt.",
+        "processing_failed": "Tuonti epäonnistui tiedostoja käsiteltäessä.",
+        "provider_unavailable": "Tuonti epäonnistui: palveluntarjoaja ei ole käytettävissä. Yritä myöhemmin uudelleen."
+      }
     }
   },
   "profile": {

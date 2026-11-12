@@ -65,5 +65,9 @@
       "good": "良好",
       "strong": "強"
     }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "嘗試次數過多，請在 {seconds} 秒後再試。",
+    "unavailable": "身分驗證暫時無法使用，請在 {seconds} 秒後再試。"
   }
 }

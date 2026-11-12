@@ -111,6 +111,7 @@ const EVENT_QUERY_INVALIDATIONS: Record<string, ReadonlyArray<Invalidation>> = {
   NEW_FOLLOWER_REQUEST_REMOVED_NOTIFICATION: [NOTIFICATIONS],
   NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION: [NOTIFICATIONS],
   ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST_NOTIFICATION: [NOTIFICATIONS],
+  ADMIN_USER_PROMOTED_NOTIFICATION: [NOTIFICATIONS],
   GARMIN_TOKEN_EXPIRED_NOTIFICATION: [NOTIFICATIONS],
   STRAVA_TOKEN_EXPIRED_NOTIFICATION: [NOTIFICATIONS],
   STRAVA_DATA_DELETED_NOTIFICATION: [NOTIFICATIONS],
@@ -120,6 +121,14 @@ const EVENT_QUERY_INVALIDATIONS: Record<string, ReadonlyArray<Invalidation>> = {
   GEARS_CHANGED: [GEARS],
   HEALTH_CHANGED: [HEALTH],
 }
+
+/** What a re-connect refetches: the data the hints missed while the socket was down may have changed. */
+const RECONNECT_INVALIDATIONS: ReadonlyArray<Invalidation> = [
+  ACTIVITIES,
+  GOAL_RESULTS,
+  GEARS,
+  HEALTH,
+]
 
 // Module-level state guarantees a single connection per browser tab regardless
 // of how many components call useRealtime().
@@ -134,6 +143,8 @@ let intentionalClose = false
 let evicted = false
 // Guards against overlapping ticket fetches while a connection is being opened.
 let connecting = false
+// Set once the socket has opened in this session; a later open is a re-connect that may have missed hints.
+let hasOpened = false
 // Coalesced invalidations waiting for their window to end.
 const pendingInvalidations = new Map<Invalidation, ReturnType<typeof setTimeout>>()
 
@@ -278,6 +289,12 @@ async function openSocket(): Promise<void> {
     evicted = false
     // Hints sent before the first connection or while it was down are not replayed.
     void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all() })
+    if (hasOpened) {
+      for (const invalidation of RECONNECT_INVALIDATIONS) {
+        invalidate(invalidation)
+      }
+    }
+    hasOpened = true
   }
   next.onmessage = (event: MessageEvent) => {
     // A socket that was disconnected or superseded no longer feeds the channel.
@@ -435,6 +452,7 @@ export function useRealtime() {
     evicted = false
     clearReconnectTimer()
     reconnectAttempts = 0
+    hasOpened = false
     for (const timer of pendingInvalidations.values()) {
       clearTimeout(timer)
     }

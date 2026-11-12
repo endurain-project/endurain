@@ -18,7 +18,8 @@ import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { LoadingState } from '@/components/ui/loading-state'
 import { useForm } from '@/composables/useForm'
-import { HttpError } from '@/services/http'
+import { applyServerFieldErrors } from '@/services/fieldErrors'
+import { isProblem } from '@/services/problems'
 import { isStaleWrite } from '@/services/ifMatch'
 import { todayDateTimeLocalMax } from '@/features/health/utils/healthFormat'
 import { secondsToHoursMinutes, todayIsoDate } from '@/utils/datetime'
@@ -246,10 +247,13 @@ async function submitForm(values: SleepFormValues): Promise<void> {
     }
     open.value = false
   } catch (error) {
+    if (applyServerFieldErrors(error, setErrors, t, FORM_KEYS)) {
+      return
+    }
     if (isStaleWrite(error)) {
       open.value = false
       emit('error', t('app.staleError'))
-    } else if (error instanceof HttpError && error.status === 400) {
+    } else if (isProblem(error, 'invalid-input')) {
       emit('error', t('health.sleep.form.inconsistentError'))
     } else {
       emit('error', t('health.sleep.form.saveError'))
@@ -343,12 +347,15 @@ const boundedValidators = Object.fromEntries(
   ]),
 ) as Partial<Record<keyof SleepFormValues, Validator<string>>>
 
+const FORM_KEYS = ['date', 'sleepEndTimeLocal'] as const
+
 const {
   values,
   errors,
   isSubmitting,
   handleSubmit,
   handleBlur,
+  setErrors,
   validateField,
   reset,
   isDirty,

@@ -184,7 +184,8 @@
       "cancel": "Odustani",
       "close": "Zatvori",
       "success": "Korisnik je izbrisan",
-      "error": "Nije moguće izbrisati korisnika. Pokušajte ponovno."
+      "error": "Nije moguće izbrisati korisnika. Pokušajte ponovno.",
+      "failed": "Brisanje korisnika nije uspjelo. Račun ostaje deaktiviran; izbrišite ga ponovno kako biste pokušali opet."
     },
     "detail": {
       "back": "Natrag na korisnike",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain će prestati uvoziti iz Garmin Connect. Vaši postojeći podaci su zadržani.",
       "unlinkSuccess": "Veza s Garmin Connect je prekinuta",
       "unlinkError": "Nije moguće prekinuti vezu s Garmin Connect. Pokušajte ponovno."
-    }
+    },
+    "retrieveFinished": "Dohvaćanje vaših podataka s {provider} je dovršeno.",
+    "retrieveFailed": "Dohvaćanje vaših podataka s {provider} nije uspjelo. Pokušajte ponovno.",
+    "retrieveAlreadyRunning": "Dohvaćanje s {provider} već je u tijeku. Obavijestit ćemo vas kada završi."
   },
   "import": {
     "title": "Uvoz",
@@ -1127,7 +1131,14 @@
       "preparing": "Priprema uvoza…",
       "progress": "Uvezeno {done} od {total} datoteke ({failed} neuspješno)… | Uvezeno {done} od {total} datoteke ({failed} neuspješno)… | Uvezeno {done} od {total} datoteka ({failed} neuspješno)…",
       "finished": "Uvoz je završen: uvezeno {done} od {total} datoteke, {failed} neuspješno. | Uvoz je završen: uvezeno {done} od {total} datoteke, {failed} neuspješno. | Uvoz je završen: uvezeno {done} od {total} datoteka, {failed} neuspješno.",
-      "failed": "Uvoz nije moguće dovršiti."
+      "failed": "Uvoz nije moguće dovršiti.",
+      "failure": {
+        "unsupported_format": "Uvoz nije uspio: datoteke su u formatu koji nije podržan.",
+        "invalid_file": "Uvoz nije uspio: datoteka nije valjana.",
+        "no_activities_found": "Uvoz nije uspio: nisu pronađene aktivnosti.",
+        "processing_failed": "Uvoz nije uspio tijekom obrade datoteka.",
+        "provider_unavailable": "Uvoz nije uspio: pružatelj usluge nije dostupan. Pokušajte ponovno kasnije."
+      }
     }
   },
   "profile": {

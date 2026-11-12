@@ -1,7 +1,8 @@
 import type { PublicUser, PublicUserDto } from '@/features/users/types'
 
 import { resolveAvatarUrl } from '@/features/auth/services/mappers'
-import { apiFetch, HttpError } from '@/services/http'
+import { apiFetch } from '@/services/http'
+import { isProblem } from '@/services/problems'
 
 /** The fewest characters the server accepts in a user search term. */
 export const MIN_USER_SEARCH_LENGTH = 3
@@ -70,7 +71,7 @@ export async function fetchPublicUser(
     const dto = await apiFetch<PublicUserDto>(`/users/${userId}`, { signal })
     return mapPublicUser(dto)
   } catch (error) {
-    if (error instanceof HttpError && error.status === 404) {
+    if (isProblem(error, 'not-found')) {
       return null
     }
     throw error

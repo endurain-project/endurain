@@ -184,7 +184,8 @@
       "cancel": "Tühista",
       "close": "Sulge",
       "success": "Kasutaja kustutatud",
-      "error": "Kasutajat ei õnnestunud kustutada. Palun proovi uuesti."
+      "error": "Kasutajat ei õnnestunud kustutada. Palun proovi uuesti.",
+      "failed": "Kasutaja kustutamine ebaõnnestus. Konto jääb deaktiveerituks; proovimiseks kustuta see uuesti."
     },
     "detail": {
       "back": "Tagasi kasutajate juurde",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain lõpetab Garmin Connectist importimise. Sinu olemasolevad andmed jäävad alles.",
       "unlinkSuccess": "Garmin Connecti ühendus katkestatud",
       "unlinkError": "Garmin Connecti ühendust ei õnnestunud katkestada. Palun proovi uuesti."
-    }
+    },
+    "retrieveFinished": "Sinu andmete toomine teenusest {provider} on lõpule jõudnud.",
+    "retrieveFailed": "Sinu andmete toomine teenusest {provider} ebaõnnestus. Proovi uuesti.",
+    "retrieveAlreadyRunning": "Andmete toomine teenusest {provider} juba käib. Anname teada, kui see lõpeb."
   },
   "import": {
     "title": "Import",
@@ -1127,7 +1131,14 @@
       "preparing": "Impordi ettevalmistamine…",
       "progress": "Imporditud {done} faili {total}-st ({failed} ebaõnnestus)… | Imporditud {done} faili {total}-st ({failed} ebaõnnestus)…",
       "finished": "Import lõppes: imporditi {done} faili {total}-st, {failed} ebaõnnestus. | Import lõppes: imporditi {done} faili {total}-st, {failed} ebaõnnestus.",
-      "failed": "Importi ei õnnestunud lõpule viia."
+      "failed": "Importi ei õnnestunud lõpule viia.",
+      "failure": {
+        "unsupported_format": "Import ebaõnnestus: failid on toetamata vormingus.",
+        "invalid_file": "Import ebaõnnestus: fail ei ole kehtiv.",
+        "no_activities_found": "Import ebaõnnestus: tegevusi ei leitud.",
+        "processing_failed": "Import ebaõnnestus failide töötlemisel.",
+        "provider_unavailable": "Import ebaõnnestus: pakkuja ei ole saadaval. Proovi hiljem uuesti."
+      }
     }
   },
   "profile": {

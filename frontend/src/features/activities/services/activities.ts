@@ -1,6 +1,7 @@
 import type { Schemas } from '@/types'
 
-import { apiFetch, HttpError } from '@/services/http'
+import { apiFetch } from '@/services/http'
+import { isProblem } from '@/services/problems'
 import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
 import { followJob, JobTimeoutError, type JobOf } from '@/services/jobStatus'
 import { fetchAllPages } from '@/services/pagination'
@@ -216,7 +217,7 @@ export async function fetchActivity(id: number): Promise<Activity | null> {
     const dto = await apiFetch<ActivityDto | null>(`/activities/${id}`)
     return dto ? mapActivity(dto) : null
   } catch (error) {
-    if (error instanceof HttpError && (error.status === 404 || error.status === 422)) {
+    if (isProblem(error, 'not-found', 'validation-failed')) {
       return null
     }
     throw error
@@ -266,7 +267,7 @@ export async function fetchActivityDetail(
       owner: dto.owner ? mapActivityOwner(dto.owner) : null,
     }
   } catch (error) {
-    if (error instanceof HttpError && (error.status === 404 || error.status === 422)) {
+    if (isProblem(error, 'not-found', 'validation-failed')) {
       return null
     }
     throw error

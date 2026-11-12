@@ -184,7 +184,8 @@
       "cancel": "Zrušit",
       "close": "Zavřít",
       "success": "Uživatel smazán",
-      "error": "Nepodařilo se smazat uživatele. Zkuste to prosím znovu."
+      "error": "Nepodařilo se smazat uživatele. Zkuste to prosím znovu.",
+      "failed": "Smazání uživatele selhalo. Účet zůstává deaktivovaný; smažte ho znovu a zkuste to znovu."
     },
     "detail": {
       "back": "Zpět na uživatele",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain přestane importovat z Garmin Connect. Vaše stávající data zůstanou zachována.",
       "unlinkSuccess": "Garmin Connect odpojen",
       "unlinkError": "Nepodařilo se odpojit Garmin Connect. Zkuste to prosím znovu."
-    }
+    },
+    "retrieveFinished": "Načtení vašich dat z {provider} bylo dokončeno.",
+    "retrieveFailed": "Načtení vašich dat z {provider} selhalo. Zkuste to prosím znovu.",
+    "retrieveAlreadyRunning": "Načítání z {provider} už probíhá. Až skončí, dostanete upozornění."
   },
   "import": {
     "title": "Import",
@@ -1127,7 +1131,14 @@
       "preparing": "Příprava importu…",
       "progress": "Importováno {done} z {total} souboru ({failed} se nezdařilo)… | Importováno {done} z {total} souborů ({failed} se nezdařilo)… | Importováno {done} z {total} souborů ({failed} se nezdařilo)…",
       "finished": "Import dokončen: importováno {done} z {total} souboru, {failed} se nezdařilo. | Import dokončen: importováno {done} z {total} souborů, {failed} se nezdařilo. | Import dokončen: importováno {done} z {total} souborů, {failed} se nezdařilo.",
-      "failed": "Import se nepodařilo dokončit."
+      "failed": "Import se nepodařilo dokončit.",
+      "failure": {
+        "unsupported_format": "Import selhal: soubory mají nepodporovaný formát.",
+        "invalid_file": "Import selhal: soubor není platný.",
+        "no_activities_found": "Import selhal: nebyly nalezeny žádné aktivity.",
+        "processing_failed": "Import selhal při zpracování souborů.",
+        "provider_unavailable": "Import selhal: poskytovatel není dostupný. Zkuste to později."
+      }
     }
   },
   "profile": {

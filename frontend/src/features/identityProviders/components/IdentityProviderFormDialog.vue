@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { useForm } from '@/composables/useForm'
+import { applyServerFieldErrors } from '@/services/fieldErrors'
 import ProviderIconPicker from '@/features/identityProviders/components/ProviderIconPicker.vue'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
 import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
@@ -32,6 +33,7 @@ import {
   IDP_ISSUER_LOCKED_TYPE,
 } from '@/features/identityProviders/services/identityProviders'
 import { HttpError } from '@/services/http'
+import { isProblem } from '@/services/problems'
 import { isStaleWrite } from '@/services/ifMatch'
 import {
   ICON_ACCEPTED_TYPES,
@@ -267,6 +269,9 @@ async function submitForm(
     }
     // The remaining failures are corrected in the form, so the step-up dialog gives way to it.
     isStepUpOpen.value = false
+    if (applyServerFieldErrors(error, setErrors, t, FORM_KEYS)) {
+      return
+    }
     if (isStaleWrite(error)) {
       open.value = false
       emit('error', t('app.staleError'))
@@ -274,9 +279,9 @@ async function submitForm(
       emit('error', t('settings.idp.form.issuerInUse'))
     } else if (error instanceof HttpError && error.type === IDP_ISSUER_LOCKED_TYPE) {
       emit('error', t('settings.idp.form.issuerLocked'))
-    } else if (error instanceof HttpError && error.status === 409) {
+    } else if (isProblem(error, 'conflict')) {
       emit('error', t('settings.idp.form.slugConflict'))
-    } else if (error instanceof HttpError && error.status === 400) {
+    } else if (isProblem(error, 'invalid-input')) {
       emit('error', t('settings.idp.form.issuerUrlRefused'))
     } else {
       emit('error', t('settings.idp.form.saveError'))
@@ -284,7 +289,9 @@ async function submitForm(
   }
 }
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset } =
+const FORM_KEYS = ['name', 'slug', 'issuerUrl', 'clientId', 'clientSecret', 'scopes'] as const
+
+const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset, setErrors } =
   useForm<ProviderFormValues>({
     initialValues: defaultValues(),
     validators: {

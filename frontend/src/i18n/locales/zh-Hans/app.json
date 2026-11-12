@@ -65,5 +65,9 @@
       "good": "良好",
       "strong": "强"
     }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "尝试次数过多，请在 {seconds} 秒后重试。",
+    "unavailable": "身份验证暂时不可用，请在 {seconds} 秒后重试。"
   }
 }

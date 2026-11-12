@@ -4,6 +4,7 @@
     "uploading": "Wird hochgeladen…",
     "success": "Aktivität erfolgreich hochgeladen",
     "error": "Die Aktivitätsdatei konnte nicht hochgeladen werden",
+    "tooLarge": "Die Datei ist zu groß",
     "timeout": "Deine Datei wird noch importiert. Sie erscheint, sobald der Import abgeschlossen ist.",
     "failed": {
       "unsupported_format": "Dieser Dateityp wird nicht unterstützt",

@@ -4,6 +4,7 @@
     "uploading": "Subiendo…",
     "success": "Actividad subida correctamente",
     "error": "No se pudo subir el archivo de actividad",
+    "tooLarge": "El archivo es demasiado grande",
     "timeout": "Tu archivo aún se está importando. Aparecerá cuando termine.",
     "failed": {
       "unsupported_format": "Este tipo de archivo no es compatible",

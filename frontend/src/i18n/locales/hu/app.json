@@ -65,5 +65,9 @@
       "good": "Jó",
       "strong": "Erős"
     }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Túl sok próbálkozás. Próbáld újra {seconds} másodperc múlva.",
+    "unavailable": "A hitelesítés átmenetileg nem érhető el. Próbáld újra {seconds} másodperc múlva."
   }
 }

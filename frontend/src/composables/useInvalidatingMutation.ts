@@ -55,6 +55,8 @@ export interface InvalidatingMutationOptions<TData, TVariables> {
    * and that therefore keep their cache (see {@link invalidateExcept}).
    */
   excludeKeys?: ReadonlyArray<readonly unknown[]>
+  /** Further domain prefixes the write changes, invalidated in full once it settles. */
+  alsoInvalidate?: ReadonlyArray<readonly unknown[]>
 }
 
 /**
@@ -83,6 +85,9 @@ export function useInvalidatingMutation<TData, TVariables>(
     mutationFn: options.mutationFn,
     onSettled: () => {
       void invalidateExcept(client, invalidateKey, options.excludeKeys ?? [])
+      for (const queryKey of options.alsoInvalidate ?? []) {
+        void client.invalidateQueries({ queryKey })
+      }
     },
   })
 }

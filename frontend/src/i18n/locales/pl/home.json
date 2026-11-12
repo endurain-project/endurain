@@ -4,6 +4,7 @@
     "uploading": "Przesyłanie…",
     "success": "Pomyślnie przesłano aktywność",
     "error": "Nie udało się przesłać pliku aktywności",
+    "tooLarge": "Plik jest za duży",
     "timeout": "Twój plik jest nadal importowany. Pojawi się po zakończeniu.",
     "failed": {
       "unsupported_format": "Ten typ pliku nie jest obsługiwany",

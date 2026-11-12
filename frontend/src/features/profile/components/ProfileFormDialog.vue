@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { Select } from '@/components/ui/select'
 import { useForm } from '@/composables/useForm'
-import { HttpError } from '@/services/http'
+import { isProblem } from '@/services/problems'
 import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
@@ -136,7 +136,7 @@ async function submitForm(values: ProfileFormValues): Promise<void> {
     if (isStaleWrite(error)) {
       open.value = false
       emit('error', t('app.staleError'))
-    } else if (error instanceof HttpError && error.status === 409) {
+    } else if (isProblem(error, 'conflict')) {
       emit('error', t('settings.profile.edit.conflict'))
     } else {
       emit('error', t('settings.profile.edit.error'))

@@ -124,6 +124,14 @@ describe('mapGearComponent', () => {
   })
 })
 
+describe('mapGearComponent version', () => {
+  it('maps a missing version to 0, so the write is refused instead of overwriting', () => {
+    expect(
+      mapGearComponent({ ...componentDto, version: undefined as unknown as number }).version,
+    ).toBe(0)
+  })
+})
+
 describe('gear-component service requests', () => {
   beforeEach(() => {
     vi.clearAllMocks()

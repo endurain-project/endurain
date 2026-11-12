@@ -9,6 +9,7 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
@@ -104,12 +105,17 @@ async function submitForm(values: StepsFormValues): Promise<void> {
     }
     open.value = false
   } catch (error) {
+    if (applyServerFieldErrors(error, setErrors, t, FORM_KEYS)) {
+      return
+    }
     if (isStaleWrite(error)) {
       open.value = false
     }
     emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.steps.form.saveError'))
   }
 }
+
+const FORM_KEYS = ['date', 'steps'] as const
 
 const {
   values,
@@ -118,6 +124,7 @@ const {
   isSubmitting,
   handleSubmit,
   handleBlur,
+  setErrors,
   reset,
   isDirty,
   markPristine,

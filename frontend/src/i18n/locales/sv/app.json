@@ -65,5 +65,9 @@
       "good": "Bra",
       "strong": "Starkt"
     }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "För många försök. Försök igen om {seconds} sekunder.",
+    "unavailable": "Autentisering är tillfälligt otillgänglig. Försök igen om {seconds} sekunder."
   }
 }

@@ -4,6 +4,7 @@
     "uploading": "Uploader…",
     "success": "Aktivitet uploadet",
     "error": "Kunne ikke uploade aktivitetsfilen",
+    "tooLarge": "Filen er for stor",
     "timeout": "Din fil importeres stadig. Den vises, når den er færdig.",
     "failed": {
       "unsupported_format": "Denne filtype understøttes ikke",

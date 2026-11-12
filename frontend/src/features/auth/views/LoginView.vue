@@ -30,6 +30,7 @@ import type { IdentityProviderPublic } from '@/types'
 
 import { resolveProviderLogo } from '@/features/identityProviders/utils/providerIcon'
 import { HttpError } from '@/services/http'
+import { isProblem, retryWaitMessage } from '@/services/problems'
 import { type LoginResult, useAuthStore } from '@/features/auth/stores/auth'
 import { normalizeMfaCode } from '@/features/auth/utils/mfaCode'
 
@@ -125,31 +126,39 @@ function getAuthErrorMessage(error: unknown, step: SignInStep): string {
     return t('login.genericError')
   }
 
-  if (step === 'mfa' && [400, 401, 422].includes(error.status)) {
+  if (step === 'mfa' && isProblem(error, 'invalid-mfa-code')) {
     return t('login.invalidMfa')
   }
 
-  if (step === 'passwordChange' && error.status === 422) {
-    return policyError(error) ?? t('login.passwordChangeRejected')
+  const wait = retryWaitMessage(error, t)
+  if (wait !== null) {
+    return wait
   }
 
-  switch (error.status) {
-    case 401:
-      // The server answers a pending account like a wrong password, so the hint covers both.
-      return `${t('login.invalidCredentials')}\n${t('login.invalidCredentialsPendingHint')}`
-    case 403:
-      return t('login.forbidden')
-    case 429:
-      return error.retryAfterSeconds === null
-        ? t('login.tooManyAttempts')
-        : t('login.tooManyAttemptsWait', { seconds: error.retryAfterSeconds })
-    case 503:
-      return error.retryAfterSeconds === null
-        ? t('login.unavailable')
-        : t('login.unavailableWait', { seconds: error.retryAfterSeconds })
-    default:
-      return t('login.genericError')
+  if (step === 'passwordChange') {
+    const refusal = policyError(error)
+    if (refusal !== null) {
+      return refusal
+    }
+    if (isProblem(error, 'validation-failed')) {
+      return t('login.passwordChangeRejected')
+    }
   }
+
+  if (isProblem(error, 'unauthorized') && step !== 'mfa') {
+    // The server answers a pending account like a wrong password, so the hint covers both.
+    return `${t('login.invalidCredentials')}\n${t('login.invalidCredentialsPendingHint')}`
+  }
+  if (isProblem(error, 'permission-denied')) {
+    return t('login.forbidden')
+  }
+  if (isProblem(error, 'too-many-requests', 'rate-limited')) {
+    return t('login.tooManyAttempts')
+  }
+  if (isProblem(error, 'service-unavailable')) {
+    return t('login.unavailable')
+  }
+  return t('login.genericError')
 }
 
 /**
@@ -234,7 +243,7 @@ async function submitForm(): Promise<void> {
       return
     }
     if (step === 'mfa') {
-      if (!isSsoMfaPending.value && error instanceof HttpError && error.status === 401) {
+      if (!isSsoMfaPending.value && isProblem(error, 'unauthorized')) {
         resetToSignIn()
         alert.value = { kind: 'error', message: t('login.mfaChallengeExpired') }
         return
@@ -256,7 +265,7 @@ async function submitForm(): Promise<void> {
  * @param error - Caught request error.
  */
 function handlePasswordChangeError(error: unknown): void {
-  if (error instanceof HttpError && error.status === 401) {
+  if (isProblem(error, 'unauthorized')) {
     resetToSignIn()
     alert.value = { kind: 'error', message: t('login.passwordChangeExpired') }
     return

@@ -13,7 +13,8 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
-import { HttpError } from '@/services/http'
+import { applyServerFieldErrors } from '@/services/fieldErrors'
+import { isProblem } from '@/services/problems'
 import { isStaleWrite } from '@/services/ifMatch'
 import {
   dateTimeLocalToIso,
@@ -165,18 +166,28 @@ async function submitForm(formValues: FastingFormValues): Promise<void> {
     }
     open.value = false
   } catch (error) {
+    if (
+      applyServerFieldErrors(error, setErrors, t, FORM_KEYS, {
+        fast_start_time: 'startTime',
+        fast_end_time: 'endTime',
+      })
+    ) {
+      return
+    }
     if (isStaleWrite(error)) {
       open.value = false
       emit('error', t('app.staleError'))
-    } else if (error instanceof HttpError && error.status === 409) {
+    } else if (isProblem(error, 'conflict')) {
       emit('error', t('health.fasting.form.overlapError'))
-    } else if (error instanceof HttpError && error.status === 400) {
+    } else if (isProblem(error, 'invalid-input')) {
       emit('error', t('health.fasting.form.invalidTimesError'))
     } else {
       emit('error', t('health.fasting.form.saveError'))
     }
   }
 }
+
+const FORM_KEYS = ['startTime', 'endTime'] as const
 
 const {
   values,
@@ -185,6 +196,7 @@ const {
   isSubmitting,
   handleSubmit,
   handleBlur,
+  setErrors,
   validateField,
   reset,
   isDirty,

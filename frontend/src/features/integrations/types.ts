@@ -19,6 +19,12 @@ export type GarminMfaDto = Schemas['MFARequest']
 /** Where a Garmin Connect link attempt is, as the status endpoint reports it. */
 export type GarminLinkStatus = Schemas['GarminLinkStatus']
 
+/** Where a queued Garmin Connect gear or health sync is, as the status endpoint reports it. */
+export type GarminSyncStatus = Schemas['GarminSyncStatus']
+
+/** A queued activity sync of a date range (`activity_refresh`), as `POST /garmin/activities` and `POST /strava/activities` answer it. */
+export type ActivityRefreshJob = Schemas['ActivityIngestionJobRead']
+
 /** The clean credentials the Strava connect dialog collects. */
 export interface StravaClientInput {
   clientId: number

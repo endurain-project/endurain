@@ -4,6 +4,7 @@
     "uploading": "Nahrávání…",
     "success": "Aktivita úspěšně nahrána",
     "error": "Soubor aktivity se nepodařilo nahrát",
+    "tooLarge": "Soubor je příliš velký",
     "timeout": "Váš soubor se stále importuje. Zobrazí se, jakmile bude hotovo.",
     "failed": {
       "unsupported_format": "Tento typ souboru není podporován",

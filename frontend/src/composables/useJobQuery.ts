@@ -2,7 +2,7 @@ import { computed, onScopeDispose, toValue, type MaybeRefOrGetter } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 
 import { isJobHintFor, jobPollInterval, useRealtime } from '@/composables/useRealtime'
-import { HttpError } from '@/services/http'
+import { isProblem } from '@/services/problems'
 import {
   fetchJob,
   isJobOf,
@@ -35,7 +35,7 @@ export function useJobQuery<K extends JobKind = JobKind>(
     retry: false,
     refetchInterval: (state) => {
       // An unknown or expired id stays unknown; polling it would only repeat the 404.
-      if (state.state.error instanceof HttpError && state.state.error.status === 404) {
+      if (isProblem(state.state.error, 'not-found')) {
         return false
       }
       const job = state.state.data

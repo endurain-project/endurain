@@ -1,7 +1,7 @@
 import type { QueryClient } from '@tanstack/vue-query'
 
 import { watchJob } from '@/composables/useRealtime'
-import { apiFetch } from '@/services/http'
+import { apiFetch, HttpError } from '@/services/http'
 import { queryKeys } from '@/services/queryKeys'
 import type { Schemas } from '@/types'
 
@@ -56,6 +56,18 @@ const FOLLOW_INTERVAL_MS = 1_500
 
 /** How long {@link followJob} follows a job when no timeout is given. */
 const FOLLOW_TIMEOUT_MS = 5 * 60 * 1_000
+
+/**
+ * Reads the running job a start route's `409` names, so the caller can follow it instead of
+ * starting another.
+ *
+ * @param error - What a start request threw.
+ * @returns The running job's id, or `null` when the error is not a `409` that names one (an older
+ *   server, or an `Idempotency-Key` reused for a different request).
+ */
+export function runningJobId(error: unknown): string | null {
+  return error instanceof HttpError && error.status === 409 ? error.jobId : null
+}
 
 /**
  * Whether a job has reached a state it will not leave.
@@ -165,4 +177,22 @@ export async function followJob<K extends JobKind = JobKind>(
 export function seedJob(client: QueryClient, job: Job): void {
   client.setQueryData(queryKeys.jobs.detail(job.id), job)
   client.setQueryData(queryKeys.jobs.latest(job.kind), job)
+}
+
+/**
+ * Looks the latest job of a kind up again when a start request was refused because that job is
+ * already running, so a screen that follows the latest job of its kind picks the running one up.
+ *
+ * @param client - The active query client.
+ * @param kind - The kind of job the request started.
+ * @param error - What the start request threw.
+ */
+export function refreshLatestJobOnConflict(
+  client: QueryClient,
+  kind: JobKind,
+  error: unknown,
+): void {
+  if (runningJobId(error) !== null) {
+    void client.invalidateQueries({ queryKey: queryKeys.jobs.latest(kind) })
+  }
 }

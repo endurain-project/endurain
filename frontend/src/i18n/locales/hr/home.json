@@ -4,6 +4,7 @@
     "uploading": "Učitavanje…",
     "success": "Aktivnost je uspješno učitana",
     "error": "Nije moguće učitati datoteku aktivnosti",
+    "tooLarge": "Datoteka je prevelika",
     "timeout": "Vaša se datoteka još uvozi. Pojavit će se kad završi.",
     "failed": {
       "unsupported_format": "Ova vrsta datoteke nije podržana",

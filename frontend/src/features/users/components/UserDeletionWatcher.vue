@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
+import { useToasts } from '@/composables/useToasts'
 import { useUserDeletionQuery } from '@/features/users/composables/useUsers'
 import { useUserDeletionsStore } from '@/features/users/stores/userDeletions'
 import { isTerminalJobState } from '@/services/jobStatus'
@@ -13,11 +15,16 @@ const props = defineProps<{
   jobId: string
 }>()
 
+const { t } = useI18n()
+const toasts = useToasts()
 const deletions = useUserDeletionsStore()
 const { data } = useUserDeletionQuery(() => props.jobId)
 
 watch(data, (deletion) => {
   if (deletion && isTerminalJobState(deletion.status)) {
+    if (deletion.status === 'failed') {
+      toasts.error(t('settings.users.delete.failed'))
+    }
     deletions.release(props.jobId)
   }
 })

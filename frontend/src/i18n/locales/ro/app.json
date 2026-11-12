@@ -65,5 +65,9 @@
       "good": "Bună",
       "strong": "Puternică"
     }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Prea multe încercări. Încearcă din nou peste {seconds} secunde.",
+    "unavailable": "Autentificarea este temporar indisponibilă. Încearcă din nou peste {seconds} secunde."
   }
 }

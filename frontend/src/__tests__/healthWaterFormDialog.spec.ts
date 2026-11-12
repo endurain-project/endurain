@@ -56,6 +56,26 @@ describe('HealthWaterFormDialog', () => {
     ])
   })
 
+  it('shows a 422 on the amount field instead of a toast', async () => {
+    vi.mocked(apiFetch).mockRejectedValue(
+      new HttpError(
+        422,
+        'Unprocessable Content',
+        null,
+        'urn:endurain:error:validation-failed',
+        null,
+        [{ field: 'body.amount_ml', message: 'm', type: 'less_than_equal' }],
+      ),
+    )
+    const wrapper = await openDialog()
+    await wrapper.get('input[type="number"]').setValue('500')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(i18n.global.t('app.fieldError.tooLarge'))
+    expect(wrapper.emitted('error')).toBeUndefined()
+  })
+
   it('keeps the generic message for other failures', async () => {
     vi.mocked(apiFetch).mockRejectedValue(new HttpError(500, 'Server Error'))
     const wrapper = await openDialog()

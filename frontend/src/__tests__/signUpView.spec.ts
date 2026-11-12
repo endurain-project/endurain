@@ -181,3 +181,31 @@ describe('SignUpView weak password', () => {
     expect(wrapper.text()).toContain(i18n.global.t('signup.errorValidation'))
   })
 })
+
+describe('SignUpView throttling', () => {
+  it.each([
+    [429, 'rate-limited', 42, i18n.global.t('app.retryAfter.tooManyAttempts', { seconds: 42 })],
+    [429, 'rate-limited', null, i18n.global.t('signup.errorTooManyAttempts')],
+  ])('words a %i %s with a wait of %s', async (status, code, wait, expected) => {
+    requireVerification.value = false
+    requestSignUp.mockReset()
+    requestSignUp.mockRejectedValue(
+      new HttpError(
+        status,
+        'Too Many Requests',
+        null,
+        `urn:endurain:error:${code}`,
+        null,
+        [],
+        wait,
+      ),
+    )
+    const wrapper = await mountFilled()
+    await wrapper.get('input[name="new-password"]').setValue('long-enough-pass')
+    await wrapper.get('input[name="confirm-password"]').setValue('long-enough-pass')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(expected)
+  })
+})

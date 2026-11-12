@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { LoaderCircle, Mail, RefreshCw, X } from '@lucide/vue'
 
@@ -14,7 +14,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { useToasts } from '@/composables/useToasts'
-import { HttpError } from '@/services/http'
+import { applyServerFieldErrors } from '@/services/fieldErrors'
+import { isProblem } from '@/services/problems'
 import { normalizeMfaCode } from '@/features/auth/utils/mfaCode'
 import {
   isStepUpFailed,
@@ -55,6 +56,11 @@ const newEmail = ref('')
 const currentPassword = ref('')
 const mfaCode = ref('')
 const revokeOtherSessions = ref(true)
+// The server's refusal of the address, shown under the field until it is edited.
+const emailServerError = ref<string | null>(null)
+watch(newEmail, () => {
+  emailServerError.value = null
+})
 
 // The new address is typed after the identity-provider sign-in and never stored; the sessions switch is not
 // a secret, so it survives the round-trip.
@@ -137,7 +143,19 @@ function submit(): void {
         if (handleIdpChallenge(error)) {
           return
         }
-        if (error instanceof HttpError && error.status === 409) {
+        if (
+          applyServerFieldErrors<{ email: string }>(
+            error,
+            (fieldErrors) => {
+              emailServerError.value = fieldErrors.email ?? null
+            },
+            t,
+            ['email'],
+          )
+        ) {
+          return
+        }
+        if (isProblem(error, 'conflict')) {
           toasts.error(t('settings.security.email.conflict'))
         } else if (isStepUpLocked(error)) {
           toasts.error(t('settings.security.stepUp.tooManyAttempts'))
@@ -235,12 +253,15 @@ function submit(): void {
         type="email"
         maxlength="250"
         autocomplete="email"
-        :aria-invalid="showInvalid"
+        :aria-invalid="showInvalid || emailServerError !== null"
         :disabled="changeMutation.isPending.value"
         class="w-full"
       />
       <p v-if="showInvalid" class="text-hint text-destructive">
         {{ t('settings.security.email.invalid') }}
+      </p>
+      <p v-else-if="emailServerError" class="text-hint text-destructive">
+        {{ emailServerError }}
       </p>
       <p v-else-if="isCurrentEmail" class="text-hint">
         {{ t('settings.security.email.sameAsCurrent') }}

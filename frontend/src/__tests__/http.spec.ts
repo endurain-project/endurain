@@ -424,6 +424,23 @@ describe('RFC 9457 problem documents', () => {
     })
   })
 
+  it('carries the running job a 409 names as jobId, and null when it names none', async () => {
+    const conflict = (body: object) =>
+      new Response(JSON.stringify({ type: 'urn:endurain:error:conflict', ...body }), {
+        status: 409,
+        headers: { 'Content-Type': 'application/problem+json' },
+      }) as Response
+    vi.mocked(fetch).mockResolvedValueOnce(conflict({ job_id: 'job-9' }))
+    await expect(apiFetch('/profile/export', { method: 'POST' })).rejects.toMatchObject({
+      jobId: 'job-9',
+    })
+
+    vi.mocked(fetch).mockResolvedValueOnce(conflict({}))
+    await expect(apiFetch('/profile/export', { method: 'POST' })).rejects.toMatchObject({
+      jobId: null,
+    })
+  })
+
   it('tolerates a non-conforming error body', async () => {
     // A gateway or proxy error page must not become an unhandled parse failure.
     vi.mocked(fetch).mockResolvedValueOnce(

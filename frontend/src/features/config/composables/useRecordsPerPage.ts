@@ -24,7 +24,6 @@ export function useRecordsPerPage() {
     queryKey: queryKeys.public.serverSettings(),
     queryFn: fetchPublicServerSettings,
     placeholderData: DEFAULT_PUBLIC_SERVER_SETTINGS,
-    retry: 1,
     staleTime: SETTINGS_STALE_TIME,
   })
 

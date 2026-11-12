@@ -65,5 +65,9 @@
       "good": "Goed",
       "strong": "Sterk"
     }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Te veel pogingen. Probeer het over {seconds} seconden opnieuw.",
+    "unavailable": "Authenticatie is tijdelijk niet beschikbaar. Probeer het over {seconds} seconden opnieuw."
   }
 }

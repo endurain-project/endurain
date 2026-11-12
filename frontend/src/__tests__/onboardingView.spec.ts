@@ -146,13 +146,15 @@ describe('OnboardingView', () => {
   })
 
   it.each([
-    [400, 'The setup token is invalid'],
-    [422, 'The details were rejected'],
-    [429, 'Too many attempts'],
-    [503, 'temporarily unavailable'],
-    [500, 'Could not create the administrator'],
-  ])('shows a message for a %i response and stays on the page', async (status, text) => {
-    completeOnboarding.mockRejectedValue(new HttpError(status, 'err'))
+    [400, 'invalid-input', 'The setup token is invalid'],
+    [422, 'validation-failed', 'The details were rejected'],
+    [429, 'rate-limited', 'Too many attempts'],
+    [503, 'service-unavailable', 'temporarily unavailable'],
+    [500, 'internal-error', 'Could not create the administrator'],
+  ])('shows a message for a %i response and stays on the page', async (status, code, text) => {
+    completeOnboarding.mockRejectedValue(
+      new HttpError(status, 'err', null, `urn:endurain:error:${code}`),
+    )
     const wrapper = await mountFilled()
 
     await wrapper.get('form').trigger('submit')
@@ -160,6 +162,20 @@ describe('OnboardingView', () => {
 
     expect(wrapper.text()).toContain(text)
     expect(replace).not.toHaveBeenCalled()
+  })
+
+  it('tells the user how long to wait when onboarding is throttled', async () => {
+    completeOnboarding.mockRejectedValue(
+      new HttpError(429, 'err', null, 'urn:endurain:error:rate-limited', null, [], 30),
+    )
+    const wrapper = await mountFilled()
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(
+      i18n.global.t('app.retryAfter.tooManyAttempts', { seconds: 30 }),
+    )
   })
 
   it('shows the specific message when the password matches the account details', async () => {

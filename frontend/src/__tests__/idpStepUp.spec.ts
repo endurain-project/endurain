@@ -163,8 +163,21 @@ describe('isStepUpFailed', () => {
 })
 
 describe('isStepUpLocked', () => {
-  it('matches a 429, which a locked session or account answers', () => {
-    expect(isStepUpLocked(new HttpError(429, 'Too Many Requests'))).toBe(true)
+  it('matches the too-many-requests lockout and the rate-limited throttle', () => {
+    const lockout = new HttpError(
+      429,
+      'Too Many Requests',
+      null,
+      'urn:endurain:error:too-many-requests',
+    )
+    const throttle = new HttpError(
+      429,
+      'Too Many Requests',
+      null,
+      'urn:endurain:error:rate-limited',
+    )
+    expect(isStepUpLocked(lockout)).toBe(true)
+    expect(isStepUpLocked(throttle)).toBe(true)
     expect(isStepUpLocked(new HttpError(403, 'Forbidden'))).toBe(false)
     expect(isStepUpLocked(new Error('x'))).toBe(false)
   })

@@ -184,7 +184,8 @@
       "cancel": "Cancel·la",
       "close": "Tanca",
       "success": "Usuari eliminat",
-      "error": "No s'ha pogut eliminar l'usuari. Torna-ho a intentar."
+      "error": "No s'ha pogut eliminar l'usuari. Torna-ho a intentar.",
+      "failed": "No s'ha pogut suprimir l'usuari. El compte continua desactivat; suprimeix-lo de nou per tornar-ho a provar."
     },
     "detail": {
       "back": "Torna als usuaris",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain deixarà d'importar des de Garmin Connect. Les teves dades existents es conserven.",
       "unlinkSuccess": "Garmin Connect desconnectat",
       "unlinkError": "No s'ha pogut desconnectar Garmin Connect. Torna-ho a intentar."
-    }
+    },
+    "retrieveFinished": "S'ha acabat de recuperar les teves dades de {provider}.",
+    "retrieveFailed": "No s'han pogut recuperar les teves dades de {provider}. Torna-ho a provar.",
+    "retrieveAlreadyRunning": "Ja hi ha una recuperació de {provider} en curs. Rebràs un avís quan acabi."
   },
   "import": {
     "title": "Importa",
@@ -1127,7 +1131,14 @@
       "preparing": "Preparant la importació…",
       "progress": "S'han importat {done} de {total} fitxer ({failed} amb error)… | S'han importat {done} de {total} fitxers ({failed} amb error)…",
       "finished": "Importació acabada: {done} de {total} fitxer importat, {failed} amb error. | Importació acabada: {done} de {total} fitxers importats, {failed} amb error.",
-      "failed": "No s'ha pogut completar la importació."
+      "failed": "No s'ha pogut completar la importació.",
+      "failure": {
+        "unsupported_format": "La importació ha fallat: els fitxers tenen un format no compatible.",
+        "invalid_file": "La importació ha fallat: el fitxer no és vàlid.",
+        "no_activities_found": "La importació ha fallat: no s'ha trobat cap activitat.",
+        "processing_failed": "La importació ha fallat mentre es processaven els fitxers.",
+        "provider_unavailable": "La importació ha fallat: el proveïdor no està disponible. Torna-ho a provar més tard."
+      }
     }
   },
   "profile": {

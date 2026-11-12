@@ -35,7 +35,6 @@ export function usePublicServerSettings() {
     queryKey: queryKeys.public.serverSettings(),
     queryFn: fetchPublicServerSettings,
     placeholderData: DEFAULT_PUBLIC_SERVER_SETTINGS,
-    retry: 1,
     staleTime: PUBLIC_SETTINGS_STALE_TIME,
   })
 
@@ -50,7 +49,6 @@ export function usePublicServerSettings() {
     // `placeholderData` (not `initialData`) so enabling the query actually
     // triggers the `/public/idp` fetch instead of reusing a cached empty list.
     placeholderData: [],
-    retry: 1,
     staleTime: PUBLIC_SETTINGS_STALE_TIME,
   })
 

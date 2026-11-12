@@ -184,7 +184,8 @@
       "cancel": "Annulla",
       "close": "Chiudi",
       "success": "Utente eliminato",
-      "error": "Impossibile eliminare l'utente. Riprova."
+      "error": "Impossibile eliminare l'utente. Riprova.",
+      "failed": "Eliminazione dell'utente non riuscita. L'account resta disattivato; eliminalo di nuovo per riprovare."
     },
     "detail": {
       "back": "Torna agli utenti",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain smetterà di importare da Garmin Connect. I dati esistenti vengono mantenuti.",
       "unlinkSuccess": "Garmin Connect disconnesso",
       "unlinkError": "Impossibile disconnettere Garmin Connect. Riprova."
-    }
+    },
+    "retrieveFinished": "Il recupero dei tuoi dati da {provider} è terminato.",
+    "retrieveFailed": "Il recupero dei tuoi dati da {provider} non è riuscito. Riprova.",
+    "retrieveAlreadyRunning": "Un recupero da {provider} è già in corso. Riceverai una notifica al termine."
   },
   "import": {
     "title": "Importa",
@@ -1127,7 +1131,14 @@
       "preparing": "Preparazione dell'importazione…",
       "progress": "Importati {done} file su {total} ({failed} non riusciti)… | Importati {done} file su {total} ({failed} non riusciti)…",
       "finished": "Importazione terminata: {done} file su {total} importati, {failed} non riusciti. | Importazione terminata: {done} file su {total} importati, {failed} non riusciti.",
-      "failed": "Impossibile completare l'importazione."
+      "failed": "Impossibile completare l'importazione.",
+      "failure": {
+        "unsupported_format": "Importazione non riuscita: i file hanno un formato non supportato.",
+        "invalid_file": "Importazione non riuscita: il file non è valido.",
+        "no_activities_found": "Importazione non riuscita: non è stata trovata alcuna attività.",
+        "processing_failed": "Importazione non riuscita durante l'elaborazione dei file.",
+        "provider_unavailable": "Importazione non riuscita: il provider non è disponibile. Riprova più tardi."
+      }
     }
   },
   "profile": {

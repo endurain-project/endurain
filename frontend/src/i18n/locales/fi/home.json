@@ -4,6 +4,7 @@
     "uploading": "Ladataan…",
     "success": "Aktiviteetti ladattiin onnistuneesti",
     "error": "Aktiviteettitiedostoa ei voitu ladata",
+    "tooLarge": "Tiedosto on liian suuri",
     "timeout": "Tiedostoasi tuodaan vielä. Se näkyy, kun tuonti on valmis.",
     "failed": {
       "unsupported_format": "Tätä tiedostotyyppiä ei tueta",

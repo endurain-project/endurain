@@ -348,7 +348,6 @@ export function useDisplayUnits(): ComputedRef<Units> {
     queryKey: queryKeys.public.serverSettings(),
     queryFn: fetchPublicServerSettings,
     placeholderData: DEFAULT_PUBLIC_SERVER_SETTINGS,
-    retry: 1,
     staleTime: 5 * 60_000,
     // Only public viewers need the instance default; authenticated viewers read
     // their own preference.

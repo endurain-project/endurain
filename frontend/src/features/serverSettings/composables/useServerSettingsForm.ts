@@ -22,7 +22,8 @@ import { useResumeOnce } from '@/features/security/composables/useAdminStepUp'
 import { useSettingsStepUpResume } from '@/features/serverSettings/composables/useMailStepUpResume'
 import { useUpdateServerSettingsMutation } from '@/features/serverSettings/composables/useServerSettings'
 import { FIELD_TABS, type SettingsTab } from '@/features/serverSettings/settingsTabs'
-import { HttpError } from '@/services/http'
+import { applyServerFieldErrors } from '@/services/fieldErrors'
+import { isStaleWrite } from '@/services/ifMatch'
 
 /** Sentinel id for the "custom" (manually edited) tile server. */
 export const CUSTOM_TEMPLATE = 'custom'
@@ -42,6 +43,17 @@ const API_KEY_DAYS_RANGE = { min: 1, max: 3650 } as const
 const RETENTION_DAYS_RANGE = { min: 0, max: 3650 } as const
 /** The write-only API key fields; a draft kept across the identity-provider sign-in never holds them. */
 const SECRET_FIELDS = ['tileserverApiKey', 'geocodingApiKey'] as const
+/** The fields whose server refusal shows beside them; the form shows an error under each. */
+const FIELD_ERROR_KEYS = [
+  'tileserverUrl',
+  'geocodingRateLimit',
+  'readNotificationRetentionDays',
+  'sessionIdleTimeoutHours',
+  'sessionAbsoluteTimeoutHours',
+  'accessTokenExpireMinutes',
+  'refreshTokenExpireDays',
+  'apiKeyMaxLifetimeDays',
+] as const
 /** Placeholders every valid tile URL template must contain. */
 const TILE_PLACEHOLDERS = ['{z}', '{x}', '{y}'] as const
 
@@ -329,11 +341,12 @@ export function useServerSettingsForm(props: {
         return
       }
       isStepUpOpen.value = false
+      if (applyServerFieldErrors(error, form.setErrors, t, FIELD_ERROR_KEYS)) {
+        return
+      }
       // 412 is a refusal to overwrite: another admin saved since this form was loaded.
       toasts.error(
-        error instanceof HttpError && error.status === 412
-          ? t('settings.server.staleError')
-          : t('settings.server.saveError'),
+        isStaleWrite(error) ? t('settings.server.staleError') : t('settings.server.saveError'),
       )
     }
   }

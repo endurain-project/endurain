@@ -6,6 +6,7 @@ import type { IdpReauth, StepUpAction } from '@/features/security/types'
 
 import { generateCodeChallenge, generateCodeVerifier } from '@/features/auth/utils/pkce'
 import { HttpError } from '@/services/http'
+import { isProblem } from '@/services/problems'
 import { queryKeys } from '@/services/queryKeys'
 import { useToasts } from '@/composables/useToasts'
 import { startIdpStepUp } from '@/features/security/services/idpStepUp'
@@ -75,10 +76,11 @@ export function isStepUpFailed(error: unknown): boolean {
  * step-up, for the session or for the whole account.
  *
  * @param error - The error a sensitive request failed with.
- * @returns `true` for a 429 response.
+ * @returns `true` for a step-up lockout (`too-many-requests`) or the route's rate limit (`rate-limited`):
+ *   either way the user has to stop trying for a while.
  */
 export function isStepUpLocked(error: unknown): boolean {
-  return error instanceof HttpError && error.status === 429
+  return isProblem(error, 'too-many-requests', 'rate-limited')
 }
 
 /** Reads and removes the stored entry; `null` when absent, malformed or older than the TTL. */

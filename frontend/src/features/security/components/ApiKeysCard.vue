@@ -14,6 +14,7 @@ import { Card } from '@/components/ui/card'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { HttpError } from '@/services/http'
+import { isProblem } from '@/services/problems'
 import { useToasts } from '@/composables/useToasts'
 import {
   API_KEY_LIMIT_TYPE,
@@ -88,8 +89,7 @@ onMounted(() => {
 /** Whether the server refused the request with a 422 on the given field. */
 function refusedField(error: unknown, field: string): boolean {
   return (
-    error instanceof HttpError &&
-    error.status === 422 &&
+    isProblem(error, 'validation-failed') &&
     error.errors.some((fieldError) => fieldError.field === field)
   )
 }
@@ -97,8 +97,7 @@ function refusedField(error: unknown, field: string): boolean {
 /** Whether the server refused the scope list (`body.scopes`) or one entry of it (`body.scopes.<index>`). */
 function refusedScope(error: unknown): boolean {
   return (
-    error instanceof HttpError &&
-    error.status === 422 &&
+    isProblem(error, 'validation-failed') &&
     error.errors.some((e) => e.field === 'body.scopes' || e.field.startsWith('body.scopes.'))
   )
 }

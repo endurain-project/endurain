@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { UserDeletionStatus } from '@/features/users/types'
 
+import i18n from '@/i18n'
+import { useToasts } from '@/composables/useToasts'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import UserDeletionWatcher from '@/features/users/components/UserDeletionWatcher.vue'
 import { useUserDeletionsStore } from '@/features/users/stores/userDeletions'
@@ -175,7 +177,7 @@ describe('session deletion tracking', () => {
             )
         },
       }),
-      { global: { plugins: [[VueQueryPlugin, { queryClient }]] } },
+      { global: { plugins: [i18n, [VueQueryPlugin, { queryClient }]] } },
     )
     for (const [userId, jobId] of tracked) {
       useUserDeletionsStore().track(userId, jobId)
@@ -216,5 +218,23 @@ describe('session deletion tracking', () => {
     queryClient.setQueryData(queryKeys.jobs.detail('job-7'), failed)
     await flushPromises()
     expect(useUserDeletionsStore().deletions).toEqual([])
+  })
+
+  it('shows an error toast when the deletion fails, and none when it succeeds', async () => {
+    const toasts = useToasts()
+    const before = toasts.toasts.value.length
+    vi.mocked(fetchJob).mockResolvedValue(queued)
+    mountWatcher([[7, 'job-7']])
+    await flushPromises()
+
+    queryClient.setQueryData(queryKeys.jobs.detail('job-7'), succeeded)
+    await flushPromises()
+    expect(toasts.toasts.value).toHaveLength(before)
+
+    useUserDeletionsStore().track(8, 'job-8')
+    await flushPromises()
+    queryClient.setQueryData(queryKeys.jobs.detail('job-8'), { ...failed, id: 'job-8' })
+    await flushPromises()
+    expect(toasts.toasts.value.slice(before).map((toast) => toast.kind)).toEqual(['error'])
   })
 })

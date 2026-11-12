@@ -184,7 +184,8 @@
       "cancel": "取消",
       "close": "关闭",
       "success": "用户已删除",
-      "error": "无法删除用户，请重试。"
+      "error": "无法删除用户，请重试。",
+      "failed": "删除用户失败。该账户保持停用状态；请再次删除以重试。"
     },
     "detail": {
       "back": "返回用户列表",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain 将停止从 Garmin Connect 导入。您现有的数据将保留。",
       "unlinkSuccess": "Garmin Connect 已断开连接",
       "unlinkError": "无法断开 Garmin Connect 连接，请重试。"
-    }
+    },
+    "retrieveFinished": "已完成从 {provider} 获取你的数据。",
+    "retrieveFailed": "从 {provider} 获取你的数据失败，请重试。",
+    "retrieveAlreadyRunning": "来自 {provider} 的获取任务已在运行，完成后会通知你。"
   },
   "import": {
     "title": "导入",
@@ -1127,7 +1131,14 @@
       "preparing": "正在准备导入…",
       "progress": "已导入 {done}/{total} 个文件（{failed} 个失败）…",
       "finished": "导入完成：共 {total} 个文件，已导入 {done} 个，{failed} 个失败。",
-      "failed": "导入无法完成。"
+      "failed": "导入无法完成。",
+      "failure": {
+        "unsupported_format": "导入失败：文件格式不受支持。",
+        "invalid_file": "导入失败：文件无效。",
+        "no_activities_found": "导入失败：未找到任何活动。",
+        "processing_failed": "导入失败：处理文件时出错。",
+        "provider_unavailable": "导入失败：服务提供方不可用，请稍后重试。"
+      }
     }
   },
   "profile": {

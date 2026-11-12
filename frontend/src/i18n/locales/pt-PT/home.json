@@ -4,6 +4,7 @@
     "uploading": "A carregar…",
     "success": "Atividade carregada com sucesso",
     "error": "Não foi possível carregar o ficheiro de atividade",
+    "tooLarge": "O ficheiro é demasiado grande",
     "timeout": "O teu ficheiro ainda está a ser importado. Vai aparecer quando terminar.",
     "failed": {
       "unsupported_format": "Este tipo de ficheiro não é suportado",

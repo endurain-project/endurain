@@ -184,7 +184,8 @@
       "cancel": "Prekliči",
       "close": "Zapri",
       "success": "Uporabnik izbrisan",
-      "error": "Uporabnika ni bilo mogoče izbrisati. Prosim, poskusi znova."
+      "error": "Uporabnika ni bilo mogoče izbrisati. Prosim, poskusi znova.",
+      "failed": "Brisanje uporabnika ni uspelo. Račun ostaja deaktiviran; za ponovni poskus ga izbrišite znova."
     },
     "detail": {
       "back": "Nazaj na uporabnike",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain bo prenehal uvažati iz Garmin Connect. Obstoječi podatki so ohranjeni.",
       "unlinkSuccess": "Garmin Connect odklopljen",
       "unlinkError": "Garmin Connect ni bilo mogoče odklopiti. Prosim, poskusi znova."
-    }
+    },
+    "retrieveFinished": "Pridobivanje vaših podatkov iz {provider} je končano.",
+    "retrieveFailed": "Pridobivanje vaših podatkov iz {provider} ni uspelo. Poskusite znova.",
+    "retrieveAlreadyRunning": "Pridobivanje iz {provider} že poteka. Obvestili vas bomo, ko bo končano."
   },
   "import": {
     "title": "Uvoz",
@@ -1127,7 +1131,14 @@
       "preparing": "Priprava uvoza …",
       "progress": "Uvoženih {done} od {total} datoteke ({failed} neuspešnih)… | Uvoženih {done} od {total} datotek ({failed} neuspešnih)… | Uvoženih {done} od {total} datotek ({failed} neuspešnih)… | Uvoženih {done} od {total} datotek ({failed} neuspešnih)…",
       "finished": "Uvoz je končan: uvoženih {done} od {total} datoteke, {failed} neuspešnih. | Uvoz je končan: uvoženih {done} od {total} datotek, {failed} neuspešnih. | Uvoz je končan: uvoženih {done} od {total} datotek, {failed} neuspešnih. | Uvoz je končan: uvoženih {done} od {total} datotek, {failed} neuspešnih.",
-      "failed": "Uvoza ni bilo mogoče dokončati."
+      "failed": "Uvoza ni bilo mogoče dokončati.",
+      "failure": {
+        "unsupported_format": "Uvoz ni uspel: datoteke so v nepodprti obliki.",
+        "invalid_file": "Uvoz ni uspel: datoteka ni veljavna.",
+        "no_activities_found": "Uvoz ni uspel: najdena ni bila nobena dejavnost.",
+        "processing_failed": "Uvoz ni uspel med obdelavo datotek.",
+        "provider_unavailable": "Uvoz ni uspel: ponudnik ni na voljo. Poskusite znova pozneje."
+      }
     }
   },
   "profile": {

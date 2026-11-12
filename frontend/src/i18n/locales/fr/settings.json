@@ -184,7 +184,8 @@
       "cancel": "Annuler",
       "close": "Fermer",
       "success": "Utilisateur supprimé",
-      "error": "Impossible de supprimer l'utilisateur. Veuillez réessayer."
+      "error": "Impossible de supprimer l'utilisateur. Veuillez réessayer.",
+      "failed": "La suppression de l'utilisateur a échoué. Le compte reste désactivé ; supprimez-le à nouveau pour réessayer."
     },
     "detail": {
       "back": "Retour aux utilisateurs",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain cessera d'importer depuis Garmin Connect. Vos données existantes sont conservées.",
       "unlinkSuccess": "Garmin Connect déconnecté",
       "unlinkError": "Impossible de déconnecter Garmin Connect. Veuillez réessayer."
-    }
+    },
+    "retrieveFinished": "La récupération de vos données depuis {provider} est terminée.",
+    "retrieveFailed": "La récupération de vos données depuis {provider} a échoué. Veuillez réessayer.",
+    "retrieveAlreadyRunning": "Une récupération depuis {provider} est déjà en cours. Vous serez averti à sa fin."
   },
   "import": {
     "title": "Importation",
@@ -1127,7 +1131,14 @@
       "preparing": "Préparation de l'import…",
       "progress": "{done} fichier sur {total} importé ({failed} en échec)… | {done} fichiers sur {total} importés ({failed} en échec)…",
       "finished": "Import terminé : {done} fichier sur {total} importé, {failed} en échec. | Import terminé : {done} fichiers sur {total} importés, {failed} en échec.",
-      "failed": "L'import n'a pas pu être terminé."
+      "failed": "L'import n'a pas pu être terminé.",
+      "failure": {
+        "unsupported_format": "L'importation a échoué : les fichiers ont un format non pris en charge.",
+        "invalid_file": "L'importation a échoué : le fichier n'est pas valide.",
+        "no_activities_found": "L'importation a échoué : aucune activité n'a été trouvée.",
+        "processing_failed": "L'importation a échoué lors du traitement des fichiers.",
+        "provider_unavailable": "L'importation a échoué : le fournisseur est indisponible. Réessayez plus tard."
+      }
     }
   },
   "profile": {

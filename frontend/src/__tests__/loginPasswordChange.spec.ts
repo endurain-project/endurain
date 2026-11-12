@@ -181,7 +181,9 @@ describe('LoginView password-change step', () => {
   })
 
   it('returns to the sign-in form with a message when the challenge is refused', async () => {
-    auth.changePassword.mockRejectedValue(new HttpError(401, 'Unauthorized'))
+    auth.changePassword.mockRejectedValue(
+      new HttpError(401, 'Unauthorized', null, 'urn:endurain:error:unauthorized'),
+    )
     const wrapper = mountView()
     await toPasswordChangeStep(wrapper)
 
@@ -206,7 +208,9 @@ describe('LoginView password-change step', () => {
   })
 
   it('names a refusal that has no password reason', async () => {
-    auth.changePassword.mockRejectedValue(new HttpError(422, 'Unprocessable Content'))
+    auth.changePassword.mockRejectedValue(
+      new HttpError(422, 'Unprocessable Content', null, 'urn:endurain:error:validation-failed'),
+    )
     const wrapper = mountView()
     await toPasswordChangeStep(wrapper)
 

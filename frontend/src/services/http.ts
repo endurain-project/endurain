@@ -49,6 +49,8 @@ export class HttpError extends Error {
    * @param errors - Per-field validation failures of a 422 response; empty otherwise.
    * @param retryAfterSeconds - Seconds the server asked the client to wait (`Retry-After`, as
    *   sent with a 429 or 503); `null` when absent or unusable.
+   * @param jobId - The running job a `409` conflict names (`job_id`), so a client can follow it;
+   *   `null` when the response names none.
    */
   constructor(
     readonly status: number,
@@ -58,6 +60,7 @@ export class HttpError extends Error {
     readonly requestId: string | null = null,
     readonly errors: readonly Schemas['FieldError'][] = [],
     readonly retryAfterSeconds: number | null = null,
+    readonly jobId: string | null = null,
   ) {
     super(getErrorMessage(status, statusText, detail))
     this.name = 'HttpError'
@@ -70,6 +73,7 @@ interface ProblemDocument {
   detail?: unknown
   request_id?: unknown
   errors?: unknown
+  job_id?: unknown
 }
 
 /** The parsed pieces of a failed response the client keeps. */
@@ -78,6 +82,7 @@ interface ParsedError {
   type: string | null
   requestId: string | null
   errors: Schemas['FieldError'][]
+  jobId: string | null
 }
 
 /**
@@ -106,7 +111,7 @@ function getErrorMessage(status: number, statusText: string, detail: unknown): s
  * @returns The problem type, detail and request id, as far as they are present.
  */
 async function parseError(response: Response): Promise<ParsedError> {
-  const empty: ParsedError = { detail: null, type: null, requestId: null, errors: [] }
+  const empty: ParsedError = { detail: null, type: null, requestId: null, errors: [], jobId: null }
   const text = await response.text()
   if (!text) {
     return empty
@@ -118,6 +123,7 @@ async function parseError(response: Response): Promise<ParsedError> {
       type: typeof parsed.type === 'string' ? parsed.type : null,
       requestId: typeof parsed.request_id === 'string' ? parsed.request_id : null,
       errors: Array.isArray(parsed.errors) ? (parsed.errors as Schemas['FieldError'][]) : [],
+      jobId: typeof parsed.job_id === 'string' ? parsed.job_id : null,
     }
   } catch {
     return { ...empty, detail: text }
@@ -270,6 +276,7 @@ async function rawApiFetch<T>(path: string, init: ApiFetchOptions = {}): Promise
       parsed.requestId,
       parsed.errors,
       parseRetryAfter(response.headers.get('Retry-After')),
+      parsed.jobId,
     )
   }
 

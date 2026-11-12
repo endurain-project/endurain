@@ -1,4 +1,5 @@
 import type {
+  ActivityRefreshJob,
   DateRange,
   StravaClientDto,
   StravaClientInput,
@@ -125,25 +126,26 @@ export async function completeStravaLink(
 
 /**
  * Kicks off a background import of Strava activities in the given date window.
- * The work runs server-side; progress arrives over the realtime channel.
  *
  * @param range - The inclusive date window to import.
+ * @returns The queued sync job.
  * @throws {HttpError} When the request fails.
  */
-export async function retrieveStravaActivities(range: DateRange): Promise<void> {
-  await apiFetch(
+export async function retrieveStravaActivities(range: DateRange): Promise<ActivityRefreshJob> {
+  return apiFetch<ActivityRefreshJob>(
     `/strava/activities?start_date=${encodeURIComponent(range.startDate)}&end_date=${encodeURIComponent(range.endDate)}`,
-    { method: 'POST', responseType: 'void' },
+    { method: 'POST' },
   )
 }
 
 /**
  * Kicks off a background import of the user's Strava gear.
  *
- * @throws {HttpError} When the request fails.
+ * @returns The queued sync job.
+ * @throws {HttpError} When the request fails, including 409 while a gear sync is running.
  */
-export async function retrieveStravaGear(): Promise<void> {
-  await apiFetch('/strava/gear', { method: 'POST', responseType: 'void' })
+export async function retrieveStravaGear(): Promise<StravaSyncStatus> {
+  return apiFetch<StravaSyncStatus>('/strava/gear', { method: 'POST' })
 }
 
 /**

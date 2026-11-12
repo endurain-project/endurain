@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ListPanel } from '@/components/ui/list-panel'
 import { useToasts } from '@/composables/useToasts'
-import { HttpError } from '@/services/http'
 import { isStaleWrite } from '@/services/ifMatch'
 import { resumeTargetId, useAdminStepUp } from '@/features/security/composables/useAdminStepUp'
 import {
@@ -184,11 +183,7 @@ function confirmToggle(stepUp: StepUpInput): void {
         }
         isToggleStepUpOpen.value = false
         toasts.error(
-          t(
-            error instanceof HttpError && error.status === 412
-              ? 'settings.idp.form.staleError'
-              : 'settings.idp.toggleError',
-          ),
+          t(isStaleWrite(error) ? 'settings.idp.form.staleError' : 'settings.idp.toggleError'),
         )
       },
       onSettled: () => {

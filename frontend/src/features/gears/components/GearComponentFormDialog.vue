@@ -12,8 +12,9 @@ import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { useUnitFormat } from '@/composables/useUnitFormat'
-import { HttpError } from '@/services/http'
+import { isProblem } from '@/services/problems'
 import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
@@ -172,16 +173,21 @@ async function submitForm(values: ComponentFormValues): Promise<void> {
     }
     open.value = false
   } catch (error) {
+    if (applyServerFieldErrors(error, setErrors, t, FORM_KEYS)) {
+      return
+    }
     if (isStaleWrite(error)) {
       open.value = false
       emit('error', t('app.staleError'))
-    } else if (error instanceof HttpError && error.status === 400) {
+    } else if (isProblem(error, 'invalid-input')) {
       emit('error', t('gears.components.form.retiredBeforePurchase'))
     } else {
       emit('error', t('gears.components.form.saveError'))
     }
   }
 }
+
+const FORM_KEYS = ['type', 'brand', 'model', 'purchaseDate'] as const
 
 const {
   values,
@@ -190,6 +196,7 @@ const {
   isSubmitting,
   handleSubmit,
   handleBlur,
+  setErrors,
   reset,
   isDirty,
   markPristine,

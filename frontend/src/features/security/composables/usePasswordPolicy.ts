@@ -65,7 +65,7 @@ export function usePasswordPolicy(accessType: MaybeRefOrGetter<string>) {
    *   password refusals, so the caller keeps its own handling.
    */
   function policyError(error: unknown): string | null {
-    if (!(error instanceof HttpError) || error.status !== 422) {
+    if (!(error instanceof HttpError)) {
       return null
     }
     switch (error.type) {

@@ -16,6 +16,7 @@ import { FormField } from '@/components/ui/form-field'
 import { Select } from '@/components/ui/select'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { useUnitFormat } from '@/composables/useUnitFormat'
 import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
@@ -178,6 +179,9 @@ async function submitForm(values: GoalFormValues): Promise<void> {
     }
     open.value = false
   } catch (error) {
+    if (applyServerFieldErrors(error, setErrors, t, FORM_KEYS, GOAL_TARGET_FIELDS)) {
+      return
+    }
     if (isStaleWrite(error)) {
       open.value = false
     }
@@ -185,7 +189,27 @@ async function submitForm(values: GoalFormValues): Promise<void> {
   }
 }
 
-const { values, isSubmitting, handleSubmit, reset, isDirty, markPristine } =
+/** The form key each metric's target is shown under. */
+const TARGET_KEY_BY_METRIC = {
+  calories: 'calories',
+  activities: 'activitiesNumber',
+  distance: 'distance',
+  elevation: 'elevation',
+  duration: 'durationHours',
+} as const satisfies Record<GoalMetric, keyof GoalFormValues>
+
+/** API goal fields mapped to the form key of the target they set. */
+const GOAL_TARGET_FIELDS = {
+  goal_calories: 'calories',
+  goal_activities_number: 'activitiesNumber',
+  goal_distance: 'distance',
+  goal_elevation: 'elevation',
+  goal_duration: 'durationHours',
+} as const
+
+const FORM_KEYS = Object.values(TARGET_KEY_BY_METRIC)
+
+const { values, errors, isSubmitting, handleSubmit, reset, isDirty, markPristine, setErrors } =
   useForm<GoalFormValues>({
     initialValues: defaultValues(),
     onSubmit: submitForm,
@@ -202,10 +226,13 @@ const canSubmit = computed(() => {
   return base !== null && base > 0
 })
 
-/** Explains why Save is disabled when the target is filled in but not positive. */
+/** Explains why Save is disabled, or why the server refused the target. */
 const targetError = computed(() => {
   const base = targetBaseUnits(values)
-  return base !== null && base <= 0 ? t('settings.goals.form.targetInvalid') : undefined
+  if (base !== null && base <= 0) {
+    return t('settings.goals.form.targetInvalid')
+  }
+  return errors.value[TARGET_KEY_BY_METRIC[values.goalType]]
 })
 
 const distanceUnit = computed(() => unitLabel(props.units === 'imperial' ? 'mi' : 'km'))

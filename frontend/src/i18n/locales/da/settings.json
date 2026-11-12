@@ -184,7 +184,8 @@
       "cancel": "Annullér",
       "close": "Luk",
       "success": "Bruger slettet",
-      "error": "Kunne ikke slette brugeren. Prøv venligst igen."
+      "error": "Kunne ikke slette brugeren. Prøv venligst igen.",
+      "failed": "Sletningen af brugeren mislykkedes. Kontoen forbliver deaktiveret; slet den igen for at prøve igen."
     },
     "detail": {
       "back": "Tilbage til brugere",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain holder op med at importere fra Garmin Connect. Dine eksisterende data beholdes.",
       "unlinkSuccess": "Garmin Connect-forbindelse afbrudt",
       "unlinkError": "Kunne ikke afbryde forbindelsen til Garmin Connect. Prøv venligst igen."
-    }
+    },
+    "retrieveFinished": "Hentningen af dine data fra {provider} er færdig.",
+    "retrieveFailed": "Hentningen af dine data fra {provider} mislykkedes. Prøv igen.",
+    "retrieveAlreadyRunning": "En hentning fra {provider} kører allerede. Du får besked, når den er færdig."
   },
   "import": {
     "title": "Importér",
@@ -1127,7 +1131,14 @@
       "preparing": "Forbereder importen…",
       "progress": "Importeret {done} af {total} fil ({failed} mislykkedes)… | Importeret {done} af {total} filer ({failed} mislykkedes)…",
       "finished": "Importen er færdig: {done} af {total} fil importeret, {failed} mislykkedes. | Importen er færdig: {done} af {total} filer importeret, {failed} mislykkedes.",
-      "failed": "Importen kunne ikke gennemføres."
+      "failed": "Importen kunne ikke gennemføres.",
+      "failure": {
+        "unsupported_format": "Importen mislykkedes: filerne har et format, der ikke understøttes.",
+        "invalid_file": "Importen mislykkedes: filen er ikke gyldig.",
+        "no_activities_found": "Importen mislykkedes: der blev ikke fundet nogen aktiviteter.",
+        "processing_failed": "Importen mislykkedes under behandlingen af filerne.",
+        "provider_unavailable": "Importen mislykkedes: udbyderen er ikke tilgængelig. Prøv igen senere."
+      }
     }
   },
   "profile": {

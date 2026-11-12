@@ -184,7 +184,8 @@
       "cancel": "Anulează",
       "close": "Închide",
       "success": "Utilizator șters",
-      "error": "Nu am putut șterge utilizatorul. Te rugăm să încerci din nou."
+      "error": "Nu am putut șterge utilizatorul. Te rugăm să încerci din nou.",
+      "failed": "Ștergerea utilizatorului a eșuat. Contul rămâne dezactivat; șterge-l din nou pentru a reîncerca."
     },
     "detail": {
       "back": "Înapoi la utilizatori",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain va înceta să importe din Garmin Connect. Datele tale existente sunt păstrate.",
       "unlinkSuccess": "Garmin Connect deconectat",
       "unlinkError": "Nu am putut deconecta Garmin Connect. Te rugăm să încerci din nou."
-    }
+    },
+    "retrieveFinished": "Preluarea datelor tale din {provider} s-a încheiat.",
+    "retrieveFailed": "Preluarea datelor tale din {provider} a eșuat. Încearcă din nou.",
+    "retrieveAlreadyRunning": "O preluare din {provider} este deja în curs. Vei fi notificat când se încheie."
   },
   "import": {
     "title": "Import",
@@ -1127,7 +1131,14 @@
       "preparing": "Se pregătește importul…",
       "progress": "Importate {done} din {total} fișier ({failed} eșuate)… | Importate {done} din {total} fișiere ({failed} eșuate)… | Importate {done} din {total} de fișiere ({failed} eșuate)…",
       "finished": "Import finalizat: {done} din {total} fișier importate, {failed} eșuate. | Import finalizat: {done} din {total} fișiere importate, {failed} eșuate. | Import finalizat: {done} din {total} de fișiere importate, {failed} eșuate.",
-      "failed": "Importul nu a putut fi finalizat."
+      "failed": "Importul nu a putut fi finalizat.",
+      "failure": {
+        "unsupported_format": "Importul a eșuat: fișierele au un format neacceptat.",
+        "invalid_file": "Importul a eșuat: fișierul nu este valid.",
+        "no_activities_found": "Importul a eșuat: nu au fost găsite activități.",
+        "processing_failed": "Importul a eșuat în timpul procesării fișierelor.",
+        "provider_unavailable": "Importul a eșuat: furnizorul nu este disponibil. Încearcă din nou mai târziu."
+      }
     }
   },
   "profile": {

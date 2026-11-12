@@ -18,6 +18,7 @@ import {
 import { uploadActivityFile } from '@/features/upload/services/upload'
 import type { ActivityIngestionJob } from '@/features/upload/types'
 import { invalidateActivityData } from '@/composables/useInvalidatingMutation'
+import { isProblem, retryWaitMessage } from '@/services/problems'
 import { followJob, JobTimeoutError } from '@/services/jobStatus'
 import { queryKeys } from '@/services/queryKeys'
 
@@ -69,6 +70,40 @@ export class IngestionJobTimeoutError extends Error {
     super('Timed out waiting for the activity import to finish.')
     this.name = 'IngestionJobTimeoutError'
   }
+}
+
+/**
+ * Maps an upload failure to a user-facing message. The request itself can be refused (too large,
+ * unsupported, throttled), the background parse reports a closed set of sanitized codes, and a
+ * timeout is not a failure because the import may still succeed.
+ *
+ * @param error - The error the upload mutation rejected with.
+ * @param t - The translate function.
+ * @returns The localized message to show.
+ */
+export function uploadErrorMessage(
+  error: unknown,
+  t: (key: string, params?: { seconds: number }) => string,
+): string {
+  if (error instanceof IngestionJobTimeoutError) {
+    return t('home.upload.timeout')
+  }
+  if (error instanceof IngestionJobFailedError && error.code) {
+    return t(`home.upload.failed.${error.code}`)
+  }
+  if (isProblem(error, 'payload-too-large')) {
+    return t('home.upload.tooLarge')
+  }
+  if (isProblem(error, 'unsupported-format', 'unsupported-media-type')) {
+    return t('home.upload.failed.unsupported_format')
+  }
+  if (isProblem(error, 'invalid-input')) {
+    return t('home.upload.failed.invalid_file')
+  }
+  if (isProblem(error, 'rate-limited')) {
+    return retryWaitMessage(error, t) ?? t('home.upload.error')
+  }
+  return t('home.upload.error')
 }
 
 /**

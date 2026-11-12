@@ -184,7 +184,8 @@
       "cancel": "İptal",
       "close": "Kapat",
       "success": "Kullanıcı silindi",
-      "error": "Kullanıcı silinemedi. Lütfen tekrar deneyin."
+      "error": "Kullanıcı silinemedi. Lütfen tekrar deneyin.",
+      "failed": "Kullanıcı silinemedi. Hesap devre dışı kalır; yeniden denemek için tekrar silin."
     },
     "detail": {
       "back": "Kullanıcılara geri dön",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain, Garmin Connect'ten içe aktarmayı durduracak. Mevcut verileriniz korunur.",
       "unlinkSuccess": "Garmin Connect bağlantısı kesildi",
       "unlinkError": "Garmin Connect bağlantısı kesilemedi. Lütfen tekrar deneyin."
-    }
+    },
+    "retrieveFinished": "{provider} verilerinizin alınması tamamlandı.",
+    "retrieveFailed": "{provider} verileriniz alınamadı. Lütfen tekrar deneyin.",
+    "retrieveAlreadyRunning": "{provider} için bir veri alma işlemi zaten çalışıyor. Bittiğinde bilgilendirileceksiniz."
   },
   "import": {
     "title": "İçe aktar",
@@ -1127,7 +1131,14 @@
       "preparing": "İçe aktarma hazırlanıyor…",
       "progress": "{total} dosyadan {done} tanesi içe aktarıldı ({failed} başarısız)… | {total} dosyadan {done} tanesi içe aktarıldı ({failed} başarısız)…",
       "finished": "İçe aktarma tamamlandı: {total} dosyadan {done} tanesi içe aktarıldı, {failed} başarısız. | İçe aktarma tamamlandı: {total} dosyadan {done} tanesi içe aktarıldı, {failed} başarısız.",
-      "failed": "İçe aktarma tamamlanamadı."
+      "failed": "İçe aktarma tamamlanamadı.",
+      "failure": {
+        "unsupported_format": "İçe aktarma başarısız oldu: dosyaların biçimi desteklenmiyor.",
+        "invalid_file": "İçe aktarma başarısız oldu: dosya geçerli değil.",
+        "no_activities_found": "İçe aktarma başarısız oldu: hiç etkinlik bulunamadı.",
+        "processing_failed": "İçe aktarma, dosyalar işlenirken başarısız oldu.",
+        "provider_unavailable": "İçe aktarma başarısız oldu: sağlayıcı kullanılamıyor. Lütfen daha sonra tekrar deneyin."
+      }
     }
   },
   "profile": {

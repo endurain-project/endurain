@@ -9,8 +9,9 @@ import type {
 } from '@/features/gears/types'
 import type { Schemas } from '@/types'
 
-import { apiFetch, HttpError } from '@/services/http'
-import { ifMatchHeaders } from '@/services/ifMatch'
+import { apiFetch } from '@/services/http'
+import { isProblem } from '@/services/problems'
+import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
 import { fetchAllPages } from '@/services/pagination'
 import { moneyToNumber, numberToMoney } from '@/utils/number'
 
@@ -49,7 +50,7 @@ export function mapGear(dto: GearDto): Gear {
     purchaseValue: moneyToNumber(dto.purchase_value),
     stravaGearId: dto.strava_gear_id ?? null,
     garminConnectGearId: dto.garminconnect_gear_id ?? null,
-    version: dto.version ?? 1,
+    version: rowVersion(dto.version),
   }
 }
 
@@ -165,7 +166,7 @@ export async function fetchGearById(id: number, signal?: AbortSignal): Promise<G
     const dto = await apiFetch<GearDetailDto | null>(`/gears/${id}`, { signal })
     return dto ? mapGearDetail(dto) : null
   } catch (error) {
-    if (error instanceof HttpError && error.status === 404) return null
+    if (isProblem(error, 'not-found')) return null
     throw error
   }
 }

@@ -65,5 +65,9 @@
       "good": "Bona",
       "strong": "Forta"
     }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Massa intents. Torna-ho a provar d'aquí a {seconds} segons.",
+    "unavailable": "L'autenticació no està disponible temporalment. Torna-ho a provar d'aquí a {seconds} segons."
   }
 }

@@ -184,7 +184,8 @@
       "cancel": "Mégse",
       "close": "Bezárás",
       "success": "Felhasználó törölve",
-      "error": "Nem sikerült törölni a felhasználót. Kérjük, próbáld újra."
+      "error": "Nem sikerült törölni a felhasználót. Kérjük, próbáld újra.",
+      "failed": "A felhasználó törlése nem sikerült. A fiók inaktív marad; az újrapróbálkozáshoz töröld újra."
     },
     "detail": {
       "back": "Vissza a felhasználókhoz",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Az Endurain leállítja az importálást a Garmin Connectből. A meglévő adataid megmaradnak.",
       "unlinkSuccess": "Garmin Connect lecsatlakoztatva",
       "unlinkError": "Nem sikerült lecsatlakoztatni a Garmin Connectet. Kérjük, próbáld újra."
-    }
+    },
+    "retrieveFinished": "A(z) {provider} adatainak lekérése befejeződött.",
+    "retrieveFailed": "A(z) {provider} adatainak lekérése nem sikerült. Kérjük, próbáld újra.",
+    "retrieveAlreadyRunning": "A(z) {provider} szolgáltatásból már folyik egy lekérés. Értesítünk, amikor befejeződik."
   },
   "import": {
     "title": "Importálás",
@@ -1127,7 +1131,14 @@
       "preparing": "Az importálás előkészítése…",
       "progress": "{total} fájlból {done} importálva ({failed} sikertelen)… | {total} fájlból {done} importálva ({failed} sikertelen)…",
       "finished": "Az importálás befejeződött: {total} fájlból {done} importálva, {failed} sikertelen. | Az importálás befejeződött: {total} fájlból {done} importálva, {failed} sikertelen.",
-      "failed": "Az importálást nem sikerült befejezni."
+      "failed": "Az importálást nem sikerült befejezni.",
+      "failure": {
+        "unsupported_format": "Az importálás nem sikerült: a fájlok formátuma nem támogatott.",
+        "invalid_file": "Az importálás nem sikerült: a fájl érvénytelen.",
+        "no_activities_found": "Az importálás nem sikerült: nem található tevékenység.",
+        "processing_failed": "Az importálás nem sikerült a fájlok feldolgozása közben.",
+        "provider_unavailable": "Az importálás nem sikerült: a szolgáltató nem érhető el. Próbáld újra később."
+      }
     }
   },
   "profile": {

@@ -1,9 +1,9 @@
-import { watch, type Ref } from 'vue'
+import { computed, ref, watch, type Ref } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 
 import { invalidateActivityData } from '@/composables/useInvalidatingMutation'
-import { useJobQuery } from '@/composables/useJobQuery'
-import { isTerminalJobState, seedJob } from '@/services/jobStatus'
+import { useJobQuery, useLatestJobQuery } from '@/composables/useJobQuery'
+import { isTerminalJobState, refreshLatestJobOnConflict, seedJob } from '@/services/jobStatus'
 import { queryKeys } from '@/services/queryKeys'
 import {
   type BulkImportSource,
@@ -22,6 +22,7 @@ export function useBulkImportFromFolderMutation() {
   return useMutation<ActivityIngestionJob, Error, BulkImportSource>({
     mutationFn: (source) => bulkImportFromFolder(source),
     onSuccess: (job) => seedJob(client, job),
+    onError: (error) => refreshLatestJobOnConflict(client, 'activity_bulk_import', error),
   })
 }
 
@@ -29,8 +30,12 @@ export function useBulkImportFromFolderMutation() {
 export function useBulkImportFromArchiveMutation() {
   const client = useQueryClient()
   return useMutation<ActivityIngestionJob, Error, { file: File; source: BulkImportSource }>({
-    mutationFn: ({ file, source }) => bulkImportFromArchive(file, source),
+    // One key per submit, so a replay of this same request (the 401-refresh retry inside apiFetch)
+    // is answered with the original import instead of starting another.
+    mutationFn: ({ file, source }) =>
+      bulkImportFromArchive(file, source, { idempotencyKey: crypto.randomUUID() }),
     onSuccess: (job) => seedJob(client, job),
+    onError: (error) => refreshLatestJobOnConflict(client, 'activity_bulk_import', error),
   })
 }
 
@@ -57,6 +62,43 @@ export function useBulkImportJobQuery(jobId: Ref<string | null>) {
     },
   )
   return query
+}
+
+/**
+ * Finds the user's latest bulk import of one source and follows it to a terminal state, so an
+ * import started earlier (a page reload, another tab) shows again while it runs. An import that
+ * was already finished when first read is not shown; one seen running, started here or named by
+ * a 409 stays visible after it ends, so the user sees the outcome. An import of the other source
+ * is ignored.
+ *
+ * @param source - The archive layout this screen imports.
+ * @returns The import job's current state, or `null` when there is none to show.
+ */
+export function useBulkImportJob(source: BulkImportSource) {
+  const latest = useLatestJobQuery('activity_bulk_import')
+  const mine = computed(() => {
+    const job = latest.data.value
+    return job && job.import_source === source ? job : null
+  })
+  const jobId = computed(() => mine.value?.id ?? null)
+  const followed = useBulkImportJobQuery(jobId)
+  const current = computed(() => followed.data.value ?? mine.value)
+
+  const seenActiveId = ref<string | null>(null)
+  watch(
+    current,
+    (job) => {
+      if (job && !isTerminalJobState(job.status)) {
+        seenActiveId.value = job.id
+      }
+    },
+    { immediate: true },
+  )
+
+  return computed(() => {
+    const job = current.value
+    return job && (!isTerminalJobState(job.status) || seenActiveId.value === job.id) ? job : null
+  })
 }
 
 /** Imports Strava bikes from an uploaded CSV; refreshes gear lists on success. */

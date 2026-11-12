@@ -14,6 +14,8 @@ vi.mock('@/services/http', () => {
     constructor(
       public status: number,
       message?: string,
+      public detail: unknown = null,
+      public type: string | null = null,
     ) {
       super(message)
     }
@@ -164,7 +166,9 @@ describe('HealthSleepFormDialog stage consistency', () => {
   })
 
   it('shows a specific message when the server refuses the figures', async () => {
-    vi.mocked(apiFetch).mockRejectedValue(new HttpError(400, 'Bad Request'))
+    vi.mocked(apiFetch).mockRejectedValue(
+      new HttpError(400, 'Bad Request', null, 'urn:endurain:error:invalid-input'),
+    )
     const wrapper = await openDialog()
     await setInput(wrapper, 'input[type="number"]', '7')
     await submit(wrapper)

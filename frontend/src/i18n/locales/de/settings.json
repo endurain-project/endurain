@@ -184,7 +184,8 @@
       "cancel": "Abbrechen",
       "close": "Schließen",
       "success": "Benutzer gelöscht",
-      "error": "Benutzer konnte nicht gelöscht werden. Bitte versuche es erneut."
+      "error": "Benutzer konnte nicht gelöscht werden. Bitte versuche es erneut.",
+      "failed": "Das Löschen des Benutzers ist fehlgeschlagen. Das Konto bleibt deaktiviert; lösche es erneut, um es noch einmal zu versuchen."
     },
     "detail": {
       "back": "Zurück zu den Benutzern",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain stoppt den Import von Garmin Connect. Deine bestehenden Daten bleiben erhalten.",
       "unlinkSuccess": "Garmin Connect getrennt",
       "unlinkError": "Garmin Connect konnte nicht getrennt werden. Bitte versuche es erneut."
-    }
+    },
+    "retrieveFinished": "Der Abruf deiner Daten von {provider} ist abgeschlossen.",
+    "retrieveFailed": "Der Abruf deiner Daten von {provider} ist fehlgeschlagen. Bitte versuche es erneut.",
+    "retrieveAlreadyRunning": "Ein Abruf von {provider} läuft bereits. Du wirst benachrichtigt, sobald er abgeschlossen ist."
   },
   "import": {
     "title": "Import",
@@ -1127,7 +1131,14 @@
       "preparing": "Import wird vorbereitet…",
       "progress": "{done} von {total} Datei importiert ({failed} fehlgeschlagen)… | {done} von {total} Dateien importiert ({failed} fehlgeschlagen)…",
       "finished": "Import abgeschlossen: {done} von {total} Datei importiert, {failed} fehlgeschlagen. | Import abgeschlossen: {done} von {total} Dateien importiert, {failed} fehlgeschlagen.",
-      "failed": "Der Import konnte nicht abgeschlossen werden."
+      "failed": "Der Import konnte nicht abgeschlossen werden.",
+      "failure": {
+        "unsupported_format": "Der Import ist fehlgeschlagen: Die Dateien haben ein nicht unterstütztes Format.",
+        "invalid_file": "Der Import ist fehlgeschlagen: Die Datei ist ungültig.",
+        "no_activities_found": "Der Import ist fehlgeschlagen: Es wurden keine Aktivitäten gefunden.",
+        "processing_failed": "Der Import ist bei der Verarbeitung der Dateien fehlgeschlagen.",
+        "provider_unavailable": "Der Import ist fehlgeschlagen: Der Anbieter ist nicht erreichbar. Versuche es später erneut."
+      }
     }
   },
   "profile": {

@@ -4,6 +4,7 @@
     "uploading": "Otpremanje…",
     "success": "Aktivnost je uspešno otpremljena",
     "error": "Nije moguće otpremiti datoteku aktivnosti",
+    "tooLarge": "Датотека је превелика",
     "timeout": "Vaša datoteka se još uvozi. Pojaviće se kada se završi.",
     "failed": {
       "unsupported_format": "Ova vrsta datoteke nije podržana",

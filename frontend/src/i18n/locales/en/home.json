@@ -4,6 +4,7 @@
     "uploading": "Importing…",
     "success": "Activity uploaded successfully",
     "error": "Could not upload the activity file",
+    "tooLarge": "That file is too large",
     "timeout": "Your file is still importing. It will appear once it finishes.",
     "failed": {
       "unsupported_format": "That file type is not supported",

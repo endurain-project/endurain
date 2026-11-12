@@ -10,6 +10,7 @@ import {
   useProfileImportQuery,
 } from '@/features/profile/composables/useDataTransfer'
 import { importProfileData } from '@/features/profile/services/dataTransfer'
+import { HttpError } from '@/services/http'
 import { fetchJob, listJobs } from '@/services/jobStatus'
 import { queryKeys } from '@/services/queryKeys'
 
@@ -119,5 +120,31 @@ describe('profile import composables', () => {
     await flushPromises()
 
     expect(invalidate).not.toHaveBeenCalled()
+  })
+
+  it('picks up the import a 409 names by reading the latest import again', async () => {
+    vi.mocked(listJobs).mockResolvedValue({ items: [], num_records: 0 })
+    vi.mocked(fetchJob).mockResolvedValue(running)
+    vi.mocked(importProfileData).mockRejectedValue(
+      new HttpError(
+        409,
+        'Conflict',
+        null,
+        'urn:endurain:error:conflict',
+        null,
+        [],
+        null,
+        'import-1',
+      ),
+    )
+    const { mutation, job } = mountComposables(new QueryClient())
+    await flushPromises()
+    expect(job.value).toBeNull()
+
+    vi.mocked(listJobs).mockResolvedValue({ items: [running], num_records: 1 })
+    await expect(mutation.mutateAsync(new File(['x'], 'a.zip'))).rejects.toBeInstanceOf(HttpError)
+    await flushPromises()
+
+    expect(job.value?.id).toBe('import-1')
   })
 })

@@ -184,7 +184,8 @@
       "cancel": "Zrušiť",
       "close": "Zavrieť",
       "success": "Používateľ odstránený",
-      "error": "Používateľa sa nepodarilo odstrániť. Skúste to znova."
+      "error": "Používateľa sa nepodarilo odstrániť. Skúste to znova.",
+      "failed": "Odstránenie používateľa zlyhalo. Účet zostáva deaktivovaný; odstráňte ho znova a skúste to opäť."
     },
     "detail": {
       "back": "Späť na používateľov",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain prestane importovať z Garmin Connect. Vaše existujúce údaje zostanú zachované.",
       "unlinkSuccess": "Garmin Connect odpojený",
       "unlinkError": "Garmin Connect sa nepodarilo odpojiť. Skúste to znova."
-    }
+    },
+    "retrieveFinished": "Načítanie vašich údajov z {provider} sa skončilo.",
+    "retrieveFailed": "Načítanie vašich údajov z {provider} zlyhalo. Skúste to znova.",
+    "retrieveAlreadyRunning": "Načítanie z {provider} už prebieha. Po jeho dokončení dostanete upozornenie."
   },
   "import": {
     "title": "Import",
@@ -1127,7 +1131,14 @@
       "preparing": "Pripravuje sa import…",
       "progress": "Importovaných {done} z {total} súboru ({failed} zlyhalo)… | Importovaných {done} z {total} súborov ({failed} zlyhalo)… | Importovaných {done} z {total} súborov ({failed} zlyhalo)…",
       "finished": "Import dokončený: importovaných {done} z {total} súboru, {failed} zlyhalo. | Import dokončený: importovaných {done} z {total} súborov, {failed} zlyhalo. | Import dokončený: importovaných {done} z {total} súborov, {failed} zlyhalo.",
-      "failed": "Import sa nepodarilo dokončiť."
+      "failed": "Import sa nepodarilo dokončiť.",
+      "failure": {
+        "unsupported_format": "Import zlyhal: súbory majú nepodporovaný formát.",
+        "invalid_file": "Import zlyhal: súbor nie je platný.",
+        "no_activities_found": "Import zlyhal: nenašli sa žiadne aktivity.",
+        "processing_failed": "Import zlyhal pri spracovaní súborov.",
+        "provider_unavailable": "Import zlyhal: poskytovateľ nie je dostupný. Skúste to neskôr."
+      }
     }
   },
   "profile": {

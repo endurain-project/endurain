@@ -138,17 +138,23 @@ describe('strava service', () => {
     })
   })
 
-  it('retrieveStravaActivities POSTs the activities path with the window', async () => {
-    await retrieveStravaActivities(range)
+  it('retrieveStravaActivities POSTs the activities path with the window and returns the queued job', async () => {
+    const job = { id: 'job-3', kind: 'activity_refresh', status: 'queued' }
+    vi.mocked(apiFetch).mockResolvedValueOnce(job)
+
+    await expect(retrieveStravaActivities(range)).resolves.toBe(job)
     expect(apiFetch).toHaveBeenCalledWith(
       '/strava/activities?start_date=2026-01-01&end_date=2026-01-07',
-      { method: 'POST', responseType: 'void' },
+      { method: 'POST' },
     )
   })
 
-  it('retrieveStravaGear POSTs the gear path', async () => {
-    await retrieveStravaGear()
-    expect(apiFetch).toHaveBeenCalledWith('/strava/gear', { method: 'POST', responseType: 'void' })
+  it('retrieveStravaGear POSTs the gear path and returns the queued job', async () => {
+    const job = { id: 'job-4', kind: 'strava_gear', status: 'queued' }
+    vi.mocked(apiFetch).mockResolvedValueOnce(job)
+
+    await expect(retrieveStravaGear()).resolves.toBe(job)
+    expect(apiFetch).toHaveBeenCalledWith('/strava/gear', { method: 'POST' })
   })
 
   describe('unlinkStrava', () => {
@@ -252,27 +258,33 @@ describe('garmin service', () => {
     })
   })
 
-  it('retrieveGarminActivities POSTs the activities path with the window', async () => {
-    await retrieveGarminActivities(range)
+  it('retrieveGarminActivities POSTs the activities path with the window and returns the queued job', async () => {
+    const job = { id: 'job-5', kind: 'activity_refresh', status: 'queued' }
+    vi.mocked(apiFetch).mockResolvedValueOnce(job)
+
+    await expect(retrieveGarminActivities(range)).resolves.toBe(job)
     expect(apiFetch).toHaveBeenCalledWith(
       '/garmin/activities?start_date=2026-01-01&end_date=2026-01-07',
-      { method: 'POST', responseType: 'void' },
+      { method: 'POST' },
     )
   })
 
-  it('retrieveGarminGear POSTs the gear path', async () => {
-    await retrieveGarminGear()
-    expect(apiFetch).toHaveBeenCalledWith('/garmin/gear', {
-      method: 'POST',
-      responseType: 'void',
-    })
+  it('retrieveGarminGear POSTs the gear path and returns the queued job', async () => {
+    const job = { id: 'job-6', kind: 'garmin_sync_gear', status: 'queued' }
+    vi.mocked(apiFetch).mockResolvedValueOnce(job)
+
+    await expect(retrieveGarminGear()).resolves.toBe(job)
+    expect(apiFetch).toHaveBeenCalledWith('/garmin/gear', { method: 'POST' })
   })
 
-  it('retrieveGarminHealth POSTs the health path with the window', async () => {
-    await retrieveGarminHealth(range)
+  it('retrieveGarminHealth POSTs the health path with the window and returns the queued job', async () => {
+    const job = { id: 'job-7', kind: 'garmin_sync_health', status: 'queued' }
+    vi.mocked(apiFetch).mockResolvedValueOnce(job)
+
+    await expect(retrieveGarminHealth(range)).resolves.toBe(job)
     expect(apiFetch).toHaveBeenCalledWith(
       '/garmin/health?start_date=2026-01-01&end_date=2026-01-07',
-      { method: 'POST', responseType: 'void' },
+      { method: 'POST' },
     )
   })
 

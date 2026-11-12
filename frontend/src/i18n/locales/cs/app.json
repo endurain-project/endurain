@@ -65,5 +65,9 @@
       "good": "Dobré",
       "strong": "Silné"
     }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Příliš mnoho pokusů. Zkuste to znovu za {seconds} s.",
+    "unavailable": "Ověřování je dočasně nedostupné. Zkuste to znovu za {seconds} s."
   }
 }

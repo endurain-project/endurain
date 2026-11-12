@@ -184,7 +184,8 @@
       "cancel": "Otkaži",
       "close": "Zatvori",
       "success": "Korisnik je obrisan",
-      "error": "Nije moguće obrisati korisnika. Pokušajte ponovo."
+      "error": "Nije moguće obrisati korisnika. Pokušajte ponovo.",
+      "failed": "Brisanje korisnika nije uspelo. Nalog ostaje deaktiviran; obrišite ga ponovo da biste pokušali opet."
     },
     "detail": {
       "back": "Nazad na korisnike",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain će prestati da uvozi iz Garmin Connect. Vaši postojeći podaci se zadržavaju.",
       "unlinkSuccess": "Veza sa Garmin Connect je prekinuta",
       "unlinkError": "Nije moguće prekinuti vezu sa Garmin Connect. Pokušajte ponovo."
-    }
+    },
+    "retrieveFinished": "Preuzimanje vaših podataka sa {provider} je završeno.",
+    "retrieveFailed": "Preuzimanje vaših podataka sa {provider} nije uspelo. Pokušajte ponovo.",
+    "retrieveAlreadyRunning": "Preuzimanje sa {provider} već je u toku. Obavestićemo vas kada se završi."
   },
   "import": {
     "title": "Uvoz",
@@ -1127,7 +1131,14 @@
       "preparing": "Priprema uvoza…",
       "progress": "Uvezeno {done} od {total} datoteke ({failed} neuspešno)… | Uvezeno {done} od {total} datoteke ({failed} neuspešno)… | Uvezeno {done} od {total} datoteka ({failed} neuspešno)…",
       "finished": "Uvoz je završen: uvezeno {done} od {total} datoteke, {failed} neuspešno. | Uvoz je završen: uvezeno {done} od {total} datoteke, {failed} neuspešno. | Uvoz je završen: uvezeno {done} od {total} datoteka, {failed} neuspešno.",
-      "failed": "Uvoz nije mogao da se završi."
+      "failed": "Uvoz nije mogao da se završi.",
+      "failure": {
+        "unsupported_format": "Uvoz nije uspeo: datoteke su u formatu koji nije podržan.",
+        "invalid_file": "Uvoz nije uspeo: datoteka nije ispravna.",
+        "no_activities_found": "Uvoz nije uspeo: nijedna aktivnost nije pronađena.",
+        "processing_failed": "Uvoz nije uspeo tokom obrade datoteka.",
+        "provider_unavailable": "Uvoz nije uspeo: provajder nije dostupan. Pokušajte ponovo kasnije."
+      }
     }
   },
   "profile": {

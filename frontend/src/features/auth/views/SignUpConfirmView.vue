@@ -19,6 +19,7 @@ import {
   usePasswordPolicy,
 } from '@/features/security/composables/usePasswordPolicy'
 import { HttpError } from '@/services/http'
+import { isProblem } from '@/services/problems'
 import { confirmSignUp } from '@/features/auth/services/signUp'
 import { compose, required } from '@/utils/validators'
 
@@ -63,8 +64,12 @@ async function submitPassword(formValues: ChoosePasswordValues): Promise<void> {
     verifyCredential.clear()
     status.value = 'success'
   } catch (error) {
-    if (error instanceof HttpError && error.status === 422) {
-      throw new Error(policyError(error) ?? t('resetPassword.errorWeakPassword'))
+    const refusal = policyError(error)
+    if (refusal !== null) {
+      throw new Error(refusal)
+    }
+    if (isProblem(error, 'validation-failed')) {
+      throw new Error(t('resetPassword.errorWeakPassword'))
     }
     if (error instanceof HttpError && error.type === SIGN_UP_DISABLED_TYPE) {
       signUpDisabled.value = true
@@ -76,12 +81,12 @@ async function submitPassword(formValues: ChoosePasswordValues): Promise<void> {
       showError(t('verifyEmail.errorVerificationDisabled'))
       return
     }
-    if (error instanceof HttpError && error.status === 404) {
+    if (isProblem(error, 'not-found')) {
       verifyCredential.clear()
       showError(t('verifyEmail.errorNotFound'))
       return
     }
-    if (error instanceof HttpError && error.status === 400) {
+    if (isProblem(error, 'invalid-input')) {
       verifyCredential.clear()
       showError(t('verifyEmail.errorInvalidToken'))
       return

@@ -65,5 +65,9 @@
       "good": "Buena",
       "strong": "Fuerte"
     }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Demasiados intentos. Inténtalo de nuevo en {seconds} segundos.",
+    "unavailable": "La autenticación no está disponible temporalmente. Inténtalo de nuevo en {seconds} segundos."
   }
 }

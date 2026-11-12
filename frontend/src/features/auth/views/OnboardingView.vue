@@ -25,6 +25,7 @@ import {
   usePasswordPolicy,
 } from '@/features/security/composables/usePasswordPolicy'
 import { HttpError } from '@/services/http'
+import { isProblem, retryWaitMessage } from '@/services/problems'
 import { queryKeys } from '@/services/queryKeys'
 import { compose, email, required } from '@/utils/validators'
 
@@ -73,18 +74,27 @@ function getOnboardingErrorMessage(error: unknown): string {
   if (!(error instanceof HttpError)) {
     return t('login.onboarding.errorGeneral')
   }
-  switch (error.status) {
-    case 400:
-      return t('login.onboarding.errorInvalidToken')
-    case 422:
-      return policyError(error) ?? t('login.onboarding.errorValidation')
-    case 429:
-      return t('login.onboarding.errorTooManyAttempts')
-    case 503:
-      return t('login.onboarding.errorUnavailable')
-    default:
-      return t('login.onboarding.errorGeneral')
+  const wait = retryWaitMessage(error, t)
+  if (wait !== null) {
+    return wait
   }
+  const refusal = policyError(error)
+  if (refusal !== null) {
+    return refusal
+  }
+  if (isProblem(error, 'invalid-input')) {
+    return t('login.onboarding.errorInvalidToken')
+  }
+  if (isProblem(error, 'validation-failed')) {
+    return t('login.onboarding.errorValidation')
+  }
+  if (isProblem(error, 'rate-limited')) {
+    return t('login.onboarding.errorTooManyAttempts')
+  }
+  if (isProblem(error, 'service-unavailable')) {
+    return t('login.onboarding.errorUnavailable')
+  }
+  return t('login.onboarding.errorGeneral')
 }
 
 /**
@@ -105,7 +115,7 @@ async function submitForm(formValues: OnboardingFormValues): Promise<void> {
       password: formValues.password,
     })
   } catch (error) {
-    if (error instanceof HttpError && error.status === 409) {
+    if (isProblem(error, 'conflict')) {
       toasts.error(t('login.onboarding.errorAlreadyDone'))
       await router.replace({ name: 'login' })
       return

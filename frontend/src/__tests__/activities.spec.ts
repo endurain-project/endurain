@@ -31,6 +31,7 @@ vi.mock('@/services/http', () => {
       readonly status: number,
       statusText: string,
       readonly detail: unknown = null,
+      readonly type: string | null = null,
     ) {
       super(`HTTP ${status} ${statusText}`)
       this.name = 'HttpError'
@@ -211,7 +212,9 @@ describe('fetchActivity', () => {
 
   it('returns null on a 404/422 response', async () => {
     const { HttpError } = await import('@/services/http')
-    vi.mocked(apiFetch).mockRejectedValueOnce(new HttpError(404, 'Not Found'))
+    vi.mocked(apiFetch).mockRejectedValueOnce(
+      new HttpError(404, 'Not Found', null, 'urn:endurain:error:not-found'),
+    )
     expect(await fetchActivity(5)).toBeNull()
   })
 
@@ -291,7 +294,9 @@ describe('fetchActivityDetail', () => {
 
   it('returns null on a 404/422 response', async () => {
     const { HttpError } = await import('@/services/http')
-    vi.mocked(apiFetch).mockRejectedValueOnce(new HttpError(404, 'Not Found'))
+    vi.mocked(apiFetch).mockRejectedValueOnce(
+      new HttpError(404, 'Not Found', null, 'urn:endurain:error:not-found'),
+    )
     expect(await fetchActivityDetail(5, { authenticated: true })).toBeNull()
   })
 

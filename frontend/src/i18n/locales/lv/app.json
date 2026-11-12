@@ -65,5 +65,9 @@
       "good": "Laba",
       "strong": "Stipra"
     }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Pārāk daudz mēģinājumu. Mēģiniet vēlreiz pēc {seconds} s.",
+    "unavailable": "Autentifikācija īslaicīgi nav pieejama. Mēģiniet vēlreiz pēc {seconds} s."
   }
 }

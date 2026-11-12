@@ -23,6 +23,7 @@ import { useToasts } from '@/composables/useToasts'
 import { formatMediumDate } from '@/utils/datetime'
 import { queryKeys } from '@/services/queryKeys'
 import { HttpError } from '@/services/http'
+import { isProblem } from '@/services/problems'
 import {
   isStepUpFailed,
   isStepUpLocked,
@@ -127,7 +128,7 @@ function confirmLink(idpId: number, input: StepUpInput): void {
         if (handleIdpChallenge(error)) {
           return
         }
-        if (error instanceof HttpError && error.status === 409) {
+        if (isProblem(error, 'conflict')) {
           toasts.error(t('settings.security.linked.alreadyLinked'))
         } else if (isStepUpLocked(error)) {
           toasts.error(t('settings.security.stepUp.tooManyAttempts'))

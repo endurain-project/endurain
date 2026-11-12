@@ -7,7 +7,7 @@ import type { IdpStepUpResume } from '@/features/security/composables/useIdpStep
 
 import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
 import { useToasts } from '@/composables/useToasts'
-import { HttpError } from '@/services/http'
+import { isProblem } from '@/services/problems'
 import {
   isStepUpFailed,
   isStepUpLocked,
@@ -85,7 +85,7 @@ function onConfirm(stepUp: StepUpInput): void {
           return
         }
         // The only 409 on either route is the fixed cause: MFA is not on, or there is no local password.
-        const refused = error instanceof HttpError && error.status === 409
+        const refused = isProblem(error, 'conflict')
         toasts.error(t(refused ? `${copyKey.value}.refused` : `${copyKey.value}.error`))
       },
     },

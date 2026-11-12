@@ -4,6 +4,7 @@
     "uploading": "Se încarcă…",
     "success": "Activitatea a fost încărcată cu succes",
     "error": "Nu am putut încărca fișierul activității",
+    "tooLarge": "Fișierul este prea mare",
     "timeout": "Fișierul tău este încă în curs de import. Va apărea când se termină.",
     "failed": {
       "unsupported_format": "Acest tip de fișier nu este acceptat",

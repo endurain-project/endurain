@@ -184,7 +184,8 @@
       "cancel": "Atcelt",
       "close": "Aizvērt",
       "success": "Lietotājs dzēsts",
-      "error": "Neizdevās dzēst lietotāju. Lūdzu, mēģiniet vēlreiz."
+      "error": "Neizdevās dzēst lietotāju. Lūdzu, mēģiniet vēlreiz.",
+      "failed": "Neizdevās izdzēst lietotāju. Konts paliek deaktivizēts; lai mēģinātu vēlreiz, izdzēsiet to atkārtoti."
     },
     "detail": {
       "back": "Atpakaļ uz lietotājiem",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain pārtrauks importēšanu no Garmin Connect. Jūsu esošie dati tiek saglabāti.",
       "unlinkSuccess": "Garmin Connect atvienots",
       "unlinkError": "Neizdevās atvienot Garmin Connect. Lūdzu, mēģiniet vēlreiz."
-    }
+    },
+    "retrieveFinished": "Jūsu datu iegūšana no {provider} ir pabeigta.",
+    "retrieveFailed": "Neizdevās iegūt jūsu datus no {provider}. Lūdzu, mēģiniet vēlreiz.",
+    "retrieveAlreadyRunning": "Datu iegūšana no {provider} jau notiek. Jūs saņemsiet paziņojumu, kad tā beigsies."
   },
   "import": {
     "title": "Imports",
@@ -1127,7 +1131,14 @@
       "preparing": "Tiek sagatavots imports…",
       "progress": "Importēti {done} no {total} failiem (neizdevās {failed})… | Importēts {done} no {total} faila (neizdevās {failed})… | Importēti {done} no {total} failiem (neizdevās {failed})…",
       "finished": "Imports pabeigts: importēti {done} no {total} failiem, neizdevās {failed}. | Imports pabeigts: importēts {done} no {total} faila, neizdevās {failed}. | Imports pabeigts: importēti {done} no {total} failiem, neizdevās {failed}.",
-      "failed": "Importu neizdevās pabeigt."
+      "failed": "Importu neizdevās pabeigt.",
+      "failure": {
+        "unsupported_format": "Imports neizdevās: failu formāts netiek atbalstīts.",
+        "invalid_file": "Imports neizdevās: fails nav derīgs.",
+        "no_activities_found": "Imports neizdevās: aktivitātes netika atrastas.",
+        "processing_failed": "Imports neizdevās failu apstrādes laikā.",
+        "provider_unavailable": "Imports neizdevās: pakalpojuma sniedzējs nav pieejams. Mēģiniet vēlāk."
+      }
     }
   },
   "profile": {

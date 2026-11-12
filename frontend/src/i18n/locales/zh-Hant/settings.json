@@ -184,7 +184,8 @@
       "cancel": "取消",
       "close": "關閉",
       "success": "使用者已刪除",
-      "error": "無法刪除使用者，請再試一次。"
+      "error": "無法刪除使用者，請再試一次。",
+      "failed": "刪除使用者失敗。該帳戶維持停用狀態；請再次刪除以重試。"
     },
     "detail": {
       "back": "返回使用者列表",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain 將停止從 Garmin Connect 匯入，您現有的資料將保留。",
       "unlinkSuccess": "Garmin Connect 已中斷連接",
       "unlinkError": "無法中斷連接 Garmin Connect，請再試一次。"
-    }
+    },
+    "retrieveFinished": "已完成從 {provider} 取得你的資料。",
+    "retrieveFailed": "從 {provider} 取得你的資料失敗，請重試。",
+    "retrieveAlreadyRunning": "來自 {provider} 的取得工作已在執行，完成後會通知你。"
   },
   "import": {
     "title": "匯入",
@@ -1127,7 +1131,14 @@
       "preparing": "正在準備匯入…",
       "progress": "已匯入 {done}/{total} 個檔案（{failed} 個失敗）…",
       "finished": "匯入完成：共 {total} 個檔案，已匯入 {done} 個，{failed} 個失敗。",
-      "failed": "匯入無法完成。"
+      "failed": "匯入無法完成。",
+      "failure": {
+        "unsupported_format": "匯入失敗：檔案格式不受支援。",
+        "invalid_file": "匯入失敗：檔案無效。",
+        "no_activities_found": "匯入失敗：找不到任何活動。",
+        "processing_failed": "匯入失敗：處理檔案時發生錯誤。",
+        "provider_unavailable": "匯入失敗：服務提供者無法使用，請稍後重試。"
+      }
     }
   },
   "profile": {

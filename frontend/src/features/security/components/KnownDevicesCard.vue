@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToasts } from '@/composables/useToasts'
-import { HttpError } from '@/services/http'
+import { isProblem } from '@/services/problems'
 import { formatMediumDateTime } from '@/utils/datetime'
 import {
   isStepUpFailed,
@@ -113,7 +113,7 @@ function onConfirm(input: StepUpInput): void {
           toasts.error(t('settings.security.stepUp.tooManyAttempts'))
         } else if (isStepUpFailed(error)) {
           toasts.error(t('settings.security.linked.invalidCredentials'))
-        } else if (error instanceof HttpError && error.status === 404) {
+        } else if (isProblem(error, 'not-found')) {
           isStepUpOpen.value = false
           toasts.error(t('settings.security.devices.forgetNotFound'))
         } else {

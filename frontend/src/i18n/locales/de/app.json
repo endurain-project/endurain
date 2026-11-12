@@ -65,5 +65,9 @@
       "good": "Gut",
       "strong": "Stark"
     }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Zu viele Versuche. Versuche es in {seconds} Sekunden erneut.",
+    "unavailable": "Die Anmeldung ist vorübergehend nicht verfügbar. Versuche es in {seconds} Sekunden erneut."
   }
 }

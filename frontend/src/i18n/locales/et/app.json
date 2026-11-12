@@ -65,5 +65,9 @@
       "good": "Hea",
       "strong": "Tugev"
     }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Liiga palju katseid. Proovi uuesti {seconds} sekundi pärast.",
+    "unavailable": "Autentimine ei ole ajutiselt saadaval. Proovi uuesti {seconds} sekundi pärast."
   }
 }

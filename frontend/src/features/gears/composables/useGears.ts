@@ -138,7 +138,8 @@ export function useUpdateGearMutation() {
 }
 
 /**
- * Delete mutation. Invalidates the gears domain on settle.
+ * Delete mutation. Invalidates the gears domain on settle, plus the default-gear
+ * assignments and the activities, whose versions the delete bumped.
  *
  * @returns The TanStack Query mutation for deleting a gear.
  */
@@ -146,6 +147,7 @@ export function useDeleteGearMutation() {
   return useInvalidatingMutation<void, { id: number; version: number }>({
     mutationKey: queryKeys.gears.all(),
     excludeKeys: GEAR_WRITE_UNAFFECTED_KEYS,
+    alsoInvalidate: [queryKeys.profile.defaultGear(), queryKeys.activities.all()],
     mutationFn: ({ id, version }) => deleteGear(id, version),
   })
 }

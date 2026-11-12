@@ -7,7 +7,7 @@ import type {
 import type { Schemas } from '@/types'
 
 import { apiFetch } from '@/services/http'
-import { ifMatchHeaders } from '@/services/ifMatch'
+import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
 import { moneyToNumber, numberToMoney } from '@/utils/number'
 
 /**
@@ -33,7 +33,7 @@ export function mapGearComponent(dto: GearComponentDto): GearComponent {
     purchaseValue: moneyToNumber(dto.purchase_value),
     currentDistance: dto.current_distance ?? 0,
     currentTime: dto.current_time ?? 0,
-    version: dto.version ?? 1,
+    version: rowVersion(dto.version),
   }
 }
 

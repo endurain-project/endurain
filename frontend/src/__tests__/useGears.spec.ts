@@ -144,6 +144,24 @@ describe('gear write mutations', () => {
   })
 })
 
+describe('gear delete side effects', () => {
+  it('also refreshes the default gear and every activity, whose versions the delete bumped', async () => {
+    const queryClient = seededClient()
+    const defaultGear = queryKeys.profile.defaultGear()
+    const activityList = queryKeys.activities.list({ page: 1 })
+    queryClient.setQueryData(defaultGear, {})
+    queryClient.setQueryData(activityList, [])
+    vi.mocked(deleteGear).mockResolvedValue()
+    const mutation = mountMutation(queryClient, useDeleteGearMutation)
+
+    await mutation.mutateAsync({ id: GEAR_ID, version: 2 })
+    await flushPromises()
+
+    expect(queryClient.getQueryState(defaultGear)?.isInvalidated).toBe(true)
+    expect(queryClient.getQueryState(activityList)?.isInvalidated).toBe(true)
+  })
+})
+
 describe('gear list caching', () => {
   it('keeps a gear list fresh for one minute', async () => {
     vi.mocked(fetchGears).mockResolvedValue({ records: [], total: 0 })

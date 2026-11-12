@@ -10,8 +10,8 @@ import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToasts } from '@/composables/useToasts'
-import { HttpError } from '@/services/http'
-import { useIdpStepUp } from '@/features/security/composables/useIdpStepUp'
+import { retryWaitMessage } from '@/services/problems'
+import { isStepUpLocked, useIdpStepUp } from '@/features/security/composables/useIdpStepUp'
 import { useLinkedProvidersQuery } from '@/features/security/composables/useLinkedAccounts'
 
 const reauth = defineModel<IdpReauth | null>('reauth', { default: null })
@@ -44,9 +44,9 @@ async function onContinue(idpId: number): Promise<void> {
   } catch (error) {
     starting.value = false
     toasts.error(
-      error instanceof HttpError && error.status === 429
+      isStepUpLocked(error)
         ? t('settings.security.stepUp.tooManyAttempts')
-        : t('settings.security.stepUp.startError'),
+        : (retryWaitMessage(error, t) ?? t('settings.security.stepUp.startError')),
     )
   }
 }

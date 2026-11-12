@@ -74,7 +74,7 @@ describe('ResetPasswordView weak password', () => {
 
   it('keeps the generic weak-password message for any other 422', async () => {
     confirmPasswordReset.mockRejectedValue(
-      new HttpError(422, 'Unprocessable', null, 'urn:endurain:error:invalid-input'),
+      new HttpError(422, 'Unprocessable', null, 'urn:endurain:error:validation-failed'),
     )
     const wrapper = await submitFilled()
 
@@ -120,14 +120,18 @@ describe('ResetPasswordView token across a reload', () => {
   })
 
   it('forgets the token when the link is refused as invalid', async () => {
-    confirmPasswordReset.mockRejectedValue(new HttpError(400, 'Bad Request'))
+    confirmPasswordReset.mockRejectedValue(
+      new HttpError(400, 'Bad Request', null, 'urn:endurain:error:invalid-input'),
+    )
     await submitFilled()
 
     expect(sessionStorage.length).toBe(0)
   })
 
   it('keeps the token while the password is only too weak', async () => {
-    confirmPasswordReset.mockRejectedValue(new HttpError(422, 'Unprocessable'))
+    confirmPasswordReset.mockRejectedValue(
+      new HttpError(422, 'Unprocessable', null, 'urn:endurain:error:validation-failed'),
+    )
     await submitFilled()
 
     expect(sessionStorage.length).toBe(1)
@@ -162,7 +166,9 @@ describe('ResetPasswordView token validation', () => {
   })
 
   it('shows the invalid-link state and forgets the token when it is refused', async () => {
-    validatePasswordResetToken.mockRejectedValue(new HttpError(400, 'Bad Request'))
+    validatePasswordResetToken.mockRejectedValue(
+      new HttpError(400, 'Bad Request', null, 'urn:endurain:error:invalid-input'),
+    )
     const wrapper = mount(ResetPasswordView, { global: { plugins: [i18n] } })
     await flushPromises()
 

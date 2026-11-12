@@ -65,5 +65,9 @@
       "good": "Hyvä",
       "strong": "Vahva"
     }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Liian monta yritystä. Yritä uudelleen {seconds} sekunnin kuluttua.",
+    "unavailable": "Todennus ei ole tilapäisesti käytettävissä. Yritä uudelleen {seconds} sekunnin kuluttua."
   }
 }

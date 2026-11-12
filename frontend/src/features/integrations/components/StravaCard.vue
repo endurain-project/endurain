@@ -26,6 +26,7 @@ import { isStaleWrite } from '@/services/ifMatch'
 import { formatMediumDate } from '@/utils/datetime'
 import { queryKeys } from '@/services/queryKeys'
 import {
+  useRetrievalOutcome,
   useRetrieveStravaActivitiesMutation,
   useRetrieveStravaGearMutation,
   useUnlinkStravaMutation,
@@ -50,6 +51,7 @@ const props = defineProps<{
 const { t, locale } = useI18n()
 const toasts = useToasts()
 const queryClient = useQueryClient()
+const retrieval = useRetrievalOutcome('Strava')
 
 const activitiesMutation = useRetrieveStravaActivitiesMutation()
 const gearMutation = useRetrieveStravaGearMutation()
@@ -87,9 +89,10 @@ async function connectStrava(input: StravaClientInput): Promise<void> {
 
 function onRetrieveActivities(range: DateRange): void {
   activitiesMutation.mutate(range, {
-    onSuccess: () => {
+    onSuccess: (job) => {
       isActivitiesOpen.value = false
       toasts.info(t('settings.integrations.strava.retrievingActivities'))
+      void retrieval.follow(job.id)
     },
     onError: () => toasts.error(t('settings.integrations.strava.retrieveActivitiesError')),
   })
@@ -97,8 +100,15 @@ function onRetrieveActivities(range: DateRange): void {
 
 function retrieveGear(): void {
   gearMutation.mutate(undefined, {
-    onSuccess: () => toasts.info(t('settings.integrations.strava.retrievingGear')),
-    onError: () => toasts.error(t('settings.integrations.strava.retrieveGearError')),
+    onSuccess: (job) => {
+      toasts.info(t('settings.integrations.strava.retrievingGear'))
+      void retrieval.follow(job.id)
+    },
+    onError: (error) => {
+      if (!retrieval.resumeOnConflict(error)) {
+        toasts.error(t('settings.integrations.strava.retrieveGearError'))
+      }
+    },
   })
 }
 

@@ -65,5 +65,9 @@
       "good": "God",
       "strong": "Stærk"
     }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "For mange forsøg. Prøv igen om {seconds} sekunder.",
+    "unavailable": "Godkendelse er midlertidigt utilgængelig. Prøv igen om {seconds} sekunder."
   }
 }

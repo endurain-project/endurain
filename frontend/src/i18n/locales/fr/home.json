@@ -4,6 +4,7 @@
     "uploading": "Téléversement…",
     "success": "Activité téléversée avec succès",
     "error": "Impossible de téléverser le fichier d'activité",
+    "tooLarge": "Ce fichier est trop volumineux",
     "timeout": "Votre fichier est encore en cours d'import. Il apparaîtra une fois terminé.",
     "failed": {
       "unsupported_format": "Ce type de fichier n'est pas pris en charge",

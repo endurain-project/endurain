@@ -108,6 +108,7 @@ export function useUpdateUserMutation() {
     }
   >({
     mutationKey: queryKeys.users.all(),
+    alsoInvalidate: [queryKeys.profile.all()],
     mutationFn: async ({ user, edits, stepUp }) => {
       const updated = await updateUser(user, edits, stepUp)
       if (client.getQueryData<User>(queryKeys.currentUser())?.id === user.id) {
@@ -259,6 +260,7 @@ export function useUploadUserPhotoMutation() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(userId) })
       void queryClient.invalidateQueries({ queryKey: queryKeys.users.lists() })
       void queryClient.invalidateQueries({ queryKey: queryKeys.currentUser() })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.profile.all() })
     },
   })
 }
@@ -277,6 +279,7 @@ export function useDeleteUserPhotoMutation() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(userId) })
       void queryClient.invalidateQueries({ queryKey: queryKeys.users.lists() })
       void queryClient.invalidateQueries({ queryKey: queryKeys.currentUser() })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.profile.all() })
     },
   })
 }

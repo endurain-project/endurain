@@ -65,5 +65,9 @@
       "good": "Dobré",
       "strong": "Silné"
     }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Príliš veľa pokusov. Skúste to znova o {seconds} s.",
+    "unavailable": "Overenie je dočasne nedostupné. Skúste to znova o {seconds} s."
   }
 }

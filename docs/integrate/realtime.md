@@ -58,6 +58,7 @@ The server sends JSON text frames. The client sends nothing: a text or binary fr
 | `ACCOUNT_SECURITY_CHANGED_NOTIFICATION` | A security setting of your account changed, or it was locked |
 | `NEW_DEVICE_SIGN_IN_NOTIFICATION` | Your account was signed in to from a new device |
 | `ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST_NOTIFICATION` | A sign-up waits for an administrator |
+| `ADMIN_USER_PROMOTED_NOTIFICATION` | A user was given administrator access; sent to the other active administrators |
 | `GEARS_CHANGED` | A Garmin Connect or Strava gear sync finished and stored your gear |
 | `HEALTH_CHANGED` | A Garmin Connect health sync finished and stored your health data |
 | `JOB_STATUS_CHANGED` | A background job you started finished, failed or needs input. The frame also carries the job's `job_id` and `kind`; read the job at `GET /jobs/{job_id}`. Account deletion sends none; see [which jobs send the hint](background-operations.md#realtime-hint) |

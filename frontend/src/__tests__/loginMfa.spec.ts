@@ -126,18 +126,23 @@ describe('LoginView MFA step', () => {
     expect(sso.completeSsoMfa).toHaveBeenCalledWith('A3K9-7BDF')
   })
 
-  it('reports a 422 from the MFA step as an invalid code', async () => {
-    auth.verifyMfa.mockRejectedValue(new HttpError(422, 'Unprocessable Content'))
+  it('reports a validation failure from the MFA step as a generic error', async () => {
+    auth.verifyMfa.mockRejectedValue(
+      new HttpError(422, 'Unprocessable Content', null, 'urn:endurain:error:validation-failed'),
+    )
     const wrapper = mountView()
     await toMfaStep(wrapper)
 
     await submitCode(wrapper, '12')
 
-    expect(wrapper.text()).toContain(i18n.global.t('login.invalidMfa'))
+    expect(wrapper.text()).toContain(i18n.global.t('login.genericError'))
+    expect(wrapper.text()).not.toContain(i18n.global.t('login.invalidMfa'))
   })
 
-  it('keeps the MFA step and reports an invalid code on a 400', async () => {
-    auth.verifyMfa.mockRejectedValue(new HttpError(400, 'Bad Request'))
+  it('keeps the MFA step and reports an invalid code on an invalid-mfa-code', async () => {
+    auth.verifyMfa.mockRejectedValue(
+      new HttpError(400, 'Bad Request', null, 'urn:endurain:error:invalid-mfa-code'),
+    )
     const wrapper = mountView()
     await toMfaStep(wrapper)
 
@@ -148,7 +153,9 @@ describe('LoginView MFA step', () => {
   })
 
   it('returns to the sign-in form with an expiry message on a 401', async () => {
-    auth.verifyMfa.mockRejectedValue(new HttpError(401, 'Unauthorized'))
+    auth.verifyMfa.mockRejectedValue(
+      new HttpError(401, 'Unauthorized', null, 'urn:endurain:error:unauthorized'),
+    )
     const wrapper = mountView()
     await toMfaStep(wrapper)
 
@@ -160,9 +167,11 @@ describe('LoginView MFA step', () => {
     expect(wrapper.find('input[name="username"]').exists()).toBe(true)
   })
 
-  it('keeps a 401 on the SSO MFA step an invalid code', async () => {
+  it('keeps a wrong code on the SSO MFA step an invalid code', async () => {
     sso.processSsoCallback.mockResolvedValue({ status: 'mfa-required' })
-    sso.completeSsoMfa.mockRejectedValue(new HttpError(401, 'Unauthorized'))
+    sso.completeSsoMfa.mockRejectedValue(
+      new HttpError(400, 'Bad Request', null, 'urn:endurain:error:invalid-mfa-code'),
+    )
     const wrapper = mountView()
     await flushPromises()
 
@@ -179,8 +188,16 @@ describe('LoginView password step errors', () => {
     sso.processSsoCallback.mockResolvedValue({ status: 'none' })
   })
 
+  const TYPE_BY_STATUS: Record<number, string> = {
+    401: 'unauthorized',
+    403: 'permission-denied',
+    429: 'too-many-requests',
+  }
+
   async function submitPassword(status: number) {
-    auth.login.mockRejectedValue(new HttpError(status, 'Refused'))
+    auth.login.mockRejectedValue(
+      new HttpError(status, 'Refused', null, `urn:endurain:error:${TYPE_BY_STATUS[status]}`),
+    )
     const wrapper = mountView()
     await wrapper.find('input[name="username"]').setValue('user')
     await wrapper.find('input[type="password"]').setValue('secret')
@@ -197,10 +214,13 @@ describe('LoginView password step errors', () => {
   })
 
   it.each([
-    [429, 'login.tooManyAttemptsWait'],
-    [503, 'login.unavailableWait'],
-  ])('tells the user how long to wait after a %i', async (status, key) => {
-    auth.login.mockRejectedValue(new HttpError(status, 'Refused', null, null, null, [], 42))
+    [429, 'rate-limited', 'app.retryAfter.tooManyAttempts'],
+    [429, 'too-many-requests', 'app.retryAfter.tooManyAttempts'],
+    [503, 'service-unavailable', 'app.retryAfter.unavailable'],
+  ])('tells the user how long to wait after a %i %s', async (status, code, key) => {
+    auth.login.mockRejectedValue(
+      new HttpError(status, 'Refused', null, `urn:endurain:error:${code}`, null, [], 42),
+    )
     const wrapper = mountView()
     await wrapper.find('input[name="username"]').setValue('user')
     await wrapper.find('input[type="password"]').setValue('secret')

@@ -65,5 +65,9 @@
       "good": "Geras",
       "strong": "Stiprus"
     }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Per daug bandymų. Bandykite dar kartą po {seconds} s.",
+    "unavailable": "Autentifikavimas laikinai nepasiekiamas. Bandykite dar kartą po {seconds} s."
   }
 }

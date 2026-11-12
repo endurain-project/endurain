@@ -184,7 +184,8 @@
       "cancel": "Cancel",
       "close": "Close",
       "success": "User signed out and queued for deletion",
-      "error": "Couldn't delete the user. Please try again."
+      "error": "Couldn't delete the user. Please try again.",
+      "failed": "Deleting the user failed. The account stays deactivated; delete it again to retry."
     },
     "detail": {
       "back": "Back to users",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain will stop importing from Garmin Connect. Your existing data is kept.",
       "unlinkSuccess": "Garmin Connect disconnected",
       "unlinkError": "Couldn't disconnect Garmin Connect. Please try again."
-    }
+    },
+    "retrieveFinished": "Finished retrieving your data from {provider}.",
+    "retrieveFailed": "Retrieving your data from {provider} failed. Please try again.",
+    "retrieveAlreadyRunning": "A retrieval from {provider} is already running. You will be notified when it finishes."
   },
   "import": {
     "title": "Import",
@@ -1127,7 +1131,14 @@
       "preparing": "Preparing the import…",
       "progress": "Imported {done} of {total} file ({failed} failed)… | Imported {done} of {total} files ({failed} failed)…",
       "finished": "Import finished: {done} of {total} file imported, {failed} failed. | Import finished: {done} of {total} files imported, {failed} failed.",
-      "failed": "The import could not be completed."
+      "failed": "The import could not be completed.",
+      "failure": {
+        "unsupported_format": "The import failed: the files are in an unsupported format.",
+        "invalid_file": "The import failed: the file is not valid.",
+        "no_activities_found": "The import failed: no activities were found.",
+        "processing_failed": "The import failed while processing the files.",
+        "provider_unavailable": "The import failed: the provider is unavailable. Try again later."
+      }
     }
   },
   "profile": {

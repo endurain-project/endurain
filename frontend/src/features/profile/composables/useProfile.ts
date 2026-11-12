@@ -39,15 +39,17 @@ export function useProfileQuery() {
 }
 
 /**
- * Invalidates the profile detail and the shell's current-user caches. Identity
- * and photo edits change the navbar name/avatar (read from `currentUser`), so a
- * write must refresh both.
+ * Invalidates the profile detail, the shell's current-user and the admin users
+ * caches. Identity and photo edits change the navbar name/avatar (read from
+ * `currentUser`) and bump the user row an admin may have cached, so a write
+ * must refresh all of them.
  *
  * @param client - The active query client.
  */
 function invalidateProfileAndShell(client: ReturnType<typeof useQueryClient>): void {
   void client.invalidateQueries({ queryKey: queryKeys.profile.all() })
   void client.invalidateQueries({ queryKey: queryKeys.currentUser() })
+  void client.invalidateQueries({ queryKey: queryKeys.users.all() })
 }
 
 /**

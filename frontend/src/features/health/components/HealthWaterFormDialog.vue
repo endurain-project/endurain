@@ -11,7 +11,8 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
-import { HttpError } from '@/services/http'
+import { applyServerFieldErrors } from '@/services/fieldErrors'
+import { isProblem } from '@/services/problems'
 import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
@@ -126,16 +127,21 @@ async function submitForm(values: WaterFormValues): Promise<void> {
     }
     open.value = false
   } catch (error) {
+    if (applyServerFieldErrors(error, setErrors, t, FORM_KEYS, { amount_ml: 'amount' })) {
+      return
+    }
     if (isStaleWrite(error)) {
       open.value = false
       emit('error', t('app.staleError'))
-    } else if (!props.entry && error instanceof HttpError && error.status === 409) {
+    } else if (!props.entry && isProblem(error, 'conflict')) {
       emit('error', t('health.water.form.dayTakenError'))
     } else {
       emit('error', t('health.water.form.saveError'))
     }
   }
 }
+
+const FORM_KEYS = ['date', 'amount'] as const
 
 const {
   values,
@@ -144,6 +150,7 @@ const {
   isSubmitting,
   handleSubmit,
   handleBlur,
+  setErrors,
   reset,
   isDirty,
   markPristine,

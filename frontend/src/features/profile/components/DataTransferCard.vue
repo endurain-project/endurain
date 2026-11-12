@@ -10,7 +10,7 @@ import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useToasts } from '@/composables/useToasts'
-import { HttpError } from '@/services/http'
+import { isProblem } from '@/services/problems'
 import { downloadBlob } from '@/lib/download'
 import {
   isStepUpFailed,
@@ -118,7 +118,7 @@ function handleExport(input: StepUpInput): void {
       if (handleIdpChallenge(error)) {
         return
       }
-      if (error instanceof HttpError && error.status === 409) {
+      if (isProblem(error, 'conflict')) {
         isStepUpOpen.value = false
         toasts.error(t('settings.profile.dataTransfer.exportInProgress'))
       } else if (isStepUpLocked(error)) {
@@ -174,7 +174,7 @@ function onArchiveChange(event: Event): void {
     onSuccess: () => toasts.success(t('settings.profile.dataTransfer.importQueued')),
     onError: (error) =>
       toasts.error(
-        error instanceof HttpError && error.status === 409
+        isProblem(error, 'conflict')
           ? t('settings.profile.dataTransfer.importInProgress')
           : t('settings.profile.dataTransfer.importError'),
       ),

@@ -22,6 +22,7 @@ import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { useForm } from '@/composables/useForm'
 import { HttpError } from '@/services/http'
+import { isProblem } from '@/services/problems'
 import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { isStaleWrite } from '@/services/ifMatch'
 import {
@@ -260,7 +261,7 @@ async function submitForm(
       emit('error', t('settings.users.form.lastAdministrator'))
     } else if (error instanceof HttpError && error.type === APPROVAL_PENDING_TYPE) {
       emit('error', t('settings.users.form.approvalPending'))
-    } else if (error instanceof HttpError && error.status === 409) {
+    } else if (isProblem(error, 'conflict')) {
       // Any other conflict is a username or email another account already uses.
       emit('error', t('settings.users.form.conflict'))
     } else {

@@ -122,7 +122,6 @@ describe('usePasswordPolicy policyError', () => {
   it('leaves every other error alone', () => {
     const policy = withSetup(() => usePasswordPolicy('regular'))
     expect(policy.policyError(problem('invalid-input'))).toBeNull()
-    expect(policy.policyError(problem('password-too-common', 400))).toBeNull()
     expect(policy.policyError(new HttpError(422, 'Unprocessable'))).toBeNull()
     expect(policy.policyError(new Error('boom'))).toBeNull()
     expect(policy.policyError(undefined)).toBeNull()

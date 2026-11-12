@@ -96,6 +96,18 @@ describe('useUpdateProfileMutation', () => {
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.currentUser() })
   })
 
+  it('invalidates the admin users domain, whose rows share the profile version', async () => {
+    const queryClient = new QueryClient()
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
+    vi.mocked(updateProfile).mockResolvedValue()
+    const mutation = mountMutation(queryClient)
+
+    await mutation.mutateAsync({ input: profileInput, version: 1 })
+    await flushPromises()
+
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.users.all() })
+  })
+
   it('invalidates health data when the height changes', async () => {
     const queryClient = new QueryClient()
     queryClient.setQueryData(queryKeys.profile.detail(), { height: 170 })

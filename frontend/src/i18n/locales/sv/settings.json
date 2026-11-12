@@ -184,7 +184,8 @@
       "cancel": "Avbryt",
       "close": "Stäng",
       "success": "Användare borttagen",
-      "error": "Kunde inte ta bort användaren. Försök igen."
+      "error": "Kunde inte ta bort användaren. Försök igen.",
+      "failed": "Det gick inte att ta bort användaren. Kontot förblir inaktiverat; ta bort det igen för att försöka på nytt."
     },
     "detail": {
       "back": "Tillbaka till användare",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain slutar importera från Garmin Connect. Dina befintliga data behålls.",
       "unlinkSuccess": "Garmin Connect bortkopplad",
       "unlinkError": "Kunde inte koppla bort Garmin Connect. Försök igen."
-    }
+    },
+    "retrieveFinished": "Hämtningen av dina data från {provider} är klar.",
+    "retrieveFailed": "Hämtningen av dina data från {provider} misslyckades. Försök igen.",
+    "retrieveAlreadyRunning": "En hämtning från {provider} pågår redan. Du får besked när den är klar."
   },
   "import": {
     "title": "Importera",
@@ -1127,7 +1131,14 @@
       "preparing": "Förbereder importen…",
       "progress": "{done} av {total} fil importerad ({failed} misslyckades)… | {done} av {total} filer importerade ({failed} misslyckades)…",
       "finished": "Importen är klar: {done} av {total} fil importerad, {failed} misslyckades. | Importen är klar: {done} av {total} filer importerade, {failed} misslyckades.",
-      "failed": "Importen kunde inte slutföras."
+      "failed": "Importen kunde inte slutföras.",
+      "failure": {
+        "unsupported_format": "Importen misslyckades: filerna har ett format som inte stöds.",
+        "invalid_file": "Importen misslyckades: filen är ogiltig.",
+        "no_activities_found": "Importen misslyckades: inga aktiviteter hittades.",
+        "processing_failed": "Importen misslyckades vid bearbetningen av filerna.",
+        "provider_unavailable": "Importen misslyckades: leverantören är inte tillgänglig. Försök igen senare."
+      }
     }
   },
   "profile": {

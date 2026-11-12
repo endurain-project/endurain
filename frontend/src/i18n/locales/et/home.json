@@ -4,6 +4,7 @@
     "uploading": "Üleslaadimine…",
     "success": "Tegevus laaditi edukalt üles",
     "error": "Tegevuse faili ei õnnestunud üles laadida",
+    "tooLarge": "Fail on liiga suur",
     "timeout": "Sinu faili imporditakse veel. See ilmub, kui import on lõppenud.",
     "failed": {
       "unsupported_format": "Seda failitüüpi ei toetata",

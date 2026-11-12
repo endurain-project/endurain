@@ -86,7 +86,9 @@ describe('CancelEmailChangeView', () => {
   })
 
   it('shows that the link is no longer valid when the server refuses it', async () => {
-    cancelEmailChange.mockRejectedValue(new HttpError(400, 'Bad Request', null, null))
+    cancelEmailChange.mockRejectedValue(
+      new HttpError(400, 'Bad Request', null, 'urn:endurain:error:invalid-input'),
+    )
     const wrapper = await mountView()
 
     await wrapper.get('button').trigger('click')

@@ -184,7 +184,8 @@
       "cancel": "Cancelar",
       "close": "Fechar",
       "success": "Utilizador eliminado",
-      "error": "Não foi possível eliminar o utilizador. Tenta novamente."
+      "error": "Não foi possível eliminar o utilizador. Tenta novamente.",
+      "failed": "Não foi possível eliminar o utilizador. A conta continua desativada; elimina-a novamente para tentar de novo."
     },
     "detail": {
       "back": "Voltar aos utilizadores",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "O Endurain deixará de importar do Garmin Connect. Os teus dados existentes são mantidos.",
       "unlinkSuccess": "Garmin Connect desligado",
       "unlinkError": "Não foi possível desligar o Garmin Connect. Tenta novamente."
-    }
+    },
+    "retrieveFinished": "A recuperação dos teus dados do {provider} terminou.",
+    "retrieveFailed": "Não foi possível recuperar os teus dados do {provider}. Tenta novamente.",
+    "retrieveAlreadyRunning": "Já está em curso uma recuperação do {provider}. Serás avisado quando terminar."
   },
   "import": {
     "title": "Importar",
@@ -1127,7 +1131,14 @@
       "preparing": "A preparar a importação…",
       "progress": "Importados {done} de {total} ficheiro ({failed} com falha)… | Importados {done} de {total} ficheiros ({failed} com falha)…",
       "finished": "Importação concluída: {done} de {total} ficheiro importado, {failed} com falha. | Importação concluída: {done} de {total} ficheiros importados, {failed} com falha.",
-      "failed": "Não foi possível concluir a importação."
+      "failed": "Não foi possível concluir a importação.",
+      "failure": {
+        "unsupported_format": "A importação falhou: os ficheiros têm um formato não suportado.",
+        "invalid_file": "A importação falhou: o ficheiro não é válido.",
+        "no_activities_found": "A importação falhou: não foi encontrada nenhuma atividade.",
+        "processing_failed": "A importação falhou ao processar os ficheiros.",
+        "provider_unavailable": "A importação falhou: o fornecedor não está disponível. Tenta novamente mais tarde."
+      }
     }
   },
   "profile": {

@@ -10,6 +10,7 @@ import { useForm } from '@/composables/useForm'
 import { useToasts } from '@/composables/useToasts'
 import { resendSignUpVerification } from '@/features/auth/services/signUp'
 import { HttpError } from '@/services/http'
+import { isProblem, retryWaitMessage } from '@/services/problems'
 import { compose, email, required } from '@/utils/validators'
 
 const SIGN_UP_DISABLED_TYPE = 'urn:endurain:error:permission-denied'
@@ -36,8 +37,12 @@ async function submitForm(formValues: ResendValues): Promise<void> {
     if (error instanceof HttpError && error.type === SIGN_UP_DISABLED_TYPE) {
       throw new Error(t('signup.errorSignupDisabled'))
     }
+    const wait = retryWaitMessage(error, t)
+    if (wait !== null) {
+      throw new Error(wait)
+    }
     throw new Error(
-      error instanceof HttpError && error.status === 429
+      isProblem(error, 'rate-limited')
         ? t('verifyEmail.resendTooManyAttempts')
         : t('verifyEmail.resendError'),
     )

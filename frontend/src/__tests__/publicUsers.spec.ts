@@ -89,7 +89,9 @@ describe('fetchPublicUser', () => {
   })
 
   it('returns null when the user is not found', async () => {
-    vi.mocked(apiFetch).mockRejectedValueOnce(new HttpError(404, 'Not Found'))
+    vi.mocked(apiFetch).mockRejectedValueOnce(
+      new HttpError(404, 'Not Found', null, 'urn:endurain:error:not-found'),
+    )
     expect(await fetchPublicUser(7)).toBeNull()
   })
 })

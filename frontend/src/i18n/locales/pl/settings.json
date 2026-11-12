@@ -184,7 +184,8 @@
       "cancel": "Anuluj",
       "close": "Zamknij",
       "success": "Usunięto użytkownika",
-      "error": "Nie udało się usunąć użytkownika. Spróbuj ponownie."
+      "error": "Nie udało się usunąć użytkownika. Spróbuj ponownie.",
+      "failed": "Nie udało się usunąć użytkownika. Konto pozostaje dezaktywowane; usuń je ponownie, aby spróbować jeszcze raz."
     },
     "detail": {
       "back": "Powrót do użytkowników",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain przestanie importować z Garmin Connect. Twoje istniejące dane zostaną zachowane.",
       "unlinkSuccess": "Rozłączono Garmin Connect",
       "unlinkError": "Nie udało się rozłączyć Garmin Connect. Spróbuj ponownie."
-    }
+    },
+    "retrieveFinished": "Pobieranie Twoich danych z {provider} zostało zakończone.",
+    "retrieveFailed": "Nie udało się pobrać Twoich danych z {provider}. Spróbuj ponownie.",
+    "retrieveAlreadyRunning": "Pobieranie z {provider} już trwa. Powiadomimy Cię, gdy się zakończy."
   },
   "import": {
     "title": "Import",
@@ -1127,7 +1131,14 @@
       "preparing": "Przygotowywanie importu…",
       "progress": "Zaimportowano {done} z {total} pliku ({failed} nie powiodło się)… | Zaimportowano {done} z {total} plików ({failed} nie powiodło się)… | Zaimportowano {done} z {total} plików ({failed} nie powiodło się)…",
       "finished": "Import zakończony: zaimportowano {done} z {total} pliku, {failed} nie powiodło się. | Import zakończony: zaimportowano {done} z {total} plików, {failed} nie powiodło się. | Import zakończony: zaimportowano {done} z {total} plików, {failed} nie powiodło się.",
-      "failed": "Nie udało się ukończyć importu."
+      "failed": "Nie udało się ukończyć importu.",
+      "failure": {
+        "unsupported_format": "Import nie powiódł się: pliki mają nieobsługiwany format.",
+        "invalid_file": "Import nie powiódł się: plik jest nieprawidłowy.",
+        "no_activities_found": "Import nie powiódł się: nie znaleziono żadnych aktywności.",
+        "processing_failed": "Import nie powiódł się podczas przetwarzania plików.",
+        "provider_unavailable": "Import nie powiódł się: dostawca jest niedostępny. Spróbuj ponownie później."
+      }
     }
   },
   "profile": {

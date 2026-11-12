@@ -7,7 +7,9 @@ import {
   replaceActivitiesInFeed,
   IngestionJobFailedError,
   IngestionJobTimeoutError,
+  uploadErrorMessage,
 } from '@/features/upload/composables/useUpload'
+import { HttpError } from '@/services/http'
 import {
   clearAwaitingThumbnail,
   isAwaitingThumbnail,
@@ -374,5 +376,28 @@ describe('pending thumbnails', () => {
 
     expect(isAwaitingThumbnail(1)).toBe(false)
     expect(isAwaitingThumbnail(2)).toBe(true)
+  })
+})
+
+describe('uploadErrorMessage', () => {
+  const t = (key: string, params?: Record<string, unknown>) =>
+    params ? `${key}:${params.seconds}` : key
+  const problem = (status: number, code: string, retryAfter: number | null = null) =>
+    new HttpError(status, 'x', null, `urn:endurain:error:${code}`, null, [], retryAfter)
+
+  it.each([
+    [problem(413, 'payload-too-large'), 'home.upload.tooLarge'],
+    [problem(415, 'unsupported-format'), 'home.upload.failed.unsupported_format'],
+    [problem(415, 'unsupported-media-type'), 'home.upload.failed.unsupported_format'],
+    [problem(400, 'invalid-input'), 'home.upload.failed.invalid_file'],
+    [problem(429, 'rate-limited', 12), 'app.retryAfter.tooManyAttempts:12'],
+    [problem(429, 'rate-limited'), 'home.upload.error'],
+    [problem(500, 'internal-error'), 'home.upload.error'],
+    [problem(503, 'service-unavailable', 30), 'home.upload.error'],
+    [new Error('x'), 'home.upload.error'],
+    [new IngestionJobTimeoutError(), 'home.upload.timeout'],
+    [new IngestionJobFailedError('no_activities_found'), 'home.upload.failed.no_activities_found'],
+  ])('words %o as %s', (error, expected) => {
+    expect(uploadErrorMessage(error, t)).toBe(expected)
   })
 })

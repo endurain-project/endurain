@@ -4,6 +4,7 @@
     "uploading": "Uploaden…",
     "success": "Activiteit succesvol geüpload",
     "error": "Het activiteitsbestand kon niet worden geüpload",
+    "tooLarge": "Het bestand is te groot",
     "timeout": "Je bestand wordt nog geïmporteerd. Het verschijnt zodra het klaar is.",
     "failed": {
       "unsupported_format": "Dit bestandstype wordt niet ondersteund",

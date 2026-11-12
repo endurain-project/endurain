@@ -4,6 +4,7 @@
     "uploading": "Yükleniyor…",
     "success": "Etkinlik başarıyla yüklendi",
     "error": "Etkinlik dosyası yüklenemedi",
+    "tooLarge": "Dosya çok büyük",
     "timeout": "Dosyanız hâlâ içe aktarılıyor. Tamamlandığında görünecek.",
     "failed": {
       "unsupported_format": "Bu dosya türü desteklenmiyor",

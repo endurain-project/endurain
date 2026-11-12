@@ -18,7 +18,7 @@ import {
   usePasswordConfirmation,
   usePasswordPolicy,
 } from '@/features/security/composables/usePasswordPolicy'
-import { HttpError } from '@/services/http'
+import { isProblem } from '@/services/problems'
 import {
   confirmPasswordReset,
   validatePasswordResetToken,
@@ -81,13 +81,13 @@ async function submitForm(): Promise<void> {
     // from an invalid/expired token (400) so this doesn't show as the wrong
     // error.
     let message = t('resetPassword.errorGeneral')
-    if (error instanceof HttpError) {
-      if (error.status === 400) {
-        resetCredential.clear()
-        message = t('resetPassword.errorInvalidToken')
-      } else if (error.status === 422) {
-        message = policyError(error) ?? t('resetPassword.errorWeakPassword')
-      }
+    if (isProblem(error, 'invalid-input')) {
+      resetCredential.clear()
+      message = t('resetPassword.errorInvalidToken')
+    } else {
+      message =
+        policyError(error) ??
+        (isProblem(error, 'validation-failed') ? t('resetPassword.errorWeakPassword') : message)
     }
     alert.value = { kind: 'error', message }
   } finally {
@@ -105,7 +105,7 @@ async function checkLink(): Promise<void> {
     await validatePasswordResetToken(token.value)
     linkStatus.value = 'valid'
   } catch (error) {
-    if (error instanceof HttpError && error.status === 400) {
+    if (isProblem(error, 'invalid-input')) {
       resetCredential.clear()
       linkStatus.value = 'invalid'
       return

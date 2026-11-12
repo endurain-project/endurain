@@ -65,5 +65,9 @@
       "good": "Dobro",
       "strong": "Močno"
     }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Preveč poskusov. Poskusite znova čez {seconds} s.",
+    "unavailable": "Overjanje je začasno nedosegljivo. Poskusite znova čez {seconds} s."
   }
 }

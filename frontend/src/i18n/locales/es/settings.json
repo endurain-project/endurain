@@ -184,7 +184,8 @@
       "cancel": "Cancelar",
       "close": "Cerrar",
       "success": "Usuario eliminado",
-      "error": "No se pudo eliminar el usuario. Inténtalo de nuevo."
+      "error": "No se pudo eliminar el usuario. Inténtalo de nuevo.",
+      "failed": "No se pudo eliminar al usuario. La cuenta sigue desactivada; elimínala de nuevo para reintentarlo."
     },
     "detail": {
       "back": "Volver a usuarios",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain dejará de importar desde Garmin Connect. Tus datos existentes se conservan.",
       "unlinkSuccess": "Garmin Connect desconectado",
       "unlinkError": "No se pudo desconectar Garmin Connect. Inténtalo de nuevo."
-    }
+    },
+    "retrieveFinished": "Se terminó de recuperar tus datos de {provider}.",
+    "retrieveFailed": "No se pudieron recuperar tus datos de {provider}. Inténtalo de nuevo.",
+    "retrieveAlreadyRunning": "Ya hay una recuperación de {provider} en curso. Se te avisará cuando termine."
   },
   "import": {
     "title": "Importar",
@@ -1127,7 +1131,14 @@
       "preparing": "Preparando la importación…",
       "progress": "Importados {done} de {total} archivo ({failed} con error)… | Importados {done} de {total} archivos ({failed} con error)…",
       "finished": "Importación finalizada: {done} de {total} archivo importado, {failed} con error. | Importación finalizada: {done} de {total} archivos importados, {failed} con error.",
-      "failed": "No se pudo completar la importación."
+      "failed": "No se pudo completar la importación.",
+      "failure": {
+        "unsupported_format": "La importación falló: los archivos tienen un formato no compatible.",
+        "invalid_file": "La importación falló: el archivo no es válido.",
+        "no_activities_found": "La importación falló: no se encontró ninguna actividad.",
+        "processing_failed": "La importación falló al procesar los archivos.",
+        "provider_unavailable": "La importación falló: el proveedor no está disponible. Inténtalo de nuevo más tarde."
+      }
     }
   },
   "profile": {

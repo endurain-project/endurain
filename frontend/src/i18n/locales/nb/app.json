@@ -65,5 +65,9 @@
       "good": "Bra",
       "strong": "Sterkt"
     }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "For mange forsøk. Prøv igjen om {seconds} sekunder.",
+    "unavailable": "Autentisering er midlertidig utilgjengelig. Prøv igjen om {seconds} sekunder."
   }
 }

@@ -107,7 +107,9 @@ describe('HealthFastingFormDialog', () => {
   })
 
   it('shows a specific message when the server refuses the times or status', async () => {
-    vi.mocked(apiFetch).mockRejectedValue(new HttpError(400, 'Bad Request'))
+    vi.mocked(apiFetch).mockRejectedValue(
+      new HttpError(400, 'Bad Request', null, 'urn:endurain:error:invalid-input'),
+    )
     const wrapper = await openDialog({ entry })
     await wrapper.find('textarea').setValue('Felt good')
     await submit(wrapper)

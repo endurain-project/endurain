@@ -9,7 +9,7 @@ import { useQueryCredential } from '@/composables/useRouteQuery'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { cancelEmailChange } from '@/features/auth/services/emailChange'
-import { HttpError } from '@/services/http'
+import { isProblem } from '@/services/problems'
 
 type Status = 'confirm' | 'working' | 'cancelled' | 'restored' | 'notRestored' | 'invalid' | 'error'
 
@@ -38,7 +38,7 @@ async function cancel(): Promise<void> {
     if (!result.change_applied) status.value = 'cancelled'
     else status.value = result.email_restored ? 'restored' : 'notRestored'
   } catch (error) {
-    if (error instanceof HttpError && error.status === 400) {
+    if (isProblem(error, 'invalid-input')) {
       credential.clear()
       status.value = 'invalid'
     } else {

@@ -6,7 +6,7 @@ import type { StepUpInput } from '@/features/security/types'
 
 import { invalidateActivityData } from '@/composables/useInvalidatingMutation'
 import { useJobQuery, useLatestJobQuery } from '@/composables/useJobQuery'
-import { isTerminalJobState, seedJob } from '@/services/jobStatus'
+import { isTerminalJobState, refreshLatestJobOnConflict, seedJob } from '@/services/jobStatus'
 import { queryKeys } from '@/services/queryKeys'
 import {
   downloadProfileExport,
@@ -44,6 +44,7 @@ export function useExportProfileMutation() {
   return useMutation<ProfileExportStatus, Error, StepUpInput>({
     mutationFn: (input) => requestProfileExport(input),
     onSuccess: (job) => seedJob(client, job),
+    onError: (error) => refreshLatestJobOnConflict(client, 'profile_export', error),
   })
 }
 
@@ -99,6 +100,7 @@ export function useImportProfileMutation() {
   return useMutation<ProfileImportStatus, Error, File>({
     mutationFn: (file) => importProfileData(file),
     onSuccess: (job) => seedJob(client, job),
+    onError: (error) => refreshLatestJobOnConflict(client, 'profile_import', error),
   })
 }
 

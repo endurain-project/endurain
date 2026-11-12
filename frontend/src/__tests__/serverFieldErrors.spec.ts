@@ -40,7 +40,7 @@ function unprocessable(errors: FieldError[]): HttpError {
     422,
     'Unprocessable Content',
     'The request could not be validated.',
-    null,
+    'urn:endurain:error:validation-failed',
     null,
     errors,
   )

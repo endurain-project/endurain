@@ -184,7 +184,8 @@
       "cancel": "Annuleren",
       "close": "Sluiten",
       "success": "Gebruiker verwijderd",
-      "error": "Gebruiker kon niet worden verwijderd. Probeer het opnieuw."
+      "error": "Gebruiker kon niet worden verwijderd. Probeer het opnieuw.",
+      "failed": "Het verwijderen van de gebruiker is mislukt. Het account blijft gedeactiveerd; verwijder het opnieuw om het nogmaals te proberen."
     },
     "detail": {
       "back": "Terug naar gebruikers",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain stopt met importeren van Garmin Connect. Je bestaande gegevens blijven bewaard.",
       "unlinkSuccess": "Garmin Connect verbroken",
       "unlinkError": "Garmin Connect kon niet worden verbroken. Probeer het opnieuw."
-    }
+    },
+    "retrieveFinished": "Het ophalen van je gegevens van {provider} is voltooid.",
+    "retrieveFailed": "Het ophalen van je gegevens van {provider} is mislukt. Probeer het opnieuw.",
+    "retrieveAlreadyRunning": "Er loopt al een ophaalactie van {provider}. Je krijgt een melding wanneer die klaar is."
   },
   "import": {
     "title": "Importeren",
@@ -1127,7 +1131,14 @@
       "preparing": "Import voorbereiden…",
       "progress": "{done} van {total} bestand geïmporteerd ({failed} mislukt)… | {done} van {total} bestanden geïmporteerd ({failed} mislukt)…",
       "finished": "Import voltooid: {done} van {total} bestand geïmporteerd, {failed} mislukt. | Import voltooid: {done} van {total} bestanden geïmporteerd, {failed} mislukt.",
-      "failed": "De import kon niet worden voltooid."
+      "failed": "De import kon niet worden voltooid.",
+      "failure": {
+        "unsupported_format": "De import is mislukt: de bestanden hebben een niet-ondersteund formaat.",
+        "invalid_file": "De import is mislukt: het bestand is ongeldig.",
+        "no_activities_found": "De import is mislukt: er zijn geen activiteiten gevonden.",
+        "processing_failed": "De import is mislukt tijdens het verwerken van de bestanden.",
+        "provider_unavailable": "De import is mislukt: de aanbieder is niet beschikbaar. Probeer het later opnieuw."
+      }
     }
   },
   "profile": {

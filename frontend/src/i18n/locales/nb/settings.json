@@ -184,7 +184,8 @@
       "cancel": "Avbryt",
       "close": "Lukk",
       "success": "Bruker slettet",
-      "error": "Kunne ikke slette brukeren. Vennligst prøv igjen."
+      "error": "Kunne ikke slette brukeren. Vennligst prøv igjen.",
+      "failed": "Sletting av brukeren mislyktes. Kontoen forblir deaktivert; slett den på nytt for å prøve igjen."
     },
     "detail": {
       "back": "Tilbake til brukere",
@@ -1092,7 +1093,10 @@
       "unlinkBody": "Endurain vil slutte å importere fra Garmin Connect. De eksisterende dataene dine beholdes.",
       "unlinkSuccess": "Garmin Connect frakoblet",
       "unlinkError": "Kunne ikke koble fra Garmin Connect. Vennligst prøv igjen."
-    }
+    },
+    "retrieveFinished": "Hentingen av dataene dine fra {provider} er fullført.",
+    "retrieveFailed": "Hentingen av dataene dine fra {provider} mislyktes. Vennligst prøv igjen.",
+    "retrieveAlreadyRunning": "En henting fra {provider} pågår allerede. Du får beskjed når den er ferdig."
   },
   "import": {
     "title": "Importer",
@@ -1127,7 +1131,14 @@
       "preparing": "Forbereder importen…",
       "progress": "Importert {done} av {total} fil ({failed} mislyktes)… | Importert {done} av {total} filer ({failed} mislyktes)…",
       "finished": "Importen er ferdig: {done} av {total} fil importert, {failed} mislyktes. | Importen er ferdig: {done} av {total} filer importert, {failed} mislyktes.",
-      "failed": "Importen kunne ikke fullføres."
+      "failed": "Importen kunne ikke fullføres.",
+      "failure": {
+        "unsupported_format": "Importen mislyktes: filene har et format som ikke støttes.",
+        "invalid_file": "Importen mislyktes: filen er ugyldig.",
+        "no_activities_found": "Importen mislyktes: ingen aktiviteter ble funnet.",
+        "processing_failed": "Importen mislyktes under behandlingen av filene.",
+        "provider_unavailable": "Importen mislyktes: leverandøren er utilgjengelig. Prøv igjen senere."
+      }
     }
   },
   "profile": {

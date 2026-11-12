@@ -57,9 +57,12 @@ describe('ConfirmEmailChangeView', () => {
     )
   })
 
-  it.each([400, 404])('shows the invalid-link error, without a retry, on %i', async (status) => {
+  it.each([
+    [400, 'invalid-input'],
+    [404, 'not-found'],
+  ])('shows the invalid-link error, without a retry, on %i', async (status, code) => {
     confirmEmailChange.mockRejectedValue(
-      new HttpError(status, 'Refused', null, 'urn:endurain:error:x'),
+      new HttpError(status, 'Refused', null, `urn:endurain:error:${code}`),
     )
     const wrapper = await mountView()
 
@@ -69,7 +72,9 @@ describe('ConfirmEmailChangeView', () => {
   })
 
   it('says the address is taken on a 409', async () => {
-    confirmEmailChange.mockRejectedValue(new HttpError(409, 'Conflict', null))
+    confirmEmailChange.mockRejectedValue(
+      new HttpError(409, 'Conflict', null, 'urn:endurain:error:conflict'),
+    )
     const wrapper = await mountView()
 
     expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.errorEmailTaken'))

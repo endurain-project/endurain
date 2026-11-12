@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { ErrorState } from '@/components/ui/error-state'
 import { LoadingState } from '@/components/ui/loading-state'
 import { confirmEmailChange } from '@/features/auth/services/signUp'
-import { HttpError } from '@/services/http'
+import { isProblem } from '@/services/problems'
 
 type Status = 'pending' | 'success' | 'error'
 
@@ -52,10 +52,10 @@ async function confirm(): Promise<void> {
     credential.clear()
     status.value = 'success'
   } catch (error) {
-    if (error instanceof HttpError && (error.status === 400 || error.status === 404)) {
+    if (isProblem(error, 'invalid-input', 'not-found')) {
       credential.clear()
       showError(t('verifyEmail.errorInvalidToken'))
-    } else if (error instanceof HttpError && error.status === 409) {
+    } else if (isProblem(error, 'conflict')) {
       showError(t('verifyEmail.errorEmailTaken'))
     } else {
       showError(t('verifyEmail.errorGeneral'), true)
