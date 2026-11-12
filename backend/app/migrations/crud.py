@@ -1,13 +1,20 @@
 """CRUD operations for migration tracking."""
 
+import uuid
 from typing import overload
 
-from sqlalchemy import select
+from sqlalchemy import Integer, Uuid, column, select, table, text
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import migrations.models as migrations_models
 import migrations.schema as migrations_schema
+
+#: Scratch table of the UUID conversion revisions: the old and new id of every converted row, until migration 13
+#: has renamed the stored files and drops it.
+_UUID_MIGRATION_IDS = table(
+    "uuid_migration_ids", column("table_name"), column("old_id", Integer), column("new_id", Uuid)
+)
 
 # Private internal helpers
 
@@ -109,3 +116,30 @@ def set_migration_as_executed(
     db.flush()
     db.refresh(db_migration)
     return _transform_migrations(db_migration)
+
+
+def get_uuid_migration_ids(table_name: str, db: Session) -> dict[int, uuid.UUID]:
+    """
+    Retrieve the old and new ids a conversion revision recorded for one table.
+
+    Args:
+        table_name: The converted table.
+        db: Database session.
+
+    Returns:
+        The new UUID of each old integer id.
+    """
+    stmt = select(_UUID_MIGRATION_IDS.c.old_id, _UUID_MIGRATION_IDS.c.new_id).where(
+        _UUID_MIGRATION_IDS.c.table_name == table_name
+    )
+    return {old_id: new_id for old_id, new_id in db.execute(stmt).all()}
+
+
+def drop_uuid_migration_ids(db: Session) -> None:
+    """
+    Drop the table of recorded ids. The caller commits.
+
+    Args:
+        db: Database session.
+    """
+    db.execute(text("DROP TABLE uuid_migration_ids"))

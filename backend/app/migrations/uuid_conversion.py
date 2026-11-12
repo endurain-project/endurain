@@ -3,7 +3,8 @@
 Revisions import this module and never the app's models. The SQL of a function a released revision uses is frozen:
 change behaviour with a new function, not by editing one. The module sits beside the migration runner rather than
 under ``alembic/`` because every conversion revision shares it. PostgreSQL only: ``gen_random_uuid()`` is built in
-from PostgreSQL 13. Table and index names come only from the literal spec of a revision, never from input.
+from PostgreSQL 13. Table and index names come only from the literal spec of a revision, never from input. The helpers that rewrite stored ids and record the mapping run
+while the parent still holds both its ``id`` and its ``new_id``.
 """
 
 from collections.abc import Sequence
@@ -11,6 +12,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
@@ -117,3 +119,232 @@ def give_uuid_primary_key(table: str, indexes: Sequence[IdIndex] = ()) -> None:
     op.create_primary_key(f"{table}_pkey", table, ["id"])
     for index in indexes:
         op.create_index(index.name, table, list(index.columns))
+
+
+@dataclass(frozen=True)
+class IdReference:
+    """A column that holds the ``id`` of a table being converted.
+
+    Attributes:
+        table: The table holding the reference.
+        column: The referencing column.
+        nullable: Whether the column accepts ``NULL``.
+        ondelete: The ``ON DELETE`` action of the foreign key.
+        comment: The column comment, equal to the model's.
+        indexes: The indexes that contain the column, recreated after the swap.
+        unique_constraints: The unique constraints that contain the column, recreated after the swap.
+    """
+
+    table: str
+    column: str
+    nullable: bool
+    ondelete: str
+    comment: str
+    indexes: tuple[IdIndex, ...] = ()
+    unique_constraints: tuple[IdIndex, ...] = ()
+
+
+#: The substrate tables that store event payloads, as (names the table has had, payload column, metadata column).
+#: JASIL renames the unprefixed tables at startup, so an upgrade from v0.20 finds the old names and a development
+#: database the prefixed ones.
+_EVENT_TABLES: tuple[tuple[tuple[str, str], str, str], ...] = (
+    (("jasil_event_outbox", "event_outbox"), "payload", "event_metadata"),
+    (("jasil_processing_jobs", "processing_jobs"), "payload", "job_metadata"),
+    (("jasil_event_log", "event_log"), "event_payload", "event_metadata"),
+)
+
+
+def _is_number(document: sa.ColumnElement[Any], key: str) -> sa.ColumnElement[bool]:
+    """Match the documents that hold a JSON number under ``key``; ``NULL`` and strings do not match."""
+    return sa.func.jsonb_typeof(document[key]) == "number"
+
+
+def _with_uuid_id(document: sa.ColumnElement[Any], key: str, parent: sa.TableClause) -> sa.ColumnElement[Any]:
+    """Return the jsonb document with the integer under ``key`` replaced by the UUID of its parent row, as a string.
+
+    An id that matches no parent row (a dangling reference) gets a fresh random UUID, so the value is still a valid
+    id that names nothing.
+    """
+    new_id = sa.func.coalesce(
+        sa.select(parent.c.new_id).where(parent.c.id == sa.cast(document[key].astext, sa.Numeric)).scalar_subquery(),
+        sa.func.gen_random_uuid(),
+    )
+    return sa.func.jsonb_set(
+        document, postgresql.array([key], type_=sa.Text), sa.func.to_jsonb(sa.cast(new_id, sa.Text))
+    )
+
+
+def _existing_tables(names: Sequence[str]) -> list[str]:
+    """Return the names of the tables that exist, in the given order."""
+    connection = op.get_bind()
+    return [
+        name
+        for name in names
+        if connection.execute(sa.text("SELECT to_regclass(:name)"), {"name": name}).scalar() is not None
+    ]
+
+
+def add_uuid_ids_with_references(parent: str, references: Sequence[IdReference]) -> None:
+    """Give a table a random ``new_id`` and map every reference to it, keeping the integer ids.
+
+    Nothing is dropped, so the stored ids can still be rewritten from the integer ids before
+    :func:`swap_in_uuid_ids` replaces them.
+
+    Args:
+        parent: The table being converted; it must still have its integer ``id``.
+        references: The columns that hold its ids.
+    """
+    parent_rows = sa.table(parent, sa.column("id"), sa.column("new_id"))
+    op.add_column(parent, sa.Column("new_id", sa.Uuid(), nullable=True))
+    op.execute(sa.update(parent_rows).values(new_id=sa.func.gen_random_uuid()))
+    for reference in references:
+        new_column = f"new_{reference.column}"
+        child = sa.table(reference.table, sa.column(reference.column), sa.column(new_column))
+        op.add_column(reference.table, sa.Column(new_column, sa.Uuid(), nullable=True))
+        op.execute(
+            sa.update(child)
+            .values({new_column: parent_rows.c.new_id})
+            .where(parent_rows.c.id == child.c[reference.column])
+        )
+
+
+def rewrite_payload_ids(event_types: Sequence[str], key: str, parent: str) -> None:
+    """Rewrite an integer id in the payloads of the given event types to the UUID of its parent row.
+
+    Every row of every present event table is rewritten whatever its status (pending, retrying, claimed, dead
+    letter, completed, relayed or not). An id that matches no parent row becomes a fresh random UUID.
+
+    Args:
+        event_types: The event types whose payloads carry the id under ``key``.
+        key: The payload key that holds the id.
+        parent: The table whose ids the key holds; it must still have its ``new_id``.
+    """
+    parents = sa.table(parent, sa.column("id"), sa.column("new_id"))
+    for names, payload_column, _metadata_column in _EVENT_TABLES:
+        for table in _existing_tables(names):
+            rows = sa.table(table, sa.column(payload_column, postgresql.JSONB), sa.column("event_type"))
+            document = rows.c[payload_column]
+            op.execute(
+                sa.update(rows)
+                .values({payload_column: _with_uuid_id(document, key, parents)})
+                .where(rows.c.event_type.in_(list(event_types)), _is_number(document, key))
+            )
+
+
+def rewrite_metadata_ids(key: str, parent: str) -> None:
+    """Rewrite an integer id under ``key`` in the metadata of every event row to the UUID of its parent row.
+
+    Rows are matched by the presence of a numeric value under the key, whatever their event type.
+
+    Args:
+        key: The metadata key that holds the id.
+        parent: The table whose ids the key holds; it must still have its ``new_id``.
+    """
+    parents = sa.table(parent, sa.column("id"), sa.column("new_id"))
+    for names, _payload_column, metadata_column in _EVENT_TABLES:
+        for table in _existing_tables(names):
+            rows = sa.table(table, sa.column(metadata_column, postgresql.JSONB))
+            document = rows.c[metadata_column]
+            op.execute(
+                sa.update(rows)
+                .values({metadata_column: _with_uuid_id(document, key, parents)})
+                .where(_is_number(document, key))
+            )
+
+
+def rewrite_notification_option_ids(key: str, parent: str) -> None:
+    """Rewrite an integer id under ``key`` in the notification options to the UUID of its parent row.
+
+    The other keys of the options are kept.
+
+    Args:
+        key: The options key that holds the id.
+        parent: The table whose ids the key holds; it must still have its ``new_id``.
+    """
+    parents = sa.table(parent, sa.column("id"), sa.column("new_id"))
+    rows = sa.table("notifications", sa.column("options", sa.JSON))
+    document = sa.cast(rows.c.options, postgresql.JSONB)
+    op.execute(
+        sa.update(rows)
+        .values(options=sa.cast(_with_uuid_id(document, key, parents), sa.JSON))
+        .where(rows.c.options.is_not(None), _is_number(document, key))
+    )
+
+
+def record_old_ids(parent: str) -> None:
+    """Record the old and new id of every row of a table in ``uuid_migration_ids``.
+
+    Data migration 13 reads the table to rename the stored files named by an integer id, then drops it. The table
+    is created when it does not exist yet.
+
+    Args:
+        parent: The table being converted; it must still have its ``id`` and ``new_id``.
+    """
+    op.execute(
+        sa.text(
+            "CREATE TABLE IF NOT EXISTS uuid_migration_ids (table_name varchar(64) NOT NULL, "
+            "old_id integer NOT NULL, new_id uuid NOT NULL, "
+            "CONSTRAINT uuid_migration_ids_pkey PRIMARY KEY (table_name, old_id))"
+        )
+    )
+    parents = sa.table(parent, sa.column("id"), sa.column("new_id"))
+    recorded = sa.table("uuid_migration_ids", sa.column("table_name"), sa.column("old_id"), sa.column("new_id"))
+    op.execute(
+        sa.insert(recorded).from_select(
+            ["table_name", "old_id", "new_id"], sa.select(sa.literal(parent), parents.c.id, parents.c.new_id)
+        )
+    )
+
+
+def schedule_stored_key_renames() -> None:
+    """Register data migration 13, which renames the stored files named by an integer id, as not executed."""
+    op.execute(
+        sa.text(
+            "INSERT INTO migrations (id, name, description, executed) VALUES "
+            "(13, 'v0.21.0', 'Rename the stored files named by an integer id to their UUID', false) "
+            "ON CONFLICT (id) DO UPDATE SET executed = false"
+        )
+    )
+
+
+def swap_in_uuid_ids(parent: str, parent_indexes: Sequence[IdIndex], references: Sequence[IdReference]) -> None:
+    """Replace the integer ``id`` of a table and every column that references it by the ``new_id`` columns.
+
+    Dropping a column drops its foreign key, its indexes and the unique constraints that contain it, and dropping the
+    parent's ``id`` drops its primary key, its serial sequence and its indexes. All of them are recreated on the UUID
+    columns with the same names. No server default stays: the models generate the UUID in Python.
+
+    Args:
+        parent: The table being converted.
+        parent_indexes: The indexes that contained the parent's ``id``.
+        references: The columns that hold its ids, each with the indexes and unique constraints to recreate.
+    """
+    for reference in references:
+        op.drop_column(reference.table, reference.column)
+        op.alter_column(reference.table, f"new_{reference.column}", new_column_name=reference.column)
+        op.alter_column(
+            reference.table,
+            reference.column,
+            existing_type=sa.Uuid(),
+            nullable=reference.nullable,
+            comment=reference.comment,
+        )
+    op.drop_column(parent, "id")
+    op.alter_column(parent, "new_id", new_column_name="id")
+    op.alter_column(parent, "id", existing_type=sa.Uuid(), nullable=False)
+    op.create_primary_key(f"{parent}_pkey", parent, ["id"])
+    for index in parent_indexes:
+        op.create_index(index.name, parent, list(index.columns))
+    for reference in references:
+        op.create_foreign_key(
+            f"{reference.table}_{reference.column}_fkey",
+            reference.table,
+            parent,
+            [reference.column],
+            ["id"],
+            ondelete=reference.ondelete,
+        )
+        for index in reference.indexes:
+            op.create_index(index.name, reference.table, list(index.columns))
+        for constraint in reference.unique_constraints:
+            op.create_unique_constraint(constraint.name, reference.table, list(constraint.columns))

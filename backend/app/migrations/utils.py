@@ -9,6 +9,7 @@ import core.logger as core_logger
 import migrations.crud as migrations_crud
 import migrations.migration_11 as migrations_migration_11
 import migrations.migration_12 as migrations_migration_12
+import migrations.migration_13 as migrations_migration_13
 
 logger = core_logger.get_logger(__name__)
 
@@ -16,6 +17,7 @@ logger = core_logger.get_logger(__name__)
 _SYNC_MIGRATIONS: dict[int, Callable[[Session], None]] = {
     11: migrations_migration_11.process_migration_11,
     12: migrations_migration_12.process_migration_12,
+    13: migrations_migration_13.process_migration_13,
 }
 
 

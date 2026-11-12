@@ -18,6 +18,11 @@ Each entry is ``(payload_class, field, stored_under, parent_table)``:
 
 The revision's own rewrite SQL iterates that constant, so what is declared is what is rewritten.
 
+The ``*Details`` classes of the audit trail are not event payloads and are not rewritten: no production database has
+audit rows yet and a signed checkpoint covers the ones that exist. A revision that changes the type of an audit
+detail id declares it in a second constant of the same entry shape, ``AUDIT_DETAIL_ID_CHANGES``, whose
+``stored_under`` holds the audit action ids. This test reads both constants.
+
 This test discovers every ``VersionedPayload`` subclass of the ``modules`` and ``core`` packages and every one of
 its integer id fields (named ``id`` or ending in ``_id`` or ``_ids``). Each must be declared by a revision or sit in
 ``_NOT_YET_REWRITTEN``. That list only shrinks: the revision that converts an entry declares it and deletes it from
@@ -38,7 +43,7 @@ _PACKAGES = ("modules", "core")
 _OWNED_PREFIXES = tuple(f"{package}." for package in _PACKAGES)
 
 #: Integer id fields of payload classes that no revision converts yet, as (dotted class, field).
-#: Step 9 requires this list to be empty. The three ``*Details`` classes are audit details, not event payloads.
+#: Step 9 requires this list to be empty.
 _NOT_YET_REWRITTEN: frozenset[tuple[str, str]] = frozenset(
     {
         # modules.activities.activity.events
@@ -48,23 +53,16 @@ _NOT_YET_REWRITTEN: frozenset[tuple[str, str]] = frozenset(
         ("modules.activities.activity.events.ActivityUpdatedPayload", "activity_id"),
         ("modules.activities.activity.events.ActivityUpdatedPayload", "user_id"),
         ("modules.activities.activity.events.VisibilityEditRequestedPayload", "user_id"),
-        # modules.auth.account_security.audit_actions (audit details)
-        ("modules.auth.account_security.audit_actions.IdentityLinkDetails", "idp_id"),
         # modules.auth.account_security.events
         ("modules.auth.account_security.events.AccountSecurityChangedPayload", "user_id"),
-        ("modules.auth.account_security.events.AccountSecurityChangedPayload", "idp_id"),
         ("modules.auth.account_security.events.StepUpLockedPayload", "user_id"),
         ("modules.auth.account_security.events.StepUpSessionEndedPayload", "user_id"),
         # modules.auth.authentication.events
         ("modules.auth.authentication.events.AccountLockedPayload", "user_id"),
         ("modules.auth.authentication.events.MfaLockedPayload", "user_id"),
         ("modules.auth.authentication.events.RefreshReuseDetectedPayload", "user_id"),
-        # modules.auth.identity_providers.audit_actions (audit details)
-        ("modules.auth.identity_providers.audit_actions.BackchannelLogoutRefusalDetails", "idp_id"),
-        ("modules.auth.identity_providers.audit_actions.IdentityLinkDetails", "idp_id"),
         # modules.auth.identity_providers.events
         ("modules.auth.identity_providers.events.IdpLinkedPayload", "user_id"),
-        ("modules.auth.identity_providers.events.IdpLinkedPayload", "idp_id"),
         ("modules.auth.identity_providers.events.IdpTokenRefreshPayload", "user_id"),
         # modules.auth.known_devices.events
         ("modules.auth.known_devices.events.NewDeviceSignInPayload", "user_id"),
@@ -224,6 +222,7 @@ def _declared_entries() -> list[tuple[str, str, tuple[str, ...], str]]:
     entries: list[tuple[str, str, tuple[str, ...], str]] = []
     for revision in alembic_chain.script_directory().walk_revisions():
         entries.extend(getattr(revision.module, "PAYLOAD_ID_REWRITES", ()))
+        entries.extend(getattr(revision.module, "AUDIT_DETAIL_ID_CHANGES", ()))
     return entries
 
 
@@ -294,3 +293,15 @@ def test_every_declared_entry_names_a_uuid_field(entry: tuple[str, str, tuple[st
     assert _holds(annotation, uuid.UUID), f"{payload_class}.{field} is declared as rewritten but is not a uuid.UUID."
     assert stored_under and all(isinstance(name, str) for name in stored_under)
     assert parent_table
+
+
+def test_idp_revision_event_types_match_the_application_constants() -> None:
+    from modules.auth.account_security import events as account_security_events
+    from modules.auth.identity_providers import events as idp_events
+
+    stored_under = {payload_class: event_types for payload_class, _field, event_types, _parent in _declared_entries()}
+
+    assert stored_under["modules.auth.identity_providers.events.IdpLinkedPayload"] == (idp_events.IDP_LINKED,)
+    assert stored_under["modules.auth.account_security.events.AccountSecurityChangedPayload"] == (
+        account_security_events.ACCOUNT_SECURITY_CHANGED,
+    )

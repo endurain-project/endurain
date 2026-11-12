@@ -36,6 +36,9 @@ class TestIncludeObject:
     def test_excludes_an_audit_log_partition(self):
         assert include_object(None, "jasil_audit_log_p20261112", "table", True, None) is False
 
+    def test_excludes_the_upgrade_scratch_table_of_the_uuid_conversion(self):
+        assert include_object(None, "uuid_migration_ids", "table", True, None) is False
+
     @pytest.mark.parametrize("table", ["users", "migrations"])
     def test_keeps_application_tables(self, table):
         assert include_object(None, table, "table", True, None) is True

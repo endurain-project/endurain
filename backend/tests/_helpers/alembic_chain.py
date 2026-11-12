@@ -1,5 +1,7 @@
 """Helpers that run the application's real Alembic chain against a disposable PostgreSQL database."""
 
+import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import sqlalchemy as sa
@@ -7,6 +9,7 @@ from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.engine import Connection, Engine
 
 import migrations.startup as migrations_startup
@@ -116,7 +119,7 @@ def row_counts(engine: Engine) -> dict[str, int]:
 _ACTIVITY_CREATED_PAYLOAD = '{"activity_id": 1, "user_id": 1, "duplicate_start_time": false}'
 
 
-def _execute(connection: Connection, statement: str, **params: str) -> None:
+def _execute(connection: Connection, statement: str, **params: str | int) -> None:
     """Run one static INSERT, passing JSON documents as bound parameters."""
     connection.execute(sa.text(statement), params)
 
@@ -597,6 +600,161 @@ def _seed_v0_21_idp_session_tokens(connection: Connection) -> None:
     )
 
 
+def _seed_v0_21_second_identity_provider(connection: Connection) -> None:
+    """Seed provider 2 with a link of user 2, a session token and an OAuth state, and an OAuth state with no provider."""
+    _execute(
+        connection,
+        """INSERT INTO identity_providers (id, name, slug, provider_type, enabled, auto_create_users, sync_user_info)
+           VALUES (2, 'Second Provider', 'second-provider', 'oidc', true, false, false)""",
+    )
+    _execute(
+        connection,
+        "INSERT INTO users_identity_providers (id, user_id, idp_id, idp_subject) VALUES (2, 2, 2, 'second-subject')",
+    )
+    _execute(
+        connection,
+        "INSERT INTO idp_session_tokens (id, session_id, user_id, idp_id) "
+        "VALUES (2, '33333333-3333-4333-8333-333333333332', 2, 2)",
+    )
+    _execute(
+        connection,
+        """INSERT INTO oauth_states (id, idp_id, user_id, nonce, client_type, expires_at, used, purpose)
+           VALUES ('seed-oauth-state-2', 2, 2, 'seed-nonce', 'web', '2030-01-01 00:00:00', false, 'login'),
+               ('seed-oauth-state-no-idp', NULL, NULL, 'seed-nonce', 'mobile', '2030-01-01 00:00:00', false, 'login')""",
+    )
+
+
+def _seed_v0_21_idp_notifications(connection: Connection) -> None:
+    """Seed the notifications that carry an ``idp_id`` in their options: a live, a dangling and a null one."""
+    options = (
+        (2, 31, {"idp_id": 2, "idp_name": "Second"}),
+        (3, 31, {"idp_id": 99, "idp_name": None}),
+        (4, 32, {"change": "identity_provider_unlinked", "idp_id": 1, "idp_name": "Seed Provider"}),
+        (5, 32, {"change": "password_changed", "idp_id": None}),
+    )
+    for notification_id, notification_type, document in options:
+        _execute(
+            connection,
+            """INSERT INTO notifications (id, user_id, type, options, read, created_at)
+               VALUES (:id, 1, :type, CAST(:options AS json), false, '2024-05-01 10:00:00')""",
+            id=notification_id,
+            type=notification_type,
+            options=json.dumps(document),
+        )
+
+
+#: The events the identity-provider revision rewrites, plus one control of another type that must stay as it is, as
+#: (event type, payload). The ``idp_id`` is the old integer id: 1 and 2 name seeded providers, 99 names none.
+IDP_EVENT_CASES: tuple[tuple[str, dict[str, object]], ...] = (
+    ("auth.idp_linked", {"user_id": 1, "idp_id": 2}),
+    ("auth.account_security_changed", {"user_id": 1, "change": "identity_provider_unlinked", "idp_id": 1}),
+    ("auth.account_security_changed", {"user_id": 1, "change": "password_changed", "idp_id": None}),
+    ("auth.account_security_changed", {"user_id": 1, "change": "identity_provider_unlinked", "idp_id": 99}),
+    ("activity.created", {"activity_id": 1, "user_id": 1, "idp_id": 2}),
+)
+#: The metadata of every seeded event row.
+IDP_EVENT_METADATA: dict[str, object] = {"user_id": 1, "request_id": "seed"}
+#: The states of the seeded processing jobs; ``retrying`` is a pending job that was attempted.
+IDP_JOB_STATES = ("pending", "retrying", "claimed", "dead_letter", "completed")
+#: The event log id of the case at an index of ``IDP_EVENT_CASES``; the outbox and job rows of the case carry the
+#: index in their ids (``idp-outbox-<index>-...``, ``idp-job-<index>-...``).
+IDP_EVENT_IDS = tuple(f"idp-event-{index}" for index in range(len(IDP_EVENT_CASES)))
+
+
+def seed_idp_events(connection: Connection, prefix: str = "") -> None:
+    """Seed one event row per case in every substrate table, in each state a row can be in.
+
+    The outbox gets an unrelayed and a relayed row per case, the processing jobs one row per case and state, the
+    event log one row per case. Every row carries ``IDP_EVENT_METADATA``.
+
+    Args:
+        connection: A connection on the database.
+        prefix: The prefix of the substrate table names: empty before JASIL renames them, ``jasil_`` after.
+    """
+    jsonb = postgresql.JSONB
+    log = sa.table(
+        f"{prefix}event_log",
+        *(sa.column(name) for name in ("id", "event_type", "event_source", "status")),
+        sa.column("event_payload", jsonb),
+        sa.column("event_metadata", jsonb),
+    )
+    outbox = sa.table(
+        f"{prefix}event_outbox",
+        *(sa.column(name) for name in ("id", "event_id", "event_type", "source", "timestamp", "relayed_at")),
+        sa.column("payload", jsonb),
+        sa.column("event_metadata", jsonb),
+    )
+    jobs = sa.table(
+        f"{prefix}processing_jobs",
+        *(
+            sa.column(name)
+            for name in (
+                "id",
+                "event_id",
+                "event_type",
+                "subscriber_id",
+                "source",
+                "status",
+                "attempts",
+                "max_attempts",
+            )
+        ),
+        sa.column("payload", jsonb),
+        sa.column("job_metadata", jsonb),
+    )
+    cases = list(enumerate(IDP_EVENT_CASES))
+    connection.execute(
+        sa.insert(log),
+        [
+            {
+                "id": IDP_EVENT_IDS[index],
+                "event_type": event_type,
+                "event_source": "seed",
+                "status": "published",
+                "event_payload": payload,
+                "event_metadata": IDP_EVENT_METADATA,
+            }
+            for index, (event_type, payload) in cases
+        ],
+    )
+    connection.execute(
+        sa.insert(outbox),
+        [
+            {
+                "id": f"idp-outbox-{index}-{relayed}",
+                "event_id": f"{IDP_EVENT_IDS[index]}-{relayed}",
+                "event_type": event_type,
+                "source": "seed",
+                "timestamp": "2024-05-01T12:00:00+00:00",
+                "relayed_at": datetime(2024, 5, 1, 12, tzinfo=UTC) if relayed else None,
+                "payload": payload,
+                "event_metadata": IDP_EVENT_METADATA,
+            }
+            for index, (event_type, payload) in cases
+            for relayed in (False, True)
+        ],
+    )
+    connection.execute(
+        sa.insert(jobs),
+        [
+            {
+                "id": f"idp-job-{index}-{state}",
+                "event_id": IDP_EVENT_IDS[index],
+                "event_type": event_type,
+                "subscriber_id": f"seed.subscriber.{state}",
+                "source": "seed",
+                "status": "pending" if state == "retrying" else state,
+                "attempts": 2 if state == "retrying" else 0,
+                "max_attempts": 5,
+                "payload": payload,
+                "job_metadata": IDP_EVENT_METADATA,
+            }
+            for index, (event_type, payload) in cases
+            for state in IDP_JOB_STATES
+        ],
+    )
+
+
 def seed_v0_21(connection: Connection) -> None:
     """Insert one row into every table the v0.21 chain creates or empties, on a database at revision 84.
 
@@ -620,3 +778,6 @@ def seed_v0_21(connection: Connection) -> None:
     _seed_v0_21_users_sessions(connection)
     _seed_v0_21_rotated_refresh_tokens(connection)
     _seed_v0_21_idp_session_tokens(connection)
+    _seed_v0_21_second_identity_provider(connection)
+    _seed_v0_21_idp_notifications(connection)
+    seed_idp_events(connection)
