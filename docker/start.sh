@@ -70,7 +70,70 @@ for dir in $REQUIRED_DIRS; do
     fi
 done
 
+# Print ENDURAIN_HOST in the canonical form the backend validates
+# (config._validate_endurain_host): lower-case scheme and host, the default port
+# of the scheme dropped, IPv6 brackets and other ports kept. A value that is not
+# a clean http(s) origin is printed unchanged, so the backend reports it.
+canonical_endurain_host() {
+    value="$1"
+    case "$value" in
+        *[[:space:]\\?#@]*) printf '%s' "$value"; return 0 ;;
+    esac
+    scheme=$(printf '%s' "${value%%://*}" | tr '[:upper:]' '[:lower:]')
+    rest="${value#*://}"
+    if [ "$rest" = "$value" ]; then
+        printf '%s' "$value"
+        return 0
+    fi
+    case "$scheme" in
+        http) default_port=80 ;;
+        https) default_port=443 ;;
+        *) printf '%s' "$value"; return 0 ;;
+    esac
+    case "$rest" in
+        \[*\]*)
+            host="${rest%%\]*}]"
+            port_part="${rest#*\]}"
+            ;;
+        *:*)
+            host="${rest%%:*}"
+            port_part=":${rest#*:}"
+            ;;
+        *)
+            host="$rest"
+            port_part=""
+            ;;
+    esac
+    case "$host" in
+        ""|"[]"|*/*) printf '%s' "$value"; return 0 ;;
+    esac
+    port="${port_part#:}"
+    case "$port_part" in
+        ""|:) port="" ;;
+        :*) ;;
+        *) printf '%s' "$value"; return 0 ;;
+    esac
+    case "$port" in
+        *[!0-9]*) printf '%s' "$value"; return 0 ;;
+    esac
+    while [ "${port#0}" != "$port" ]; do
+        port="${port#0}"
+    done
+    if [ "${#port}" -gt 5 ] || { [ -n "$port" ] && [ "$port" -gt 65535 ]; }; then
+        printf '%s' "$value"
+        return 0
+    fi
+    host=$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')
+    if [ -z "$port" ] || [ "$port" = "$default_port" ]; then
+        printf '%s://%s' "$scheme" "$host"
+    else
+        printf '%s://%s:%s' "$scheme" "$host" "$port"
+    fi
+}
+
 if [ -n "$ENDURAIN_HOST" ]; then
+    ENDURAIN_HOST=$(canonical_endurain_host "$ENDURAIN_HOST")
+    export ENDURAIN_HOST
     # The built bundle in the image stays read-only for the runtime user, so the
     # rewrites below go to a per-start copy of it that the backend serves instead.
     # /tmp is writable under any UID, which keeps a custom `user:` working.

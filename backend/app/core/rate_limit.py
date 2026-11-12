@@ -15,7 +15,8 @@ Architecture
 ------------
 1. :class:`RateLimitMiddleware` applies :data:`DEFAULT` limits
    to every route automatically (no endpoint code
-   changes needed). The counter store is synchronous, so the
+   changes needed), except requests the frontend fallback
+   serves as files or pages, which are not counted. The counter store is synchronous, so the
    check runs in the threadpool, as the checks of decorated
    sync routes already do.
 2. Routers import a tier constant (e.g. :data:`WRITE`)
@@ -50,6 +51,7 @@ import core.exceptions as core_exceptions
 import core.jwt_keys as core_jwt_keys
 import core.logger as core_logger
 import core.network as core_network
+import core.router as core_router
 
 logger = core_logger.get_logger(__name__)
 
@@ -82,6 +84,10 @@ PUBLIC_READ: str = DEFAULT
 #: so visitors behind one NAT share a bucket; kept apart from EXPENSIVE_READ so the two can be tuned
 #: separately.
 EXPENSIVE_PUBLIC_READ: str = "30/minute"
+
+#: Polling a background job: the web app reads ``GET /jobs/{job_id}`` every 1 to 3 seconds, so one running job
+#: costs 20 to 60 requests a minute and several at once would exhaust DEFAULT.
+JOB_POLL: str = "300/minute"
 
 #: Endpoints that trigger OUTBOUND calls to a third-party
 #: provider (Strava, Garmin Connect). Tighter than WRITE
@@ -253,7 +259,9 @@ class RateLimitMiddleware(SlowAPIMiddleware):
             return await call_next(request)
 
         handler = _route_handler(app, request.scope)
-        if _should_exempt(limiter, handler):
+        if _should_exempt(limiter, handler) or (
+            handler is core_router.frontend_not_found and core_router.serves_frontend(request.url.path)
+        ):
             return await call_next(request)
 
         error_response, should_inject_headers = await run_in_threadpool(

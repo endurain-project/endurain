@@ -220,6 +220,21 @@ class _GetOnlyRoute(APIRoute):
         return (Match.NONE, {}) if match == Match.PARTIAL else (match, child_scope)
 
 
+def serves_frontend(path: str) -> bool:
+    """
+    Tell whether a request path belongs to the frontend rather than to the API or ``.well-known``.
+
+    Args:
+        path: The request path, with or without its leading slash.
+
+    Returns:
+        False for the API root, ``.well-known`` and anything under them, which no frontend file answers.
+    """
+    path = path.lstrip("/")
+    api_prefix = core_config.ROOT_PATH.strip("/")
+    return not (path in (api_prefix, ".well-known") or path.startswith((f"{api_prefix}/", ".well-known/")))
+
+
 def frontend_not_found(
     path: str,
 ) -> FileResponse:
@@ -236,8 +251,7 @@ def frontend_not_found(
         NotFoundError: If the path is under the API prefix or ``.well-known``, since no route serves it.
         HTTPException: If the requested resource is not found.
     """
-    api_prefix = core_config.ROOT_PATH.strip("/")
-    if path in (api_prefix, ".well-known") or path.startswith((f"{api_prefix}/", ".well-known/")):
+    if not serves_frontend(path):
         raise core_exceptions.NotFoundError("Resource not found")
 
     if "." in path.split("/")[-1]:

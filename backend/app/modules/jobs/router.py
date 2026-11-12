@@ -2,12 +2,13 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Path, Query, Response, Security
+from fastapi import APIRouter, Path, Query, Request, Response, Security
 
 import core.dependencies as core_dependencies
 import core.job_status as core_job_status
 import core.location as core_location
 import core.pagination as core_pagination
+import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.jobs.schema as jobs_schema
 import modules.jobs.service as jobs_service
@@ -56,7 +57,9 @@ def list_jobs(
     # No scope of its own: the scope a job needs depends on its kind, so the handler checks it.
     dependencies=[Security(auth_dependencies.check_scopes, scopes=[])],
 )
+@core_rate_limit.limiter.limit(core_rate_limit.JOB_POLL)
 def read_job(
+    request: Request,
     job_id: Annotated[str, Path(min_length=1, max_length=64)],
     caller: auth_dependencies.CurrentPrincipal,
     state: core_dependencies.PlatformState,

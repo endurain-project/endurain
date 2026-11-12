@@ -21,6 +21,7 @@ import ast
 import pathlib
 import time
 from collections.abc import Iterator
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -58,6 +59,7 @@ import modules.auth.account_security.public_router as password_change_router
 import modules.auth.account_security.sessions_router as auth_sessions_profile_router
 import modules.auth.authentication.public_router as auth_router
 import modules.auth.authentication.sso_public_router as sso_public_router
+import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_providers.public_router as idp_public_router
 import modules.auth.identity_providers.router as identity_providers_router
 import modules.auth.onboarding.public_router as onboarding_public_router
@@ -78,6 +80,7 @@ import modules.health.health_steps.router as health_steps_router
 import modules.health.health_targets.router as health_targets_router
 import modules.health.health_water.router as health_water_router
 import modules.health.health_weight.router as health_weight_router
+import modules.jobs.router as jobs_router
 import modules.notifications.router as notifications_router
 import modules.server_settings.logs_router as server_settings_logs_router
 import modules.server_settings.public_router as server_settings_public_router
@@ -117,6 +120,7 @@ _TIERED_ENDPOINTS = [
     pytest.param(auth_router.login_for_access_token, core_rate_limit.SENSITIVE, id="login"),
     pytest.param(auth_router.verify_mfa_and_login, core_rate_limit.SENSITIVE, id="mfa-verify"),
     pytest.param(password_change_router.complete_password_change, core_rate_limit.SENSITIVE, id="password-change"),
+    pytest.param(jobs_router.read_job, core_rate_limit.JOB_POLL, id="job-poll"),
     pytest.param(auth_router.refresh_token, core_rate_limit.WRITE, id="token-refresh"),
     pytest.param(auth_router.logout, core_rate_limit.WRITE, id="logout"),
     pytest.param(onboarding_public_router.complete_onboarding, core_rate_limit.SENSITIVE, id="onboarding-complete"),
@@ -567,3 +571,54 @@ def test_a_decorated_route_counts_only_its_own_limit(enabled_limiter, real_app):
 
     assert statuses[:120] == [200] * 120
     assert statuses[120] == 429
+
+
+def test_frontend_files_do_not_count_against_the_default_limit(enabled_limiter, real_app):
+    """The SPA fallback serves every frontend file, so a page load must never meet the default cap."""
+    client = TestClient(real_app)
+
+    statuses = _statuses(client, "/assets/app.js", 121)
+
+    assert 429 not in statuses
+    assert set(statuses) <= {200, 404}
+
+
+def test_unknown_api_paths_still_count_against_the_default_limit(enabled_limiter, real_app):
+    """An unknown API path reaches the same fallback, so it stays limited to keep probing bounded."""
+    client = TestClient(real_app)
+
+    statuses = _statuses(client, f"{core_config.ROOT_PATH}/no-such-route", 121)
+
+    assert 429 not in statuses[:120]
+    assert statuses[120] == 429
+
+
+def test_unknown_well_known_paths_still_count_against_the_default_limit(enabled_limiter, real_app):
+    """``.well-known`` has no frontend file either, so it is limited like an unknown API path."""
+    client = TestClient(real_app)
+
+    statuses = _statuses(client, "/.well-known/no-such-file", 121)
+
+    assert statuses[120] == 429
+
+
+def test_job_polling_has_its_own_tier(enabled_limiter, real_app):
+    """Polling a job every second or two outruns the default, so ``GET /jobs/{id}`` takes the JOB_POLL tier.
+
+    The tier is counted once the caller is authenticated, so the principal is supplied; what the route answers
+    after that does not matter, only that it is not a 429 until the tier's cap is passed.
+    """
+    cap = parse_limit(core_rate_limit.JOB_POLL).amount
+    assert cap > 121
+    real_app.dependency_overrides[auth_dependencies.get_principal] = lambda: SimpleNamespace(
+        user_id=1, scopes=frozenset()
+    )
+    try:
+        client = TestClient(real_app, raise_server_exceptions=False)
+
+        statuses = _statuses(client, f"{core_config.ROOT_PATH}/jobs/some-job", cap + 1)
+    finally:
+        real_app.dependency_overrides.pop(auth_dependencies.get_principal)
+
+    assert 429 not in statuses[:cap]
+    assert statuses[cap] == 429
