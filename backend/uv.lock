@@ -866,8 +866,8 @@ requires-dist = [
     { name = "gpxpy", specifier = ">=1.6.2" },
     { name = "httpx2", specifier = ">=2.13.0" },
     { name = "itsdangerous", specifier = ">=2.2.0" },
-    { name = "jasil", extras = ["audit", "fastapi", "geocoding", "jobs", "migrations"], specifier = ">=0.16.0,<0.17.0" },
-    { name = "jasil", extras = ["redis", "s3"], marker = "extra == 'distributed'", specifier = ">=0.16.0,<0.17.0" },
+    { name = "jasil", extras = ["audit", "fastapi", "geocoding", "jobs", "migrations"], specifier = ">=0.20.0,<0.21.0" },
+    { name = "jasil", extras = ["redis", "s3"], marker = "extra == 'distributed'", specifier = ">=0.20.0,<0.21.0" },
     { name = "joserfc", specifier = ">=1.7.5" },
     { name = "nh3", specifier = ">=0.3.7" },
     { name = "numpy", specifier = ">=2.5.3" },
@@ -1470,15 +1470,15 @@ wheels = [
 
 [[package]]
 name = "jasil"
-version = "0.16.0"
+version = "0.20.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "sqlalchemy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/64/b1/d0f5f8ea4c47dff57f2d347b8dcdc2844eb44973ca790dc29daba9f6263a/jasil-0.16.0.tar.gz", hash = "sha256:8b605e366a4f8f0eaee66a0167c47954cc090e2df45d735bdf331f91a879079d", size = 307926, upload-time = "2026-11-04T13:37:58.521Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f0/93/819c828d00b7068b943c2c84113c4b9f3d715017ad06b54008afce90f299/jasil-0.20.0.tar.gz", hash = "sha256:ac146eea26d77946994826d85b9312cf8795f3011ad10d304ceb02b2de34d3ab", size = 332415, upload-time = "2026-11-12T15:00:38.986Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5c/76/e88f9a298d5c34b5b36251ffa7592681cd5226953840d693acb10a6d0006/jasil-0.16.0-py3-none-any.whl", hash = "sha256:d5a34545140f383228779b0e8c775b0c71276b0b21380a805839a34a016aae8d", size = 339844, upload-time = "2026-11-04T13:37:56.773Z" },
+    { url = "https://files.pythonhosted.org/packages/ed/5f/01e4eca0e6c1aa6232f6408434e582ffcfe1720abedba113010352fe2e3a/jasil-0.20.0-py3-none-any.whl", hash = "sha256:e25ea75bfcc69db83a32633b863548b6b5d91b9086b3ee546172a3a2d0d24526", size = 359449, upload-time = "2026-11-12T15:00:37.584Z" },
 ]
 
 [package.optional-dependencies]
@@ -1490,6 +1490,7 @@ fastapi = [
 ]
 geocoding = [
     { name = "requests" },
+    { name = "urllib3" },
 ]
 jobs = [
     { name = "apscheduler" },
