@@ -841,7 +841,6 @@
       "forget": "Dit apparaat vergeten",
       "forgetTitle": "Dit apparaat vergeten?",
       "forgetDescription": "Als je dit apparaat vergeet, wordt het ook uitgelogd. De volgende inlog vanaf dit apparaat telt als een nieuw apparaat en stuurt je een melding.",
-      "forgetCurrentDescription": "Dit is het apparaat dat je nu gebruikt. Als je het vergeet, word je meteen uitgelogd en telt de volgende inlog ervan als een nieuw apparaat en stuurt je een melding.",
       "forgetConfirm": "Apparaat vergeten",
       "forgetSuccess": "Apparaat vergeten",
       "forgetError": "Het apparaat kon niet worden vergeten. Probeer het opnieuw.",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "Alle apparaten behalve dit worden vergeten en uitgelogd. De volgende aanmelding vanaf elk apparaat telt als een nieuw apparaat en stuurt je een melding.",
       "forgetOthersConfirm": "Apparaten vergeten",
       "forgetOthersSuccess": "Andere apparaten vergeten",
-      "forgetOthersError": "De andere apparaten konden niet worden vergeten. Probeer het opnieuw."
+      "forgetOthersError": "De andere apparaten konden niet worden vergeten. Probeer het opnieuw.",
+      "forgetAll": "Alle apparaten vergeten",
+      "forgetAllTitle": "Alle apparaten vergeten?",
+      "forgetAllDescription": "Alle apparaten, inclusief dit, worden vergeten en uitgelogd, en je wordt doorgestuurd naar de aanmeldpagina. De volgende aanmelding vanaf elk apparaat telt als een nieuw apparaat en stuurt je een melding.",
+      "forgetAllConfirm": "Apparaten vergeten",
+      "forgetAllError": "De apparaten konden niet worden vergeten. Probeer het opnieuw."
     },
     "linked": {
       "title": "Gekoppelde accounts",

@@ -841,7 +841,6 @@
       "forget": "忘記此裝置",
       "forgetTitle": "忘記此裝置？",
       "forgetDescription": "忘記此裝置也會讓它登出。下次從此裝置登入將被視為新裝置，並向您發送通知。",
-      "forgetCurrentDescription": "這是您目前使用的裝置。忘記它會立即讓您登出，下次從此裝置登入將被視為新裝置，並向您發送通知。",
       "forgetConfirm": "忘記裝置",
       "forgetSuccess": "裝置已忘記",
       "forgetError": "無法忘記該裝置，請再試一次。",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "除目前裝置外，所有裝置都將被忘記並登出。之後從每個裝置登入都將視為新裝置，並向你發送通知。",
       "forgetOthersConfirm": "忘記裝置",
       "forgetOthersSuccess": "已忘記其他裝置",
-      "forgetOthersError": "無法忘記其他裝置。請再試一次。"
+      "forgetOthersError": "無法忘記其他裝置。請再試一次。",
+      "forgetAll": "忘記所有裝置",
+      "forgetAllTitle": "忘記所有裝置？",
+      "forgetAllDescription": "包括目前裝置在內的所有裝置都將被忘記並登出，你將被導向登入頁面。之後從每個裝置登入都將視為新裝置，並向你發送通知。",
+      "forgetAllConfirm": "忘記裝置",
+      "forgetAllError": "無法忘記裝置。請再試一次。"
     },
     "linked": {
       "title": "已連結帳戶",

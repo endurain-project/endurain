@@ -20,6 +20,7 @@ import {
   useIdpReauthChallenge,
 } from '@/features/security/composables/useIdpStepUp'
 import {
+  useForgetAllKnownDevicesMutation,
   useForgetKnownDeviceMutation,
   useForgetOtherKnownDevicesMutation,
   useKnownDevicesQuery,
@@ -36,9 +37,9 @@ const props = defineProps<{
 
 /**
  * The Known devices card: the devices the account is known to sign in from, with the
- * current one badged. Forgetting a device needs step-up, signs the device out (this browser
- * included, when it is the current device) and makes the next sign-in from it count as a new
- * device.
+ * current one badged and not forgettable on its own. Forgetting a device needs step-up, signs it
+ * out and makes the next sign-in from it count as a new device. Forgetting every device also
+ * forgets this one and leaves for the login page.
  */
 const { t, locale } = useI18n()
 const toasts = useToasts()
@@ -48,6 +49,7 @@ const { data, isPending, isError, refetch } = useKnownDevicesQuery()
 const devices = computed(() => data.value ?? [])
 const forgetMutation = useForgetKnownDeviceMutation()
 const forgetOthersMutation = useForgetOtherKnownDevicesMutation()
+const forgetAllMutation = useForgetAllKnownDevicesMutation()
 /** The number of devices that aren't the current one (forgettable in bulk). */
 const otherDevicesCount = computed(() => devices.value.filter((device) => !device.current).length)
 
@@ -56,11 +58,8 @@ const idpReauth = ref<IdpReauth | null>(null)
 const deviceIdToForget = ref<number | null>(null)
 const isForgetOthersOpen = ref(false)
 const forgetOthersReauth = ref<IdpReauth | null>(null)
-const forgetDescription = computed(() =>
-  devices.value.some((device) => device.id === deviceIdToForget.value && device.current)
-    ? t('settings.security.devices.forgetCurrentDescription')
-    : t('settings.security.devices.forgetDescription'),
-)
+const isForgetAllOpen = ref(false)
+const forgetAllReauth = ref<IdpReauth | null>(null)
 
 /** A device label built from browser + OS, falling back to the device type. */
 function deviceLabel(device: KnownDevice): string {
@@ -88,6 +87,9 @@ onMounted(() => {
   } else if (resume?.action === 'profile_devices_forget_others') {
     forgetOthersReauth.value = resume.reauth
     isForgetOthersOpen.value = true
+  } else if (resume?.action === 'profile_devices_forget_all') {
+    forgetAllReauth.value = resume.reauth
+    isForgetAllOpen.value = true
   }
 })
 
@@ -146,6 +148,24 @@ function onConfirmOthers(input: StepUpInput): void {
     },
   })
 }
+
+/** Forgets every device, this one included, after step-up; the mutation then leaves for the login page. */
+function onConfirmAll(input: StepUpInput): void {
+  forgetAllMutation.mutate(input, {
+    onError: (error) => {
+      if (handleIdpChallenge(error)) {
+        return
+      }
+      if (isStepUpLocked(error)) {
+        toasts.error(t('settings.security.stepUp.tooManyAttempts'))
+      } else if (isStepUpFailed(error)) {
+        toasts.error(t('settings.security.linked.invalidCredentials'))
+      } else {
+        toasts.error(t('settings.security.devices.forgetAllError'))
+      }
+    },
+  })
+}
 </script>
 
 <template>
@@ -155,14 +175,19 @@ function onConfirmOthers(input: StepUpInput): void {
         <h2 class="text-card-heading">{{ t('settings.security.devices.title') }}</h2>
         <p class="text-hint">{{ t('settings.security.devices.subtitle') }}</p>
       </div>
-      <Button
-        v-if="otherDevicesCount > 0"
-        variant="outline"
-        size="sm"
-        @click="isForgetOthersOpen = true"
-      >
-        {{ t('settings.security.devices.forgetOthers') }}
-      </Button>
+      <div class="flex flex-wrap gap-2">
+        <Button
+          v-if="otherDevicesCount > 0"
+          variant="outline"
+          size="sm"
+          @click="isForgetOthersOpen = true"
+        >
+          {{ t('settings.security.devices.forgetOthers') }}
+        </Button>
+        <Button variant="outline" size="sm" @click="isForgetAllOpen = true">
+          {{ t('settings.security.devices.forgetAll') }}
+        </Button>
+      </div>
     </div>
 
     <!-- Loading -->
@@ -211,6 +236,7 @@ function onConfirmOthers(input: StepUpInput): void {
         <Button
           variant="ghostDestructive"
           size="icon-sm"
+          :disabled="device.current"
           :aria-label="t('settings.security.devices.forget')"
           @click="openForget(device)"
         >
@@ -225,7 +251,7 @@ function onConfirmOthers(input: StepUpInput): void {
       action="profile_device_forget"
       :pending-context="deviceIdToForget === null ? {} : { deviceId: deviceIdToForget }"
       :title="t('settings.security.devices.forgetTitle')"
-      :description="forgetDescription"
+      :description="t('settings.security.devices.forgetDescription')"
       :confirm-label="t('settings.security.devices.forgetConfirm')"
       :require-password="props.hasLocalPassword"
       :require-mfa="props.mfaEnabled"
@@ -246,6 +272,20 @@ function onConfirmOthers(input: StepUpInput): void {
       destructive
       :pending="forgetOthersMutation.isPending.value"
       @confirm="onConfirmOthers"
+    />
+
+    <StepUpDialog
+      v-model:open="isForgetAllOpen"
+      v-model:reauth="forgetAllReauth"
+      action="profile_devices_forget_all"
+      :title="t('settings.security.devices.forgetAllTitle')"
+      :description="t('settings.security.devices.forgetAllDescription')"
+      :confirm-label="t('settings.security.devices.forgetAllConfirm')"
+      :require-password="props.hasLocalPassword"
+      :require-mfa="props.mfaEnabled"
+      destructive
+      :pending="forgetAllMutation.isPending.value"
+      @confirm="onConfirmAll"
     />
   </Card>
 </template>

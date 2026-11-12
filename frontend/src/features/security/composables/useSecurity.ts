@@ -29,6 +29,7 @@ import {
   fetchApiKeys,
   fetchBackupCodeStatus,
   fetchKnownDevices,
+  forgetAllKnownDevices,
   forgetKnownDevice,
   forgetOtherKnownDevices,
   fetchMfaStatus,
@@ -138,6 +139,27 @@ export function useForgetOtherKnownDevicesMutation() {
     onSettled: () => {
       void client.invalidateQueries({ queryKey: queryKeys.security.devices() })
       void client.invalidateQueries({ queryKey: queryKeys.security.sessions() })
+    },
+  })
+}
+
+/**
+ * Forget-all-devices mutation (step-up gated). On success every session, this one included, no longer
+ * exists on the server, so it shows the login page and then clears only the local session, as
+ * `useSignOutEverywhereMutation` does.
+ *
+ * @returns The TanStack Query mutation for forgetting every known device.
+ */
+export function useForgetAllKnownDevicesMutation() {
+  const authStore = useAuthStore()
+  const router = useRouter()
+
+  return useMutation<void, Error, StepUpInput>({
+    mutationKey: queryKeys.security.all(),
+    mutationFn: (input) => forgetAllKnownDevices(input),
+    onSuccess: async () => {
+      await router.replace({ name: 'login', query: { logoutSuccess: 'true' } })
+      authStore.clearLocalSession()
     },
   })
 }

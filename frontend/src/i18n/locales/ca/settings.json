@@ -841,7 +841,6 @@
       "forget": "Oblida aquest dispositiu",
       "forgetTitle": "Oblidar aquest dispositiu?",
       "forgetDescription": "Oblidar aquest dispositiu també hi tanca la sessió. El proper inici de sessió des d'aquest dispositiu es compta com a dispositiu nou i t'envia un avís.",
-      "forgetCurrentDescription": "Aquest és el dispositiu que fas servir ara. Si l'oblides, es tanca la teva sessió immediatament, i el proper inici de sessió des d'aquest dispositiu es compta com a dispositiu nou i t'envia un avís.",
       "forgetConfirm": "Oblida el dispositiu",
       "forgetSuccess": "Dispositiu oblidat",
       "forgetError": "No s'ha pogut oblidar el dispositiu. Torna-ho a intentar.",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "Tots els dispositius excepte aquest s'oblidaran i es tancarà la seva sessió. El proper inici de sessió des de cadascun comptarà com un dispositiu nou i t'enviarà un avís.",
       "forgetOthersConfirm": "Oblida els dispositius",
       "forgetOthersSuccess": "S'han oblidat els altres dispositius",
-      "forgetOthersError": "No s'han pogut oblidar els altres dispositius. Torna-ho a provar."
+      "forgetOthersError": "No s'han pogut oblidar els altres dispositius. Torna-ho a provar.",
+      "forgetAll": "Oblida tots els dispositius",
+      "forgetAllTitle": "Vols oblidar tots els dispositius?",
+      "forgetAllDescription": "Tots els dispositius, inclòs aquest, s'oblidaran i es tancarà la seva sessió, i seràs enviat a la pàgina d'inici de sessió. El proper inici de sessió des de cadascun comptarà com un dispositiu nou i t'enviarà un avís.",
+      "forgetAllConfirm": "Oblida els dispositius",
+      "forgetAllError": "No s'han pogut oblidar els dispositius. Torna-ho a provar."
     },
     "linked": {
       "title": "Comptes vinculats",

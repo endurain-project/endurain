@@ -180,6 +180,7 @@ _TIERED_ENDPOINTS = [
     pytest.param(auth_api_keys_router.revoke_user_api_key, core_rate_limit.SENSITIVE, id="api-key-revoke"),
     pytest.param(auth_api_keys_router.delete_user_api_key, core_rate_limit.SENSITIVE, id="api-key-delete"),
     pytest.param(auth_devices_router.forget_user_device, core_rate_limit.SENSITIVE, id="device-forget"),
+    pytest.param(auth_devices_router.forget_all_user_devices, core_rate_limit.SENSITIVE, id="devices-forget-all"),
     pytest.param(auth_devices_router.forget_other_user_devices, core_rate_limit.SENSITIVE, id="devices-forget-others"),
     pytest.param(
         auth_admin_api_keys_router.read_api_keys_user, core_rate_limit.EXPENSIVE_READ, id="admin-api-keys-read"

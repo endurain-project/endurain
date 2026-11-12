@@ -841,7 +841,6 @@
       "forget": "Bu cihazı unut",
       "forgetTitle": "Bu cihaz unutulsun mu?",
       "forgetDescription": "Bu cihazı unutmak, cihazın oturumunu da kapatır. Bu cihazdan bir sonraki giriş yeni bir cihaz sayılır ve size bir bildirim gönderir.",
-      "forgetCurrentDescription": "Bu, şu anda kullandığınız cihazdır. Onu unutmak oturumunuzu hemen kapatır ve bu cihazdan bir sonraki giriş yeni bir cihaz sayılır ve size bir bildirim gönderir.",
       "forgetConfirm": "Cihazı unut",
       "forgetSuccess": "Cihaz unutuldu",
       "forgetError": "Cihaz unutulamadı. Lütfen tekrar deneyin.",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "Bu cihaz dışındaki tüm cihazlar unutulacak ve oturumları kapatılacak. Her birinden yapılacak bir sonraki giriş yeni cihaz sayılır ve size bir bildirim gönderir.",
       "forgetOthersConfirm": "Cihazları unut",
       "forgetOthersSuccess": "Diğer cihazlar unutuldu",
-      "forgetOthersError": "Diğer cihazlar unutulamadı. Lütfen tekrar deneyin."
+      "forgetOthersError": "Diğer cihazlar unutulamadı. Lütfen tekrar deneyin.",
+      "forgetAll": "Tüm cihazları unut",
+      "forgetAllTitle": "Tüm cihazlar unutulsun mu?",
+      "forgetAllDescription": "Bu cihaz dahil tüm cihazlar unutulacak ve oturumları kapatılacak, ayrıca giriş sayfasına yönlendirileceksiniz. Her birinden yapılacak bir sonraki giriş yeni cihaz sayılır ve size bir bildirim gönderir.",
+      "forgetAllConfirm": "Cihazları unut",
+      "forgetAllError": "Cihazlar unutulamadı. Lütfen tekrar deneyin."
     },
     "linked": {
       "title": "Bağlı hesaplar",

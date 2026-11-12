@@ -177,6 +177,20 @@ def count_devices(user_id: int, generation: int, db: Session) -> int:
     return db.execute(stmt).scalar_one()
 
 
+def get_device_hash(device_id: int, user_id: int, generation: int, db: Session) -> str | None:
+    """Return the SHA-256 hex digest of one of the user's devices known under the current security generation.
+
+    Returns:
+        The digest, or None when the user has no such device.
+    """
+    model = known_devices_models.KnownDevice
+    return db.execute(
+        select(model.device_hash).where(
+            model.id == device_id, model.user_id == user_id, model.security_generation == generation
+        )
+    ).scalar_one_or_none()
+
+
 def delete_device(device_id: int, user_id: int, generation: int, db: Session) -> str | None:
     """Stage the deletion of one of the user's devices known under the current security generation.
 

@@ -841,7 +841,6 @@
       "forget": "Uită acest dispozitiv",
       "forgetTitle": "Uiți acest dispozitiv?",
       "forgetDescription": "Uitarea acestui dispozitiv îl și deconectează. Următoarea autentificare de pe acest dispozitiv va conta ca dispozitiv nou și îți va trimite o notificare.",
-      "forgetCurrentDescription": "Acesta este dispozitivul pe care îl folosești acum. Dacă îl uiți, ești deconectat imediat, iar următoarea autentificare de pe el va conta ca dispozitiv nou și îți va trimite o notificare.",
       "forgetConfirm": "Uită dispozitivul",
       "forgetSuccess": "Dispozitiv uitat",
       "forgetError": "Nu s-a putut uita dispozitivul. Încearcă din nou.",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "Toate dispozitivele, în afară de acesta, vor fi uitate și deconectate. Următoarea autentificare de pe fiecare va conta ca dispozitiv nou și îți va trimite o notificare.",
       "forgetOthersConfirm": "Uită dispozitivele",
       "forgetOthersSuccess": "Celelalte dispozitive au fost uitate",
-      "forgetOthersError": "Nu s-au putut uita celelalte dispozitive. Încearcă din nou."
+      "forgetOthersError": "Nu s-au putut uita celelalte dispozitive. Încearcă din nou.",
+      "forgetAll": "Uită toate dispozitivele",
+      "forgetAllTitle": "Uiți toate dispozitivele?",
+      "forgetAllDescription": "Toate dispozitivele, inclusiv acesta, vor fi uitate și deconectate, iar vei fi trimis la pagina de autentificare. Următoarea autentificare de pe fiecare va conta ca dispozitiv nou și îți va trimite o notificare.",
+      "forgetAllConfirm": "Uită dispozitivele",
+      "forgetAllError": "Nu s-au putut uita dispozitivele. Încearcă din nou."
     },
     "linked": {
       "title": "Conturi asociate",

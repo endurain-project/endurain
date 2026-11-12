@@ -841,7 +841,6 @@
       "forget": "Esquecer este dispositivo",
       "forgetTitle": "Esquecer este dispositivo?",
       "forgetDescription": "Esquecer este dispositivo tamén pecha a súa sesión. O seguinte inicio de sesión desde este dispositivo contará como un dispositivo novo e enviarache un aviso.",
-      "forgetCurrentDescription": "Este é o dispositivo que estás a usar agora. Se o esqueces, péchase a túa sesión de inmediato, e o seguinte inicio de sesión desde el contará como un dispositivo novo e enviarache un aviso.",
       "forgetConfirm": "Esquecer dispositivo",
       "forgetSuccess": "Dispositivo esquecido",
       "forgetError": "Non se puido esquecer o dispositivo. Téntao de novo.",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "Esqueceranse todos os dispositivos agás este e pecharase a súa sesión. O seguinte inicio de sesión desde cada un contará como un dispositivo novo e enviarache un aviso.",
       "forgetOthersConfirm": "Esquecer dispositivos",
       "forgetOthersSuccess": "Outros dispositivos esquecidos",
-      "forgetOthersError": "Non se puideron esquecer os outros dispositivos. Téntao de novo."
+      "forgetOthersError": "Non se puideron esquecer os outros dispositivos. Téntao de novo.",
+      "forgetAll": "Esquecer todos os dispositivos",
+      "forgetAllTitle": "Esquecer todos os dispositivos?",
+      "forgetAllDescription": "Esqueceranse todos os dispositivos, incluído este, e pecharase a súa sesión, e serás enviado á páxina de inicio de sesión. O seguinte inicio de sesión desde cada un contará como un dispositivo novo e enviarache un aviso.",
+      "forgetAllConfirm": "Esquecer dispositivos",
+      "forgetAllError": "Non se puideron esquecer os dispositivos. Téntao de novo."
     },
     "linked": {
       "title": "Contas vinculadas",

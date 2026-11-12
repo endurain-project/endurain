@@ -14,6 +14,7 @@ describe('securityTabForAction', () => {
     expect(securityTabForAction('api_key_create')).toBe('sessions')
     expect(securityTabForAction('profile_device_forget')).toBe('sessions')
     expect(securityTabForAction('profile_devices_forget_others')).toBe('sessions')
+    expect(securityTabForAction('profile_devices_forget_all')).toBe('sessions')
     expect(securityTabForAction('account_delete')).toBe('danger')
   })
 

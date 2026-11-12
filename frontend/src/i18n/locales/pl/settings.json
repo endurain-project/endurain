@@ -841,7 +841,6 @@
       "forget": "Zapomnij to urządzenie",
       "forgetTitle": "Zapomnieć to urządzenie?",
       "forgetDescription": "Zapomnienie tego urządzenia również je wylogowuje. Następne logowanie z tego urządzenia będzie traktowane jak z nowego urządzenia i wyśle Ci powiadomienie.",
-      "forgetCurrentDescription": "To urządzenie, którego teraz używasz. Zapomnienie go natychmiast Cię wyloguje, a następne logowanie z niego będzie traktowane jak z nowego urządzenia i wyśle Ci powiadomienie.",
       "forgetConfirm": "Zapomnij urządzenie",
       "forgetSuccess": "Urządzenie zapomniane",
       "forgetError": "Nie udało się zapomnieć urządzenia. Spróbuj ponownie.",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "Wszystkie urządzenia poza tym zostaną zapomniane i wylogowane. Następne logowanie z każdego z nich będzie liczone jako nowe urządzenie i wyśle Ci powiadomienie.",
       "forgetOthersConfirm": "Zapomnij urządzenia",
       "forgetOthersSuccess": "Inne urządzenia zostały zapomniane",
-      "forgetOthersError": "Nie udało się zapomnieć innych urządzeń. Spróbuj ponownie."
+      "forgetOthersError": "Nie udało się zapomnieć innych urządzeń. Spróbuj ponownie.",
+      "forgetAll": "Zapomnij wszystkie urządzenia",
+      "forgetAllTitle": "Zapomnieć wszystkie urządzenia?",
+      "forgetAllDescription": "Wszystkie urządzenia, łącznie z tym, zostaną zapomniane i wylogowane, a Ty zostaniesz przekierowany na stronę logowania. Następne logowanie z każdego z nich będzie liczone jako nowe urządzenie i wyśle Ci powiadomienie.",
+      "forgetAllConfirm": "Zapomnij urządzenia",
+      "forgetAllError": "Nie udało się zapomnieć urządzeń. Spróbuj ponownie."
     },
     "linked": {
       "title": "Powiązane konta",

@@ -841,7 +841,6 @@
       "forget": "忘记此设备",
       "forgetTitle": "忘记此设备？",
       "forgetDescription": "忘记此设备也会让它退出登录。下次从此设备登录将被视为新设备，并向您发送通知。",
-      "forgetCurrentDescription": "这是您当前使用的设备。忘记它会立即让您退出登录，下次从此设备登录将被视为新设备，并向您发送通知。",
       "forgetConfirm": "忘记设备",
       "forgetSuccess": "设备已忘记",
       "forgetError": "无法忘记该设备，请重试。",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "除当前设备外的所有设备都将被忘记并注销。之后从每台设备登录都将视为新设备，并向你发送通知。",
       "forgetOthersConfirm": "忘记设备",
       "forgetOthersSuccess": "已忘记其他设备",
-      "forgetOthersError": "无法忘记其他设备。请重试。"
+      "forgetOthersError": "无法忘记其他设备。请重试。",
+      "forgetAll": "忘记所有设备",
+      "forgetAllTitle": "忘记所有设备？",
+      "forgetAllDescription": "包括当前设备在内的所有设备都将被忘记并注销，你将被转到登录页面。之后从每台设备登录都将视为新设备，并向你发送通知。",
+      "forgetAllConfirm": "忘记设备",
+      "forgetAllError": "无法忘记设备。请重试。"
     },
     "linked": {
       "title": "关联账户",

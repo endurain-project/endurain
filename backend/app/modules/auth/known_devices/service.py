@@ -155,7 +155,7 @@ def list_devices(
     )
 
 
-def forget_device(device_id: int, user_id: int, db: Session) -> int:
+def forget_device(device_id: int, user_id: int, current_device_id: str | None, db: Session) -> int:
     """Stage the deletion of a known device and of the sessions that signed in from it; the caller commits.
 
     A session created before sessions recorded their device has no hash and is not ended.
@@ -163,6 +163,7 @@ def forget_device(device_id: int, user_id: int, db: Session) -> int:
     Args:
         device_id: ID of the device to forget.
         user_id: The user who owns the device.
+        current_device_id: The device id the request carries, or None when it carries no valid one.
         db: Database session.
 
     Returns:
@@ -170,11 +171,15 @@ def forget_device(device_id: int, user_id: int, db: Session) -> int:
 
     Raises:
         NotFoundError: When the user has no such known device.
+        ConflictError: When the device is the one the request comes from.
     """
     generation = security_generation_integration.current_generation(user_id, db)
-    device_hash = known_devices_crud.delete_device(device_id, user_id, generation, db)
+    device_hash = known_devices_crud.get_device_hash(device_id, user_id, generation, db)
     if device_hash is None:
         raise core_exceptions.NotFoundError("Device not found")
+    if current_device_id is not None and device_hash == core_hashing.sha256_hex(current_device_id):
+        raise core_exceptions.ConflictError("The current device cannot be forgotten")
+    known_devices_crud.delete_device(device_id, user_id, generation, db)
     return sessions_integration.delete_sessions_by_device(user_id, device_hash, db)
 
 

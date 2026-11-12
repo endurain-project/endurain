@@ -841,7 +841,6 @@
       "forget": "Dimentica questo dispositivo",
       "forgetTitle": "Dimenticare questo dispositivo?",
       "forgetDescription": "Dimenticare questo dispositivo lo disconnette anche. Il prossimo accesso da questo dispositivo verrà considerato un nuovo dispositivo e ti invierà un avviso.",
-      "forgetCurrentDescription": "Questo è il dispositivo che stai usando ora. Dimenticarlo ti disconnette subito, e il prossimo accesso da esso verrà considerato un nuovo dispositivo e ti invierà un avviso.",
       "forgetConfirm": "Dimentica dispositivo",
       "forgetSuccess": "Dispositivo dimenticato",
       "forgetError": "Impossibile dimenticare il dispositivo. Riprova.",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "Tutti i dispositivi tranne questo verranno dimenticati e disconnessi. Il prossimo accesso da ciascuno conterà come un nuovo dispositivo e ti invierà un avviso.",
       "forgetOthersConfirm": "Dimentica dispositivi",
       "forgetOthersSuccess": "Altri dispositivi dimenticati",
-      "forgetOthersError": "Impossibile dimenticare gli altri dispositivi. Riprova."
+      "forgetOthersError": "Impossibile dimenticare gli altri dispositivi. Riprova.",
+      "forgetAll": "Dimentica tutti i dispositivi",
+      "forgetAllTitle": "Dimenticare tutti i dispositivi?",
+      "forgetAllDescription": "Tutti i dispositivi, compreso questo, verranno dimenticati e disconnessi e verrai reindirizzato alla pagina di accesso. Il prossimo accesso da ciascuno conterà come un nuovo dispositivo e ti invierà un avviso.",
+      "forgetAllConfirm": "Dimentica dispositivi",
+      "forgetAllError": "Impossibile dimenticare i dispositivi. Riprova."
     },
     "linked": {
       "title": "Account collegati",

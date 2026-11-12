@@ -2174,6 +2174,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/profile/devices/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Forget All User Devices
+         * @description Forget every known device, the one the request comes from included, after step-up verification.
+         *
+         *     The sessions that signed in from the devices end, the caller's own with them, so the client must discard its
+         *     tokens and send the user to the login page; the browser's refresh-token cookie is cleared on the response. The
+         *     next sign-in from each device is announced as a new device.
+         */
+        post: operations["forget_all_user_devices"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profile/devices/revoke": {
         parameters: {
             query?: never;
@@ -2207,9 +2231,10 @@ export interface paths {
         put?: never;
         /**
          * Forget User Device
-         * @description Forget a device after step-up verification, which also signs it out.
+         * @description Forget a device other than the one the request comes from, after step-up verification, which also signs it out.
          *
-         *     The sessions that signed in from the device end, and the next sign-in from it is announced as a new device.
+         *     The sessions that signed in from the device end, and the next sign-in from it is announced as a new device. The
+         *     device the request comes from answers `409`; forget every device to leave it.
          */
         post: operations["forget_user_device"];
         delete?: never;
@@ -11917,6 +11942,7 @@ export interface components {
          *         PROFILE_EXPORT: Export all of the account's data.
          *         PROFILE_DEVICE_FORGET: Forget a device the account is known to sign in from.
          *         PROFILE_DEVICES_FORGET_OTHERS: Forget every device the account is known to sign in from but the current one.
+         *         PROFILE_DEVICES_FORGET_ALL: Forget every device the account is known to sign in from, the current one included.
          *         MFA_ENABLE: Enable MFA.
          *         MFA_DISABLE: Disable MFA.
          *         MFA_BACKUP_CODES: Regenerate MFA backup codes.
@@ -11938,7 +11964,7 @@ export interface components {
          *             the audit trail or the owner info on public links.
          * @enum {string}
          */
-        StepUpAction: "api_key_create" | "idp_link" | "idp_unlink" | "email_change" | "username_change" | "account_delete" | "profile_export" | "profile_device_forget" | "profile_devices_forget_others" | "mfa_enable" | "mfa_disable" | "mfa_backup_codes" | "admin_credential_reset" | "admin_mfa_reset" | "admin_credential_change_require" | "admin_user_edit" | "admin_user_delete" | "admin_idp_unlink" | "admin_user_create" | "admin_idp_create" | "admin_idp_edit" | "admin_idp_delete" | "admin_sessions_revoke" | "admin_api_keys_revoke" | "admin_mail_settings_edit" | "admin_server_settings_edit";
+        StepUpAction: "api_key_create" | "idp_link" | "idp_unlink" | "email_change" | "username_change" | "account_delete" | "profile_export" | "profile_device_forget" | "profile_devices_forget_others" | "profile_devices_forget_all" | "mfa_enable" | "mfa_disable" | "mfa_backup_codes" | "admin_credential_reset" | "admin_mfa_reset" | "admin_credential_change_require" | "admin_user_edit" | "admin_user_delete" | "admin_idp_unlink" | "admin_user_create" | "admin_idp_create" | "admin_idp_edit" | "admin_idp_delete" | "admin_sessions_revoke" | "admin_api_keys_revoke" | "admin_mail_settings_edit" | "admin_server_settings_edit";
         /**
          * StepUpRequest
          * @description Request body of an operation that needs nothing but a step-up verification.
@@ -27446,6 +27472,115 @@ export interface operations {
             };
         };
     };
+    forget_all_user_devices: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
+                "X-Client-Type"?: "web" | "mobile";
+                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
+                "X-CSRF-Token"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepUpRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The request conflicts with the current state. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The body is larger than the route accepts. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     forget_other_user_devices: {
         parameters: {
             query?: never;
@@ -27561,6 +27696,8 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                /** @description The device id the mobile app keeps, as the server returned it on an earlier sign-in: 43 characters of `A-Z a-z 0-9 - _`. Optional: a missing or malformed value counts as none and the server mints one. A browser sends its device cookie instead. */
+                "X-Device-Id"?: string | null;
                 /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
                 "X-Client-Type"?: "web" | "mobile";
                 /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */

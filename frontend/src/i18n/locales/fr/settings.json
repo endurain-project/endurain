@@ -841,7 +841,6 @@
       "forget": "Oublier cet appareil",
       "forgetTitle": "Oublier cet appareil ?",
       "forgetDescription": "Oublier cet appareil le déconnecte aussi. La prochaine connexion depuis cet appareil sera considérée comme un nouvel appareil et vous enverra une notification.",
-      "forgetCurrentDescription": "C'est l'appareil que vous utilisez actuellement. L'oublier vous déconnecte immédiatement, et la prochaine connexion depuis cet appareil sera considérée comme un nouvel appareil et vous enverra une notification.",
       "forgetConfirm": "Oublier l'appareil",
       "forgetSuccess": "Appareil oublié",
       "forgetError": "Impossible d'oublier l'appareil. Veuillez réessayer.",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "Tous les appareils sauf celui-ci seront oubliés et déconnectés. La prochaine connexion depuis chacun comptera comme un nouvel appareil et vous enverra un avis.",
       "forgetOthersConfirm": "Oublier les appareils",
       "forgetOthersSuccess": "Autres appareils oubliés",
-      "forgetOthersError": "Impossible d'oublier les autres appareils. Veuillez réessayer."
+      "forgetOthersError": "Impossible d'oublier les autres appareils. Veuillez réessayer.",
+      "forgetAll": "Oublier tous les appareils",
+      "forgetAllTitle": "Oublier tous les appareils ?",
+      "forgetAllDescription": "Tous les appareils, y compris celui-ci, seront oubliés et déconnectés, et vous serez redirigé vers la page de connexion. La prochaine connexion depuis chacun comptera comme un nouvel appareil et vous enverra un avis.",
+      "forgetAllConfirm": "Oublier les appareils",
+      "forgetAllError": "Impossible d'oublier les appareils. Veuillez réessayer."
     },
     "linked": {
       "title": "Comptes liés",

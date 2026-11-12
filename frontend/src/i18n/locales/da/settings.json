@@ -841,7 +841,6 @@
       "forget": "Glem denne enhed",
       "forgetTitle": "Glem denne enhed?",
       "forgetDescription": "Hvis du glemmer denne enhed, bliver den også logget ud. Det næste login fra denne enhed tæller som en ny enhed og sender dig en besked.",
-      "forgetCurrentDescription": "Det er den enhed, du bruger nu. Hvis du glemmer den, bliver du logget ud med det samme, og det næste login fra den tæller som en ny enhed og sender dig en besked.",
       "forgetConfirm": "Glem enhed",
       "forgetSuccess": "Enhed glemt",
       "forgetError": "Kunne ikke glemme enheden. Prøv venligst igen.",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "Alle enheder undtagen denne bliver glemt og logget ud. Næste login fra hver af dem tæller som en ny enhed og sender dig en meddelelse.",
       "forgetOthersConfirm": "Glem enheder",
       "forgetOthersSuccess": "Andre enheder glemt",
-      "forgetOthersError": "Kunne ikke glemme de andre enheder. Prøv igen."
+      "forgetOthersError": "Kunne ikke glemme de andre enheder. Prøv igen.",
+      "forgetAll": "Glem alle enheder",
+      "forgetAllTitle": "Glem alle enheder?",
+      "forgetAllDescription": "Alle enheder, inklusive denne, bliver glemt og logget ud, og du sendes til loginsiden. Næste login fra hver af dem tæller som en ny enhed og sender dig en meddelelse.",
+      "forgetAllConfirm": "Glem enheder",
+      "forgetAllError": "Kunne ikke glemme enhederne. Prøv igen."
     },
     "linked": {
       "title": "Tilknyttede konti",

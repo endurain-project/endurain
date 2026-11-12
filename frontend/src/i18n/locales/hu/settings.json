@@ -841,7 +841,6 @@
       "forget": "Eszköz elfelejtése",
       "forgetTitle": "Elfelejted ezt az eszközt?",
       "forgetDescription": "Az eszköz elfelejtése ki is jelentkezteti azt. Az erről az eszközről történő következő bejelentkezés új eszköznek számít, és értesítést kapsz.",
-      "forgetCurrentDescription": "Ez az az eszköz, amelyet most használsz. Az elfelejtése azonnal kijelentkeztet, az erről történő következő bejelentkezés pedig új eszköznek számít, és értesítést kapsz.",
       "forgetConfirm": "Eszköz elfelejtése",
       "forgetSuccess": "Eszköz elfelejtve",
       "forgetError": "Nem sikerült elfelejteni az eszközt. Kérjük, próbáld újra.",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "Ezen kívül minden eszköz elfelejtésre kerül és kijelentkeztetjük. A következő bejelentkezés bármelyikről új eszköznek számít, és értesítést küld neked.",
       "forgetOthersConfirm": "Eszközök elfelejtése",
       "forgetOthersSuccess": "A többi eszköz elfelejtve",
-      "forgetOthersError": "Nem sikerült elfelejteni a többi eszközt. Próbáld újra."
+      "forgetOthersError": "Nem sikerült elfelejteni a többi eszközt. Próbáld újra.",
+      "forgetAll": "Összes eszköz elfelejtése",
+      "forgetAllTitle": "Elfelejted az összes eszközt?",
+      "forgetAllDescription": "Minden eszköz, ezt is beleértve, elfelejtésre kerül és kijelentkeztetjük, téged pedig a bejelentkezési oldalra irányítunk. A következő bejelentkezés bármelyikről új eszköznek számít, és értesítést küld neked.",
+      "forgetAllConfirm": "Eszközök elfelejtése",
+      "forgetAllError": "Nem sikerült elfelejteni az eszközöket. Próbáld újra."
     },
     "linked": {
       "title": "Kapcsolt fiókok",

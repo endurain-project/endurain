@@ -841,7 +841,6 @@
       "forget": "Glöm den här enheten",
       "forgetTitle": "Glöm den här enheten?",
       "forgetDescription": "Om du glömmer den här enheten loggas den också ut. Nästa inloggning från den här enheten räknas som en ny enhet och ger dig ett meddelande.",
-      "forgetCurrentDescription": "Det här är enheten du använder nu. Om du glömmer den loggas du ut direkt, och nästa inloggning från den räknas som en ny enhet och ger dig ett meddelande.",
       "forgetConfirm": "Glöm enhet",
       "forgetSuccess": "Enheten har glömts",
       "forgetError": "Det gick inte att glömma enheten. Försök igen.",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "Alla enheter utom denna glöms och loggas ut. Nästa inloggning från var och en räknas som en ny enhet och skickar ett meddelande till dig.",
       "forgetOthersConfirm": "Glöm enheter",
       "forgetOthersSuccess": "Andra enheter glömda",
-      "forgetOthersError": "Det gick inte att glömma de andra enheterna. Försök igen."
+      "forgetOthersError": "Det gick inte att glömma de andra enheterna. Försök igen.",
+      "forgetAll": "Glöm alla enheter",
+      "forgetAllTitle": "Glöm alla enheter?",
+      "forgetAllDescription": "Alla enheter, inklusive denna, glöms och loggas ut, och du skickas till inloggningssidan. Nästa inloggning från var och en räknas som en ny enhet och skickar ett meddelande till dig.",
+      "forgetAllConfirm": "Glöm enheter",
+      "forgetAllError": "Det gick inte att glömma enheterna. Försök igen."
     },
     "linked": {
       "title": "Kopplade konton",

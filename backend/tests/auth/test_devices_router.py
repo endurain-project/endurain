@@ -84,6 +84,29 @@ class TestForgetDevice:
 
         assert response.status_code == 404
 
+    @patch("modules.auth.account_security.devices_router.device_service.forget_user_device")
+    def test_passes_the_requests_device_id(self, forget, fast_api_client):
+        response = fast_api_client.post(
+            "/devices/3/delete",
+            json={"step_up": {"current_password": "pw"}},
+            headers={"Authorization": "Bearer mock_token", "X-Device-Id": _DEVICE_ID},
+        )
+
+        assert response.status_code == 204
+        assert forget.call_args.args[3] == _DEVICE_ID
+
+    @patch("modules.auth.account_security.devices_router.device_service.forget_user_device")
+    def test_the_current_device_is_409(self, forget, fast_api_client):
+        forget.side_effect = core_exceptions.ConflictError("The current device cannot be forgotten")
+
+        response = fast_api_client.post(
+            "/devices/3/delete",
+            json={"step_up": {"current_password": "pw"}},
+            headers={"Authorization": "Bearer mock_token", "X-Device-Id": _DEVICE_ID},
+        )
+
+        assert response.status_code == 409
+
     def test_a_body_without_step_up_is_refused(self, fast_api_client):
         response = fast_api_client.post("/devices/3/delete", json={}, headers={"Authorization": "Bearer mock_token"})
 
@@ -115,5 +138,23 @@ class TestForgetOtherDevices:
 
     def test_a_body_without_step_up_is_refused(self, fast_api_client):
         response = fast_api_client.post("/devices/revoke", json={}, headers={"Authorization": "Bearer mock_token"})
+
+        assert response.status_code == 422
+
+
+class TestForgetAllDevices:
+    @patch("modules.auth.account_security.devices_router.device_service.forget_all_user_devices")
+    def test_answers_204(self, forget, fast_api_client):
+        response = fast_api_client.post(
+            "/devices/delete",
+            json={"step_up": {"current_password": "pw"}},
+            headers={"Authorization": "Bearer mock_token"},
+        )
+
+        assert response.status_code == 204
+        forget.assert_called_once()
+
+    def test_a_body_without_step_up_is_refused(self, fast_api_client):
+        response = fast_api_client.post("/devices/delete", json={}, headers={"Authorization": "Bearer mock_token"})
 
         assert response.status_code == 422

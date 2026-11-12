@@ -841,7 +841,6 @@
       "forget": "Pozabi to napravo",
       "forgetTitle": "Pozabim to napravo?",
       "forgetDescription": "Če to napravo pozabiš, se iz nje tudi odjaviš. Naslednja prijava iz te naprave se šteje za novo napravo in ti pošlje obvestilo.",
-      "forgetCurrentDescription": "To je naprava, ki jo trenutno uporabljaš. Če jo pozabiš, te takoj odjavi, naslednja prijava iz nje pa se šteje za novo napravo in ti pošlje obvestilo.",
       "forgetConfirm": "Pozabi napravo",
       "forgetSuccess": "Naprava pozabljena",
       "forgetError": "Naprave ni bilo mogoče pozabiti. Poskusi znova.",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "Vse naprave razen te bodo pozabljene in odjavljene. Naslednja prijava z vsake od njih se bo štela kot nova naprava in vam bo poslala obvestilo.",
       "forgetOthersConfirm": "Pozabi naprave",
       "forgetOthersSuccess": "Druge naprave so pozabljene",
-      "forgetOthersError": "Drugih naprav ni bilo mogoče pozabiti. Poskusite znova."
+      "forgetOthersError": "Drugih naprav ni bilo mogoče pozabiti. Poskusite znova.",
+      "forgetAll": "Pozabi vse naprave",
+      "forgetAllTitle": "Pozabim vse naprave?",
+      "forgetAllDescription": "Vse naprave, vključno s to, bodo pozabljene in odjavljene, vi pa boste preusmerjeni na stran za prijavo. Naslednja prijava z vsake od njih se bo štela kot nova naprava in vam bo poslala obvestilo.",
+      "forgetAllConfirm": "Pozabi naprave",
+      "forgetAllError": "Naprav ni bilo mogoče pozabiti. Poskusite znova."
     },
     "linked": {
       "title": "Povezani računi",

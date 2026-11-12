@@ -841,7 +841,6 @@
       "forget": "Zaboravi ovaj uređaj",
       "forgetTitle": "Zaboraviti ovaj uređaj?",
       "forgetDescription": "Zaboravljanjem ovog uređaja on se i odjavljuje. Sljedeća prijava s ovog uređaja računat će se kao novi uređaj i poslat će vam obavijest.",
-      "forgetCurrentDescription": "Ovo je uređaj koji trenutačno koristite. Ako ga zaboravite, odmah ćete biti odjavljeni, a sljedeća prijava s njega računat će se kao novi uređaj i poslat će vam obavijest.",
       "forgetConfirm": "Zaboravi uređaj",
       "forgetSuccess": "Uređaj je zaboravljen",
       "forgetError": "Zaboravljanje uređaja nije uspjelo. Pokušajte ponovno.",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "Svi uređaji osim ovog bit će zaboravljeni i odjavljeni. Sljedeća prijava s svakog od njih računat će se kao novi uređaj i poslat će vam obavijest.",
       "forgetOthersConfirm": "Zaboravi uređaje",
       "forgetOthersSuccess": "Drugi uređaji su zaboravljeni",
-      "forgetOthersError": "Nije moguće zaboraviti druge uređaje. Pokušajte ponovno."
+      "forgetOthersError": "Nije moguće zaboraviti druge uređaje. Pokušajte ponovno.",
+      "forgetAll": "Zaboravi sve uređaje",
+      "forgetAllTitle": "Zaboraviti sve uređaje?",
+      "forgetAllDescription": "Svi uređaji, uključujući ovaj, bit će zaboravljeni i odjavljeni, a bit ćete preusmjereni na stranicu za prijavu. Sljedeća prijava s svakog od njih računat će se kao novi uređaj i poslat će vam obavijest.",
+      "forgetAllConfirm": "Zaboravi uređaje",
+      "forgetAllError": "Nije moguće zaboraviti uređaje. Pokušajte ponovno."
     },
     "linked": {
       "title": "Povezani računi",

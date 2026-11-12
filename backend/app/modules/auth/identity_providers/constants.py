@@ -51,6 +51,7 @@ class StepUpAction(StrEnum):
         PROFILE_EXPORT: Export all of the account's data.
         PROFILE_DEVICE_FORGET: Forget a device the account is known to sign in from.
         PROFILE_DEVICES_FORGET_OTHERS: Forget every device the account is known to sign in from but the current one.
+        PROFILE_DEVICES_FORGET_ALL: Forget every device the account is known to sign in from, the current one included.
         MFA_ENABLE: Enable MFA.
         MFA_DISABLE: Disable MFA.
         MFA_BACKUP_CODES: Regenerate MFA backup codes.
@@ -81,6 +82,7 @@ class StepUpAction(StrEnum):
     PROFILE_EXPORT = "profile_export"
     PROFILE_DEVICE_FORGET = "profile_device_forget"
     PROFILE_DEVICES_FORGET_OTHERS = "profile_devices_forget_others"
+    PROFILE_DEVICES_FORGET_ALL = "profile_devices_forget_all"
     MFA_ENABLE = "mfa_enable"
     MFA_DISABLE = "mfa_disable"
     MFA_BACKUP_CODES = "mfa_backup_codes"

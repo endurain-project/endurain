@@ -841,7 +841,6 @@
       "forget": "Zaboravi ovaj uređaj",
       "forgetTitle": "Zaboraviti ovaj uređaj?",
       "forgetDescription": "Zaboravljanjem ovog uređaja on se i odjavljuje. Sledeća prijava sa ovog uređaja računa se kao novi uređaj i šalje vam obaveštenje.",
-      "forgetCurrentDescription": "Ovo je uređaj koji trenutno koristite. Ako ga zaboravite, odmah ćete biti odjavljeni, a sledeća prijava sa njega računa se kao novi uređaj i šalje vam obaveštenje.",
       "forgetConfirm": "Zaboravi uređaj",
       "forgetSuccess": "Uređaj je zaboravljen",
       "forgetError": "Nije moguće zaboraviti uređaj. Pokušajte ponovo.",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "Svi uređaji osim ovog biće zaboravljeni i odjavljeni. Sledeća prijava sa svakog od njih računaće se kao novi uređaj i poslaće vam obaveštenje.",
       "forgetOthersConfirm": "Zaboravi uređaje",
       "forgetOthersSuccess": "Ostali uređaji su zaboravljeni",
-      "forgetOthersError": "Nije moguće zaboraviti ostale uređaje. Pokušajte ponovo."
+      "forgetOthersError": "Nije moguće zaboraviti ostale uređaje. Pokušajte ponovo.",
+      "forgetAll": "Zaboravi sve uređaje",
+      "forgetAllTitle": "Zaboraviti sve uređaje?",
+      "forgetAllDescription": "Svi uređaji, uključujući ovaj, biće zaboravljeni i odjavljeni, a bićete preusmereni na stranicu za prijavu. Sledeća prijava sa svakog od njih računaće se kao novi uređaj i poslaće vam obaveštenje.",
+      "forgetAllConfirm": "Zaboravi uređaje",
+      "forgetAllError": "Nije moguće zaboraviti uređaje. Pokušajte ponovo."
     },
     "linked": {
       "title": "Povezani nalozi",

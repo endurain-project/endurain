@@ -841,7 +841,6 @@
       "forget": "Unusta see seade",
       "forgetTitle": "Kas unustada see seade?",
       "forgetDescription": "Selle seadme unustamine logib ka selle välja. Järgmine sisselogimine sellest seadmest loetakse uueks seadmeks ja saadab sulle teate.",
-      "forgetCurrentDescription": "See on seade, mida praegu kasutad. Selle unustamine logib sind kohe välja ning järgmine sisselogimine sellest seadmest loetakse uueks seadmeks ja saadab sulle teate.",
       "forgetConfirm": "Unusta seade",
       "forgetSuccess": "Seade unustatud",
       "forgetError": "Seadet ei õnnestunud unustada. Palun proovi uuesti.",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "Kõik seadmed peale selle unustatakse ja logitakse välja. Järgmine sisselogimine igaühelt neist loetakse uueks seadmeks ja saadab sulle teate.",
       "forgetOthersConfirm": "Unusta seadmed",
       "forgetOthersSuccess": "Teised seadmed unustati",
-      "forgetOthersError": "Teisi seadmeid ei õnnestunud unustada. Proovi uuesti."
+      "forgetOthersError": "Teisi seadmeid ei õnnestunud unustada. Proovi uuesti.",
+      "forgetAll": "Unusta kõik seadmed",
+      "forgetAllTitle": "Kas unustada kõik seadmed?",
+      "forgetAllDescription": "Kõik seadmed, sealhulgas see, unustatakse ja logitakse välja ning sind suunatakse sisselogimislehele. Järgmine sisselogimine igaühelt neist loetakse uueks seadmeks ja saadab sulle teate.",
+      "forgetAllConfirm": "Unusta seadmed",
+      "forgetAllError": "Seadmeid ei õnnestunud unustada. Proovi uuesti."
     },
     "linked": {
       "title": "Seotud kontod",

@@ -397,6 +397,22 @@ export async function forgetOtherKnownDevices(input: StepUpInput): Promise<void>
 }
 
 /**
+ * Forgets every known device, the one making the request included (step-up gated). The sessions
+ * that signed in from the devices end, this one with them, and the server clears the browser's
+ * refresh-token cookie.
+ *
+ * @param input - The step-up credentials.
+ * @throws {HttpError} When the request fails (403 step-up).
+ */
+export async function forgetAllKnownDevices(input: StepUpInput): Promise<void> {
+  await apiFetch('/profile/devices/delete', {
+    method: 'POST',
+    body: JSON.stringify({ step_up: toStepUpWire(input) } satisfies StepUpRequestDto),
+    responseType: 'void',
+  })
+}
+
+/**
  * Revokes one of the authenticated user's sessions, signing that device out.
  *
  * @param sessionId - The session id to revoke.

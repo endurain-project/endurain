@@ -17,7 +17,7 @@ _STEP_UP = auth_schema.StepUpVerification(current_password="pw")
 
 
 def _forget(mock_db):
-    device_service.forget_user_device(5, 7, "sid", _STEP_UP, MagicMock(), mock_db)
+    device_service.forget_user_device(5, 7, "sid", "device-id", _STEP_UP, MagicMock(), mock_db)
 
 
 def test_the_list_marks_the_device_the_request_names(mock_db):
@@ -44,7 +44,7 @@ class TestForget:
             calls.verify.call_args.kwargs["action"] == identity_providers_constants.StepUpAction.PROFILE_DEVICE_FORGET
         )
         assert calls.verify.call_args.kwargs["session_id"] == "sid"
-        calls.forget.assert_called_once_with(5, 7, mock_db)
+        calls.forget.assert_called_once_with(5, 7, "device-id", mock_db)
 
     def test_a_forgotten_device_is_audited_and_committed(self, mock_db):
         with (
@@ -150,4 +150,60 @@ class TestForgetOthers:
 
         forget.assert_not_called()
         audit.assert_not_audited(account_security_audit_actions.DEVICES_FORGET_OTHERS.id)
+        mock_db.commit.assert_not_called()
+
+
+class TestForgetAll:
+    def _forget_all(self, mock_db):
+        device_service.forget_all_user_devices(7, "sid", _STEP_UP, MagicMock(), mock_db)
+
+    def test_step_up_is_verified_for_its_own_action_before_any_device_is_touched(self, mock_db):
+        calls = MagicMock()
+        calls.forget.return_value = 0
+        with (
+            patch.object(device_service.step_up_service, "verify_step_up_credentials", calls.verify),
+            patch.object(device_service.known_devices_integration, "forget_other_devices", calls.forget),
+        ):
+            self._forget_all(mock_db)
+
+        assert [call[0] for call in calls.mock_calls] == ["verify", "forget"]
+        assert (
+            calls.verify.call_args.kwargs["action"]
+            == identity_providers_constants.StepUpAction.PROFILE_DEVICES_FORGET_ALL
+        )
+        assert calls.verify.call_args.kwargs["session_id"] == "sid"
+        calls.forget.assert_called_once_with(7, None, mock_db)
+
+    def test_the_change_is_audited_with_the_sessions_ended_and_committed(self, mock_db):
+        with (
+            patch.object(device_service.step_up_service, "verify_step_up_credentials"),
+            patch.object(device_service.known_devices_integration, "forget_other_devices", return_value=5),
+            jasil_testing.capture_audit() as audit,
+        ):
+            self._forget_all(mock_db)
+
+        row = audit.assert_audited(
+            account_security_audit_actions.DEVICES_FORGET_ALL.id,
+            target_type="user",
+            target_id="7",
+            target_owner_id="7",
+        )
+        assert row.details == {"sessions_revoked": 5}
+        mock_db.commit.assert_called_once()
+
+    def test_a_refused_step_up_forgets_and_audits_nothing(self, mock_db):
+        with (
+            patch.object(
+                device_service.step_up_service,
+                "verify_step_up_credentials",
+                side_effect=core_exceptions.StepUpFailedError(),
+            ),
+            patch.object(device_service.known_devices_integration, "forget_other_devices") as forget,
+            jasil_testing.capture_audit() as audit,
+            pytest.raises(core_exceptions.StepUpFailedError),
+        ):
+            self._forget_all(mock_db)
+
+        forget.assert_not_called()
+        audit.assert_not_audited(account_security_audit_actions.DEVICES_FORGET_ALL.id)
         mock_db.commit.assert_not_called()

@@ -841,7 +841,6 @@
       "forget": "Aizmirst šo ierīci",
       "forgetTitle": "Aizmirst šo ierīci?",
       "forgetDescription": "Aizmirstot šo ierīci, tā tiek arī izrakstīta. Nākamā pieteikšanās no šīs ierīces tiks uzskatīta par jaunu ierīci un nosūtīs Jums paziņojumu.",
-      "forgetCurrentDescription": "Šī ir ierīce, kuru izmantojat tagad. To aizmirstot, Jūs uzreiz tiksiet izrakstīts, un nākamā pieteikšanās no tās tiks uzskatīta par jaunu ierīci un nosūtīs Jums paziņojumu.",
       "forgetConfirm": "Aizmirst ierīci",
       "forgetSuccess": "Ierīce aizmirsta",
       "forgetError": "Neizdevās aizmirst ierīci. Lūdzu, mēģiniet vēlreiz.",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "Visas ierīces, izņemot šo, tiks aizmirstas un izrakstītas. Nākamā pierakstīšanās no katras no tām tiks uzskatīta par jaunu ierīci un nosūtīs jums paziņojumu.",
       "forgetOthersConfirm": "Aizmirst ierīces",
       "forgetOthersSuccess": "Citas ierīces aizmirstas",
-      "forgetOthersError": "Neizdevās aizmirst citas ierīces. Lūdzu, mēģiniet vēlreiz."
+      "forgetOthersError": "Neizdevās aizmirst citas ierīces. Lūdzu, mēģiniet vēlreiz.",
+      "forgetAll": "Aizmirst visas ierīces",
+      "forgetAllTitle": "Aizmirst visas ierīces?",
+      "forgetAllDescription": "Visas ierīces, ieskaitot šo, tiks aizmirstas un izrakstītas, un jūs tiksiet novirzīts uz pieteikšanās lapu. Nākamā pierakstīšanās no katras no tām tiks uzskatīta par jaunu ierīci un nosūtīs jums paziņojumu.",
+      "forgetAllConfirm": "Aizmirst ierīces",
+      "forgetAllError": "Neizdevās aizmirst ierīces. Lūdzu, mēģiniet vēlreiz."
     },
     "linked": {
       "title": "Saistītie konti",

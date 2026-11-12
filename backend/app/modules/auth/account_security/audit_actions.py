@@ -186,6 +186,15 @@ DEVICES_FORGET_OTHERS = jasil_audit.AuditAction(
     details_model=sessions_audit_actions.SessionsRevokedDetails,
 )
 
+DEVICES_FORGET_ALL = jasil_audit.AuditAction(
+    id="auth.devices.forget_all",
+    category=jasil_audit.Category.IDENTITY,
+    severity=jasil_audit.Severity.MEDIUM,
+    description_key="audit.auth.devices.forget_all",
+    description_default="Every known sign-in device was forgotten and its sessions were signed out",
+    details_model=sessions_audit_actions.SessionsRevokedDetails,
+)
+
 API_KEYS_REVOKE = jasil_audit.AuditAction(
     id="auth.api_keys.revoke",
     category=jasil_audit.Category.CREDENTIAL,
@@ -219,6 +228,7 @@ ACTIONS: tuple[jasil_audit.AuditAction, ...] = (
     IDENTITY_LINK_UNLINK,
     DEVICE_FORGET,
     DEVICES_FORGET_OTHERS,
+    DEVICES_FORGET_ALL,
     API_KEYS_REVOKE,
     STEP_UP_SESSION_END,
 )

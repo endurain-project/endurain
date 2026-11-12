@@ -841,7 +841,6 @@
       "forget": "Zapomenout toto zařízení",
       "forgetTitle": "Zapomenout toto zařízení?",
       "forgetDescription": "Zapomenutím tohoto zařízení se z něj také odhlásíte. Další přihlášení z tohoto zařízení se bude počítat jako nové zařízení a odešle vám upozornění.",
-      "forgetCurrentDescription": "Toto je zařízení, které právě používáte. Jeho zapomenutím budete okamžitě odhlášeni a další přihlášení z něj se bude počítat jako nové zařízení a odešle vám upozornění.",
       "forgetConfirm": "Zapomenout zařízení",
       "forgetSuccess": "Zařízení zapomenuto",
       "forgetError": "Zařízení se nepodařilo zapomenout. Zkuste to prosím znovu.",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "Všechna zařízení kromě tohoto budou zapomenuta a odhlášena. Další přihlášení z každého z nich se bude počítat jako nové zařízení a pošle vám upozornění.",
       "forgetOthersConfirm": "Zapomenout zařízení",
       "forgetOthersSuccess": "Ostatní zařízení byla zapomenuta",
-      "forgetOthersError": "Ostatní zařízení se nepodařilo zapomenout. Zkuste to prosím znovu."
+      "forgetOthersError": "Ostatní zařízení se nepodařilo zapomenout. Zkuste to prosím znovu.",
+      "forgetAll": "Zapomenout všechna zařízení",
+      "forgetAllTitle": "Zapomenout všechna zařízení?",
+      "forgetAllDescription": "Všechna zařízení, včetně tohoto, budou zapomenuta a odhlášena a budete přesměrováni na přihlašovací stránku. Další přihlášení z každého z nich se bude počítat jako nové zařízení a pošle vám upozornění.",
+      "forgetAllConfirm": "Zapomenout zařízení",
+      "forgetAllError": "Zařízení se nepodařilo zapomenout. Zkuste to prosím znovu."
     },
     "linked": {
       "title": "Propojené účty",

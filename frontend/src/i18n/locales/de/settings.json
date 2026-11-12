@@ -841,7 +841,6 @@
       "forget": "Dieses Gerät vergessen",
       "forgetTitle": "Dieses Gerät vergessen?",
       "forgetDescription": "Wenn du dieses Gerät vergisst, wird es auch abgemeldet. Die nächste Anmeldung von diesem Gerät zählt als neues Gerät und löst eine Benachrichtigung aus.",
-      "forgetCurrentDescription": "Dies ist das Gerät, das du gerade benutzt. Wenn du es vergisst, wirst du sofort abgemeldet, und die nächste Anmeldung von diesem Gerät zählt als neues Gerät und löst eine Benachrichtigung aus.",
       "forgetConfirm": "Gerät vergessen",
       "forgetSuccess": "Gerät vergessen",
       "forgetError": "Das Gerät konnte nicht vergessen werden. Bitte versuche es erneut.",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "Alle Geräte außer diesem werden vergessen und abgemeldet. Die nächste Anmeldung von jedem dieser Geräte gilt als neues Gerät und sendet dir eine Benachrichtigung.",
       "forgetOthersConfirm": "Geräte vergessen",
       "forgetOthersSuccess": "Andere Geräte vergessen",
-      "forgetOthersError": "Die anderen Geräte konnten nicht vergessen werden. Bitte versuche es erneut."
+      "forgetOthersError": "Die anderen Geräte konnten nicht vergessen werden. Bitte versuche es erneut.",
+      "forgetAll": "Alle Geräte vergessen",
+      "forgetAllTitle": "Alle Geräte vergessen?",
+      "forgetAllDescription": "Alle Geräte, einschließlich dieses, werden vergessen und abgemeldet, und du wirst zur Anmeldeseite weitergeleitet. Die nächste Anmeldung von jedem dieser Geräte gilt als neues Gerät und sendet dir eine Benachrichtigung.",
+      "forgetAllConfirm": "Geräte vergessen",
+      "forgetAllError": "Die Geräte konnten nicht vergessen werden. Bitte versuche es erneut."
     },
     "linked": {
       "title": "Verknüpfte Konten",

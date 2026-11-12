@@ -841,7 +841,6 @@
       "forget": "Zabudnúť toto zariadenie",
       "forgetTitle": "Zabudnúť toto zariadenie?",
       "forgetDescription": "Zabudnutím tohto zariadenia sa z neho tiež odhlásite. Ďalšie prihlásenie z tohto zariadenia sa bude považovať za nové zariadenie a pošle vám upozornenie.",
-      "forgetCurrentDescription": "Toto je zariadenie, ktoré práve používate. Jeho zabudnutím budete okamžite odhlásení a ďalšie prihlásenie z neho sa bude považovať za nové zariadenie a pošle vám upozornenie.",
       "forgetConfirm": "Zabudnúť zariadenie",
       "forgetSuccess": "Zariadenie bolo zabudnuté",
       "forgetError": "Zariadenie sa nepodarilo zabudnúť. Skúste to znova.",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "Všetky zariadenia okrem tohto budú zabudnuté a odhlásené. Ďalšie prihlásenie z každého z nich sa bude počítať ako nové zariadenie a pošle vám upozornenie.",
       "forgetOthersConfirm": "Zabudnúť zariadenia",
       "forgetOthersSuccess": "Ostatné zariadenia boli zabudnuté",
-      "forgetOthersError": "Ostatné zariadenia sa nepodarilo zabudnúť. Skúste to znova."
+      "forgetOthersError": "Ostatné zariadenia sa nepodarilo zabudnúť. Skúste to znova.",
+      "forgetAll": "Zabudnúť všetky zariadenia",
+      "forgetAllTitle": "Zabudnúť všetky zariadenia?",
+      "forgetAllDescription": "Všetky zariadenia vrátane tohto budú zabudnuté a odhlásené a budete presmerovaní na prihlasovaciu stránku. Ďalšie prihlásenie z každého z nich sa bude počítať ako nové zariadenie a pošle vám upozornenie.",
+      "forgetAllConfirm": "Zabudnúť zariadenia",
+      "forgetAllError": "Zariadenia sa nepodarilo zabudnúť. Skúste to znova."
     },
     "linked": {
       "title": "Prepojené účty",

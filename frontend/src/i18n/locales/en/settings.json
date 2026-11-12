@@ -841,7 +841,6 @@
       "forget": "Forget this device",
       "forgetTitle": "Forget this device?",
       "forgetDescription": "Forgetting this device also signs it out. The next sign-in from it counts as a new device and sends you a notice.",
-      "forgetCurrentDescription": "This is the device you are using now. Forgetting it signs you out right away, and the next sign-in from it counts as a new device and sends you a notice.",
       "forgetConfirm": "Forget device",
       "forgetSuccess": "Device forgotten",
       "forgetError": "Couldn't forget the device. Please try again.",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "Every device except this one will be forgotten and signed out. The next sign-in from each counts as a new device and sends you a notice.",
       "forgetOthersConfirm": "Forget devices",
       "forgetOthersSuccess": "Other devices forgotten",
-      "forgetOthersError": "Couldn't forget the other devices. Please try again."
+      "forgetOthersError": "Couldn't forget the other devices. Please try again.",
+      "forgetAll": "Forget all devices",
+      "forgetAllTitle": "Forget all devices?",
+      "forgetAllDescription": "Every device, including this one, will be forgotten and signed out, and you will be sent to the login page. The next sign-in from each counts as a new device and sends you a notice.",
+      "forgetAllConfirm": "Forget all devices",
+      "forgetAllError": "Couldn't forget the devices. Please try again."
     },
     "linked": {
       "title": "Linked accounts",

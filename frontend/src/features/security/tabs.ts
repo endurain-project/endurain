@@ -19,6 +19,7 @@ const ACTION_TABS: Partial<Record<StepUpAction, SecurityTab>> = {
   mfa_backup_codes: 'account',
   profile_device_forget: 'sessions',
   profile_devices_forget_others: 'sessions',
+  profile_devices_forget_all: 'sessions',
   api_key_create: 'sessions',
   account_delete: 'danger',
 }

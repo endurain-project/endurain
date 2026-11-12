@@ -841,7 +841,6 @@
       "forget": "Unohda tämä laite",
       "forgetTitle": "Unohdetaanko tämä laite?",
       "forgetDescription": "Kun unohdat tämän laitteen, se myös kirjataan ulos. Seuraava kirjautuminen tältä laitteelta lasketaan uudeksi laitteeksi ja lähettää sinulle ilmoituksen.",
-      "forgetCurrentDescription": "Tämä on laite, jota käytät nyt. Sen unohtaminen kirjaa sinut ulos heti, ja seuraava kirjautuminen tältä laitteelta lasketaan uudeksi laitteeksi ja lähettää sinulle ilmoituksen.",
       "forgetConfirm": "Unohda laite",
       "forgetSuccess": "Laite unohdettu",
       "forgetError": "Laitetta ei voitu unohtaa. Yritä uudelleen.",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "Kaikki laitteet tämän lisäksi unohdetaan ja kirjataan ulos. Seuraava kirjautuminen kustakin niistä lasketaan uudeksi laitteeksi ja lähettää sinulle ilmoituksen.",
       "forgetOthersConfirm": "Unohda laitteet",
       "forgetOthersSuccess": "Muut laitteet unohdettiin",
-      "forgetOthersError": "Muiden laitteiden unohtaminen epäonnistui. Yritä uudelleen."
+      "forgetOthersError": "Muiden laitteiden unohtaminen epäonnistui. Yritä uudelleen.",
+      "forgetAll": "Unohda kaikki laitteet",
+      "forgetAllTitle": "Unohdetaanko kaikki laitteet?",
+      "forgetAllDescription": "Kaikki laitteet, tämä mukaan lukien, unohdetaan ja kirjataan ulos, ja sinut ohjataan kirjautumissivulle. Seuraava kirjautuminen kustakin niistä lasketaan uudeksi laitteeksi ja lähettää sinulle ilmoituksen.",
+      "forgetAllConfirm": "Unohda laitteet",
+      "forgetAllError": "Laitteiden unohtaminen epäonnistui. Yritä uudelleen."
     },
     "linked": {
       "title": "Linkitetyt tilit",

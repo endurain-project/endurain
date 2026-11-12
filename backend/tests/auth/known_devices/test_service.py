@@ -382,9 +382,19 @@ class TestListAndForget:
         _record(db, device_id=_DEVICE_ID)
         device_id = known_devices_service.list_devices(1, None, core_pagination.PageParams(1, 10), db).items[0].id
 
-        known_devices_service.forget_device(device_id, 1, db)
+        known_devices_service.forget_device(device_id, 1, _OTHER_DEVICE_ID, db)
 
         assert known_devices_service.is_known_device(1, _DEVICE_ID, db) is False
+
+    def test_the_device_the_request_comes_from_cannot_be_forgotten(self, db, publish):
+        _account(db, age=timedelta(days=30))
+        _record(db, device_id=_DEVICE_ID)
+        device_id = known_devices_service.list_devices(1, None, core_pagination.PageParams(1, 10), db).items[0].id
+
+        with pytest.raises(core_exceptions.ConflictError):
+            known_devices_service.forget_device(device_id, 1, _DEVICE_ID, db)
+
+        assert known_devices_service.is_known_device(1, _DEVICE_ID, db) is True
 
     def test_another_users_device_and_an_unknown_id_are_not_found(self, db, publish):
         _account(db, age=timedelta(days=30))
@@ -392,9 +402,9 @@ class TestListAndForget:
         device_id = known_devices_service.list_devices(1, None, core_pagination.PageParams(1, 10), db).items[0].id
 
         with pytest.raises(core_exceptions.NotFoundError):
-            known_devices_service.forget_device(device_id, 2, db)
+            known_devices_service.forget_device(device_id, 2, None, db)
         with pytest.raises(core_exceptions.NotFoundError):
-            known_devices_service.forget_device(device_id + 99, 1, db)
+            known_devices_service.forget_device(device_id + 99, 1, None, db)
         assert known_devices_service.is_known_device(1, _DEVICE_ID, db) is True
 
     def test_forgetting_a_device_ends_its_sessions_and_only_those(self, db, publish):
@@ -412,7 +422,7 @@ class TestListAndForget:
         device_id = next(item.id for item in device_id.items if item.current)
 
         with patch(_PUBLISH_REVOKED) as revoked:
-            ended = known_devices_service.forget_device(device_id, 1, db)
+            ended = known_devices_service.forget_device(device_id, 1, _OTHER_DEVICE_ID, db)
 
         assert ended == 2
         assert _session_ids(db) == {"on-other-device", "before-the-migration", "another-user"}
@@ -463,7 +473,7 @@ class TestListAndForget:
         _record(db, device_id=_DEVICE_ID)
         device_id = known_devices_service.list_devices(1, None, core_pagination.PageParams(1, 10), db).items[0].id
 
-        assert known_devices_service.forget_device(device_id, 1, db) == 0
+        assert known_devices_service.forget_device(device_id, 1, _OTHER_DEVICE_ID, db) == 0
 
     def test_a_missing_device_ends_no_session(self, db, publish):
         _account(db, age=timedelta(days=30))
@@ -471,7 +481,7 @@ class TestListAndForget:
         _session(db, "kept", 1, core_hashing.sha256_hex(_DEVICE_ID))
 
         with pytest.raises(core_exceptions.NotFoundError):
-            known_devices_service.forget_device(999, 1, db)
+            known_devices_service.forget_device(999, 1, None, db)
 
         assert _session_ids(db) == {"kept"}
 
@@ -482,4 +492,4 @@ class TestListAndForget:
         _security_change(db)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            known_devices_service.forget_device(device_id, 1, db)
+            known_devices_service.forget_device(device_id, 1, None, db)

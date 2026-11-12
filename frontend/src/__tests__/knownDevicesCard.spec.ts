@@ -10,6 +10,7 @@ import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
 const mocks = vi.hoisted(() => ({
   devices: [] as unknown[],
   forgetOthersMutate: vi.fn<(...args: unknown[]) => void>(),
+  forgetAllMutate: vi.fn<(...args: unknown[]) => void>(),
 }))
 
 const device = (id: number, current: boolean) => ({
@@ -30,52 +31,51 @@ vi.mock('@/features/security/composables/useSecurity', () => ({
     refetch: vi.fn<() => void>(),
   }),
   useForgetKnownDeviceMutation: () => ({ mutate: vi.fn<() => void>(), isPending: ref(false) }),
+  useForgetAllKnownDevicesMutation: () => ({
+    mutate: mocks.forgetAllMutate,
+    isPending: ref(false),
+  }),
   useForgetOtherKnownDevicesMutation: () => ({
     mutate: mocks.forgetOthersMutate,
     isPending: ref(false),
   }),
 }))
 
-/** Opens the forget dialog of the device in the given row and returns the description it shows. */
-async function descriptionFor(row: number): Promise<string> {
-  const wrapper = mount(KnownDevicesCard, {
+function mountCard() {
+  return mount(KnownDevicesCard, {
     props: { hasLocalPassword: true, mfaEnabled: false, resume: null },
     global: {
       plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]],
       stubs: { StepUpDialog: true },
     },
   })
-  await wrapper.findAll('li')[row]!.find('button').trigger('click')
-  return wrapper.findComponent(StepUpDialog).props('description')
 }
 
-mocks.devices = [device(1, true), device(2, false)]
+describe('KnownDevicesCard forget one device', () => {
+  it('disables the forget button of the current device only', () => {
+    mocks.devices = [device(1, true), device(2, false)]
+    const rows = mountCard().findAll('li')
 
-describe('KnownDevicesCard forget dialog', () => {
-  it('says that forgetting the device signs it out', async () => {
-    expect(await descriptionFor(1)).toBe(
-      i18n.global.t('settings.security.devices.forgetDescription'),
-    )
+    expect(rows[0]!.find('button').attributes('disabled')).toBeDefined()
+    expect(rows[1]!.find('button').attributes('disabled')).toBeUndefined()
   })
 
-  it('warns that forgetting the current device signs this browser out', async () => {
-    expect(await descriptionFor(0)).toBe(
-      i18n.global.t('settings.security.devices.forgetCurrentDescription'),
+  it('opens the forget dialog for another device', async () => {
+    mocks.devices = [device(1, true), device(2, false)]
+    const wrapper = mountCard()
+    await wrapper.findAll('li')[1]!.find('button').trigger('click')
+    const dialog = wrapper
+      .findAllComponents(StepUpDialog)
+      .find((d) => d.props('action') === 'profile_device_forget')!
+
+    expect(dialog.props('open')).toBe(true)
+    expect(dialog.props('description')).toBe(
+      i18n.global.t('settings.security.devices.forgetDescription'),
     )
   })
 })
 
 describe('KnownDevicesCard forget other devices', () => {
-  function mountCard() {
-    return mount(KnownDevicesCard, {
-      props: { hasLocalPassword: true, mfaEnabled: false, resume: null },
-      global: {
-        plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]],
-        stubs: { StepUpDialog: true },
-      },
-    })
-  }
-
   const forgetOthers = i18n.global.t('settings.security.devices.forgetOthers')
 
   it('hides the button when no other device is known', () => {
@@ -99,5 +99,32 @@ describe('KnownDevicesCard forget other devices', () => {
     dialog.vm.$emit('confirm', input)
 
     expect(mocks.forgetOthersMutate).toHaveBeenCalledWith(input, expect.any(Object))
+  })
+})
+
+describe('KnownDevicesCard forget all devices', () => {
+  const forgetAll = i18n.global.t('settings.security.devices.forgetAll')
+
+  it('shows the button even when the current device is the only one', () => {
+    mocks.devices = [device(1, true)]
+
+    expect(mountCard().text()).toContain(forgetAll)
+  })
+
+  it('opens the confirmation and forgets every device with the step-up', async () => {
+    mocks.devices = [device(1, true)]
+    const wrapper = mountCard()
+    const button = wrapper.findAll('button').find((b) => b.text() === forgetAll)!
+    await button.trigger('click')
+    const dialog = wrapper
+      .findAllComponents(StepUpDialog)
+      .find((d) => d.props('action') === 'profile_devices_forget_all')!
+
+    expect(dialog.props('open')).toBe(true)
+
+    const input = { currentPassword: 'pw', mfaCode: null }
+    dialog.vm.$emit('confirm', input)
+
+    expect(mocks.forgetAllMutate).toHaveBeenCalledWith(input, expect.any(Object))
   })
 })

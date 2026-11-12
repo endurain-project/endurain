@@ -841,7 +841,6 @@
       "forget": "Pamiršti šį įrenginį",
       "forgetTitle": "Pamiršti šį įrenginį?",
       "forgetDescription": "Pamiršus šį įrenginį, jis taip pat atjungiamas. Kitas prisijungimas iš šio įrenginio bus laikomas naujo įrenginio prisijungimu ir Jums bus išsiųstas pranešimas.",
-      "forgetCurrentDescription": "Tai įrenginys, kuriuo naudojatės dabar. Jį pamiršus, būsite iškart atjungti, o kitas prisijungimas iš jo bus laikomas naujo įrenginio prisijungimu ir Jums bus išsiųstas pranešimas.",
       "forgetConfirm": "Pamiršti įrenginį",
       "forgetSuccess": "Įrenginys pamirštas",
       "forgetError": "Nepavyko pamiršti įrenginio. Bandykite dar kartą.",
@@ -851,7 +850,12 @@
       "forgetOthersDescription": "Visi įrenginiai, išskyrus šį, bus pamiršti ir atjungti. Kitas prisijungimas iš kiekvieno jų bus laikomas nauju įrenginiu ir atsiųs jums pranešimą.",
       "forgetOthersConfirm": "Pamiršti įrenginius",
       "forgetOthersSuccess": "Kiti įrenginiai pamiršti",
-      "forgetOthersError": "Nepavyko pamiršti kitų įrenginių. Bandykite dar kartą."
+      "forgetOthersError": "Nepavyko pamiršti kitų įrenginių. Bandykite dar kartą.",
+      "forgetAll": "Pamiršti visus įrenginius",
+      "forgetAllTitle": "Pamiršti visus įrenginius?",
+      "forgetAllDescription": "Visi įrenginiai, įskaitant šį, bus pamiršti ir atjungti, o jūs būsite nukreipti į prisijungimo puslapį. Kitas prisijungimas iš kiekvieno jų bus laikomas nauju įrenginiu ir atsiųs jums pranešimą.",
+      "forgetAllConfirm": "Pamiršti įrenginius",
+      "forgetAllError": "Nepavyko pamiršti įrenginių. Bandykite dar kartą."
     },
     "linked": {
       "title": "Susietos paskyros",
