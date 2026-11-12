@@ -14,6 +14,8 @@ const { isEnabled } = useFeatureFlags()
 
 const REPOSITORY_URL = 'https://github.com/endurain-project/endurain'
 
+const TRADEMARK_POLICY_URL = `${REPOSITORY_URL}/blob/master/TRADEMARK.md`
+
 const startYear = 2023
 const yearRange = computed(() => {
   const current = new Date().getFullYear()
@@ -88,9 +90,20 @@ const linkClass =
       <div
         class="flex flex-col-reverse gap-3 border-t border-border pt-4 lg:flex-row lg:items-center lg:justify-between"
       >
-        <span class="text-hint text-muted-foreground">
-          © {{ yearRange }} {{ config.branding.appName }}
-        </span>
+        <div class="flex flex-col gap-1 text-hint text-muted-foreground">
+          <span>© {{ yearRange }} {{ config.branding.appName }}</span>
+          <span>
+            {{ t('footer.trademarkNotice') }}
+            <a
+              class="underline hover:text-foreground"
+              :href="TRADEMARK_POLICY_URL"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {{ t('footer.trademarkPolicy') }}
+            </a>
+          </span>
+        </div>
         <div
           v-if="isEnabled('strava') || isEnabled('garmin')"
           class="flex flex-wrap items-center gap-3"
