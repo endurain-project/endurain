@@ -5,6 +5,8 @@
   "unread": "Okunmamış",
   "markRead": "Okundu olarak işaretle",
   "markAllRead": "Tümünü okundu olarak işaretle",
+  "dismiss": "Bildirimi kapat",
+  "dismissError": "Bildirim kapatılamadı. Lütfen tekrar deneyin.",
   "seeAll": "Tümünü gör",
   "loadMore": "Daha fazla yükle",
   "loading": "Yükleniyor…",

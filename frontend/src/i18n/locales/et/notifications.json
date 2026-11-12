@@ -5,6 +5,8 @@
   "unread": "Lugemata",
   "markRead": "Märgi loetuks",
   "markAllRead": "Märgi kõik loetuks",
+  "dismiss": "Sulge teavitus",
+  "dismissError": "Teavituse sulgemine ebaõnnestus. Proovi uuesti.",
   "seeAll": "Vaata kõiki",
   "loadMore": "Laadi veel",
   "loading": "Laadimine…",

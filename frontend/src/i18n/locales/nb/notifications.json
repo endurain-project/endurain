@@ -5,6 +5,8 @@
   "unread": "Ulest",
   "markRead": "Merk som lest",
   "markAllRead": "Merk alle som lest",
+  "dismiss": "Avvis varsel",
+  "dismissError": "Kunne ikke avvise varselet. Prøv igjen.",
   "seeAll": "Se alle",
   "loadMore": "Last inn mer",
   "loading": "Laster…",

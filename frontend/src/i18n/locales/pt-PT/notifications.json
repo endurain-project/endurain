@@ -5,6 +5,8 @@
   "unread": "Não lidas",
   "markRead": "Marcar como lida",
   "markAllRead": "Marcar tudo como lido",
+  "dismiss": "Dispensar notificação",
+  "dismissError": "Não foi possível dispensar a notificação. Tente novamente.",
   "seeAll": "Ver tudo",
   "loadMore": "Carregar mais",
   "loading": "A carregar…",

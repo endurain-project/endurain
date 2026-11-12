@@ -5,6 +5,8 @@
   "unread": "Neprečítané",
   "markRead": "Označiť ako prečítané",
   "markAllRead": "Označiť všetky ako prečítané",
+  "dismiss": "Zavrieť oznámenie",
+  "dismissError": "Oznámenie sa nepodarilo zavrieť. Skúste to znova.",
   "seeAll": "Zobraziť všetky",
   "loadMore": "Načítať viac",
   "loading": "Načítavanie…",

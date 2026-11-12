@@ -5,6 +5,8 @@
   "unread": "Non lidas",
   "markRead": "Marcar como lida",
   "markAllRead": "Marcar todas como lidas",
+  "dismiss": "Descartar a notificación",
+  "dismissError": "Non se puido descartar a notificación. Téntao de novo.",
   "seeAll": "Ver todas",
   "loadMore": "Cargar máis",
   "loading": "Cargando…",

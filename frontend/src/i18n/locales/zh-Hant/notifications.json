@@ -5,6 +5,8 @@
   "unread": "未讀",
   "markRead": "標記為已讀",
   "markAllRead": "全部標記為已讀",
+  "dismiss": "忽略通知",
+  "dismissError": "無法忽略該通知，請重試。",
   "seeAll": "查看全部",
   "loadMore": "載入更多",
   "loading": "載入中…",

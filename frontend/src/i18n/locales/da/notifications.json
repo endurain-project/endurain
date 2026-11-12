@@ -5,6 +5,8 @@
   "unread": "Ulæst",
   "markRead": "Markér som læst",
   "markAllRead": "Markér alle som læst",
+  "dismiss": "Afvis notifikation",
+  "dismissError": "Notifikationen kunne ikke afvises. Prøv igen.",
   "seeAll": "Se alle",
   "loadMore": "Indlæs mere",
   "loading": "Indlæser…",

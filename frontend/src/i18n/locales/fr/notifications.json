@@ -5,6 +5,8 @@
   "unread": "Non lues",
   "markRead": "Marquer comme lue",
   "markAllRead": "Tout marquer comme lu",
+  "dismiss": "Ignorer la notification",
+  "dismissError": "Impossible d'ignorer la notification. Veuillez réessayer.",
   "seeAll": "Tout voir",
   "loadMore": "Charger plus",
   "loading": "Chargement…",

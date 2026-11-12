@@ -5,6 +5,8 @@
   "unread": "Non lette",
   "markRead": "Segna come letta",
   "markAllRead": "Segna tutte come lette",
+  "dismiss": "Ignora notifica",
+  "dismissError": "Impossibile ignorare la notifica. Riprova.",
   "seeAll": "Vedi tutte",
   "loadMore": "Carica altre",
   "loading": "Caricamento…",

@@ -5,6 +5,8 @@
   "unread": "Olvasatlan",
   "markRead": "Megjelölés olvasottként",
   "markAllRead": "Összes megjelölése olvasottként",
+  "dismiss": "Értesítés elvetése",
+  "dismissError": "Az értesítést nem sikerült elvetni. Próbáld újra.",
   "seeAll": "Összes megtekintése",
   "loadMore": "Több betöltése",
   "loading": "Betöltés…",

@@ -5,6 +5,8 @@
   "unread": "Ongelezen",
   "markRead": "Als gelezen markeren",
   "markAllRead": "Alles als gelezen markeren",
+  "dismiss": "Melding verwijderen",
+  "dismissError": "De melding kon niet worden verwijderd. Probeer het opnieuw.",
   "seeAll": "Alles bekijken",
   "loadMore": "Meer laden",
   "loading": "Laden…",

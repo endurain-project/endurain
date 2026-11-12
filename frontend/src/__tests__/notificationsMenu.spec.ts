@@ -26,6 +26,7 @@ vi.mock('@/features/notifications/composables/useNotifications', () => ({
     return { data: ref([]), isPending: ref(false), isError: ref(false), refetch }
   },
   useMarkNotificationReadMutation: () => ({ mutate: vi.fn<() => void>() }),
+  useDeleteNotificationMutation: () => ({ mutate: vi.fn<() => void>() }),
   useMarkAllNotificationsReadMutation: () => ({
     mutate: vi.fn<() => void>(),
     isPending: computed(() => false),

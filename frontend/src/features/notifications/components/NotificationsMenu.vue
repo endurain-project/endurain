@@ -9,7 +9,9 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
+import { useToasts } from '@/composables/useToasts'
 import {
+  useDeleteNotificationMutation,
   useMarkAllNotificationsReadMutation,
   useMarkNotificationReadMutation,
   useNotificationsQuery,
@@ -35,6 +37,8 @@ const { data, isPending, isError, refetch } = useNotificationsQuery(
 )
 const markReadMutation = useMarkNotificationReadMutation()
 const markAllReadMutation = useMarkAllNotificationsReadMutation()
+const deleteMutation = useDeleteNotificationMutation()
+const toasts = useToasts()
 
 /** Recent notifications backing the preview list. */
 const notifications = computed(() => data.value ?? [])
@@ -73,6 +77,11 @@ watch(
 /** Optimistically marks one notification read (explicit action, never on open). */
 function onMarkRead(id: number): void {
   markReadMutation.mutate(id)
+}
+
+/** Deletes one notification; a failure rolls the row back and shows an error toast. */
+function onDismiss(id: number): void {
+  deleteMutation.mutate(id, { onError: () => toasts.error(t('notifications.dismissError')) })
 }
 
 /** Optimistically marks every notification read through the bulk mutation. */
@@ -154,6 +163,7 @@ function refetchList(): void {
             :notification="item"
             :current-user-id="currentUser?.id"
             @mark-read="onMarkRead"
+            @dismiss="onDismiss"
           />
         </li>
       </ul>

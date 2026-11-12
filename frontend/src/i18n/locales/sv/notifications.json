@@ -5,6 +5,8 @@
   "unread": "Olästa",
   "markRead": "Markera som läst",
   "markAllRead": "Markera alla som lästa",
+  "dismiss": "Avfärda avisering",
+  "dismissError": "Det gick inte att avfärda aviseringen. Försök igen.",
   "seeAll": "Se alla",
   "loadMore": "Ladda fler",
   "loading": "Laddar…",

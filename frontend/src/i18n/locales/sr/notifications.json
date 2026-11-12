@@ -5,6 +5,8 @@
   "unread": "Nepročitano",
   "markRead": "Označi kao pročitano",
   "markAllRead": "Označi sve kao pročitano",
+  "dismiss": "Odbaci obaveštenje",
+  "dismissError": "Obaveštenje nije moguće odbaciti. Pokušajte ponovo.",
   "seeAll": "Prikaži sve",
   "loadMore": "Učitaj još",
   "loading": "Učitavanje…",

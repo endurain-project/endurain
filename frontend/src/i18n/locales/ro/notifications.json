@@ -5,6 +5,8 @@
   "unread": "Necitite",
   "markRead": "Marchează ca citit",
   "markAllRead": "Marchează toate ca citite",
+  "dismiss": "Respinge notificarea",
+  "dismissError": "Notificarea nu a putut fi respinsă. Încearcă din nou.",
   "seeAll": "Vezi toate",
   "loadMore": "Încarcă mai multe",
   "loading": "Se încarcă…",

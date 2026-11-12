@@ -5,6 +5,8 @@
   "unread": "Ungelesen",
   "markRead": "Als gelesen markieren",
   "markAllRead": "Alle als gelesen markieren",
+  "dismiss": "Benachrichtigung verwerfen",
+  "dismissError": "Die Benachrichtigung konnte nicht verworfen werden. Bitte versuche es erneut.",
   "seeAll": "Alle anzeigen",
   "loadMore": "Mehr laden",
   "loading": "Lädt…",

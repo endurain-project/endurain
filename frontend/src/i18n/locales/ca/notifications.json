@@ -5,6 +5,8 @@
   "unread": "No llegides",
   "markRead": "Marca com a llegida",
   "markAllRead": "Marca totes com a llegides",
+  "dismiss": "Descarta la notificació",
+  "dismissError": "No s'ha pogut descartar la notificació. Torna-ho a provar.",
   "seeAll": "Veure totes",
   "loadMore": "Carrega més",
   "loading": "Carregant…",

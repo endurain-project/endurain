@@ -5,6 +5,8 @@
   "unread": "Lukematon",
   "markRead": "Merkitse luetuksi",
   "markAllRead": "Merkitse kaikki luetuiksi",
+  "dismiss": "Hylkää ilmoitus",
+  "dismissError": "Ilmoituksen hylkääminen epäonnistui. Yritä uudelleen.",
   "seeAll": "Näytä kaikki",
   "loadMore": "Lataa lisää",
   "loading": "Ladataan…",

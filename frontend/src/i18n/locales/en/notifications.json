@@ -5,6 +5,8 @@
   "unread": "Unread",
   "markRead": "Mark as read",
   "markAllRead": "Mark all as read",
+  "dismiss": "Dismiss notification",
+  "dismissError": "Couldn't dismiss the notification. Please try again.",
   "seeAll": "See all",
   "loadMore": "Load more",
   "loading": "Loading…",

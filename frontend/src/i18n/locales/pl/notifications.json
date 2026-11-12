@@ -5,6 +5,8 @@
   "unread": "Nieprzeczytane",
   "markRead": "Oznacz jako przeczytane",
   "markAllRead": "Oznacz wszystkie jako przeczytane",
+  "dismiss": "Odrzuć powiadomienie",
+  "dismissError": "Nie udało się odrzucić powiadomienia. Spróbuj ponownie.",
   "seeAll": "Zobacz wszystkie",
   "loadMore": "Wczytaj więcej",
   "loading": "Ładowanie…",

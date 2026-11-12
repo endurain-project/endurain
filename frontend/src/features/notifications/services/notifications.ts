@@ -96,3 +96,17 @@ export async function markAllNotificationsRead(): Promise<void> {
     responseType: 'void',
   })
 }
+
+/**
+ * Deletes (dismisses) a single notification. The backend replies `204 No Content`,
+ * so there is no response body to map.
+ *
+ * @param id - The notification id to delete.
+ * @throws {HttpError} When the request fails; a `404` means it was already gone.
+ */
+export async function deleteNotification(id: number): Promise<void> {
+  await apiFetch<void>(`/notifications/${id}`, {
+    method: 'DELETE',
+    responseType: 'void',
+  })
+}

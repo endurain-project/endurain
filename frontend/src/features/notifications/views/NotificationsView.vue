@@ -9,9 +9,11 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
+import { useToasts } from '@/composables/useToasts'
 import { useInfiniteScroll } from '@/composables/useInfiniteScroll'
 import {
   useInfiniteNotificationsQuery,
+  useDeleteNotificationMutation,
   useMarkAllNotificationsReadMutation,
   useMarkNotificationReadMutation,
 } from '@/features/notifications/composables/useNotifications'
@@ -23,6 +25,8 @@ const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchin
   useInfiniteNotificationsQuery()
 const markReadMutation = useMarkNotificationReadMutation()
 const markAllReadMutation = useMarkAllNotificationsReadMutation()
+const deleteMutation = useDeleteNotificationMutation()
+const toasts = useToasts()
 
 /** All loaded slices flattened into a single list for rendering. */
 const notifications = computed(() => data.value?.pages.flatMap((slice) => slice.items) ?? [])
@@ -48,6 +52,11 @@ function refetchList(): void {
 /** Optimistically marks a notification read through the shared mutation. */
 function onMarkRead(id: number): void {
   markReadMutation.mutate(id)
+}
+
+/** Deletes one notification; a failure rolls the row back and shows an error toast. */
+function onDismiss(id: number): void {
+  deleteMutation.mutate(id, { onError: () => toasts.error(t('notifications.dismissError')) })
 }
 
 /** Optimistically marks every notification read through the bulk mutation. */
@@ -117,6 +126,7 @@ function onMarkAllRead(): void {
             :notification="item"
             :current-user-id="currentUser?.id"
             @mark-read="onMarkRead"
+            @dismiss="onDismiss"
           />
         </li>
       </ul>

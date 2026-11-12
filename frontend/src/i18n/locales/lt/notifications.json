@@ -5,6 +5,8 @@
   "unread": "Neperskaityti",
   "markRead": "Žymėti kaip perskaitytą",
   "markAllRead": "Žymėti visus kaip perskaitytus",
+  "dismiss": "Atmesti pranešimą",
+  "dismissError": "Nepavyko atmesti pranešimo. Bandykite dar kartą.",
   "seeAll": "Žiūrėti visus",
   "loadMore": "Įkelti daugiau",
   "loading": "Įkeliama…",

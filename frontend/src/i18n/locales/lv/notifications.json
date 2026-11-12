@@ -5,6 +5,8 @@
   "unread": "Nelasīts",
   "markRead": "Atzīmēt kā lasītu",
   "markAllRead": "Atzīmēt visus kā lasītus",
+  "dismiss": "Noraidīt paziņojumu",
+  "dismissError": "Neizdevās noraidīt paziņojumu. Mēģiniet vēlreiz.",
   "seeAll": "Skatīt visus",
   "loadMore": "Ielādēt vairāk",
   "loading": "Notiek ielāde…",

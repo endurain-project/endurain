@@ -5,6 +5,8 @@
   "unread": "Neprebrano",
   "markRead": "Označi kot prebrano",
   "markAllRead": "Označi vse kot prebrano",
+  "dismiss": "Opusti obvestilo",
+  "dismissError": "Obvestila ni bilo mogoče opustiti. Poskusite znova.",
   "seeAll": "Pokaži vse",
   "loadMore": "Naloži več",
   "loading": "Nalaganje…",

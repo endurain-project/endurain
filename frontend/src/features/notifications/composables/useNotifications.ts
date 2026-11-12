@@ -11,10 +11,12 @@ import {
 
 import type { Notification } from '@/features/notifications/types'
 
+import { isProblem } from '@/services/problems'
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import { useRealtime } from '@/composables/useRealtime'
 import {
+  deleteNotification,
   fetchNotifications,
   fetchUnreadNotificationsCount,
   markAllNotificationsRead,
@@ -285,6 +287,78 @@ export function useMarkAllNotificationsReadMutation() {
       return applyOptimisticReadAll(client)
     },
     onError: (_error, _vars, snapshot) => {
+      if (snapshot) {
+        restoreNotifications(client, snapshot)
+      }
+    },
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.notifications.all() })
+    },
+  })
+}
+
+/**
+ * Returns a copy of a cached notifications value without the matching row,
+ * transparently handling both the flat-array and `InfiniteData` shapes. Pure
+ * and immutable so it never mutates cached state in place.
+ *
+ * @param data - The cached value, or `undefined` for an unpopulated query.
+ * @param id - The notification id to remove.
+ * @returns The updated value, or `undefined` when there was nothing cached.
+ */
+function removeNotificationFromCache(
+  data: CachedNotifications | undefined,
+  id: number,
+): CachedNotifications | undefined {
+  if (!data) {
+    return data
+  }
+  const keep = (item: Notification): boolean => item.id !== id
+  if (Array.isArray(data)) {
+    return data.filter(keep)
+  }
+  return {
+    ...data,
+    pages: data.pages.map((slice) => ({ ...slice, items: slice.items.filter(keep) })),
+  }
+}
+
+/**
+ * Dismisses (deletes) a notification, following the same optimistic
+ * snapshot/rollback/invalidate shape as {@link useMarkNotificationReadMutation}:
+ * the row leaves every cached list at once, and settling invalidates the whole
+ * notifications domain so the unread count is recounted by the server. A `404`
+ * means the notification is already gone, so it counts as deleted.
+ *
+ * @returns The TanStack Query mutation for deleting a notification.
+ */
+export function useDeleteNotificationMutation() {
+  const client = useQueryClient()
+
+  return useMutation<void, Error, number, NotificationsSnapshot>({
+    mutationKey: queryKeys.notifications.all(),
+    mutationFn: async (id) => {
+      try {
+        await deleteNotification(id)
+      } catch (error) {
+        if (!isProblem(error, 'not-found')) {
+          throw error
+        }
+      }
+    },
+    onMutate: async (id) => {
+      // Cancel outgoing refetches so they can't bring the row back.
+      await client.cancelQueries({ queryKey: queryKeys.notifications.lists() })
+      const snapshot = client.getQueriesData<CachedNotifications>({
+        queryKey: queryKeys.notifications.lists(),
+      })
+      client.setQueriesData<CachedNotifications>(
+        { queryKey: queryKeys.notifications.lists() },
+        (data) => removeNotificationFromCache(data, id),
+      )
+      return snapshot
+    },
+    onError: (_error, _id, snapshot) => {
       if (snapshot) {
         restoreNotifications(client, snapshot)
       }
