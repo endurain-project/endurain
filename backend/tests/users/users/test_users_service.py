@@ -428,6 +428,7 @@ class TestCreateUser:
     @patch("modules.users.users.service._stage_default_data")
     @patch(_SETTINGS)
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_hashes_creates_commits_then_stores_the_credential(self, mock_crud, mock_settings, mock_defaults, mock_db):
         identity = _identity()
         identity.validate_and_hash_password_for_user.return_value = "hash"
@@ -468,6 +469,91 @@ class TestCreateUser:
         identity.set_local_password_hash.assert_not_called()
 
 
+class TestCreateInvitedUser:
+    def _new(self, **overrides) -> users_schema.UserCreate:
+        fields = {
+            "name": "N",
+            "username": "NewUser",
+            "email": "New@Example.com",
+            "active": True,
+            "access_type": "regular",
+        }
+        fields.update(overrides)
+        return users_schema.UserCreate(**fields)
+
+    @patch("modules.users.users.service._stage_default_data")
+    @patch(_SETTINGS)
+    @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
+    def test_without_a_password_the_account_has_no_credential_and_the_invitation_is_staged(
+        self, mock_crud, mock_settings, mock_defaults, mock_db, sign_up
+    ):
+        identity = _identity()
+        mock_settings.is_mail_configured.return_value = True
+        mock_crud.create_user.return_value = _user(7)
+
+        created = _admin_create(self._new(), mock_db)
+
+        identity.set_local_password_hash.assert_not_called()
+        identity.reject_breached_password.assert_not_called()
+        identity.validate_and_hash_password_for_user.assert_not_called()
+        sign_up.request_admin_invitation_email.assert_called_once_with(7, mock_db)
+        mock_db.commit.assert_called_once()
+        assert created.id == 7
+
+    @patch("modules.users.users.service._stage_default_data")
+    @patch(_SETTINGS)
+    @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
+    def test_without_mail_a_missing_password_is_refused_before_anything_is_staged(
+        self, mock_crud, mock_settings, mock_defaults, mock_db, sign_up
+    ):
+        identity = _identity()
+        mock_settings.is_mail_configured.return_value = False
+
+        with pytest.raises(core_exceptions.PasswordRequiredError):
+            _admin_create(self._new(), mock_db)
+
+        mock_crud.create_user.assert_not_called()
+        identity.set_local_password_hash.assert_not_called()
+        sign_up.request_admin_invitation_email.assert_not_called()
+        mock_db.commit.assert_not_called()
+
+    @patch("modules.users.users.service._stage_default_data")
+    @patch(_SETTINGS)
+    @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
+    def test_an_administrator_invitation_is_still_verified_with_the_step_up(
+        self, mock_crud, mock_settings, mock_defaults, mock_db, sign_up
+    ):
+        _identity()
+        mock_settings.is_mail_configured.return_value = True
+        mock_crud.create_user.return_value = _user(7, access_type="admin")
+        step_up = auth_schema.StepUpVerification(current_password="admin-password")
+
+        _admin_create(self._new(access_type="admin"), mock_db, step_up=step_up)
+
+        _verify_step_up_mock.assert_called_once()
+        sign_up.request_admin_invitation_email.assert_called_once_with(7, mock_db)
+
+    @patch("modules.users.users.service._stage_default_data")
+    @patch(_SETTINGS)
+    @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
+    def test_a_password_is_set_as_before_even_when_mail_is_configured(
+        self, mock_crud, mock_settings, mock_defaults, mock_db, sign_up
+    ):
+        identity = _identity()
+        identity.validate_and_hash_password_for_user.return_value = "hash"
+        mock_settings.is_mail_configured.return_value = True
+        mock_crud.create_user.return_value = _user(7)
+
+        _admin_create(self._new(password="password123"), mock_db)
+
+        identity.set_local_password_hash.assert_called_once_with(7, "hash", True)
+        sign_up.request_admin_invitation_email.assert_not_called()
+
+
 class TestCreateUserStepUp:
     def _new(self, access_type: str) -> users_schema.UserCreate:
         return users_schema.UserCreate(
@@ -482,6 +568,7 @@ class TestCreateUserStepUp:
     @patch("modules.users.users.service._stage_default_data")
     @patch(_SETTINGS)
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_an_administrator_account_needs_the_step_up_of_the_creating_administrator(
         self, mock_crud, mock_settings, mock_defaults, mock_db
     ):
@@ -503,6 +590,7 @@ class TestCreateUserStepUp:
     @patch("modules.users.users.service._stage_default_data")
     @patch(_SETTINGS)
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_the_access_type_is_read_as_an_enum_member_too(self, mock_crud, mock_settings, mock_defaults, mock_db):
         _identity().validate_and_hash_password_for_user.return_value = "hash"
         mock_crud.create_user.return_value = _user(7, access_type="admin")
@@ -514,6 +602,7 @@ class TestCreateUserStepUp:
     @patch("modules.users.users.service._stage_default_data")
     @patch(_SETTINGS)
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_a_missing_step_up_is_verified_as_empty_credentials(self, mock_crud, mock_settings, mock_defaults, mock_db):
         _identity().validate_and_hash_password_for_user.return_value = "hash"
         mock_crud.create_user.return_value = _user(7, access_type="admin")
@@ -538,6 +627,7 @@ class TestCreateUserStepUp:
     @patch("modules.users.users.service._stage_default_data")
     @patch(_SETTINGS)
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_a_regular_account_needs_no_step_up(self, mock_crud, mock_settings, mock_defaults, mock_db):
         _identity().validate_and_hash_password_for_user.return_value = "hash"
         mock_crud.create_user.return_value = _user(7)
@@ -570,6 +660,7 @@ class TestStageFirstAdmin:
     @patch("modules.users.users.service._stage_default_data")
     @patch(_SETTINGS)
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_locks_before_it_checks_and_checks_before_it_inserts(
         self, mock_crud, mock_settings, mock_defaults, mock_db
     ):
@@ -588,6 +679,7 @@ class TestStageFirstAdmin:
     @patch("modules.users.users.service._stage_default_data")
     @patch(_SETTINGS)
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_stages_an_active_verified_admin_with_the_admin_password_policy_and_does_not_commit(
         self, mock_crud, mock_settings, mock_defaults, mock_db
     ):
@@ -653,6 +745,7 @@ class TestAccountCreationIsOneUnit:
     @patch("modules.users.users.service.user_integrations_integration")
     @patch(_SETTINGS)
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_commit_follows_every_staged_write(
         self, mock_crud, mock_settings, mock_integrations, mock_privacy, mock_targets, mock_gear, mock_db
     ):
@@ -678,6 +771,7 @@ class TestAccountCreationIsOneUnit:
 
     @patch("modules.users.users.service._stage_default_data")
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_a_sign_up_stages_the_account_and_leaves_the_commit_to_the_caller(self, mock_crud, _defaults, mock_db):
         mock_crud.create_user.return_value = _user(3)
         settings = MagicMock(signup_require_email_verification=True, signup_require_admin_approval=False)
@@ -688,6 +782,7 @@ class TestAccountCreationIsOneUnit:
 
     @patch("modules.users.users.service._stage_default_data", side_effect=RuntimeError("mfa down"))
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_a_failed_part_commits_nothing(self, mock_crud, _defaults, mock_db):
         mock_crud.create_user.return_value = _user(3)
         settings = MagicMock(signup_require_email_verification=False, signup_require_admin_approval=False)
@@ -718,6 +813,7 @@ class TestCreateSignupUser:
     )
     @patch("modules.users.users.service._stage_default_data")
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_account_state_follows_the_signup_policy(
         self, mock_crud, _defaults, verification, approval, active, pending, mock_db
     ):
@@ -750,6 +846,7 @@ class TestCreateSignupUser:
     )
     @patch("modules.users.users.service._stage_default_data")
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_an_address_the_provider_verified_meets_the_verification_policy(
         self, mock_crud, _defaults, verification, approval, active, pending, mock_db
     ):
@@ -764,6 +861,7 @@ class TestCreateSignupUser:
     @pytest.mark.parametrize("pending", [True, False])
     @patch("modules.users.users.service._stage_default_data")
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_an_sso_account_awaiting_approval_asks_the_administrators_for_it(
         self, mock_crud, _defaults, pending, sign_up, mock_db
     ):
@@ -782,6 +880,7 @@ class TestCreateSignupUser:
 
     @patch("modules.users.users.service._stage_default_data")
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_sso_account_gets_no_credential(self, mock_crud, _defaults, mock_db):
         identity = _identity()
         mock_crud.create_user.return_value = _user(3)
@@ -793,6 +892,7 @@ class TestCreateSignupUser:
 
     @patch("modules.users.users.service._stage_default_data")
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_a_supplied_password_is_hashed_and_stored(self, mock_crud, _defaults, mock_db):
         identity = _identity()
         identity.validate_and_hash_password_for_user.return_value = "hashed"
@@ -805,6 +905,7 @@ class TestCreateSignupUser:
 
     @patch("modules.users.users.service._stage_default_data")
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_a_sign_up_without_a_password_stores_no_credential(self, mock_crud, _defaults, mock_db):
         identity = _identity()
         mock_crud.create_user.return_value = _user(3)
@@ -816,6 +917,7 @@ class TestCreateSignupUser:
 
     @patch("modules.users.users.service._stage_default_data")
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_sso_user_stages_without_committing(self, mock_crud, _defaults, mock_db):
         mock_crud.create_user.return_value = _user(3)
 
@@ -828,6 +930,7 @@ class TestCreateSignupUser:
     @pytest.mark.parametrize("email_verified", [True, False])
     @patch("modules.users.users.service._stage_default_data")
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_an_sso_account_is_verified_only_when_the_provider_says_so(
         self, mock_crud, _defaults, email_verified, mock_db
     ):
@@ -839,6 +942,7 @@ class TestCreateSignupUser:
 
     @patch("modules.users.users.service._stage_default_data")
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_a_sign_up_starts_from_the_default_profile_and_the_server_units(self, mock_crud, _defaults, mock_db):
         mock_crud.create_user.return_value = _user(3)
 
@@ -856,6 +960,7 @@ class TestCreateSignupUser:
 
     @patch("modules.users.users.service._stage_default_data")
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_an_sso_account_keeps_its_mapped_profile_and_takes_the_server_units(self, mock_crud, _defaults, mock_db):
         mock_crud.create_user.return_value = _user(3)
 
@@ -1029,6 +1134,7 @@ class TestEdits:
         mock_db.rollback.assert_called_once()
         mock_db.commit.assert_not_called()
 
+    @pytest.mark.usefixtures("email_available")
     def test_an_email_marked_verified_is_applied_now_and_cancels_a_pending_change(
         self, mock_crud, mock_weight, mock_db, sign_up
     ):
@@ -1086,6 +1192,7 @@ class TestEdits:
         changes = mock_crud.update_user.call_args.args[1]
         assert (changes["email"], changes["email_verified"]) == ("other@example.com", False)
 
+    @pytest.mark.usefixtures("email_available")
     def test_an_email_applied_now_voids_the_reset_tokens(self, mock_crud, mock_weight, mock_db, password_reset):
         mock_crud.get_user_by_id.return_value = _user(1)
         mock_crud.update_user.return_value = _user(1, email="other@example.com", email_verified=True)
@@ -1097,6 +1204,7 @@ class TestEdits:
 
         password_reset.revoke_unused_tokens.assert_called_once_with(1, mock_db)
 
+    @pytest.mark.usefixtures("email_available")
     def test_a_staged_edit_that_changes_the_email_voids_the_reset_tokens(
         self, mock_crud, mock_weight, mock_db, password_reset
     ):
@@ -1610,6 +1718,7 @@ class TestTimezone:
 class TestSecurityGenerationBump:
     """A change that takes effect on the account's email or active flag advances its security generation."""
 
+    @pytest.mark.usefixtures("email_available")
     def test_an_admin_edit_that_changes_the_email_bumps(self, mock_crud, mock_weight, mock_db, generation):
         mock_crud.get_user_by_id.return_value = _user(1)
         mock_crud.update_user.return_value = _user(1, email="other@example.com")
@@ -1627,6 +1736,7 @@ class TestSecurityGenerationBump:
 
         generation.stage_bump.assert_called_once_with(1, mock_db)
 
+    @pytest.mark.usefixtures("email_available")
     def test_an_edit_changing_both_bumps_once(self, mock_crud, mock_weight, mock_db, generation):
         mock_crud.get_user_by_id.return_value = _user(1)
         mock_crud.update_user.return_value = _user(1, email="other@example.com", active=False)
@@ -1661,6 +1771,7 @@ class TestSecurityGenerationBump:
 
         generation.stage_bump.assert_not_called()
 
+    @pytest.mark.usefixtures("email_available")
     def test_an_email_applied_without_mail_bumps(self, mock_crud, mock_weight, mock_db, generation):
         mock_crud.get_user_by_id.return_value = _user(1, email="old@example.com")
 
@@ -1691,6 +1802,7 @@ class TestSecurityGenerationBump:
 
         generation.stage_bump.assert_not_called()
 
+    @pytest.mark.usefixtures("email_available")
     def test_an_edit_bumps_before_the_administrator_lock_and_the_user_write(
         self, mock_crud, mock_weight, mock_db, generation
     ):
@@ -1718,6 +1830,7 @@ class TestSecurityGenerationBump:
 
         generation.stage_bump.assert_not_called()
 
+    @pytest.mark.usefixtures("email_available")
     def test_a_new_address_bumps_before_the_user_write(self, mock_crud, mock_weight, mock_db, generation):
         mock_crud.get_user_by_id.return_value = _user(1, email="old@example.com")
         order = MagicMock()
@@ -1750,6 +1863,7 @@ class TestSecurityGenerationBump:
 
 class TestStageEmailChange:
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_stores_the_lower_cased_address_as_unverified(self, mock_crud, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1, email="old@example.com")
 
@@ -1759,6 +1873,7 @@ class TestStageEmailChange:
         mock_crud.update_user.assert_called_once_with(1, {"email": "new@example.com", "email_verified": False}, mock_db)
 
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_a_changed_address_revokes_the_users_unused_tokens(self, mock_crud, mock_db, sign_up):
         mock_crud.get_user_by_id.return_value = _user(1, email="old@example.com")
 
@@ -1767,6 +1882,7 @@ class TestStageEmailChange:
         sign_up.revoke_pending_tokens.assert_called_once_with(1, mock_db)
 
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_a_changed_address_voids_the_reset_tokens(self, mock_crud, mock_db, password_reset):
         mock_crud.get_user_by_id.return_value = _user(1, email="old@example.com")
 
@@ -1839,6 +1955,7 @@ class TestStageConfirmedEmailChange:
 class TestAdminEditNormalizesIdentity:
     @patch("modules.users.users.service.users_contributor_registry")
     @patch(_CRUD)
+    @pytest.mark.usefixtures("email_available")
     def test_email_is_lower_cased_like_the_username(self, mock_crud, _weight, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1)
         mock_crud.update_user.return_value = _user(1)

@@ -83,6 +83,11 @@ def validate_pkce_challenge(code_challenge: str, code_challenge_method: str) -> 
         raise core_exceptions.InvalidInputError("code_challenge must be valid base64url")
 
 
+#: The characters RFC 7636 section 4.1 allows in a ``code_verifier``: ``ALPHA / DIGIT / "-" / "." / "_" / "~"``.
+PKCE_VERIFIER_PATTERN = re.compile(r"^[A-Za-z0-9._~-]+$")
+PKCE_VERIFIER_CHARSET_MESSAGE = "code_verifier must use only the characters A-Z, a-z, 0-9, '-', '.', '_' and '~'"
+
+
 def validate_pkce_verifier(code_verifier: str, code_challenge: str, code_challenge_method: str) -> None:
     """Validate PKCE code_verifier and verify it matches the code_challenge.
 
@@ -91,7 +96,7 @@ def validate_pkce_verifier(code_verifier: str, code_challenge: str, code_challen
     This proves the client possesses the secret used during login initiation.
 
     Args:
-        code_verifier (str): Base64url-encoded verifier from mobile client.
+        code_verifier (str): PKCE verifier from the client: 43-128 characters of the RFC 7636 unreserved set.
         code_challenge (str): Base64url-encoded SHA256 hash stored in DB.
         code_challenge_method (str): PKCE method (must be "S256").
 
@@ -103,8 +108,8 @@ def validate_pkce_verifier(code_verifier: str, code_challenge: str, code_challen
     if not (43 <= len(code_verifier) <= 128):
         raise core_exceptions.InvalidInputError("code_verifier must be 43-128 characters")
 
-    if not re.match(r"^[A-Za-z0-9_-]+$", code_verifier):
-        raise core_exceptions.InvalidInputError("code_verifier must be valid base64url")
+    if not PKCE_VERIFIER_PATTERN.match(code_verifier):
+        raise core_exceptions.InvalidInputError(PKCE_VERIFIER_CHARSET_MESSAGE)
 
     # Verify method is S256
     if code_challenge_method != "S256":

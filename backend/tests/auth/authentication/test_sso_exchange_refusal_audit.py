@@ -14,9 +14,7 @@ _LOGIN = "auth.session.login"
 _USER = SimpleNamespace(id=5, username="alice", active=True, access_type="regular")
 
 
-def _exchange(
-    db, *, state_cleared=False, pkce_error=None, inactive=False, claimed=True, header="web", stamp=0, between=None
-):
+def _exchange(db, *, pkce_error=None, inactive=False, claimed=True, header="web", stamp=0, between=None):
     oauth_state = SimpleNamespace(
         id="state",
         purpose="login",
@@ -38,7 +36,7 @@ def _exchange(
     with (
         patch(
             f"{_SERVICE}.sessions_integration.get_session_with_oauth_state",
-            return_value=(session, None if state_cleared else oauth_state),
+            return_value=(session, oauth_state),
         ),
         patch(f"{_SERVICE}.auth_computation.validate_pkce_verifier", side_effect=pkce_error),
         patch(f"{_SERVICE}.users_integration.require_user", return_value=_USER),
@@ -101,13 +99,6 @@ def test_a_header_other_than_the_stored_client_type_is_audited_like_a_pkce_misma
 
 def test_a_lost_exchange_race_answers_like_a_replay(mock_db):
     _, raised = _exchange(mock_db, claimed=False)
-
-    assert isinstance(raised, core_exceptions.NotFoundError)
-    assert raised.detail == "Session not found or not eligible for token exchange"
-
-
-def test_a_replay_after_the_first_exchange_finds_no_state_and_answers_not_found(mock_db):
-    _, raised = _exchange(mock_db, state_cleared=True)
 
     assert isinstance(raised, core_exceptions.NotFoundError)
     assert raised.detail == "Session not found or not eligible for token exchange"

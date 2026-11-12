@@ -171,6 +171,12 @@ def request_sign_up_verification_email(user_id: int, db: Session) -> None:
     sign_up_event_publishers.publish_sign_up_verification_requested(user_id, db)
 
 
+def request_admin_invitation_email(user_id: int, db: Session) -> None:
+    """Stage an invitation-email event for an account an administrator created without a password."""
+    _require_mail_configured(db)
+    sign_up_event_publishers.publish_admin_invitation_requested(user_id, db)
+
+
 def request_email_change(user_id: int, email: str, previous_email: str, db: Session) -> bool:
     """Stage a pending email change, its notice to the current address and its confirmation event.
 
@@ -529,6 +535,31 @@ def prepare_sign_up_verification_email(
     )
 
 
+def prepare_admin_invitation_email(
+    user_id: int,
+    event_id: str,
+    frontend_host: str,
+    db: Session,
+) -> tuple[str, str, str, str] | None:
+    """Create the sign-up link of an invited account and return its invitation email.
+
+    The email is delivered after the session closes.
+    """
+    user = users_integration.get_user(user_id, db)
+    if user is None:
+        return None
+    return _issue_verification_email(
+        user,
+        user.email,
+        None,
+        event_id,
+        frontend_host,
+        SIGN_UP_CONFIRM_PATH,
+        sign_up_email_messages.get_admin_invitation_email,
+        db,
+    )
+
+
 def prepare_email_change_verification_email(
     user_id: int,
     event_id: str,
@@ -766,15 +797,17 @@ def cancel_email_change(token: str, db: Session) -> sign_up_schema.EmailChangeCa
     The link puts the account back on the address it was mailed to, whether or not the change was confirmed and
     whatever the account's address is now, and voids every later change of the account that is still inside its
     revert window, so a change requested after the first one cannot end the link. The previous address is put back
-    unless another account holds it now; the account is secured either way. Before any change is confirmed, the
-    pending change is voided.
+    unless another account holds it now; the account is secured either way, and when the address is not restored the
+    account's unused password-reset tokens are also revoked, so no reset reaches the address that stays. Before any
+    change is confirmed, the pending change is voided.
 
     Args:
         token: The token of the link emailed to the account's address.
         db: Database session.
 
     Returns:
-        Whether the change had been confirmed and whether the previous address was restored.
+        An ``EmailChangeCancelRead`` saying whether the change, or a later change the link voided, had been confirmed
+        and whether the previous address was restored.
 
     Raises:
         InvalidInputError: If the link is malformed, forged, expired, already used, or names a change that was
@@ -812,12 +845,15 @@ def cancel_email_change(token: str, db: Session) -> sign_up_schema.EmailChangeCa
     sign_up_crud.mark_user_sign_up_tokens_used(user_id, db)
 
     email_restored = False
+    reset_tokens_revoked = False
     if confirmed and previous_email is not None:
         if _holder_of(previous_email, user_id, db) is None:
             users_integration.stage_confirmed_email_change(user_id, previous_email, db)
             email_restored = True
         else:
             logger.info("Previous email address not restored", extra=core_logger.context(user_id=user_id))
+            password_reset_tokens_integration.revoke_unused_tokens(user_id, db)
+            reset_tokens_revoked = True
     sessions_revoked = sessions_integration.delete_sessions_by_user(user_id, db)
     api_keys_revoked = api_keys_integration.revoke_user_api_keys(user_id, db)
     jasil_audit.stage(
@@ -831,6 +867,7 @@ def cancel_email_change(token: str, db: Session) -> sign_up_schema.EmailChangeCa
             api_keys_revoked=api_keys_revoked,
             change_applied=confirmed,
             email_restored=email_restored,
+            reset_tokens_revoked=reset_tokens_revoked,
         ),
     )
     db.commit()
@@ -1038,9 +1075,11 @@ def confirm_sign_up(token: str, password: str, db: Session) -> sign_up_schema.Si
     password-reset tokens, as a password reset does. The address is marked verified. Only a sign-up (an inactive
     account that no administrator deactivated) is activated, and it goes on to the administrators' approval when the
     server requires it. An account an administrator activated before it was confirmed has no password yet and chooses
-    one here too; an account that takes no password from a link refuses the confirmation. With sign-up turned off the
-    confirmation is refused before the token or the password is looked at, and pending accounts wait until sign-up is
-    turned on again or an administrator activates them.
+    one here too, also while sign-up is turned off; an account that takes no password from a link refuses the
+    confirmation. With sign-up turned off a real sign-up's confirmation is refused once the token is known to be one,
+    and the refusal rolls the claim back so the link stays usable; pending accounts wait until sign-up is turned on
+    again or an administrator activates them. A resend stays refused whenever sign-up is off, so the answer reveals
+    which addresses are pending to nobody.
 
     Args:
         token: The raw sign-up token.
@@ -1051,7 +1090,7 @@ def confirm_sign_up(token: str, password: str, db: Session) -> sign_up_schema.Si
         What happens next for the account.
 
     Raises:
-        PermissionDeniedError: If registration is disabled.
+        PermissionDeniedError: If registration is disabled and the token belongs to a real sign-up.
         InvalidInputError: If the token is unknown, used, expired or not a sign-up token, or the account takes no
             password from a link.
         PasswordPolicyError: If the password fails the configured policy.
@@ -1059,7 +1098,6 @@ def confirm_sign_up(token: str, password: str, db: Session) -> sign_up_schema.Si
         NotFoundError: If the token's user no longer exists.
     """
     server_settings = server_settings_integration.get_server_settings(db)
-    _require_sign_up_enabled(server_settings)
     # The breach check is a network call, so it runs before the claim opens the write transaction.
     credentials_integration.reject_breached_password(server_settings, password, db)
     claim = verify_sign_up_token(token, db, email_change=False)
@@ -1071,6 +1109,18 @@ def confirm_sign_up(token: str, password: str, db: Session) -> sign_up_schema.Si
     # An inactive account is a sign-up awaiting verification unless it was deactivated: a link never activates a
     # deactivated account or asks the administrators to approve it.
     is_sign_up = not user.active and not users_integration.is_deactivated(user_id, db)
+    if is_sign_up and not server_settings.signup_enabled:
+        # Rolling back the claim keeps the link usable until sign-up is turned on again.
+        db.rollback()
+        jasil_audit.record_detached(
+            sign_up_audit_actions.SIGN_UP_CONFIRM,
+            outcome=jasil_audit.Outcome.FAILURE,
+            target_type="user",
+            target_id=str(user_id),
+            target_owner_id=str(user_id),
+            details=sign_up_audit_actions.SignUpConfirmDetails(reason="sign_up_disabled"),
+        )
+        _require_sign_up_enabled(server_settings)
     if is_sign_up and not server_settings.signup_require_email_verification:
         raise core_exceptions.EmailVerificationDisabledError()
 
@@ -1112,8 +1162,9 @@ def confirm_email_change(token: str, db: Session) -> sign_up_schema.SignUpRead:
     """Consume an email-change token, switch the account to the confirmed address and mark it verified.
 
     The notice to the previous address is staged with the switch; a conflict or any later failure rolls the claim back
-    with the rest of the transaction. The account's state is otherwise kept, and its security generation moves, so
-    its sessions end.
+    with the rest of the transaction. The account's state is otherwise kept. Its security generation moves, which voids
+    the tokens and known devices stamped before it; its sessions are not ended here, only by the sign-out switch of
+    the email-change request.
 
     Args:
         token: The raw email-change token.

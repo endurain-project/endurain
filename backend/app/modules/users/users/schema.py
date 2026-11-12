@@ -176,7 +176,7 @@ UserUsername = Annotated[
 ]
 UserEmail = Annotated[EmailStr, Field(max_length=250, description="User's email address")]
 UserPassword = Annotated[
-    StrictStr, Field(min_length=8, max_length=credentials_contracts.PASSWORD_MAX_LENGTH, description="User's password")
+    StrictStr, Field(max_length=credentials_contracts.PASSWORD_MAX_LENGTH, description="User's password")
 ]
 
 
@@ -539,7 +539,8 @@ class UserSignup(BaseModel):
         name: User's full name (1-250 chars).
         username: Unique username (1-250 chars, alphanumeric and dots).
         email: User's email address (max 250 chars).
-        password: User's password (min 8 chars). Absent when the password is chosen at email verification.
+        password: User's password; the account's password policy applies. Absent when the password is chosen at
+            email verification.
         preferred_language: Language of the account's emails and interface.
     """
 
@@ -559,12 +560,32 @@ class UserCreate(User):
     """Users schema for admin user creation.
 
     Attributes:
-        password: User's password (min 8 chars).
+        password: User's password (the account's password policy applies). Absent when the account is invited to
+            choose its own, which needs mail and an active account.
     """
 
     name: UserRequestName
     height: UserRequestHeight | None = None
-    password: UserPassword
+    password: UserPassword | None = None
+
+    @field_validator("password")
+    @classmethod
+    def _inactive_account_needs_password(cls, value: str | None, info: ValidationInfo) -> str | None:
+        """Refuse an account with neither a password nor an active state, which an invitation cannot activate.
+
+        Args:
+            value: The submitted password.
+            info: Pydantic's validation info, holding the fields validated before the password.
+
+        Returns:
+            The password, unchanged.
+
+        Raises:
+            ValueError: When there is no password and the account is inactive.
+        """
+        if value is None and info.data.get("active") is False:
+            raise ValueError("An inactive account needs a password, because an invitation cannot activate it")
+        return value
 
 
 class UserAdminCreate(UserCreate):
@@ -598,7 +619,7 @@ class FirstAdminCreate(BaseModel):
         name: User's full name.
         username: Unique username.
         email: User's email address.
-        password: User's password (min 8 chars; the administrator policy applies on top).
+        password: User's password (the administrator password policy applies).
     """
 
     name: UserRequestName
@@ -616,14 +637,13 @@ class UserEditPassword(BaseModel):
     prevents a stolen in-memory access token from being parlayed into permanent account takeover.
 
     Attributes:
-        password: New password (min 8 chars).
+        password: New password (the account's password policy applies).
         revoke_other_sessions: Whether to sign out the user's other sessions after the change.
         step_up: The caller's step-up verification: the current password and, when MFA is enabled, an MFA code.
     """
 
     password: StrictStr = Field(
         ...,
-        min_length=8,
         max_length=credentials_contracts.PASSWORD_MAX_LENGTH,
         description="New password",
     )
@@ -652,13 +672,12 @@ class UserAdminEditPassword(BaseModel):
     :class:`UserEditPassword` instead.
 
     Attributes:
-        password: New password (min 8 chars).
+        password: New password (the account's password policy applies).
         step_up: The administrator's own step-up verification.
     """
 
     password: StrictStr = Field(
         ...,
-        min_length=8,
         max_length=credentials_contracts.PASSWORD_MAX_LENGTH,
         description="New password",
     )

@@ -43,6 +43,12 @@ def test_a_new_password_of_the_maximum_length_is_accepted(schema, fields):
 
 
 @pytest.mark.parametrize(("schema", "fields"), _NEW_PASSWORD_SHAPES)
+def test_a_short_new_password_reaches_the_password_policy(schema, fields):
+    """The schema sets no minimum, so the policy answers a short password with ``password-too-short``."""
+    assert schema(**fields, password="short").password == "short"
+
+
+@pytest.mark.parametrize(("schema", "fields"), _NEW_PASSWORD_SHAPES)
 def test_a_new_password_over_the_maximum_is_refused(schema, fields):
     with pytest.raises(ValidationError):
         schema(**fields, password="a" * (credentials_contracts.PASSWORD_MAX_LENGTH + 1))

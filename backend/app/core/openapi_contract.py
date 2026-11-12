@@ -4,7 +4,8 @@ FastAPI documents only what a route lists in ``responses=``, so left alone the d
 client learns the rest by trying. The facts below follow from what an operation already declares, so they are
 derived for every operation instead of repeated on each route:
 
-- the default rate limit and an unavailable database answer 429 and 503 on every operation (``Retry-After``);
+- the default rate limit and an unavailable database answer 429 and 503 on every operation (``Retry-After``, and
+    ``X-RateLimit-*`` on the 429);
 - a security requirement can answer 401 (``WWW-Authenticate``) and 403;
 - a path parameter can answer 404, a request body 413, an upload (``x-max-body-bytes``) 415, and a write 409;
 - a write the CSRF middleware checks declares the optional ``X-CSRF-Token`` and ``X-Client-Type`` headers it reads;
@@ -78,6 +79,16 @@ _RETRY_AFTER_HEADER: dict[str, Any] = {
     "schema": {"type": "integer"},
 }
 
+_RATE_LIMIT_LIMIT_HEADER: dict[str, Any] = {
+    "description": "The number of requests the limit that was reached allows in its window.",
+    "schema": {"type": "integer"},
+}
+
+_RATE_LIMIT_REMAINING_HEADER: dict[str, Any] = {
+    "description": "The requests left in the window: always 0 on a 429.",
+    "schema": {"type": "integer"},
+}
+
 _CLIENT_TYPE_HEADER: dict[str, Any] = {
     "name": "X-Client-Type",
     "in": "header",
@@ -110,7 +121,14 @@ _ERRORS: dict[str, tuple[str, dict[str, Any]]] = {
     "413": ("The body is larger than the route accepts.", {}),
     "415": ("The uploaded file is a type the route does not accept.", {}),
     "428": ("The `If-Match` header is missing.", {}),
-    "429": ("The rate limit was reached.", {"Retry-After": _RETRY_AFTER_HEADER}),
+    "429": (
+        "The rate limit was reached.",
+        {
+            "Retry-After": _RETRY_AFTER_HEADER,
+            "X-RateLimit-Limit": _RATE_LIMIT_LIMIT_HEADER,
+            "X-RateLimit-Remaining": _RATE_LIMIT_REMAINING_HEADER,
+        },
+    ),
     "503": ("A dependency is unavailable for a moment.", {"Retry-After": _RETRY_AFTER_HEADER}),
 }
 

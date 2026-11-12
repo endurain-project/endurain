@@ -19,6 +19,7 @@ _TARGET = {"target_type": "user", "target_id": "7", "target_owner_id": "7"}
 
 
 class TestConfirmedEmailChange:
+    @pytest.mark.usefixtures("email_available")
     def test_a_confirmed_change_is_recorded_without_the_address(self, mock_db):
         with jasil_testing.capture_audit() as audit, patch(_SERVICE_CRUD) as crud:
             crud.get_user_by_email.return_value = None
@@ -36,6 +37,7 @@ class TestConfirmedEmailChange:
 
         audit.assert_not_audited(users_audit_actions.USER_EMAIL_CHANGE.id)
 
+    @pytest.mark.usefixtures("email_available")
     def test_the_integration_surface_records_it(self, mock_db):
         with jasil_testing.capture_audit() as audit, patch(_SERVICE_CRUD) as crud:
             crud.get_user_by_email.return_value = None

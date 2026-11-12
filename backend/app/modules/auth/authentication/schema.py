@@ -1,6 +1,5 @@
 """Pydantic schemas for the authentication module."""
 
-import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Annotated, Literal
@@ -14,6 +13,7 @@ from pydantic import (
     field_validator,
 )
 
+import modules.auth.computation as auth_computation
 import modules.auth.credentials.contracts as credentials_contracts
 
 
@@ -45,7 +45,7 @@ class PasswordChangeLoginRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     password_change_challenge: StrictStr = Field(..., min_length=43, max_length=64)
-    password: StrictStr = Field(..., min_length=8, max_length=credentials_contracts.PASSWORD_MAX_LENGTH)
+    password: StrictStr = Field(..., max_length=credentials_contracts.PASSWORD_MAX_LENGTH)
 
 
 class MFARequiredRead(BaseModel):
@@ -182,7 +182,7 @@ class TokenExchangeRequest(BaseModel):
     matches the code_challenge sent during login initiation.
 
     Attributes:
-        code_verifier (str): PKCE code verifier (43-128 chars, base64url).
+        code_verifier (str): PKCE code verifier (43-128 chars of the RFC 7636 unreserved set).
             Must hash to the code_challenge stored in OAuth state.
         mfa_code (str | None): TOTP or backup code. Required when the session
             came from an identity provider and the account has MFA enabled.
@@ -194,7 +194,7 @@ class TokenExchangeRequest(BaseModel):
         ...,
         min_length=43,
         max_length=128,
-        description="PKCE code verifier (base64url, 43-128 chars)",
+        description="PKCE code verifier (43-128 characters: A-Z, a-z, 0-9, '-', '.', '_', '~')",
     )
     mfa_code: StrictStr | None = Field(
         default=None,
@@ -216,8 +216,8 @@ class TokenExchangeRequest(BaseModel):
         Raises:
             ValueError: If format is invalid (wrong length or characters).
         """
-        if not re.match(r"^[A-Za-z0-9_-]+$", v):
-            raise ValueError("code_verifier must be valid base64url")
+        if not auth_computation.PKCE_VERIFIER_PATTERN.match(v):
+            raise ValueError(auth_computation.PKCE_VERIFIER_CHARSET_MESSAGE)
         return v
 
 

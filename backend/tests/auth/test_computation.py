@@ -14,6 +14,7 @@ equality lookups. These tests assert those security-relevant properties using
 real hashing (no mocks of the crypto itself).
 """
 
+import base64
 import hashlib
 import hmac
 import re
@@ -109,6 +110,18 @@ class TestValidatePkceVerifier:
         # Act & Assert (no exception should be raised)
         validate_pkce_verifier(code_verifier, code_challenge, code_challenge_method)
 
+    def test_validate_pkce_verifier_accepts_dot_and_tilde(self):
+        """Test the verifier may use '.' and '~', the whole RFC 7636 unreserved set.
+
+        Asserts:
+            - A verifier with '.' and '~' that matches its challenge passes validation
+        """
+        code_verifier = "a.b~c" * 9
+        digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
+        code_challenge = base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
+
+        validate_pkce_verifier(code_verifier, code_challenge, "S256")
+
     def test_validate_pkce_verifier_min_length_violation(self):
         """Test PKCE verifier minimum length validation.
 
@@ -161,7 +174,7 @@ class TestValidatePkceVerifier:
             validate_pkce_verifier(code_verifier, code_challenge, code_challenge_method)
 
         assert exc_info.value.status_code == 400
-        assert "valid base64url" in str(exc_info.value.detail)
+        assert "code_verifier must use only" in str(exc_info.value.detail)
 
     def test_validate_pkce_verifier_wrong_method(self):
         """Test PKCE verifier with wrong challenge method.

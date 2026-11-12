@@ -308,6 +308,7 @@ class TestPasswordChangeRoute:
         ("password", "code"),
         [
             ("tenchars!!", "password-too-short"),
+            ("short", "password-too-short"),
             (PASSWORD, "password-unchanged"),
             ("passwordpassword", "password-too-common"),
         ],

@@ -57,12 +57,13 @@ def verify_and_consume_backup_code(
     with the number of codes left.
 
     The loop deliberately does **not** short-circuit on the first match: it
-    runs a verification for every stored hash so that the number of (slow,
-    constant-time) Argon2 verifications — and therefore the wall-clock
-    latency — does not depend on the matching code's position in the list.
-    This removes a timing side channel that could otherwise hint at how many
-    backup codes remain or where a valid code sits. Step-up/MFA progressive
-    lockout remains the primary guard against guessing.
+    runs a verification for every stored hash, so the wall-clock latency does
+    not depend on the matching code's position in the list or on whether a
+    code matches at all. The cost still grows with the number of unused codes
+    (up to ten Argon2 verifications, none for a TOTP code), so a holder of a
+    live MFA challenge can learn from the latency how many codes remain and
+    that a backup code was tried. Step-up/MFA progressive lockout remains the
+    primary guard against guessing.
 
     Args:
         user_id: User ID to verify the backup code for.

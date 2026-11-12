@@ -61,7 +61,7 @@ class TestTokenExchangeRequest:
         assert "String should have at most 128 characters" in str(exc_info.value)
 
     def test_code_verifier_format_validation_valid(self):
-        """Test code_verifier format validation accepts valid base64url.
+        """Test code_verifier format validation accepts the RFC 7636 unreserved characters.
 
         Asserts:
             - Valid base64url characters (A-Z, a-z, 0-9, -, _) are accepted
@@ -85,7 +85,17 @@ class TestTokenExchangeRequest:
         with pytest.raises(ValidationError) as exc_info:
             TokenExchangeRequest(code_verifier="a" * 43 + "!")  # ! is not valid base64url
 
-        assert "code_verifier must be valid base64url" in str(exc_info.value)
+        assert "code_verifier must use only" in str(exc_info.value)
+
+    def test_code_verifier_accepts_the_whole_rfc_7636_unreserved_set(self):
+        """Test code_verifier accepts every unreserved character of RFC 7636 section 4.1.
+
+        Asserts:
+            - '.' and '~' are accepted beside the base64url characters
+        """
+        verifier = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
+
+        assert TokenExchangeRequest(code_verifier=verifier).code_verifier == verifier
 
     def test_code_verifier_format_validation_special_chars(self):
         """Test code_verifier format validation rejects special characters.
@@ -97,4 +107,4 @@ class TestTokenExchangeRequest:
         with pytest.raises(ValidationError) as exc_info:
             TokenExchangeRequest(code_verifier="a" * 43 + "+")
 
-        assert "code_verifier must be valid base64url" in str(exc_info.value)
+        assert "code_verifier must use only" in str(exc_info.value)

@@ -174,13 +174,16 @@ class TestCreation:
             users_service.create_user(user, None, 9, "sid-9", MagicMock(), MagicMock())
         return crud.create_user.call_args.args[0]
 
+    @pytest.mark.usefixtures("email_available")
     def test_an_administrator_created_inactive_account_is_marked(self):
         assert self._create(active=False)["deactivated_at"] is not None
 
+    @pytest.mark.usefixtures("email_available")
     def test_an_administrator_created_active_account_is_not(self):
         assert self._create(active=True).get("deactivated_at") is None
 
     @pytest.mark.parametrize(("verification", "approval"), [(True, False), (False, True), (True, True)])
+    @pytest.mark.usefixtures("email_available")
     def test_a_sign_up_awaiting_verification_or_approval_is_not_marked(self, verification, approval):
         settings = MagicMock(signup_require_email_verification=verification, signup_require_admin_approval=approval)
         signup = users_schema.UserSignup(

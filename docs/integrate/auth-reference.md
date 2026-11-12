@@ -115,7 +115,7 @@ All errors, including authentication and authorization failures, use one problem
 ### For OAuth/SSO Integration
 
 1. **Always use PKCE** - Required for OAuth/SSO login
-2. **Validate state parameter** - Prevents CSRF attacks on OAuth flow
+2. **Leave the `state` to the server** - The OAuth state is created and checked server-side and the `endurain_idp_binding` cookie binds it to the browser; the initiate route takes no `state` from the client
 3. **Implement proper redirect URL validation** - Prevents open redirects
 4. **Handle provider errors gracefully** with user-friendly messages
 5. **Support account linking** - Allow users to connect multiple providers

@@ -226,11 +226,11 @@ Then exchange for tokens as in Step 3 above.
 
 | Feature | Description |
 | ------- | ----------- |
-| **PKCE S256** | SHA256 challenge prevents code interception |
+| **PKCE S256** | A `session_id` that leaks on its own (a log or a proxy, for example) cannot be exchanged without the verifier. The sign-in returns the `session_id` in the same HTTPS response that accepted the challenge, so there is no redirect to intercept, and whoever knows the password chooses the challenge: PKCE does not stop an attacker who has the password |
 | **One-time exchange** | Tokens can only be exchanged once per session |
 | **10-minute exchange window** | The PKCE/OAuth state expires after 10 minutes; the pending session cannot be exchanged after that window |
 | **Rate limiting** | 10 token exchange requests per minute |
-| **Session binding** | Session is cryptographically bound to PKCE challenge |
+| **Session binding** | The pending session is tied to the PKCE challenge of its sign-in; the exchange checks no IP address, device or app identity |
 | **Client type binding** | The MFA step and the exchange refuse a client type other than the one that started the sign-in |
 
 ## Mobile SSO with PKCE
@@ -294,7 +294,7 @@ Before initiating the OAuth flow, generate a cryptographically random code verif
 **Code Verifier Requirements (RFC 7636):**
 
 - Length: 43-128 characters
-- Characters accepted by Endurain: `A-Z`, `a-z`, `0-9`, `-`, `_`
+- Characters accepted by Endurain: `A-Z`, `a-z`, `0-9`, `-`, `.`, `_`, `~`, the unreserved characters of RFC 7636 section 4.1
 - Cryptographically random
 
 **Code Challenge Computation:**

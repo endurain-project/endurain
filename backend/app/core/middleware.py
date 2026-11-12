@@ -47,9 +47,17 @@ CORS_ALLOW_HEADERS: tuple[str, ...] = (
 
 #: Response headers a browser client may read. Anything not listed is invisible
 #: to JavaScript even though it is on the wire — which is why ``ETag`` belongs
-#: here: it is the tag the client echoes back in ``If-Match``. ``Retry-After`` says when to try again and
+#: here: it is the tag the client echoes back in ``If-Match``. ``Retry-After`` says when to try again,
+#: ``X-RateLimit-Limit`` and ``X-RateLimit-Remaining`` give the limit a 429 refused, and
 #: ``Content-Location`` names the job of accepted background work.
-CORS_EXPOSE_HEADERS: tuple[str, ...] = ("ETag", "X-Request-ID", "Retry-After", "Content-Location")
+CORS_EXPOSE_HEADERS: tuple[str, ...] = (
+    "ETag",
+    "X-Request-ID",
+    "Retry-After",
+    "X-RateLimit-Limit",
+    "X-RateLimit-Remaining",
+    "Content-Location",
+)
 
 
 async def _reload_allowed_tile_domains(state: State, loader: Callable[[], list[str]]) -> None:

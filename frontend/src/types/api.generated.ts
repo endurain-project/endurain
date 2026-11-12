@@ -1998,7 +1998,7 @@ export interface paths {
         put?: never;
         /**
          * Create User Api Key
-         * @description Create an API key after step-up verification.
+         * @description Create an API key after step-up verification. An account holds at most 25 active keys.
          */
         post: operations["create_user_api_key"];
         delete?: never;
@@ -3432,7 +3432,8 @@ export interface paths {
          * Confirm Sign Up
          * @description Confirm a sign-up with the token of its emailed link and choose the account's password.
          *
-         *     Refused while sign-up is turned off, whatever the token; the account stays pending.
+         *     Refused while sign-up is turned off when the token belongs to a pending sign-up, which stays pending and keeps
+         *     its link; an account an administrator activated without a password can still choose one.
          */
         post: operations["confirm_sign_up"];
         delete?: never;
@@ -3839,7 +3840,8 @@ export interface paths {
          *
          *     With `users:read-all` the page holds full records and every filter is available. With only `users:read` it
          *     holds public projections of active users who are discoverable (those who switched off "Let others find me
-         *     in search" are left out; their profile stays reachable by id), and a state filter is refused with 403.
+         *     in search" are left out; their profile stays reachable by id), a state filter is refused with 403, and a request
+         *     without `username` or `username_contains` of at least 3 characters is refused with 422.
          *     `num_records` defaults to the server's page size and may not exceed it; a larger value is refused with 422.
          */
         get: operations["read_users"];
@@ -3851,6 +3853,10 @@ export interface paths {
          *     An administrator account needs the creating administrator's own step-up verification in `step_up` (their
          *     current password or, for an account without one, a fresh identity-provider sign-in, and an MFA code when MFA
          *     is enabled). A regular account needs no `step_up`.
+         *
+         *     The `password` is optional when the server has mail configured: without it the account is created active with
+         *     no password and its owner is emailed a link, valid for 24 hours, to choose one. Without mail, or for an inactive
+         *     account, a missing password is refused.
          */
         post: operations["create_user"];
         delete?: never;
@@ -12294,7 +12300,7 @@ export interface components {
          *     matches the code_challenge sent during login initiation.
          *
          *     Attributes:
-         *         code_verifier (str): PKCE code verifier (43-128 chars, base64url).
+         *         code_verifier (str): PKCE code verifier (43-128 chars of the RFC 7636 unreserved set).
          *             Must hash to the code_challenge stored in OAuth state.
          *         mfa_code (str | None): TOTP or backup code. Required when the session
          *             came from an identity provider and the account has MFA enabled.
@@ -12302,7 +12308,7 @@ export interface components {
         TokenExchangeRequest: {
             /**
              * Code Verifier
-             * @description PKCE code verifier (base64url, 43-128 chars)
+             * @description PKCE code verifier (43-128 characters: A-Z, a-z, 0-9, '-', '.', '_', '~')
              */
             code_verifier: string;
             /**
@@ -12513,11 +12519,8 @@ export interface components {
              * @description User's full name
              */
             name: string;
-            /**
-             * Password
-             * @description User's password
-             */
-            password: string;
+            /** Password */
+            password?: string | null;
             /**
              * @description Preferred language
              * @default en
@@ -12598,7 +12601,7 @@ export interface components {
          *     :class:`UserEditPassword` instead.
          *
          *     Attributes:
-         *         password: New password (min 8 chars).
+         *         password: New password (the account's password policy applies).
          *         step_up: The administrator's own step-up verification.
          */
         UserAdminEditPassword: {
@@ -13006,7 +13009,7 @@ export interface components {
          *     prevents a stolen in-memory access token from being parlayed into permanent account takeover.
          *
          *     Attributes:
-         *         password: New password (min 8 chars).
+         *         password: New password (the account's password policy applies).
          *         revoke_other_sessions: Whether to sign out the user's other sessions after the change.
          *         step_up: The caller's step-up verification: the current password and, when MFA is enabled, an MFA code.
          */
@@ -14096,7 +14099,8 @@ export interface components {
          *         name: User's full name (1-250 chars).
          *         username: Unique username (1-250 chars, alphanumeric and dots).
          *         email: User's email address (max 250 chars).
-         *         password: User's password (min 8 chars). Absent when the password is chosen at email verification.
+         *         password: User's password; the account's password policy applies. Absent when the password is chosen at
+         *             email verification.
          *         preferred_language: Language of the account's emails and interface.
          */
         UserSignup: {
@@ -14478,6 +14482,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -14572,6 +14580,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -14683,6 +14695,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -14808,6 +14824,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -14909,6 +14929,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -14992,6 +15016,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -15077,6 +15105,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -15166,6 +15198,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -15253,6 +15289,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -15326,6 +15366,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -15448,6 +15492,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -15541,6 +15589,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -15672,6 +15724,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -15820,6 +15876,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -15913,6 +15973,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16007,6 +16071,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16101,6 +16169,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16228,6 +16300,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16332,6 +16408,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16407,6 +16487,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16501,6 +16585,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16595,6 +16683,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16687,6 +16779,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16761,6 +16857,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16855,6 +16955,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16957,6 +17061,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -17068,6 +17176,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -17188,6 +17300,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -17299,6 +17415,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -17410,6 +17530,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -17530,6 +17654,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -17631,6 +17759,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -17720,6 +17852,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -17821,6 +17957,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -17932,6 +18072,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -18015,6 +18159,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -18120,6 +18268,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -18203,6 +18355,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -18314,6 +18470,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -18385,6 +18545,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -18478,6 +18642,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -18609,6 +18777,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -18757,6 +18929,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -18846,6 +19022,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -18957,6 +19137,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -19050,6 +19234,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -19181,6 +19369,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -19329,6 +19521,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -19424,6 +19620,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -19475,6 +19675,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -19564,6 +19768,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -19675,6 +19883,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -19748,6 +19960,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -19819,6 +20035,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -19912,6 +20132,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -20043,6 +20267,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -20191,6 +20419,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -20339,6 +20571,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -20428,6 +20664,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -20539,6 +20779,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -20626,6 +20870,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -20719,6 +20967,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -20850,6 +21102,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -20998,6 +21254,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -21089,6 +21349,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -21200,6 +21464,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -21287,6 +21555,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -21374,6 +21646,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -21467,6 +21743,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -21598,6 +21878,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -21746,6 +22030,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -21817,6 +22105,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -21906,6 +22198,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -22017,6 +22313,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -22104,6 +22404,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -22197,6 +22501,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -22328,6 +22636,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -22476,6 +22788,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -22549,6 +22865,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -22686,6 +23006,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -22775,6 +23099,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -22886,6 +23214,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -22973,6 +23305,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -23066,6 +23402,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -23197,6 +23537,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -23345,6 +23689,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -23434,6 +23782,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -23545,6 +23897,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -23632,6 +23988,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -23725,6 +24085,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -23856,6 +24220,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -24004,6 +24372,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -24087,6 +24459,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -24198,6 +24574,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -24269,6 +24649,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -24362,6 +24746,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -24510,6 +24898,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -24654,6 +25046,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -24790,6 +25186,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -24893,6 +25293,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -24978,6 +25382,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -25071,6 +25479,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -25155,6 +25567,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -25260,6 +25676,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -25331,6 +25751,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -25422,6 +25846,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -25525,6 +25953,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -25628,6 +26060,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -25701,6 +26137,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -25838,6 +26278,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -25921,6 +26365,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -26000,7 +26448,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description The request conflicts with the current state. */
+            /** @description The account already holds the maximum number of active API keys. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -26032,6 +26480,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -26135,6 +26587,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -26238,6 +26694,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -26321,6 +26781,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -26424,6 +26888,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -26527,6 +26995,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -26600,6 +27072,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -26737,6 +27213,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -26844,6 +27324,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -26930,6 +27414,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -27037,6 +27525,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -27153,6 +27645,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -27262,6 +27758,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -27345,6 +27845,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -27428,6 +27932,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -27539,6 +28047,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -27614,6 +28126,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -27697,6 +28213,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -27800,6 +28320,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -27905,6 +28429,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -27994,6 +28522,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -28105,6 +28637,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -28188,6 +28724,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -28281,6 +28821,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -28429,6 +28973,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -28560,6 +29108,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -28643,6 +29195,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -28761,6 +29317,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -28879,6 +29439,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -28995,6 +29559,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -29115,6 +29683,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -29226,6 +29798,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -29297,6 +29873,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -29402,6 +29982,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -29513,6 +30097,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -29602,6 +30190,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -29673,6 +30265,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -29778,6 +30374,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -29903,6 +30503,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -29986,6 +30590,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -30059,6 +30667,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -30196,6 +30808,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -30279,6 +30895,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -30374,6 +30994,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -30477,6 +31101,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -30586,6 +31214,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -30649,6 +31281,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -30720,6 +31356,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -30791,6 +31431,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -30865,6 +31509,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -30939,6 +31587,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -31013,6 +31665,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -31085,6 +31741,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -31159,6 +31819,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -31250,6 +31914,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -31341,6 +32009,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -31404,6 +32076,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -31491,6 +32167,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -31576,6 +32256,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -31689,6 +32373,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -31767,6 +32455,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -31818,6 +32510,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -31911,6 +32607,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -32000,6 +32700,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -32080,6 +32784,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -32169,6 +32877,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -32220,6 +32932,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -32278,6 +32994,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -32329,6 +33049,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -32429,6 +33153,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -32529,6 +33257,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -32620,6 +33352,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -32693,6 +33429,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -32830,6 +33570,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -32903,6 +33647,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -33040,6 +33788,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -33123,6 +33875,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -33248,6 +34004,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -33331,6 +34091,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -33420,6 +34184,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -33503,6 +34271,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -33574,6 +34346,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -33675,6 +34451,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -33810,6 +34590,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -33899,6 +34683,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -34018,6 +34806,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -34129,6 +34921,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -34218,6 +35014,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -34303,6 +35103,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -34387,6 +35191,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -34483,6 +35291,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -34594,6 +35406,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -34687,6 +35503,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -34835,6 +35655,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -34938,6 +35762,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -35033,6 +35861,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -35127,6 +35959,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -35243,6 +36079,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -35360,6 +36200,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -35463,6 +36307,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -35613,6 +36461,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -35708,6 +36560,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -35813,6 +36669,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -35917,6 +36777,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -36012,6 +36876,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -36106,6 +36974,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -36223,6 +37095,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -36339,6 +37215,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -36433,6 +37313,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -36549,6 +37433,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -36665,6 +37553,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -36739,6 +37631,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -36875,6 +37771,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -36978,6 +37878,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -37069,6 +37973,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -37163,6 +38071,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -37282,6 +38194,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -37399,6 +38315,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -37488,6 +38408,10 @@ export interface operations {
                 headers: {
                     /** @description Seconds to wait before the request can succeed. */
                     "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {

@@ -76,6 +76,7 @@ class TestAccountCreation:
                 mock_db,
             )
 
+    @pytest.mark.usefixtures("email_available")
     def test_an_admin_created_account_is_audited(self, mock_db):
         with jasil_testing.capture_audit() as audit:
             self._create(mock_db, first_admin=False)
@@ -83,15 +84,35 @@ class TestAccountCreation:
         entry = audit.assert_audited(
             users_audit_actions.USER_CREATE.id, target_type="user", target_id="7", target_owner_id="7"
         )
-        assert entry.details == {"access_type": "regular", "method": "admin"}
+        assert entry.details == {"access_type": "regular", "method": "admin", "invited": False}
 
+    @pytest.mark.usefixtures("email_available")
+    def test_an_invited_account_is_audited_with_the_invitation_flag(self, mock_db):
+        with patch(_CRUD) as crud, jasil_testing.capture_audit() as audit:
+            crud.create_user.return_value = _user(7)
+            users_service.create_user(
+                users_schema.UserCreate(
+                    name="N", username="NewUser", email="new@example.com", active=True, access_type="regular"
+                ),
+                None,
+                9,
+                "sid-9",
+                MagicMock(),
+                mock_db,
+            )
+
+        entry = audit.assert_audited(users_audit_actions.USER_CREATE.id, target_id="7")
+        assert entry.details == {"access_type": "regular", "method": "admin", "invited": True}
+
+    @pytest.mark.usefixtures("email_available")
     def test_the_first_admin_is_audited(self, mock_db):
         with jasil_testing.capture_audit() as audit:
             self._create(mock_db, first_admin=True)
 
         entry = audit.assert_audited(users_audit_actions.USER_CREATE.id, target_id="7")
-        assert entry.details == {"access_type": "admin", "method": "onboarding"}
+        assert entry.details == {"access_type": "admin", "method": "onboarding", "invited": False}
 
+    @pytest.mark.usefixtures("email_available")
     def test_a_sign_up_is_audited_with_its_method(self, mock_db):
         with patch(_CRUD) as crud, jasil_testing.capture_audit() as audit:
             crud.create_user.return_value = _user(7)
@@ -104,8 +125,9 @@ class TestAccountCreation:
         entry = audit.assert_audited(
             users_audit_actions.USER_CREATE.id, target_type="user", target_id="7", target_owner_id="7"
         )
-        assert entry.details == {"access_type": "regular", "method": "sign_up"}
+        assert entry.details == {"access_type": "regular", "method": "sign_up", "invited": False}
 
+    @pytest.mark.usefixtures("email_available")
     def test_an_identity_provider_account_is_audited_with_its_method(self, mock_db):
         with patch(_CRUD) as crud, jasil_testing.capture_audit() as audit:
             crud.create_user.return_value = _user(8)
@@ -119,7 +141,7 @@ class TestAccountCreation:
         entry = audit.assert_audited(
             users_audit_actions.USER_CREATE.id, target_type="user", target_id="8", target_owner_id="8"
         )
-        assert entry.details == {"access_type": "regular", "method": "identity_provider"}
+        assert entry.details == {"access_type": "regular", "method": "identity_provider", "invited": False}
 
 
 class TestAdminEdit:

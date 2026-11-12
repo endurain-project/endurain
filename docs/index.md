@@ -73,7 +73,7 @@ Endurain currently supports:
 - Multi-language support
 - Imperial and metric units support
 - Dark/light theme switcher
-- Third-party app support
+- Third-party app support (through [API keys](integrate/api-keys.md); the first-party sign-in routes are meant for Endurain's own apps, see the [first-party sign-in note](integrate/authentication.md))
 - Weight, steps, sleep, water intake, bowel movement and fasting logging
 - Notification system
 - Define and track goals

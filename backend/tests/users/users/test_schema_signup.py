@@ -23,9 +23,8 @@ def test_signup_password_is_optional():
     assert users_schema.UserSignup(**body).password is None
 
 
-def test_signup_password_still_has_a_minimum_length():
-    with pytest.raises(ValidationError):
-        users_schema.UserSignup(**{**_BODY, "password": "short"})
+def test_signup_password_length_is_left_to_the_password_policy():
+    assert users_schema.UserSignup(**{**_BODY, "password": "short"}).password == "short"
 
 
 @pytest.mark.parametrize(

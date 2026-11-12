@@ -197,11 +197,17 @@ class TestConfirmPasswordReset:
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
+    @patch(
+        "modules.auth.password_reset_tokens.public_router.password_reset_service.use_password_reset_token",
+    )
     def test_confirm_password_reset_password_too_short(
         self,
+        mock_use,
         fast_api_client,
     ) -> None:
-        """Returns 422 when password is shorter than 8 chars."""
+        """Hands a password under 8 characters to the service, whose policy check answers a typed error."""
+        mock_use.return_value = None
+
         response = fast_api_client.post(
             "/password-reset/confirm",
             json={
@@ -210,7 +216,8 @@ class TestConfirmPasswordReset:
             },
         )
 
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert mock_use.call_args.args[:2] == ("some-token-value", "short")
 
     def test_confirm_password_reset_refuses_the_old_new_password_key(
         self,

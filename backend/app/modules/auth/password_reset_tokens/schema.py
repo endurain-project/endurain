@@ -102,7 +102,6 @@ class PasswordResetConfirm(BaseModel):
     password: StrictStr = Field(
         ...,
         description="The new password to set",
-        min_length=8,
         max_length=credentials_contracts.PASSWORD_MAX_LENGTH,
     )
 
