@@ -1,5 +1,6 @@
 """Starting a step-up: the staged OAuth state and the authorization URL that asks for a fresh sign-in."""
 
+import uuid
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from urllib.parse import parse_qs, urlsplit
@@ -12,6 +13,8 @@ import modules.auth.identity_providers.authorization_service as authorization_se
 import modules.auth.identity_providers.contracts as idp_contracts
 import modules.auth.oauth_state.constants as oauth_state_constants
 from modules.auth.identity_providers.constants import STEP_UP_MAX_AGE_SECONDS, StepUpAction
+
+IDP_ID = uuid.uuid4()
 
 HOST = "https://app.example.com"
 CHALLENGE = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
@@ -99,7 +102,7 @@ class TestStageStepUp:
             patch.object(authorization_service.oauth_state_integration, "create_oauth_state"),
         ):
             service.stage_step_up(
-                7, SESSION_ID, 3, StepUpAction.ACCOUNT_DELETE, CHALLENGE, "/", None, db, security_generation=0
+                7, SESSION_ID, IDP_ID, StepUpAction.ACCOUNT_DELETE, CHALLENGE, "/", None, db, security_generation=0
             )
 
         db.commit.assert_not_called()
@@ -132,7 +135,15 @@ class TestStageStepUp:
             pytest.raises(core_exceptions.NotFoundError),
         ):
             service.stage_step_up(
-                7, SESSION_ID, 3, StepUpAction.ACCOUNT_DELETE, CHALLENGE, "/", None, MagicMock(), security_generation=0
+                7,
+                SESSION_ID,
+                IDP_ID,
+                StepUpAction.ACCOUNT_DELETE,
+                CHALLENGE,
+                "/",
+                None,
+                MagicMock(),
+                security_generation=0,
             )
 
     def test_a_provider_the_user_has_not_linked_is_not_found(self, service):

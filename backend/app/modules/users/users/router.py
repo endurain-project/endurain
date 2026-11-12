@@ -514,7 +514,7 @@ def get_user_identity_providers(
 def delete_user_identity_provider(
     request: Request,
     user_id: core_dependencies.PositiveId,
-    idp_id: core_dependencies.PositiveId,
+    idp_id: core_dependencies.UuidId,
     body: auth_schema.StepUpRequest,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,

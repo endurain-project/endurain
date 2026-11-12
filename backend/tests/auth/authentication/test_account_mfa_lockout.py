@@ -1,5 +1,6 @@
 """An account locked by 100 wrong MFA codes in a row still admits its known devices, and tells its owner."""
 
+import uuid
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -26,6 +27,8 @@ import modules.auth.mfa.pending_login_store as pending_login_store
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.schema as auth_schema
 from tests.auth.authentication.conftest import BACKUP_CODE, USER_ID, USERNAME, WEB
+
+IDP_ID = uuid.uuid4()
 
 _SERVICE = "modules.auth.authentication.service"
 _SSO = "modules.auth.authentication.sso_exchange_service"
@@ -235,7 +238,7 @@ def _exchange(stack, store, *, device_id=None, code=BACKUP_CODE, claims=None):
         code_challenge="c",
         code_challenge_method="S256",
         client_type="web",
-        idp_id=3,
+        idp_id=IDP_ID,
         security_generation=0,
     )
     session = SimpleNamespace(

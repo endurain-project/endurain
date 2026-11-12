@@ -3,6 +3,7 @@
 Payloads carry ids and the kind of change only: events are persisted, so no secret may be put in one.
 """
 
+import uuid
 from enum import StrEnum
 from typing import ClassVar
 
@@ -61,7 +62,7 @@ class AccountSecurityChangedPayload(VersionedPayload):
 
     user_id: int
     change: AccountSecurityChange
-    idp_id: int | None = None
+    idp_id: uuid.UUID | None = None
     access_type: str | None = None
 
 

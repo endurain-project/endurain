@@ -1,5 +1,7 @@
 """Identity-provider operations exposed to auth peers."""
 
+import uuid
+
 import jasil.runtime as platform_runtime
 from jasil.providers import StateProvider
 from sqlalchemy.orm import Session
@@ -29,7 +31,7 @@ def _authorization_service() -> identity_providers_authorization.AuthorizationSe
     return identity_providers_authorization.AuthorizationService(_oidc_client(), core_config.settings.ENDURAIN_HOST)
 
 
-def get_identity_provider(idp_id: int, db: Session) -> identity_providers_contracts.IdentityProviderState | None:
+def get_identity_provider(idp_id: uuid.UUID, db: Session) -> identity_providers_contracts.IdentityProviderState | None:
     """Return a provider's stored state."""
     return identity_providers_crud.get_identity_provider(idp_id, db)
 
@@ -53,7 +55,7 @@ def validate_redirect(redirect: str | None) -> None:
 
 def stage_browser_link(
     user_id: int,
-    idp_id: int,
+    idp_id: uuid.UUID,
     redirect: str | None,
     client_ip: str | None,
     session_id: str,
@@ -84,7 +86,7 @@ def stage_browser_link(
 def stage_step_up(
     user_id: int,
     session_id: str,
-    idp_id: int,
+    idp_id: uuid.UUID,
     action: identity_providers_constants.StepUpAction,
     code_challenge: str,
     redirect: str,

@@ -13,6 +13,8 @@ from modules.auth.identity_provider_links.schema import (
     UserIdentityProviderRead,
 )
 
+IDP_ID = uuid.uuid4()
+
 
 class TestUserIdentityProviderBase:
     """Test suite for UserIdentityProviderBase schema."""
@@ -27,7 +29,7 @@ class TestUserIdentityProviderBase:
         # Arrange
         data = {
             "user_id": 1,
-            "idp_id": 1,
+            "idp_id": IDP_ID,
             "idp_subject": "user123@example.com",
         }
 
@@ -36,7 +38,7 @@ class TestUserIdentityProviderBase:
 
         # Assert
         assert obj.user_id == 1
-        assert obj.idp_id == 1
+        assert obj.idp_id == IDP_ID
         assert obj.idp_subject == "user123@example.com"
 
     def test_user_identity_provider_base_missing_required_field(self):
@@ -47,7 +49,7 @@ class TestUserIdentityProviderBase:
         """
         # Arrange
         data = {
-            "idp_id": 1,
+            "idp_id": IDP_ID,
             "idp_subject": "user123@example.com",
         }
 
@@ -66,7 +68,7 @@ class TestUserIdentityProviderBase:
         # Arrange
         data = {
             "user_id": 1,
-            "idp_id": 1,
+            "idp_id": IDP_ID,
             "idp_subject": "user123@example.com",
             "extra_field": "should_fail",
         }
@@ -86,7 +88,7 @@ class TestUserIdentityProviderBase:
         # Arrange
         data = {
             "user_id": 1,
-            "idp_id": 1,
+            "idp_id": IDP_ID,
             "idp_subject": "",
         }
 
@@ -105,7 +107,7 @@ class TestUserIdentityProviderBase:
         # Arrange
         data = {
             "user_id": 1,
-            "idp_id": 1,
+            "idp_id": IDP_ID,
             "idp_subject": "x" * 501,
         }
 
@@ -124,7 +126,7 @@ class TestUserIdentityProviderBase:
         # Arrange
         data = {
             "user_id": "not-an-int",
-            "idp_id": 1,
+            "idp_id": IDP_ID,
             "idp_subject": "user123@example.com",
         }
 
@@ -134,16 +136,17 @@ class TestUserIdentityProviderBase:
 
         assert "user_id" in str(exc_info.value)
 
-    def test_user_identity_provider_base_invalid_idp_id_type(self):
-        """Test strict int validation for idp_id.
+    @pytest.mark.parametrize("bad_idp_id", ["not-a-uuid", 1])
+    def test_user_identity_provider_base_invalid_idp_id_type(self, bad_idp_id):
+        """Test UUID validation for idp_id.
 
         Asserts:
-            - ValidationError is raised for non-integer idp_id
+            - ValidationError is raised for a malformed or integer idp_id
         """
         # Arrange
         data = {
             "user_id": 1,
-            "idp_id": "not-an-int",
+            "idp_id": bad_idp_id,
             "idp_subject": "user123@example.com",
         }
 
@@ -167,7 +170,7 @@ class TestUserIdentityProviderCreate:
         # Arrange
         data = {
             "user_id": 1,
-            "idp_id": 1,
+            "idp_id": IDP_ID,
             "idp_subject": "user123@example.com",
         }
 
@@ -176,7 +179,7 @@ class TestUserIdentityProviderCreate:
 
         # Assert
         assert obj.user_id == 1
-        assert obj.idp_id == 1
+        assert obj.idp_id == IDP_ID
         assert obj.idp_subject == "user123@example.com"
 
 
@@ -194,7 +197,7 @@ class TestUserIdentityProviderRead:
         data = {
             "id": uuid.UUID(int=1),
             "user_id": 1,
-            "idp_id": 1,
+            "idp_id": IDP_ID,
             "idp_subject": "user123@example.com",
             "linked_at": datetime.now(UTC),
         }
@@ -219,7 +222,7 @@ class TestUserIdentityProviderRead:
         data = {
             "id": uuid.UUID(int=1),
             "user_id": 1,
-            "idp_id": 1,
+            "idp_id": IDP_ID,
             "idp_subject": "user123@example.com",
             "linked_at": now,
             "last_login": now,
@@ -242,7 +245,7 @@ class TestUserIdentityProviderRead:
         data = {
             "id": uuid.UUID(int=1),
             "user_id": 1,
-            "idp_id": 1,
+            "idp_id": IDP_ID,
             "idp_subject": "user123@example.com",
         }
 
@@ -268,7 +271,7 @@ class TestUserIdentityProviderResponse:
         data = {
             "id": uuid.UUID(int=1),
             "user_id": 1,
-            "idp_id": 1,
+            "idp_id": IDP_ID,
             "idp_subject": "user123@example.com",
             "linked_at": now,
         }
@@ -293,7 +296,7 @@ class TestUserIdentityProviderResponse:
         data = {
             "id": uuid.UUID(int=1),
             "user_id": 1,
-            "idp_id": 1,
+            "idp_id": IDP_ID,
             "idp_subject": "user123@example.com",
             "linked_at": now,
             "idp_name": "Strava",
@@ -322,7 +325,7 @@ class TestUserIdentityProviderResponse:
         class MockORM:
             id = uuid.UUID(int=1)
             user_id = 1
-            idp_id = 1
+            idp_id = IDP_ID
             idp_subject = "user123@example.com"
             linked_at = datetime.now(UTC)
             last_login = None

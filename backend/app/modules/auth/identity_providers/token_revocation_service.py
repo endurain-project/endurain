@@ -66,7 +66,7 @@ class IdpTokenRevocationService:
             How many sign-ins were deleted.
         """
         deleted = 0
-        unreachable: set[int] = set()
+        unreachable: set[uuid.UUID] = set()
         after_id: uuid.UUID | None = None
         while True:
             with core_database.SessionLocal() as db:

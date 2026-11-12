@@ -1,5 +1,6 @@
 """The external_auth filter of the user list is applied in the query, so every page is full and the filter is exact."""
 
+import uuid
 from datetime import UTC, datetime
 
 import pytest
@@ -12,12 +13,13 @@ import modules.users.users.service as users_service
 
 #: Users 1 to 6; users 2, 4 and 6 have an identity-provider link.
 _LINKED = {2, 4, 6}
+_IDP_ID = uuid.UUID(int=1)
 
 
 @pytest.fixture
 def db():
     session = create_sqlite_session()
-    session.add(idp_models.IdentityProvider(id=1, name="Idp", slug="idp", provider_type="oidc", enabled=True))
+    session.add(idp_models.IdentityProvider(id=_IDP_ID, name="Idp", slug="idp", provider_type="oidc", enabled=True))
     for user_id in range(1, 7):
         session.add(
             users_models.Users(
@@ -33,7 +35,7 @@ def db():
     for user_id in _LINKED:
         session.add(
             identity_links_models.IdentityLink(
-                user_id=user_id, idp_id=1, idp_subject=f"s{user_id}", linked_at=datetime(2026, 1, 1, tzinfo=UTC)
+                user_id=user_id, idp_id=_IDP_ID, idp_subject=f"s{user_id}", linked_at=datetime(2026, 1, 1, tzinfo=UTC)
             )
         )
     session.commit()

@@ -2,6 +2,7 @@
 
 import math
 import time
+import uuid
 from typing import Any
 
 import jasil.audit as jasil_audit
@@ -104,7 +105,7 @@ class BackchannelLogoutService:
         if not logout_token_replay_store.claim_logout_token(self._state, idp.id, claims["jti"], ttl_seconds):
             raise _refusal(idp.id, idp_audit_actions.BackchannelLogoutRefusal.REPLAYED)
 
-    def _release_claim(self, idp_id: int, claims: dict[str, Any]) -> None:
+    def _release_claim(self, idp_id: uuid.UUID, claims: dict[str, Any]) -> None:
         """Release the token's claim after the sessions failed to end, so the provider can retry it.
 
         A release that fails is logged and not raised: the failure that ended the request is what the caller must see.
@@ -146,7 +147,7 @@ def _require_logout_provider(idp_slug: str, db: Session) -> identity_provider_co
     return idp
 
 
-def _end_sessions(idp_id: int, claims: dict[str, Any], db: Session) -> None:
+def _end_sessions(idp_id: uuid.UUID, claims: dict[str, Any], db: Session) -> None:
     """End the sessions a verified logout token names, audit them per user and commit.
 
     With a ``sid`` the sessions signed in under that provider session end, only the linked user's when a ``sub``
@@ -192,7 +193,9 @@ def _end_sessions(idp_id: int, claims: dict[str, Any], db: Session) -> None:
     )
 
 
-def _refusal(idp_id: int, reason: idp_audit_actions.BackchannelLogoutRefusal) -> core_exceptions.InvalidInputError:
+def _refusal(
+    idp_id: uuid.UUID, reason: idp_audit_actions.BackchannelLogoutRefusal
+) -> core_exceptions.InvalidInputError:
     """Audit a refused back-channel logout and return the 400 the provider is answered with.
 
     Args:

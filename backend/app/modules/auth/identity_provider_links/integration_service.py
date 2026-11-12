@@ -13,7 +13,7 @@ import modules.auth.identity_provider_links.schema as identity_link_schema
 import modules.auth.identity_provider_links.service as identity_link_service
 
 
-def check_user_identity_providers_by_idp_id(idp_id: int, db: Session) -> bool:
+def check_user_identity_providers_by_idp_id(idp_id: uuid.UUID, db: Session) -> bool:
     """Return whether an identity provider has linked users."""
     return identity_link_crud.check_user_identity_providers_by_idp_id(idp_id, db)
 
@@ -36,28 +36,28 @@ def count_identity_links(user_id: int, db: Session) -> int:
 
 
 def get_user_identity_provider_by_user_id_and_idp_id(
-    user_id: int, idp_id: int, db: Session
+    user_id: int, idp_id: uuid.UUID, db: Session
 ) -> identity_link_contracts.IdentityLinkRead | None:
     """Return a link for a user and identity provider."""
     return identity_link_crud.get_user_identity_provider_by_user_id_and_idp_id(user_id, idp_id, db)
 
 
 def get_user_identity_provider_by_subject_and_idp_id(
-    idp_id: int, idp_subject: str, db: Session
+    idp_id: uuid.UUID, idp_subject: str, db: Session
 ) -> identity_link_contracts.IdentityLinkRead | None:
     """Return a link matching an identity provider and subject."""
     return identity_link_crud.get_user_identity_provider_by_subject_and_idp_id(idp_id, idp_subject, db)
 
 
 def create_user_identity_provider(
-    user_id: int, idp_id: int, idp_subject: str, db: Session
+    user_id: int, idp_id: uuid.UUID, idp_subject: str, db: Session
 ) -> identity_link_contracts.IdentityLinkRead:
     """Stage a user-to-provider link."""
     return identity_link_crud.create_user_identity_provider(user_id, idp_id, idp_subject, db)
 
 
 def update_user_identity_provider_last_login(
-    user_id: int, idp_id: int, db: Session
+    user_id: int, idp_id: uuid.UUID, db: Session
 ) -> identity_link_contracts.IdentityLinkRead | None:
     """Stage an update to a link's last-login timestamp."""
     return identity_link_crud.update_user_identity_provider_last_login(user_id, idp_id, db)
@@ -66,7 +66,7 @@ def update_user_identity_provider_last_login(
 def create_idp_session_token(
     session_id: str,
     user_id: int,
-    idp_id: int,
+    idp_id: uuid.UUID,
     encrypted_refresh_token: str | None,
     access_token_expires_at: datetime | None,
     db: Session,
@@ -129,22 +129,24 @@ def get_orphaned_idp_session_tokens_page(
     return identity_link_service.get_orphaned_idp_session_tokens_page(after_id, limit, db, user_id=user_id)
 
 
-def end_idp_sessions(user_id: int, idp_id: int, db: Session) -> int:
+def end_idp_sessions(user_id: int, idp_id: uuid.UUID, db: Session) -> int:
     """Stage the end of every session the user signed in to through the provider; the caller commits."""
     return identity_link_service.end_idp_sessions(user_id, idp_id, db)
 
 
-def end_all_idp_sessions(idp_id: int, db: Session) -> int:
+def end_all_idp_sessions(idp_id: uuid.UUID, db: Session) -> int:
     """Stage the end of every session signed in through the provider; the caller commits."""
     return identity_link_service.end_all_idp_sessions(idp_id, db)
 
 
-def end_idp_sessions_by_sid(idp_id: int, idp_sid: str, db: Session, *, user_id: int | None = None) -> dict[int, int]:
+def end_idp_sessions_by_sid(
+    idp_id: uuid.UUID, idp_sid: str, db: Session, *, user_id: int | None = None
+) -> dict[int, int]:
     """Stage the end of the sessions signed in under a provider session id; returns how many ended per user."""
     return identity_link_service.end_idp_sessions_by_sid(idp_id, idp_sid, db, user_id=user_id)
 
 
-def delete_user_identity_provider(user_id: int, idp_id: int, db: Session) -> bool:
+def delete_user_identity_provider(user_id: int, idp_id: uuid.UUID, db: Session) -> bool:
     """Stage deletion of a user's identity-provider link."""
     return identity_link_crud.delete_user_identity_provider(user_id, idp_id, db)
 

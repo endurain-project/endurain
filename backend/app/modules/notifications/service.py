@@ -447,7 +447,7 @@ def remove_follow_request_notifications(requester_user_id: int, target_user_id: 
 
 def create_idp_linked_notification(
     user_id: int,
-    idp_id: int,
+    idp_id: uuid.UUID,
     source_event_id: str,
     db: Session,
 ) -> tuple[notifications_schema.NotificationRead, str, bool]:
@@ -476,7 +476,7 @@ def create_idp_linked_notification(
         user_id,
         notifications_constants.NotificationType.IDP_LINKED,
         notifications_constants.IDP_LINKED_WS_MESSAGE,
-        {"idp_id": idp_id, "idp_name": idp.name if idp is not None else None},
+        {"idp_id": str(idp_id), "idp_name": idp.name if idp is not None else None},
         source_event_id,
         db,
     )
@@ -485,7 +485,7 @@ def create_idp_linked_notification(
 def create_account_security_changed_notification(
     user_id: int,
     change: str,
-    idp_id: int | None,
+    idp_id: uuid.UUID | None,
     source_event_id: str,
     db: Session,
     *,
@@ -518,7 +518,7 @@ def create_account_security_changed_notification(
     options: dict[str, object] = {"change": change}
     if idp_id is not None:
         idp = idp_integration.get_identity_provider(idp_id, db)
-        options |= {"idp_id": idp_id, "idp_name": idp.name if idp is not None else None}
+        options |= {"idp_id": str(idp_id), "idp_name": idp.name if idp is not None else None}
     if access_type is not None:
         options["access_type"] = access_type
     if backup_codes_remaining is not None:

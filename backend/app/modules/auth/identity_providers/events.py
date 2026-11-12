@@ -3,6 +3,7 @@
 Payloads carry ids only: events are persisted, so no token may be put in one.
 """
 
+import uuid
 from typing import ClassVar
 
 from jasil.event_versioning import VersionedPayload
@@ -45,4 +46,4 @@ class IdpLinkedPayload(VersionedPayload):
     SCHEMA_VERSION: ClassVar[int] = 1
 
     user_id: int
-    idp_id: int
+    idp_id: uuid.UUID

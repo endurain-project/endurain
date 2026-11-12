@@ -72,7 +72,7 @@ def list_idp_templates() -> list[idp_schema.IdentityProviderTemplateRead]:
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity-providers:read"])],
 )
 def read_identity_provider(
-    idp_id: core_dependencies.PositiveId,
+    idp_id: core_dependencies.UuidId,
     db: core_dependencies.DbSession,
     response: Response,
 ) -> idp_schema.IdentityProviderRead:
@@ -187,7 +187,7 @@ def create_identity_provider(
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def update_identity_provider(
-    idp_id: core_dependencies.PositiveId,
+    idp_id: core_dependencies.UuidId,
     idp_data: idp_schema.IdentityProviderUpdateRequest,
     request: Request,
     db: core_dependencies.DbSession,
@@ -233,7 +233,7 @@ def update_identity_provider(
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_identity_provider(
-    idp_id: core_dependencies.PositiveId,
+    idp_id: core_dependencies.UuidId,
     body: auth_schema.StepUpRequest,
     request: Request,
     if_match: core_dependencies.IfMatch,
@@ -277,7 +277,7 @@ def delete_identity_provider(
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def put_identity_provider_icon(
-    idp_id: core_dependencies.PositiveId,
+    idp_id: core_dependencies.UuidId,
     request: Request,
     file: UploadFile,
     storage: core_dependencies.Storage,
@@ -323,7 +323,7 @@ def put_identity_provider_icon(
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_identity_provider_icon(
-    idp_id: core_dependencies.PositiveId,
+    idp_id: core_dependencies.UuidId,
     request: Request,
     storage: core_dependencies.Storage,
     db: core_dependencies.DbSession,

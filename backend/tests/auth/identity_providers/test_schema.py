@@ -1,5 +1,6 @@
 """Tests for identity_providers.schema module."""
 
+import uuid
 from datetime import UTC, datetime
 
 import pytest
@@ -16,6 +17,8 @@ from modules.auth.identity_providers.schema import (
     IdentityProviderTemplateRead,
     IdentityProviderUpdate,
 )
+
+IDP_ID = uuid.uuid4()
 
 
 class TestIdentityProviderBase:
@@ -453,7 +456,7 @@ class TestIdentityProvider:
 
         # Act
         idp = IdentityProviderRead(
-            id=1,
+            id=IDP_ID,
             name="Test Provider",
             slug="test-provider",
             provider_type="oidc",
@@ -464,7 +467,7 @@ class TestIdentityProvider:
         )
 
         # Assert
-        assert idp.id == 1
+        assert idp.id == IDP_ID
         assert idp.name == "Test Provider"
         assert idp.slug == "test-provider"
         assert idp.provider_type == "oidc"
@@ -500,7 +503,7 @@ class TestIdentityProvider:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            IdentityProviderRead(id=1, name="Test", slug="test", client_id="client-123")
+            IdentityProviderRead(id=IDP_ID, name="Test", slug="test", client_id="client-123")
 
         assert "created_at" in str(exc_info.value) or "updated_at" in str(exc_info.value)
 
@@ -516,7 +519,7 @@ class TestIdentityProvider:
 
         # Act
         idp = IdentityProviderRead(
-            id=1,
+            id=IDP_ID,
             name="Test",
             slug="test",
             client_id=encrypted_id,
@@ -539,7 +542,7 @@ class TestIdentityProvider:
 
         # Act
         idp = IdentityProviderRead(
-            id=1,
+            id=IDP_ID,
             name="Test",
             slug="test",
             client_id=plain_id,
@@ -561,7 +564,7 @@ class TestIdentityProvider:
 
         # Act
         idp = IdentityProviderRead(
-            id=1,
+            id=IDP_ID,
             name="Test",
             slug="test",
             client_id=None,
@@ -584,10 +587,10 @@ class TestIdentityProviderPublic:
             - Only public fields are present
         """
         # Arrange & Act
-        idp = IdentityProviderPublicRead(id=1, name="Test Provider", slug="test-provider", icon="test-icon")
+        idp = IdentityProviderPublicRead(id=IDP_ID, name="Test Provider", slug="test-provider", icon="test-icon")
 
         # Assert
-        assert idp.id == 1
+        assert idp.id == IDP_ID
         assert idp.name == "Test Provider"
         assert idp.slug == "test-provider"
         assert idp.icon == "test-icon"
@@ -600,7 +603,7 @@ class TestIdentityProviderPublic:
             - icon defaults to None
         """
         # Arrange & Act
-        idp = IdentityProviderPublicRead(id=1, name="Test", slug="test")
+        idp = IdentityProviderPublicRead(id=IDP_ID, name="Test", slug="test")
 
         # Assert
         assert idp.icon is None
@@ -612,7 +615,7 @@ class TestIdentityProviderPublic:
             - client_id, client_secret are not present
         """
         # Arrange & Act
-        idp = IdentityProviderPublicRead(id=1, name="Test", slug="test")
+        idp = IdentityProviderPublicRead(id=IDP_ID, name="Test", slug="test")
 
         # Assert
         assert not hasattr(idp, "client_id")
@@ -707,7 +710,7 @@ class TestIdentityProviderReadClientId:
         now = datetime.now(UTC)
 
         idp_data = {
-            "id": 1,
+            "id": IDP_ID,
             "name": "Test Provider",
             "slug": "test-provider",
             "provider_type": "oidc",
@@ -815,7 +818,7 @@ class TestOidcProviderRequirements:
 
     def test_a_stored_row_that_breaks_the_rule_is_still_readable(self):
         row = {
-            "id": 1,
+            "id": IDP_ID,
             "name": "Old",
             "slug": "old",
             "provider_type": "oidc",

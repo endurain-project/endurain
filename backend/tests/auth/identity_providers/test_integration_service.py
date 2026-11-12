@@ -1,5 +1,6 @@
 """Tests for the identity-provider operations published to auth peers."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 from modules.auth.identity_providers import integration_service
@@ -13,10 +14,11 @@ def test_requesting_a_refresh_delegates_to_request_scoped_service(mock_db):
 
 def test_get_identity_provider_delegates_to_crud():
     db = MagicMock()
+    idp_id = uuid.uuid4()
     provider = MagicMock()
     with patch.object(
         integration_service.identity_providers_crud, "get_identity_provider", return_value=provider
     ) as get:
-        result = integration_service.get_identity_provider(7, db)
-    get.assert_called_once_with(7, db)
+        result = integration_service.get_identity_provider(idp_id, db)
+    get.assert_called_once_with(idp_id, db)
     assert result is provider

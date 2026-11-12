@@ -29,7 +29,7 @@ def publish_tile_settings_changed(
     )
     platform_publisher.publish_committing(
         server_settings_events.TILE_SETTINGS_CHANGED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:edit_server_settings",
         db=db,
         commit=commit,

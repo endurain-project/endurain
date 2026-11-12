@@ -1,5 +1,7 @@
 """OAuth-state operations exposed to auth peers."""
 
+import uuid
+
 from sqlalchemy.orm import Session
 
 import modules.auth.oauth_state.constants as oauth_state_constants
@@ -16,7 +18,7 @@ def create_oauth_state(
     ip_address: str | None,
     db: Session,
     *,
-    idp_id: int | None = None,
+    idp_id: uuid.UUID | None = None,
     redirect_path: str | None = None,
     code_challenge: str | None = None,
     code_challenge_method: str | None = None,

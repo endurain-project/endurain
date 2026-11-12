@@ -1,5 +1,6 @@
 """Tests for the account-security email service function and subscribers."""
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
@@ -18,6 +19,7 @@ import modules.auth.password_reset_tokens.events as password_reset_events
 
 SERVICE = "modules.auth.account_security.account_security_service"
 SUBSCRIBERS = "modules.auth.account_security.subscribers"
+IDP_ID = uuid.UUID(int=7)
 HOST = "https://endurain.example.com"
 
 
@@ -82,7 +84,7 @@ class TestPrepareSecurityChangeEmail:
 def _changed_event(change, idp_id=None):
     payload = {"user_id": 4, "change": change}
     if idp_id is not None:
-        payload["idp_id"] = idp_id
+        payload["idp_id"] = str(idp_id)
     return platform_events.new_event(account_security_events.ACCOUNT_SECURITY_CHANGED, payload, source="test")
 
 
@@ -96,13 +98,13 @@ class TestSecurityChangedHandler:
         prepare.return_value = ("alice@example.test", "subject", "html", "text")
 
         account_security_subscribers.send_security_changed_email_for_event(
-            _changed_event("identity_provider_unlinked", 7)
+            _changed_event("identity_provider_unlinked", IDP_ID)
         )
 
         prepare.assert_called_once_with(
             4,
             "identity_provider_unlinked",
-            7,
+            IDP_ID,
             account_security_subscribers.core_config.settings.ENDURAIN_HOST,
             db,
             access_type=None,
@@ -141,12 +143,12 @@ class TestIdpLinkedHandler:
     def test_prepares_a_link_message_and_sends_it(self, session_local, get_platform, prepare, send_email):
         db = session_local.return_value.__enter__.return_value
         prepare.return_value = ("alice@example.test", "subject", "html", "text")
-        event = platform_events.new_event(idp_events.IDP_LINKED, {"user_id": 4, "idp_id": 7}, source="test")
+        event = platform_events.new_event(idp_events.IDP_LINKED, {"user_id": 4, "idp_id": str(IDP_ID)}, source="test")
 
         account_security_subscribers.send_idp_linked_email_for_event(event)
 
         prepare.assert_called_once_with(
-            4, "identity_provider_linked", 7, account_security_subscribers.core_config.settings.ENDURAIN_HOST, db
+            4, "identity_provider_linked", IDP_ID, account_security_subscribers.core_config.settings.ENDURAIN_HOST, db
         )
         send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
 

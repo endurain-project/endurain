@@ -1,6 +1,7 @@
 """The step-up leg of the provider callback: a fresh, verified sign-in of the linked account becomes a ticket."""
 
 import logging
+import uuid
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -19,6 +20,8 @@ import modules.auth.identity_providers.callback_service as callback_service
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.oauth_state.schema as oauth_state_schema
 from modules.auth.identity_providers.step_up_ticket_store import StepUpTicketStore
+
+IDP_ID = uuid.uuid4()
 
 HOST = "https://app.example.com"
 USER_ID = 7
@@ -68,7 +71,7 @@ def service(oidc, state):
 
 
 def _idp():
-    return SimpleNamespace(id=3, slug="idp", name="Pocket ID")
+    return SimpleNamespace(id=IDP_ID, slug="idp", name="Pocket ID")
 
 
 def _oauth_state(started_at=NOW, **overrides):
@@ -123,7 +126,7 @@ class TestFreshSignIn:
         issued = StepUpTicketStore(state).read(ticket)
         assert issued.user_id == USER_ID
         assert issued.session_id == SESSION_ID
-        assert issued.idp_id == 3
+        assert issued.idp_id == IDP_ID
         assert issued.action == "account_delete"
         assert issued.code_challenge == "c" * 43
         assert issued.security_generation == 0
@@ -150,7 +153,7 @@ class TestFreshSignIn:
     def test_the_link_is_found_by_the_verified_subject(self, service):
         _, _, find_link = _complete(service)
 
-        assert find_link.call_args.args[:2] == (3, "subject-1")
+        assert find_link.call_args.args[:2] == (IDP_ID, "subject-1")
 
 
 class TestStaleFlow:
@@ -251,7 +254,7 @@ class TestRefusals:
     def test_an_integer_subject_finds_the_link_by_its_decimal_string(self, service):
         _, _, find_link = _complete(service, claims={"sub": 12345, "auth_time": int(NOW.timestamp())})
 
-        assert find_link.call_args.args[:2] == (3, "12345")
+        assert find_link.call_args.args[:2] == (IDP_ID, "12345")
 
     @pytest.mark.parametrize("sub", [None, "", "   ", True], ids=["missing", "empty", "blank", "bool"])
     def test_an_id_token_without_a_subject_is_refused(self, service, sub):

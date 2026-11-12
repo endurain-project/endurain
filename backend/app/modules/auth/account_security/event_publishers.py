@@ -1,5 +1,7 @@
 """Publish the account-security domain events through the platform publish facade."""
 
+import uuid
+
 import jasil.publisher as platform_publisher
 from sqlalchemy.orm import Session
 
@@ -12,7 +14,7 @@ def publish_account_security_changed(
     change: account_security_events.AccountSecurityChange,
     db: Session,
     *,
-    idp_id: int | None = None,
+    idp_id: uuid.UUID | None = None,
     access_type: str | None = None,
 ) -> None:
     """Stage ``auth.account_security_changed`` in the caller's transaction.
@@ -47,7 +49,7 @@ def publish_step_up_session_ended(user_id: int, db: Session) -> None:
     payload = account_security_events.StepUpSessionEndedPayload(user_id=user_id)
     platform_publisher.publish_on_commit(
         account_security_events.STEP_UP_SESSION_ENDED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:step_up",
         metadata={core_event_metadata.META_USER_ID: user_id},
         db=db,
@@ -68,7 +70,7 @@ def publish_step_up_locked(user_id: int, db: Session) -> None:
     payload = account_security_events.StepUpLockedPayload(user_id=user_id)
     platform_publisher.publish(
         account_security_events.STEP_UP_LOCKED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:step_up",
         metadata={core_event_metadata.META_USER_ID: user_id},
         db=db,

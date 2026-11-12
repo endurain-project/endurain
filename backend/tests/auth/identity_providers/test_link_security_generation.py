@@ -4,6 +4,7 @@ The flow runs through the real start (``stage_browser_link``), the real security
 The database is mocked, so the account security generations and the session lookup are the test doubles.
 """
 
+import uuid
 from contextlib import ExitStack
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -19,6 +20,8 @@ import modules.auth.identity_providers.integration_service as idp_integration
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.security_generation.integration_service as security_generation_integration
 from modules.auth.identity_providers.audit_actions import IdentityLinkRefusal
+
+IDP_ID = uuid.uuid4()
 
 HOST = "https://app.example.com"
 USER_ID = 7
@@ -36,7 +39,7 @@ def service():
 
 def _idp():
     return identity_provider_contracts.IdentityProviderState.model_construct(
-        id=1, name="Test IdP", slug="test", enabled=True, authorization_endpoint="https://idp.example.com/auth"
+        id=IDP_ID, name="Test IdP", slug="test", enabled=True, authorization_endpoint="https://idp.example.com/auth"
     )
 
 
@@ -54,7 +57,7 @@ def _start_link(ends_other_sessions: bool) -> SimpleNamespace:
     ):
         idp_integration.stage_browser_link(
             USER_ID,
-            1,
+            IDP_ID,
             "/settings",
             "10.0.0.1",
             SESSION_ID,
@@ -67,7 +70,7 @@ def _start_link(ends_other_sessions: bool) -> SimpleNamespace:
         nonce="nonce",
         client_type="web",
         redirect_path="/settings",
-        idp_id=1,
+        idp_id=IDP_ID,
         id="state-id",
         **{
             key: stored[key]
@@ -90,7 +93,7 @@ def _callback(service, oauth_state, *, user=None, session="alive"):
     oauth_client = MagicMock()
     oauth_client.fetch_token.return_value = {"access_token": "at"}
     idp = MagicMock(
-        id=1,
+        id=IDP_ID,
         slug="test",
         provider_type="oauth2",
         issuer_url=None,
@@ -186,7 +189,7 @@ def _assert_refused(url, audit, create_link, delete_sessions, db, reason):
         target_id=str(USER_ID),
         target_owner_id=str(USER_ID),
     )
-    assert entry.details == {"idp_id": 1, "reason": reason}
+    assert entry.details == {"idp_id": str(IDP_ID), "reason": reason}
     audit.assert_not_audited("auth.session.revoke")
 
 

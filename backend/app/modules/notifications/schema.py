@@ -123,7 +123,7 @@ class IdpLinkedNotificationOptions(NotificationOptions):
         idp_name: Its name, or None when it was deleted since.
     """
 
-    idp_id: StrictInt = Field(..., description="ID of the linked identity provider")
+    idp_id: uuid.UUID = Field(..., description="ID of the linked identity provider")
     idp_name: StrictStr | None = Field(default=None, description="Name of the provider, when it still exists")
 
 
@@ -139,7 +139,7 @@ class AccountSecurityChangedNotificationOptions(NotificationOptions):
     """
 
     change: StrictStr = Field(..., description="Kind of security change")
-    idp_id: StrictInt | None = Field(default=None, description="ID of the identity provider concerned")
+    idp_id: uuid.UUID | None = Field(default=None, description="ID of the identity provider concerned")
     idp_name: StrictStr | None = Field(default=None, description="Name of the provider, when it still exists")
     access_type: StrictStr | None = Field(default=None, description="Access type the account now has")
     backup_codes_remaining: StrictInt | None = Field(default=None, description="Unused backup codes left")

@@ -25,7 +25,7 @@ class UserIdentityProviderBase(BaseModel):
     """
 
     user_id: StrictInt = Field(..., ge=1, description="User ID")
-    idp_id: StrictInt = Field(..., ge=1, description="Identity Provider ID")
+    idp_id: uuid.UUID = Field(..., description="Identity Provider ID")
     idp_subject: StrictStr = Field(
         ...,
         max_length=500,

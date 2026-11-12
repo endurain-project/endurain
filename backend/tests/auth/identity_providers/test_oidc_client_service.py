@@ -2,6 +2,7 @@
 
 import json
 import time
+import uuid
 from unittest.mock import MagicMock, patch
 
 import httpx2
@@ -231,7 +232,7 @@ class TestGetOidcConfigurationGuardFailures:
     """Discovery logs why the SSRF guard did not clear the issuer URL."""
 
     def test_blocked_url_points_the_operator_at_ssrf_allowed_hosts(self, service):
-        idp = MagicMock(issuer_url="https://idp.example.com", id=1)
+        idp = MagicMock(issuer_url="https://idp.example.com", id=uuid.uuid4())
         idp.name = "Test IdP"
         with (
             patch(
@@ -255,7 +256,7 @@ class TestDiscoveryIssuer:
 
     @staticmethod
     def _idp(issuer_url="https://idp.example.com"):
-        idp = MagicMock(id=5, issuer_url=issuer_url)
+        idp = MagicMock(id=uuid.uuid4(), issuer_url=issuer_url)
         idp.name = "Test IdP"
         return idp
 
@@ -488,13 +489,14 @@ class TestResolveEndSessionEndpoint:
 
 class TestForgetDiscovery:
     def test_it_deletes_the_cached_document(self, service, state_provider):
-        key = service._discovery_key(9)
+        forgotten_id = uuid.uuid4()
+        key = service._discovery_key(forgotten_id)
         state_provider.values[key] = b"{}"
         state_provider.expiry[key] = time.monotonic() + 60
-        other = service._discovery_key(10)
+        other = service._discovery_key(uuid.uuid4())
         state_provider.values[other] = b"{}"
 
-        service.forget_discovery(9)
+        service.forget_discovery(forgotten_id)
 
         assert key not in state_provider.values
         assert other in state_provider.values
@@ -504,12 +506,12 @@ class TestForgetDiscovery:
         state.delete.side_effect = StateBackendUnavailableError("down")
         service = oidc_client_service.OidcClientService(state, "test")
         with patch("modules.auth.identity_providers.oidc_client_service.logger") as mock_logger:
-            service.forget_discovery(9)
+            service.forget_discovery(uuid.uuid4())
         mock_logger.warning.assert_called_once()
 
 
 def test_discovery_cache_is_shared_between_services_and_refetches_after_expiry(state_provider):
-    idp = MagicMock(id=23, name="Test IdP", issuer_url="https://idp.example.com")
+    idp = MagicMock(id=uuid.uuid4(), name="Test IdP", issuer_url="https://idp.example.com")
     document = {"issuer": idp.issuer_url, "jwks_uri": JWKS_URI}
 
     def client_with_document():

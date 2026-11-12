@@ -1,5 +1,6 @@
 """Tests for staged OAuth-state persistence operations."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -13,7 +14,7 @@ from tests._helpers.db import create_sqlite_session
 def _state(**overrides):
     values = {
         "id": "a" * 32,
-        "idp_id": 3,
+        "idp_id": uuid.uuid4(),
         "code_challenge": None,
         "code_challenge_method": None,
         "nonce": "n" * 32,

@@ -171,7 +171,7 @@ def real_client():
     return TestClient(app)
 
 
-_IDP_ICON = "/api/v1/identity-providers/1/icon"
+_IDP_ICON = "/api/v1/identity-providers/6f1c9c0e-3b7a-4c55-9d1e-2f6a8b4d7e10/icon"
 _BULK_IMPORT = "/api/v1/activities/bulk-import"
 _REAL_BODY = 7 * 1024 * 1024
 _ABOVE_IMAGE_CAPS = 25 * 1024 * 1024

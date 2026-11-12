@@ -1,6 +1,7 @@
 """The end of an SSO login, link or step-up flow: the provider's callback, user matching and session creation."""
 
 import hmac
+import uuid
 from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -869,7 +870,7 @@ class CallbackService:
         user_agent: str,
         password_hasher: credentials_integration.PasswordHasher,
         oauth_state: oauth_state_schema.OAuthStateRead,
-        idp_id: int,
+        idp_id: uuid.UUID,
         token_response: dict[str, Any],
         db: Session,
         *,
@@ -1152,7 +1153,7 @@ def _is_account_flow(oauth_state: oauth_state_schema.OAuthStateRead) -> bool:
     return oauth_state.purpose != oauth_state_constants.OAuthStatePurpose.LOGIN and oauth_state.user_id is not None
 
 
-def _record_state_refusal(idp_id: int, oauth_state: oauth_state_schema.OAuthStateRead | None) -> None:
+def _record_state_refusal(idp_id: uuid.UUID, oauth_state: oauth_state_schema.OAuthStateRead | None) -> None:
     """Audit a callback whose OAuth state was refused, as the flow the state belongs to.
 
     A state nobody can find could have started a sign-in, so it is recorded as one. The row is anonymous: the
@@ -1180,7 +1181,7 @@ def _record_state_refusal(idp_id: int, oauth_state: oauth_state_schema.OAuthStat
         )
 
 
-def _record_browser_mismatch(idp_id: int, oauth_state: oauth_state_schema.OAuthStateRead) -> None:
+def _record_browser_mismatch(idp_id: uuid.UUID, oauth_state: oauth_state_schema.OAuthStateRead) -> None:
     """Audit a callback that came from a browser other than the one that started the flow.
 
     A login row is anonymous. A link or step-up row names the user only as the target: that browser is not
@@ -1209,7 +1210,7 @@ def _record_browser_mismatch(idp_id: int, oauth_state: oauth_state_schema.OAuthS
 
 
 def _record_provider_refusal(
-    idp_id: int, oauth_state: oauth_state_schema.OAuthStateRead, failure: _ProviderFailure
+    idp_id: uuid.UUID, oauth_state: oauth_state_schema.OAuthStateRead, failure: _ProviderFailure
 ) -> None:
     """Audit a callback the provider's answer made fail, as the flow the state belongs to.
 

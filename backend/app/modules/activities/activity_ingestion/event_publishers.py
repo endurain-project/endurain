@@ -31,7 +31,7 @@ def publish_file_uploaded(job_id: str, user_id: int, db: Session, *, commit: Cal
     payload = activity_ingestion_events.UploadedFilePayload(job_id=job_id)
     platform_publisher.publish_committing(
         activity_ingestion_events.ACTIVITY_FILE_UPLOADED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:upload",
         db=db,
         commit=commit,
@@ -52,7 +52,7 @@ def publish_refresh_requested(job_id: str, user_id: int, db: Session, *, commit:
     payload = activity_ingestion_events.RefreshRequestedPayload(job_id=job_id)
     platform_publisher.publish_committing(
         activity_ingestion_events.ACTIVITY_REFRESH_REQUESTED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:refresh",
         db=db,
         commit=commit,
@@ -81,7 +81,10 @@ def publish_refresh_requests(
     owner_of = dict(jobs)
     platform_publisher.publish_many_committing(
         activity_ingestion_events.ACTIVITY_REFRESH_REQUESTED,
-        [activity_ingestion_events.RefreshRequestedPayload(job_id=job_id).model_dump() for job_id, _ in jobs],
+        [
+            activity_ingestion_events.RefreshRequestedPayload(job_id=job_id).model_dump(mode="json")
+            for job_id, _ in jobs
+        ],
         source="scheduler:provider_refresh",
         metadata_for=lambda payload: {core_event_metadata.META_USER_ID: owner_of[payload["job_id"]]},
         db=db,
@@ -107,7 +110,7 @@ def publish_bulk_import_continue(job_id: str, user_id: int, db: Session, *, comm
     payload = activity_ingestion_events.BulkImportContinuePayload(job_id=job_id)
     platform_publisher.publish_committing(
         activity_ingestion_events.ACTIVITY_BULK_IMPORT_CONTINUE,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:bulk_import",
         db=db,
         commit=commit,

@@ -5,6 +5,7 @@ provider's discovery document and JWKS, and the sessions surface the sign-ins en
 """
 
 import time
+import uuid
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -25,7 +26,8 @@ import modules.auth.identity_providers.oidc_client_service as oidc_client_servic
 import modules.auth.sessions.audit_actions as sessions_audit_actions
 from tests._helpers.db import create_sqlite_session
 
-IDP_ID = 3
+IDP_ID = uuid.uuid4()
+OTHER_IDP_ID = uuid.uuid4()
 ISS = "https://idp.example.com"
 CLIENT_ID = "endurain-client"
 JWKS_URI = "https://idp.example.com/jwks"
@@ -38,7 +40,7 @@ _SIGN_INS = (
     ("s3", 8, IDP_ID, "sid-a"),
     ("s4", 7, IDP_ID, "sid-b"),
     ("s5", 7, IDP_ID, None),
-    ("s6", 7, 4, "sid-a"),
+    ("s6", 7, OTHER_IDP_ID, "sid-a"),
 )
 
 
@@ -309,7 +311,7 @@ class TestRefusals:
             target_type="identity_provider",
             target_id=str(IDP_ID),
         )
-        assert entry.details == {"idp_id": IDP_ID, "reason": reason}
+        assert entry.details == {"idp_id": str(IDP_ID), "reason": reason}
         audit.assert_not_audited(sessions_audit_actions.SESSION_REVOKE.id)
 
     def test_a_token_that_does_not_verify_is_refused_and_audited(self, service, db):
@@ -327,7 +329,7 @@ class TestRefusals:
         self._refused(service, db, token, "replayed")
 
     def test_the_same_jti_from_another_provider_is_not_a_replay(self, service, db, rsa_key):
-        _Run(service, db, idp=_idp(id=4))(_token(rsa_key, sid="sid-a"))
+        _Run(service, db, idp=_idp(id=OTHER_IDP_ID))(_token(rsa_key, sid="sid-a"))
         run = _Run(service, db)
 
         run(_token(rsa_key, sid="sid-b"))

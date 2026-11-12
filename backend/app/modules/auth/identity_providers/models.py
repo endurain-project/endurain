@@ -1,5 +1,6 @@
 """SQLAlchemy ORM models for the identity providers module."""
 
+import uuid
 from datetime import datetime
 from typing import Any
 
@@ -18,7 +19,7 @@ class IdentityProvider(Base):
     """Represents an external Identity Provider (IdP) configuration for authentication.
 
     Attributes:
-        id (int): Primary key.
+        id (uuid.UUID): Primary key, a random UUID.
         name (str): Display name of the IdP.
         slug (str): URL-safe unique identifier for the IdP.
         provider_type (str): Type of provider ('oidc' or 'oauth2').
@@ -46,8 +47,9 @@ class IdentityProvider(Base):
 
     __tablename__ = "identity_providers"
 
-    id: Mapped[int] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True,
+        default=uuid.uuid4,
         index=True,
     )
     name: Mapped[str] = mapped_column(

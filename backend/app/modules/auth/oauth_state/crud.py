@@ -1,5 +1,6 @@
 """Persistence operations for OAuth state."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, select, update
@@ -40,7 +41,7 @@ def create_oauth_state(
     ip_address: str | None,
     db: Session,
     *,
-    idp_id: int | None = None,
+    idp_id: uuid.UUID | None = None,
     redirect_path: str | None = None,
     code_challenge: str | None = None,
     code_challenge_method: str | None = None,

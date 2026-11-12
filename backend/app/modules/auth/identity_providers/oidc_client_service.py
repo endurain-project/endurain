@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import uuid
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
@@ -98,7 +99,7 @@ class OidcClientService:
         self._api_version = api_version
 
     @staticmethod
-    def _discovery_key(idp_id: int) -> str:
+    def _discovery_key(idp_id: uuid.UUID) -> str:
         return f"endurain:idp:oidc-discovery:{idp_id}"
 
     @staticmethod
@@ -142,7 +143,7 @@ class OidcClientService:
         except (StateBackendUnavailableError, TypeError, ValueError) as err:
             logger.warning("OIDC cache write failed", exc_info=err)
 
-    def forget_discovery(self, idp_id: int) -> None:
+    def forget_discovery(self, idp_id: uuid.UUID) -> None:
         """Drop a provider's cached discovery document so the next use fetches it afresh.
 
         A state outage is logged and ignored: the cached document then expires with its TTL.

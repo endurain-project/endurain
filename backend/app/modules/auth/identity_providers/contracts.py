@@ -1,5 +1,6 @@
 """Internal contracts for identity-provider persistence and OIDC flows."""
 
+import uuid
 from datetime import datetime
 from typing import Any, Protocol
 
@@ -13,7 +14,7 @@ import modules.auth.schema as auth_schema
 class IdentityProviderState(BaseModel):
     """Stored provider configuration, including encrypted credentials."""
 
-    id: int
+    id: uuid.UUID
     name: str
     slug: str
     provider_type: idp_constants.ProviderType
@@ -110,7 +111,7 @@ class StepUpTicket(BaseModel):
 
     user_id: int
     session_id: str
-    idp_id: int
+    idp_id: uuid.UUID
     code_challenge: str
     action: str
     security_generation: int | None = None

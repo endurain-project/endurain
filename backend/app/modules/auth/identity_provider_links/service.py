@@ -37,7 +37,7 @@ def get_orphaned_idp_session_tokens_page(
     return [row for row in window if row.session_id not in alive], window[-1].id
 
 
-def end_idp_sessions(user_id: int, idp_id: int, db: Session) -> int:
+def end_idp_sessions(user_id: int, idp_id: uuid.UUID, db: Session) -> int:
     """Stage the end of every session the user signed in to through the provider; the caller commits.
 
     The sessions go through the sessions surface, which publishes the revocation, so each sign-in's token is
@@ -55,7 +55,7 @@ def end_idp_sessions(user_id: int, idp_id: int, db: Session) -> int:
     return _end_live_sessions([(session_id, user_id) for session_id in session_ids], db).get(user_id, 0)
 
 
-def end_all_idp_sessions(idp_id: int, db: Session) -> int:
+def end_all_idp_sessions(idp_id: uuid.UUID, db: Session) -> int:
     """Stage the end of every session signed in through the provider; the caller commits.
 
     The sessions go through the sessions surface, which publishes the revocation, so each sign-in's token is
@@ -72,7 +72,9 @@ def end_all_idp_sessions(idp_id: int, db: Session) -> int:
     return sum(_end_live_sessions(owners, db).values())
 
 
-def end_idp_sessions_by_sid(idp_id: int, idp_sid: str, db: Session, *, user_id: int | None = None) -> dict[int, int]:
+def end_idp_sessions_by_sid(
+    idp_id: uuid.UUID, idp_sid: str, db: Session, *, user_id: int | None = None
+) -> dict[int, int]:
     """Stage the end of every session signed in through the provider under a provider session id; the caller commits.
 
     The sessions go through the sessions surface, which publishes the revocation, so each sign-in's token is

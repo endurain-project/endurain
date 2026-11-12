@@ -3,6 +3,7 @@
 Ids are stable forever: rows outlive the code. ``details`` carry ids only, never a provider token or subject.
 """
 
+import uuid
 from enum import StrEnum
 from typing import ClassVar
 
@@ -76,7 +77,7 @@ class BackchannelLogoutRefusalDetails(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    idp_id: int
+    idp_id: uuid.UUID
     reason: BackchannelLogoutRefusal
 
 
@@ -122,7 +123,7 @@ class IdentityLinkDetails(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 3
 
-    idp_id: int
+    idp_id: uuid.UUID
     reason: IdentityLinkRefusal | None = None
 
 

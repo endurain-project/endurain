@@ -3,6 +3,7 @@
 The decisions behind each route are covered where they live, in ``test_service_sso_flow.py``.
 """
 
+import uuid
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from urllib.parse import parse_qs, urlparse
@@ -52,7 +53,7 @@ def _start(url, binding="binding"):
 
 class TestListProviders:
     def test_returns_the_page_the_service_lists(self, client, service):
-        provider = idp_schema.IdentityProviderPublicRead(id=1, name="Pocket ID", slug="pocket-id")
+        provider = idp_schema.IdentityProviderPublicRead(id=uuid.uuid4(), name="Pocket ID", slug="pocket-id")
         service.get_enabled_identity_providers.return_value = idp_schema.IdentityProviderPublicPage.build(
             [provider], 1, 1, 25
         )
@@ -218,7 +219,7 @@ class TestLoginBindingRoundTrip:
     @pytest.fixture
     def make_client(self):
         states = {}
-        idp = SimpleNamespace(id=1, slug="pocket-id", enabled=True)
+        idp = SimpleNamespace(id=uuid.uuid4(), slug="pocket-id", enabled=True)
         authorization = authorization_service.AuthorizationService(MagicMock(), "https://app.example.com")
         callback = callback_service.CallbackService(MagicMock(), MagicMock(), MagicMock(), "https://app.example.com")
 

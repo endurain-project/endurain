@@ -1,5 +1,6 @@
 """The start of an SSO flow: the login request, its OAuth state and the browser link."""
 
+import uuid
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from urllib.parse import parse_qs, urlsplit
@@ -12,6 +13,8 @@ import core.hashing as core_hashing
 import core.network as core_network
 import modules.auth.identity_providers.authorization_service as authorization_service
 import modules.auth.identity_providers.oidc_client_service as oidc_client_service
+
+IDP_ID = uuid.uuid4()
 
 HOST = "https://app.example.com"
 CHALLENGE = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
@@ -129,7 +132,7 @@ def test_a_login_oauth_state_is_committed_before_the_browser_is_redirected(mock_
         patch.object(authorization_service.oauth_state_integration, "create_oauth_state") as create,
     ):
         state_id = service.create_login_oauth_state(
-            3,
+            IDP_ID,
             client_type="web",
             ip_address="127.0.0.1",
             redirect_path=None,
@@ -141,7 +144,7 @@ def test_a_login_oauth_state_is_committed_before_the_browser_is_redirected(mock_
 
     assert state_id == "s"
     assert create.call_args.kwargs["browser_binding_hash"] == "h" * 64
-    assert create.call_args.kwargs["idp_id"] == 3
+    assert create.call_args.kwargs["idp_id"] == IDP_ID
     mock_db.commit.assert_called_once()
     assert 43 <= len(create.call_args.kwargs["idp_code_verifier"]) <= 128
 
@@ -152,7 +155,7 @@ def test_the_authorization_url_carries_the_s256_challenge_of_the_states_verifier
     service = authorization_service.AuthorizationService(oidc, HOST)
     verifier = "v" * 64
     idp = SimpleNamespace(
-        id=3, slug="idp", name="IdP", scopes="openid email", authorization_endpoint="https://idp.example/authorize"
+        id=IDP_ID, slug="idp", name="IdP", scopes="openid email", authorization_endpoint="https://idp.example/authorize"
     )
     state = SimpleNamespace(nonce="nonce-1", idp_code_verifier=verifier)
     with (
@@ -174,7 +177,7 @@ def test_the_transaction_ends_before_discovery_reaches_the_provider(mock_db):
     oidc = MagicMock()
     service = authorization_service.AuthorizationService(oidc, HOST)
     idp = SimpleNamespace(
-        id=3,
+        id=IDP_ID,
         slug="idp",
         name="IdP",
         scopes="openid",

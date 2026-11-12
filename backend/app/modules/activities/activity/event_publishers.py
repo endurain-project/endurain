@@ -57,7 +57,7 @@ def publish_activity_created(
     }
     platform_publisher.publish_on_commit(
         activity_events.ACTIVITY_CREATED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source=source,
         metadata=metadata,
         db=db,
@@ -96,7 +96,7 @@ def publish_activity_updated(
     }
     platform_publisher.publish_on_commit(
         activity_events.ACTIVITY_UPDATED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:edit_activity",
         metadata=metadata,
         db=db,
@@ -138,7 +138,7 @@ def publish_activities_updated(
         [
             activity_events.ActivityUpdatedPayload(
                 activity_id=activity_id, user_id=user_id, changed_fields=fields
-            ).model_dump()
+            ).model_dump(mode="json")
             for activity_id in activity_ids
         ],
         source=source,
@@ -171,7 +171,7 @@ def publish_activity_deleted(
     }
     platform_publisher.publish_on_commit(
         activity_events.ACTIVITY_DELETED,
-        deleted.model_dump(),
+        deleted.model_dump(mode="json"),
         source="api:delete_activity",
         metadata=metadata,
         db=db,
@@ -208,7 +208,10 @@ def publish_activities_deleted(
     """
     platform_publisher.publish_many_on_commit(
         activity_events.ACTIVITY_DELETED,
-        [activity_events.ActivityDeletedPayload(activity_id=activity_id).model_dump() for activity_id in activity_ids],
+        [
+            activity_events.ActivityDeletedPayload(activity_id=activity_id).model_dump(mode="json")
+            for activity_id in activity_ids
+        ],
         source=source,
         metadata_for=lambda payload: {
             core_event_metadata.META_ACTIVITY_ID: payload["activity_id"],
@@ -236,7 +239,7 @@ def publish_visibility_edit_requested(
     payload = activity_events.VisibilityEditRequestedPayload(user_id=user_id, visibility=visibility)
     platform_publisher.publish_committing(
         activity_events.ACTIVITIES_VISIBILITY_EDIT_REQUESTED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:bulk_edit_activities",
         db=db,
         commit=commit,

@@ -34,7 +34,7 @@ class IdentityLink(Base):
         index=True,
         comment="User ID",
     )
-    idp_id: Mapped[int] = mapped_column(
+    idp_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("identity_providers.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -95,7 +95,7 @@ class IdpSessionToken(Base):
         index=True,
         comment="User ID",
     )
-    idp_id: Mapped[int] = mapped_column(
+    idp_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("identity_providers.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

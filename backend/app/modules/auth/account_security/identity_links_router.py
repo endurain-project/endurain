@@ -25,7 +25,7 @@ router = APIRouter()
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def start_idp_link(
-    idp_id: core_dependencies.PositiveId,
+    idp_id: core_dependencies.UuidId,
     link: users_schema.IdentityProviderLinkStart,
     request: Request,
     response: Response,
@@ -77,7 +77,7 @@ def start_idp_link(
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def start_idp_step_up(
-    idp_id: core_dependencies.PositiveId,
+    idp_id: core_dependencies.UuidId,
     start: identity_providers_schema.StepUpStartRequest,
     request: Request,
     response: Response,
@@ -157,7 +157,7 @@ def get_my_identity_providers(
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def delete_my_identity_provider(
-    idp_id: core_dependencies.PositiveId,
+    idp_id: core_dependencies.UuidId,
     body: auth_schema.StepUpRequest,
     request: Request,
     token_user_id: auth_dependencies.CurrentUserId,
@@ -179,7 +179,7 @@ def delete_my_identity_provider(
     IdP link).
 
     Args:
-        idp_id (int): The ID of the identity provider to unlink.
+        idp_id (uuid.UUID): The ID of the identity provider to unlink.
         body (StepUpRequest): The step-up verification.
         request (Request): The FastAPI request object.
         token_user_id (int): User ID extracted from the access token.

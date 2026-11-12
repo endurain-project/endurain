@@ -13,6 +13,7 @@ import core.key_rotation as core_key_rotation
 import modules.auth.identity_provider_links.crud as identity_links_crud
 import modules.auth.identity_provider_links.models as identity_link_models
 import modules.auth.identity_provider_links.service as identity_links_service
+import modules.auth.identity_providers.crud as idp_crud
 import modules.auth.identity_providers.models as identity_provider_models
 import modules.auth.identity_providers.provider_service as idp_provider_service
 import modules.auth.mfa.crud as mfa_crud
@@ -183,7 +184,7 @@ class TestModuleWiring:
     def test_identity_providers(self, db, rotating_keys):
         db.execute(
             insert(identity_provider_models.IdentityProvider).values(
-                id=1,
+                id=uuid.uuid4(),
                 name="Provider",
                 slug="provider",
                 client_id=_token(OLD_KEY, "client-id"),
@@ -199,13 +200,34 @@ class TestModuleWiring:
         Fernet(NEW_KEY.encode()).decrypt(row.client_id.encode())
         Fernet(NEW_KEY.encode()).decrypt(row.client_secret.encode())
 
+    def test_the_provider_batch_continues_after_a_uuid_cursor(self, db, rotating_keys):
+        ids = sorted(uuid.uuid4() for _ in range(2))
+        for idp_id in ids:
+            db.execute(
+                insert(identity_provider_models.IdentityProvider).values(
+                    id=idp_id,
+                    name=f"Provider {idp_id}",
+                    slug=f"provider-{idp_id}",
+                    client_id=_token(OLD_KEY, "client-id"),
+                    client_secret=_token(OLD_KEY, "client-secret"),
+                )
+            )
+        db.commit()
+
+        first = idp_crud.stage_reencrypt_batch_providers(None, 1, db)
+        second = idp_crud.stage_reencrypt_batch_providers(first.last_id, 1, db)
+
+        assert first.last_id == ids[0]
+        assert second.last_id == ids[1]
+        assert idp_crud.stage_reencrypt_batch_providers(second.last_id, 1, db).last_id is None
+
     def test_identity_provider_links(self, db, rotating_keys):
         db.execute(
             insert(identity_link_models.IdpSessionToken).values(
                 id=uuid.uuid4(),
                 session_id="session-1",
                 user_id=1,
-                idp_id=1,
+                idp_id=uuid.uuid4(),
                 refresh_token=_token(OLD_KEY, "refresh"),
                 id_token=_token(OLD_KEY, "id-token"),
             )
@@ -312,7 +334,7 @@ class TestTokenSwapsSurviveRotation:
     def _link_row(self, db, stored):
         db.execute(
             insert(identity_link_models.IdpSessionToken).values(
-                id=uuid.uuid4(), session_id="session-1", user_id=1, idp_id=1, refresh_token=stored
+                id=uuid.uuid4(), session_id="session-1", user_id=1, idp_id=uuid.uuid4(), refresh_token=stored
             )
         )
         db.commit()

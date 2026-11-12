@@ -40,7 +40,7 @@ def publish_follower_requested(
     )
     platform_publisher.publish_committing(
         followers_events.FOLLOWER_REQUESTED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:follow_user",
         metadata={core_event_metadata.META_USER_ID: target_user_id},
         db=db,
@@ -71,7 +71,7 @@ def publish_follower_accepted(
     )
     platform_publisher.publish_committing(
         followers_events.FOLLOWER_ACCEPTED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:accept_follow_request",
         metadata={core_event_metadata.META_USER_ID: requester_user_id},
         db=db,
@@ -105,7 +105,7 @@ def publish_follower_request_removed(
     )
     platform_publisher.publish_committing(
         followers_events.FOLLOWER_REQUEST_REMOVED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source=source,
         metadata={core_event_metadata.META_USER_ID: target_user_id},
         db=db,

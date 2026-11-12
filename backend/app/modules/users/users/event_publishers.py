@@ -24,7 +24,7 @@ def publish_deletion_requested(user_id: int, db: Session, *, commit: Callable[[]
     payload = users_events.DeletionRequestedPayload(user_id=user_id)
     platform_publisher.publish_committing(
         users_events.USERS_DELETION_REQUESTED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source=source,
         db=db,
         commit=commit,
@@ -44,7 +44,7 @@ def publish_admin_promoted(user_id: int, admin_user_id: int, db: Session) -> Non
     payload = users_events.AdminPromotedPayload(user_id=user_id, admin_user_id=admin_user_id)
     platform_publisher.publish_on_commit(
         users_events.USERS_ADMIN_PROMOTED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:users",
         metadata={core_event_metadata.META_USER_ID: user_id},
         db=db,

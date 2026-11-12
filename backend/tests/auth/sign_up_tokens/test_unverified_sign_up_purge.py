@@ -1,5 +1,6 @@
 """An unverified self sign-up is removed once its verification link has expired, and nothing else is."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -57,7 +58,7 @@ def _credential(db: Session, user_id: int) -> None:
 
 
 def _link(db: Session, user_id: int) -> None:
-    db.add(identity_link_models.IdentityLink(user_id=user_id, idp_id=1, idp_subject=f"sub{user_id}"))
+    db.add(identity_link_models.IdentityLink(user_id=user_id, idp_id=uuid.uuid4(), idp_subject=f"sub{user_id}"))
     db.commit()
 
 

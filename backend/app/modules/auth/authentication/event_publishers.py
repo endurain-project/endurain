@@ -20,7 +20,7 @@ def publish_api_key_used(api_key_id: str, db: Session) -> None:
     payload = authentication_events.ApiKeyUsedPayload(api_key_id=api_key_id)
     platform_publisher.publish(
         authentication_events.API_KEY_USED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:authenticate_api_key",
         db=db,
         schema_version=payload.SCHEMA_VERSION,
@@ -40,7 +40,7 @@ def publish_account_locked(user_id: int, db: Session) -> None:
     payload = authentication_events.AccountLockedPayload(user_id=user_id)
     platform_publisher.publish(
         authentication_events.ACCOUNT_LOCKED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:login",
         metadata={core_event_metadata.META_USER_ID: user_id},
         db=db,
@@ -61,7 +61,7 @@ def publish_mfa_locked(user_id: int, db: Session) -> None:
     payload = authentication_events.MfaLockedPayload(user_id=user_id)
     platform_publisher.publish(
         authentication_events.MFA_LOCKED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:mfa_verify",
         metadata={core_event_metadata.META_USER_ID: user_id},
         db=db,
@@ -79,7 +79,7 @@ def publish_refresh_reuse_detected(user_id: int, db: Session) -> None:
     payload = authentication_events.RefreshReuseDetectedPayload(user_id=user_id)
     platform_publisher.publish_on_commit(
         authentication_events.REFRESH_REUSE_DETECTED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:refresh",
         metadata={core_event_metadata.META_USER_ID: user_id},
         db=db,

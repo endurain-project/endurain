@@ -1,5 +1,7 @@
 """Persistence operations for identity providers."""
 
+import uuid
+
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -17,7 +19,7 @@ import modules.auth.identity_providers.serializers as identity_provider_serializ
 import modules.auth.identity_providers.utils as idp_utils
 
 
-def get_identity_provider(idp_id: int, db: Session) -> identity_provider_contracts.IdentityProviderState | None:
+def get_identity_provider(idp_id: uuid.UUID, db: Session) -> identity_provider_contracts.IdentityProviderState | None:
     """Return a provider state by its id."""
     row = db.execute(
         select(identity_provider_models.IdentityProvider).where(identity_provider_models.IdentityProvider.id == idp_id)
@@ -34,7 +36,7 @@ def get_identity_provider_by_slug(slug: str, db: Session) -> identity_provider_c
 
 
 def get_identity_provider_by_issuer(
-    issuer_url: str, db: Session, *, exclude_id: int | None = None
+    issuer_url: str, db: Session, *, exclude_id: uuid.UUID | None = None
 ) -> identity_provider_contracts.IdentityProviderState | None:
     """Return a provider whose issuer URL equals the given one, apart from trailing slashes.
 
@@ -82,7 +84,7 @@ def count_identity_providers(db: Session, *, enabled_only: bool) -> int:
 
 
 def get_identity_providers_by_ids(
-    idp_ids: list[int], db: Session
+    idp_ids: list[uuid.UUID], db: Session
 ) -> list[identity_provider_contracts.IdentityProviderState]:
     """Return providers matching a batch of IDs."""
     if not idp_ids:
@@ -170,7 +172,7 @@ def create_identity_provider(
 
 
 def update_identity_provider(
-    idp_id: int,
+    idp_id: uuid.UUID,
     data: identity_provider_schema.IdentityProviderUpdate,
     db: Session,
     *,
@@ -205,7 +207,7 @@ def update_identity_provider(
     return identity_provider_serializers.to_state(row)
 
 
-def identity_provider_exists(idp_id: int, db: Session) -> bool:
+def identity_provider_exists(idp_id: uuid.UUID, db: Session) -> bool:
     """Return whether an identity-provider row exists.
 
     Args:
@@ -225,7 +227,7 @@ def identity_provider_exists(idp_id: int, db: Session) -> bool:
     )
 
 
-def delete_identity_provider(idp_id: int, db: Session, *, if_match: str) -> bool:
+def delete_identity_provider(idp_id: uuid.UUID, db: Session, *, if_match: str) -> bool:
     """Stage deletion of a provider row, returning whether it existed.
 
     Args:
@@ -250,7 +252,7 @@ def delete_identity_provider(idp_id: int, db: Session, *, if_match: str) -> bool
     return True
 
 
-def get_ids_with_icon(idp_ids: list[int], db: Session) -> set[int]:
+def get_ids_with_icon(idp_ids: list[uuid.UUID], db: Session) -> set[uuid.UUID]:
     """Return which of the given providers have an uploaded icon.
 
     Args:
@@ -267,7 +269,7 @@ def get_ids_with_icon(idp_ids: list[int], db: Session) -> set[int]:
     return set(db.execute(stmt).scalars().all())
 
 
-def set_icon_uploaded(idp_id: int, is_set: bool, db: Session) -> tuple[int, bool] | None:
+def set_icon_uploaded(idp_id: uuid.UUID, is_set: bool, db: Session) -> tuple[int, bool] | None:
     """Stage whether a provider has an uploaded icon.
 
     Args:
@@ -296,8 +298,8 @@ def set_icon_uploaded(idp_id: int, is_set: bool, db: Session) -> tuple[int, bool
 
 
 def stage_reencrypt_batch_providers(
-    after_id: int | None, limit: int, db: Session
-) -> core_key_rotation.BatchResult[int]:
+    after_id: uuid.UUID | None, limit: int, db: Session
+) -> core_key_rotation.BatchResult[uuid.UUID]:
     """Stage the re-encryption of up to ``limit`` providers rows after ``after_id`` (flushed, not committed)."""
     model = identity_provider_models.IdentityProvider
     return core_key_rotation.stage_reencrypt_batch(

@@ -20,7 +20,7 @@ def publish_backup_code_used(user_id: int, backup_codes_remaining: int, db: Sess
     )
     platform_publisher.publish_on_commit(
         mfa_backup_codes_events.BACKUP_CODE_USED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:mfa_backup_codes",
         metadata={core_event_metadata.META_USER_ID: user_id},
         db=db,

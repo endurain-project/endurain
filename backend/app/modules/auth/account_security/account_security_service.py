@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, NoReturn
 from zoneinfo import ZoneInfo
@@ -651,7 +652,7 @@ def complete_password_change(
 def prepare_security_change_email(
     user_id: int,
     change: str,
-    idp_id: int | None,
+    idp_id: uuid.UUID | None,
     frontend_host: str,
     db: Session,
     *,

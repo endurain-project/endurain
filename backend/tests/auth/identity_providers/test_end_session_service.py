@@ -1,6 +1,7 @@
 """RP-initiated logout: the session's ID token and the provider URL that ends the provider's session."""
 
 import logging
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 from urllib.parse import parse_qs, urlsplit
@@ -12,6 +13,8 @@ import core.cryptography as core_cryptography
 import core.exceptions as core_exceptions
 import modules.auth.identity_providers.contracts as idp_contracts
 import modules.auth.identity_providers.end_session_service as end_session_module
+
+IDP_ID = uuid.uuid4()
 
 SESSION = "11111111-1111-1111-1111-111111111111"
 LOGIN = "https://endurain.example.com/login"
@@ -33,7 +36,7 @@ def oidc():
 def _idp():
     now = datetime.now(UTC)
     return idp_contracts.IdentityProviderState(
-        id=3,
+        id=IDP_ID,
         name="Test IdP",
         slug="test",
         provider_type="oidc",
@@ -86,7 +89,7 @@ class TestReadEndSession:
             return _service(MagicMock()).read_end_session(SESSION, MagicMock())
 
     def test_a_sign_in_that_holds_an_id_token_is_returned_with_its_provider(self):
-        row = MagicMock(idp_id=3, id_token="ciphertext")
+        row = MagicMock(idp_id=IDP_ID, id_token="ciphertext")
 
         request = self._read(row=row)
 
@@ -97,10 +100,10 @@ class TestReadEndSession:
         assert self._read(row=None) is None
 
     def test_a_sign_in_without_an_id_token_has_nothing_to_hint(self):
-        assert self._read(row=MagicMock(idp_id=3, id_token=None)) is None
+        assert self._read(row=MagicMock(idp_id=IDP_ID, id_token=None)) is None
 
     def test_a_provider_that_no_longer_exists_has_nothing_to_end(self):
-        assert self._read(row=MagicMock(idp_id=3, id_token="ciphertext"), idp=False) is None
+        assert self._read(row=MagicMock(idp_id=IDP_ID, id_token="ciphertext"), idp=False) is None
 
     def test_the_encrypted_token_is_not_in_the_repr(self):
         assert "ciphertext" not in repr(idp_contracts.EndSessionRequest(idp=_idp(), encrypted_id_token="ciphertext"))

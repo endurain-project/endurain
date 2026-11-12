@@ -1,5 +1,6 @@
 """The SSO callback audits a new identity link."""
 
+import uuid
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -12,6 +13,8 @@ import modules.auth.identity_providers.callback_service as callback_service
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.sessions.audit_actions as sessions_audit_actions
 
+IDP_ID = uuid.uuid4()
+
 _SESSION = SimpleNamespace(user_id=7)
 
 
@@ -21,7 +24,9 @@ def _service():
 
 def test_linking_a_provider_is_audited_with_the_provider_id(mock_db):
     service = _service()
-    idp = MagicMock(id=3, slug="idp", provider_type="oauth2", issuer_url=None, userinfo_endpoint="https://x/userinfo")
+    idp = MagicMock(
+        id=IDP_ID, slug="idp", provider_type="oauth2", issuer_url=None, userinfo_endpoint="https://x/userinfo"
+    )
     idp.name = "GitHub"
     idp.sync_user_info = False
     idp.sync_email = False
@@ -64,12 +69,14 @@ def test_linking_a_provider_is_audited_with_the_provider_id(mock_db):
         target_id="7",
         target_owner_id="7",
     )
-    assert entry.details == {"idp_id": 3, "reason": None}
+    assert entry.details == {"idp_id": str(IDP_ID), "reason": None}
 
 
 def test_linking_an_identity_that_belongs_to_another_account_is_denied(mock_db):
     service = _service()
-    idp = MagicMock(id=3, slug="idp", provider_type="oauth2", issuer_url=None, userinfo_endpoint="https://x/userinfo")
+    idp = MagicMock(
+        id=IDP_ID, slug="idp", provider_type="oauth2", issuer_url=None, userinfo_endpoint="https://x/userinfo"
+    )
     idp.name = "GitHub"
     oauth_state = MagicMock(
         user_id=7,
@@ -107,13 +114,15 @@ def test_linking_an_identity_that_belongs_to_another_account_is_denied(mock_db):
         target_id="7",
         target_owner_id="7",
     )
-    assert entry.details == {"idp_id": 3, "reason": "linked_to_another_account"}
+    assert entry.details == {"idp_id": str(IDP_ID), "reason": "linked_to_another_account"}
 
 
 def _complete_link(mock_db, *, ends_other_sessions, ended=2):
     """Run the callback of a link started from session ``sid``; return the audit and the session deletion."""
     service = _service()
-    idp = MagicMock(id=3, slug="idp", provider_type="oauth2", issuer_url=None, userinfo_endpoint="https://x/userinfo")
+    idp = MagicMock(
+        id=IDP_ID, slug="idp", provider_type="oauth2", issuer_url=None, userinfo_endpoint="https://x/userinfo"
+    )
     idp.name = "GitHub"
     idp.sync_user_info = False
     idp.sync_email = False

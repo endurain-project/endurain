@@ -6,6 +6,7 @@ linking: an external identity may only be auto-linked to an EXISTING local
 account when the IdP asserts a verified email (OIDC ``email_verified``).
 """
 
+import uuid
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
@@ -17,11 +18,13 @@ import modules.auth.identity_providers.audit_actions as idp_audit_actions
 import modules.auth.identity_providers.user_provisioning_service as user_provisioning_service
 import modules.users.users.schema as users_schema
 
+IDP_ID = uuid.uuid4()
+
 
 def _make_idp() -> MagicMock:
     """Build a minimal IdP mock that maps the standard email claim."""
     idp = MagicMock()
-    idp.id = 1
+    idp.id = IDP_ID
     idp.name = "TestIdP"
     idp.user_mapping = None
     idp.sync_user_info = False
@@ -397,7 +400,7 @@ class TestLinkByEmail:
         link.assert_not_called()
         publish.assert_not_called()
         create_user.assert_not_called()
-        refused.assert_called_once_with(7, 1, idp_audit_actions.IdentityLinkRefusal.LINK_BY_EMAIL_DISABLED)
+        refused.assert_called_once_with(7, IDP_ID, idp_audit_actions.IdentityLinkRefusal.LINK_BY_EMAIL_DISABLED)
 
     def test_off_refuses_before_the_verification_checks(self):
         idp = _make_idp()
@@ -409,7 +412,7 @@ class TestLinkByEmail:
         publish.assert_not_called()
 
         assert error.login_error == "sso_link_by_email_disabled"
-        refused.assert_called_once_with(7, 1, idp_audit_actions.IdentityLinkRefusal.LINK_BY_EMAIL_DISABLED)
+        refused.assert_called_once_with(7, IDP_ID, idp_audit_actions.IdentityLinkRefusal.LINK_BY_EMAIL_DISABLED)
 
     def test_on_links_as_before(self):
         idp = _make_idp()
@@ -422,7 +425,7 @@ class TestLinkByEmail:
 
         assert error is None
         assert result is existing
-        link.assert_called_once_with(7, 1, "subject-1", ANY)
+        link.assert_called_once_with(7, IDP_ID, "subject-1", ANY)
         refused.assert_not_called()
 
     def test_off_still_creates_a_new_user_when_no_account_has_the_email(self):

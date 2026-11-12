@@ -1,5 +1,6 @@
 """Storage and refresh of the identity-provider refresh token each SSO session holds."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -92,7 +93,7 @@ class IdpTokenService:
     def store_session_tokens(
         session_id: str,
         user_id: int,
-        idp_id: int,
+        idp_id: uuid.UUID,
         token_response: dict[str, Any],
         db: Session,
         *,
@@ -135,7 +136,7 @@ class IdpTokenService:
         )
 
     @staticmethod
-    def _encrypt_id_token(user_id: int, idp_id: int, token_response: dict[str, Any]) -> str | None:
+    def _encrypt_id_token(user_id: int, idp_id: uuid.UUID, token_response: dict[str, Any]) -> str | None:
         """Encrypt the ID token of a token response, which RP-initiated logout presents as the hint.
 
         Args:
@@ -161,7 +162,7 @@ class IdpTokenService:
 
     @staticmethod
     def _encrypt_token_response(
-        user_id: int, idp_id: int, token_response: dict[str, Any]
+        user_id: int, idp_id: uuid.UUID, token_response: dict[str, Any]
     ) -> tuple[str, datetime] | tuple[None, None]:
         """Encrypt the refresh token of a token response and work out when its access token expires.
 
@@ -203,7 +204,7 @@ class IdpTokenService:
         self,
         session_id: str,
         user_id: int,
-        idp_id: int,
+        idp_id: uuid.UUID,
         token_response: dict[str, Any],
         expected_refresh_token: str,
         db: Session,
@@ -480,7 +481,7 @@ class IdpTokenService:
             del token_response["id_token"]
 
     @staticmethod
-    def _clear_refresh_token(session_id: str, user_id: int, idp_id: int, expected_refresh_token: str) -> bool:
+    def _clear_refresh_token(session_id: str, user_id: int, idp_id: uuid.UUID, expected_refresh_token: str) -> bool:
         """Clear the refresh token a refresh read, in a session of its own, unless the session holds another now.
 
         Args:
@@ -509,7 +510,9 @@ class IdpTokenService:
         )
         return True
 
-    def _end_refused_session(self, session_id: str, user_id: int, idp_id: int, expected_refresh_token: str) -> None:
+    def _end_refused_session(
+        self, session_id: str, user_id: int, idp_id: uuid.UUID, expected_refresh_token: str
+    ) -> None:
         """End the Endurain session whose refresh token the provider refused, and audit it.
 
         The rejected token is cleared first, which fails when another refresh replaced it meanwhile; the session

@@ -1,5 +1,6 @@
 """The SSO token exchange audits the sign-ins it refuses as ``auth.session.login`` rows."""
 
+import uuid
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -8,6 +9,8 @@ import jasil.testing as jasil_testing
 
 import core.exceptions as core_exceptions
 import modules.auth.authentication.sso_exchange_service as sso_exchange_service
+
+IDP_ID = uuid.uuid4()
 
 _SERVICE = "modules.auth.authentication.sso_exchange_service"
 _LOGIN = "auth.session.login"
@@ -21,7 +24,7 @@ def _exchange(db, *, pkce_error=None, inactive=False, claimed=True, header="web"
         code_challenge="c",
         code_challenge_method="S256",
         client_type="web",
-        idp_id=3,
+        idp_id=IDP_ID,
         security_generation=stamp,
     )
     session = SimpleNamespace(

@@ -14,11 +14,13 @@ import modules.notifications.constants as notifications_constants
 import modules.notifications.service as notifications_service
 import modules.notifications.subscribers as notification_subscribers
 
+IDP_ID = uuid.UUID(int=4)
+
 
 def _event(change="mfa_enabled", idp_id=None):
     payload = {"user_id": 1, "change": change}
     if idp_id is not None:
-        payload["idp_id"] = idp_id
+        payload["idp_id"] = str(idp_id)
     return new_event(account_security_events.ACCOUNT_SECURITY_CHANGED, payload, source="test")
 
 
@@ -57,20 +59,20 @@ class TestCreateAccountSecurityChangedNotification:
         idp = MagicMock()
         idp.name = "Authentik"
 
-        _, create_once = _create(mock_db, "identity_provider_unlinked", 4, idp)
+        _, create_once = _create(mock_db, "identity_provider_unlinked", IDP_ID, idp)
 
         assert create_once.call_args.args[0].options == {
             "change": "identity_provider_unlinked",
-            "idp_id": 4,
+            "idp_id": str(IDP_ID),
             "idp_name": "Authentik",
         }
 
     def test_an_unlink_of_a_deleted_provider_leaves_the_name_empty(self, mock_db):
-        _, create_once = _create(mock_db, "identity_provider_unlinked", 4, None)
+        _, create_once = _create(mock_db, "identity_provider_unlinked", IDP_ID, None)
 
         assert create_once.call_args.args[0].options == {
             "change": "identity_provider_unlinked",
-            "idp_id": 4,
+            "idp_id": str(IDP_ID),
             "idp_name": None,
         }
 
@@ -99,14 +101,14 @@ class TestNotifyAccountSecurityChangedForEvent:
             "WS",
             True,
         )
-        event = _event("identity_provider_unlinked", 4)
+        event = _event("identity_provider_unlinked", IDP_ID)
 
         notification_subscribers.notify_account_security_changed_for_event(event)
 
         assert mock_notif.create_account_security_changed_notification.call_args.args[:4] == (
             1,
             account_security_events.AccountSecurityChange.IDENTITY_PROVIDER_UNLINKED,
-            4,
+            IDP_ID,
             event.event_id,
         )
         mock_ws.push_to_user.assert_called_once()

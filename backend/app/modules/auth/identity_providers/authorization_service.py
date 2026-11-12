@@ -1,6 +1,7 @@
 """The start of an SSO login, link or step-up flow: authorization URLs and the OAuth state behind them."""
 
 import secrets
+import uuid
 
 from authlib.integrations.httpx_client import OAuth2Client
 from sqlalchemy.orm import Session
@@ -32,7 +33,7 @@ class AuthorizationService:
 
     def create_login_oauth_state(
         self,
-        idp_id: int,
+        idp_id: uuid.UUID,
         *,
         client_type: str,
         ip_address: str | None,
@@ -84,7 +85,7 @@ class AuthorizationService:
     def stage_browser_link(
         self,
         user_id: int,
-        idp_id: int,
+        idp_id: uuid.UUID,
         redirect: str | None,
         client_ip: str | None,
         allowed_uris: set[str],
@@ -144,7 +145,7 @@ class AuthorizationService:
         self,
         user_id: int,
         session_id: str,
-        idp_id: int,
+        idp_id: uuid.UUID,
         action: idp_constants.StepUpAction,
         code_challenge: str,
         redirect: str,

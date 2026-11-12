@@ -1,5 +1,6 @@
 """Administration of identity-provider configuration."""
 
+import uuid
 from typing import Any
 
 import jasil.audit as jasil_audit
@@ -37,7 +38,7 @@ def _issuer_changes(current: str | None, new: str | None) -> bool:
     return idp_utils.normalize_issuer_url(current) != idp_utils.normalize_issuer_url(new)
 
 
-def _refuse_shared_issuer(issuer_url: str | None, exclude_id: int | None, db: Session) -> None:
+def _refuse_shared_issuer(issuer_url: str | None, exclude_id: uuid.UUID | None, db: Session) -> None:
     """Refuse an issuer URL another provider already uses.
 
     Args:
@@ -68,7 +69,7 @@ def list_identity_providers(
     )
 
 
-def get_identity_provider(idp_id: int, db: Session) -> identity_provider_schema.IdentityProviderRead:
+def get_identity_provider(idp_id: uuid.UUID, db: Session) -> identity_provider_schema.IdentityProviderRead:
     """Return one configured provider for the admin interface.
 
     Args:
@@ -248,7 +249,7 @@ def create_identity_provider(
 
 
 def update_identity_provider(
-    idp_id: int,
+    idp_id: uuid.UUID,
     data: identity_provider_schema.IdentityProviderUpdate,
     step_up: auth_schema.StepUpVerification,
     verify_step_up: identity_provider_contracts.StepUpVerifier,
@@ -332,7 +333,7 @@ def update_identity_provider(
 
 
 def delete_identity_provider(
-    idp_id: int,
+    idp_id: uuid.UUID,
     step_up: auth_schema.StepUpVerification,
     verify_step_up: identity_provider_contracts.StepUpVerifier,
     storage: platform_providers.StorageProvider,

@@ -23,7 +23,7 @@ def publish_password_reset_requested(
     )
     platform_publisher.publish_on_commit(
         password_reset_tokens_events.PASSWORD_RESET_REQUESTED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:request_password_reset",
         metadata={} if user_id is None else {core_event_metadata.META_USER_ID: user_id},
         db=db,
@@ -41,7 +41,7 @@ def publish_password_reset_completed(user_id: int, db: Session) -> None:
     payload = password_reset_tokens_events.PasswordResetCompletedPayload(user_id=user_id)
     platform_publisher.publish_on_commit(
         password_reset_tokens_events.PASSWORD_RESET_COMPLETED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:confirm_password_reset",
         metadata={core_event_metadata.META_USER_ID: user_id},
         db=db,

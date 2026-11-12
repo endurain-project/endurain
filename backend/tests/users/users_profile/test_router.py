@@ -22,6 +22,7 @@ import modules.users.users.schema as users_schema
 import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 
 PREFIX = core_config.ROOT_PATH + "/profile"  # /api/v1/profile
+IDP_ID = uuid.UUID(int=1)
 
 
 # ---------------------------------------------------------------------------
@@ -103,7 +104,7 @@ def _make_session_mock(session_id: str = "session-1") -> MagicMock:
     return s
 
 
-def _make_idp_mock(idp_id: int = 1) -> MagicMock:
+def _make_idp_mock(idp_id: uuid.UUID = IDP_ID) -> MagicMock:
     idp = MagicMock()
     idp.id = idp_id
     idp.name = "TestIdP"
@@ -1154,7 +1155,7 @@ class TestGetMyIdentityProviders:
         link = {
             "id": str(uuid.uuid4()),
             "user_id": 1,
-            "idp_id": 1,
+            "idp_id": str(IDP_ID),
             "idp_subject": "sub",
             "linked_at": "2025-01-01T00:00:00",
             "last_login": None,
@@ -1209,19 +1210,29 @@ class TestDeleteMyIdentityProvider:
     def test_success(self, profile_client, mock_auth_services):
         """Happy path: unlink IdP."""
         response = profile_client.post(
-            PREFIX + "/identity-providers/1/unlink",
+            PREFIX + f"/identity-providers/{IDP_ID}/unlink",
             json={"step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 204
         mock_auth_services.delete_identity_provider_link.assert_called_once()
 
+    def test_a_malformed_provider_id_is_422(self, profile_client, mock_auth_services):
+        """A provider id that is not a UUID is refused before the service runs."""
+        response = profile_client.post(
+            PREFIX + "/identity-providers/1/unlink",
+            json={"step_up": {"current_password": "pass123"}},
+        )
+
+        assert response.status_code == 422
+        mock_auth_services.delete_identity_provider_link.assert_not_called()
+
     def test_step_up_fails(self, profile_client, mock_auth_services):
         """Step-up fails → 401."""
         mock_auth_services.delete_identity_provider_link.side_effect = HTTPException(status_code=401, detail="Invalid")
 
         response = profile_client.post(
-            PREFIX + "/identity-providers/1/unlink",
+            PREFIX + f"/identity-providers/{IDP_ID}/unlink",
             json={"step_up": {"current_password": "wrong"}},
         )
 
@@ -1234,7 +1245,7 @@ class TestDeleteMyIdentityProvider:
         )
 
         response = profile_client.post(
-            PREFIX + "/identity-providers/1/unlink",
+            PREFIX + f"/identity-providers/{IDP_ID}/unlink",
             json={"step_up": {"current_password": "pass123"}},
         )
 
@@ -1247,7 +1258,7 @@ class TestDeleteMyIdentityProvider:
         )
 
         response = profile_client.post(
-            PREFIX + "/identity-providers/1/unlink",
+            PREFIX + f"/identity-providers/{IDP_ID}/unlink",
             json={"step_up": {"current_password": "pass123"}},
         )
 
@@ -1261,7 +1272,7 @@ class TestDeleteMyIdentityProvider:
         )
 
         response = profile_client.post(
-            PREFIX + "/identity-providers/1/unlink",
+            PREFIX + f"/identity-providers/{IDP_ID}/unlink",
             json={"step_up": {"current_password": "pass123"}},
         )
 
@@ -1275,7 +1286,7 @@ class TestDeleteMyIdentityProvider:
         )
 
         response = profile_client.post(
-            PREFIX + "/identity-providers/1/unlink",
+            PREFIX + f"/identity-providers/{IDP_ID}/unlink",
             json={"step_up": {"current_password": "pass123"}},
         )
 

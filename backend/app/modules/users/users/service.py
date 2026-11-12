@@ -6,6 +6,7 @@ Profile photo storage is :mod:`modules.users.users.photo_service`; what other mo
 may consume lives in :mod:`modules.users.users.integration_service`.
 """
 
+import uuid
 from collections.abc import Collection
 from datetime import UTC, datetime
 from datetime import date as datetime_date
@@ -1465,7 +1466,7 @@ def require_user_password_change(
 
 def unlink_identity_provider(
     user_id: int,
-    idp_id: int,
+    idp_id: uuid.UUID,
     actor_id: int,
     session_id: str,
     step_up: auth_schema.StepUpVerification,

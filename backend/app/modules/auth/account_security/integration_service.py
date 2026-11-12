@@ -1,5 +1,7 @@
 """Account-security operations used by the users module."""
 
+import uuid
+
 from sqlalchemy.orm import Session
 
 import core.dependencies as core_dependencies
@@ -127,6 +129,6 @@ def get_user_identity_provider_links(
     return identity_link_service.get_user_identity_provider_links(user_id, page, db)
 
 
-def admin_delete_identity_provider_link(user_id: int, idp_id: int, db: Session) -> None:
+def admin_delete_identity_provider_link(user_id: int, idp_id: uuid.UUID, db: Session) -> None:
     """Stage the unlinking of an identity provider from a user as an administrator."""
     identity_link_service.admin_delete_identity_provider_link(user_id, idp_id, db)

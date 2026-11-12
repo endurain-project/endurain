@@ -7,6 +7,8 @@ from unittest.mock import MagicMock, patch
 import modules.auth.identity_providers.integration_service as identity_links_utils
 from modules.auth.identity_provider_links.schema import IdentityProviderLinkRead
 
+IDP_1 = uuid.uuid4()
+
 
 class TestEnrichUserIdentityProviders:
     """Tests for enrich_user_identity_providers."""
@@ -43,13 +45,13 @@ class TestEnrichUserIdentityProviders:
         mock_link = MagicMock()
         mock_link.id = uuid.UUID(int=1)
         mock_link.user_id = 1
-        mock_link.idp_id = 1
+        mock_link.idp_id = IDP_1
         mock_link.idp_subject = "sub-123"
         mock_link.linked_at = now
         mock_link.last_login = now
 
         mock_idp = MagicMock()
-        mock_idp.id = 1
+        mock_idp.id = IDP_1
         mock_idp.name = "TestIdP"
         mock_idp.slug = "test-idp"
         mock_idp.icon = "https://example.com/icon.svg"
@@ -68,7 +70,7 @@ class TestEnrichUserIdentityProviders:
         assert result[0].idp_slug == "test-idp"
         assert result[0].idp_icon == "https://example.com/icon.svg"
         assert result[0].idp_provider_type == "oidc"
-        mock_get_idps.assert_called_once_with([1], mock_db)
+        mock_get_idps.assert_called_once_with([IDP_1], mock_db)
 
     def test_skips_link_when_idp_not_found(self, mock_db):
         """
@@ -85,7 +87,7 @@ class TestEnrichUserIdentityProviders:
         mock_link = MagicMock()
         mock_link.id = uuid.UUID(int=1)
         mock_link.user_id = 1
-        mock_link.idp_id = 99
+        mock_link.idp_id = uuid.uuid4()
         mock_link.idp_subject = "sub-xyz"
         mock_link.linked_at = now
         mock_link.last_login = None
@@ -110,12 +112,13 @@ class TestEnrichUserIdentityProviders:
         """
         now = datetime.now(UTC)
 
+        idp_ids = [uuid.uuid4() for _ in range(3)]
         mock_links = []
         for i in range(1, 4):
             link = MagicMock()
             link.id = uuid.UUID(int=i)
             link.user_id = 1
-            link.idp_id = i
+            link.idp_id = idp_ids[i - 1]
             link.idp_subject = f"sub-{i}"
             link.linked_at = now
             link.last_login = None
@@ -124,7 +127,7 @@ class TestEnrichUserIdentityProviders:
         mock_idps = []
         for i in range(1, 4):
             idp = MagicMock()
-            idp.id = i
+            idp.id = idp_ids[i - 1]
             idp.name = f"IdP {i}"
             idp.slug = f"idp-{i}"
             idp.icon = None
@@ -139,7 +142,7 @@ class TestEnrichUserIdentityProviders:
             result = identity_links_utils.enrich_user_identity_providers(mock_links, 1, mock_db)
 
         assert len(result) == 3
-        mock_get_idps.assert_called_once_with([1, 2, 3], mock_db)
+        mock_get_idps.assert_called_once_with(idp_ids, mock_db)
 
 
 class TestIdentityLinkServiceOperations:

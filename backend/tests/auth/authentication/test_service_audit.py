@@ -1,5 +1,6 @@
 """The authentication service writes the sign-in, sign-out and refresh-reuse audit trail."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -18,6 +19,8 @@ import modules.auth.known_devices.contracts as known_devices_contracts
 import modules.auth.login_audit.audit_actions as login_audit_actions
 import modules.auth.mfa.pending_login_store as pending_login_store
 from tests._helpers.auth import pending_login
+
+IDP_ID = uuid.uuid4()
 
 _SERVICE = "modules.auth.authentication.service"
 _CLAIMED_EXPIRY = datetime(2999, 1, 1, tzinfo=UTC)
@@ -439,7 +442,7 @@ class TestSsoSignIn:
 
     def test_an_sso_sign_in_is_audited_when_its_tokens_are_issued(self, mock_db):
         with jasil_testing.capture_audit() as audit:
-            self._exchange(mock_db, idp_id=3)
+            self._exchange(mock_db, idp_id=IDP_ID)
 
         entry = audit.assert_audited(
             _LOGIN, outcome="success", actor_id="5", credential_type="oauth", target_type="user", target_id="5"
@@ -448,7 +451,7 @@ class TestSsoSignIn:
 
     def test_an_sso_sign_in_with_a_second_factor_records_it(self, mock_db):
         with jasil_testing.capture_audit() as audit:
-            self._exchange(mock_db, idp_id=3, mfa_enabled=True, mfa_code="123456")
+            self._exchange(mock_db, idp_id=IDP_ID, mfa_enabled=True, mfa_code="123456")
 
         assert audit.assert_audited(_LOGIN, outcome="success").details["mfa"] is True
 

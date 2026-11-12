@@ -27,7 +27,7 @@ def publish_sessions_revoked(
     )
     platform_publisher.publish_on_commit(
         sessions_events.SESSIONS_REVOKED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:sessions",
         metadata={core_event_metadata.META_USER_ID: user_id},
         db=db,

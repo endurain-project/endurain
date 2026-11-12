@@ -1,5 +1,6 @@
 """Administering a sign-in provider is audited without ever recording a value."""
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
@@ -15,11 +16,12 @@ import modules.auth.schema as auth_schema
 
 STEP_UP = auth_schema.StepUpVerification()
 VERIFIER = MagicMock()
+IDP_ID = uuid.uuid4()
 
 
 def _state(**overrides) -> idp_contracts.IdentityProviderState:
     fields = {
-        "id": 3,
+        "id": IDP_ID,
         "name": "Pocket",
         "slug": "pocket",
         "provider_type": "oidc",
@@ -60,7 +62,7 @@ def test_creating_a_provider_is_audited_with_its_type_only(mock_db):
         provider_service.create_identity_provider(data, STEP_UP, VERIFIER, mock_db)
 
     entry = audit.assert_audited(
-        idp_audit_actions.IDENTITY_PROVIDER_CREATE.id, target_type="identity_provider", target_id="3"
+        idp_audit_actions.IDENTITY_PROVIDER_CREATE.id, target_type="identity_provider", target_id=str(IDP_ID)
     )
     assert entry.target_owner_id is None
     assert entry.details == {"provider_type": "oidc"}
@@ -78,7 +80,9 @@ class TestUpdate:
             crud.get_identity_provider_by_slug.return_value = None
             crud.identity_provider_exists.return_value = True
             crud.update_identity_provider.return_value = after
-            provider_service.update_identity_provider(3, data, STEP_UP, VERIFIER, MagicMock(), mock_db, if_match='"1"')
+            provider_service.update_identity_provider(
+                IDP_ID, data, STEP_UP, VERIFIER, MagicMock(), mock_db, if_match='"1"'
+            )
         return audit
 
     def test_names_the_fields_that_changed_and_never_their_values(self, mock_db):
@@ -95,7 +99,7 @@ class TestUpdate:
         audit = self._update(mock_db, before, after, data)
 
         entry = audit.assert_audited(
-            idp_audit_actions.IDENTITY_PROVIDER_UPDATE.id, target_type="identity_provider", target_id="3"
+            idp_audit_actions.IDENTITY_PROVIDER_UPDATE.id, target_type="identity_provider", target_id=str(IDP_ID)
         )
         assert entry.details == {"changed_fields": ["client_id", "client_secret", "name"], "sessions_ended": 0}
 
@@ -126,7 +130,7 @@ class TestUpdate:
                 idp_schema.IdentityProviderUpdate(name="Pocket", slug="pocket", enabled=False),
             )
 
-        end_all.assert_called_once_with(3, mock_db)
+        end_all.assert_called_once_with(IDP_ID, mock_db)
         entry = audit.assert_audited(idp_audit_actions.IDENTITY_PROVIDER_UPDATE.id)
         assert entry.details == {"changed_fields": ["enabled"], "sessions_ended": 4}
         mock_db.commit.assert_called_once()
@@ -189,10 +193,10 @@ def test_deleting_a_provider_is_audited_with_its_type_only(mock_db):
         crud.delete_identity_provider.return_value = True
         linked.return_value = False
         provider_service.delete_identity_provider(
-            3, MagicMock(), MagicMock(), MagicMock(), MagicMock(), mock_db, if_match='"1"'
+            IDP_ID, MagicMock(), MagicMock(), MagicMock(), MagicMock(), mock_db, if_match='"1"'
         )
 
     entry = audit.assert_audited(
-        idp_audit_actions.IDENTITY_PROVIDER_DELETE.id, target_type="identity_provider", target_id="3"
+        idp_audit_actions.IDENTITY_PROVIDER_DELETE.id, target_type="identity_provider", target_id=str(IDP_ID)
     )
     assert entry.details == {"provider_type": "oauth2"}

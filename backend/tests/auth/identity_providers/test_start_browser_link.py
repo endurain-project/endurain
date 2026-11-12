@@ -1,5 +1,6 @@
 """Tests for staging a browser identity-provider link flow and building its provider URL."""
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
@@ -11,13 +12,15 @@ import modules.auth.identity_providers.contracts as identity_provider_contracts
 import modules.auth.oauth_state.constants as oauth_state_constants
 from modules.auth.identity_providers import authorization_service, integration_service
 
+IDP_ID = uuid.uuid4()
+
 _UNSET = object()
 
 
 def _idp(enabled: bool = True) -> identity_provider_contracts.IdentityProviderState:
     now = datetime.now(UTC)
     return identity_provider_contracts.IdentityProviderState(
-        id=1,
+        id=IDP_ID,
         name="Test IdP",
         slug="test",
         provider_type="oidc",
@@ -61,7 +64,7 @@ def _stage(*, redirect=None, provider=_UNSET, session_id="sid", ends_other_sessi
         patch.object(authorization_service.oauth_state_integration, "create_oauth_state") as create_state,
     ):
         staged = integration_service.stage_browser_link(
-            7, 1, redirect, "10.0.0.1", session_id, ends_other_sessions, db, security_generation=generation
+            7, IDP_ID, redirect, "10.0.0.1", session_id, ends_other_sessions, db, security_generation=generation
         )
     return staged, service, create_state
 

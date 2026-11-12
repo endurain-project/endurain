@@ -1,5 +1,6 @@
 """The MFA challenge is bound to the client network, ends after three wrong codes and answers 401 once dead."""
 
+import uuid
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -20,6 +21,8 @@ import modules.auth.mfa_backup_codes.crud as backup_codes_crud
 import modules.auth.sessions.models as sessions_models
 import modules.auth.sessions.service as sessions_service
 from tests.auth.authentication.conftest import BACKUP_CODE, MOBILE, PASSWORD, USER_ID, USERNAME, WEB
+
+IDP_ID = uuid.uuid4()
 
 _LOGIN = "auth.session.login"
 _WRONG = "000000"
@@ -294,7 +297,7 @@ def _exchange(stack, *, claimed: bool):
         code_challenge="c",
         code_challenge_method="S256",
         client_type="web",
-        idp_id=3,
+        idp_id=IDP_ID,
         security_generation=0,
     )
     session = SimpleNamespace(

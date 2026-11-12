@@ -9,6 +9,8 @@ from pydantic import ValidationError
 
 import modules.notifications.schema as notifications_schema
 
+IDP_ID = uuid.UUID(int=4)
+
 
 class TestNotificationReadCreatedAt:
     """created_at is normalized to UTC and serializes as a full ISO 8601 timestamp."""
@@ -82,9 +84,9 @@ class TestTypedOptions:
             ("strava_token_expired", {}),
             ("strava_token_expired", {"delete_on": "2026-12-01"}),
             ("strava_data_deleted", {}),
-            ("idp_linked", {"idp_id": 4, "idp_name": None}),
+            ("idp_linked", {"idp_id": str(IDP_ID), "idp_name": None}),
             ("account_security_changed", {"change": "password"}),
-            ("account_security_changed", {"change": "idp_unlinked", "idp_id": 4, "idp_name": "Keycloak"}),
+            ("account_security_changed", {"change": "idp_unlinked", "idp_id": str(IDP_ID), "idp_name": "Keycloak"}),
             ("new_device_sign_in", {"browser": "Firefox", "operating_system": "Linux", "ip_address": "10.0.0.1"}),
         ],
     )
@@ -112,10 +114,11 @@ class TestTypedOptions:
             self._read(notification_type, options)
 
     def test_the_type_decides_the_options(self):
-        read = self._read("idp_linked", {"idp_id": 4, "idp_name": "Keycloak"})
+        read = self._read("idp_linked", {"idp_id": str(IDP_ID), "idp_name": "Keycloak"})
 
         assert isinstance(read.options, notifications_schema.IdpLinkedNotificationOptions)
         assert read.options.idp_name == "Keycloak"
+        assert read.options.idp_id == IDP_ID
 
     def test_an_unknown_type_is_refused(self):
         with pytest.raises(ValidationError):

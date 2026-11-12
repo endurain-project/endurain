@@ -1,5 +1,6 @@
 """Starting an identity-provider link: the route authenticates, binds the browser and puts no credential in a URL."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -16,7 +17,8 @@ import modules.auth.identity_providers.contracts as idp_contracts
 import modules.auth.identity_providers.dependencies as idp_dependencies
 
 SESSION_ID = "11111111-2222-3333-4444-555555555555"
-URL = core_config.ROOT_PATH + "/profile/identity-providers/3/link"
+IDP_ID = uuid.UUID(int=3)
+URL = core_config.ROOT_PATH + f"/profile/identity-providers/{IDP_ID}/link"
 
 
 @pytest.fixture
@@ -45,7 +47,7 @@ def test_the_route_returns_the_url_and_binds_the_browser(client):
     cookie = response.headers["set-cookie"].lower()
     assert "httponly" in cookie
     assert "samesite=lax" in cookie
-    assert start.call_args.args[0] == 3
+    assert start.call_args.args[0] == IDP_ID
     assert start.call_args.args[1].redirect == "/settings/security"
     assert start.call_args.args[3:5] == (7, SESSION_ID)
 
@@ -97,9 +99,25 @@ def test_unlinking_the_last_sign_in_method_is_a_conflict_problem(client):
         side_effect=core_exceptions.LastSignInMethodError("Cannot unlink last authentication method."),
     ):
         response = client.post(
-            core_config.ROOT_PATH + "/profile/identity-providers/3/unlink",
+            core_config.ROOT_PATH + f"/profile/identity-providers/{IDP_ID}/unlink",
             json={"step_up": {"current_password": "pw"}},
         )
 
     assert response.status_code == 409
     assert response.json()["type"] == "urn:endurain:error:last-sign-in-method"
+
+
+@pytest.mark.parametrize("action", ["link", "unlink"])
+def test_a_malformed_provider_id_is_refused(client, action):
+    with (
+        patch.object(identity_link_service, "start_idp_link") as start,
+        patch.object(identity_link_service, "delete_identity_provider_link") as unlink,
+    ):
+        response = client.post(
+            core_config.ROOT_PATH + f"/profile/identity-providers/3/{action}",
+            json={"step_up": {"current_password": "pw"}},
+        )
+
+    assert response.status_code == 422
+    start.assert_not_called()
+    unlink.assert_not_called()

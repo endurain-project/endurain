@@ -1,5 +1,6 @@
 """Tests for the users management router endpoints."""
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
@@ -21,6 +22,7 @@ import modules.users.users.schema as users_schema
 _SERVICE = "modules.users.users.router.users_service"
 _PHOTO = "modules.users.users.router.users_photo_service"
 _STEP_UP_STORE = MagicMock()
+_IDP_ID = uuid.UUID(int=2)
 _STEP_UP = {"current_password": "admin-password"}
 
 
@@ -630,13 +632,13 @@ class TestDeleteUser:
 class TestUnlinkUserIdentityProvider:
     @patch(f"{_SERVICE}.unlink_identity_provider")
     def test_unlinks_with_the_administrators_step_up(self, unlink, client, mock_db):
-        response = client.post("/users/4/identity-providers/2/unlink", json={"step_up": _STEP_UP})
+        response = client.post(f"/users/4/identity-providers/{_IDP_ID}/unlink", json={"step_up": _STEP_UP})
 
         assert response.status_code == 204
         assert response.content == b""
         unlink.assert_called_once_with(
             4,
-            2,
+            _IDP_ID,
             9,
             "sid-9",
             auth_schema.StepUpVerification(current_password="admin-password"),
@@ -644,14 +646,21 @@ class TestUnlinkUserIdentityProvider:
             mock_db,
         )
 
+    @patch(f"{_SERVICE}.unlink_identity_provider")
+    def test_a_malformed_provider_id_is_422(self, unlink, client):
+        response = client.post("/users/4/identity-providers/2/unlink", json={"step_up": _STEP_UP})
+
+        assert response.status_code == 422
+        unlink.assert_not_called()
+
     def test_the_delete_verb_is_gone(self, client):
-        assert client.delete("/users/4/identity-providers/2").status_code in (404, 405)
+        assert client.delete(f"/users/4/identity-providers/{_IDP_ID}").status_code in (404, 405)
 
     @patch(f"{_SERVICE}.unlink_identity_provider")
     def test_a_refused_step_up_is_the_services_answer(self, unlink, client):
         unlink.side_effect = core_exceptions.PermissionDeniedError("wrong password")
 
-        assert client.post("/users/4/identity-providers/2/unlink", json={"step_up": {}}).status_code == 403
+        assert client.post(f"/users/4/identity-providers/{_IDP_ID}/unlink", json={"step_up": {}}).status_code == 403
 
 
 class TestDeletionStatusRouteIsGone:

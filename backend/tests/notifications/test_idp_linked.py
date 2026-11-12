@@ -12,9 +12,11 @@ import modules.notifications.constants as notifications_constants
 import modules.notifications.service as notifications_service
 import modules.notifications.subscribers as notification_subscribers
 
+IDP_ID = uuid.UUID(int=4)
+
 
 def _event():
-    return new_event(idp_events.IDP_LINKED, {"user_id": 1, "idp_id": 4}, source="test")
+    return new_event(idp_events.IDP_LINKED, {"user_id": 1, "idp_id": str(IDP_ID)}, source="test")
 
 
 class TestCreateIdpLinkedNotification:
@@ -29,13 +31,13 @@ class TestCreateIdpLinkedNotification:
                 return_value=(MagicMock(id=uuid.UUID(int=3)), True),
             ) as create_once,
         ):
-            _, ws_message, created = notifications_service.create_idp_linked_notification(1, 4, "event-1", mock_db)
+            _, ws_message, created = notifications_service.create_idp_linked_notification(1, IDP_ID, "event-1", mock_db)
 
         data = create_once.call_args.args[0]
         assert data.user_id == 1
         assert data.type == notifications_constants.NotificationType.IDP_LINKED
         assert data.source_event_id == "event-1"
-        assert data.options == {"idp_id": 4, "idp_name": "Authentik"}
+        assert data.options == {"idp_id": str(IDP_ID), "idp_name": "Authentik"}
         assert ws_message == notifications_constants.IDP_LINKED_WS_MESSAGE
         assert created is True
         mock_db.commit.assert_called_once()
@@ -49,9 +51,9 @@ class TestCreateIdpLinkedNotification:
                 return_value=(MagicMock(id=uuid.UUID(int=3)), True),
             ) as create_once,
         ):
-            notifications_service.create_idp_linked_notification(1, 4, "event-1", mock_db)
+            notifications_service.create_idp_linked_notification(1, IDP_ID, "event-1", mock_db)
 
-        assert create_once.call_args.args[0].options == {"idp_id": 4, "idp_name": None}
+        assert create_once.call_args.args[0].options == {"idp_id": str(IDP_ID), "idp_name": None}
 
     def test_requires_the_user(self, mock_db):
         with (
@@ -59,7 +61,7 @@ class TestCreateIdpLinkedNotification:
             patch("modules.notifications.service.notifications_crud.create_notification_once") as create_once,
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            notifications_service.create_idp_linked_notification(1, 4, "event-1", mock_db)
+            notifications_service.create_idp_linked_notification(1, IDP_ID, "event-1", mock_db)
         create_once.assert_not_called()
         mock_db.commit.assert_not_called()
 
@@ -72,7 +74,7 @@ class TestCreateIdpLinkedNotification:
                 return_value=(MagicMock(id=uuid.UUID(int=3)), False),
             ),
         ):
-            _, _, created = notifications_service.create_idp_linked_notification(1, 4, "event-1", mock_db)
+            _, _, created = notifications_service.create_idp_linked_notification(1, IDP_ID, "event-1", mock_db)
 
         assert created is False
 
@@ -91,7 +93,7 @@ class TestNotifyIdpLinkedForEvent:
 
         notification_subscribers.notify_idp_linked_for_event(event)
 
-        assert mock_notif.create_idp_linked_notification.call_args.args[:3] == (1, 4, event.event_id)
+        assert mock_notif.create_idp_linked_notification.call_args.args[:3] == (1, IDP_ID, event.event_id)
         mock_ws.push_to_user.assert_called_once()
 
     @patch("modules.notifications.integration_service.websocket_integration")

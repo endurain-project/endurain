@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import uuid
+
 import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
 
@@ -29,7 +31,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def start_idp_link(
-    idp_id: int,
+    idp_id: uuid.UUID,
     link: users_schema.IdentityProviderLinkStart,
     client_ip: str,
     token_user_id: int,
@@ -111,7 +113,7 @@ def start_idp_link(
 
 
 def start_idp_step_up(
-    idp_id: int,
+    idp_id: uuid.UUID,
     start: identity_providers_schema.StepUpStartRequest,
     client_ip: str,
     token_user_id: int,
@@ -169,7 +171,7 @@ def start_idp_step_up(
     )
 
 
-def _stage_unlink(user_id: int, idp_id: int, db: Session) -> None:
+def _stage_unlink(user_id: int, idp_id: uuid.UUID, db: Session) -> None:
     """Stage the audit rows and the event of an identity provider unlinked from an account.
 
     Every session the user signed in to through the provider ends with the link, which is audited as a
@@ -204,7 +206,7 @@ def _stage_unlink(user_id: int, idp_id: int, db: Session) -> None:
 
 
 def delete_identity_provider_link(
-    idp_id: int,
+    idp_id: uuid.UUID,
     step_up: auth_schema.StepUpVerification,
     token_user_id: int,
     session_id: str,
@@ -270,7 +272,7 @@ def delete_identity_provider_link(
 
 def admin_delete_identity_provider_link(
     user_id: int,
-    idp_id: int,
+    idp_id: uuid.UUID,
     db: Session,
 ) -> None:
     """Stage the unlinking of an IdP from a user as an administrator; the caller commits.

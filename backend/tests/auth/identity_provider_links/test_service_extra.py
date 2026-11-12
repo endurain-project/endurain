@@ -6,6 +6,9 @@ from unittest.mock import MagicMock, patch
 
 import modules.auth.identity_providers.integration_service as user_idp_utils
 
+IDP_1 = uuid.uuid4()
+IDP_2 = uuid.uuid4()
+
 
 class TestEnrichUserIdentityProviders:
     """Test suite for enrich_user_identity_providers function."""
@@ -48,7 +51,7 @@ class TestEnrichUserIdentityProviders:
         mock_link1 = MagicMock()
         mock_link1.id = uuid.UUID(int=1)
         mock_link1.user_id = 1
-        mock_link1.idp_id = 1
+        mock_link1.idp_id = IDP_1
         mock_link1.idp_subject = "user123@strava.com"
         mock_link1.linked_at = now
         mock_link1.last_login = now
@@ -56,14 +59,14 @@ class TestEnrichUserIdentityProviders:
         mock_link2 = MagicMock()
         mock_link2.id = uuid.UUID(int=2)
         mock_link2.user_id = 1
-        mock_link2.idp_id = 2
+        mock_link2.idp_id = IDP_2
         mock_link2.idp_subject = "user456@garmin.com"
         mock_link2.linked_at = now
         mock_link2.last_login = now
 
         # Mock IdPs
         mock_idp1 = MagicMock()
-        mock_idp1.id = 1
+        mock_idp1.id = IDP_1
         mock_idp1.name = "Strava"
         mock_idp1.slug = "strava"
         mock_idp1.icon = "https://example.com/strava.svg"
@@ -71,7 +74,7 @@ class TestEnrichUserIdentityProviders:
         mock_idp1.provider_type = "oauth2"
 
         mock_idp2 = MagicMock()
-        mock_idp2.id = 2
+        mock_idp2.id = IDP_2
         mock_idp2.name = "Garmin"
         mock_idp2.slug = "garmin"
         mock_idp2.icon = "https://example.com/garmin.svg"
@@ -110,20 +113,20 @@ class TestEnrichUserIdentityProviders:
         mock_link1 = MagicMock()
         mock_link1.id = uuid.UUID(int=1)
         mock_link1.user_id = 1
-        mock_link1.idp_id = 1
+        mock_link1.idp_id = IDP_1
         mock_link1.idp_subject = "user@example.com"
         mock_link1.linked_at = now
 
         mock_link2 = MagicMock()
         mock_link2.id = uuid.UUID(int=2)
         mock_link2.user_id = 1
-        mock_link2.idp_id = 2
+        mock_link2.idp_id = IDP_2
         mock_link2.idp_subject = "user@example.com"
         mock_link2.linked_at = now
 
         # Mock IdPs - only 1 exists
         mock_idp1 = MagicMock()
-        mock_idp1.id = 1
+        mock_idp1.id = IDP_1
         mock_idp1.name = "Strava"
         mock_idp1.slug = "strava"
         mock_idp1.icon = "icon"
@@ -159,7 +162,7 @@ class TestEnrichUserIdentityProviders:
 
         mock_link = MagicMock()
         mock_link.id = uuid.UUID(int=1)
-        mock_link.idp_id = 1
+        mock_link.idp_id = uuid.uuid4()
         mock_link.linked_at = now
 
         with (

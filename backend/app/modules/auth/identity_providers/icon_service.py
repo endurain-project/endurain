@@ -1,5 +1,6 @@
 """The uploaded icon of an identity provider: upload, removal and serving."""
 
+import uuid
 from collections.abc import Callable
 
 import jasil.audit as jasil_audit
@@ -17,12 +18,12 @@ import modules.auth.identity_providers.crud as idp_crud
 logger = core_logger.get_logger(__name__)
 
 
-def _storage_key(idp_id: int) -> str:
+def _storage_key(idp_id: uuid.UUID) -> str:
     """Return the storage key of a provider's icon."""
     return str(idp_id)
 
 
-def _stage_icon_audit(idp_id: int, db: Session) -> None:
+def _stage_icon_audit(idp_id: uuid.UUID, db: Session) -> None:
     """Stage ``auth.identity_provider.update`` for an icon change, in the transaction that commits the flag.
 
     Args:
@@ -39,7 +40,7 @@ def _stage_icon_audit(idp_id: int, db: Session) -> None:
 
 
 def upload_icon(
-    idp_id: int, read_data: Callable[[], bytes], storage: platform_providers.StorageProvider, db: Session
+    idp_id: uuid.UUID, read_data: Callable[[], bytes], storage: platform_providers.StorageProvider, db: Session
 ) -> tuple[int, bool]:
     """Save a provider's icon and mark it as set.
 
@@ -90,7 +91,7 @@ def upload_icon(
     return staged
 
 
-def delete_icon(idp_id: int, storage: platform_providers.StorageProvider, db: Session) -> None:
+def delete_icon(idp_id: uuid.UUID, storage: platform_providers.StorageProvider, db: Session) -> None:
     """Remove a provider's uploaded icon and mark it as unset.
 
     The flag is cleared and committed first, so the icon stops being served at once and the provider row is not
@@ -113,7 +114,7 @@ def delete_icon(idp_id: int, storage: platform_providers.StorageProvider, db: Se
     logger.info("Identity provider icon deleted", extra=core_logger.context(idp_id=idp_id))
 
 
-def delete_blob(idp_id: int, storage: platform_providers.StorageProvider) -> None:
+def delete_blob(idp_id: uuid.UUID, storage: platform_providers.StorageProvider) -> None:
     """Delete an icon blob, logging a storage outage instead of failing: the flag decides whether it is served.
 
     A blob left behind is removed by the next upload over it or by the icon sweep.
@@ -130,7 +131,7 @@ def delete_blob(idp_id: int, storage: platform_providers.StorageProvider) -> Non
         )
 
 
-def get_public_icon(slug: str, db: Session) -> tuple[int, int] | None:
+def get_public_icon(slug: str, db: Session) -> tuple[uuid.UUID, int] | None:
     """Return the id and icon version of a provider that has an uploaded icon.
 
     A disabled provider's icon is served too: the admin list shows it, and it is one admin-chosen logo.
@@ -171,7 +172,7 @@ def sweep_unreferenced_icons(storage: platform_providers.StorageProvider) -> int
 def _referenced_icon_keys(keys: list[str], db: Session) -> set[str]:
     """Tell which of the given icon-area keys must be kept.
 
-    A key is ``{idp_id}``. It is kept while that provider exists and has an uploaded icon. A key that is not
+    A key is the provider's UUID. It is kept while that provider exists and has an uploaded icon. A key that is not
     a provider id is not this area's to judge and is kept too.
 
     Args:
@@ -181,12 +182,20 @@ def _referenced_icon_keys(keys: list[str], db: Session) -> set[str]:
     Returns:
         The keys to keep.
     """
-    owners = {key: int(key) if key.isascii() and key.isdecimal() else None for key in keys}
+    owners = {key: _parse_icon_key(key) for key in keys}
     with_icon = idp_crud.get_ids_with_icon(sorted({owner for owner in owners.values() if owner is not None}), db)
     return {key for key, owner in owners.items() if owner is None or owner in with_icon}
 
 
-def read_icon(idp_id: int, storage: platform_providers.StorageProvider) -> tuple[bytes, str] | None:
+def _parse_icon_key(key: str) -> uuid.UUID | None:
+    """Return the provider id a key names, or None when the key is not a UUID."""
+    try:
+        return uuid.UUID(key)
+    except ValueError:
+        return None
+
+
+def read_icon(idp_id: uuid.UUID, storage: platform_providers.StorageProvider) -> tuple[bytes, str] | None:
     """Return a provider's uploaded icon.
 
     Args:

@@ -2,6 +2,7 @@
 
 import base64
 import hashlib
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -16,6 +17,7 @@ from modules.auth.identity_providers.constants import StepUpAction
 from modules.auth.identity_providers.step_up_ticket_store import StepUpTicketStore
 
 USER_ID = 7
+IDP_ID = uuid.UUID(int=3)
 SESSION_ID = "11111111-2222-3333-4444-555555555555"
 VERIFIER = "v" * 43
 CHALLENGE = base64.urlsafe_b64encode(hashlib.sha256(VERIFIER.encode()).digest()).decode().rstrip("=")
@@ -47,7 +49,7 @@ def _issue(state, **overrides) -> str:
     fields = {
         "user_id": USER_ID,
         "session_id": SESSION_ID,
-        "idp_id": 3,
+        "idp_id": IDP_ID,
         "code_challenge": CHALLENGE,
         "action": StepUpAction.API_KEY_CREATE,
         "security_generation": 0,

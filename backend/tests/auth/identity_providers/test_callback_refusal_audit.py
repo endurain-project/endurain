@@ -1,5 +1,6 @@
 """The SSO callback audits the sign-ins it refuses as ``auth.session.login`` rows."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -12,6 +13,9 @@ import core.hashing as core_hashing
 import modules.auth.identity_providers.callback_service as callback_service
 import modules.auth.identity_providers.user_provisioning_service as user_provisioning_service
 import modules.auth.oauth_state.constants as oauth_state_constants
+
+IDP_ID = uuid.uuid4()
+OTHER_IDP_ID = uuid.uuid4()
 
 _LOGIN = "auth.session.login"
 _LINK = "auth.identity_link.link"
@@ -37,7 +41,7 @@ def service():
 
 def _idp(**overrides):
     values = {
-        "id": 1,
+        "id": IDP_ID,
         "slug": "test",
         "name": "Test",
         "enabled": True,
@@ -53,7 +57,7 @@ def _idp(**overrides):
 def _state(**overrides):
     values = {
         "id": "state-id",
-        "idp_id": 1,
+        "idp_id": IDP_ID,
         "client_type": "web",
         "user_id": None,
         "browser_binding_hash": core_hashing.sha256_hex("binding"),
@@ -88,7 +92,7 @@ def _assert_link_row(audit, *, outcome, reason, user_id=7):
     entry = audit.assert_audited(
         _LINK, outcome=outcome, target_type="user", target_id=str(user_id), target_owner_id=str(user_id)
     )
-    assert entry.details == {"idp_id": 1, "reason": reason}
+    assert entry.details == {"idp_id": str(IDP_ID), "reason": reason}
     return entry
 
 
@@ -118,7 +122,7 @@ class TestStateRefusals:
         _assert_refusal(audit, outcome="failure", reason="invalid_state")
 
     def test_a_state_of_another_provider_is_audited(self, service):
-        audit = self._prepare(service, idp=_idp(id=1), oauth_state=_state(idp_id=2))
+        audit = self._prepare(service, idp=_idp(id=IDP_ID), oauth_state=_state(idp_id=OTHER_IDP_ID))
 
         _assert_refusal(audit, outcome="failure", reason="invalid_state")
 
@@ -128,7 +132,9 @@ class TestStateRefusals:
         _assert_refusal(audit, outcome="failure", reason="invalid_state")
 
     def test_a_refused_link_state_is_a_link_refusal_not_a_sign_in(self, service):
-        audit = self._prepare(service, idp=_idp(id=1), oauth_state=_state(idp_id=2, purpose=_PURPOSE.LINK, user_id=7))
+        audit = self._prepare(
+            service, idp=_idp(id=IDP_ID), oauth_state=_state(idp_id=OTHER_IDP_ID, purpose=_PURPOSE.LINK, user_id=7)
+        )
 
         audit.assert_not_audited(_LOGIN)
         entry = _assert_link_row(audit, outcome="failure", reason="invalid_state")
@@ -149,7 +155,7 @@ class TestStateRefusals:
 
     def test_a_refused_step_up_state_is_audited_as_a_step_up(self, service):
         audit = self._prepare(
-            service, idp=_idp(id=1), oauth_state=_state(idp_id=2, purpose=_PURPOSE.STEP_UP, user_id=7)
+            service, idp=_idp(id=IDP_ID), oauth_state=_state(idp_id=OTHER_IDP_ID, purpose=_PURPOSE.STEP_UP, user_id=7)
         )
 
         audit.assert_not_audited(_LOGIN)

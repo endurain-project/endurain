@@ -2,6 +2,7 @@
 
 import itertools
 import secrets as secrets_module
+import uuid
 from typing import Any
 
 import jasil.audit as jasil_audit
@@ -42,7 +43,7 @@ class SsoSignInRefusedError(core_exceptions.PermissionDeniedError):
         self.login_error = login_error
 
 
-def stage_identity_link(user_id: int, idp_id: int, db: Session) -> None:
+def stage_identity_link(user_id: int, idp_id: uuid.UUID, db: Session) -> None:
     """Stage the audit row of a provider linked to an account, in the transaction that commits the link.
 
     Args:
@@ -62,7 +63,7 @@ def stage_identity_link(user_id: int, idp_id: int, db: Session) -> None:
 
 def record_identity_link_refused(
     user_id: int,
-    idp_id: int,
+    idp_id: uuid.UUID,
     reason: idp_audit_actions.IdentityLinkRefusal,
     outcome: jasil_audit.Outcome = jasil_audit.Outcome.DENIED,
 ) -> None:

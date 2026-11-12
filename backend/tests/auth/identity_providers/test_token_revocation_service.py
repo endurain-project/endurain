@@ -1,6 +1,7 @@
 """The tokens of ended sessions are revoked at their provider (RFC 7009) and then forgotten."""
 
 import logging
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
@@ -14,6 +15,9 @@ import modules.auth.identity_provider_links.crud as identity_links_crud
 import modules.auth.identity_provider_links.service as identity_links_service
 import modules.auth.identity_providers.token_revocation_service as revocation_module
 from tests._helpers.db import create_sqlite_session_factory
+
+IDP_ID = uuid.uuid4()
+OTHER_IDP_ID = uuid.uuid4()
 
 ENDPOINT = "https://idp.example/revoke"
 
@@ -43,7 +47,7 @@ def oidc():
     return oidc
 
 
-def _store(factory, session_id, *, refresh="plain", user_id=7, idp_id=3):
+def _store(factory, session_id, *, refresh="plain", user_id=7, idp_id=IDP_ID):
     encrypted = core_cryptography.encrypt_token_fernet(refresh) if refresh is not None else None
     with factory() as db:
         identity_links_crud.create_idp_session_token(session_id, user_id, idp_id, encrypted, None, db)
@@ -59,7 +63,7 @@ def _rows(factory):
 def _run(oidc, factory, *, alive=(), user_id=None, idp=True):
     """Revoke the ended sessions, with ``alive`` naming the sessions that still exist."""
     service = revocation_module.IdpTokenRevocationService(oidc)
-    provider = MagicMock(id=3, enabled=True) if idp else None
+    provider = MagicMock(id=IDP_ID, enabled=True) if idp else None
     with (
         patch.object(
             identity_links_service.sessions_integration,
@@ -134,7 +138,7 @@ class TestRevokeEndedSessions:
 
     def test_a_token_no_key_decrypts_is_deleted_without_a_provider_call(self, oidc, factory):
         with factory() as db:
-            identity_links_crud.create_idp_session_token("gone", 7, 3, "not-a-fernet-token", None, db)
+            identity_links_crud.create_idp_session_token("gone", 7, IDP_ID, "not-a-fernet-token", None, db)
             db.commit()
 
         assert _run(oidc, factory) == 1
@@ -215,8 +219,8 @@ class TestRevokeEndedSessions:
             httpx2.ConnectError("down"),
             MagicMock(status_code=200),
         ]
-        _store(factory, "slow-idp", idp_id=3)
-        _store(factory, "other-idp", idp_id=4)
+        _store(factory, "slow-idp", idp_id=IDP_ID)
+        _store(factory, "other-idp", idp_id=OTHER_IDP_ID)
         first_by_id = next(iter(_rows(factory)))
 
         assert _run(oidc, factory) == 1

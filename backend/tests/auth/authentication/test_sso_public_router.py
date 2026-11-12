@@ -1,5 +1,6 @@
 """Tests for the SSO token-exchange route."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -13,6 +14,8 @@ import modules.auth.authentication.sso_public_router as sso_public_router
 import modules.auth.mfa.dependencies as mfa_dependencies
 import modules.auth.mfa.pending_login_store as pending_login_store
 import modules.auth.oauth_state.constants as oauth_state_constants
+
+IDP_ID = uuid.uuid4()
 
 _VERIFIER = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
 _SERVICE = "modules.auth.authentication.service"
@@ -45,7 +48,7 @@ def _client(mock_db, pending_mfa_store: MagicMock | None = None) -> TestClient:
     return TestClient(app, headers={"X-Client-Type": "mobile"})
 
 
-def _session_and_state(client_type: str = "mobile", idp_id: int | None = 5) -> tuple[MagicMock, MagicMock]:
+def _session_and_state(client_type: str = "mobile", idp_id: uuid.UUID | None = IDP_ID) -> tuple[MagicMock, MagicMock]:
     session = MagicMock()
     session.user_id = 42
     session.tokens_exchanged = False

@@ -1,10 +1,13 @@
 """Tests for the token-rotation policy enum."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import modules.auth.identity_providers.token_policy as token_policy
 from modules.auth.identity_providers.token_policy import TokenAction
+
+IDP_ID = uuid.uuid4()
 
 
 class TestTokenActionEnum:
@@ -20,7 +23,7 @@ def _session_token(**overrides):
     now = datetime.now(UTC)
     values = {
         "user_id": 7,
-        "idp_id": 3,
+        "idp_id": IDP_ID,
         "refresh_token": "encrypted",
         "access_token_expires_at": now + timedelta(hours=1),
         "refresh_token_updated_at": now - timedelta(hours=1),

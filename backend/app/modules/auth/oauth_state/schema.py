@@ -1,5 +1,6 @@
 """Pydantic schemas for OAuth state create/read operations."""
 
+import uuid
 from datetime import datetime
 
 from pydantic import (
@@ -27,7 +28,7 @@ class OAuthStateCreate(BaseModel):
         max_length=64,
         description="State parameter (secrets.token_urlsafe(32))",
     )
-    idp_id: StrictInt | None = Field(None, description="Identity provider ID (may be null if mobile logic)")
+    idp_id: uuid.UUID | None = Field(None, description="Identity provider ID (may be null if mobile logic)")
     code_challenge: StrictStr | None = Field(
         None,
         min_length=43,
@@ -75,7 +76,7 @@ class OAuthStateRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: StrictStr = Field(..., description="State ID")
-    idp_id: StrictInt | None = Field(None, description="Identity provider ID (may be null if mobile logic)")
+    idp_id: uuid.UUID | None = Field(None, description="Identity provider ID (may be null if mobile logic)")
     code_challenge: StrictStr | None = Field(None, description="PKCE challenge")
     code_challenge_method: StrictStr | None = Field(None, description="PKCE method")
     nonce: StrictStr = Field(..., description="OIDC nonce")

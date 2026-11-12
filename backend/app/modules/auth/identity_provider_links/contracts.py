@@ -11,7 +11,7 @@ class IdentityProviderDetails(Protocol):
     """Display data required to enrich a linked identity provider."""
 
     @property
-    def id(self) -> int:
+    def id(self) -> uuid.UUID:
         """The provider's id."""
         ...
 
@@ -46,7 +46,7 @@ class IdentityLinkRead(BaseModel):
 
     id: uuid.UUID
     user_id: int
-    idp_id: int
+    idp_id: uuid.UUID
     idp_subject: str
     linked_at: datetime
     last_login: datetime | None
@@ -60,7 +60,7 @@ class IdpSessionTokenRead(BaseModel):
     id: uuid.UUID
     session_id: str
     user_id: int
-    idp_id: int
+    idp_id: uuid.UUID
     refresh_token: str | None
     id_token: str | None
     idp_sid: str | None

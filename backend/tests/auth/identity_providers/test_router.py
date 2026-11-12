@@ -1,5 +1,6 @@
 """Tests for identity-provider admin routes."""
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
@@ -20,6 +21,7 @@ import modules.auth.schema as auth_schema
 OIDC = MagicMock()
 VERIFIER = MagicMock()
 STEP_UP = {"current_password": "admin-password"}
+IDP_ID = uuid.uuid4()
 
 
 def _client() -> TestClient:
@@ -45,7 +47,7 @@ def service(monkeypatch) -> MagicMock:
 def _provider(version: int = 1) -> idp_schema.IdentityProviderRead:
     now = datetime.now(UTC)
     return idp_schema.IdentityProviderRead(
-        id=1, name="Google", slug="google", created_at=now, updated_at=now, version=version
+        id=IDP_ID, name="Google", slug="google", created_at=now, updated_at=now, version=version
     )
 
 
@@ -93,25 +95,32 @@ def test_create_identity_provider_delegates_to_service(service):
 
     assert response.status_code == 201
     assert response.headers["etag"] == '"1"'
-    assert response.headers["location"] == "/auth/identity_providers/1"
+    assert response.headers["location"] == f"/auth/identity_providers/{IDP_ID}"
     service.create_identity_provider.assert_called_once()
 
 
 def test_read_identity_provider_returns_it_with_its_etag(service):
     service.get_identity_provider.return_value = _provider(version=3)
 
-    response = _client().get("/auth/identity_providers/1", headers={"Authorization": "Bearer x"})
+    response = _client().get(f"/auth/identity_providers/{IDP_ID}", headers={"Authorization": "Bearer x"})
 
     assert response.status_code == 200
     assert response.headers["etag"] == '"3"'
     assert "client_secret" not in response.json()
-    assert service.get_identity_provider.call_args.args[0] == 1
+    assert service.get_identity_provider.call_args.args[0] == IDP_ID
+
+
+def test_read_rejects_a_malformed_id(service):
+    response = _client().get("/auth/identity_providers/not-a-uuid", headers={"Authorization": "Bearer x"})
+
+    assert response.status_code == 422
+    service.get_identity_provider.assert_not_called()
 
 
 def test_read_of_a_missing_identity_provider_is_404(service):
     service.get_identity_provider.side_effect = core_exceptions.NotFoundError("Identity provider not found")
 
-    response = _client().get("/auth/identity_providers/99", headers={"Authorization": "Bearer x"})
+    response = _client().get(f"/auth/identity_providers/{uuid.uuid4()}", headers={"Authorization": "Bearer x"})
 
     assert response.status_code == 404
 
@@ -120,7 +129,7 @@ def test_update_identity_provider_requires_if_match_and_returns_new_etag(service
     service.update_identity_provider.return_value = _provider(version=2)
 
     response = _client().patch(
-        "/auth/identity_providers/1",
+        f"/auth/identity_providers/{IDP_ID}",
         json={"name": "Google", "slug": "google", "step_up": STEP_UP},
         headers={"Authorization": "Bearer x", "If-Match": '"1"'},
     )
@@ -154,7 +163,7 @@ def test_create_returns_400_for_a_refused_url(service):
 def test_update_requires_if_match_before_calling_service(service):
 
     response = _client().patch(
-        "/auth/identity_providers/1",
+        f"/auth/identity_providers/{IDP_ID}",
         json={"name": "Google", "slug": "google", "step_up": STEP_UP},
         headers={"Authorization": "Bearer x"},
     )
@@ -166,7 +175,7 @@ def test_update_requires_if_match_before_calling_service(service):
 def test_update_rejects_if_match_wildcard_before_calling_service(service):
 
     response = _client().patch(
-        "/auth/identity_providers/1",
+        f"/auth/identity_providers/{IDP_ID}",
         json={"name": "Google", "slug": "google", "step_up": STEP_UP},
         headers={"Authorization": "Bearer x", "If-Match": "*"},
     )
@@ -179,7 +188,7 @@ def test_update_returns_precondition_failed_for_a_stale_etag(service):
     service.update_identity_provider.side_effect = core_exceptions.PreconditionFailedError("stale")
 
     response = _client().patch(
-        "/auth/identity_providers/1",
+        f"/auth/identity_providers/{IDP_ID}",
         json={"name": "Google", "slug": "google", "step_up": STEP_UP},
         headers={"Authorization": "Bearer x", "If-Match": '"1"'},
     )
@@ -188,10 +197,10 @@ def test_update_returns_precondition_failed_for_a_stale_etag(service):
     service.update_identity_provider.assert_called_once()
 
 
-def test_update_rejects_nonpositive_id(service):
+def test_update_rejects_a_malformed_id(service):
 
     response = _client().patch(
-        "/auth/identity_providers/0",
+        "/auth/identity_providers/not-a-uuid",
         json={"name": "Google", "slug": "google", "step_up": STEP_UP},
         headers={"Authorization": "Bearer x", "If-Match": '"1"'},
     )
@@ -200,9 +209,18 @@ def test_update_rejects_nonpositive_id(service):
     service.update_identity_provider.assert_not_called()
 
 
-def _delete(path: str = "/auth/identity_providers/1/delete", **kwargs):
+def _delete(path: str = f"/auth/identity_providers/{IDP_ID}/delete", **kwargs):
     headers = {"Authorization": "Bearer x", **kwargs.pop("headers", {})}
     return _client().post(path, headers=headers, **kwargs)
+
+
+def test_delete_rejects_a_malformed_id(service):
+    response = _delete(
+        "/auth/identity_providers/not-a-uuid/delete", json={"step_up": STEP_UP}, headers={"If-Match": '"2"'}
+    )
+
+    assert response.status_code == 422
+    service.delete_identity_provider.assert_not_called()
 
 
 def test_delete_identity_provider_delegates_to_service(service):
@@ -211,7 +229,7 @@ def test_delete_identity_provider_delegates_to_service(service):
     assert response.status_code == 204
     service.delete_identity_provider.assert_called_once()
     args = service.delete_identity_provider.call_args.args
-    assert args[0] == 1
+    assert args[0] == IDP_ID
     assert args[1] == auth_schema.StepUpVerification(current_password="admin-password")
     assert args[2] is VERIFIER
     assert args[4] is OIDC
@@ -234,7 +252,9 @@ def test_delete_with_a_refused_step_up_is_403(service):
 
 
 def test_the_old_delete_route_is_gone(service):
-    response = _client().delete("/auth/identity_providers/1", headers={"Authorization": "Bearer x", "If-Match": '"2"'})
+    response = _client().delete(
+        f"/auth/identity_providers/{IDP_ID}", headers={"Authorization": "Bearer x", "If-Match": '"2"'}
+    )
 
     assert response.status_code == 405
     service.delete_identity_provider.assert_not_called()
@@ -262,7 +282,7 @@ def test_putting_an_icon_answers_201_for_a_new_one_and_200_for_a_replacement(mon
     monkeypatch.setattr(idp_router, "idp_icon_service", icon_service)
 
     response = _client().put(
-        "/auth/identity_providers/1/icon",
+        f"/auth/identity_providers/{IDP_ID}/icon",
         files={"file": ("icon.png", b"ignored", "image/png")},
         headers={"Authorization": "Bearer x"},
     )
@@ -277,7 +297,7 @@ def test_upload_icon_hands_the_service_a_reader_for_the_upload(monkeypatch):
     monkeypatch.setattr(idp_router, "idp_icon_service", icon_service)
 
     response = _client().put(
-        "/auth/identity_providers/1/icon",
+        f"/auth/identity_providers/{IDP_ID}/icon",
         files={"file": ("icon.png", b"ignored", "image/png")},
         headers={"Authorization": "Bearer x"},
     )
@@ -285,16 +305,16 @@ def test_upload_icon_hands_the_service_a_reader_for_the_upload(monkeypatch):
     assert response.status_code == 201
     assert response.json() == {"version": 5}
     idp_id, read_data = icon_service.upload_icon.call_args.args[:2]
-    assert idp_id == 1
+    assert idp_id == IDP_ID
     assert callable(read_data)
 
 
-def test_upload_icon_rejects_nonpositive_id(monkeypatch):
+def test_upload_icon_rejects_a_malformed_id(monkeypatch):
     icon_service = MagicMock()
     monkeypatch.setattr(idp_router, "idp_icon_service", icon_service)
 
     response = _client().put(
-        "/auth/identity_providers/0/icon",
+        "/auth/identity_providers/not-a-uuid/icon",
         files={"file": ("icon.png", b"x", "image/png")},
         headers={"Authorization": "Bearer x"},
     )
@@ -303,14 +323,24 @@ def test_upload_icon_rejects_nonpositive_id(monkeypatch):
     icon_service.upload_icon.assert_not_called()
 
 
+def test_delete_icon_rejects_a_malformed_id(monkeypatch):
+    icon_service = MagicMock()
+    monkeypatch.setattr(idp_router, "idp_icon_service", icon_service)
+
+    response = _client().delete("/auth/identity_providers/not-a-uuid/icon", headers={"Authorization": "Bearer x"})
+
+    assert response.status_code == 422
+    icon_service.delete_icon.assert_not_called()
+
+
 def test_delete_icon_delegates_to_the_service(monkeypatch):
     icon_service = MagicMock()
     monkeypatch.setattr(idp_router, "idp_icon_service", icon_service)
 
-    response = _client().delete("/auth/identity_providers/1/icon", headers={"Authorization": "Bearer x"})
+    response = _client().delete(f"/auth/identity_providers/{IDP_ID}/icon", headers={"Authorization": "Bearer x"})
 
     assert response.status_code == 204
-    assert icon_service.delete_icon.call_args.args[0] == 1
+    assert icon_service.delete_icon.call_args.args[0] == IDP_ID
 
 
 class TestStepUp:
@@ -374,7 +404,7 @@ class TestStepUp:
 
     def test_update_without_a_step_up_is_422_and_never_reaches_the_service(self, service):
         response = _client().patch(
-            "/auth/identity_providers/1",
+            f"/auth/identity_providers/{IDP_ID}",
             json={"name": "Google", "slug": "google"},
             headers={"Authorization": "Bearer x", "If-Match": '"1"'},
         )
@@ -386,7 +416,7 @@ class TestStepUp:
         service.update_identity_provider.return_value = _provider(version=2)
 
         _client().patch(
-            "/auth/identity_providers/1",
+            f"/auth/identity_providers/{IDP_ID}",
             json={"name": "Renamed", "slug": "google", "step_up": STEP_UP},
             headers={"Authorization": "Bearer x", "If-Match": '"1"'},
         )
@@ -403,7 +433,7 @@ class TestStepUp:
         service.update_identity_provider.side_effect = core_exceptions.StepUpFailedError()
 
         response = _client().patch(
-            "/auth/identity_providers/1",
+            f"/auth/identity_providers/{IDP_ID}",
             json={"name": "Google", "slug": "google", "step_up": STEP_UP},
             headers={"Authorization": "Bearer x", "If-Match": '"1"'},
         )

@@ -1,5 +1,6 @@
 """Audit rows and ``auth.account_security_changed`` events written by the account-security workflows."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -23,6 +24,7 @@ import modules.auth.mfa.schema as mfa_schema
 import modules.auth.schema as auth_schema
 import modules.auth.sessions.audit_actions as sessions_audit_actions
 
+IDP_ID = uuid.UUID(int=3)
 Change = account_security_events.AccountSecurityChange
 Reason = login_audit_actions.StepUpFailureReason
 Method = login_audit_actions.StepUpMethod
@@ -41,7 +43,7 @@ def assert_event(publish, change, user_id=7, idp_id=None):
     assert publish.call_args.args[1] == {
         "user_id": user_id,
         "change": change.value,
-        "idp_id": idp_id,
+        "idp_id": None if idp_id is None else str(idp_id),
         "access_type": None,
     }
 
@@ -559,7 +561,7 @@ class TestIdentityUnlinkAudit:
             patch.object(identity_link_service.step_up_service, "verify_step_up_credentials"),
             jasil_testing.capture_audit() as audit,
         ):
-            identity_link_service.delete_identity_provider_link(3, step_up, 7, "sid", MagicMock(), mock_db)
+            identity_link_service.delete_identity_provider_link(IDP_ID, step_up, 7, "sid", MagicMock(), mock_db)
 
         entry = audit.assert_audited(
             account_security_audit_actions.IDENTITY_LINK_UNLINK.id,
@@ -567,8 +569,8 @@ class TestIdentityUnlinkAudit:
             target_id="7",
             target_owner_id="7",
         )
-        assert entry.details == {"idp_id": 3}
-        assert_event(published, Change.IDENTITY_PROVIDER_UNLINKED, idp_id=3)
+        assert entry.details == {"idp_id": str(IDP_ID)}
+        assert_event(published, Change.IDENTITY_PROVIDER_UNLINKED, idp_id=IDP_ID)
 
     @pytest.mark.parametrize("admin", [False, True])
     def test_an_unlink_audits_the_sessions_it_ends(self, mock_db, published, admin):
@@ -586,12 +588,12 @@ class TestIdentityUnlinkAudit:
             jasil_testing.capture_audit() as audit,
         ):
             if admin:
-                account_security_integration.admin_delete_identity_provider_link(7, 3, mock_db)
+                account_security_integration.admin_delete_identity_provider_link(7, IDP_ID, mock_db)
             else:
                 step_up = auth_schema.StepUpVerification(current_password="pw")
-                identity_link_service.delete_identity_provider_link(3, step_up, 7, "sid", MagicMock(), mock_db)
+                identity_link_service.delete_identity_provider_link(IDP_ID, step_up, 7, "sid", MagicMock(), mock_db)
 
-        end_sessions.assert_called_once_with(7, 3, mock_db)
+        end_sessions.assert_called_once_with(7, IDP_ID, mock_db)
         entry = audit.assert_audited(
             sessions_audit_actions.SESSION_REVOKE.id, target_type="user", target_id="7", target_owner_id="7"
         )
@@ -609,20 +611,20 @@ class TestIdentityUnlinkAudit:
             patch.object(identity_link_service.identity_provider_links_integration, "end_idp_sessions", return_value=0),
             jasil_testing.capture_audit() as audit,
         ):
-            account_security_integration.admin_delete_identity_provider_link(7, 3, mock_db)
+            account_security_integration.admin_delete_identity_provider_link(7, IDP_ID, mock_db)
 
         audit.assert_not_audited(sessions_audit_actions.SESSION_REVOKE.id)
 
     def test_admin_unlink(self, mock_db, published):
         p = self._patches()
         with p[0], p[1], p[2], p[3], p[4], jasil_testing.capture_audit() as audit:
-            account_security_integration.admin_delete_identity_provider_link(7, 3, mock_db)
+            account_security_integration.admin_delete_identity_provider_link(7, IDP_ID, mock_db)
 
         entry = audit.assert_audited(
             account_security_audit_actions.IDENTITY_LINK_UNLINK.id, target_type="user", target_id="7"
         )
-        assert entry.details == {"idp_id": 3}
-        assert_event(published, Change.IDENTITY_PROVIDER_UNLINKED, idp_id=3)
+        assert entry.details == {"idp_id": str(IDP_ID)}
+        assert_event(published, Change.IDENTITY_PROVIDER_UNLINKED, idp_id=IDP_ID)
 
 
 class TestStepUpAudit:

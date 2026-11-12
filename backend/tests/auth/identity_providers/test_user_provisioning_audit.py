@@ -1,5 +1,6 @@
 """SSO sign-in audits every identity link it makes, and every one it refuses."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import jasil.testing as jasil_testing
@@ -9,13 +10,15 @@ import core.exceptions as core_exceptions
 import modules.auth.identity_providers.audit_actions as idp_audit_actions
 import modules.auth.identity_providers.user_provisioning_service as provisioning
 
+IDP_ID = uuid.uuid4()
+
 _LINKS = "modules.auth.identity_providers.user_provisioning_service.identity_provider_links_integration"
 _USERS = "modules.auth.identity_providers.user_provisioning_service.users_integration"
 
 
 def _idp() -> MagicMock:
     idp = MagicMock(
-        id=3, user_mapping=None, sync_user_info=False, sync_email=False, link_by_email=True, auto_create_users=True
+        id=IDP_ID, user_mapping=None, sync_user_info=False, sync_email=False, link_by_email=True, auto_create_users=True
     )
     idp.name = "Pocket"
     return idp
@@ -47,7 +50,7 @@ def test_linking_an_existing_account_by_email_is_audited(mock_db):
         target_id="7",
         target_owner_id="7",
     )
-    assert entry.details == {"idp_id": 3, "reason": None}
+    assert entry.details == {"idp_id": str(IDP_ID), "reason": None}
     assert entry.actor_type != "user"
     assert entry.actor_id is None
 
@@ -86,7 +89,7 @@ def test_a_refused_email_link_is_recorded_as_denied_with_its_reason(mock_db, use
         target_id="7",
         target_owner_id="7",
     )
-    assert entry.details == {"idp_id": 3, "reason": reason}
+    assert entry.details == {"idp_id": str(IDP_ID), "reason": reason}
     assert entry.actor_type != "user"
     assert entry.actor_id is None
 
@@ -113,7 +116,7 @@ def test_a_provider_that_does_not_link_by_email_records_a_denied_link_with_its_r
         target_id="7",
         target_owner_id="7",
     )
-    assert entry.details == {"idp_id": 3, "reason": "link_by_email_disabled"}
+    assert entry.details == {"idp_id": str(IDP_ID), "reason": "link_by_email_disabled"}
 
 
 def test_creating_an_account_from_a_provider_audits_its_link(mock_db):
@@ -131,7 +134,7 @@ def test_creating_an_account_from_a_provider_audits_its_link(mock_db):
     entry = audit.assert_audited(
         idp_audit_actions.IDENTITY_LINK_LINK.id, outcome="success", target_type="user", target_id="9"
     )
-    assert entry.details == {"idp_id": 3, "reason": None}
+    assert entry.details == {"idp_id": str(IDP_ID), "reason": None}
 
 
 def test_an_inactive_account_found_by_its_link_is_refused_before_any_write(mock_db):

@@ -1,5 +1,6 @@
 """Tests for stage-only identity-provider persistence."""
 
+import uuid
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -14,10 +15,12 @@ import modules.auth.identity_providers.models as idp_models
 import modules.auth.identity_providers.schema as idp_schema
 from tests._helpers.db import create_sqlite_session
 
+IDP_ID = uuid.uuid4()
+
 
 def _row(**overrides):
     values = {
-        "id": 1,
+        "id": IDP_ID,
         "name": "Provider",
         "slug": "provider",
         "provider_type": "oidc",
@@ -47,9 +50,9 @@ def _row(**overrides):
 def test_get_provider_returns_internal_contract(mock_db):
     mock_db.execute.return_value.scalar_one_or_none.return_value = _row()
 
-    state = idp_crud.get_identity_provider(1, mock_db)
+    state = idp_crud.get_identity_provider(IDP_ID, mock_db)
 
-    assert state.id == 1
+    assert state.id == IDP_ID
     assert state.client_id == "encrypted-client-id"
 
 
@@ -64,7 +67,7 @@ def test_create_provider_stages_and_returns_encrypted_state(mock_db):
 
     def flush():
         row = mock_db.add.call_args.args[0]
-        row.id = 1
+        row.id = IDP_ID
         row.created_at = datetime.now(UTC)
         row.updated_at = datetime.now(UTC)
         row.version = 1
@@ -90,7 +93,7 @@ def test_update_provider_stages_without_committing(mock_db):
         client_id="new-client-id",
     )
 
-    state = idp_crud.update_identity_provider(1, data, mock_db, if_match='"1"')
+    state = idp_crud.update_identity_provider(IDP_ID, data, mock_db, if_match='"1"')
 
     assert state.name == "Updated"
     assert state.slug == "updated"
@@ -104,7 +107,7 @@ def test_update_provider_without_credentials_keeps_the_stored_ones(mock_db):
     mock_db.execute.return_value.scalar_one_or_none.return_value = row
     data = idp_schema.IdentityProviderUpdate(name="Updated", slug="updated")
 
-    state = idp_crud.update_identity_provider(1, data, mock_db, if_match='"1"')
+    state = idp_crud.update_identity_provider(IDP_ID, data, mock_db, if_match='"1"')
 
     assert state.client_id == "encrypted-client-id"
     assert state.client_secret == "encrypted-client-secret"
@@ -120,7 +123,7 @@ def test_update_provider_checks_the_version_before_mutating(mock_db):
     data = idp_schema.IdentityProviderUpdate(name="Stale", slug="provider")
 
     with pytest.raises(core_exceptions.PreconditionFailedError):
-        idp_crud.update_identity_provider(1, data, mock_db, if_match='"1"')
+        idp_crud.update_identity_provider(IDP_ID, data, mock_db, if_match='"1"')
 
     assert row.name == "Provider"
     mock_db.flush.assert_not_called()
@@ -131,7 +134,7 @@ def test_delete_provider_stages_without_committing(mock_db):
     row = _row()
     mock_db.execute.return_value.scalar_one_or_none.return_value = row
 
-    deleted = idp_crud.delete_identity_provider(1, mock_db, if_match='"1"')
+    deleted = idp_crud.delete_identity_provider(IDP_ID, mock_db, if_match='"1"')
 
     assert deleted is True
     mock_db.delete.assert_called_once_with(row)
@@ -147,7 +150,7 @@ def test_delete_provider_checks_the_version_before_deleting(mock_db):
     mock_db.execute.return_value.scalar_one_or_none.return_value = _row(version=2)
 
     with pytest.raises(core_exceptions.PreconditionFailedError):
-        idp_crud.delete_identity_provider(1, mock_db, if_match='"1"')
+        idp_crud.delete_identity_provider(IDP_ID, mock_db, if_match='"1"')
 
     mock_db.delete.assert_not_called()
 
@@ -157,7 +160,7 @@ def test_set_icon_uploaded_flags_the_row_and_returns_its_version(mock_db):
     mock_db.execute.return_value.scalar_one_or_none.return_value = row
 
     with patch.object(idp_crud, "flag_modified") as flag_modified:
-        staged = idp_crud.set_icon_uploaded(1, True, mock_db)
+        staged = idp_crud.set_icon_uploaded(IDP_ID, True, mock_db)
 
     assert staged == (3, False)
     assert row.icon_uploaded is True
@@ -170,12 +173,13 @@ def test_set_icon_uploaded_flags_the_row_and_returns_its_version(mock_db):
 def test_set_icon_uploaded_on_a_missing_row_is_none(mock_db):
     mock_db.execute.return_value.scalar_one_or_none.return_value = None
 
-    assert idp_crud.set_icon_uploaded(1, True, mock_db) is None
+    assert idp_crud.set_icon_uploaded(IDP_ID, True, mock_db) is None
 
 
 def test_get_ids_with_icon_returns_only_the_given_providers_that_have_an_uploaded_icon():
     db = create_sqlite_session()
-    for idp_id, icon_uploaded in ((1, True), (2, False), (3, True)):
+    ids = [uuid.uuid4() for _ in range(3)]
+    for idp_id, icon_uploaded in zip(ids, (True, False, True), strict=True):
         db.add(
             idp_models.IdentityProvider(
                 id=idp_id,
@@ -187,15 +191,17 @@ def test_get_ids_with_icon_returns_only_the_given_providers_that_have_an_uploade
         )
     db.commit()
 
-    assert idp_crud.get_ids_with_icon([1, 2, 4], db) == {1}
+    assert idp_crud.get_ids_with_icon([ids[0], ids[1], uuid.uuid4()], db) == {ids[0]}
     db.close()
 
 
 def _db_with_providers():
     db = create_sqlite_session()
-    for idp_id, name, enabled in ((1, "Zitadel", True), (2, "Authelia", False), (3, "Keycloak", True)):
+    for name, enabled in (("Zitadel", True), ("Authelia", False), ("Keycloak", True)):
         db.add(
-            idp_models.IdentityProvider(id=idp_id, name=name, slug=name.lower(), provider_type="oidc", enabled=enabled)
+            idp_models.IdentityProvider(
+                id=uuid.uuid4(), name=name, slug=name.lower(), provider_type="oidc", enabled=enabled
+            )
         )
     db.commit()
     return db

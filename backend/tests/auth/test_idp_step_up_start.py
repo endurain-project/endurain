@@ -1,5 +1,6 @@
 """Starting an identity-provider step-up: the service's order of work and the route's cookie."""
 
+import uuid
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -19,6 +20,7 @@ import modules.auth.identity_providers.schema as idp_schema
 import modules.auth.identity_providers.utils as idp_utils
 from modules.auth.identity_providers.constants import StepUpAction
 
+IDP_ID = uuid.UUID(int=3)
 SESSION_ID = "11111111-2222-3333-4444-555555555555"
 START = idp_schema.StepUpStartRequest(
     code_challenge="E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
@@ -51,7 +53,7 @@ class TestStartService:
             ) as url,
         ):
             order.attach_mock(url, "authorization_url")
-            flow = identity_link_service.start_idp_step_up(3, START, "1.2.3.4", 7, SESSION_ID, MagicMock(), db)
+            flow = identity_link_service.start_idp_step_up(IDP_ID, START, "1.2.3.4", 7, SESSION_ID, MagicMock(), db)
         return flow, stage, order, locked
 
     def test_the_state_is_committed_before_the_provider_url_is_built(self):
@@ -61,7 +63,7 @@ class TestStartService:
         assert stage.call_args.args[:7] == (
             7,
             SESSION_ID,
-            3,
+            IDP_ID,
             StepUpAction.MFA_DISABLE,
             START.code_challenge,
             "/settings/security",
@@ -87,7 +89,7 @@ class TestStartService:
         ):
             order.attach_mock(read, "read_generation")
             order.attach_mock(locked, "lockout_check")
-            identity_link_service.start_idp_step_up(3, START, "1.2.3.4", 7, SESSION_ID, MagicMock(), MagicMock())
+            identity_link_service.start_idp_step_up(IDP_ID, START, "1.2.3.4", 7, SESSION_ID, MagicMock(), MagicMock())
 
         assert [call[0] for call in order.mock_calls] == ["read_generation", "lockout_check"]
         assert stage.call_args.kwargs["security_generation"] == 4
@@ -104,7 +106,7 @@ class TestStartService:
                 return_value="https://idp.example.com/authorize?prompt=login",
             ),
         ):
-            identity_link_service.start_idp_step_up(3, START, "1.2.3.4", 7, SESSION_ID, store, MagicMock())
+            identity_link_service.start_idp_step_up(IDP_ID, START, "1.2.3.4", 7, SESSION_ID, store, MagicMock())
 
         locked.assert_called_once_with(7, SESSION_ID, store)
 
@@ -125,7 +127,7 @@ class TestStartService:
             patch.object(identity_link_service.identity_providers_integration, "stage_step_up") as stage,
             pytest.raises(core_exceptions.TooManyRequestsError),
         ):
-            identity_link_service.start_idp_step_up(3, START, "1.2.3.4", 7, SESSION_ID, MagicMock(), MagicMock())
+            identity_link_service.start_idp_step_up(IDP_ID, START, "1.2.3.4", 7, SESSION_ID, MagicMock(), MagicMock())
 
         stage.assert_not_called()
 
@@ -149,7 +151,8 @@ class TestStartRoute:
         )
         with patch.object(identity_link_service, "start_idp_step_up", return_value=flow) as start:
             response = client.post(
-                core_config.ROOT_PATH + "/profile/identity-providers/3/step-up", json=START.model_dump(mode="json")
+                core_config.ROOT_PATH + f"/profile/identity-providers/{IDP_ID}/step-up",
+                json=START.model_dump(mode="json"),
             )
 
         assert response.status_code == 200
@@ -173,7 +176,7 @@ class TestStartRoute:
     )
     def test_a_malformed_request_is_refused(self, client, body):
         with patch.object(identity_link_service, "start_idp_step_up") as start:
-            response = client.post(core_config.ROOT_PATH + "/profile/identity-providers/3/step-up", json=body)
+            response = client.post(core_config.ROOT_PATH + f"/profile/identity-providers/{IDP_ID}/step-up", json=body)
 
         assert response.status_code == 422
         start.assert_not_called()

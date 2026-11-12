@@ -1,5 +1,6 @@
 """The authentication service commits what the session and IdP surfaces only stage."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -13,6 +14,9 @@ import modules.auth.authentication.service as authentication_service
 import modules.auth.constants as auth_constants
 import modules.auth.identity_provider_links.crud as identity_links_crud
 from tests._helpers.db import create_sqlite_session
+
+IDP_ID = uuid.uuid4()
+OTHER_IDP_ID = uuid.uuid4()
 
 _SERVICE = "modules.auth.authentication.service"
 _OLD_EXP = datetime(2026, 11, 28, tzinfo=UTC)
@@ -153,7 +157,7 @@ def test_logout_commits_the_session_deletion(mock_db):
 
 def test_a_logout_leaves_the_identity_provider_tokens_of_the_users_other_sessions_alone():
     db = create_sqlite_session()
-    for session_id, idp_id in (("sid", 3), ("other-device", 3), ("other-provider", 4)):
+    for session_id, idp_id in (("sid", IDP_ID), ("other-device", IDP_ID), ("other-provider", OTHER_IDP_ID)):
         identity_links_crud.create_idp_session_token(session_id, 1, idp_id, "encrypted", None, db)
     db.commit()
     hasher = MagicMock()

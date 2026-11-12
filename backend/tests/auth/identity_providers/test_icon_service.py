@@ -1,6 +1,7 @@
 """Tests for the uploaded identity-provider icon service."""
 
 import io
+import uuid
 from unittest.mock import MagicMock, patch
 
 import jasil.providers as jasil_providers
@@ -17,6 +18,8 @@ import modules.auth.identity_providers.icon_service as icon_service
 from tests._helpers import images
 
 PNG = images.png_with_text()
+IDP_ID = uuid.uuid4()
+OTHER_IDP_ID = uuid.uuid4()
 
 
 def _upload(data: bytes):
@@ -26,7 +29,7 @@ def _upload(data: bytes):
 
 def _state(**overrides) -> idp_contracts.IdentityProviderState:
     values = {
-        "id": 7,
+        "id": IDP_ID,
         "name": "Tinyauth",
         "slug": "tinyauth",
         "provider_type": "oidc",
@@ -60,13 +63,13 @@ class TestUploadIcon:
             patch.object(icon_service.idp_crud, "identity_provider_exists", return_value=True),
             patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=(5, False)) as set_flag,
         ):
-            staged = icon_service.upload_icon(7, _upload(PNG), storage, db)
+            staged = icon_service.upload_icon(IDP_ID, _upload(PNG), storage, db)
 
         assert staged == (5, False)
         area, key, data, content_type = storage.save.call_args.args
-        assert (area, key, content_type) == (idp_constants.ICON_STORAGE_AREA, "7", "image/png")
+        assert (area, key, content_type) == (idp_constants.ICON_STORAGE_AREA, str(IDP_ID), "image/png")
         assert not images.has_metadata(data)
-        set_flag.assert_called_once_with(7, True, db)
+        set_flag.assert_called_once_with(IDP_ID, True, db)
         db.commit.assert_called_once()
 
     def test_a_missing_provider_is_refused_before_the_upload_is_read(self):
@@ -75,7 +78,7 @@ class TestUploadIcon:
             patch.object(icon_service.idp_crud, "identity_provider_exists", return_value=False),
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            icon_service.upload_icon(7, read_upload, storage, MagicMock())
+            icon_service.upload_icon(IDP_ID, read_upload, storage, MagicMock())
 
         read_upload.assert_not_called()
         storage.save.assert_not_called()
@@ -87,7 +90,7 @@ class TestUploadIcon:
             patch.object(icon_service.idp_crud, "identity_provider_exists", return_value=True),
             pytest.raises(core_exceptions.PayloadTooLargeError),
         ):
-            icon_service.upload_icon(7, _upload(data), storage, MagicMock())
+            icon_service.upload_icon(IDP_ID, _upload(data), storage, MagicMock())
 
         storage.save.assert_not_called()
 
@@ -97,7 +100,7 @@ class TestUploadIcon:
             patch.object(icon_service.idp_crud, "identity_provider_exists", return_value=True),
             pytest.raises(core_exceptions.UnsupportedMediaTypeError),
         ):
-            icon_service.upload_icon(7, _upload(b"<svg></svg>"), storage, MagicMock())
+            icon_service.upload_icon(IDP_ID, _upload(b"<svg></svg>"), storage, MagicMock())
 
         storage.save.assert_not_called()
 
@@ -108,9 +111,9 @@ class TestUploadIcon:
             patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=None),
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            icon_service.upload_icon(7, _upload(PNG), storage, db)
+            icon_service.upload_icon(IDP_ID, _upload(PNG), storage, db)
 
-        storage.delete.assert_called_once_with(idp_constants.ICON_STORAGE_AREA, "7")
+        storage.delete.assert_called_once_with(idp_constants.ICON_STORAGE_AREA, str(IDP_ID))
         db.commit.assert_not_called()
 
 
@@ -124,7 +127,7 @@ class TestUploadIconTransaction:
             patch.object(icon_service.idp_crud, "identity_provider_exists", return_value=True),
             patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=(5, False)),
         ):
-            icon_service.upload_icon(7, _upload(PNG), storage, db)
+            icon_service.upload_icon(IDP_ID, _upload(PNG), storage, db)
 
         assert [call[0] for call in order.mock_calls] == ["rollback", "save"]
 
@@ -139,7 +142,7 @@ class TestUploadIconTransaction:
             patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=None),
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            icon_service.upload_icon(7, _upload(PNG), storage, db)
+            icon_service.upload_icon(IDP_ID, _upload(PNG), storage, db)
 
         assert [call[0] for call in order.mock_calls] == ["rollback", "save", "rollback", "delete"]
 
@@ -147,11 +150,12 @@ class TestUploadIconTransaction:
 class TestReferencedIconKeys:
     def test_keeps_a_key_whose_provider_has_an_icon_and_any_key_that_is_not_an_id(self):
         db = MagicMock()
-        with patch.object(icon_service.idp_crud, "get_ids_with_icon", return_value={1}) as ids:
-            kept = icon_service._referenced_icon_keys(["1", "2", "3", "notes.txt", "٣"], db)
+        with_icon, without_icon = uuid.uuid4(), uuid.uuid4()
+        with patch.object(icon_service.idp_crud, "get_ids_with_icon", return_value={with_icon}) as ids:
+            kept = icon_service._referenced_icon_keys([str(with_icon), str(without_icon), "notes.txt", "7", "٣"], db)
 
-        assert kept == {"1", "notes.txt", "٣"}
-        ids.assert_called_once_with([1, 2, 3], db)
+        assert kept == {str(with_icon), "notes.txt", "7", "٣"}
+        ids.assert_called_once_with(sorted([with_icon, without_icon]), db)
 
 
 class TestSweepUnreferencedIcons:
@@ -170,16 +174,16 @@ class TestDeleteIcon:
         db.commit.side_effect = lambda: order.append("commit")
         storage.delete.side_effect = lambda *_: order.append("delete")
         with patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=(5, False)) as set_flag:
-            icon_service.delete_icon(7, storage, db)
+            icon_service.delete_icon(IDP_ID, storage, db)
 
-        set_flag.assert_called_once_with(7, False, db)
+        set_flag.assert_called_once_with(IDP_ID, False, db)
         assert order == ["commit", "delete"]
 
     def test_a_blob_that_cannot_be_deleted_is_not_an_error(self):
         storage = MagicMock()
         storage.delete.side_effect = jasil_providers.StorageBackendUnavailableError("storage down")
         with patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=(5, False)):
-            icon_service.delete_icon(7, storage, MagicMock())
+            icon_service.delete_icon(IDP_ID, storage, MagicMock())
 
     def test_an_unexpected_storage_failure_propagates(self):
         storage = MagicMock()
@@ -188,22 +192,22 @@ class TestDeleteIcon:
             patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=(5, False)),
             pytest.raises(ValueError, match="not a valid storage address"),
         ):
-            icon_service.delete_icon(7, storage, MagicMock())
+            icon_service.delete_icon(IDP_ID, storage, MagicMock())
 
     def test_a_missing_provider_is_not_found(self):
         with (
             patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=None),
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            icon_service.delete_icon(7, MagicMock(), MagicMock())
+            icon_service.delete_icon(IDP_ID, MagicMock(), MagicMock())
 
 
 class TestGetPublicIcon:
     @pytest.mark.parametrize(
         ("state", "expected"),
         [
-            (_state(), (7, 4)),
-            (_state(enabled=False), (7, 4)),
+            (_state(), (IDP_ID, 4)),
+            (_state(enabled=False), (IDP_ID, 4)),
             (_state(icon_uploaded=False), None),
             (None, None),
         ],
@@ -226,14 +230,14 @@ class TestReadIcon:
         storage = MagicMock()
         storage.get.return_value = PNG
 
-        assert icon_service.read_icon(7, storage) == (PNG, "image/png")
-        storage.get.assert_called_once_with(idp_constants.ICON_STORAGE_AREA, "7")
+        assert icon_service.read_icon(IDP_ID, storage) == (PNG, "image/png")
+        storage.get.assert_called_once_with(idp_constants.ICON_STORAGE_AREA, str(IDP_ID))
 
     def test_no_stored_blob_is_none(self):
         storage = MagicMock()
         storage.get.return_value = None
 
-        assert icon_service.read_icon(7, storage) is None
+        assert icon_service.read_icon(IDP_ID, storage) is None
 
 
 class TestIconAudit:
@@ -243,10 +247,10 @@ class TestIconAudit:
             patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=(5, False)),
             jasil_testing.capture_audit() as audit,
         ):
-            icon_service.upload_icon(7, _upload(PNG), MagicMock(), MagicMock())
+            icon_service.upload_icon(IDP_ID, _upload(PNG), MagicMock(), MagicMock())
 
         entry = audit.assert_audited(
-            idp_audit_actions.IDENTITY_PROVIDER_UPDATE.id, target_type="identity_provider", target_id="7"
+            idp_audit_actions.IDENTITY_PROVIDER_UPDATE.id, target_type="identity_provider", target_id=str(IDP_ID)
         )
         assert entry.details == {"changed_fields": ["icon_uploaded"], "sessions_ended": 0}
 
@@ -256,7 +260,7 @@ class TestIconAudit:
             jasil_testing.capture_audit() as audit,
             pytest.raises(core_exceptions.UnsupportedMediaTypeError),
         ):
-            icon_service.upload_icon(7, _upload(b"not an image"), MagicMock(), MagicMock())
+            icon_service.upload_icon(IDP_ID, _upload(b"not an image"), MagicMock(), MagicMock())
 
         audit.assert_not_audited(idp_audit_actions.IDENTITY_PROVIDER_UPDATE.id)
 
@@ -265,10 +269,10 @@ class TestIconAudit:
             patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=(5, False)),
             jasil_testing.capture_audit() as audit,
         ):
-            icon_service.delete_icon(7, MagicMock(), MagicMock())
+            icon_service.delete_icon(IDP_ID, MagicMock(), MagicMock())
 
         entry = audit.assert_audited(
-            idp_audit_actions.IDENTITY_PROVIDER_UPDATE.id, target_type="identity_provider", target_id="7"
+            idp_audit_actions.IDENTITY_PROVIDER_UPDATE.id, target_type="identity_provider", target_id=str(IDP_ID)
         )
         assert entry.details == {"changed_fields": ["icon_uploaded"], "sessions_ended": 0}
 
@@ -278,7 +282,7 @@ class TestIconAudit:
             jasil_testing.capture_audit() as audit,
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            icon_service.delete_icon(7, MagicMock(), MagicMock())
+            icon_service.delete_icon(IDP_ID, MagicMock(), MagicMock())
 
         audit.assert_not_audited(idp_audit_actions.IDENTITY_PROVIDER_UPDATE.id)
 
@@ -296,7 +300,7 @@ class TestUploadIconImageFormats:
             patch.object(icon_service.idp_crud, "identity_provider_exists", return_value=True),
             patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=(5, False)),
         ):
-            icon_service.upload_icon(7, self._reader("icon.webp", images.webp_with_exif()), storage, MagicMock())
+            icon_service.upload_icon(IDP_ID, self._reader("icon.webp", images.webp_with_exif()), storage, MagicMock())
 
         _area, _key, data, content_type = storage.save.call_args.args
         assert content_type == "image/webp"
@@ -311,7 +315,7 @@ class TestUploadIconImageFormats:
             patch.object(icon_service.idp_crud, "identity_provider_exists", return_value=True),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            icon_service.upload_icon(7, self._reader(name, data), storage, MagicMock())
+            icon_service.upload_icon(IDP_ID, self._reader(name, data), storage, MagicMock())
 
         assert exc.value.status_code == 415
         storage.save.assert_not_called()

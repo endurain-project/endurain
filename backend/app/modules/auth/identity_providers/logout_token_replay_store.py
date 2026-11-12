@@ -5,6 +5,8 @@ in that window. Its ``jti`` is claimed once per provider in the shared state sto
 replica (OIDC Back-Channel Logout 1.0, section 2.6, step 8).
 """
 
+import uuid
+
 from jasil.providers import StateBackendUnavailableError, StateProvider
 
 import core.exceptions as core_exceptions
@@ -13,7 +15,7 @@ import core.hashing as core_hashing
 _KEY_PREFIX = "endurain:idp:logout-jti"
 
 
-def claim_logout_token(state: StateProvider, idp_id: int, jti: str, ttl_seconds: int) -> bool:
+def claim_logout_token(state: StateProvider, idp_id: uuid.UUID, jti: str, ttl_seconds: int) -> bool:
     """Record a provider's logout token as used, once.
 
     The ``jti`` is hashed into the key, so a value the provider chose never becomes part of a state key as is.
@@ -38,7 +40,7 @@ def claim_logout_token(state: StateProvider, idp_id: int, jti: str, ttl_seconds:
         raise core_exceptions.ServiceUnavailableError("Back-channel logout temporarily unavailable") from err
 
 
-def release_logout_token(state: StateProvider, idp_id: int, jti: str) -> None:
+def release_logout_token(state: StateProvider, idp_id: uuid.UUID, jti: str) -> None:
     """Forget a claimed logout token so the provider's retry of it is accepted.
 
     Releasing a token that holds no claim is not an error.
@@ -57,6 +59,6 @@ def release_logout_token(state: StateProvider, idp_id: int, jti: str) -> None:
         raise core_exceptions.ServiceUnavailableError("Back-channel logout temporarily unavailable") from err
 
 
-def _key(idp_id: int, jti: str) -> str:
+def _key(idp_id: uuid.UUID, jti: str) -> str:
     """Return the state key of a provider's logout token."""
-    return f"{_KEY_PREFIX}:{idp_id}:{core_hashing.sha256_hex(jti)}"
+    return f"{_KEY_PREFIX}:{idp_id!s}:{core_hashing.sha256_hex(jti)}"

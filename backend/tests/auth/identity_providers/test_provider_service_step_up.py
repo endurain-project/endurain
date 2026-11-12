@@ -1,5 +1,6 @@
 """An administrator's step-up comes before anything is checked or written when a provider is created or edited."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -11,6 +12,7 @@ import modules.auth.identity_providers.schema as idp_schema
 import modules.auth.schema as auth_schema
 
 _STEP_UP = auth_schema.StepUpVerification(current_password="admin-password")
+IDP_ID = uuid.uuid4()
 
 
 def _create_data() -> idp_schema.IdentityProviderCreate:
@@ -36,7 +38,7 @@ class TestCreate:
             order.attach_mock(urls, "urls")
             order.attach_mock(crud.create_identity_provider, "insert")
             crud.get_identity_provider_by_slug.return_value = None
-            crud.create_identity_provider.return_value = MagicMock(id=3, provider_type="oidc")
+            crud.create_identity_provider.return_value = MagicMock(id=IDP_ID, provider_type="oidc")
             provider_service.create_identity_provider(_create_data(), _STEP_UP, verifier, mock_db)
 
         assert [call[0] for call in order.mock_calls][:2] == ["step_up", "urls"]
@@ -74,7 +76,7 @@ class TestUpdate:
             crud.identity_provider_exists.return_value = True
             crud.update_identity_provider.return_value = MagicMock()
             provider_service.update_identity_provider(
-                3, self._data(), _STEP_UP, verifier, MagicMock(), mock_db, if_match='"1"'
+                IDP_ID, self._data(), _STEP_UP, verifier, MagicMock(), mock_db, if_match='"1"'
             )
 
         assert [call[0] for call in order.mock_calls][:2] == ["step_up", "urls"]
@@ -88,7 +90,7 @@ class TestUpdate:
             pytest.raises(core_exceptions.StepUpFailedError),
         ):
             provider_service.update_identity_provider(
-                3, self._data(), _STEP_UP, _refusing(), oidc, mock_db, if_match='"1"'
+                IDP_ID, self._data(), _STEP_UP, _refusing(), oidc, mock_db, if_match='"1"'
             )
 
         urls.assert_not_called()

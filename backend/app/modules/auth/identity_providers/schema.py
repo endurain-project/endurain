@@ -1,6 +1,7 @@
 """Pydantic schemas for the identity providers module."""
 
 import re
+import uuid
 from datetime import datetime
 from typing import Any
 
@@ -232,7 +233,7 @@ class IdentityProviderRead(IdentityProviderBase):
         IdentityProviderBase
 
     Attributes:
-        id (int): Unique identifier of the identity provider.
+        id (uuid.UUID): Unique identifier of the identity provider.
         icon_uploaded (bool): Whether an uploaded icon is shown instead of ``icon``.
         created_at (datetime): Timestamp when the identity provider was created.
         updated_at (datetime): Timestamp when the identity provider was last updated.
@@ -249,7 +250,7 @@ class IdentityProviderRead(IdentityProviderBase):
                 IdentityProviderRead: The instance with the decrypted `client_id`.
     """
 
-    id: StrictInt
+    id: uuid.UUID
     icon_uploaded: StrictBool = Field(default=False, description="Whether an uploaded icon is shown instead of icon")
     created_at: datetime
     updated_at: datetime
@@ -285,7 +286,7 @@ class IdentityProviderPublicRead(BaseModel):
     """Represents the public-facing information of an identity provider.
 
     Attributes:
-        id (int): Unique identifier of the identity provider.
+        id (uuid.UUID): Unique identifier of the identity provider.
         name (str): Display name of the identity provider.
         slug (str): URL-friendly unique identifier for the provider.
         icon (str | None): URL or path to the provider's icon image.
@@ -295,7 +296,7 @@ class IdentityProviderPublicRead(BaseModel):
         model_config (dict): Pydantic model configuration to allow population from ORM attributes.
     """
 
-    id: StrictInt
+    id: uuid.UUID
     name: StrictStr
     slug: StrictStr
     icon: StrictStr | None = None

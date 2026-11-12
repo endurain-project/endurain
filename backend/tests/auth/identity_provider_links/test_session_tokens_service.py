@@ -10,11 +10,14 @@ import modules.auth.identity_provider_links.integration_service as identity_link
 import modules.auth.identity_provider_links.service as identity_links_service
 from tests._helpers.db import create_sqlite_session
 
+IDP_3 = uuid.uuid4()
+IDP_4 = uuid.uuid4()
+
 
 @pytest.fixture
 def db():
     session = create_sqlite_session()
-    for session_id, user_id, idp_id in (("s1", 7, 3), ("s2", 7, 3), ("s3", 7, 4), ("s4", 8, 3)):
+    for session_id, user_id, idp_id in (("s1", 7, IDP_3), ("s2", 7, IDP_3), ("s3", 7, IDP_4), ("s4", 8, IDP_3)):
         identity_links_crud.create_idp_session_token(session_id, user_id, idp_id, None, None, session)
     session.commit()
     yield session
@@ -85,14 +88,14 @@ class TestEndIdpSessions:
         with (
             _live("s1") as delete_session,
         ):
-            ended = identity_links_integration.end_idp_sessions(7, 3, db)
+            ended = identity_links_integration.end_idp_sessions(7, IDP_3, db)
 
         assert ended == 1
         assert [call.args for call in delete_session.call_args_list] == [("s1", 7, db), ("s2", 7, db)]
 
     def test_a_session_that_vanishes_before_it_is_ended_is_skipped_and_not_counted(self, db):
         with _live("s2") as delete_session:
-            ended = identity_links_integration.end_idp_sessions(7, 3, db)
+            ended = identity_links_integration.end_idp_sessions(7, IDP_3, db)
 
         assert ended == 1
         assert [call.args[0] for call in delete_session.call_args_list] == ["s1", "s2"]
@@ -101,13 +104,13 @@ class TestEndIdpSessions:
         with (
             _live() as delete_session,
         ):
-            assert identity_links_integration.end_idp_sessions(9, 3, db) == 0
+            assert identity_links_integration.end_idp_sessions(9, IDP_3, db) == 0
 
         delete_session.assert_not_called()
 
     def test_the_sign_ins_stay_so_their_tokens_can_be_revoked(self, db):
         with _live("s1", "s2"):
-            identity_links_integration.end_idp_sessions(7, 3, db)
+            identity_links_integration.end_idp_sessions(7, IDP_3, db)
 
         assert identity_links_crud.get_idp_session_token("s1", db) is not None
 
@@ -117,14 +120,14 @@ class TestEndAllIdpSessions:
 
     def test_each_live_session_of_the_provider_is_ended_for_its_owner(self, db):
         with _live("s1", "s4") as delete_session:
-            ended = identity_links_integration.end_all_idp_sessions(3, db)
+            ended = identity_links_integration.end_all_idp_sessions(IDP_3, db)
 
         assert ended == 2
         assert sorted(call.args[:2] for call in delete_session.call_args_list) == [("s1", 7), ("s2", 7), ("s4", 8)]
 
     def test_a_provider_with_no_sign_in_ends_nothing(self, db):
         with _live() as delete_session:
-            assert identity_links_integration.end_all_idp_sessions(99, db) == 0
+            assert identity_links_integration.end_all_idp_sessions(uuid.uuid4(), db) == 0
 
         delete_session.assert_not_called()
 
@@ -136,12 +139,12 @@ class TestEndIdpSessionsBySid:
     def sid_db(self):
         session = create_sqlite_session()
         for session_id, user_id, idp_id, sid in (
-            ("a1", 7, 3, "sid-1"),
-            ("a2", 7, 3, "sid-1"),
-            ("a3", 8, 3, "sid-1"),
-            ("a4", 7, 3, "sid-2"),
-            ("a5", 7, 4, "sid-1"),
-            ("a6", 7, 3, None),
+            ("a1", 7, IDP_3, "sid-1"),
+            ("a2", 7, IDP_3, "sid-1"),
+            ("a3", 8, IDP_3, "sid-1"),
+            ("a4", 7, IDP_3, "sid-2"),
+            ("a5", 7, IDP_4, "sid-1"),
+            ("a6", 7, IDP_3, None),
         ):
             identity_links_crud.create_idp_session_token(session_id, user_id, idp_id, None, None, session, idp_sid=sid)
         session.commit()
@@ -152,14 +155,14 @@ class TestEndIdpSessionsBySid:
         with (
             _live("a1", "a3", "a4", "a5") as delete_session,
         ):
-            ended = identity_links_integration.end_idp_sessions_by_sid(3, "sid-1", sid_db)
+            ended = identity_links_integration.end_idp_sessions_by_sid(IDP_3, "sid-1", sid_db)
 
         assert ended == {7: 1, 8: 1}
         assert sorted(call.args[:2] for call in delete_session.call_args_list) == [("a1", 7), ("a2", 7), ("a3", 8)]
 
     def test_a_session_that_vanishes_is_skipped_and_the_others_still_end(self, sid_db):
         with _live("a1", "a3") as delete_session:
-            ended = identity_links_integration.end_idp_sessions_by_sid(3, "sid-1", sid_db)
+            ended = identity_links_integration.end_idp_sessions_by_sid(IDP_3, "sid-1", sid_db)
 
         assert ended == {7: 1, 8: 1}
         assert delete_session.call_count == 3
@@ -168,7 +171,7 @@ class TestEndIdpSessionsBySid:
         with (
             _live("a1", "a2", "a3") as delete_session,
         ):
-            ended = identity_links_integration.end_idp_sessions_by_sid(3, "sid-1", sid_db, user_id=8)
+            ended = identity_links_integration.end_idp_sessions_by_sid(IDP_3, "sid-1", sid_db, user_id=8)
 
         assert ended == {8: 1}
         delete_session.assert_called_once_with("a3", 8, sid_db)
@@ -177,7 +180,7 @@ class TestEndIdpSessionsBySid:
         with (
             _live("a1", "a2") as delete_session,
         ):
-            assert identity_links_integration.end_idp_sessions_by_sid(3, "sid-9", sid_db) == {}
+            assert identity_links_integration.end_idp_sessions_by_sid(IDP_3, "sid-9", sid_db) == {}
 
         delete_session.assert_not_called()
 

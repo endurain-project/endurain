@@ -4,6 +4,7 @@ Ids are stable forever: rows outlive the code. ``details`` carry ids, counts and
 password, a code or a key.
 """
 
+import uuid
 from typing import ClassVar
 
 import jasil.audit as jasil_audit
@@ -68,7 +69,7 @@ class IdentityLinkDetails(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    idp_id: int
+    idp_id: uuid.UUID
 
 
 PASSWORD_CHANGE = jasil_audit.AuditAction(

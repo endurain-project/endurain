@@ -1,5 +1,6 @@
 """Every successful sign-in is recorded against the device it came from, in the sign-in's own transaction."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -30,6 +31,8 @@ import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.users.users.models as users_models
 from tests._helpers.auth import pending_login
 from tests._helpers.db import create_sqlite_session
+
+IDP_ID = uuid.uuid4()
 
 _SERVICE = "modules.auth.authentication.service"
 _CLAIMED_EXPIRY = datetime(2999, 1, 1, tzinfo=UTC)
@@ -301,7 +304,7 @@ class TestSsoSignIn:
         with jasil_testing.capture_audit() as audit:
             outcome, record = self._exchange(
                 mock_db,
-                idp_id=3,
+                idp_id=IDP_ID,
                 record_returns=lambda *args: (
                     steps.append(("record", bool(audit.matching(_LOGIN)))) or _signed(_ISSUED, True)
                 ),
@@ -314,18 +317,18 @@ class TestSsoSignIn:
         assert audit.assert_audited(_LOGIN, outcome="success").details["new_device"] is True
 
     def test_an_sso_session_is_tied_to_the_device_the_exchange_recorded(self, mock_db):
-        self._exchange(mock_db, idp_id=3)
+        self._exchange(mock_db, idp_id=IDP_ID)
 
         self.set_hash.assert_called_once_with("sid", core_hashing.sha256_hex(_ISSUED), mock_db)
 
     def test_an_sso_sign_in_from_a_known_device_is_not_flagged_as_new(self, mock_db):
         with jasil_testing.capture_audit() as audit:
-            self._exchange(mock_db, idp_id=3)
+            self._exchange(mock_db, idp_id=IDP_ID)
 
         assert audit.assert_audited(_LOGIN, outcome="success").details["new_device"] is False
 
     def test_a_mobile_sso_sign_in_hands_the_app_its_device_id_in_the_body(self, mock_db):
-        outcome, record = self._exchange(mock_db, idp_id=3, client_type="mobile")
+        outcome, record = self._exchange(mock_db, idp_id=IDP_ID, client_type="mobile")
 
         assert record.call_args.args[1] == _DEVICE_ID
         assert outcome.body.device_id == _ISSUED
@@ -398,7 +401,7 @@ class TestFirstDeviceAnnouncement:
         _account(sqlite_db, age)
         with jasil_testing.capture_audit() as audit, patch(_PUBLISH) as publish:
             outcome, _ = TestSsoSignIn()._exchange(
-                sqlite_db, idp_id=3, record_returns=known_devices_integration.record_sign_in
+                sqlite_db, idp_id=IDP_ID, record_returns=known_devices_integration.record_sign_in
             )
 
         assert publish.called is announced

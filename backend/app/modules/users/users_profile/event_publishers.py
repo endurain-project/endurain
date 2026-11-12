@@ -24,7 +24,7 @@ def publish_import_requested(user_id: int, staged_key: str, db: Session, *, comm
     payload = profile_events.ProfileImportRequestedPayload(user_id=user_id, staged_key=staged_key)
     platform_publisher.publish_committing(
         profile_events.USERS_PROFILE_IMPORT_REQUESTED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source=profile_constants.IMPORT_SOURCE_API,
         db=db,
         commit=commit,
@@ -46,7 +46,7 @@ def publish_export_requested(user_id: int, db: Session, *, commit: Callable[[], 
     payload = profile_events.ProfileExportRequestedPayload(user_id=user_id)
     platform_publisher.publish_committing(
         profile_events.USERS_PROFILE_EXPORT_REQUESTED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source=profile_constants.EXPORT_SOURCE_API,
         db=db,
         commit=commit,

@@ -1,5 +1,7 @@
 """Publish the identity-provider domain events through the platform publish facade."""
 
+import uuid
+
 import jasil.publisher as platform_publisher
 from sqlalchemy.orm import Session
 
@@ -18,7 +20,7 @@ def publish_idp_token_refresh_requested(user_id: int, session_id: str, db: Sessi
     payload = idp_events.IdpTokenRefreshPayload(user_id=user_id, session_id=session_id)
     platform_publisher.publish_on_commit(
         idp_events.IDP_TOKEN_REFRESH_REQUESTED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:refresh_token",
         metadata={core_event_metadata.META_USER_ID: user_id},
         db=db,
@@ -26,7 +28,7 @@ def publish_idp_token_refresh_requested(user_id: int, session_id: str, db: Sessi
     )
 
 
-def publish_idp_linked(user_id: int, idp_id: int, db: Session) -> None:
+def publish_idp_linked(user_id: int, idp_id: uuid.UUID, db: Session) -> None:
     """Stage ``auth.idp_linked`` in the caller's transaction.
 
     Args:
@@ -37,7 +39,7 @@ def publish_idp_linked(user_id: int, idp_id: int, db: Session) -> None:
     payload = idp_events.IdpLinkedPayload(user_id=user_id, idp_id=idp_id)
     platform_publisher.publish_on_commit(
         idp_events.IDP_LINKED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:idp_callback",
         metadata={core_event_metadata.META_USER_ID: user_id},
         db=db,

@@ -1,5 +1,6 @@
 """SQLAlchemy ORM model for OAuth/SSO flow state persistence."""
 
+import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
@@ -47,8 +48,7 @@ class OAuthState(Base):
         comment="State parameter itself (secrets.token_urlsafe(32))",
     )
 
-    idp_id: Mapped[int | None] = mapped_column(
-        Integer,
+    idp_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("identity_providers.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
