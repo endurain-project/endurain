@@ -1,8 +1,9 @@
 """Known-device API schemas."""
 
+import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
+from pydantic import BaseModel, ConfigDict, Field, StrictBool
 
 import core.pagination as core_pagination
 
@@ -22,7 +23,7 @@ class KnownDeviceRead(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: StrictInt = Field(..., ge=1, description="Device ID")
+    id: uuid.UUID = Field(..., description="Device ID")
     browser: str | None = Field(None, description="Browser of the last sign-in from the device")
     operating_system: str | None = Field(None, description="Operating system of the last sign-in from the device")
     device_type: str | None = Field(None, description="Device type (Mobile, Tablet, PC) of the last sign-in")

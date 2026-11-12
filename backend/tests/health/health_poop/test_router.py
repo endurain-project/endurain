@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import patch
 
@@ -14,6 +15,8 @@ _STARTED = datetime(2026, 1, 1, 7, 0, tzinfo=UTC)
 _SERVICE = "modules.health.health_poop.router.health_poop_service"
 _HEADERS = {"Authorization": "Bearer x"}
 _IF_MATCH_HEADERS = {**_HEADERS, "If-Match": '"1"'}
+_ID = uuid.uuid4()
+_OTHER_ID = uuid.uuid4()
 
 
 def _build_app(mock_db):
@@ -41,7 +44,7 @@ class TestReadHealthPoopAllPagination:
     @patch(f"{_SERVICE}.list_health_poop")
     def test_list_success(self, mock_list, mock_db):
         mock_list.return_value = core_pagination.Page(
-            items=[HealthPoopRead(updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, date_time=_STARTED)],
+            items=[HealthPoopRead(updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, date_time=_STARTED)],
             total=1,
             page=1,
             num_records=25,
@@ -78,18 +81,18 @@ class TestReadHealthPoopAllPagination:
 class TestReadHealthPoopById:
     @patch(f"{_SERVICE}.get_health_poop")
     def test_success(self, mock_get, mock_db):
-        mock_get.return_value = HealthPoopRead(updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, date_time=_STARTED)
+        mock_get.return_value = HealthPoopRead(updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, date_time=_STARTED)
 
-        response = TestClient(_build_app(mock_db)).get("/health_poop/1", headers=_HEADERS)
+        response = TestClient(_build_app(mock_db)).get(f"/health_poop/{_ID}", headers=_HEADERS)
 
         assert response.status_code == 200
-        assert mock_get.call_args.args[:2] == (1, 1)
+        assert mock_get.call_args.args[:2] == (1, _ID)
 
     @patch(f"{_SERVICE}.get_health_poop")
     def test_not_found(self, mock_get, mock_db):
         mock_get.side_effect = core_exceptions.NotFoundError("Poop record not found")
 
-        response = TestClient(_build_app(mock_db)).get("/health_poop/999", headers=_HEADERS)
+        response = TestClient(_build_app(mock_db)).get(f"/health_poop/{_OTHER_ID}", headers=_HEADERS)
 
         assert response.status_code == 404
 
@@ -98,7 +101,7 @@ class TestCreateHealthPoop:
     @patch(f"{_SERVICE}.create_health_poop")
     def test_create_success(self, mock_create, mock_db):
         mock_create.return_value = HealthPoopRead(
-            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, date_time=_STARTED
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, date_time=_STARTED
         )
 
         response = TestClient(_build_app(mock_db)).post(
@@ -106,17 +109,19 @@ class TestCreateHealthPoop:
         )
 
         assert response.status_code == 201
-        assert response.headers["Location"] == "/health_poop/1"
+        assert response.headers["Location"] == f"/health_poop/{_ID}"
         assert response.headers["ETag"] == '"1"'
 
 
 class TestEditHealthPoop:
     @patch(f"{_SERVICE}.edit_health_poop")
     def test_edit_success(self, mock_edit, mock_db):
-        mock_edit.return_value = HealthPoopRead(updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, date_time=_STARTED)
+        mock_edit.return_value = HealthPoopRead(
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, date_time=_STARTED
+        )
 
         response = TestClient(_build_app(mock_db)).patch(
-            "/health_poop/1", json={}, headers={**_HEADERS, "If-Match": '"1"'}
+            f"/health_poop/{_ID}", json={}, headers={**_HEADERS, "If-Match": '"1"'}
         )
 
         assert response.status_code == 200
@@ -125,10 +130,10 @@ class TestEditHealthPoop:
 class TestDeleteHealthPoop:
     @patch(f"{_SERVICE}.delete_health_poop")
     def test_delete_success(self, mock_delete, mock_db):
-        response = TestClient(_build_app(mock_db)).delete("/health_poop/1", headers=_IF_MATCH_HEADERS)
+        response = TestClient(_build_app(mock_db)).delete(f"/health_poop/{_ID}", headers=_IF_MATCH_HEADERS)
 
         assert response.status_code == 204
-        assert mock_delete.call_args.args[:2] == (1, 1)
+        assert mock_delete.call_args.args[:2] == (1, _ID)
         assert mock_delete.call_args.kwargs == {"if_match": '"1"'}
 
 
@@ -136,9 +141,16 @@ class TestReadSendsTheETag:
     @patch(f"{_SERVICE}.get_health_poop")
     def test_a_record_read_by_id_carries_its_version(self, mock_get, mock_db):
         mock_get.return_value = HealthPoopRead(
-            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, date_time=_STARTED, version=5
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, date_time=_STARTED, version=5
         )
 
-        response = TestClient(_build_app(mock_db)).get("/health_poop/1", headers=_HEADERS)
+        response = TestClient(_build_app(mock_db)).get(f"/health_poop/{_ID}", headers=_HEADERS)
 
         assert response.headers["ETag"] == '"5"'
+
+
+class TestMalformedId:
+    def test_a_malformed_id_is_422(self, mock_db):
+        response = TestClient(_build_app(mock_db)).get("/health_poop/not-a-uuid", headers=_HEADERS)
+
+        assert response.status_code == 422

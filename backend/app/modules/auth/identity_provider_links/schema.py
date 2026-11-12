@@ -1,5 +1,6 @@
 """User identity provider Pydantic schemas."""
 
+import uuid
 from datetime import datetime
 
 from pydantic import (
@@ -58,7 +59,7 @@ class UserIdentityProviderRead(UserIdentityProviderBase):
         last_login: Last login using this IdP.
     """
 
-    id: StrictInt = Field(..., description="Link ID")
+    id: uuid.UUID = Field(..., description="Link ID")
     linked_at: datetime = Field(..., description="When linked")
     last_login: datetime | None = Field(
         default=None,

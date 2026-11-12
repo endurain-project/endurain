@@ -1,3 +1,4 @@
+import uuid
 from datetime import date as datetime_date
 from unittest.mock import MagicMock, patch
 
@@ -13,7 +14,11 @@ import modules.health.health_sleep.schema as health_sleep_schema
 pytestmark = pytest.mark.usefixtures("passthrough_serializers")
 
 
-def _row(record_id: int = 1, seconds: int = 28800) -> MagicMock:
+_ID = uuid.uuid4()
+_OTHER_ID = uuid.uuid4()
+
+
+def _row(record_id: uuid.UUID = _ID, seconds: int = 28800) -> MagicMock:
     row = MagicMock(spec=health_sleep_models.HealthSleep)
     row.id = record_id
     row.version = 1
@@ -88,7 +93,7 @@ class TestReads:
     def test_by_date_found(self, mock_db):
         _returns_one(mock_db, _row())
 
-        assert health_sleep_crud.get_health_sleep_by_date_and_user_id(1, "2024-01-15", mock_db).id == 1
+        assert health_sleep_crud.get_health_sleep_by_date_and_user_id(1, "2024-01-15", mock_db).id == _ID
 
     def test_by_date_not_found(self, mock_db):
         _returns_one(mock_db, None)
@@ -127,7 +132,7 @@ class TestEditHealthSleep:
         _returns_one(mock_db, row)
         update = health_sleep_schema.HealthSleepUpdate(date=datetime_date(2024, 1, 15), total_sleep_seconds=32400)
 
-        health_sleep_crud.edit_health_sleep(1, 1, update, mock_db, if_match="*")
+        health_sleep_crud.edit_health_sleep(1, _ID, update, mock_db, if_match="*")
 
         assert row.total_sleep_seconds == 32400
         mock_db.flush.assert_called_once()
@@ -138,7 +143,7 @@ class TestEditHealthSleep:
         update = health_sleep_schema.HealthSleepUpdate(date=datetime_date(2024, 1, 15), total_sleep_seconds=32400)
 
         with pytest.raises(core_exceptions.NotFoundError, match="Health sleep not found"):
-            health_sleep_crud.edit_health_sleep(1, 9, update, mock_db, if_match="*")
+            health_sleep_crud.edit_health_sleep(1, _OTHER_ID, update, mock_db, if_match="*")
 
 
 class TestDeleteHealthSleep:
@@ -146,7 +151,7 @@ class TestDeleteHealthSleep:
         row = _row()
         _returns_one(mock_db, row)
 
-        health_sleep_crud.delete_health_sleep(1, 1, mock_db, if_match="*")
+        health_sleep_crud.delete_health_sleep(1, _ID, mock_db, if_match="*")
 
         mock_db.delete.assert_called_once_with(row)
         mock_db.flush.assert_called_once()
@@ -156,7 +161,7 @@ class TestDeleteHealthSleep:
         _returns_one(mock_db, None)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            health_sleep_crud.delete_health_sleep(1, 9, mock_db, if_match="*")
+            health_sleep_crud.delete_health_sleep(1, _OTHER_ID, mock_db, if_match="*")
         mock_db.delete.assert_not_called()
 
 
@@ -164,10 +169,10 @@ class TestById:
     def test_found(self, mock_db):
         _returns_one(mock_db, _row())
 
-        assert health_sleep_crud.get_health_sleep_by_id(1, 1, mock_db).id == 1
+        assert health_sleep_crud.get_health_sleep_by_id(1, _ID, mock_db).id == _ID
 
     def test_missing_is_not_found(self, mock_db):
         _returns_one(mock_db, None)
 
         with pytest.raises(core_exceptions.NotFoundError, match="Health sleep not found"):
-            health_sleep_crud.get_health_sleep_by_id(1, 99, mock_db)
+            health_sleep_crud.get_health_sleep_by_id(1, _OTHER_ID, mock_db)

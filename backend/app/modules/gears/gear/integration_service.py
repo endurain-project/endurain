@@ -5,6 +5,7 @@ store a gear id on their own rows. Every function returns schemas, never an ORM 
 writes stage and the caller commits.
 """
 
+import uuid
 from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
@@ -144,7 +145,7 @@ def require_owned_gears(user_id: int, gear_ids: Iterable[int | None], db: Sessio
 
 
 def list_changed_gears(
-    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+    user_id: int, after: core_sync.Position[int] | None, until: datetime, limit: int, db: Session
 ) -> list[gears_schema.GearDetailRead]:
     """Return a page of a user's gears changed after a position, oldest change first.
 
@@ -166,8 +167,8 @@ def list_changed_gears(
 
 
 def list_gear_deletions(
-    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
-) -> list[core_sync.Deletion]:
+    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+) -> list[core_sync.Deletion[int]]:
     """Return a page of a user's deleted gears after a position, oldest deletion first.
 
     Args:

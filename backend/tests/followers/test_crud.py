@@ -312,3 +312,36 @@ class TestAcceptIsAtomic:
         finally:
             db.close()
             db.bind.dispose()
+
+
+class TestFollowerListOrder:
+    def test_followers_and_following_list_by_creation_time(self):
+        import uuid
+        from datetime import UTC, datetime, timedelta
+
+        import modules.followers.crud as crud
+        import modules.followers.models as m
+        from tests._helpers.db import create_sqlite_session_factory, ensure_user
+
+        factory = create_sqlite_session_factory()
+        for user_id in (1, 2, 3):
+            ensure_user(factory, user_id)
+        now = datetime.now(UTC)
+        # The older row has the larger id: the order follows the creation time.
+        rows = [(2, 1, now - timedelta(hours=1), uuid.UUID(int=2)), (3, 1, now, uuid.UUID(int=1))]
+        with factory() as db:
+            for follower_id, followee_id, created_at, row_id in rows:
+                db.add(
+                    m.Follower(
+                        id=row_id,
+                        follower_id=follower_id,
+                        followee_id=followee_id,
+                        status="accepted",
+                        created_at=created_at,
+                    )
+                )
+            db.commit()
+            followers = crud.get_all_followers_by_user_id(user_id=1, db=db)
+        factory.kw["bind"].dispose()
+
+        assert [row.follower_id for row in followers] == [2, 3]

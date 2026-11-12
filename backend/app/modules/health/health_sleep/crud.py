@@ -1,5 +1,6 @@
 """CRUD operations for health sleep records."""
 
+import uuid
 from datetime import date as date_type
 from datetime import datetime
 
@@ -177,7 +178,9 @@ def get_health_sleep_list_items_by_user_id(
     )
 
 
-def get_health_sleep_by_id(user_id: int, health_sleep_id: int, db: Session) -> health_sleep_schema.HealthSleepRead:
+def get_health_sleep_by_id(
+    user_id: int, health_sleep_id: uuid.UUID, db: Session
+) -> health_sleep_schema.HealthSleepRead:
     """Retrieve a user's sleep record by id.
 
     Args:
@@ -234,7 +237,7 @@ def create_health_sleep(
 
 def edit_health_sleep(
     user_id: int,
-    health_sleep_id: int,
+    health_sleep_id: uuid.UUID,
     health_sleep: health_sleep_schema.HealthSleepUpdate,
     db: Session,
     *,
@@ -268,7 +271,7 @@ def edit_health_sleep(
     )
 
 
-def delete_health_sleep(user_id: int, health_sleep_id: int, db: Session, *, if_match: str) -> None:
+def delete_health_sleep(user_id: int, health_sleep_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Stage the deletion of a user's sleep record.
 
     Args:
@@ -353,7 +356,7 @@ def get_health_sleep_resting_heart_rate_chart(
 
 
 def list_changed(
-    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[health_sleep_schema.HealthSleepRead]:
     """Retrieve a user's records changed after a position, oldest change first.
 

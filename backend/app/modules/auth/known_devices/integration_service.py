@@ -1,5 +1,7 @@
 """Known-device operations exposed to auth peers."""
 
+import uuid
+
 from sqlalchemy.orm import Session
 
 import core.pagination as core_pagination
@@ -36,7 +38,7 @@ def list_devices(
     return known_devices_service.list_devices(user_id, device_id, page, db)
 
 
-def forget_device(device_id: int, user_id: int, current_device_id: str | None, db: Session) -> int:
+def forget_device(device_id: uuid.UUID, user_id: int, current_device_id: str | None, db: Session) -> int:
     """Stage the deletion of one of the user's known devices but the request's own and its sessions.
 
     Returns how many sessions ended.

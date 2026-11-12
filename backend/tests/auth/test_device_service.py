@@ -1,5 +1,6 @@
 """Tests for listing and forgetting a user's known devices through account security."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import jasil.testing as jasil_testing
@@ -13,11 +14,12 @@ import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.known_devices.schema as known_devices_schema
 import modules.auth.schema as auth_schema
 
+_ROW_ID = uuid.UUID("00000000-0000-4000-8000-000000000005")
 _STEP_UP = auth_schema.StepUpVerification(current_password="pw")
 
 
 def _forget(mock_db):
-    device_service.forget_user_device(5, 7, "sid", "device-id", _STEP_UP, MagicMock(), mock_db)
+    device_service.forget_user_device(_ROW_ID, 7, "sid", "device-id", _STEP_UP, MagicMock(), mock_db)
 
 
 def test_the_list_marks_the_device_the_request_names(mock_db):
@@ -44,7 +46,7 @@ class TestForget:
             calls.verify.call_args.kwargs["action"] == identity_providers_constants.StepUpAction.PROFILE_DEVICE_FORGET
         )
         assert calls.verify.call_args.kwargs["session_id"] == "sid"
-        calls.forget.assert_called_once_with(5, 7, "device-id", mock_db)
+        calls.forget.assert_called_once_with(_ROW_ID, 7, "device-id", mock_db)
 
     def test_a_forgotten_device_is_audited_and_committed(self, mock_db):
         with (
@@ -57,7 +59,7 @@ class TestForget:
         row = audit.assert_audited(
             account_security_audit_actions.DEVICE_FORGET.id,
             target_type="device",
-            target_id="5",
+            target_id=str(_ROW_ID),
             target_owner_id="7",
         )
         assert row.details == {"sessions_revoked": 3}

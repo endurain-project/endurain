@@ -5,6 +5,7 @@ transaction boundary. What other modules may consume lives in
 :mod:`modules.health.health_poop.integration_service`.
 """
 
+import uuid
 from datetime import date as date_type
 from typing import Any
 
@@ -58,7 +59,7 @@ def list_health_poop(
     return core_pagination.Page.build(records, total, page_number, num_records)
 
 
-def get_health_poop(user_id: int, health_poop_id: int, db: Session) -> health_poop_schema.HealthPoopRead:
+def get_health_poop(user_id: int, health_poop_id: uuid.UUID, db: Session) -> health_poop_schema.HealthPoopRead:
     """Return one of a user's poop records.
 
     Args:
@@ -136,7 +137,12 @@ def stage_import_health_poop(user_id: int, health_poop: health_poop_schema.Healt
 
 
 def edit_health_poop(
-    user_id: int, health_poop_id: int, health_poop: health_poop_schema.HealthPoopUpdate, db: Session, *, if_match: str
+    user_id: int,
+    health_poop_id: uuid.UUID,
+    health_poop: health_poop_schema.HealthPoopUpdate,
+    db: Session,
+    *,
+    if_match: str,
 ) -> health_poop_schema.HealthPoopRead:
     """Update a poop record, and commit.
 
@@ -166,7 +172,7 @@ def edit_health_poop(
     return updated
 
 
-def delete_health_poop(user_id: int, health_poop_id: int, db: Session, *, if_match: str) -> None:
+def delete_health_poop(user_id: int, health_poop_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Delete a poop record and commit.
 
     Args:

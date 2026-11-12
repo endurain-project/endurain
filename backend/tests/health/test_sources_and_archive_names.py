@@ -1,6 +1,7 @@
 """Every health record has a ``manual`` source by default, and an old archive's field names are read as today's."""
 
 import importlib
+import uuid
 
 import pytest
 
@@ -41,7 +42,7 @@ def test_a_record_written_by_the_server_without_a_source_is_manual(kind):
 @pytest.mark.parametrize("kind", _KINDS)
 def test_a_record_read_without_a_source_is_manual(kind):
     read = getattr(_schema(kind), f"Health{kind.capitalize()}Read")
-    fields = {"id": 1, "user_id": 1, "updated_at": "2026-01-01T00:00:00Z", **_REQUIRED[kind]}
+    fields = {"id": uuid.uuid4(), "user_id": 1, "updated_at": "2026-01-01T00:00:00Z", **_REQUIRED[kind]}
     if kind == "poop":
         fields["date_time"] = "2026-01-01T07:00:00Z"
     if kind == "fasting":

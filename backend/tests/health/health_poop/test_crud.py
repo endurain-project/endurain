@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime
 from datetime import date as datetime_date
 from unittest.mock import MagicMock
@@ -13,7 +14,11 @@ import modules.health.health_poop.schema as health_poop_schema
 pytestmark = pytest.mark.usefixtures("passthrough_serializers")
 
 
-def _row(record_id: int = 1) -> MagicMock:
+_ID = uuid.uuid4()
+_OTHER_ID = uuid.uuid4()
+
+
+def _row(record_id: uuid.UUID = _ID) -> MagicMock:
     row = MagicMock(spec=health_poop_models.HealthPoop)
     row.id = record_id
     row.version = 1
@@ -58,12 +63,12 @@ class TestReads:
     def test_by_id_found(self, mock_db):
         _returns_one(mock_db, _row())
 
-        assert health_poop_crud.get_health_poop_by_id_and_user_id(1, 1, mock_db).id == 1
+        assert health_poop_crud.get_health_poop_by_id_and_user_id(_ID, 1, mock_db).id == _ID
 
     def test_by_id_not_found(self, mock_db):
         _returns_one(mock_db, None)
 
-        assert health_poop_crud.get_health_poop_by_id_and_user_id(9, 1, mock_db) is None
+        assert health_poop_crud.get_health_poop_by_id_and_user_id(_OTHER_ID, 1, mock_db) is None
 
     def test_by_date_resolves_the_day_in_the_given_timezone(self, mock_db):
         _returns_scalars(mock_db, [_row(), _row(2)])
@@ -103,7 +108,7 @@ class TestEditHealthPoop:
         _returns_one(mock_db, row)
         update = health_poop_schema.HealthPoopUpdate(notes="ok")
 
-        health_poop_crud.edit_health_poop(1, 1, update, mock_db, if_match="*")
+        health_poop_crud.edit_health_poop(1, _ID, update, mock_db, if_match="*")
 
         assert row.notes == "ok"
         mock_db.flush.assert_called_once()
@@ -114,7 +119,7 @@ class TestEditHealthPoop:
         update = health_poop_schema.HealthPoopUpdate(notes="ok")
 
         with pytest.raises(core_exceptions.NotFoundError, match="Health poop not found"):
-            health_poop_crud.edit_health_poop(1, 9, update, mock_db, if_match="*")
+            health_poop_crud.edit_health_poop(1, _OTHER_ID, update, mock_db, if_match="*")
 
 
 class TestDeleteHealthPoop:
@@ -122,7 +127,7 @@ class TestDeleteHealthPoop:
         row = _row()
         _returns_one(mock_db, row)
 
-        health_poop_crud.delete_health_poop(1, 1, mock_db, if_match="*")
+        health_poop_crud.delete_health_poop(1, _ID, mock_db, if_match="*")
 
         mock_db.delete.assert_called_once_with(row)
         mock_db.flush.assert_called_once()
@@ -132,5 +137,5 @@ class TestDeleteHealthPoop:
         _returns_one(mock_db, None)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            health_poop_crud.delete_health_poop(1, 9, mock_db, if_match="*")
+            health_poop_crud.delete_health_poop(1, _OTHER_ID, mock_db, if_match="*")
         mock_db.delete.assert_not_called()

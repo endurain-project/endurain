@@ -3,7 +3,7 @@
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import Date, ForeignKey, Index, Numeric, String, UniqueConstraint
+from sqlalchemy import Date, ForeignKey, Index, Integer, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -136,3 +136,5 @@ class GearDeletion(core_sync.TombstoneMixin, Base):
     __tablename__ = "gear_deletions"
 
     __table_args__ = (Index("ix_gear_deletions_user_id_deleted_at_id", "user_id", "deleted_at", "id"),)
+
+    record_id: Mapped[int] = mapped_column(Integer, nullable=False, comment="The id the deleted record had")

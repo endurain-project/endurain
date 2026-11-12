@@ -115,7 +115,7 @@ def read_health_water_chart(
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:read"])],
 )
 def read_health_water_by_id(
-    health_water_id: core_dependencies.PositiveId,
+    health_water_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     response: Response,
@@ -179,7 +179,7 @@ def create_health_water(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_health_water(
     request: Request,
-    health_water_id: core_dependencies.PositiveId,
+    health_water_id: core_dependencies.UuidId,
     health_water: health_water_schema.HealthWaterUpdate,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
@@ -225,7 +225,7 @@ def edit_health_water(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_health_water(
     request: Request,
-    health_water_id: core_dependencies.PositiveId,
+    health_water_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     if_match: core_dependencies.IfMatch,
     db: core_dependencies.DbSession,

@@ -1,5 +1,6 @@
 """Pydantic request and response shapes for health steps records."""
 
+import uuid
 from datetime import date as datetime_date
 from datetime import datetime
 from enum import Enum
@@ -77,12 +78,12 @@ class HealthStepsRead(HealthStepsBase):
 
     Attributes:
         source (Source | None): Source of the steps data (e.g., device, API, manual entry). Optional field.
-        id (StrictInt): Unique identifier for the steps record to update. Required field.
+        id (uuid.UUID): Unique identifier for the steps record to update. Required field.
         user_id (StrictInt): Foreign key reference to the user. Required field.
     """
 
     source: Source = Field(default=Source.MANUAL, validate_default=True, description="Source of the steps data")
-    id: StrictInt = Field(..., description="Unique identifier for the steps record to update")
+    id: uuid.UUID = Field(..., description="Unique identifier for the steps record to update")
     user_id: StrictInt = Field(..., description="Foreign key reference to the user")
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
     updated_at: datetime = Field(..., description="When the record last changed, set by the server")

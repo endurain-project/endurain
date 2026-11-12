@@ -5,6 +5,7 @@ movement data, including Bristol stool scale type, color, and
 optional notes.
 """
 
+import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Index, String
@@ -18,7 +19,7 @@ class HealthPoop(core_sync.UpdatedAtMixin, Base):
     """User bowel movement tracking data.
 
     Attributes:
-        id: Primary key, auto-incremented unique identifier.
+        id: Primary key, a random UUID.
         user_id: Foreign key referencing users.id.
         date_time: Date and time of the bowel movement.
         bristol_type: Bristol Stool Scale type (1-7).
@@ -33,10 +34,7 @@ class HealthPoop(core_sync.UpdatedAtMixin, Base):
     __tablename__ = "health_poop"
     __table_args__ = (Index("ix_health_poop_user_updated_at_id", "user_id", "updated_at", "id"),)
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,

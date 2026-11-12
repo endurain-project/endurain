@@ -1,5 +1,6 @@
 """Tests for auth.mfa.service (moved from profile.utils)."""
 
+import uuid
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -30,7 +31,7 @@ class TestVerifyUserMfaTotpReplay:
     _SECRET = "JBSWY3DPEHPK3PXP"
 
     def _verify(self, code, guard):
-        row = SimpleNamespace(id=1, credential="encrypted")
+        row = SimpleNamespace(id=uuid.uuid4(), credential="encrypted")
         with (
             patch("modules.auth.mfa.service.users_integration.require_user", return_value=SimpleNamespace(id=1)),
             patch("modules.auth.mfa.service.auth_mfa_crud.get_totp_factor", return_value=row),
@@ -329,7 +330,7 @@ class TestVerifyUserMFA:
             auth_mfa = getattr(mfa_service.users_integration.require_user.return_value, "auth_mfa", None)
             if auth_mfa is None or not auth_mfa.mfa_enabled or not auth_mfa.mfa_secret:
                 return None
-            return SimpleNamespace(id=1, credential=auth_mfa.mfa_secret)
+            return SimpleNamespace(id=uuid.uuid4(), credential=auth_mfa.mfa_secret)
 
         with patch("modules.auth.mfa.service.auth_mfa_crud.get_totp_factor", side_effect=_row):
             yield

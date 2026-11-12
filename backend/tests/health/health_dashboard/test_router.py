@@ -1,3 +1,4 @@
+import uuid
 from unittest.mock import patch
 
 from fastapi import FastAPI
@@ -5,6 +6,8 @@ from fastapi.testclient import TestClient
 
 import modules.health.health_dashboard.schema as health_dashboard_schema
 import modules.health.health_targets.schema as health_targets_schema
+
+_ID = uuid.uuid4()
 
 
 def _build_app(mock_db, scopes=frozenset({"health:read", "health-targets:read"})):
@@ -36,7 +39,7 @@ class TestReadHealthDailyStats:
             poop=health_dashboard_schema.HealthPoopDashboard(count=1),
             targets=health_targets_schema.HealthTargetsRead(
                 updated_at="2024-01-01T00:00:00Z",
-                id=2,
+                id=_ID,
                 user_id=1,
                 version=3,
                 sleep_seconds=28800,

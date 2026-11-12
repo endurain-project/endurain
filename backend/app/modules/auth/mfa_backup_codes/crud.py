@@ -1,5 +1,6 @@
 """Persistence operations for MFA backup codes."""
 
+import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import delete, or_, select, update
@@ -53,7 +54,7 @@ def create_backup_codes(user_id: int, code_hashes: list[str], db: Session) -> No
     db.flush()
 
 
-def mark_backup_code_as_used(code_id: int, user_id: int, db: Session) -> None:
+def mark_backup_code_as_used(code_id: uuid.UUID, user_id: int, db: Session) -> None:
     """Stage consumption of one unused backup code.
 
     The code is claimed by a single conditional ``UPDATE``, so of two concurrent requests presenting the

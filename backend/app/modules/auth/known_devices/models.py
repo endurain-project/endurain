@@ -1,5 +1,6 @@
 """Known-device database models."""
 
+import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint
@@ -12,7 +13,7 @@ class KnownDevice(Base):
     """A browser a user has signed in from.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         user_id: The user who signed in.
         device_hash: SHA-256 hex digest of the device id the browser holds in its cookie.
         created_at: When the user first signed in from the device.
@@ -27,10 +28,7 @@ class KnownDevice(Base):
     __tablename__ = "auth_known_devices"
     __table_args__ = (UniqueConstraint("user_id", "device_hash", name="uq_auth_known_devices_user_id_device_hash"),)
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,

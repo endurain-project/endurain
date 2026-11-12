@@ -1,5 +1,6 @@
 """Tests for user_integrations.schema module."""
 
+import uuid
 from datetime import UTC, datetime
 from typing import ClassVar
 
@@ -158,8 +159,9 @@ class TestUsersIntegrationsRead:
             - id and user_id are required
         """
         # Arrange
+        record_id = uuid.uuid4()
         data = {
-            "id": 1,
+            "id": record_id,
             "user_id": 1,
         }
 
@@ -167,7 +169,7 @@ class TestUsersIntegrationsRead:
         obj = UserIntegrationsRead(**data)
 
         # Assert
-        assert obj.id == 1
+        assert obj.id == record_id
         assert obj.user_id == 1
 
     def test_users_integrations_read_missing_id(self):
@@ -195,7 +197,7 @@ class TestUsersIntegrationsRead:
         """
         # Arrange
         data = {
-            "id": 1,
+            "id": uuid.uuid4(),
         }
 
         # Act & Assert

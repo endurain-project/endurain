@@ -1,5 +1,7 @@
 """CRUD operations for user goals."""
 
+import uuid
+
 from sqlalchemy import Select, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -31,7 +33,7 @@ def _flush_goal(db: Session) -> None:
         ) from err
 
 
-def _select_goal(user_id: int, goal_id: int, db: Session) -> user_goals_models.UsersGoal:
+def _select_goal(user_id: int, goal_id: uuid.UUID, db: Session) -> user_goals_models.UsersGoal:
     """Select one of a user's goals as an ORM row.
 
     Args:
@@ -121,7 +123,7 @@ def get_user_goals_page(
     limit: int,
     offset: int,
 ) -> list[user_goals_schema.UserGoalRead]:
-    """Retrieve one window of a user's goals, in id order.
+    """Retrieve one window of a user's goals, in creation order.
 
     Args:
         user_id: The ID of the user.
@@ -137,7 +139,7 @@ def get_user_goals_page(
     """
     stmt = (
         _filtered_goals(select(user_goals_models.UsersGoal), user_id, interval, activity_type, goal_type)
-        .order_by(user_goals_models.UsersGoal.id)
+        .order_by(user_goals_models.UsersGoal.created_at, user_goals_models.UsersGoal.id)
         .limit(limit)
         .offset(offset)
     )
@@ -169,7 +171,7 @@ def count_user_goals(
     return db.execute(stmt).scalar_one()
 
 
-def get_user_goal(user_id: int, goal_id: int, db: Session) -> user_goals_schema.UserGoalRead:
+def get_user_goal(user_id: int, goal_id: uuid.UUID, db: Session) -> user_goals_schema.UserGoalRead:
     """Retrieve one of a user's goals.
 
     Args:
@@ -224,7 +226,7 @@ def create_user_goal(
 
 def update_user_goal(
     user_id: int,
-    goal_id: int,
+    goal_id: uuid.UUID,
     user_goal: user_goals_schema.UserGoalUpdate,
     db: Session,
     *,
@@ -260,7 +262,7 @@ def update_user_goal(
     return user_goals_serializers.to_read_schema(db_goal)
 
 
-def delete_user_goal(user_id: int, goal_id: int, db: Session, *, if_match: str) -> None:
+def delete_user_goal(user_id: int, goal_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Stage the deletion of a user's goal (flushed, not committed).
 
     Args:
@@ -279,7 +281,7 @@ def delete_user_goal(user_id: int, goal_id: int, db: Session, *, if_match: str) 
     db.flush()
 
 
-def user_goal_exists(user_id: int, goal_id: int, db: Session) -> bool:
+def user_goal_exists(user_id: int, goal_id: uuid.UUID, db: Session) -> bool:
     """Report whether a user has a goal.
 
     Args:

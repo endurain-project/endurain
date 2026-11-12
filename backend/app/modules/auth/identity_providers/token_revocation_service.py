@@ -1,5 +1,6 @@
 """Revocation, at the identity provider, of the refresh tokens of sessions that have ended (RFC 7009)."""
 
+import uuid
 from enum import Enum
 
 import httpx2
@@ -66,7 +67,7 @@ class IdpTokenRevocationService:
         """
         deleted = 0
         unreachable: set[int] = set()
-        after_id = 0
+        after_id: uuid.UUID | None = None
         while True:
             with core_database.SessionLocal() as db:
                 orphans, last_id = identity_provider_links_integration.get_orphaned_idp_session_tokens_page(

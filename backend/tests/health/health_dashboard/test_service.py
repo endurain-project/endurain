@@ -1,3 +1,4 @@
+import uuid
 from datetime import date
 from unittest.mock import MagicMock, patch
 
@@ -5,6 +6,9 @@ import pytest
 
 import modules.health.health_dashboard.service as health_dashboard_service
 import modules.health.health_targets.schema as health_targets_schema
+
+_ID = uuid.uuid4()
+
 
 _PREFIX = "modules.health.health_dashboard.service"
 
@@ -39,7 +43,7 @@ class TestGetDailyStats:
         peers["weight"].return_value = MagicMock(weight_kg=75.5, bmi=24.5)
         peers["steps"].return_value = MagicMock(steps=8000)
         peers["fasting"].return_value = MagicMock(
-            id=1,
+            id=_ID,
             fast_start_time=date(2024, 1, 15),
             fast_end_time=None,
             status="in_progress",
@@ -49,7 +53,7 @@ class TestGetDailyStats:
         peers["poop"].return_value = [MagicMock(), MagicMock()]
         targets = health_targets_schema.HealthTargetsRead(
             updated_at="2024-01-01T00:00:00Z",
-            id=2,
+            id=_ID,
             user_id=1,
             version=3,
             sleep_seconds=28800,

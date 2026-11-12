@@ -1,5 +1,7 @@
 """User privacy settings Pydantic schemas and validators."""
 
+import uuid
+
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -108,6 +110,6 @@ class UserPrivacySettingsRead(UserPrivacySettingsBase):
         user_id: Foreign key reference to the user.
     """
 
-    id: StrictInt = Field(..., ge=1, description="Unique identifier for privacy settings")
+    id: uuid.UUID = Field(..., description="Unique identifier for privacy settings")
     user_id: StrictInt = Field(..., ge=1, description="Foreign key reference to the user")
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")

@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
@@ -120,7 +121,7 @@ def db():
     session.close()
 
 
-def _stamp(db, model, row_id: int, stamp: datetime) -> None:
+def _stamp(db, model, row_id: uuid.UUID, stamp: datetime) -> None:
     db.execute(update(model).where(model.id == row_id).values(updated_at=stamp))
     db.flush()
 
@@ -167,6 +168,7 @@ class TestListChanged:
         rows = [make(1), make(2), make(3), make(4, OTHER_USER)]
         db.add_all(rows)
         db.flush()
+        rows[:2] = sorted(rows[:2], key=lambda row: row.id)
         for row in rows[:2]:
             _stamp(db, spec.model, row.id, OLD)
         _stamp(db, spec.model, rows[2].id, MIDDLE)
@@ -271,8 +273,8 @@ class TestDeletions:
     def test_other_types_and_owners_are_not_listed(self, db, sync_type, make, spec, changed, deletions):
         db.add_all(
             [
-                health_models.HealthRecordDeletion(user_id=USER, record_id=1, record_type="other_type"),
-                health_models.HealthRecordDeletion(user_id=OTHER_USER, record_id=2, record_type=sync_type),
+                health_models.HealthRecordDeletion(user_id=USER, record_id=uuid.uuid4(), record_type="other_type"),
+                health_models.HealthRecordDeletion(user_id=OTHER_USER, record_id=uuid.uuid4(), record_type=sync_type),
             ]
         )
         db.flush()
@@ -280,9 +282,16 @@ class TestDeletions:
         assert deletions(USER, None, FAR_FUTURE, 10, db) == []
 
     def test_pages_in_stamp_then_id_order(self, db, sync_type, make, spec, changed, deletions):
-        old_a = health_models.HealthRecordDeletion(user_id=USER, record_id=10, record_type=sync_type, deleted_at=OLD)
-        old_b = health_models.HealthRecordDeletion(user_id=USER, record_id=11, record_type=sync_type, deleted_at=OLD)
-        newer = health_models.HealthRecordDeletion(user_id=USER, record_id=12, record_type=sync_type, deleted_at=MIDDLE)
+        ids = [uuid.uuid4() for _ in range(3)]
+        old_a, old_b = (
+            health_models.HealthRecordDeletion(
+                id=uuid.UUID(int=n), user_id=USER, record_id=ids[n - 1], record_type=sync_type, deleted_at=OLD
+            )
+            for n in (1, 2)
+        )
+        newer = health_models.HealthRecordDeletion(
+            id=uuid.UUID(int=3), user_id=USER, record_id=ids[2], record_type=sync_type, deleted_at=MIDDLE
+        )
         db.add_all([newer, old_a, old_b])
         db.flush()
 
@@ -291,22 +300,26 @@ class TestDeletions:
         before_middle = deletions(USER, None, MIDDLE, 10, db)
         limited = deletions(USER, None, FAR_FUTURE, 2, db)
 
-        assert [d.record_id for d in everything] == [10, 11, 12]
-        assert [d.record_id for d in after_first] == [11, 12]
-        assert [d.record_id for d in before_middle] == [10, 11]
-        assert [d.record_id for d in limited] == [10, 11]
+        assert [d.record_id for d in everything] == ids
+        assert [d.record_id for d in after_first] == ids[1:]
+        assert [d.record_id for d in before_middle] == ids[:2]
+        assert [d.record_id for d in limited] == ids[:2]
 
 
 class TestPrune:
     def test_removes_only_old_tombstones(self, db):
         now = datetime.now(UTC)
+        recent_id = uuid.uuid4()
         db.add_all(
             [
                 health_models.HealthRecordDeletion(
-                    user_id=USER, record_id=1, record_type="health_weight", deleted_at=now - timedelta(days=100)
+                    user_id=USER,
+                    record_id=uuid.uuid4(),
+                    record_type="health_weight",
+                    deleted_at=now - timedelta(days=100),
                 ),
                 health_models.HealthRecordDeletion(
-                    user_id=USER, record_id=2, record_type="health_weight", deleted_at=now - timedelta(days=1)
+                    user_id=USER, record_id=recent_id, record_type="health_weight", deleted_at=now - timedelta(days=1)
                 ),
             ]
         )
@@ -317,7 +330,7 @@ class TestPrune:
         removed = health_record_service.prune_deletions(db)
 
         assert removed == 1
-        assert [d.record_id for d in db.scalars(select(health_models.HealthRecordDeletion))] == [2]
+        assert [d.record_id for d in db.scalars(select(health_models.HealthRecordDeletion))] == [recent_id]
 
     def test_the_job_runs_daily(self):
         (job,) = health_scheduled_jobs.recurring_jobs()

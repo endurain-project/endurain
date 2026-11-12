@@ -1,5 +1,6 @@
 """Tests for activity-created notification consumers."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -33,7 +34,7 @@ class TestOnActivityCreatedNotify:
         from modules.notifications.subscribers import on_activity_created_notify
 
         mock_notif.create_activity_created_notification.return_value = (
-            MagicMock(id=5),
+            MagicMock(id=uuid.UUID(int=5)),
             "NEW_ACTIVITY_NOTIFICATION",
             True,
         )
@@ -49,7 +50,7 @@ class TestOnActivityCreatedNotify:
         from modules.notifications.subscribers import on_activity_created_notify
 
         mock_notif.create_activity_created_notification.return_value = (
-            MagicMock(id=5),
+            MagicMock(id=uuid.UUID(int=5)),
             "NEW_ACTIVITY_NOTIFICATION",
             False,
         )
@@ -66,7 +67,7 @@ class TestOnActivityCreatedNotify:
         from modules.notifications.subscribers import on_activity_created_notify
 
         mock_notif.create_activity_created_notification.return_value = (
-            MagicMock(id=6),
+            MagicMock(id=uuid.UUID(int=6)),
             "NEW_DUPLICATE_ACTIVITY_START_TIME_NOTIFICATION",
             True,
         )

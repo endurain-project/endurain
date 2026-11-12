@@ -1,5 +1,6 @@
 """User integrations database models."""
 
+import uuid
 from datetime import datetime
 from typing import Any
 
@@ -13,7 +14,7 @@ class UsersIntegrations(Base):
     """User third-party service integration settings.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         user_id: Foreign key to users table (unique).
         strava_client_id: Encrypted Strava client ID.
         strava_client_secret: Encrypted Strava client secret.
@@ -32,10 +33,7 @@ class UsersIntegrations(Base):
 
     __tablename__ = "users_integrations"
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,

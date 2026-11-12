@@ -4,6 +4,7 @@ This module defines the database models for storing user fasting sessions,
 including timing, duration, type, and status information.
 """
 
+import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, text
@@ -17,7 +18,7 @@ class HealthFasting(core_sync.UpdatedAtMixin, Base):
     """User fasting session tracking data.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         user_id: Foreign key to users table.
         fast_start_time: Start time of fast.
         fast_end_time: End time of fast (null if ongoing).
@@ -41,10 +42,7 @@ class HealthFasting(core_sync.UpdatedAtMixin, Base):
         ),
     )
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,

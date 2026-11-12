@@ -1,5 +1,6 @@
 """Tests for the notifications application layer."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -12,12 +13,16 @@ import modules.notifications.constants as notifications_constants
 import modules.notifications.service as notifications_service
 
 
+def _nid(number: int) -> uuid.UUID:
+    return uuid.UUID(int=number)
+
+
 def _read(notification_id: int):
     import modules.notifications.schema as notifications_schema
 
     return notifications_schema.NOTIFICATION_READ_ADAPTER.validate_python(
         {
-            "id": notification_id,
+            "id": _nid(notification_id),
             "user_id": 1,
             "type": "new_activity",
             "options": {"activity_id": notification_id},
@@ -41,7 +46,7 @@ class TestReadsAndMarks:
         ) as crud_list:
             page = notifications_service.list_notifications(1, mock_db, cursor=None, num_records=5)
         crud_list.assert_called_once_with(1, None, 6, mock_db, unread_only=False)
-        assert [n.id for n in page.items] == [1, 2]
+        assert [n.id for n in page.items] == [_nid(1), _nid(2)]
         assert page.num_records == 5
         assert page.next_cursor is None
 
@@ -52,12 +57,12 @@ class TestReadsAndMarks:
         ) as crud_list:
             page = notifications_service.list_notifications(1, mock_db, cursor=None, num_records=2, unread_only=True)
         crud_list.assert_called_once_with(1, None, 3, mock_db, unread_only=True)
-        assert [n.id for n in page.items] == [3, 2]
+        assert [n.id for n in page.items] == [_nid(3), _nid(2)]
         assert page.next_cursor is not None
-        assert core_pagination.decode_cursor(page.next_cursor) == (rows[1].created_at, 2)
+        assert core_pagination.decode_uuid_cursor(page.next_cursor) == (rows[1].created_at, _nid(2))
 
     def test_list_resumes_after_the_decoded_cursor(self, mock_db):
-        position = (datetime(2024, 1, 2, tzinfo=UTC), 2)
+        position = (datetime(2024, 1, 2, tzinfo=UTC), _nid(2))
         cursor = core_pagination.encode_cursor(*position)
         with patch(
             "modules.notifications.service.notifications_crud.get_user_notifications_after", return_value=[]
@@ -74,12 +79,12 @@ class TestReadsAndMarks:
             patch("modules.notifications.service.notifications_crud.get_user_notification_by_id", return_value=None),
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            notifications_service.get_notification(4, 1, mock_db)
+            notifications_service.get_notification(_nid(4), 1, mock_db)
 
     def test_mark_read_commits(self, mock_db):
         with patch("modules.notifications.service.notifications_crud.mark_notification_as_read") as mark:
-            notifications_service.mark_notification_as_read(4, 1, mock_db)
-        mark.assert_called_once_with(4, 1, mock_db)
+            notifications_service.mark_notification_as_read(_nid(4), 1, mock_db)
+        mark.assert_called_once_with(_nid(4), 1, mock_db)
         mock_db.commit.assert_called_once()
 
     def test_mark_read_missing_raises_without_commit(self, mock_db):
@@ -87,7 +92,7 @@ class TestReadsAndMarks:
             patch("modules.notifications.service.notifications_crud.mark_notification_as_read", return_value=None),
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            notifications_service.mark_notification_as_read(4, 1, mock_db)
+            notifications_service.mark_notification_as_read(_nid(4), 1, mock_db)
         mock_db.commit.assert_not_called()
 
     def test_mark_all_read_commits(self, mock_db):
@@ -99,7 +104,7 @@ class TestReadsAndMarks:
 
 class TestCreateActivityCreatedNotification:
     def test_new_activity_variant(self, mock_db):
-        stored = MagicMock(id=9)
+        stored = MagicMock(id=_nid(9))
         with patch(
             "modules.notifications.service.notifications_crud.create_notification_once", return_value=(stored, True)
         ) as create_once:
@@ -117,7 +122,7 @@ class TestCreateActivityCreatedNotification:
     def test_duplicate_variant(self, mock_db):
         with patch(
             "modules.notifications.service.notifications_crud.create_notification_once",
-            return_value=(MagicMock(id=9), True),
+            return_value=(MagicMock(id=_nid(9)), True),
         ) as create_once:
             _, ws_message, _ = notifications_service.create_activity_created_notification(
                 1, 5, True, "event-1", mock_db
@@ -129,7 +134,7 @@ class TestCreateActivityCreatedNotification:
     def test_replayed_event_reports_not_created(self, mock_db):
         with patch(
             "modules.notifications.service.notifications_crud.create_notification_once",
-            return_value=(MagicMock(id=9), False),
+            return_value=(MagicMock(id=_nid(9)), False),
         ):
             _, _, created = notifications_service.create_activity_created_notification(1, 5, False, "event-1", mock_db)
         assert created is False
@@ -144,7 +149,7 @@ class TestCreateFollowNotifications:
             patch("modules.notifications.service.users_integration.get_user", return_value=requester),
             patch(
                 "modules.notifications.service.notifications_crud.create_notification_once",
-                return_value=(MagicMock(id=3), True),
+                return_value=(MagicMock(id=_nid(3)), True),
             ) as create_once,
         ):
             _, ws_message, created = notifications_service.create_follow_request_notification(1, 2, "event-1", mock_db)
@@ -173,7 +178,7 @@ class TestCreateFollowNotifications:
             patch("modules.notifications.service.users_integration.get_user", return_value=accepter),
             patch(
                 "modules.notifications.service.notifications_crud.create_notification_once",
-                return_value=(MagicMock(id=3), True),
+                return_value=(MagicMock(id=_nid(3)), True),
             ) as create_once,
         ):
             _, ws_message, _ = notifications_service.create_follow_accepted_notification(2, 1, "event-1", mock_db)
@@ -231,7 +236,7 @@ class TestPurgeReadNotifications:
 class TestDeleteAndMarkSeveral:
     def test_delete_commits_when_the_notification_was_deleted(self, mock_db):
         with patch("modules.notifications.service.notifications_crud.delete_user_notification", return_value=True):
-            notifications_service.delete_notification(3, 1, mock_db)
+            notifications_service.delete_notification(_nid(3), 1, mock_db)
 
         mock_db.commit.assert_called_once()
 
@@ -240,13 +245,13 @@ class TestDeleteAndMarkSeveral:
             patch("modules.notifications.service.notifications_crud.delete_user_notification", return_value=False),
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            notifications_service.delete_notification(3, 1, mock_db)
+            notifications_service.delete_notification(_nid(3), 1, mock_db)
 
         mock_db.commit.assert_not_called()
 
     def test_marking_several_commits_once(self, mock_db):
         with patch("modules.notifications.service.notifications_crud.mark_notifications_as_read") as crud_mark:
-            notifications_service.mark_notifications_as_read([1, 2], 1, mock_db)
+            notifications_service.mark_notifications_as_read([_nid(1), _nid(2)], 1, mock_db)
 
-        crud_mark.assert_called_once_with([1, 2], 1, mock_db)
+        crud_mark.assert_called_once_with([_nid(1), _nid(2)], 1, mock_db)
         mock_db.commit.assert_called_once()

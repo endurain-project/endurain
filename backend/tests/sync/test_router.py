@@ -1,15 +1,19 @@
 """Tests for ``GET /sync``: the page shape, the problem types and the parameters it passes on."""
 
+import json
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+import core.cryptography as core_cryptography
 import core.database as core_database
 import core.exceptions as core_exceptions
 import modules.auth.dependencies as auth_dependencies
 import modules.sync.router as sync_router
 import modules.sync.schema as sync_schema
+import modules.sync.service as sync_service
 
 _SYNC = "modules.sync.service.sync"
 
@@ -52,3 +56,24 @@ def test_an_unknown_type_and_an_oversized_page_are_refused():
 
     assert client.get("/sync", params={"types": "nope"}).status_code == 422
     assert client.get("/sync", params={"num_records": 5000}).status_code == 422
+
+
+def _cursor(**raw) -> str:
+    return core_cryptography.encrypt_token_fernet(json.dumps({"t": datetime.now(UTC).isoformat(), **raw}))
+
+
+def test_a_cursor_of_the_old_format_is_410_sync_expired():
+    old = _cursor(s=datetime.now(UTC).isoformat(), r=0, i=5)
+
+    response = _client().get("/sync", params={"cursor": old})
+
+    assert response.status_code == 410
+    assert response.json()["type"] == "urn:endurain:error:sync-expired"
+
+
+def test_a_cursor_with_a_malformed_id_is_400():
+    bad = _cursor(f=sync_service._CURSOR_FORMAT, s=datetime.now(UTC).isoformat(), r=2, i="not-a-uuid")
+
+    response = _client().get("/sync", params={"cursor": bad})
+
+    assert response.status_code == 400

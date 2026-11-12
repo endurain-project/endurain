@@ -1,6 +1,7 @@
 """Tests for notification Pydantic schemas."""
 
 import typing
+import uuid
 from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
@@ -15,7 +16,7 @@ class TestNotificationReadCreatedAt:
     def _notification(self, created_at):
         return notifications_schema.NOTIFICATION_READ_ADAPTER.validate_python(
             {
-                "id": 1,
+                "id": uuid.UUID(int=1),
                 "user_id": 1,
                 "type": "new_activity",
                 "options": {"activity_id": 5},
@@ -61,7 +62,7 @@ class TestTypedOptions:
     def _read(notification_type, options):
         return notifications_schema.NOTIFICATION_READ_ADAPTER.validate_python(
             {
-                "id": 1,
+                "id": uuid.UUID(int=1),
                 "user_id": 1,
                 "type": notification_type,
                 "options": options,

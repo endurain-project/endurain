@@ -6,6 +6,7 @@ package's ``crud`` executes it. The serializers turn an ORM row into the read sc
 """
 
 import calendar
+import uuid
 from collections.abc import Callable, Sequence
 from datetime import date, datetime, timedelta
 from typing import Protocol
@@ -23,7 +24,7 @@ import modules.health.constants as health_constants
 class _HasId(Protocol):
     """A stored record, which has an id."""
 
-    id: int
+    id: uuid.UUID
 
 
 class OwnedRecord(Protocol):
@@ -34,7 +35,7 @@ class OwnedRecord(Protocol):
     """
 
     @declared_attr
-    def id(cls) -> Mapped[int]:
+    def id(cls) -> Mapped[uuid.UUID]:
         """The record's primary key."""
         ...
 
@@ -162,7 +163,7 @@ def date_bounds(column: SQLColumnExpression[date], since: date | None, until: da
 
 
 def owned_record_statement[ModelT: OwnedRecord](
-    model: type[ModelT], record_id: int, user_id: int
+    model: type[ModelT], record_id: uuid.UUID, user_id: int
 ) -> Select[tuple[ModelT]]:
     """Build the query for a user's record by id.
 
@@ -178,7 +179,7 @@ def owned_record_statement[ModelT: OwnedRecord](
 
 
 def owned_record_exists_statement[ModelT: OwnedRecord](
-    model: type[ModelT], record_id: int, user_id: int
+    model: type[ModelT], record_id: uuid.UUID, user_id: int
 ) -> Select[tuple[bool]]:
     """Build the query that reports whether a user has a record.
 
@@ -340,7 +341,7 @@ def bucket_day_count(start: date, bucket: health_constants.ChartBucket, since: d
 def upsert_for_day[RecordT: _HasId](
     find: Callable[[], RecordT | None],
     create: Callable[[], RecordT],
-    edit: Callable[[int], RecordT],
+    edit: Callable[[uuid.UUID], RecordT],
     db: Session,
 ) -> RecordT:
     """Stage a day's record, or an update to the record the day already has.

@@ -1,7 +1,10 @@
+import uuid
 from unittest.mock import MagicMock, patch
 
 import core.exceptions as core_exceptions
 import modules.health.health_targets.models as health_targets_models
+
+_ID = uuid.uuid4()
 
 
 class TestReadHealthTargetsAll:
@@ -16,7 +19,7 @@ class TestReadHealthTargetsAll:
         """
         # Arrange
         mock_targets = MagicMock(spec=health_targets_models.HealthTargets)
-        mock_targets.id = 1
+        mock_targets.id = _ID
         mock_targets.user_id = 1
         mock_targets.version = 1
         mock_targets.weight_kg = 75.5
@@ -66,7 +69,7 @@ class TestReadHealthTargetsAll:
         """
         # Arrange
         mock_targets = MagicMock(spec=health_targets_models.HealthTargets)
-        mock_targets.id = 1
+        mock_targets.id = _ID
         mock_targets.user_id = 1
         mock_targets.version = 1
         mock_targets.weight_kg = 75.5
@@ -115,7 +118,7 @@ class TestUpdateHealthTargets:
         """
         # Arrange
         mock_updated_targets = MagicMock(spec=health_targets_models.HealthTargets)
-        mock_updated_targets.id = 1
+        mock_updated_targets.id = _ID
         mock_updated_targets.user_id = 1
         mock_updated_targets.version = 1
         mock_updated_targets.weight_kg = 80.0
@@ -152,7 +155,7 @@ class TestUpdateHealthTargets:
         """
         # Arrange
         mock_updated_targets = MagicMock(spec=health_targets_models.HealthTargets)
-        mock_updated_targets.id = 1
+        mock_updated_targets.id = _ID
         mock_updated_targets.user_id = 1
         mock_updated_targets.version = 1
         mock_updated_targets.weight_kg = 75.0
@@ -185,7 +188,7 @@ class TestUpdateHealthTargets:
         """
         # Arrange
         mock_updated_targets = MagicMock(spec=health_targets_models.HealthTargets)
-        mock_updated_targets.id = 1
+        mock_updated_targets.id = _ID
         mock_updated_targets.user_id = 1
         mock_updated_targets.version = 1
         mock_updated_targets.weight_kg = None
@@ -242,7 +245,7 @@ class TestUpdateHealthTargets:
         """
         # Arrange
         mock_updated_targets = MagicMock(spec=health_targets_models.HealthTargets)
-        mock_updated_targets.id = 1
+        mock_updated_targets.id = _ID
         mock_updated_targets.user_id = 1
         mock_updated_targets.version = 1
         mock_updated_targets.weight_kg = 85.5
@@ -277,7 +280,7 @@ class TestReadSendsTheETag:
     @patch("modules.health.health_targets.router.health_targets_service.get_health_targets")
     def test_the_targets_carry_their_version(self, mock_get_targets, fast_api_client):
         mock_targets = MagicMock(spec=health_targets_models.HealthTargets)
-        mock_targets.id = 1
+        mock_targets.id = _ID
         mock_targets.user_id = 1
         mock_targets.version = 4
         for field in ("weight_kg", "steps", "sleep_seconds", "fasting_seconds", "water_ml", "poop_count"):
@@ -344,7 +347,7 @@ class TestTargetsScopes:
         import modules.health.health_targets.schema as health_targets_schema
 
         mock_update.return_value = health_targets_schema.HealthTargetsRead(
-            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, version=2, steps=1
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, version=2, steps=1
         )
         client, principal = self._client(mock_db, {"health-targets:write"})
 

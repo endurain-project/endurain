@@ -1,5 +1,6 @@
 """Tests for auth.identity_provider_links.service module."""
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
@@ -40,7 +41,7 @@ class TestEnrichUserIdentityProviders:
         now = datetime.now(UTC)
 
         mock_link = MagicMock()
-        mock_link.id = 1
+        mock_link.id = uuid.UUID(int=1)
         mock_link.user_id = 1
         mock_link.idp_id = 1
         mock_link.idp_subject = "sub-123"
@@ -82,7 +83,7 @@ class TestEnrichUserIdentityProviders:
         now = datetime.now(UTC)
 
         mock_link = MagicMock()
-        mock_link.id = 1
+        mock_link.id = uuid.UUID(int=1)
         mock_link.user_id = 1
         mock_link.idp_id = 99
         mock_link.idp_subject = "sub-xyz"
@@ -112,7 +113,7 @@ class TestEnrichUserIdentityProviders:
         mock_links = []
         for i in range(1, 4):
             link = MagicMock()
-            link.id = i
+            link.id = uuid.UUID(int=i)
             link.user_id = 1
             link.idp_id = i
             link.idp_subject = f"sub-{i}"

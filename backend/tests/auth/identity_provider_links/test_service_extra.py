@@ -1,5 +1,6 @@
 """Tests for user_identity_providers.utils module."""
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
@@ -45,7 +46,7 @@ class TestEnrichUserIdentityProviders:
 
         # Mock IdP links
         mock_link1 = MagicMock()
-        mock_link1.id = 1
+        mock_link1.id = uuid.UUID(int=1)
         mock_link1.user_id = 1
         mock_link1.idp_id = 1
         mock_link1.idp_subject = "user123@strava.com"
@@ -53,7 +54,7 @@ class TestEnrichUserIdentityProviders:
         mock_link1.last_login = now
 
         mock_link2 = MagicMock()
-        mock_link2.id = 2
+        mock_link2.id = uuid.UUID(int=2)
         mock_link2.user_id = 1
         mock_link2.idp_id = 2
         mock_link2.idp_subject = "user456@garmin.com"
@@ -107,14 +108,14 @@ class TestEnrichUserIdentityProviders:
 
         # Mock IdP links - 2 links
         mock_link1 = MagicMock()
-        mock_link1.id = 1
+        mock_link1.id = uuid.UUID(int=1)
         mock_link1.user_id = 1
         mock_link1.idp_id = 1
         mock_link1.idp_subject = "user@example.com"
         mock_link1.linked_at = now
 
         mock_link2 = MagicMock()
-        mock_link2.id = 2
+        mock_link2.id = uuid.UUID(int=2)
         mock_link2.user_id = 1
         mock_link2.idp_id = 2
         mock_link2.idp_subject = "user@example.com"
@@ -157,7 +158,7 @@ class TestEnrichUserIdentityProviders:
         now = datetime.now(UTC)
 
         mock_link = MagicMock()
-        mock_link.id = 1
+        mock_link.id = uuid.UUID(int=1)
         mock_link.idp_id = 1
         mock_link.linked_at = now
 

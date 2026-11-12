@@ -2,6 +2,7 @@
 
 import io
 import os
+import uuid
 from datetime import UTC, datetime
 from typing import ClassVar
 from unittest.mock import MagicMock, patch
@@ -470,7 +471,9 @@ class TestReadProfilePrivacySettings:
     @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
     def test_success_etag_is_the_version_patch_needs(self, mock_get, profile_client):
         """Happy path: the settings come with the ETag a following PATCH sends as If-Match."""
-        mock_get.return_value = users_privacy_settings_schema.UserPrivacySettingsRead(id=1, user_id=1, version=4)
+        mock_get.return_value = users_privacy_settings_schema.UserPrivacySettingsRead(
+            id=uuid.uuid4(), user_id=1, version=4
+        )
 
         response = profile_client.get(PREFIX + "/privacy")
 
@@ -482,10 +485,10 @@ class TestReadProfilePrivacySettings:
     @patch("modules.users.users_profile.service.users_privacy_settings_integration.edit_privacy_settings")
     def test_patch_with_the_read_etag_succeeds(self, mock_edit, mock_get, profile_client):
         """The ETag of the read is accepted as If-Match by PATCH."""
-        current = users_privacy_settings_schema.UserPrivacySettingsRead(id=1, user_id=1, version=4)
+        current = users_privacy_settings_schema.UserPrivacySettingsRead(id=uuid.uuid4(), user_id=1, version=4)
         mock_get.return_value = current
         mock_edit.return_value = users_privacy_settings_schema.UserPrivacySettingsRead(
-            id=1, user_id=1, version=5, hide_activity_map=True
+            id=uuid.uuid4(), user_id=1, version=5, hide_activity_map=True
         )
         etag = profile_client.get(PREFIX + "/privacy").headers["ETag"]
 
@@ -523,9 +526,11 @@ class TestEditProfilePrivacySettings:
     @patch("modules.users.users_profile.service.users_privacy_settings_integration.edit_privacy_settings")
     def test_success(self, mock_edit, mock_get, profile_client):
         """Happy path: update privacy settings, answering with the version the edit produced."""
-        mock_get.return_value = users_privacy_settings_schema.UserPrivacySettingsRead(id=1, user_id=1, version=4)
+        mock_get.return_value = users_privacy_settings_schema.UserPrivacySettingsRead(
+            id=uuid.uuid4(), user_id=1, version=4
+        )
         mock_edit.return_value = users_privacy_settings_schema.UserPrivacySettingsRead(
-            id=1,
+            id=uuid.uuid4(),
             user_id=1,
             version=5,
             default_activity_visibility=activity_constants.ActivityVisibility.FOLLOWERS,
@@ -1147,7 +1152,7 @@ class TestGetMyIdentityProviders:
     ):
         """Happy path: returns one page of enriched IdP links for the requested window."""
         link = {
-            "id": 1,
+            "id": str(uuid.uuid4()),
             "user_id": 1,
             "idp_id": 1,
             "idp_subject": "sub",

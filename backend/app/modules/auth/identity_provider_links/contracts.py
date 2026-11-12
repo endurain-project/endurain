@@ -1,5 +1,6 @@
 """Internal identity-provider link data contracts."""
 
+import uuid
 from datetime import datetime
 from typing import Protocol
 
@@ -43,7 +44,7 @@ class IdentityProviderDetails(Protocol):
 class IdentityLinkRead(BaseModel):
     """Persisted identity-link data."""
 
-    id: int
+    id: uuid.UUID
     user_id: int
     idp_id: int
     idp_subject: str
@@ -56,7 +57,7 @@ class IdentityLinkRead(BaseModel):
 class IdpSessionTokenRead(BaseModel):
     """Persisted identity-provider sign-in of one Endurain session, including its encrypted refresh and ID tokens."""
 
-    id: int
+    id: uuid.UUID
     session_id: str
     user_id: int
     idp_id: int

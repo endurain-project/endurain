@@ -57,6 +57,8 @@ The web client's device cookie and the identity-provider binding cookie are rena
 
 Several requests changed in v0.21.0. `GET /users` with only `users:read` answers `422` unless it sends `username` or `username_contains` of at least 3 characters. `POST /profile/api-keys` answers `409` with `urn:endurain:error:api-key-limit` once the account holds 25 active keys. A `PATCH /gears/{gear_id}` that changes `gear_type` while components do not fit the new type is still `409`, now with `urn:endurain:error:components-outside-gear-type`. `PUT /server-settings` needs step-up when it changes a geocoding or tile field. A password shorter than the minimum is still `422`, but with `urn:endurain:error:password-too-short` instead of `urn:endurain:error:validation-failed`, because the password policy now checks the length. `POST /users` no longer requires a `password`. A PKCE `code_verifier` may now contain `.` and `~`.
 
+These ids are UUID strings: health records (weight, steps, sleep, water, poop, fasting, targets), goals, notifications, known devices, identity-provider links, and the privacy-settings, integrations and default-gear records. A malformed one in a path or body answers `422`. Clients must not assume a format or an order.
+
 ## Reserved paths
 
 These paths are reserved for planned features, such as third-party OAuth clients and passkeys. Endurain will not use them for anything else, and a client must not expect them to exist yet:

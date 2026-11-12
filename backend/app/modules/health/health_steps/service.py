@@ -5,6 +5,7 @@ boundary. What other modules may consume lives in
 :mod:`modules.health.health_steps.integration_service`.
 """
 
+import uuid
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -62,7 +63,7 @@ def list_health_steps(
 
 def stage_edit_health_steps(
     user_id: int,
-    health_steps_id: int,
+    health_steps_id: uuid.UUID,
     health_steps: health_steps_schema.HealthStepsUpdate,
     db: Session,
     *,
@@ -146,7 +147,7 @@ def create_health_steps(
 
 def edit_health_steps(
     user_id: int,
-    health_steps_id: int,
+    health_steps_id: uuid.UUID,
     health_steps: health_steps_schema.HealthStepsUpdate,
     db: Session,
     *,
@@ -181,7 +182,7 @@ def edit_health_steps(
     return updated
 
 
-def get_health_steps(user_id: int, health_steps_id: int, db: Session) -> health_steps_schema.HealthStepsRead:
+def get_health_steps(user_id: int, health_steps_id: uuid.UUID, db: Session) -> health_steps_schema.HealthStepsRead:
     """Return one of a user's steps records.
 
     Args:
@@ -198,7 +199,7 @@ def get_health_steps(user_id: int, health_steps_id: int, db: Session) -> health_
     return health_record_service.get_record(health_steps_crud.SPEC, health_steps_id, user_id, db)
 
 
-def delete_health_steps(user_id: int, health_steps_id: int, db: Session, *, if_match: str) -> None:
+def delete_health_steps(user_id: int, health_steps_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Delete a steps record and commit.
 
     Args:

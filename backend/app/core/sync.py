@@ -6,12 +6,13 @@ same transaction as the delete so a deletion is never lost. Each owning module k
 on :class:`TombstoneMixin`, its records carry :class:`UpdatedAtMixin`, and it pages both through the helpers here, in ``(stamp, id)`` order.
 """
 
+import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import ColumnElement, DateTime, ForeignKey, Integer, delete, func, insert, select, tuple_
+from sqlalchemy import ColumnElement, DateTime, ForeignKey, delete, func, insert, select, tuple_
 from sqlalchemy.orm import InstrumentedAttribute, Mapped, Session, mapped_column
 
 #: How long a tombstone is kept. A cursor older than this may have missed a pruned deletion, so ``GET /sync``
@@ -19,7 +20,7 @@ from sqlalchemy.orm import InstrumentedAttribute, Mapped, Session, mapped_column
 TOMBSTONE_RETENTION = timedelta(days=90)
 
 #: A position in a ``(stamp, id)`` keyset walk: the stamp and id of the last row a page returned.
-Position = tuple[datetime, int]
+type Position[IdT: (int, uuid.UUID)] = tuple[datetime, IdT]
 
 
 class UpdatedAtMixin:
@@ -48,39 +49,39 @@ class TombstoneMixin:
     Attributes:
         id: The tombstone's own id, the tiebreak of its keyset order.
         user_id: The owner of the deleted record.
-        record_id: The id the record had.
         deleted_at: When the record was deleted.
+
+    Each tombstone model declares its own ``record_id``, typed as the id of the record it names.
     """
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, comment="Owner of the deleted record"
     )
-    record_id: Mapped[int] = mapped_column(Integer, nullable=False, comment="The id the deleted record had")
     deleted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False, comment="When the record was deleted"
     )
 
 
 @dataclass(frozen=True)
-class Deletion:
+class Deletion[IdT: (int, uuid.UUID)]:
     """A deleted record, as a module hands it to ``GET /sync``.
 
     Attributes:
         type: The sync type of the record, e.g. ``activity``.
         record_id: The id the record had.
         deleted_at: When it was deleted.
-        position: The tombstone's place in its table's keyset order.
+        position: The tombstone's place in its table's keyset order; a tombstone's own id is always a UUID.
     """
 
     type: str
-    record_id: int
+    record_id: IdT
     deleted_at: datetime
-    position: Position
+    position: Position[uuid.UUID]
 
 
-def record_deletions(
-    db: Session, model: type[TombstoneMixin], user_id: int, record_ids: Sequence[int], **columns: Any
+def record_deletions[IdT: (int, uuid.UUID)](
+    db: Session, model: type[TombstoneMixin], user_id: int, record_ids: Sequence[IdT], **columns: Any
 ) -> None:
     """Stage a tombstone for each deleted record, in the transaction that deletes them.
 
@@ -95,8 +96,11 @@ def record_deletions(
         db.execute(insert(model), [{"user_id": user_id, "record_id": record_id, **columns} for record_id in record_ids])
 
 
-def _after(
-    stamp: InstrumentedAttribute[datetime], row_id: InstrumentedAttribute[int], after: Position | None, until: datetime
+def _after[IdT: (int, uuid.UUID)](
+    stamp: InstrumentedAttribute[datetime],
+    row_id: InstrumentedAttribute[IdT],
+    after: Position[IdT] | None,
+    until: datetime,
 ) -> list[ColumnElement[bool]]:
     conditions: list[ColumnElement[bool]] = [stamp < until]
     if after is not None:
@@ -104,13 +108,13 @@ def _after(
     return conditions
 
 
-def changed_rows[RowT: UpdatedAtMixin](
+def changed_rows[RowT: UpdatedAtMixin, IdT: (int, uuid.UUID)](
     db: Session,
     model: type[RowT],
     owner: InstrumentedAttribute[int],
-    row_id: InstrumentedAttribute[int],
+    row_id: InstrumentedAttribute[IdT],
     user_id: int,
-    after: Position | None,
+    after: Position[IdT] | None,
     until: datetime,
     limit: int,
     conditions: Sequence[ColumnElement[bool]] = (),
@@ -144,7 +148,7 @@ def deleted_rows[TombstoneT: TombstoneMixin](
     db: Session,
     model: type[TombstoneT],
     user_id: int,
-    after: Position | None,
+    after: Position[uuid.UUID] | None,
     until: datetime,
     limit: int,
     conditions: Sequence[ColumnElement[bool]] = (),

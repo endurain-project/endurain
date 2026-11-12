@@ -1,3 +1,4 @@
+import uuid
 from datetime import date as datetime_date
 
 import modules.health.health_weight.models as health_weight_models
@@ -43,7 +44,7 @@ class TestHealthWeightModel:
 
         # Assert
         assert id_column.primary_key is True
-        assert id_column.autoincrement is True
+        assert id_column.type.python_type is uuid.UUID
 
     def test_health_weight_model_foreign_key(self):
         """
@@ -85,7 +86,7 @@ class TestHealthWeightModel:
         Test HealthWeight model column types.
         """
         # Assert
-        assert health_weight_models.HealthWeight.id.type.python_type is int
+        assert health_weight_models.HealthWeight.id.type.python_type is uuid.UUID
         assert health_weight_models.HealthWeight.user_id.type.python_type is int
         assert health_weight_models.HealthWeight.date.type.python_type is datetime_date
         assert health_weight_models.HealthWeight.physique_rating.type.python_type is int

@@ -1,6 +1,9 @@
 """User fitness goals database models."""
 
-from sqlalchemy import ForeignKey, String, UniqueConstraint
+import uuid
+from datetime import datetime
+
+from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
@@ -10,7 +13,7 @@ class UsersGoal(Base):
     """User fitness goal tracking model.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         user_id: Foreign key to users table.
         interval: Goal time interval (daily, weekly, monthly,
             yearly).
@@ -21,6 +24,7 @@ class UsersGoal(Base):
         goal_distance: Target distance in meters.
         goal_elevation: Target elevation gain in meters.
         goal_duration: Target duration in seconds.
+        created_at: When the goal was created.
     """
 
     __tablename__ = "users_goals"
@@ -28,10 +32,7 @@ class UsersGoal(Base):
         UniqueConstraint("user_id", "interval", "activity_type", "goal_type", name="uq_users_goals_user_scope"),
     )
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
@@ -84,3 +85,9 @@ class UsersGoal(Base):
     # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's
     # WHERE clause, raising StaleDataError when the row moved underneath.
     __mapper_args__ = {"version_id_col": version}  # noqa: RUF012
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+        comment="When the goal was created",
+    )

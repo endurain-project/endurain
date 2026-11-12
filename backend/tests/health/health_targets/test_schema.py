@@ -1,7 +1,11 @@
+import uuid
+
 import pytest
 from pydantic import ValidationError
 
 import modules.health.health_targets.schema as health_targets_schema
+
+_ID = uuid.uuid4()
 
 
 class TestHealthTargetsSchema:
@@ -16,7 +20,7 @@ class TestHealthTargetsSchema:
         # Arrange & Act
         health_targets = health_targets_schema.HealthTargetsRead(
             updated_at="2024-01-01T00:00:00Z",
-            id=1,
+            id=_ID,
             user_id=1,
             weight_kg=75.5,
             steps=10000,
@@ -24,7 +28,7 @@ class TestHealthTargetsSchema:
         )
 
         # Assert
-        assert health_targets.id == 1
+        assert health_targets.id == _ID
         assert health_targets.user_id == 1
         assert health_targets.weight_kg == 75.5
         assert health_targets.steps == 10000
@@ -49,7 +53,7 @@ class TestHealthTargetsSchema:
         # Arrange & Act
         health_targets = health_targets_schema.HealthTargetsRead(
             updated_at="2024-01-01T00:00:00Z",
-            id=1,
+            id=_ID,
             user_id=1,
             weight_kg=None,
             steps=None,
@@ -57,7 +61,7 @@ class TestHealthTargetsSchema:
         )
 
         # Assert
-        assert health_targets.id == 1
+        assert health_targets.id == _ID
         assert health_targets.user_id == 1
         assert health_targets.weight_kg is None
         assert health_targets.steps is None
@@ -124,7 +128,7 @@ class TestHealthTargetsSchema:
         class MockORMModel:
             """Mock ORM model for testing."""
 
-            id = 1
+            id = _ID
             user_id = 1
             updated_at = "2024-01-01T00:00:00Z"
             weight_kg = 75.5
@@ -135,7 +139,7 @@ class TestHealthTargetsSchema:
         health_targets = health_targets_schema.HealthTargetsRead.model_validate(MockORMModel())
 
         # Assert
-        assert health_targets.id == 1
+        assert health_targets.id == _ID
         assert health_targets.weight_kg == 75.5
         assert health_targets.steps == 10000
 
@@ -193,13 +197,13 @@ class TestHealthTargetsSchema:
         # Arrange & Act
         health_targets = health_targets_schema.HealthTargetsRead(
             updated_at="2024-01-01T00:00:00Z",
-            id=1,
+            id=_ID,
             user_id=1,
             steps=10000,
         )
 
         # Assert
-        assert health_targets.id == 1
+        assert health_targets.id == _ID
         assert health_targets.user_id == 1
         assert health_targets.steps == 10000
         assert health_targets.weight_kg is None

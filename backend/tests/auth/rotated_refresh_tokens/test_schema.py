@@ -1,9 +1,12 @@
+import uuid
 from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
 
 import modules.auth.rotated_refresh_tokens.schema as rotated_token_schema
+
+_ID = uuid.UUID("00000000-0000-4000-8000-000000000003")
 
 
 class TestRotatedRefreshTokenCreateSchema:
@@ -206,7 +209,7 @@ class TestRotatedRefreshTokenReadSchema:
 
         # Act
         token = rotated_token_schema.RotatedRefreshTokenRead(
-            id=1,
+            id=_ID,
             token_family_id="test-family-id",
             hashed_token="hashed-token-value",
             client_fingerprint="c" * 64,
@@ -217,7 +220,7 @@ class TestRotatedRefreshTokenReadSchema:
         )
 
         # Assert
-        assert token.id == 1
+        assert token.id == _ID
 
     def test_read_schema_requires_id(self):
         """
@@ -240,9 +243,9 @@ class TestRotatedRefreshTokenReadSchema:
 
         assert "id" in str(exc_info.value)
 
-    def test_read_schema_id_positive(self):
+    def test_read_schema_id_must_be_a_uuid(self):
         """
-        Test RotatedRefreshTokenRead id must be >= 1.
+        Test RotatedRefreshTokenRead id must be a UUID.
         """
         # Arrange
         now = datetime.now(UTC)
@@ -250,7 +253,7 @@ class TestRotatedRefreshTokenReadSchema:
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
             rotated_token_schema.RotatedRefreshTokenRead(
-                id=0,
+                id=1,
                 token_family_id="test-family-id",
                 hashed_token="hashed-token-value",
                 client_fingerprint="c" * 64,

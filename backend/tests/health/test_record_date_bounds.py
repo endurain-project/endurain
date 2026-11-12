@@ -1,5 +1,6 @@
 """Every date a client writes on a health record is a real one; a stored row is read back as it is."""
 
+import uuid
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
@@ -101,14 +102,14 @@ class TestStoredRowsStayReadable:
 
     def test_a_far_future_date_is_read(self):
         read = water_schema.HealthWaterRead(
-            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, date=date(9999, 12, 31), amount_ml=1.0
+            updated_at="2024-01-01T00:00:00Z", id=uuid.uuid4(), user_id=1, date=date(9999, 12, 31), amount_ml=1.0
         )
 
         assert read.date == date(9999, 12, 31)
 
     def test_a_far_future_time_is_read(self):
         read = poop_schema.HealthPoopRead(
-            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, date_time=datetime(9999, 1, 1, tzinfo=UTC)
+            updated_at="2024-01-01T00:00:00Z", id=uuid.uuid4(), user_id=1, date_time=datetime(9999, 1, 1, tzinfo=UTC)
         )
 
         assert read.date_time.year == 9999
@@ -116,7 +117,7 @@ class TestStoredRowsStayReadable:
     def test_a_far_future_sleep_is_read(self):
         read = sleep_schema.HealthSleepRead(
             updated_at="2024-01-01T00:00:00Z",
-            id=1,
+            id=uuid.uuid4(),
             user_id=1,
             date=date(9999, 1, 1),
             sleep_stages=[{"stage_type": "light", "start_time_gmt": datetime(9999, 1, 1, tzinfo=UTC)}],

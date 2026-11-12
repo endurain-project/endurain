@@ -1,6 +1,7 @@
 """A client never sets the provenance of a health record: the server assigns it."""
 
 import importlib
+import uuid
 from unittest.mock import patch
 
 import pytest
@@ -8,6 +9,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import core.exceptions as core_exceptions
+
+_RECORD_ID = uuid.uuid4()
 
 # kind -> (router prefix, valid create body, provenance fields a client must not send)
 _KINDS = {
@@ -50,7 +53,7 @@ def _post(kind, body, mock_db):
 def _patch(kind, body, mock_db):
     package = _KINDS[kind][0]
     with patch(f"modules.health.{package}.router.{package}_service"):
-        return _client(kind, mock_db).patch(f"/{package}/1", json=body, headers=_HEADERS)
+        return _client(kind, mock_db).patch(f"/{package}/{_RECORD_ID}", json=body, headers=_HEADERS)
 
 
 @pytest.mark.parametrize(("kind", "field", "value"), _FIELDS)

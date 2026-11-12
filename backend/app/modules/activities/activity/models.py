@@ -11,6 +11,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     String,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -398,3 +399,5 @@ class ActivityDeletion(TombstoneMixin, Base):
     __tablename__ = "activity_deletions"
 
     __table_args__ = (Index("ix_activity_deletions_user_id_deleted_at_id", "user_id", "deleted_at", "id"),)
+
+    record_id: Mapped[int] = mapped_column(Integer, nullable=False, comment="The id the deleted record had")

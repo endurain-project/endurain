@@ -1,5 +1,6 @@
 """CRUD operations for health poop (bowel movement) records."""
 
+import uuid
 from datetime import date as date_type
 from datetime import datetime
 
@@ -43,7 +44,7 @@ def get_health_poop_number_by_user_id(
 
 
 def get_health_poop_by_id_and_user_id(
-    health_poop_id: int, user_id: int, db: Session
+    health_poop_id: uuid.UUID, user_id: int, db: Session
 ) -> health_poop_schema.HealthPoopRead | None:
     """Retrieve a user's poop record by id.
 
@@ -160,7 +161,12 @@ def create_health_poop(
 
 
 def edit_health_poop(
-    user_id: int, health_poop_id: int, health_poop: health_poop_schema.HealthPoopUpdate, db: Session, *, if_match: str
+    user_id: int,
+    health_poop_id: uuid.UUID,
+    health_poop: health_poop_schema.HealthPoopUpdate,
+    db: Session,
+    *,
+    if_match: str,
 ) -> health_poop_schema.HealthPoopRead:
     """Stage an update to a user's poop record.
 
@@ -181,7 +187,7 @@ def edit_health_poop(
     return health_record_crud.edit(SPEC, health_poop_id, user_id, health_poop, db, if_match=if_match)
 
 
-def delete_health_poop(user_id: int, health_poop_id: int, db: Session, *, if_match: str) -> None:
+def delete_health_poop(user_id: int, health_poop_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Stage the deletion of a user's poop record.
 
     Args:
@@ -249,7 +255,7 @@ def get_health_poop_first_day(user_id: int, tz_name: str, db: Session) -> date_t
 
 
 def list_changed(
-    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[health_poop_schema.HealthPoopRead]:
     """Retrieve a user's records changed after a position, oldest change first.
 

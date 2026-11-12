@@ -1,5 +1,6 @@
 """Pydantic request and response shapes for health targets."""
 
+import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt
@@ -57,7 +58,7 @@ class HealthTargetsRead(HealthTargetsBase):
         version: Optimistic-concurrency counter, also sent as the ETag.
     """
 
-    id: StrictInt = Field(..., description="Unique identifier for the health target")
+    id: uuid.UUID = Field(..., description="Unique identifier for the health target")
     user_id: StrictInt = Field(..., description="Foreign key reference to the user")
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
     updated_at: datetime = Field(..., description="When the record last changed, set by the server")

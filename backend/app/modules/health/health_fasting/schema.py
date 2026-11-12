@@ -4,6 +4,7 @@ This module defines the request/response schemas for fasting tracking,
 including validation rules and enumerations for fasting types and statuses.
 """
 
+import uuid
 from datetime import datetime
 from enum import Enum, StrEnum
 
@@ -174,7 +175,7 @@ class HealthFastingRead(HealthFastingBase):
         validate_default=True,
         description="Data source for the record",
     )
-    id: StrictInt = Field(
+    id: uuid.UUID = Field(
         ...,
         description="Unique identifier for the fasting record",
     )

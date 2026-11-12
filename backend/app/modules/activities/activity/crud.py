@@ -1,5 +1,6 @@
 """CRUD operations for activities."""
 
+import uuid
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from datetime import UTC, date, datetime
@@ -1672,7 +1673,7 @@ def touch_activity(activity_id: int, db: Session) -> None:
 
 
 def get_changed_activities(
-    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+    user_id: int, after: core_sync.Position[int] | None, until: datetime, limit: int, db: Session
 ) -> list[activity_schema.ActivityRead]:
     """Read a user's activities changed after a position, oldest change first.
 
@@ -1700,8 +1701,8 @@ def get_changed_activities(
 
 
 def get_activity_deletions(
-    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
-) -> list[core_sync.Deletion]:
+    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+) -> list[core_sync.Deletion[int]]:
     """Read a user's activity tombstones after a position, oldest deletion first.
 
     Args:

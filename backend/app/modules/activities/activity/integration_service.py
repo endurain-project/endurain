@@ -6,6 +6,7 @@ Writes that publish events (bulk deletes, bulk re-gearing, ingestion) delegate t
 ``activity.service``, which owns their transaction.
 """
 
+import uuid
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 
@@ -634,7 +635,7 @@ def touch_activity(activity_id: int, db: Session) -> None:
 
 
 def list_changed_activities(
-    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+    user_id: int, after: core_sync.Position[int] | None, until: datetime, limit: int, db: Session
 ) -> list[activity_schema.ActivityRead]:
     """List the user's activities changed after a position, as the owner reads them.
 
@@ -652,8 +653,8 @@ def list_changed_activities(
 
 
 def list_activity_deletions(
-    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
-) -> list[core_sync.Deletion]:
+    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+) -> list[core_sync.Deletion[int]]:
     """List the user's deleted activities after a position.
 
     Args:

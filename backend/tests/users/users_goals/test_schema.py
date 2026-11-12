@@ -1,11 +1,14 @@
 """Tests for user goals Pydantic schemas."""
 
+import uuid
 from datetime import date
 
 import pytest
 from pydantic import ValidationError
 
 import modules.users.users_goals.schema as user_goals_schema
+
+GOAL_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
 
 
 class TestIntervalEnum:
@@ -268,7 +271,7 @@ class TestUserGoalReadSchema:
         """Test UserGoalRead includes id and user_id."""
         # Act
         goal = user_goals_schema.UserGoalRead(
-            id=1,
+            id=GOAL_ID,
             user_id=1,
             interval=user_goals_schema.Interval.WEEKLY,
             activity_type=user_goals_schema.GoalActivityType.RUN,
@@ -281,7 +284,7 @@ class TestUserGoalReadSchema:
         )
 
         # Assert
-        assert goal.id == 1
+        assert goal.id == GOAL_ID
         assert goal.user_id == 1
 
 
@@ -294,7 +297,7 @@ class TestUserGoalProgressSchema:
         """Test UserGoalProgress schema creation."""
         # Act
         progress = user_goals_schema.UserGoalProgress(
-            goal_id=1,
+            goal_id=GOAL_ID,
             interval=user_goals_schema.Interval.WEEKLY,
             activity_type=user_goals_schema.GoalActivityType.RUN,
             goal_type=user_goals_schema.GoalType.CALORIES,
@@ -314,7 +317,7 @@ class TestUserGoalProgressSchema:
         )
 
         # Assert
-        assert progress.goal_id == 1
+        assert progress.goal_id == GOAL_ID
         assert progress.percentage_completed == 75
         assert progress.total_calories == 3750
         assert progress.goal_calories == 5000
@@ -324,7 +327,7 @@ class TestUserGoalProgressSchema:
         # Act & Assert
         with pytest.raises(ValidationError):
             user_goals_schema.UserGoalProgress(
-                goal_id=1,
+                goal_id=GOAL_ID,
                 interval=user_goals_schema.Interval.WEEKLY,
                 activity_type=user_goals_schema.GoalActivityType.RUN,
                 goal_type=user_goals_schema.GoalType.CALORIES,
@@ -383,14 +386,14 @@ class TestTargetsAndProgressDates:
 
     def test_a_stored_goal_with_a_zero_target_can_still_be_read(self):
         read = user_goals_schema.UserGoalRead(
-            id=1, user_id=1, interval="weekly", activity_type="run", goal_type="distance", goal_distance=0
+            id=GOAL_ID, user_id=1, interval="weekly", activity_type="run", goal_type="distance", goal_distance=0
         )
 
         assert read.goal_distance == 0
 
     def test_progress_dates_are_dates(self):
         progress = user_goals_schema.UserGoalProgress(
-            goal_id=1,
+            goal_id=GOAL_ID,
             interval="weekly",
             activity_type="run",
             goal_type="distance",
@@ -404,7 +407,7 @@ class TestTargetsAndProgressDates:
     def test_a_progress_date_that_is_not_a_date_is_refused(self):
         with pytest.raises(ValidationError):
             user_goals_schema.UserGoalProgress(
-                goal_id=1,
+                goal_id=GOAL_ID,
                 interval="weekly",
                 activity_type="run",
                 goal_type="distance",

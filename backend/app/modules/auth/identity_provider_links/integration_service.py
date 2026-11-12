@@ -1,5 +1,6 @@
 """Identity-provider link operations exposed to auth peers."""
 
+import uuid
 from collections.abc import Sequence
 from datetime import datetime
 
@@ -122,8 +123,8 @@ def delete_idp_session_token_if_unchanged(session_id: str, expected_refresh_toke
 
 
 def get_orphaned_idp_session_tokens_page(
-    after_id: int, limit: int, db: Session, *, user_id: int | None = None
-) -> tuple[list[identity_link_contracts.IdpSessionTokenRead], int | None]:
+    after_id: uuid.UUID | None, limit: int, db: Session, *, user_id: int | None = None
+) -> tuple[list[identity_link_contracts.IdpSessionTokenRead], uuid.UUID | None]:
     """Return the sign-ins in one window whose session no longer exists, and the window's last id."""
     return identity_link_service.get_orphaned_idp_session_tokens_page(after_id, limit, db, user_id=user_id)
 

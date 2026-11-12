@@ -1,5 +1,6 @@
 """SQLAlchemy ORM model for health steps records."""
 
+import uuid
 from datetime import date as date_type
 
 from sqlalchemy import ForeignKey, Index, String, UniqueConstraint
@@ -17,7 +18,7 @@ class HealthSteps(core_sync.UpdatedAtMixin, Base):
     and belongs to a user through ``user_id``.
 
     Attributes:
-        id: Primary key, auto-incremented unique identifier.
+        id: Primary key, a random UUID.
         user_id: Foreign key referencing users.id.
         date: Calendar date for which the step count is recorded.
         steps: Total number of steps taken on the date.
@@ -33,10 +34,7 @@ class HealthSteps(core_sync.UpdatedAtMixin, Base):
         Index("ix_health_steps_user_updated_at_id", "user_id", "updated_at", "id"),
     )
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,

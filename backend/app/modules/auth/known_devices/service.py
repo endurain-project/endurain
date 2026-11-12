@@ -1,6 +1,7 @@
 """Record each sign-in against the devices a user is known to sign in from, and announce a new one."""
 
 import secrets
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
@@ -155,7 +156,7 @@ def list_devices(
     )
 
 
-def forget_device(device_id: int, user_id: int, current_device_id: str | None, db: Session) -> int:
+def forget_device(device_id: uuid.UUID, user_id: int, current_device_id: str | None, db: Session) -> int:
     """Stage the deletion of a known device and of the sessions that signed in from it; the caller commits.
 
     A session created before sessions recorded their device has no hash and is not ended.

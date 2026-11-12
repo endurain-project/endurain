@@ -1,5 +1,6 @@
 """Service-level tests for auth.identity_link_service."""
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
@@ -19,7 +20,7 @@ class TestGetUserIdentityProviderLinks:
     def test_enriches_the_requested_window_and_counts_every_link(self, mock_db):
         link = MagicMock()
         enriched = auth_identity_links_schema.IdentityProviderLinkRead(
-            id=1, user_id=1, idp_id=2, idp_subject="sub", linked_at=datetime(2026, 1, 1, tzinfo=UTC)
+            id=uuid.UUID(int=1), user_id=1, idp_id=2, idp_subject="sub", linked_at=datetime(2026, 1, 1, tzinfo=UTC)
         )
         links = identity_link_service.identity_provider_links_integration
 

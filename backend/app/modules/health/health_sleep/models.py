@@ -1,5 +1,6 @@
 """SQLAlchemy ORM model for health sleep records."""
 
+import uuid
 from datetime import date as date_type
 from datetime import datetime
 from decimal import Decimal
@@ -16,7 +17,7 @@ class HealthSleep(core_sync.UpdatedAtMixin, Base):
     """User sleep tracking data with metrics and quality scores.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         user_id: Foreign key to users table.
         date: Calendar date of sleep session.
         sleep_start_time_gmt: Sleep start in GMT.
@@ -65,10 +66,7 @@ class HealthSleep(core_sync.UpdatedAtMixin, Base):
         Index("ix_health_sleep_user_updated_at_id", "user_id", "updated_at", "id"),
     )
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,

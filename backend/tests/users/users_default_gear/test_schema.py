@@ -4,6 +4,8 @@ Tests for users.users_default_gear.schema module.
 This module tests Pydantic schemas for user default gear validation.
 """
 
+import uuid
+
 import pytest
 from pydantic import ValidationError
 
@@ -48,15 +50,16 @@ class TestUserDefaultGearRead:
 
     def test_user_default_gear_read_required_fields(self):
         """Test schema requires id and user_id."""
+        record_id = uuid.uuid4()
         # Act
         gear = user_default_gear_schema.UserDefaultGearRead(
-            id=1,
+            id=record_id,
             user_id=2,
             run_gear_id=3,
         )
 
         # Assert
-        assert gear.id == 1
+        assert gear.id == record_id
         assert gear.user_id == 2
         assert gear.run_gear_id == 3
 

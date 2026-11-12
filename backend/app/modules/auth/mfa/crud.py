@@ -1,5 +1,6 @@
 """Stage-only persistence operations for MFA factors."""
 
+import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import delete, select, update
@@ -46,7 +47,7 @@ def delete_user_factors(user_id: int, db: Session) -> None:
     db.execute(delete(auth_mfa_models.MFAFactor).where(auth_mfa_models.MFAFactor.user_id == user_id))
 
 
-def mark_factor_used(factor_id: int, db: Session) -> None:
+def mark_factor_used(factor_id: uuid.UUID, db: Session) -> None:
     """Stage the time a factor verified a sign-in or step-up."""
     db.execute(
         update(auth_mfa_models.MFAFactor)
@@ -55,7 +56,9 @@ def mark_factor_used(factor_id: int, db: Session) -> None:
     )
 
 
-def stage_reencrypt_batch_mfa(after_id: int | None, limit: int, db: Session) -> core_key_rotation.BatchResult[int]:
+def stage_reencrypt_batch_mfa(
+    after_id: uuid.UUID | None, limit: int, db: Session
+) -> core_key_rotation.BatchResult[uuid.UUID]:
     """Stage the re-encryption of up to ``limit`` factor rows after ``after_id`` (flushed, not committed)."""
     model = auth_mfa_models.MFAFactor
     return core_key_rotation.stage_reencrypt_batch(model, model.id, (model.credential,), after_id, limit, db)

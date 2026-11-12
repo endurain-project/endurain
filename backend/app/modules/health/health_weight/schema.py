@@ -1,5 +1,6 @@
 """Pydantic request and response shapes for health weight records."""
 
+import uuid
 from datetime import date as datetime_date
 from datetime import datetime
 from enum import Enum
@@ -110,12 +111,12 @@ class HealthWeightRead(HealthWeightBase):
 
     Attributes:
         source (Source | None): The source or device from which the weight data was obtained.
-        id (StrictInt): Unique identifier for the weight record to update.
+        id (uuid.UUID): Unique identifier for the weight record to update.
         user_id (StrictInt): Foreign key reference to the user.
     """
 
     source: Source = Field(default=Source.MANUAL, validate_default=True, description="Source of the weight data")
-    id: StrictInt = Field(..., description="Unique identifier for the weight record to update")
+    id: uuid.UUID = Field(..., description="Unique identifier for the weight record to update")
     user_id: StrictInt = Field(..., description="Foreign key reference to the user")
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
     updated_at: datetime = Field(..., description="When the record last changed, set by the server")

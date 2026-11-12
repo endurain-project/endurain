@@ -116,7 +116,7 @@ def read_fasting_stats(
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:read"])],
 )
 def read_health_fasting_by_id(
-    health_fasting_id: core_dependencies.PositiveId,
+    health_fasting_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     response: Response,
@@ -183,7 +183,7 @@ def create_health_fasting(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_health_fasting(
     request: Request,
-    health_fasting_id: core_dependencies.PositiveId,
+    health_fasting_id: core_dependencies.UuidId,
     health_fasting: health_fasting_schema.HealthFastingUpdate,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
@@ -219,7 +219,7 @@ def edit_health_fasting(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def complete_health_fasting(
     request: Request,
-    health_fasting_id: core_dependencies.PositiveId,
+    health_fasting_id: core_dependencies.UuidId,
     complete_data: health_fasting_schema.HealthFastingComplete,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
@@ -256,7 +256,7 @@ def complete_health_fasting(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_health_fasting(
     request: Request,
-    health_fasting_id: core_dependencies.PositiveId,
+    health_fasting_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     if_match: core_dependencies.IfMatch,
     db: core_dependencies.DbSession,

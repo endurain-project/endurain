@@ -1,3 +1,4 @@
+import uuid
 from datetime import date as datetime_date
 
 import modules.health.health_sleep.models as health_sleep_models
@@ -42,7 +43,7 @@ class TestHealthSleepModel:
 
         # Assert
         assert id_column.primary_key is True
-        assert id_column.autoincrement is True
+        assert id_column.type.python_type is uuid.UUID
 
     def test_health_sleep_model_foreign_key(self):
         """
@@ -80,7 +81,7 @@ class TestHealthSleepModel:
         Test HealthSleep model column types.
         """
         # Assert
-        assert health_sleep_models.HealthSleep.id.type.python_type is int
+        assert health_sleep_models.HealthSleep.id.type.python_type is uuid.UUID
         assert health_sleep_models.HealthSleep.user_id.type.python_type is int
         assert health_sleep_models.HealthSleep.date.type.python_type is datetime_date
         assert health_sleep_models.HealthSleep.total_sleep_seconds.type.python_type is int

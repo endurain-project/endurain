@@ -1,5 +1,6 @@
 """Tests for finding the sign-ins of ended sessions and ending the sessions of an unlinked provider."""
 
+import uuid
 from unittest.mock import patch
 
 import pytest
@@ -18,6 +19,12 @@ def db():
     session.commit()
     yield session
     session.close()
+
+
+def _in_id_order(db, *session_ids):
+    """The given sessions in the order the keyset walks them: by ascending random id."""
+    walked = [row.session_id for row in identity_links_crud.get_idp_session_tokens_page(None, 100, db)]
+    return [session_id for session_id in walked if session_id in session_ids]
 
 
 def _alive(*session_ids):
@@ -40,30 +47,33 @@ class TestOrphanedSessionTokens:
 
     def test_the_sign_ins_without_a_session_are_returned_with_the_windows_last_id(self, db):
         with _alive("s1", "s3"):
-            orphans, last_id = identity_links_integration.get_orphaned_idp_session_tokens_page(0, 10, db)
+            orphans, last_id = identity_links_integration.get_orphaned_idp_session_tokens_page(None, 10, db)
 
-        assert [row.session_id for row in orphans] == ["s2", "s4"]
-        assert last_id == max(row.id for row in orphans)
+        assert [row.session_id for row in orphans] == _in_id_order(db, "s2", "s4")
+        assert last_id == identity_links_crud.get_idp_session_tokens_page(None, 10, db)[-1].id
 
     def test_a_user_can_be_asked_about_alone(self, db):
         with _alive("s1"):
-            orphans, _ = identity_links_integration.get_orphaned_idp_session_tokens_page(0, 10, db, user_id=7)
+            orphans, _ = identity_links_integration.get_orphaned_idp_session_tokens_page(None, 10, db, user_id=7)
 
-        assert [row.session_id for row in orphans] == ["s2", "s3"]
+        assert [row.session_id for row in orphans] == _in_id_order(db, "s2", "s3")
 
     def test_the_cursor_moves_past_a_window_whose_sessions_all_exist(self, db):
-        with _alive("s1", "s2"):
-            orphans, last_id = identity_links_integration.get_orphaned_idp_session_tokens_page(0, 2, db)
+        first_window = _in_id_order(db, "s1", "s2", "s3", "s4")[:2]
+        with _alive(*first_window):
+            orphans, last_id = identity_links_integration.get_orphaned_idp_session_tokens_page(None, 2, db)
 
         assert orphans == []
         assert last_id is not None
-        with _alive("s1", "s2"):
+        with _alive(*first_window):
             orphans, _ = identity_links_integration.get_orphaned_idp_session_tokens_page(last_id, 2, db)
-        assert [row.session_id for row in orphans] == ["s3", "s4"]
+        assert [row.session_id for row in orphans] == _in_id_order(db, "s1", "s2", "s3", "s4")[2:]
 
     def test_the_end_of_the_table_has_no_last_id(self, db):
         with _alive():
-            orphans, last_id = identity_links_integration.get_orphaned_idp_session_tokens_page(10_000, 10, db)
+            orphans, last_id = identity_links_integration.get_orphaned_idp_session_tokens_page(
+                uuid.UUID(int=2**128 - 1), 10, db
+            )
 
         assert (orphans, last_id) == ([], None)
 

@@ -2,6 +2,7 @@
 
 import contextlib
 import json
+import uuid
 import zipfile
 from io import BytesIO
 from typing import Any
@@ -217,7 +218,7 @@ class TestImportedRowsLoseTheirIdentity:
     def test_a_goal_exported_with_its_version_is_still_imported(self) -> None:
         service = self._service()
         row = {
-            "id": 9,
+            "id": str(uuid.uuid4()),
             "user_id": 3,
             "version": 4,
             "interval": "weekly",
@@ -234,7 +235,7 @@ class TestImportedRowsLoseTheirIdentity:
 
     def test_privacy_settings_exported_with_their_version_are_still_imported(self) -> None:
         service = self._service()
-        row = {"id": 9, "user_id": 3, "version": 4, "hide_activity_map": True}
+        row = {"id": str(uuid.uuid4()), "user_id": 3, "version": 4, "hide_activity_map": True}
 
         with patch.object(profile_import_service.users_privacy_settings_integration, "edit_privacy_settings") as edit:
             service.collect_and_import_user_privacy_settings([row])
@@ -435,7 +436,7 @@ class TestImportServiceUserData:
     def test_user_integrations_import_drops_credentials_and_oauth_state(self) -> None:
         service = profile_import_service.ImportService(user_id=1, storage=MagicMock(), db=MagicMock(spec=Session))
         crafted = {
-            "id": 99,
+            "id": str(uuid.uuid4()),
             "user_id": 2,
             "strava_client_id": "stolen-id",
             "strava_client_secret": "stolen-secret",

@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, date, datetime
 from unittest.mock import MagicMock
 
@@ -12,7 +13,11 @@ import modules.health.health_fasting.schema as health_fasting_schema
 pytestmark = pytest.mark.usefixtures("passthrough_serializers")
 
 
-def _row(record_id: int = 1) -> MagicMock:
+_ID = uuid.uuid4()
+_OTHER_ID = uuid.uuid4()
+
+
+def _row(record_id: uuid.UUID = _ID) -> MagicMock:
     row = MagicMock(spec=health_fasting_models.HealthFasting)
     row.id = record_id
     row.version = 1
@@ -55,12 +60,12 @@ class TestReads:
     def test_by_id_found(self, mock_db):
         _returns_one(mock_db, _row())
 
-        assert health_fasting_crud.get_health_fasting_by_id_and_user_id(1, 1, mock_db).id == 1
+        assert health_fasting_crud.get_health_fasting_by_id_and_user_id(_ID, 1, mock_db).id == _ID
 
     def test_by_id_not_found(self, mock_db):
         _returns_one(mock_db, None)
 
-        assert health_fasting_crud.get_health_fasting_by_id_and_user_id(9, 1, mock_db) is None
+        assert health_fasting_crud.get_health_fasting_by_id_and_user_id(_OTHER_ID, 1, mock_db) is None
 
     def test_active_found(self, mock_db):
         _returns_one(mock_db, _row())
@@ -133,7 +138,7 @@ class TestEditHealthFasting:
         _returns_one(mock_db, row)
         update = health_fasting_schema.HealthFastingUpdate(notes="felt good")
 
-        health_fasting_crud.edit_health_fasting(1, 1, update, mock_db, actual_duration_seconds=None, if_match="*")
+        health_fasting_crud.edit_health_fasting(1, _ID, update, mock_db, actual_duration_seconds=None, if_match="*")
 
         assert row.notes == "felt good"
         assert row.actual_duration_seconds is None
@@ -146,14 +151,16 @@ class TestEditHealthFasting:
         update = health_fasting_schema.HealthFastingUpdate(status="in_progress")
 
         with pytest.raises(core_exceptions.ConflictError):
-            health_fasting_crud.edit_health_fasting(1, 1, update, mock_db, actual_duration_seconds=None, if_match="*")
+            health_fasting_crud.edit_health_fasting(1, _ID, update, mock_db, actual_duration_seconds=None, if_match="*")
 
     def test_unknown_record_is_not_found(self, mock_db):
         _returns_one(mock_db, None)
         update = health_fasting_schema.HealthFastingUpdate(notes="x")
 
         with pytest.raises(core_exceptions.NotFoundError, match="Health fasting not found"):
-            health_fasting_crud.edit_health_fasting(1, 9, update, mock_db, actual_duration_seconds=None, if_match="*")
+            health_fasting_crud.edit_health_fasting(
+                1, _OTHER_ID, update, mock_db, actual_duration_seconds=None, if_match="*"
+            )
 
 
 class TestEndHealthFasting:
@@ -174,7 +181,7 @@ class TestEndHealthFasting:
         _returns_one(mock_db, row)
         end = datetime(2024, 1, 16, 8, 0, 0)
 
-        health_fasting_crud.end_health_fasting(1, 1, end, "completed", 86400, "done", mock_db, if_match="*")
+        health_fasting_crud.end_health_fasting(1, _ID, end, "completed", 86400, "done", mock_db, if_match="*")
 
         assert (row.fast_end_time, row.status, row.actual_duration_seconds, row.notes) == (
             end,
@@ -190,7 +197,7 @@ class TestEndHealthFasting:
         row.notes = "before"
         _returns_one(mock_db, row)
 
-        health_fasting_crud.end_health_fasting(1, 1, datetime(2024, 1, 16), "broken", 10, None, mock_db, if_match="*")
+        health_fasting_crud.end_health_fasting(1, _ID, datetime(2024, 1, 16), "broken", 10, None, mock_db, if_match="*")
 
         assert row.notes == "before"
 
@@ -208,7 +215,7 @@ class TestDeleteHealthFasting:
         row = _row()
         _returns_one(mock_db, row)
 
-        health_fasting_crud.delete_health_fasting(1, 1, mock_db, if_match="*")
+        health_fasting_crud.delete_health_fasting(1, _ID, mock_db, if_match="*")
 
         mock_db.delete.assert_called_once_with(row)
         mock_db.flush.assert_called_once()
@@ -218,5 +225,5 @@ class TestDeleteHealthFasting:
         _returns_one(mock_db, None)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            health_fasting_crud.delete_health_fasting(1, 9, mock_db, if_match="*")
+            health_fasting_crud.delete_health_fasting(1, _OTHER_ID, mock_db, if_match="*")
         mock_db.delete.assert_not_called()

@@ -1,5 +1,6 @@
 """Tests for the account-security changed notification."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -27,7 +28,7 @@ def _create(mock_db, change, idp_id=None, idp=None, created=True):
         patch("modules.notifications.service.idp_integration.get_identity_provider", return_value=idp),
         patch(
             "modules.notifications.service.notifications_crud.create_notification_once",
-            return_value=(MagicMock(id=3), created),
+            return_value=(MagicMock(id=uuid.UUID(int=3)), created),
         ) as create_once,
     ):
         result = notifications_service.create_account_security_changed_notification(
@@ -93,7 +94,11 @@ class TestNotifyAccountSecurityChangedForEvent:
     @patch("modules.notifications.subscribers.core_database")
     @patch("modules.notifications.subscribers.notifications_service")
     def test_creates_notification_and_pushes(self, mock_notif, _db, mock_ws):
-        mock_notif.create_account_security_changed_notification.return_value = (MagicMock(id=5), "WS", True)
+        mock_notif.create_account_security_changed_notification.return_value = (
+            MagicMock(id=uuid.UUID(int=5)),
+            "WS",
+            True,
+        )
         event = _event("identity_provider_unlinked", 4)
 
         notification_subscribers.notify_account_security_changed_for_event(event)
@@ -110,7 +115,11 @@ class TestNotifyAccountSecurityChangedForEvent:
     @patch("modules.notifications.subscribers.core_database")
     @patch("modules.notifications.subscribers.notifications_service")
     def test_skips_push_for_a_duplicate_event(self, mock_notif, _db, mock_ws):
-        mock_notif.create_account_security_changed_notification.return_value = (MagicMock(id=5), "WS", False)
+        mock_notif.create_account_security_changed_notification.return_value = (
+            MagicMock(id=uuid.UUID(int=5)),
+            "WS",
+            False,
+        )
 
         notification_subscribers.notify_account_security_changed_for_event(_event())
 
@@ -151,7 +160,11 @@ class TestNotifyPasswordResetCompletedForEvent:
     @patch("modules.notifications.subscribers.core_database")
     @patch("modules.notifications.subscribers.notifications_service")
     def test_creates_the_password_reset_notification(self, mock_notif, _db, mock_ws):
-        mock_notif.create_account_security_changed_notification.return_value = (MagicMock(id=5), "WS", True)
+        mock_notif.create_account_security_changed_notification.return_value = (
+            MagicMock(id=uuid.UUID(int=5)),
+            "WS",
+            True,
+        )
         event = new_event(password_reset_events.PASSWORD_RESET_COMPLETED, {"user_id": 1}, source="test")
 
         notification_subscribers.notify_password_reset_completed_for_event(event)
@@ -170,7 +183,11 @@ class TestNotifyPasswordResetCompletedForEvent:
             patch("modules.notifications.subscribers.core_database"),
             patch("modules.notifications.subscribers.notifications_service") as mock_notif,
         ):
-            mock_notif.create_account_security_changed_notification.return_value = (MagicMock(id=5), "WS", True)
+            mock_notif.create_account_security_changed_notification.return_value = (
+                MagicMock(id=uuid.UUID(int=5)),
+                "WS",
+                True,
+            )
             notification_subscribers.notify_account_security_changed_for_event(_event("password_reset"))
 
         assert mock_notif.create_account_security_changed_notification.call_args.args[1] == "password_reset"
@@ -194,7 +211,11 @@ class TestNotifyMfaLockedForEvent:
     @patch("modules.notifications.subscribers.core_database")
     @patch("modules.notifications.subscribers.notifications_service")
     def test_creates_the_mfa_locked_notification(self, mock_notif, _db, mock_ws):
-        mock_notif.create_account_security_changed_notification.return_value = (MagicMock(id=5), "WS", True)
+        mock_notif.create_account_security_changed_notification.return_value = (
+            MagicMock(id=uuid.UUID(int=5)),
+            "WS",
+            True,
+        )
         event = new_event(authentication_events.MFA_LOCKED, {"user_id": 1}, source="test")
 
         notification_subscribers.notify_mfa_locked_for_event(event)
@@ -245,7 +266,11 @@ class TestNotifyStepUpForEvent:
     def test_creates_the_notification_and_is_registered(
         self, mock_notif, _db, mock_ws, channel, change, handler, subscriber_id
     ):
-        mock_notif.create_account_security_changed_notification.return_value = (MagicMock(id=5), "WS", True)
+        mock_notif.create_account_security_changed_notification.return_value = (
+            MagicMock(id=uuid.UUID(int=5)),
+            "WS",
+            True,
+        )
         event = new_event(channel, {"user_id": 1}, source="test")
 
         getattr(notification_subscribers, handler)(event)
@@ -270,7 +295,11 @@ class TestNotifyAccountLockedForEvent:
     @patch("modules.notifications.subscribers.core_database")
     @patch("modules.notifications.subscribers.notifications_service")
     def test_creates_the_account_locked_notification(self, mock_notif, _db, mock_ws):
-        mock_notif.create_account_security_changed_notification.return_value = (MagicMock(id=5), "WS", True)
+        mock_notif.create_account_security_changed_notification.return_value = (
+            MagicMock(id=uuid.UUID(int=5)),
+            "WS",
+            True,
+        )
         event = new_event(authentication_events.ACCOUNT_LOCKED, {"user_id": 1}, source="test")
 
         notification_subscribers.notify_account_locked_for_event(event)

@@ -6,6 +6,7 @@ the TOTP factor (resolved via ``auth_mfa_crud.get_totp_factor`` in
 ``is_mfa_enabled_for_user`` for setup/enable/disable) rather than from any column on the ``users`` row.
 """
 
+import uuid
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -70,7 +71,7 @@ def _wire_mfa_row():
 
     def _factor(_user_id, _db):
         _, auth_mfa = _state()
-        return None if auth_mfa is None else MagicMock(id=1, credential=auth_mfa.mfa_secret)
+        return None if auth_mfa is None else MagicMock(id=uuid.uuid4(), credential=auth_mfa.mfa_secret)
 
     def _enabled(user_ids, _db):
         user, auth_mfa = _state()

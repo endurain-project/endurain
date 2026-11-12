@@ -8,6 +8,7 @@ are safe to run on a durable-job worker thread where there is no event loop.
 What other modules may consume lives in :mod:`modules.notifications.integration_service`.
 """
 
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
@@ -52,7 +53,7 @@ def count_unread_notifications(user_id: int, db: Session) -> int:
     return notifications_crud.count_user_unread_notifications(user_id, db)
 
 
-def get_notification(notification_id: int, user_id: int, db: Session) -> notifications_schema.NotificationRead:
+def get_notification(notification_id: uuid.UUID, user_id: int, db: Session) -> notifications_schema.NotificationRead:
     """Return one of the user's notifications.
 
     Args:
@@ -95,7 +96,7 @@ def list_notifications(
     Raises:
         InvalidInputError: When the cursor is not one this server issued.
     """
-    after = core_pagination.decode_cursor(cursor) if cursor else None
+    after = core_pagination.decode_uuid_cursor(cursor) if cursor else None
     # Over-fetch by one: the extra row proves another slice exists without a second query.
     rows = notifications_crud.get_user_notifications_after(user_id, after, num_records + 1, db, unread_only=unread_only)
     items = rows[:num_records]
@@ -103,7 +104,7 @@ def list_notifications(
     return notifications_schema.NotificationPage(items=items, num_records=num_records, next_cursor=next_cursor)
 
 
-def mark_notification_as_read(notification_id: int, user_id: int, db: Session) -> None:
+def mark_notification_as_read(notification_id: uuid.UUID, user_id: int, db: Session) -> None:
     """Mark one of the user's notifications as read.
 
     Args:
@@ -119,11 +120,11 @@ def mark_notification_as_read(notification_id: int, user_id: int, db: Session) -
     db.commit()
     logger.info(
         "Marked notification as read",
-        extra=core_logger.context(notification_id=notification_id, user_id=user_id),
+        extra=core_logger.context(notification_id=str(notification_id), user_id=user_id),
     )
 
 
-def mark_notifications_as_read(notification_ids: list[int], user_id: int, db: Session) -> None:
+def mark_notifications_as_read(notification_ids: list[uuid.UUID], user_id: int, db: Session) -> None:
     """Mark some of the user's notifications as read; ids that are not the user's are skipped.
 
     Args:
@@ -136,7 +137,7 @@ def mark_notifications_as_read(notification_ids: list[int], user_id: int, db: Se
     logger.info("Marked notifications as read", extra=core_logger.context(user_id=user_id, count=len(notification_ids)))
 
 
-def delete_notification(notification_id: int, user_id: int, db: Session) -> None:
+def delete_notification(notification_id: uuid.UUID, user_id: int, db: Session) -> None:
     """Delete one of the user's notifications.
 
     Args:
@@ -150,7 +151,9 @@ def delete_notification(notification_id: int, user_id: int, db: Session) -> None
     if not notifications_crud.delete_user_notification(notification_id, user_id, db):
         raise core_exceptions.NotFoundError("Notification not found")
     db.commit()
-    logger.info("Deleted notification", extra=core_logger.context(notification_id=notification_id, user_id=user_id))
+    logger.info(
+        "Deleted notification", extra=core_logger.context(notification_id=str(notification_id), user_id=user_id)
+    )
 
 
 def mark_all_notifications_as_read(user_id: int, db: Session) -> None:
@@ -223,7 +226,7 @@ def _record_event_notification(
     logger.debug(
         "Recorded notification",
         extra=core_logger.context(
-            user_id=user_id, notification_id=notification.id, notification_type=notification_type, created=created
+            user_id=user_id, notification_id=str(notification.id), notification_type=notification_type, created=created
         ),
     )
     return notification, ws_message, created

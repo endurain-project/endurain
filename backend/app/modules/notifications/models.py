@@ -1,5 +1,6 @@
 """Notification database models."""
 
+import uuid
 from datetime import datetime
 from typing import Any
 
@@ -14,7 +15,7 @@ class Notification(Base):
     """User notification data.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         user_id: Foreign key to users table.
         type: Notification type.
         options: Notification options (JSON).
@@ -34,10 +35,7 @@ class Notification(Base):
         ),
     )
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,

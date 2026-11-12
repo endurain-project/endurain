@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime
 from datetime import date as datetime_date
 from unittest.mock import patch
@@ -10,6 +11,7 @@ import modules.health.constants as health_constants
 import modules.health.health_poop.schema as health_poop_schema
 import modules.health.health_poop.service as health_poop_service
 
+_ID = uuid.uuid4()
 _PREFIX = "modules.health.health_poop.service"
 
 _NO_RANGE = core_date_range.DateRange()
@@ -18,13 +20,13 @@ _NO_RANGE = core_date_range.DateRange()
 class TestGetHealthPoop:
     @patch(f"{_PREFIX}.health_poop_crud.get_health_poop_by_id_and_user_id")
     def test_returns_the_record(self, mock_get, mock_db):
-        assert health_poop_service.get_health_poop(1, 5, mock_db) is mock_get.return_value
-        mock_get.assert_called_once_with(5, 1, mock_db)
+        assert health_poop_service.get_health_poop(1, _ID, mock_db) is mock_get.return_value
+        mock_get.assert_called_once_with(_ID, 1, mock_db)
 
     @patch(f"{_PREFIX}.health_poop_crud.get_health_poop_by_id_and_user_id", return_value=None)
     def test_missing_record_is_not_found(self, _get, mock_db):
         with pytest.raises(core_exceptions.NotFoundError, match="Poop record not found"):
-            health_poop_service.get_health_poop(1, 5, mock_db)
+            health_poop_service.get_health_poop(1, _ID, mock_db)
 
 
 class TestListByDate:
@@ -46,15 +48,15 @@ class TestWrites:
 
     @patch(f"{_PREFIX}.health_poop_crud.edit_health_poop")
     def test_edit_commits(self, mock_edit, mock_db):
-        health_poop_service.edit_health_poop(1, 7, health_poop_schema.HealthPoopUpdate(), mock_db, if_match="*")
+        health_poop_service.edit_health_poop(1, _ID, health_poop_schema.HealthPoopUpdate(), mock_db, if_match="*")
 
         mock_db.commit.assert_called_once()
 
     @patch(f"{_PREFIX}.health_poop_crud.delete_health_poop")
     def test_delete_commits(self, mock_delete, mock_db):
-        health_poop_service.delete_health_poop(1, 5, mock_db, if_match="*")
+        health_poop_service.delete_health_poop(1, _ID, mock_db, if_match="*")
 
-        mock_delete.assert_called_once_with(1, 5, mock_db, if_match="*")
+        mock_delete.assert_called_once_with(1, _ID, mock_db, if_match="*")
         mock_db.commit.assert_called_once()
 
 

@@ -5,6 +5,7 @@ movement tracking, including validation rules, Bristol Stool
 Scale types, and color enumerations.
 """
 
+import uuid
 from datetime import datetime
 from enum import Enum
 from typing import Annotated
@@ -165,7 +166,7 @@ class HealthPoopRead(HealthPoopBase):
         validate_default=True,
         description="Source of the data",
     )
-    id: StrictInt = Field(
+    id: uuid.UUID = Field(
         ...,
         description=("Unique identifier for the poop record"),
     )

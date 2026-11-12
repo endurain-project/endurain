@@ -1,5 +1,6 @@
 """CRUD operations for user integrations."""
 
+import uuid
 from datetime import UTC, datetime
 from typing import Any
 
@@ -549,7 +550,9 @@ def edit_user_integrations(
     return user_integrations_serializers.to_read_schema(db_user_integrations)
 
 
-def stage_reencrypt_batch_strava(after_id: int | None, limit: int, db: Session) -> core_key_rotation.BatchResult[int]:
+def stage_reencrypt_batch_strava(
+    after_id: uuid.UUID | None, limit: int, db: Session
+) -> core_key_rotation.BatchResult[uuid.UUID]:
     """Stage the re-encryption of up to ``limit`` strava rows after ``after_id`` (flushed, not committed)."""
     model = user_integrations_models.UsersIntegrations
     return core_key_rotation.stage_reencrypt_batch(
@@ -567,7 +570,9 @@ def stage_reencrypt_batch_strava(after_id: int | None, limit: int, db: Session) 
     )
 
 
-def stage_reencrypt_batch_garmin(after_id: int | None, limit: int, db: Session) -> core_key_rotation.BatchResult[int]:
+def stage_reencrypt_batch_garmin(
+    after_id: uuid.UUID | None, limit: int, db: Session
+) -> core_key_rotation.BatchResult[uuid.UUID]:
     """Stage the re-encryption of the secrets in up to ``limit`` Garmin tokens after ``after_id``.
 
     The rows are locked while they are read, so a concurrent token write waits for the batch and is never

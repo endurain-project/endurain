@@ -1,5 +1,6 @@
 """Tests for the block list and the re-request cooldown."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
@@ -12,6 +13,7 @@ import core.exceptions as core_exceptions
 import modules.followers.audit_actions as followers_audit_actions
 import modules.followers.constants as followers_constants
 import modules.followers.crud as followers_crud
+import modules.followers.models as followers_models
 import modules.followers.service as followers_service
 import modules.users.users.models as users_models
 from tests._helpers.db import create_sqlite_session_factory, ensure_user
@@ -31,6 +33,13 @@ def _hide(factory, user_id: int, state: str) -> None:
         user = db.get(users_models.Users, user_id)
         user.active = state != "inactive"
         user.pending_admin_approval = state == "pending"
+        db.commit()
+
+
+def _add_block(factory, blocked_id: int, created_at: datetime, block_id: uuid.UUID) -> None:
+    """Store a block of user 1 with a chosen creation time and id."""
+    with factory() as db:
+        db.add(followers_models.FollowerBlock(id=block_id, blocker_id=1, blocked_id=blocked_id, created_at=created_at))
         db.commit()
 
 
@@ -116,23 +125,25 @@ class TestUnblockUser:
 class TestListBlockedUsers:
     def test_lists_the_public_projection_newest_block_first(self, factory):
         ensure_user(factory, 3)
-        with factory() as db:
-            followers_service.block_user(1, 2, db)
-            followers_service.block_user(1, 3, db)
+        now = datetime.now(UTC)
+        # The newer block has the smaller id: the order follows the creation time.
+        _add_block(factory, 2, now, uuid.UUID(int=1))
+        _add_block(factory, 3, now - timedelta(hours=1), uuid.UUID(int=2))
 
         with factory() as db:
             page = followers_service.list_blocked_users(1, db, page_number=1, num_records=10)
 
-        assert [user.id for user in page.items] == [3, 2]
+        assert [user.id for user in page.items] == [2, 3]
         assert page.total == 2
         assert set(page.items[0].model_dump()) == {"id", "name", "username", "city", "photo_path"}
 
     def test_total_and_pages_leave_out_the_same_hidden_users(self, factory):
         for user_id in (3, 4, 5):
             ensure_user(factory, user_id)
-        with factory() as db:
-            for user_id in (2, 3, 4, 5):
-                followers_service.block_user(1, user_id, db)
+        now = datetime.now(UTC)
+        for index, user_id in enumerate((2, 3, 4, 5)):
+            # Later blocks get smaller ids: the order follows the creation time.
+            _add_block(factory, user_id, now + timedelta(hours=index), uuid.UUID(int=10 - index))
         _hide(factory, 3, "inactive")
 
         with factory() as db:

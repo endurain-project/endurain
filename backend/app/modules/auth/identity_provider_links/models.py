@@ -1,5 +1,6 @@
 """Auth-owned identity-provider link and sign-in database models (tables: ``users_identity_providers``, ``idp_session_tokens``)."""
 
+import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint
@@ -13,7 +14,7 @@ class IdentityLink(Base):
     """User-to-identity-provider association for SSO/OAuth linking.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         user_id: Foreign key to users table.
         idp_id: Foreign key to identity_providers table.
         idp_subject: Subject/ID from the identity provider.
@@ -26,11 +27,7 @@ class IdentityLink(Base):
         UniqueConstraint("user_id", "idp_id", name="uq_identity_links_user_idp"),
         UniqueConstraint("idp_id", "idp_subject", name="uq_identity_links_idp_subject"),
     )
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-        index=True,
-    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
@@ -68,7 +65,7 @@ class IdpSessionToken(Base):
     revoked at the provider.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         session_id: The Endurain session the user signed in with.
         user_id: Foreign key to users table.
         idp_id: Foreign key to identity_providers table.
@@ -85,7 +82,7 @@ class IdpSessionToken(Base):
     __tablename__ = "idp_session_tokens"
     __table_args__ = (Index("ix_idp_session_tokens_idp_id_idp_sid", "idp_id", "idp_sid"),)
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     session_id: Mapped[str] = mapped_column(
         String(length=36),
         nullable=False,

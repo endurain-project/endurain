@@ -1,5 +1,6 @@
 """A health record is edited only by a client that names the version it read."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -17,6 +18,7 @@ import modules.health.health_water.router as water_router
 import modules.health.health_weight.router as weight_router
 
 _HEADERS = {"Authorization": "Bearer x"}
+_RECORD_ID = uuid.uuid4()
 
 _ROUTES = [
     pytest.param(weight_router, "weight", id="weight"),
@@ -41,7 +43,7 @@ def _client(router_module) -> TestClient:
 @pytest.mark.parametrize(("router_module", "name"), _ROUTES)
 def test_an_edit_without_if_match_is_428(router_module, name):
     with patch.object(router_module, f"health_{name}_service") as service:
-        response = _client(router_module).patch("/health/1", json={}, headers=_HEADERS)
+        response = _client(router_module).patch(f"/health/{_RECORD_ID}", json={}, headers=_HEADERS)
 
     assert response.status_code == 428
     getattr(service, f"edit_health_{name}").assert_not_called()
@@ -50,7 +52,7 @@ def test_an_edit_without_if_match_is_428(router_module, name):
 def test_completing_a_fast_without_if_match_is_428():
     with patch.object(fasting_router, "health_fasting_service") as service:
         response = _client(fasting_router).post(
-            "/health/1/complete", json={"fast_end_time": "2024-01-16T08:00:00Z"}, headers=_HEADERS
+            f"/health/{_RECORD_ID}/complete", json={"fast_end_time": "2024-01-16T08:00:00Z"}, headers=_HEADERS
         )
 
     assert response.status_code == 428
@@ -60,7 +62,7 @@ def test_completing_a_fast_without_if_match_is_428():
 @pytest.mark.parametrize(("router_module", "name"), _ROUTES)
 def test_a_delete_without_if_match_is_428(router_module, name):
     with patch.object(router_module, f"health_{name}_service") as service:
-        response = _client(router_module).delete("/health/1", headers=_HEADERS)
+        response = _client(router_module).delete(f"/health/{_RECORD_ID}", headers=_HEADERS)
 
     assert response.status_code == 428
     getattr(service, f"delete_health_{name}").assert_not_called()
@@ -70,7 +72,7 @@ def test_a_delete_without_if_match_is_428(router_module, name):
 def test_a_delete_of_a_stale_version_is_412(router_module, name):
     with patch.object(router_module, f"health_{name}_service") as service:
         getattr(service, f"delete_health_{name}").side_effect = core_exceptions.PreconditionFailedError("stale")
-        response = _client(router_module).delete("/health/1", headers={**_HEADERS, "If-Match": '"1"'})
+        response = _client(router_module).delete(f"/health/{_RECORD_ID}", headers={**_HEADERS, "If-Match": '"1"'})
 
     assert response.status_code == 412
 
@@ -78,7 +80,7 @@ def test_a_delete_of_a_stale_version_is_412(router_module, name):
 @pytest.mark.parametrize(("router_module", "name"), _ROUTES)
 def test_a_delete_with_if_match_is_204_and_hands_the_header_to_the_service(router_module, name):
     with patch.object(router_module, f"health_{name}_service") as service:
-        response = _client(router_module).delete("/health/1", headers={**_HEADERS, "If-Match": '"3"'})
+        response = _client(router_module).delete(f"/health/{_RECORD_ID}", headers={**_HEADERS, "If-Match": '"3"'})
 
     assert response.status_code == 204
     getattr(service, f"delete_health_{name}").assert_called_once()

@@ -4,6 +4,7 @@ This module defines the request/response schemas for water intake
 tracking, including validation rules and source enumeration.
 """
 
+import uuid
 from datetime import date as datetime_date
 from datetime import datetime
 from enum import StrEnum
@@ -92,7 +93,7 @@ class HealthWaterRead(HealthWaterBase):
         validate_default=True,
         description="Source of the water intake data",
     )
-    id: StrictInt = Field(
+    id: uuid.UUID = Field(
         ...,
         description=("Unique identifier for the water intake record"),
     )

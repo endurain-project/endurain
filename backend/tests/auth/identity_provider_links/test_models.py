@@ -1,5 +1,7 @@
 """Tests for user_identity_providers.models module."""
 
+import uuid
+
 from sqlalchemy import inspect
 
 from modules.auth.identity_provider_links.models import IdentityLink, IdpSessionToken
@@ -70,7 +72,7 @@ class TestUserIdentityProviderModel:
         columns = {col.name: col for col in mapper.columns}
 
         # Assert
-        assert columns["id"].autoincrement is True
+        assert columns["id"].type.python_type is uuid.UUID
         assert columns["id"].primary_key is True
         assert str(columns["idp_subject"].type) == "VARCHAR(500)"
 

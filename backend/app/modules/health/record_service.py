@@ -5,6 +5,7 @@ version-race guard, and charting a metric over an interval. A package passes the
 ``crud`` describes the record with, and the callables that stage or read what is specific to it.
 """
 
+import uuid
 from collections.abc import Callable, Mapping
 from datetime import UTC, date, datetime
 from typing import Any, Protocol
@@ -32,7 +33,7 @@ logger = core_logger.get_logger(__name__)
 class _DatedRecord(Protocol):
     """A record that is stored once per day."""
 
-    id: int
+    id: uuid.UUID
     date: date | None
 
 
@@ -73,7 +74,7 @@ def require_not_future(user_id: int, when: date | datetime | None, db: Session, 
 
 def commit_write[ModelT: health_record_crud.Row, ReadT: BaseModel, ResultT](
     spec: health_record_crud.RecordSpec[ModelT, ReadT],
-    record_id: int,
+    record_id: uuid.UUID,
     user_id: int,
     write: Callable[[], ResultT],
     db: Session,
@@ -107,7 +108,7 @@ def commit_write[ModelT: health_record_crud.Row, ReadT: BaseModel, ResultT](
 
 
 def get_record[ModelT: health_record_crud.Row, ReadT: BaseModel](
-    spec: health_record_crud.RecordSpec[ModelT, ReadT], record_id: int, user_id: int, db: Session
+    spec: health_record_crud.RecordSpec[ModelT, ReadT], record_id: uuid.UUID, user_id: int, db: Session
 ) -> ReadT:
     """Return one of a user's records.
 
@@ -212,7 +213,7 @@ def upsert_dated[RecordT: _DatedRecord, CreateT: _DatedInput, UpdateT: BaseModel
     to_update: type[UpdateT],
     find: Callable[[str], RecordT | None],
     create: Callable[[CreateT], RecordT],
-    edit: Callable[[int, UpdateT], RecordT],
+    edit: Callable[[uuid.UUID, UpdateT], RecordT],
     db: Session,
 ) -> RecordT:
     """Stage a day's record, or an update to the record the user already has for that day.

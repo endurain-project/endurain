@@ -1,5 +1,6 @@
 """Response shapes of the consolidated daily health dashboard."""
 
+import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt
@@ -95,7 +96,7 @@ class HealthFastingDashboard(BaseModel):
         actual_duration_seconds: Actual fasting duration in seconds.
     """
 
-    id: StrictInt = Field(
+    id: uuid.UUID = Field(
         ...,
         description="Unique identifier for the fasting record",
     )

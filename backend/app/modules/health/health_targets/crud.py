@@ -1,5 +1,6 @@
 """CRUD operations for per-user health targets."""
 
+import uuid
 from datetime import datetime
 
 from sqlalchemy import select
@@ -110,7 +111,7 @@ def health_targets_exists(user_id: int, db: Session) -> bool:
 
 
 def list_changed(
-    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[health_targets_schema.HealthTargetsRead]:
     """Retrieve a user's records changed after a position, oldest change first.
 

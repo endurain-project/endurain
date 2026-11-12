@@ -1,3 +1,4 @@
+import uuid
 from datetime import date as datetime_date
 from unittest.mock import MagicMock, patch
 
@@ -15,14 +16,18 @@ _PREFIX = "modules.health.health_steps.service"
 _NO_RANGE = core_date_range.DateRange()
 
 
+_ID = uuid.uuid4()
+_OTHER_ID = uuid.uuid4()
+
+
 class TestStageEdit:
     @patch(f"{_PREFIX}.health_steps_crud.edit_health_steps")
     def test_stages_without_committing(self, mock_edit, mock_db):
         record = health_steps_schema.HealthStepsUpdate(date=datetime_date(2024, 1, 15), steps=1)
 
-        health_steps_service.stage_edit_health_steps(1, 7, record, mock_db, if_match="*")
+        health_steps_service.stage_edit_health_steps(1, _ID, record, mock_db, if_match="*")
 
-        mock_edit.assert_called_once_with(1, 7, record, mock_db, if_match="*")
+        mock_edit.assert_called_once_with(1, _ID, record, mock_db, if_match="*")
         mock_db.commit.assert_not_called()
 
 
@@ -54,12 +59,12 @@ class TestRaceForTheDate:
     @patch(f"{_PREFIX}.health_steps_crud.create_health_steps", side_effect=core_exceptions.ConflictError("duplicate"))
     @patch(f"{_PREFIX}.health_steps_crud.get_health_steps_by_date_and_user_id")
     def test_a_record_that_lost_the_race_updates_the_one_that_won(self, mock_get_by_date, _create, mock_edit, mock_db):
-        mock_get_by_date.side_effect = [None, MagicMock(id=7)]
+        mock_get_by_date.side_effect = [None, MagicMock(id=_ID)]
         record = health_steps_schema.HealthStepsCreate(date=datetime_date(2024, 1, 15), steps=9000)
 
         health_steps_service.stage_upsert_health_steps(1, record, mock_db)
 
-        assert mock_edit.call_args.args[1] == 7
+        assert mock_edit.call_args.args[1] == _ID
         # One savepoint for the create that lost the race, one for the edit that follows it.
         assert mock_db.begin_nested.call_count == 2
 
@@ -78,7 +83,7 @@ class TestUpsertHealthSteps:
     def test_a_writer_that_changed_the_row_first_is_retried_against_its_version(
         self, mock_get_by_date, mock_edit, mock_db
     ):
-        mock_get_by_date.return_value = MagicMock(id=7)
+        mock_get_by_date.return_value = MagicMock(id=_ID)
         mock_edit.side_effect = [StaleDataError("moved"), "stored"]
         record = health_steps_schema.HealthStepsCreate(date=datetime_date(2024, 1, 15), steps=9000)
 
@@ -90,7 +95,7 @@ class TestUpsertHealthSteps:
     @patch(f"{_PREFIX}.health_steps_crud.edit_health_steps", side_effect=StaleDataError("moved"))
     @patch(f"{_PREFIX}.health_steps_crud.get_health_steps_by_date_and_user_id")
     def test_a_row_that_keeps_moving_is_given_up_on(self, mock_get_by_date, mock_edit, mock_db):
-        mock_get_by_date.return_value = MagicMock(id=7)
+        mock_get_by_date.return_value = MagicMock(id=_ID)
         record = health_steps_schema.HealthStepsCreate(date=datetime_date(2024, 1, 15), steps=9000)
 
         with pytest.raises(StaleDataError):
@@ -101,12 +106,12 @@ class TestUpsertHealthSteps:
     @patch(f"{_PREFIX}.health_steps_crud.edit_health_steps")
     @patch(f"{_PREFIX}.health_steps_crud.get_health_steps_by_date_and_user_id")
     def test_updates_the_existing_record_of_the_date(self, mock_get_by_date, mock_edit, mock_db):
-        mock_get_by_date.return_value = MagicMock(id=7)
+        mock_get_by_date.return_value = MagicMock(id=_ID)
         record = health_steps_schema.HealthStepsCreate(date=datetime_date(2024, 1, 15), steps=9000)
 
         health_steps_service.stage_upsert_health_steps(1, record, mock_db)
 
-        assert mock_edit.call_args.args[:2] == (1, 7)
+        assert mock_edit.call_args.args[:2] == (1, _ID)
         assert mock_edit.call_args.args[2].date == datetime_date(2024, 1, 15)
         mock_db.commit.assert_not_called()
 
@@ -116,15 +121,15 @@ class TestEditAndDelete:
     def test_edit_commits(self, mock_edit, mock_db):
         record = health_steps_schema.HealthStepsUpdate(date=datetime_date(2024, 1, 15), steps=1)
 
-        health_steps_service.edit_health_steps(1, 7, record, mock_db, if_match="*")
+        health_steps_service.edit_health_steps(1, _ID, record, mock_db, if_match="*")
 
         mock_db.commit.assert_called_once()
 
     @patch(f"{_PREFIX}.health_steps_crud.delete_health_steps")
     def test_delete_commits(self, mock_delete, mock_db):
-        health_steps_service.delete_health_steps(1, 5, mock_db, if_match="*")
+        health_steps_service.delete_health_steps(1, _ID, mock_db, if_match="*")
 
-        mock_delete.assert_called_once_with(1, 5, mock_db, if_match="*")
+        mock_delete.assert_called_once_with(1, _ID, mock_db, if_match="*")
         mock_db.commit.assert_called_once()
 
 

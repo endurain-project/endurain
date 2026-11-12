@@ -1,5 +1,6 @@
 """CRUD operations for health fasting records."""
 
+import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -45,7 +46,7 @@ def get_health_fasting_number_by_user_id(
 
 
 def get_health_fasting_by_id_and_user_id(
-    health_fasting_id: int, user_id: int, db: Session
+    health_fasting_id: uuid.UUID, user_id: int, db: Session
 ) -> health_fasting_schema.HealthFastingRead | None:
     """Retrieve a user's fasting record by id.
 
@@ -254,7 +255,7 @@ def create_health_fasting(
 
 def edit_health_fasting(
     user_id: int,
-    health_fasting_id: int,
+    health_fasting_id: uuid.UUID,
     health_fasting: health_fasting_schema.HealthFastingUpdate,
     db: Session,
     *,
@@ -291,7 +292,7 @@ def edit_health_fasting(
 
 def end_health_fasting(
     user_id: int,
-    health_fasting_id: int,
+    health_fasting_id: uuid.UUID,
     fast_end_time: datetime,
     status: str,
     actual_duration_seconds: int,
@@ -331,7 +332,7 @@ def end_health_fasting(
     return health_record_crud.save(SPEC, db_health_fasting, db)
 
 
-def delete_health_fasting(user_id: int, health_fasting_id: int, db: Session, *, if_match: str) -> None:
+def delete_health_fasting(user_id: int, health_fasting_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Stage the deletion of a user's fasting record.
 
     Args:
@@ -353,7 +354,7 @@ def fasting_overlaps(
     fast_end_time: datetime | None,
     db: Session,
     *,
-    exclude_id: int | None = None,
+    exclude_id: uuid.UUID | None = None,
 ) -> bool:
     """Tell whether a user has a fasting session that overlaps a time span.
 
@@ -383,7 +384,7 @@ def fasting_overlaps(
 
 
 def list_changed(
-    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[health_fasting_schema.HealthFastingRead]:
     """Retrieve a user's records changed after a position, oldest change first.
 

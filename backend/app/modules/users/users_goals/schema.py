@@ -1,5 +1,6 @@
 """User goals Pydantic schemas and validators."""
 
+import uuid
 from datetime import date
 from enum import StrEnum
 
@@ -196,7 +197,7 @@ class UserGoalRead(UserGoalBase):
         user_id: User who owns this goal.
     """
 
-    id: StrictInt = Field(..., ge=1, description="Unique identifier for the goal")
+    id: uuid.UUID = Field(..., description="Unique identifier for the goal")
     user_id: StrictInt = Field(..., ge=1, description="User who owns this goal")
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
 
@@ -236,7 +237,7 @@ class UserGoalProgress(BaseModel):
         goal_duration: Target duration.
     """
 
-    goal_id: StrictInt = Field(..., ge=1, description="Goal identifier")
+    goal_id: uuid.UUID = Field(..., description="Goal identifier")
     interval: Interval = Field(..., description="Goal time interval")
     activity_type: GoalActivityType = Field(..., description="Activity type for this goal")
     goal_type: GoalType

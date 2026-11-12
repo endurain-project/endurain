@@ -1,5 +1,6 @@
 """Persistence operations for identity-provider links."""
 
+import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import Select, delete, exists, func, select
@@ -241,11 +242,13 @@ def get_idp_session_owners_by_sid(
 
 
 def get_idp_session_tokens_page(
-    after_id: int, limit: int, db: Session, *, user_id: int | None = None
+    after_id: uuid.UUID | None, limit: int, db: Session, *, user_id: int | None = None
 ) -> list[identity_link_contracts.IdpSessionTokenRead]:
     """Return up to ``limit`` identity-provider sign-ins after ``after_id``, in id order, optionally one user's."""
     model = identity_link_models.IdpSessionToken
-    stmt = select(model).where(model.id > after_id).order_by(model.id).limit(limit)
+    stmt = select(model).order_by(model.id).limit(limit)
+    if after_id is not None:
+        stmt = stmt.where(model.id > after_id)
     if user_id is not None:
         stmt = stmt.where(model.user_id == user_id)
     return [identity_link_serializers.to_session_token_read_schema(row) for row in db.execute(stmt).scalars()]
@@ -353,8 +356,8 @@ def delete_idp_session_token_if_unchanged(session_id: str, expected_refresh_toke
 
 
 def stage_reencrypt_batch_session_tokens(
-    after_id: int | None, limit: int, db: Session
-) -> core_key_rotation.BatchResult[int]:
+    after_id: uuid.UUID | None, limit: int, db: Session
+) -> core_key_rotation.BatchResult[uuid.UUID]:
     """Stage the re-encryption of up to ``limit`` session-token rows after ``after_id`` (flushed, not committed)."""
     model = identity_link_models.IdpSessionToken
     return core_key_rotation.stage_reencrypt_batch(

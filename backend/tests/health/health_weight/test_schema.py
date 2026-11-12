@@ -1,9 +1,13 @@
+import uuid
 from datetime import date as datetime_date
 
 import pytest
 from pydantic import ValidationError
 
 import modules.health.health_weight.schema as health_weight_schema
+
+_ID = uuid.uuid4()
+_OTHER_ID = uuid.uuid4()
 
 
 class TestHealthWeightSchema:
@@ -18,7 +22,7 @@ class TestHealthWeightSchema:
         # Arrange & Act
         health_weight = health_weight_schema.HealthWeightRead(
             updated_at="2024-01-01T00:00:00Z",
-            id=1,
+            id=_ID,
             user_id=1,
             date=datetime_date(2024, 1, 15),
             weight_kg=75.5,
@@ -34,7 +38,7 @@ class TestHealthWeightSchema:
         )
 
         # Assert
-        assert health_weight.id == 1
+        assert health_weight.id == _ID
         assert health_weight.user_id == 1
         assert health_weight.date == datetime_date(2024, 1, 15)
         assert health_weight.weight_kg == 75.5
@@ -67,7 +71,7 @@ class TestHealthWeightSchema:
         # Arrange & Act
         health_weight = health_weight_schema.HealthWeightRead(
             updated_at="2024-01-01T00:00:00Z",
-            id=1,
+            id=_ID,
             user_id=1,
             date=datetime_date(2024, 1, 15),
             weight_kg=75.5,
@@ -83,7 +87,7 @@ class TestHealthWeightSchema:
         )
 
         # Assert
-        assert health_weight.id == 1
+        assert health_weight.id == _ID
         assert health_weight.bmi is None
         assert health_weight.body_fat_percent is None
 
@@ -130,7 +134,7 @@ class TestHealthWeightSchema:
         class MockORMModel:
             """Mock ORM model for testing."""
 
-            id = 1
+            id = _ID
             user_id = 1
             updated_at = "2024-01-01T00:00:00Z"
             date = datetime_date(2024, 1, 15)
@@ -149,7 +153,7 @@ class TestHealthWeightSchema:
         health_weight = health_weight_schema.HealthWeightRead.model_validate(MockORMModel())
 
         # Assert
-        assert health_weight.id == 1
+        assert health_weight.id == _ID
         assert health_weight.weight_kg == 75.5
         assert health_weight.source == "garmin"
 
@@ -222,7 +226,7 @@ class TestSourceEnum:
         """
         # Arrange & Act
         health_weight = health_weight_schema.HealthWeightRead(
-            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, source=health_weight_schema.Source.GARMIN
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, source=health_weight_schema.Source.GARMIN
         )
 
         # Assert
@@ -234,7 +238,7 @@ class TestSourceEnum:
         """
         # Arrange & Act
         health_weight = health_weight_schema.HealthWeightRead(
-            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, source="garmin"
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, source="garmin"
         )
 
         # Assert
@@ -246,6 +250,8 @@ class TestSourceEnum:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            health_weight_schema.HealthWeightRead(updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, source="invalid")
+            health_weight_schema.HealthWeightRead(
+                updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, source="invalid"
+            )
 
         assert "source" in str(exc_info.value)

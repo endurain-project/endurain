@@ -4,6 +4,7 @@ A client sends and receives the string; a stored row, a provider sync and an arc
 still hand over the integer, which is read into the same member; a write puts the integer back.
 """
 
+import uuid
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
@@ -106,7 +107,7 @@ class TestNotification:
     @staticmethod
     def _row(stored_type):
         return SimpleNamespace(
-            id=1,
+            id=uuid.UUID(int=1),
             type=stored_type,
             user_id=1,
             read=False,

@@ -1,3 +1,4 @@
+import uuid
 from datetime import date as datetime_date
 from unittest.mock import MagicMock
 
@@ -12,7 +13,11 @@ import modules.health.health_water.schema as health_water_schema
 pytestmark = pytest.mark.usefixtures("passthrough_serializers")
 
 
-def _row(record_id: int = 1, amount_ml: float = 500.0) -> MagicMock:
+_ID = uuid.uuid4()
+_OTHER_ID = uuid.uuid4()
+
+
+def _row(record_id: uuid.UUID = _ID, amount_ml: float = 500.0) -> MagicMock:
     row = MagicMock(spec=health_water_models.HealthWater)
     row.id = record_id
     row.version = 1
@@ -55,7 +60,7 @@ class TestReads:
     def test_by_date_found(self, mock_db):
         _returns_one(mock_db, _row())
 
-        assert health_water_crud.get_health_water_by_date_and_user_id(1, "2024-01-15", mock_db).id == 1
+        assert health_water_crud.get_health_water_by_date_and_user_id(1, "2024-01-15", mock_db).id == _ID
 
     def test_by_date_not_found(self, mock_db):
         _returns_one(mock_db, None)
@@ -92,7 +97,7 @@ class TestEditHealthWater:
         _returns_one(mock_db, row)
         update = health_water_schema.HealthWaterUpdate(date=datetime_date(2024, 1, 15), amount_ml=900.0)
 
-        health_water_crud.edit_health_water(1, 1, update, mock_db, if_match="*")
+        health_water_crud.edit_health_water(1, _ID, update, mock_db, if_match="*")
 
         assert row.amount_ml == 900.0
         mock_db.flush.assert_called_once()
@@ -103,7 +108,7 @@ class TestEditHealthWater:
         update = health_water_schema.HealthWaterUpdate(date=datetime_date(2024, 1, 15), amount_ml=900.0)
 
         with pytest.raises(core_exceptions.NotFoundError, match="Health water not found"):
-            health_water_crud.edit_health_water(1, 9, update, mock_db, if_match="*")
+            health_water_crud.edit_health_water(1, _OTHER_ID, update, mock_db, if_match="*")
 
 
 class TestDeleteHealthWater:
@@ -111,7 +116,7 @@ class TestDeleteHealthWater:
         row = _row()
         _returns_one(mock_db, row)
 
-        health_water_crud.delete_health_water(1, 1, mock_db, if_match="*")
+        health_water_crud.delete_health_water(1, _ID, mock_db, if_match="*")
 
         mock_db.delete.assert_called_once_with(row)
         mock_db.flush.assert_called_once()
@@ -121,5 +126,5 @@ class TestDeleteHealthWater:
         _returns_one(mock_db, None)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            health_water_crud.delete_health_water(1, 9, mock_db, if_match="*")
+            health_water_crud.delete_health_water(1, _OTHER_ID, mock_db, if_match="*")
         mock_db.delete.assert_not_called()

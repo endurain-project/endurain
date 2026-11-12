@@ -99,7 +99,7 @@ def read_health_weight_chart(
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:read"])],
 )
 def read_health_weight_by_id(
-    health_weight_id: core_dependencies.PositiveId,
+    health_weight_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     response: Response,
@@ -154,7 +154,7 @@ def create_health_weight(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_health_weight(
     request: Request,
-    health_weight_id: core_dependencies.PositiveId,
+    health_weight_id: core_dependencies.UuidId,
     health_weight: health_weight_schema.HealthWeightUpdate,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
@@ -200,7 +200,7 @@ def edit_health_weight(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_health_weight(
     request: Request,
-    health_weight_id: core_dependencies.PositiveId,
+    health_weight_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     if_match: core_dependencies.IfMatch,
     db: core_dependencies.DbSession,

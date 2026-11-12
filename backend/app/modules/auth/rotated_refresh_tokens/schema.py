@@ -1,5 +1,6 @@
 """Rotated refresh token Pydantic schemas."""
 
+import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
@@ -79,9 +80,8 @@ class RotatedRefreshTokenRead(RotatedRefreshTokenCreate):
         id: Unique identifier for the rotated token record.
     """
 
-    id: StrictInt = Field(
+    id: uuid.UUID = Field(
         ...,
-        ge=1,
         description="Unique identifier for the rotated token record",
     )
 

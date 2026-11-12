@@ -1,3 +1,4 @@
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -7,6 +8,8 @@ import core.exceptions as core_exceptions
 import modules.health.health_targets.crud as health_targets_crud
 import modules.health.health_targets.models as health_targets_models
 import modules.health.health_targets.schema as health_targets_schema
+
+_ID = uuid.uuid4()
 
 
 class TestGetHealthTargetsByUserId:
@@ -21,7 +24,7 @@ class TestGetHealthTargetsByUserId:
         # Arrange
         user_id = 1
         mock_targets = MagicMock(spec=health_targets_models.HealthTargets)
-        mock_targets.id = 1
+        mock_targets.id = _ID
         mock_targets.user_id = user_id
         mock_targets.version = 1
         mock_targets.weight_kg = None
@@ -38,7 +41,7 @@ class TestGetHealthTargetsByUserId:
         result = health_targets_crud.get_health_targets_by_user_id(user_id, mock_db)
 
         # Assert
-        assert result.id == 1
+        assert result.id == _ID
         assert result.user_id == user_id
         mock_db.execute.assert_called_once()
 
@@ -72,7 +75,7 @@ class TestCreateHealthTargets:
         user_id = 1
 
         mock_db_targets = MagicMock(spec=health_targets_models.HealthTargets)
-        mock_db_targets.id = 1
+        mock_db_targets.id = _ID
         mock_db_targets.user_id = user_id
         mock_db_targets.version = 1
         mock_db_targets.weight_kg = None
@@ -94,7 +97,7 @@ class TestCreateHealthTargets:
             result = health_targets_crud.create_health_targets(user_id, mock_db)
 
             # Assert
-            assert result.id == 1
+            assert result.id == _ID
             assert result.user_id == user_id
             mock_db.add.assert_called_once()
             mock_db.flush.assert_called_once()
@@ -133,7 +136,7 @@ class TestEditHealthTarget:
 
         mock_db_target = MagicMock(spec=health_targets_models.HealthTargets)
         mock_db_target.version = 1
-        mock_db_target.id = 1
+        mock_db_target.id = _ID
         mock_db_target.user_id = 1
         mock_db_target.fasting_seconds = None
         mock_db_target.water_ml = None
@@ -179,7 +182,7 @@ class TestEditHealthTarget:
 
         mock_db_target = MagicMock(spec=health_targets_models.HealthTargets)
         mock_db_target.version = 1
-        mock_db_target.id = 1
+        mock_db_target.id = _ID
         mock_db_target.user_id = 1
         mock_db_target.fasting_seconds = None
         mock_db_target.water_ml = None
@@ -204,7 +207,7 @@ class TestEditHealthTarget:
 
         mock_db_target = MagicMock(spec=health_targets_models.HealthTargets)
         mock_db_target.version = 1
-        mock_db_target.id = 1
+        mock_db_target.id = _ID
         mock_db_target.user_id = 1
         mock_db_target.steps = None
         mock_db_target.sleep_seconds = None
@@ -231,7 +234,7 @@ class TestEditHealthTarget:
 
         mock_db_target = MagicMock(spec=health_targets_models.HealthTargets)
         mock_db_target.version = 1
-        mock_db_target.id = 1
+        mock_db_target.id = _ID
         mock_db_target.user_id = 1
         mock_db_target.sleep_seconds = None
         mock_db_target.fasting_seconds = None

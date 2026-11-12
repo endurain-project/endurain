@@ -1,3 +1,4 @@
+import uuid
 from datetime import date as datetime_date
 from unittest.mock import MagicMock, patch
 
@@ -14,6 +15,10 @@ _PREFIX = "modules.health.health_water.service"
 _NO_RANGE = core_date_range.DateRange()
 
 
+_ID = uuid.uuid4()
+_OTHER_ID = uuid.uuid4()
+
+
 def _update() -> health_water_schema.HealthWaterUpdate:
     return health_water_schema.HealthWaterUpdate(date=datetime_date(2024, 1, 15), amount_ml=900.0)
 
@@ -23,9 +28,9 @@ class TestStageEdit:
     def test_stages_without_committing(self, mock_edit, mock_db):
         record = _update()
 
-        health_water_service.stage_edit_health_water(1, 7, record, mock_db, if_match="*")
+        health_water_service.stage_edit_health_water(1, _ID, record, mock_db, if_match="*")
 
-        mock_edit.assert_called_once_with(1, 7, record, mock_db, if_match="*")
+        mock_edit.assert_called_once_with(1, _ID, record, mock_db, if_match="*")
         mock_db.commit.assert_not_called()
 
 
@@ -68,15 +73,15 @@ class TestEditAndDelete:
     @patch(f"{_PREFIX}.users_integration.local_today", return_value=datetime_date(2024, 1, 15))
     @patch(f"{_PREFIX}.health_water_crud.edit_health_water")
     def test_edit_commits(self, mock_edit, _today, mock_db):
-        health_water_service.edit_health_water(1, 7, _update(), mock_db, if_match="*")
+        health_water_service.edit_health_water(1, _ID, _update(), mock_db, if_match="*")
 
         mock_db.commit.assert_called_once()
 
     @patch(f"{_PREFIX}.health_water_crud.delete_health_water")
     def test_delete_commits(self, mock_delete, mock_db):
-        health_water_service.delete_health_water(1, 5, mock_db, if_match="*")
+        health_water_service.delete_health_water(1, _ID, mock_db, if_match="*")
 
-        mock_delete.assert_called_once_with(1, 5, mock_db, if_match="*")
+        mock_delete.assert_called_once_with(1, _ID, mock_db, if_match="*")
         mock_db.commit.assert_called_once()
 
 
@@ -123,12 +128,12 @@ class TestStageUpsertHealthWater:
     @patch(f"{_PREFIX}.health_water_crud.edit_health_water")
     @patch(f"{_PREFIX}.health_water_crud.get_health_water_by_date_and_user_id")
     def test_replaces_the_amount_of_the_date_instead_of_adding_to_it(self, mock_get_by_date, mock_edit, mock_db):
-        mock_get_by_date.return_value = MagicMock(id=7)
+        mock_get_by_date.return_value = MagicMock(id=_ID)
         record = health_water_schema.HealthWaterCreate(date=datetime_date(2024, 1, 15), amount_ml=1500)
 
         health_water_service.stage_upsert_health_water(1, record, mock_db)
 
-        assert mock_edit.call_args.args[:2] == (1, 7)
+        assert mock_edit.call_args.args[:2] == (1, _ID)
         assert mock_edit.call_args.args[2].amount_ml == 1500
         mock_db.commit.assert_not_called()
 

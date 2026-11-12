@@ -1,6 +1,7 @@
 """Audit rows of the user's own profile, privacy, email change, export and import."""
 
 import io
+import uuid
 from unittest.mock import MagicMock, patch
 
 import jasil.testing as jasil_testing
@@ -89,7 +90,7 @@ class TestProfileUpdate:
 
 class TestPrivacyUpdate:
     def _edit(self, mock_db, update, after):
-        before = privacy_schema.UserPrivacySettingsRead(id=1, user_id=7)
+        before = privacy_schema.UserPrivacySettingsRead(id=uuid.uuid4(), user_id=7)
         with (
             patch(f"{_SERVICE}.users_privacy_settings_integration.get_privacy_settings", return_value=before),
             patch(f"{_SERVICE}.users_privacy_settings_integration.edit_privacy_settings", return_value=after),
@@ -98,7 +99,7 @@ class TestPrivacyUpdate:
 
     def test_names_the_settings_whose_value_changed(self, mock_db):
         update = privacy_schema.UserPrivacySettingsUpdate(hide_activity_map=True, hide_activity_hr=False)
-        after = privacy_schema.UserPrivacySettingsRead(id=1, user_id=7, hide_activity_map=True)
+        after = privacy_schema.UserPrivacySettingsRead(id=uuid.uuid4(), user_id=7, hide_activity_map=True)
 
         with jasil_testing.capture_audit() as audit:
             self._edit(mock_db, update, after)
@@ -108,7 +109,7 @@ class TestPrivacyUpdate:
 
     def test_an_edit_that_changes_nothing_writes_no_row(self, mock_db):
         update = privacy_schema.UserPrivacySettingsUpdate(hide_activity_hr=False)
-        after = privacy_schema.UserPrivacySettingsRead(id=1, user_id=7)
+        after = privacy_schema.UserPrivacySettingsRead(id=uuid.uuid4(), user_id=7)
 
         with jasil_testing.capture_audit() as audit:
             self._edit(mock_db, update, after)

@@ -1,5 +1,6 @@
 """Persistence operations for rotated refresh tokens."""
 
+import uuid
 from collections.abc import Sequence
 from datetime import datetime
 
@@ -93,7 +94,9 @@ def delete_by_family(token_family_id: str, db: Session) -> int:
     return matched
 
 
-def stage_reencrypt_batch_tokens(after_id: int | None, limit: int, db: Session) -> core_key_rotation.BatchResult[int]:
+def stage_reencrypt_batch_tokens(
+    after_id: uuid.UUID | None, limit: int, db: Session
+) -> core_key_rotation.BatchResult[uuid.UUID]:
     """Stage the re-encryption of up to ``limit`` tokens rows after ``after_id`` (flushed, not committed)."""
     model = rotated_token_models.RotatedRefreshToken
     return core_key_rotation.stage_reencrypt_batch(

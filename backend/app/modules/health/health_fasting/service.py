@@ -6,6 +6,7 @@ boundary. What other modules may consume lives in
 :mod:`modules.health.health_fasting.integration_service`.
 """
 
+import uuid
 from datetime import datetime
 from typing import Any
 
@@ -94,7 +95,7 @@ def _overlaps(
     status: str | None,
     db: Session,
     *,
-    exclude_id: int | None = None,
+    exclude_id: uuid.UUID | None = None,
 ) -> bool:
     """Tell whether another fast of the user overlaps the times.
 
@@ -160,7 +161,9 @@ def list_health_fasting(
     )
 
 
-def get_health_fasting(user_id: int, health_fasting_id: int, db: Session) -> health_fasting_schema.HealthFastingRead:
+def get_health_fasting(
+    user_id: int, health_fasting_id: uuid.UUID, db: Session
+) -> health_fasting_schema.HealthFastingRead:
     """Return one of a user's fasting records.
 
     Args:
@@ -302,7 +305,7 @@ def stage_import_health_fasting(
 
 def edit_health_fasting(
     user_id: int,
-    health_fasting_id: int,
+    health_fasting_id: uuid.UUID,
     health_fasting: health_fasting_schema.HealthFastingUpdate,
     db: Session,
     *,
@@ -360,7 +363,7 @@ def edit_health_fasting(
 
 def complete_health_fasting(
     user_id: int,
-    health_fasting_id: int,
+    health_fasting_id: uuid.UUID,
     complete_data: health_fasting_schema.HealthFastingComplete,
     db: Session,
     *,
@@ -414,7 +417,7 @@ def complete_health_fasting(
     return ended
 
 
-def delete_health_fasting(user_id: int, health_fasting_id: int, db: Session, *, if_match: str) -> None:
+def delete_health_fasting(user_id: int, health_fasting_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Delete a fasting record and commit.
 
     Args:

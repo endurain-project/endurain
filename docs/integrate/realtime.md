@@ -16,7 +16,7 @@ sequenceDiagram
     API-->>C: 201 {"ticket": "..."}
     C->>API: WebSocket /api/v1/ws?ticket=...
     API-->>C: Connection accepted
-    API-->>C: {"message": "NEW_ACTIVITY_NOTIFICATION", "notification_id": 42}
+    API-->>C: {"message": "NEW_ACTIVITY_NOTIFICATION", "notification_id": "0b8e5c1a-7d34-4f6e-9a21-3c5d8e1f2b47"}
     C->>API: GET /api/v1/notifications
     API-->>C: The first slice, including notification 42
 ```
@@ -39,7 +39,7 @@ Each client network may attempt 60 handshakes per minute. An IPv4 address counts
 The server sends JSON text frames. The client sends nothing: a text or binary frame from the client is a protocol violation and closes the connection with `1008`.
 
 ```json
-{ "message": "NEW_ACTIVITY_NOTIFICATION", "notification_id": 42 }
+{ "message": "NEW_ACTIVITY_NOTIFICATION", "notification_id": "0b8e5c1a-7d34-4f6e-9a21-3c5d8e1f2b47" }
 ```
 
 `message` says what changed. A notification message also carries `notification_id`, the stored notification, and means "fetch the first slice of your notifications again". `GEARS_CHANGED` and `HEALTH_CHANGED` carry nothing else and mean "fetch that data again". `JOB_STATUS_CHANGED` means "read that job's status again" through its status route. A client that keeps polling a job can poll slowly while it is connected, and read the status at once when its `job` arrives; a hint can be lost, so keep a slow poll as the fallback.

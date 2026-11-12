@@ -1,5 +1,6 @@
 """Tests for follower notification event consumers."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 from jasil.events import new_event
@@ -26,7 +27,7 @@ class TestOnFollowerRequestedNotify:
         from modules.notifications.subscribers import on_follower_requested_notify
 
         mock_notif.create_follow_request_notification.return_value = (
-            MagicMock(id=5),
+            MagicMock(id=uuid.UUID(int=5)),
             "NEW_FOLLOWER_REQUEST_NOTIFICATION",
             True,
         )
@@ -43,7 +44,7 @@ class TestOnFollowerRequestedNotify:
         from modules.notifications.subscribers import notify_follower_requested_for_event
 
         mock_notif.create_follow_request_notification.return_value = (
-            MagicMock(id=5),
+            MagicMock(id=uuid.UUID(int=5)),
             "NEW_FOLLOWER_REQUEST_NOTIFICATION",
             False,
         )
@@ -86,7 +87,7 @@ class TestOnFollowerAcceptedNotify:
         from modules.notifications.subscribers import on_follower_accepted_notify
 
         mock_notif.create_follow_accepted_notification.return_value = (
-            MagicMock(id=7),
+            MagicMock(id=uuid.UUID(int=7)),
             "NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION",
             True,
         )
@@ -103,7 +104,7 @@ class TestOnFollowerAcceptedNotify:
         from modules.notifications.subscribers import notify_follower_accepted_for_event
 
         mock_notif.create_follow_accepted_notification.return_value = (
-            MagicMock(id=7),
+            MagicMock(id=uuid.UUID(int=7)),
             "NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION",
             False,
         )

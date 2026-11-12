@@ -1,5 +1,7 @@
 """Tests for user default gear database models."""
 
+import uuid
+
 import modules.users.users_default_gear.models as user_default_gear_models
 
 
@@ -48,7 +50,7 @@ class TestUsersDefaultGearModel:
 
         # Assert
         assert id_column.primary_key is True
-        assert id_column.autoincrement is True
+        assert id_column.type.python_type is uuid.UUID
 
     def test_users_default_gear_model_foreign_keys(self):
         """

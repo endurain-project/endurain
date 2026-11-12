@@ -53,7 +53,7 @@ def _store(factory, session_id, *, refresh="plain", user_id=7, idp_id=3):
 
 def _rows(factory):
     with factory() as db:
-        return {row.session_id: row for row in identity_links_crud.get_idp_session_tokens_page(0, 100, db)}
+        return {row.session_id: row for row in identity_links_crud.get_idp_session_tokens_page(None, 100, db)}
 
 
 def _run(oidc, factory, *, alive=(), user_id=None, idp=True):
@@ -217,17 +217,19 @@ class TestRevokeEndedSessions:
         ]
         _store(factory, "slow-idp", idp_id=3)
         _store(factory, "other-idp", idp_id=4)
+        first_by_id = next(iter(_rows(factory)))
 
         assert _run(oidc, factory) == 1
-        assert set(_rows(factory)) == {"slow-idp"}
+        assert set(_rows(factory)) == {first_by_id}
 
     def test_a_provider_error_for_one_session_does_not_stop_the_others(self, oidc, factory):
         oidc.decrypt_client_secret.side_effect = [core_exceptions.ProcessingError("bad secret"), "secret"]
         _store(factory, "a")
         _store(factory, "b")
+        first_by_id = next(iter(_rows(factory)))
 
         assert _run(oidc, factory) == 1
-        assert set(_rows(factory)) == {"a"}
+        assert set(_rows(factory)) == {first_by_id}
 
     def test_a_token_another_refresh_stored_meanwhile_is_not_deleted(self, oidc, factory):
         """The row holds the token that was read when the provider was called, or it is kept for the next pass."""

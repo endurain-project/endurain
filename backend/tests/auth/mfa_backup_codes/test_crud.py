@@ -1,5 +1,6 @@
 """Tests for staged MFA backup-code persistence."""
 
+import uuid
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
@@ -16,7 +17,7 @@ from tests._helpers.db import create_sqlite_session, ensure_user
 
 def _row(**overrides):
     values = {
-        "id": 4,
+        "id": uuid.uuid4(),
         "user_id": 7,
         "code_hash": "hash",
         "created_at": datetime.now(UTC),

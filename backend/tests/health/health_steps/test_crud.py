@@ -1,3 +1,4 @@
+import uuid
 from datetime import date as datetime_date
 from unittest.mock import MagicMock
 
@@ -9,8 +10,11 @@ import modules.health.health_steps.crud as health_steps_crud
 import modules.health.health_steps.models as health_steps_models
 import modules.health.health_steps.schema as health_steps_schema
 
+_ID = uuid.uuid4()
+_OTHER_ID = uuid.uuid4()
 
-def _row(record_id: int = 1, steps: int = 10000) -> MagicMock:
+
+def _row(record_id: uuid.UUID = _ID, steps: int = 10000) -> MagicMock:
     row = MagicMock(spec=health_steps_models.HealthSteps)
     row.id = record_id
     row.version = 1
@@ -97,7 +101,7 @@ class TestEditHealthSteps:
         _returns_one(mock_db, row)
         update = health_steps_schema.HealthStepsUpdate(date=datetime_date(2024, 1, 15), steps=12000)
 
-        health_steps_crud.edit_health_steps(1, 1, update, mock_db, if_match="*")
+        health_steps_crud.edit_health_steps(1, _ID, update, mock_db, if_match="*")
 
         assert row.steps == 12000
         mock_db.flush.assert_called_once()
@@ -108,7 +112,7 @@ class TestEditHealthSteps:
         update = health_steps_schema.HealthStepsUpdate(date=datetime_date(2024, 1, 15), steps=12000)
 
         with pytest.raises(core_exceptions.NotFoundError, match="Health steps not found"):
-            health_steps_crud.edit_health_steps(1, 9, update, mock_db, if_match="*")
+            health_steps_crud.edit_health_steps(1, _OTHER_ID, update, mock_db, if_match="*")
 
 
 class TestDeleteHealthSteps:
@@ -116,7 +120,7 @@ class TestDeleteHealthSteps:
         row = _row()
         _returns_one(mock_db, row)
 
-        health_steps_crud.delete_health_steps(1, 1, mock_db, if_match="*")
+        health_steps_crud.delete_health_steps(1, _ID, mock_db, if_match="*")
 
         mock_db.delete.assert_called_once_with(row)
         mock_db.flush.assert_called_once()
@@ -126,5 +130,5 @@ class TestDeleteHealthSteps:
         _returns_one(mock_db, None)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            health_steps_crud.delete_health_steps(1, 9, mock_db, if_match="*")
+            health_steps_crud.delete_health_steps(1, _OTHER_ID, mock_db, if_match="*")
         mock_db.delete.assert_not_called()

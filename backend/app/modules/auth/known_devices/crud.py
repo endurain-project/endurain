@@ -1,5 +1,6 @@
 """Persistence operations for known devices."""
 
+import uuid
 from datetime import datetime
 
 from sqlalchemy import delete, exists, func, select, update
@@ -177,7 +178,7 @@ def count_devices(user_id: int, generation: int, db: Session) -> int:
     return db.execute(stmt).scalar_one()
 
 
-def get_device_hash(device_id: int, user_id: int, generation: int, db: Session) -> str | None:
+def get_device_hash(device_id: uuid.UUID, user_id: int, generation: int, db: Session) -> str | None:
     """Return the SHA-256 hex digest of one of the user's devices known under the current security generation.
 
     Returns:
@@ -191,7 +192,7 @@ def get_device_hash(device_id: int, user_id: int, generation: int, db: Session) 
     ).scalar_one_or_none()
 
 
-def delete_device(device_id: int, user_id: int, generation: int, db: Session) -> str | None:
+def delete_device(device_id: uuid.UUID, user_id: int, generation: int, db: Session) -> str | None:
     """Stage the deletion of one of the user's devices known under the current security generation.
 
     Returns:

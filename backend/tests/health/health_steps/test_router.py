@@ -1,3 +1,4 @@
+import uuid
 from datetime import date as datetime_date
 from unittest.mock import patch
 
@@ -8,9 +9,11 @@ import modules.health.health_steps.schema as health_steps_schema
 _SERVICE = "modules.health.health_steps.router.health_steps_service"
 _HEADERS = {"Authorization": "Bearer mock_token"}
 _IF_MATCH_HEADERS = {**_HEADERS, "If-Match": '"1"'}
+_ID = uuid.uuid4()
+_OTHER_ID = uuid.uuid4()
 
 
-def _record(record_id: int = 1, day: int = 15, steps: int = 10000) -> health_steps_schema.HealthStepsRead:
+def _record(record_id: uuid.UUID = _ID, day: int = 15, steps: int = 10000) -> health_steps_schema.HealthStepsRead:
     return health_steps_schema.HealthStepsRead(
         updated_at="2024-01-01T00:00:00Z", id=record_id, user_id=1, date=datetime_date(2024, 1, day), steps=steps
     )
@@ -20,7 +23,7 @@ class TestReadHealthStepsAll:
     @patch(f"{_SERVICE}.list_health_steps")
     def test_returns_the_page_and_total(self, mock_list, fast_api_client, fast_api_app):
         mock_list.return_value = core_pagination.Page(
-            items=[_record(1, 15, 10000), _record(2, 16, 12000)], total=2, page=1, num_records=25
+            items=[_record(uuid.uuid4(), 15, 10000), _record(uuid.uuid4(), 16, 12000)], total=2, page=1, num_records=25
         )
 
         response = fast_api_client.get("/health_steps", headers=_HEADERS)
@@ -79,7 +82,7 @@ class TestEditHealthSteps:
         mock_edit.return_value = _record(steps=11000)
 
         response = fast_api_client.patch(
-            "/health_steps/1",
+            f"/health_steps/{_ID}",
             json={"date": "2024-01-15", "steps": 11000},
             headers={**_HEADERS, "If-Match": '"1"'},
         )
@@ -92,7 +95,7 @@ class TestEditHealthSteps:
         mock_edit.side_effect = core_exceptions.NotFoundError("Health steps not found")
 
         response = fast_api_client.patch(
-            "/health_steps/999",
+            f"/health_steps/{_OTHER_ID}",
             json={"date": "2024-01-15", "steps": 11000},
             headers={**_HEADERS, "If-Match": '"1"'},
         )
@@ -103,17 +106,17 @@ class TestEditHealthSteps:
 class TestDeleteHealthSteps:
     @patch(f"{_SERVICE}.delete_health_steps")
     def test_deletes(self, mock_delete, fast_api_client, fast_api_app):
-        response = fast_api_client.delete("/health_steps/1", headers=_IF_MATCH_HEADERS)
+        response = fast_api_client.delete(f"/health_steps/{_ID}", headers=_IF_MATCH_HEADERS)
 
         assert response.status_code == 204
-        assert mock_delete.call_args.args[:2] == (1, 1)
+        assert mock_delete.call_args.args[:2] == (1, _ID)
         assert mock_delete.call_args.kwargs == {"if_match": '"1"'}
 
     @patch(f"{_SERVICE}.delete_health_steps")
     def test_not_found_is_404(self, mock_delete, fast_api_client, fast_api_app):
         mock_delete.side_effect = core_exceptions.NotFoundError("Health steps not found")
 
-        response = fast_api_client.delete("/health_steps/999", headers=_IF_MATCH_HEADERS)
+        response = fast_api_client.delete(f"/health_steps/{_OTHER_ID}", headers=_IF_MATCH_HEADERS)
 
         assert response.status_code == 404
 
@@ -123,17 +126,17 @@ class TestReadHealthStepsById:
     def test_returns_the_record_with_its_etag(self, mock_get, fast_api_client, fast_api_app):
         mock_get.return_value = _record()
 
-        response = fast_api_client.get("/health_steps/1", headers=_HEADERS)
+        response = fast_api_client.get(f"/health_steps/{_ID}", headers=_HEADERS)
 
         assert response.status_code == 200
         assert response.headers["ETag"] == '"1"'
-        assert mock_get.call_args.args[:2] == (1, 1)
+        assert mock_get.call_args.args[:2] == (1, _ID)
 
     @patch(f"{_SERVICE}.get_health_steps")
     def test_a_record_the_user_does_not_have_is_404(self, mock_get, fast_api_client, fast_api_app):
         mock_get.side_effect = core_exceptions.NotFoundError("Health steps not found")
 
-        response = fast_api_client.get("/health_steps/99", headers=_HEADERS)
+        response = fast_api_client.get(f"/health_steps/{_OTHER_ID}", headers=_HEADERS)
 
         assert response.status_code == 404
 
@@ -141,9 +144,16 @@ class TestReadHealthStepsById:
 class TestCreateHealthStepsHeaders:
     @patch(f"{_SERVICE}.create_health_steps")
     def test_create_names_the_record_and_its_version(self, mock_create, fast_api_client, fast_api_app):
-        mock_create.return_value = _record(record_id=7)
+        mock_create.return_value = _record(record_id=_ID)
 
         response = fast_api_client.post("/health_steps", json={"date": "2024-01-15", "steps": 9000}, headers=_HEADERS)
 
-        assert response.headers["Location"] == "/health_steps/7"
+        assert response.headers["Location"] == f"/health_steps/{_ID}"
         assert response.headers["ETag"] == '"1"'
+
+
+class TestMalformedId:
+    def test_a_malformed_id_is_422(self, fast_api_client, fast_api_app):
+        response = fast_api_client.get("/health_steps/not-a-uuid", headers=_HEADERS)
+
+        assert response.status_code == 422

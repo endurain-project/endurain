@@ -1,5 +1,6 @@
 """SQLAlchemy ORM model for health weight records."""
 
+import uuid
 from datetime import date as date_type
 from decimal import Decimal
 
@@ -14,7 +15,7 @@ class HealthWeight(core_sync.UpdatedAtMixin, Base):
     """User health weight and body composition data.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         user_id: Foreign key to users table.
         date: Calendar date of the measurement.
         weight_kg: Weight in kilograms.
@@ -35,10 +36,7 @@ class HealthWeight(core_sync.UpdatedAtMixin, Base):
         Index("ix_health_weight_user_updated_at_id", "user_id", "updated_at", "id"),
     )
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,

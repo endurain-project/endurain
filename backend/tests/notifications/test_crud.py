@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -8,6 +9,11 @@ import core.exceptions as core_exceptions
 from tests._helpers.db import create_sqlite_session
 
 
+def _nid(number: int) -> uuid.UUID:
+    """Return a notification ID that sorts by ``number``."""
+    return uuid.UUID(int=number)
+
+
 class TestGetUserNotificationById:
     def test_success(self, mock_db):
         import modules.notifications.crud as crud
@@ -15,7 +21,7 @@ class TestGetUserNotificationById:
 
         n = MagicMock(
             spec=m.Notification,
-            id=1,
+            id=_nid(1),
             user_id=1,
             type=1,
             read=False,
@@ -23,16 +29,16 @@ class TestGetUserNotificationById:
             created_at=datetime(2024, 1, 1),
         )
         mock_db.execute.return_value.scalars.return_value.first.return_value = n
-        r = crud.get_user_notification_by_id(notification_id=1, user_id=1, db=mock_db)
+        r = crud.get_user_notification_by_id(notification_id=_nid(1), user_id=1, db=mock_db)
         assert r is not None
-        assert r.id == 1
+        assert r.id == _nid(1)
         assert r.user_id == 1
 
     def test_not_found(self, mock_db):
         import modules.notifications.crud as crud
 
         mock_db.execute.return_value.scalars.return_value.first.return_value = None
-        r = crud.get_user_notification_by_id(notification_id=999, user_id=1, db=mock_db)
+        r = crud.get_user_notification_by_id(notification_id=_nid(999), user_id=1, db=mock_db)
         assert r is None
 
 
@@ -59,7 +65,7 @@ class TestGetUserNotificationsAfter:
 
         n = MagicMock(
             spec=m.Notification,
-            id=1,
+            id=_nid(1),
             user_id=1,
             type=1,
             read=False,
@@ -69,7 +75,7 @@ class TestGetUserNotificationsAfter:
         mock_db.execute.return_value.scalars.return_value.all.return_value = [n]
         r = crud.get_user_notifications_after(1, None, 5, mock_db)
         assert len(r) == 1
-        assert r[0].id == 1
+        assert r[0].id == _nid(1)
         assert r[0].user_id == 1
 
     def test_empty(self, mock_db):
@@ -98,7 +104,7 @@ class TestUnreadOnlyFilter:
         ]:
             session.add(
                 m.Notification(
-                    id=notification_id,
+                    id=_nid(notification_id),
                     user_id=user_id,
                     type=1,
                     read=read,
@@ -127,22 +133,22 @@ class TestUnreadOnlyFilter:
 
         page = crud.get_user_notifications_after(1, None, 10, db, unread_only=True)
 
-        assert [n.id for n in page] == [5, 4, 2]
+        assert [n.id for n in page] == [_nid(5), _nid(4), _nid(2)]
         assert all(not n.read for n in page)
 
     def test_slice_resumes_strictly_after_the_position(self, db):
         import modules.notifications.crud as crud
 
-        second = crud.get_user_notifications_after(1, (datetime(2024, 1, 4), 4), 2, db, unread_only=True)
+        second = crud.get_user_notifications_after(1, (datetime(2024, 1, 4), _nid(4)), 2, db, unread_only=True)
 
-        assert [n.id for n in second] == [2]
+        assert [n.id for n in second] == [_nid(2)]
 
     def test_slice_includes_read_notifications_by_default(self, db):
         import modules.notifications.crud as crud
 
         page = crud.get_user_notifications_after(1, None, 10, db)
 
-        assert [n.id for n in page] == [5, 4, 3, 2, 1]
+        assert [n.id for n in page] == [_nid(n) for n in (5, 4, 3, 2, 1)]
 
     def test_slice_breaks_a_created_at_tie_on_id(self, db):
         import modules.notifications.crud as crud
@@ -151,7 +157,7 @@ class TestUnreadOnlyFilter:
         for notification_id in (7, 8):
             db.add(
                 m.Notification(
-                    id=notification_id,
+                    id=_nid(notification_id),
                     user_id=1,
                     type=1,
                     read=False,
@@ -164,8 +170,8 @@ class TestUnreadOnlyFilter:
         first = crud.get_user_notifications_after(1, None, 2, db)
         rest = crud.get_user_notifications_after(1, (datetime(2024, 1, 5), first[-1].id), 10, db)
 
-        assert [n.id for n in first] == [8, 7]
-        assert [n.id for n in rest] == [5, 4, 3, 2, 1]
+        assert [n.id for n in first] == [_nid(8), _nid(7)]
+        assert [n.id for n in rest] == [_nid(n) for n in (5, 4, 3, 2, 1)]
 
 
 class TestCreateNotification:
@@ -176,7 +182,7 @@ class TestCreateNotification:
         notification_data = schema.NotificationCreate(user_id=1, type="new_activity", options={"activity_id": 5})
 
         mock_notification = MagicMock()
-        mock_notification.id = 1
+        mock_notification.id = _nid(1)
         mock_notification.user_id = 1
         mock_notification.type = 1
         mock_notification.read = False
@@ -277,7 +283,7 @@ class TestMarkNotificationAsRead:
 
         n = MagicMock(
             spec=m.Notification,
-            id=1,
+            id=_nid(1),
             user_id=1,
             type=1,
             read=False,
@@ -286,10 +292,10 @@ class TestMarkNotificationAsRead:
         )
         mock_db.execute.return_value.scalars.return_value.first.return_value = n
 
-        r = crud.mark_notification_as_read(notification_id=1, user_id=1, db=mock_db)
+        r = crud.mark_notification_as_read(notification_id=_nid(1), user_id=1, db=mock_db)
         assert n.read is True
         assert r is not None
-        assert r.id == 1
+        assert r.id == _nid(1)
         assert r.user_id == 1
         mock_db.flush.assert_called_once()
         mock_db.refresh.assert_called_once_with(n)
@@ -298,7 +304,7 @@ class TestMarkNotificationAsRead:
         import modules.notifications.crud as crud
 
         mock_db.execute.return_value.scalars.return_value.first.return_value = None
-        r = crud.mark_notification_as_read(notification_id=999, user_id=1, db=mock_db)
+        r = crud.mark_notification_as_read(notification_id=_nid(999), user_id=1, db=mock_db)
         assert r is None
 
 
@@ -330,7 +336,9 @@ class TestDeleteNotificationsNamingUser:
             (6, 2, 21, {}),
             (7, 2, 21, None),
         ]:
-            session.add(m.Notification(id=notification_id, user_id=user_id, type=notification_type, options=options))
+            session.add(
+                m.Notification(id=_nid(notification_id), user_id=user_id, type=notification_type, options=options)
+            )
         session.commit()
         yield session
         session.close()
@@ -344,7 +352,7 @@ class TestDeleteNotificationsNamingUser:
 
         assert deleted == 3
         remaining = {n.id for n in db.query(m.Notification).all()}
-        assert remaining == {4, 5, 6, 7}
+        assert remaining == {_nid(n) for n in (4, 5, 6, 7)}
 
 
 class TestDeleteAndMarkSeveral:
@@ -355,7 +363,9 @@ class TestDeleteAndMarkSeveral:
         session = create_sqlite_session()
         for notification_id, user_id in [(1, 1), (2, 1), (3, 1), (4, 2)]:
             session.add(
-                m.Notification(id=notification_id, user_id=user_id, type=1, options={"activity_id": 5}, read=False)
+                m.Notification(
+                    id=_nid(notification_id), user_id=user_id, type=1, options={"activity_id": 5}, read=False
+                )
             )
         session.commit()
         yield session
@@ -365,19 +375,19 @@ class TestDeleteAndMarkSeveral:
         import modules.notifications.crud as crud
         import modules.notifications.models as m
 
-        crud.mark_notifications_as_read([1, 4, 99], user_id=1, db=db)
+        crud.mark_notifications_as_read([_nid(1), _nid(4), _nid(99)], user_id=1, db=db)
         db.commit()
 
         read = {n.id for n in db.query(m.Notification).filter_by(read=True)}
-        assert read == {1}
+        assert read == {_nid(1)}
 
     def test_delete_removes_only_the_users_notification(self, db):
         import modules.notifications.crud as crud
         import modules.notifications.models as m
 
-        assert crud.delete_user_notification(2, user_id=1, db=db) is True
-        assert crud.delete_user_notification(4, user_id=1, db=db) is False
-        assert crud.delete_user_notification(99, user_id=1, db=db) is False
+        assert crud.delete_user_notification(_nid(2), user_id=1, db=db) is True
+        assert crud.delete_user_notification(_nid(4), user_id=1, db=db) is False
+        assert crud.delete_user_notification(_nid(99), user_id=1, db=db) is False
         db.commit()
 
-        assert {n.id for n in db.query(m.Notification)} == {1, 3, 4}
+        assert {n.id for n in db.query(m.Notification)} == {_nid(1), _nid(3), _nid(4)}

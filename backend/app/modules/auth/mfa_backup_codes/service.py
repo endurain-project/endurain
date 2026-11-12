@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import secrets
+import uuid
 
 import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
@@ -81,7 +82,7 @@ def verify_and_consume_backup_code(
     # Verify against every stored hash without short-circuiting so the
     # number of Argon2 verifications is independent of match position
     # (constant-time-equivalent across the candidate set).
-    matched_code_id: int | None = None
+    matched_code_id: uuid.UUID | None = None
     for unused_code in unused_codes:
         if password_verifier.verify_password(code, unused_code.code_hash) and matched_code_id is None:
             matched_code_id = unused_code.id

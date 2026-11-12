@@ -1,5 +1,7 @@
 """User privacy settings database models."""
 
+import uuid
+
 from sqlalchemy import ForeignKey, String, true
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -10,7 +12,7 @@ class UsersPrivacySettings(Base):
     """User privacy settings for activity visibility control.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         user_id: Foreign key to users table (unique).
         default_activity_visibility: Default visibility level
             (public, followers, private).
@@ -32,10 +34,7 @@ class UsersPrivacySettings(Base):
 
     __tablename__ = "users_privacy_settings"
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,

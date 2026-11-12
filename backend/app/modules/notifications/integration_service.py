@@ -27,7 +27,7 @@ def push_notification(user_id: int, notification: notifications_schema.Notificat
         notification: The notification, already committed.
         ws_message: The websocket message type returned when it was staged or recorded.
     """
-    websocket_integration.push_to_user(user_id, {"message": ws_message, "notification_id": notification.id})
+    websocket_integration.push_to_user(user_id, {"message": ws_message, "notification_id": str(notification.id)})
 
 
 def create_garmin_token_expired_notification(

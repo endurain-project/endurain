@@ -1,5 +1,7 @@
 """User default gear Pydantic schemas."""
 
+import uuid
+
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -117,7 +119,7 @@ class UserDefaultGearRead(UserDefaultGearBase):
         user_id: User ID reference.
     """
 
-    id: StrictInt = Field(..., ge=1, description="Unique identifier")
+    id: uuid.UUID = Field(..., description="Unique identifier")
     user_id: StrictInt = Field(..., ge=1, description="User ID")
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
 

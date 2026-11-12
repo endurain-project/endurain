@@ -73,7 +73,7 @@ def forget_other_user_devices(
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def forget_user_device(
-    device_id: core_dependencies.PositiveId,
+    device_id: core_dependencies.UuidId,
     body: auth_schema.StepUpRequest,
     request: Request,
     token_user_id: auth_dependencies.CurrentUserId,

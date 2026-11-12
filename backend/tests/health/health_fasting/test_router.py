@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import patch
 
@@ -17,6 +18,8 @@ _STARTED = datetime(2026, 1, 1, 7, 0, tzinfo=UTC)
 _SERVICE = "modules.health.health_fasting.router.health_fasting_service"
 _HEADERS = {"Authorization": "Bearer x"}
 _IF_MATCH_HEADERS = {**_HEADERS, "If-Match": '"1"'}
+_ID = uuid.uuid4()
+_OTHER_ID = uuid.uuid4()
 _START = {"fast_start_time": "2024-01-15T08:00:00Z"}
 
 
@@ -49,7 +52,7 @@ class TestReadHealthFastingAllPagination:
     @patch(f"{_SERVICE}.list_health_fasting")
     def test_list_success(self, mock_list, mock_db):
         mock_list.return_value = core_pagination.Page(
-            items=[HealthFastingRead(updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, fast_start_time=_STARTED)],
+            items=[HealthFastingRead(updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, fast_start_time=_STARTED)],
             total=1,
             page=1,
             num_records=25,
@@ -76,13 +79,13 @@ class TestReadActiveFasting:
     @patch(f"{_SERVICE}.get_active_fasting")
     def test_active(self, mock_active, mock_db):
         mock_active.return_value = HealthFastingRead(
-            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, fast_start_time=_STARTED
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, fast_start_time=_STARTED
         )
 
         response = _client(mock_db).get("/health_fasting/active", headers=_HEADERS)
 
         assert response.status_code == 200
-        assert response.json()["id"] == 1
+        assert response.json()["id"] == str(_ID)
 
     @patch(f"{_SERVICE}.get_active_fasting", return_value=None)
     def test_none(self, _active, mock_db):
@@ -114,32 +117,32 @@ class TestReadFastingById:
     @patch(f"{_SERVICE}.get_health_fasting")
     def test_success(self, mock_get, mock_db):
         mock_get.return_value = HealthFastingRead(
-            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, fast_start_time=_STARTED
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, fast_start_time=_STARTED
         )
 
-        response = _client(mock_db).get("/health_fasting/1", headers=_HEADERS)
+        response = _client(mock_db).get(f"/health_fasting/{_ID}", headers=_HEADERS)
 
         assert response.status_code == 200
-        assert mock_get.call_args.args[:2] == (1, 1)
+        assert mock_get.call_args.args[:2] == (1, _ID)
 
     @patch(f"{_SERVICE}.get_health_fasting")
     def test_not_found(self, mock_get, mock_db):
         mock_get.side_effect = core_exceptions.NotFoundError("Fasting record not found")
 
-        assert _client(mock_db).get("/health_fasting/999", headers=_HEADERS).status_code == 404
+        assert _client(mock_db).get(f"/health_fasting/{_OTHER_ID}", headers=_HEADERS).status_code == 404
 
 
 class TestCreateHealthFasting:
     @patch(f"{_SERVICE}.create_health_fasting")
     def test_create_success(self, mock_create, mock_db):
         mock_create.return_value = HealthFastingRead(
-            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, fast_start_time=_STARTED
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, fast_start_time=_STARTED
         )
 
         response = _client(mock_db).post("/health_fasting", json=_START, headers=_HEADERS)
 
         assert response.status_code == 201
-        assert response.headers["Location"] == "/health_fasting/1"
+        assert response.headers["Location"] == f"/health_fasting/{_ID}"
         assert response.headers["ETag"] == '"1"'
 
     @patch(f"{_SERVICE}.create_health_fasting")
@@ -153,10 +156,10 @@ class TestEditHealthFasting:
     @patch(f"{_SERVICE}.edit_health_fasting")
     def test_edit_success(self, mock_edit, mock_db):
         mock_edit.return_value = HealthFastingRead(
-            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, fast_start_time=_STARTED
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, fast_start_time=_STARTED
         )
 
-        response = _client(mock_db).patch("/health_fasting/1", json={}, headers={**_HEADERS, "If-Match": '"1"'})
+        response = _client(mock_db).patch(f"/health_fasting/{_ID}", json={}, headers={**_HEADERS, "If-Match": '"1"'})
 
         assert response.status_code == 200
 
@@ -165,17 +168,17 @@ class TestCompleteHealthFasting:
     @patch(f"{_SERVICE}.complete_health_fasting")
     def test_complete_success(self, mock_complete, mock_db):
         mock_complete.return_value = HealthFastingRead(
-            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, fast_start_time=_STARTED
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, fast_start_time=_STARTED
         )
 
         response = _client(mock_db).post(
-            "/health_fasting/1/complete",
+            f"/health_fasting/{_ID}/complete",
             json={"fast_end_time": "2024-01-16T08:00:00Z", "status": "completed"},
             headers={**_HEADERS, "If-Match": '"3"'},
         )
 
         assert response.status_code == 200
-        assert mock_complete.call_args.args[:2] == (1, 1)
+        assert mock_complete.call_args.args[:2] == (1, _ID)
         assert mock_complete.call_args.kwargs["if_match"] == '"3"'
         assert response.headers["ETag"]
 
@@ -184,7 +187,7 @@ class TestCompleteHealthFasting:
         mock_complete.side_effect = core_exceptions.InvalidInputError("Fasting session is not in progress")
 
         response = _client(mock_db).post(
-            "/health_fasting/1/complete",
+            f"/health_fasting/{_ID}/complete",
             json={"fast_end_time": "2024-01-16T08:00:00Z", "status": "completed"},
             headers={**_HEADERS, "If-Match": '"3"'},
         )
@@ -195,34 +198,34 @@ class TestCompleteHealthFasting:
 class TestDeleteHealthFasting:
     @patch(f"{_SERVICE}.delete_health_fasting")
     def test_delete_success(self, mock_delete, mock_db):
-        response = _client(mock_db).delete("/health_fasting/1", headers=_IF_MATCH_HEADERS)
+        response = _client(mock_db).delete(f"/health_fasting/{_ID}", headers=_IF_MATCH_HEADERS)
 
         assert response.status_code == 204
-        assert mock_delete.call_args.args[:2] == (1, 1)
+        assert mock_delete.call_args.args[:2] == (1, _ID)
         assert mock_delete.call_args.kwargs == {"if_match": '"1"'}
 
     @patch(f"{_SERVICE}.delete_health_fasting")
     def test_not_found_is_404(self, mock_delete, mock_db):
         mock_delete.side_effect = core_exceptions.NotFoundError("Health fasting not found")
 
-        assert _client(mock_db).delete("/health_fasting/9", headers=_IF_MATCH_HEADERS).status_code == 404
+        assert _client(mock_db).delete(f"/health_fasting/{_OTHER_ID}", headers=_IF_MATCH_HEADERS).status_code == 404
 
 
 class TestReadSendsTheETag:
     @patch(f"{_SERVICE}.get_health_fasting")
     def test_a_record_read_by_id_carries_its_version(self, mock_get, mock_db):
         mock_get.return_value = HealthFastingRead(
-            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, fast_start_time=_STARTED, version=5
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, fast_start_time=_STARTED, version=5
         )
 
-        response = _client(mock_db).get("/health_fasting/1", headers=_HEADERS)
+        response = _client(mock_db).get(f"/health_fasting/{_ID}", headers=_HEADERS)
 
         assert response.headers["ETag"] == '"5"'
 
     @patch(f"{_SERVICE}.get_active_fasting")
     def test_the_active_fast_carries_its_version(self, mock_active, mock_db):
         mock_active.return_value = HealthFastingRead(
-            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, fast_start_time=_STARTED, version=3
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, fast_start_time=_STARTED, version=3
         )
 
         response = _client(mock_db).get("/health_fasting/active", headers=_HEADERS)
@@ -234,3 +237,10 @@ class TestReadSendsTheETag:
         response = _client(mock_db).get("/health_fasting/active", headers=_HEADERS)
 
         assert "ETag" not in response.headers
+
+
+class TestMalformedId:
+    def test_a_malformed_id_is_422(self, mock_db):
+        response = _client(mock_db).get("/health_fasting/not-a-uuid", headers=_HEADERS)
+
+        assert response.status_code == 422

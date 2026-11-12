@@ -1,5 +1,6 @@
 """CRUD operations for gear components."""
 
+import uuid
 from collections.abc import Collection
 from datetime import datetime
 
@@ -335,7 +336,7 @@ def record_gear_component_deletions(gear_ids: Collection[int], user_id: int, db:
 
 
 def list_changed_gear_components(
-    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+    user_id: int, after: core_sync.Position[int] | None, until: datetime, limit: int, db: Session
 ) -> list[gear_components_schema.GearComponentRead]:
     """Retrieve a page of a user's components changed after a position, oldest change first.
 
@@ -363,8 +364,8 @@ def list_changed_gear_components(
 
 
 def list_gear_component_deletions(
-    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
-) -> list[core_sync.Deletion]:
+    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+) -> list[core_sync.Deletion[int]]:
     """Retrieve a page of a user's deleted components after a position, oldest deletion first.
 
     Args:

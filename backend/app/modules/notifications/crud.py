@@ -1,5 +1,6 @@
 """CRUD operations for notifications."""
 
+import uuid
 from datetime import datetime
 
 from sqlalchemy import delete, desc, func, literal, select, tuple_, update
@@ -21,7 +22,7 @@ _UNIQUE_EVENT_CONSTRAINT = "uq_notifications_source_event_user_type"
 
 
 def get_user_notification_by_id(
-    notification_id: int,
+    notification_id: uuid.UUID,
     user_id: int,
     db: Session,
 ) -> notifications_schema.NotificationRead | None:
@@ -66,7 +67,7 @@ def count_user_unread_notifications(user_id: int, db: Session) -> int:
 
 def get_user_notifications_after(
     user_id: int,
-    after: tuple[datetime, int] | None,
+    after: tuple[datetime, uuid.UUID] | None,
     num_records: int,
     db: Session,
     unread_only: bool = False,
@@ -213,7 +214,7 @@ def create_notification_once(
 
 
 def mark_notification_as_read(
-    notification_id: int,
+    notification_id: uuid.UUID,
     user_id: int,
     db: Session,
 ) -> notifications_schema.NotificationRead | None:
@@ -241,7 +242,7 @@ def mark_notification_as_read(
 
 
 def mark_notifications_as_read(
-    notification_ids: list[int],
+    notification_ids: list[uuid.UUID],
     user_id: int,
     db: Session,
 ) -> None:
@@ -265,7 +266,7 @@ def mark_notifications_as_read(
 
 
 def delete_user_notification(
-    notification_id: int,
+    notification_id: uuid.UUID,
     user_id: int,
     db: Session,
 ) -> bool:

@@ -5,6 +5,7 @@ resolution and the transaction boundary. What other modules may consume lives in
 :mod:`modules.health.health_water.integration_service`.
 """
 
+import uuid
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -62,7 +63,7 @@ def list_health_water(
 
 def stage_edit_health_water(
     user_id: int,
-    health_water_id: int,
+    health_water_id: uuid.UUID,
     health_water: health_water_schema.HealthWaterUpdate,
     db: Session,
     *,
@@ -148,7 +149,7 @@ def create_health_water(
 
 def edit_health_water(
     user_id: int,
-    health_water_id: int,
+    health_water_id: uuid.UUID,
     health_water: health_water_schema.HealthWaterUpdate,
     db: Session,
     *,
@@ -183,7 +184,7 @@ def edit_health_water(
     return updated
 
 
-def get_health_water(user_id: int, health_water_id: int, db: Session) -> health_water_schema.HealthWaterRead:
+def get_health_water(user_id: int, health_water_id: uuid.UUID, db: Session) -> health_water_schema.HealthWaterRead:
     """Return one of a user's water records.
 
     Args:
@@ -200,7 +201,7 @@ def get_health_water(user_id: int, health_water_id: int, db: Session) -> health_
     return health_record_service.get_record(health_water_crud.SPEC, health_water_id, user_id, db)
 
 
-def delete_health_water(user_id: int, health_water_id: int, db: Session, *, if_match: str) -> None:
+def delete_health_water(user_id: int, health_water_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Delete a water intake record and commit.
 
     Args:

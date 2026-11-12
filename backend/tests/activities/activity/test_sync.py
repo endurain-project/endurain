@@ -1,5 +1,6 @@
 """Incremental sync of activities: ``updated_at``, tombstones, the change surfaces and the prune job."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -132,7 +133,7 @@ class TestUpdatedAt:
 
 class TestTombstones:
     def _tombstones(self, db) -> list[tuple[int, int]]:
-        rows = db.query(activity_models.ActivityDeletion).order_by(activity_models.ActivityDeletion.id).all()
+        rows = db.query(activity_models.ActivityDeletion).order_by(activity_models.ActivityDeletion.record_id).all()
         return [(row.user_id, row.record_id) for row in rows]
 
     def test_the_single_delete_records_one(self, db):
@@ -203,8 +204,8 @@ class TestSurfaces:
         db.add_all(
             [
                 activity_models.ActivityDeletion(user_id=1, record_id=7, deleted_at=datetime(2026, 5, 1)),
-                activity_models.ActivityDeletion(user_id=1, record_id=8, deleted_at=datetime(2026, 5, 1)),
-                activity_models.ActivityDeletion(user_id=1, record_id=9, deleted_at=datetime(2026, 5, 2)),
+                activity_models.ActivityDeletion(user_id=1, record_id=8, deleted_at=datetime(2026, 5, 2)),
+                activity_models.ActivityDeletion(user_id=1, record_id=9, deleted_at=datetime(2026, 5, 3)),
                 activity_models.ActivityDeletion(user_id=2, record_id=10, deleted_at=datetime(2026, 5, 1)),
             ]
         )
@@ -214,6 +215,7 @@ class TestSurfaces:
         assert [d.record_id for d in page] == [7, 8]
         assert {d.type for d in page} == {"activity"}
         assert page[0].position[0] == page[0].deleted_at
+        assert all(isinstance(d.position[1], uuid.UUID) for d in page)
 
         rest = activity_integration.list_activity_deletions(1, page[-1].position, _FAR_FUTURE, 10, db)
         assert [d.record_id for d in rest] == [9]

@@ -5,6 +5,7 @@ interval-to-date resolution and the transaction boundary. What other modules may
 consume lives in :mod:`modules.health.health_weight.integration_service`.
 """
 
+import uuid
 from typing import Any
 
 from pydantic import ValidationError
@@ -149,7 +150,7 @@ def _stage_upsert_create(
 
 def stage_edit_health_weight(
     user_id: int,
-    health_weight_id: int,
+    health_weight_id: uuid.UUID,
     health_weight: health_weight_schema.HealthWeightUpdate,
     db: Session,
     *,
@@ -183,7 +184,7 @@ def stage_edit_health_weight(
 
 def _stage_upsert_edit(
     user_id: int,
-    health_weight_id: int,
+    health_weight_id: uuid.UUID,
     health_weight: health_weight_schema.HealthWeightImportUpdate,
     db: Session,
 ) -> health_weight_schema.HealthWeightRead:
@@ -270,7 +271,7 @@ def create_health_weight(
 
 def edit_health_weight(
     user_id: int,
-    health_weight_id: int,
+    health_weight_id: uuid.UUID,
     health_weight: health_weight_schema.HealthWeightUpdate,
     db: Session,
     *,
@@ -305,7 +306,7 @@ def edit_health_weight(
     return updated
 
 
-def get_health_weight(user_id: int, health_weight_id: int, db: Session) -> health_weight_schema.HealthWeightRead:
+def get_health_weight(user_id: int, health_weight_id: uuid.UUID, db: Session) -> health_weight_schema.HealthWeightRead:
     """Return one of a user's weight records.
 
     Args:
@@ -322,7 +323,7 @@ def get_health_weight(user_id: int, health_weight_id: int, db: Session) -> healt
     return health_record_service.get_record(health_weight_crud.SPEC, health_weight_id, user_id, db)
 
 
-def delete_health_weight(user_id: int, health_weight_id: int, db: Session, *, if_match: str) -> None:
+def delete_health_weight(user_id: int, health_weight_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Delete a weight record and commit.
 
     Args:

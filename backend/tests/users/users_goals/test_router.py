@@ -1,11 +1,15 @@
 """Tests for user goals API endpoints."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
 import modules.users.users_goals.models as user_goals_models
 import modules.users.users_goals.schema as user_goals_schema
+
+GOAL_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
+OTHER_ID = uuid.UUID("00000000-0000-4000-8000-000000000002")
 
 
 class TestGetUserGoals:
@@ -18,7 +22,7 @@ class TestGetUserGoals:
         """Test successful retrieval of all user goals."""
         # Arrange
         mock_goal1 = MagicMock(spec=user_goals_models.UsersGoal)
-        mock_goal1.id = 1
+        mock_goal1.id = GOAL_ID
         mock_goal1.user_id = 1
         mock_goal1.version = 1
         mock_goal1.interval = "weekly"
@@ -72,7 +76,7 @@ class TestGetUserGoalsResults:
     def test_get_user_goals_results_success(self, mock_calculate, fast_api_client, fast_api_app):
         """Returns the page of goal progress and forwards the window."""
         progress = user_goals_schema.UserGoalProgress(
-            goal_id=1,
+            goal_id=GOAL_ID,
             interval="weekly",
             activity_type="run",
             goal_type="calories",
@@ -91,7 +95,7 @@ class TestGetUserGoalsResults:
 
         assert response.status_code == 200
         data = response.json()
-        assert [item["goal_id"] for item in data["items"]] == [1]
+        assert [item["goal_id"] for item in data["items"]] == [str(GOAL_ID)]
         assert (data["total"], data["page"], data["num_records"], data["next"]) == (3, 2, 1, 3)
         assert mock_calculate.call_args.args[0] == 1
         assert mock_calculate.call_args.args[1] == core_pagination.PageParams(2, 1)
@@ -130,7 +134,7 @@ class TestCreateUserGoal:
         """Test successful goal creation."""
         # Arrange
         mock_created_goal = MagicMock(spec=user_goals_models.UsersGoal)
-        mock_created_goal.id = 1
+        mock_created_goal.id = GOAL_ID
         mock_created_goal.user_id = 1
         mock_created_goal.version = 1
         mock_created_goal.interval = "weekly"
@@ -163,9 +167,9 @@ class TestCreateUserGoal:
         # Assert
         assert response.status_code == 201
         data = response.json()
-        assert data["id"] == 1
+        assert data["id"] == str(GOAL_ID)
         assert data["goal_calories"] == 5000
-        assert response.headers["Location"] == "/user_goals/1"
+        assert response.headers["Location"] == f"/user_goals/{GOAL_ID}"
         assert response.headers["ETag"] == '"1"'
 
     def test_create_user_goal_invalid_data(self, fast_api_client, fast_api_app):
@@ -201,7 +205,7 @@ class TestUpdateUserGoal:
         """Test successful goal update."""
         # Arrange
         mock_update.return_value = user_goals_schema.UserGoalRead(
-            id=1,
+            id=GOAL_ID,
             user_id=1,
             interval=user_goals_schema.Interval.MONTHLY,
             activity_type=user_goals_schema.GoalActivityType.RUN,
@@ -215,7 +219,7 @@ class TestUpdateUserGoal:
 
         # Act
         response = fast_api_client.put(
-            "/user_goals/1",
+            f"/user_goals/{GOAL_ID}",
             headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
             json={
                 "interval": "monthly",
@@ -228,7 +232,7 @@ class TestUpdateUserGoal:
         # Assert
         assert response.status_code == 200
         data = response.json()
-        assert data["id"] == 1
+        assert data["id"] == str(GOAL_ID)
         assert data["goal_calories"] == 10000
 
     @patch("modules.users.users_goals.router.user_goals_service.update_goal")
@@ -244,7 +248,7 @@ class TestUpdateUserGoal:
 
         # Act
         response = fast_api_client.put(
-            "/user_goals/999",
+            f"/user_goals/{OTHER_ID}",
             headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
             json={
                 "interval": "weekly",
@@ -280,7 +284,7 @@ class TestDeleteUserGoal:
 
         # Act
         response = fast_api_client.delete(
-            "/user_goals/1",
+            f"/user_goals/{GOAL_ID}",
             headers={"Authorization": "Bearer mock_token", "If-Match": '"3"'},
         )
 
@@ -302,7 +306,7 @@ class TestDeleteUserGoal:
 
         # Act
         response = fast_api_client.delete(
-            "/user_goals/999",
+            f"/user_goals/{OTHER_ID}",
             headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
         )
 
@@ -311,7 +315,7 @@ class TestDeleteUserGoal:
 
     @patch("modules.users.users_goals.router.user_goals_service.delete_goal")
     def test_delete_without_if_match_is_428(self, mock_delete, fast_api_client):
-        response = fast_api_client.delete("/user_goals/1", headers={"Authorization": "Bearer mock_token"})
+        response = fast_api_client.delete(f"/user_goals/{GOAL_ID}", headers={"Authorization": "Bearer mock_token"})
 
         assert response.status_code == 428
         mock_delete.assert_not_called()
@@ -321,7 +325,7 @@ class TestDeleteUserGoal:
         mock_delete.side_effect = core_exceptions.PreconditionFailedError("stale")
 
         response = fast_api_client.delete(
-            "/user_goals/1", headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'}
+            f"/user_goals/{GOAL_ID}", headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'}
         )
 
         assert response.status_code == 412
@@ -330,7 +334,7 @@ class TestDeleteUserGoal:
 class TestUpdateNeedsIfMatch:
     def test_an_update_without_if_match_is_428(self, fast_api_client):
         response = fast_api_client.put(
-            "/user_goals/1",
+            f"/user_goals/{GOAL_ID}",
             json={"interval": "weekly", "activity_type": "run", "goal_type": "calories", "goal_calories": 5000},
             headers={"Authorization": "Bearer mock_token"},
         )
@@ -342,19 +346,35 @@ class TestGetUserGoal:
     @patch("modules.users.users_goals.router.user_goals_service.get_goal")
     def test_returns_the_goal_with_its_etag(self, mock_get, fast_api_client, fast_api_app):
         mock_get.return_value = user_goals_schema.UserGoalRead(
-            id=4, user_id=1, version=2, interval="weekly", activity_type="run", goal_type="calories", goal_calories=5000
+            id=GOAL_ID,
+            user_id=1,
+            version=2,
+            interval="weekly",
+            activity_type="run",
+            goal_type="calories",
+            goal_calories=5000,
         )
 
-        response = fast_api_client.get("/user_goals/4", headers={"Authorization": "Bearer mock_token"})
+        response = fast_api_client.get(f"/user_goals/{GOAL_ID}", headers={"Authorization": "Bearer mock_token"})
 
         assert response.status_code == 200
         assert response.headers["ETag"] == '"2"'
-        assert mock_get.call_args.args[:2] == (1, 4)
+        assert mock_get.call_args.args[:2] == (1, GOAL_ID)
 
     @patch("modules.users.users_goals.router.user_goals_service.get_goal")
     def test_a_goal_the_user_does_not_have_is_404(self, mock_get, fast_api_client, fast_api_app):
         mock_get.side_effect = core_exceptions.NotFoundError("User goal not found")
 
-        response = fast_api_client.get("/user_goals/99", headers={"Authorization": "Bearer mock_token"})
+        response = fast_api_client.get(f"/user_goals/{OTHER_ID}", headers={"Authorization": "Bearer mock_token"})
 
         assert response.status_code == 404
+
+
+class TestMalformedGoalId:
+    def test_a_goal_id_that_is_not_a_uuid_is_422(self, fast_api_client, fast_api_app):
+        for method in ("get", "put", "delete"):
+            response = getattr(fast_api_client, method)(
+                "/user_goals/1", headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'}
+            )
+
+            assert response.status_code == 422, method

@@ -1,5 +1,6 @@
 """Utility functions for user identity provider links."""
 
+import uuid
 from collections.abc import Sequence
 
 from sqlalchemy.orm import Session
@@ -15,12 +16,12 @@ logger = core_logger.get_logger(__name__)
 
 
 def get_orphaned_idp_session_tokens_page(
-    after_id: int, limit: int, db: Session, *, user_id: int | None = None
-) -> tuple[list[auth_identity_links_contracts.IdpSessionTokenRead], int | None]:
+    after_id: uuid.UUID | None, limit: int, db: Session, *, user_id: int | None = None
+) -> tuple[list[auth_identity_links_contracts.IdpSessionTokenRead], uuid.UUID | None]:
     """Find the sign-ins in one window whose Endurain session no longer exists.
 
     Args:
-        after_id: Keyset cursor; only sign-ins with a greater id are read.
+        after_id: Keyset cursor; None reads from the first sign-in, otherwise only sign-ins with a greater id are read.
         limit: Maximum number of sign-ins to read.
         db: SQLAlchemy database session.
         user_id: Restrict the window to one user's sign-ins.

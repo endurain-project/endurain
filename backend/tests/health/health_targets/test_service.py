@@ -1,3 +1,4 @@
+import uuid
 from unittest.mock import MagicMock, patch
 
 import modules.health.health_targets.schema as health_targets_schema
@@ -29,7 +30,7 @@ class TestUpdateHealthTargets:
 class TestRestoreProfileRecords:
     @patch("modules.health.health_targets.service.health_targets_crud.edit_health_targets")
     def test_edits_the_targets_the_account_has_with_the_editable_fields_only(self, mock_edit, mock_db):
-        rows = [{"id": 99, "user_id": 999, "version": 4, "weight_kg": 80.0, "steps": 10000}]
+        rows = [{"id": str(uuid.uuid4()), "user_id": 999, "version": 4, "weight_kg": 80.0, "steps": 10000}]
 
         assert health_targets_service.restore_profile_records(rows, 1, {}, mock_db) == 1
 

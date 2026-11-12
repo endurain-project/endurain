@@ -1,5 +1,6 @@
 """Pydantic request and response shapes for health sleep records."""
 
+import uuid
 from collections.abc import Sequence
 from datetime import date as datetime_date
 from datetime import datetime
@@ -358,7 +359,7 @@ class HealthSleepIdentity(HealthSleepCore):
         garminconnect_sleep_id (StrictStr | None): Garmin Connect sleep record ID.
         source (Source | None): Source of the sleep data.
         user_id (StrictInt): Foreign key reference to the user.
-        id (StrictInt): Unique identifier for the sleep record to update or retrieve.
+        id (uuid.UUID): Unique identifier for the sleep record to update or retrieve.
         version (StrictInt): Optimistic-concurrency counter, also sent as the ETag.
     """
 
@@ -366,7 +367,7 @@ class HealthSleepIdentity(HealthSleepCore):
         default=None, min_length=1, description="Garmin Connect sleep record ID"
     )
     source: Source = Field(default=Source.MANUAL, validate_default=True, description="Source of the sleep data")
-    id: StrictInt = Field(..., description="Unique identifier for the sleep record to update")
+    id: uuid.UUID = Field(..., description="Unique identifier for the sleep record to update")
     user_id: StrictInt = Field(..., description="Foreign key reference to the user")
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
     updated_at: datetime = Field(..., description="When the record last changed, set by the server")

@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime
 from datetime import date as datetime_date
 
@@ -5,6 +6,8 @@ import pytest
 from pydantic import ValidationError
 
 import modules.health.health_sleep.schema as health_sleep_schema
+
+_ID = uuid.uuid4()
 
 
 class TestHealthSleepSchema:
@@ -19,7 +22,7 @@ class TestHealthSleepSchema:
         # Arrange & Act
         health_sleep = health_sleep_schema.HealthSleepRead(
             updated_at="2024-01-01T00:00:00Z",
-            id=1,
+            id=_ID,
             user_id=1,
             date=datetime_date(2024, 1, 15),
             sleep_start_time_gmt=datetime(2024, 1, 14, 22, 0, 0),
@@ -36,7 +39,7 @@ class TestHealthSleepSchema:
         )
 
         # Assert
-        assert health_sleep.id == 1
+        assert health_sleep.id == _ID
         assert health_sleep.user_id == 1
         assert health_sleep.date == datetime_date(2024, 1, 15)
         assert health_sleep.total_sleep_seconds == 28800
@@ -61,7 +64,7 @@ class TestHealthSleepSchema:
         # Arrange & Act
         health_sleep = health_sleep_schema.HealthSleepRead(
             updated_at="2024-01-01T00:00:00Z",
-            id=1,
+            id=_ID,
             user_id=1,
             date=datetime_date(2024, 1, 15),
             total_sleep_seconds=28800,
@@ -70,7 +73,7 @@ class TestHealthSleepSchema:
         )
 
         # Assert
-        assert health_sleep.id == 1
+        assert health_sleep.id == _ID
         assert health_sleep.total_sleep_seconds == 28800
         assert health_sleep.deep_sleep_seconds is None
         assert health_sleep.avg_heart_rate is None
@@ -94,7 +97,7 @@ class TestHealthSleepSchema:
         class MockORMModel:
             """Mock ORM model for testing."""
 
-            id = 1
+            id = _ID
             user_id = 1
             updated_at = "2024-01-01T00:00:00Z"
             date = datetime_date(2024, 1, 15)
@@ -141,7 +144,7 @@ class TestHealthSleepSchema:
         health_sleep = health_sleep_schema.HealthSleepRead.model_validate(MockORMModel())
 
         # Assert
-        assert health_sleep.id == 1
+        assert health_sleep.id == _ID
         assert health_sleep.total_sleep_seconds == 28800
         assert health_sleep.source == "garmin"
 
@@ -280,7 +283,7 @@ class TestSourceEnum:
         """
         # Arrange & Act
         health_sleep = health_sleep_schema.HealthSleepRead(
-            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, source=health_sleep_schema.Source.GARMIN
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, source=health_sleep_schema.Source.GARMIN
         )
 
         # Assert
@@ -361,7 +364,7 @@ class TestSleepTimeOrdering:
 class TestHealthSleepListItem:
     def test_the_flag_is_derived_from_a_rows_stages(self):
         class Row:
-            id = 1
+            id = _ID
             user_id = 1
             updated_at = "2024-01-01T00:00:00Z"
 
@@ -379,7 +382,7 @@ class TestHealthSleepListItem:
 
     def test_it_carries_no_stages_and_forbids_them_as_a_field(self):
         item = health_sleep_schema.HealthSleepListItem(
-            updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, has_sleep_stages=True
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, has_sleep_stages=True
         )
 
         assert "sleep_stages" not in item.model_dump()
@@ -388,7 +391,7 @@ class TestHealthSleepListItem:
     def test_it_forbids_extra_fields(self):
         with pytest.raises(ValidationError):
             health_sleep_schema.HealthSleepListItem(
-                updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, has_sleep_stages=False, extra_field=1
+                updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, has_sleep_stages=False, extra_field=1
             )
 
     def test_it_has_every_read_field_but_the_stages(self):

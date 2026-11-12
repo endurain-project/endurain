@@ -1,5 +1,6 @@
 """Tests for staged rotated-token persistence."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -15,7 +16,7 @@ from tests._helpers.db import create_sqlite_session
 
 def _token(**overrides):
     values = {
-        "id": 3,
+        "id": uuid.UUID("00000000-0000-4000-8000-000000000003"),
         "token_family_id": "f" * 36,
         "hashed_token": "a" * 64,
         "client_fingerprint": "c" * 64,

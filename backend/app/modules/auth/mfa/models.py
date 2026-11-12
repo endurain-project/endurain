@@ -4,6 +4,7 @@ A user's enrolled second factors, one row each. A user has MFA while at least on
 ``modules.auth.mfa.crud``; the earlier ``users_mfa`` table is no longer read or written.
 """
 
+import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, text
@@ -21,7 +22,7 @@ class MFAFactor(Base):
     """An enrolled second factor.
 
     Attributes:
-        id: Surrogate primary key.
+        id: Primary key, a random UUID.
         user_id: FK to ``users.id``.
         type: The kind of factor (``MFAFactorType``).
         credential: The factor's secret, Fernet-encrypted: the TOTP secret.
@@ -41,7 +42,7 @@ class MFAFactor(Base):
         ),
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,

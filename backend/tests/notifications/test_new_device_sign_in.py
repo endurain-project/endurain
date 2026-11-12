@@ -1,5 +1,6 @@
 """Tests for the new-device sign-in notification."""
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
@@ -32,7 +33,7 @@ def _create(mock_db, created=True):
         patch("modules.notifications.service.users_integration.get_user", return_value=MagicMock(id=1)),
         patch(
             "modules.notifications.service.notifications_crud.create_notification_once",
-            return_value=(MagicMock(id=3), created),
+            return_value=(MagicMock(id=uuid.UUID(int=3)), created),
         ) as create_once,
     ):
         result = notifications_service.create_new_device_sign_in_notification(
@@ -77,7 +78,7 @@ class TestNotifyNewDeviceSignInForEvent:
     @patch("modules.notifications.subscribers.core_database")
     @patch("modules.notifications.subscribers.notifications_service")
     def test_creates_notification_and_pushes(self, mock_notif, _db, mock_ws):
-        mock_notif.create_new_device_sign_in_notification.return_value = (MagicMock(id=5), "WS", True)
+        mock_notif.create_new_device_sign_in_notification.return_value = (MagicMock(id=uuid.UUID(int=5)), "WS", True)
         event = _event()
 
         notification_subscribers.notify_new_device_sign_in_for_event(event)
@@ -95,7 +96,7 @@ class TestNotifyNewDeviceSignInForEvent:
     @patch("modules.notifications.subscribers.core_database")
     @patch("modules.notifications.subscribers.notifications_service")
     def test_skips_push_for_a_duplicate_event(self, mock_notif, _db, mock_ws):
-        mock_notif.create_new_device_sign_in_notification.return_value = (MagicMock(id=5), "WS", False)
+        mock_notif.create_new_device_sign_in_notification.return_value = (MagicMock(id=uuid.UUID(int=5)), "WS", False)
 
         notification_subscribers.notify_new_device_sign_in_for_event(_event())
 

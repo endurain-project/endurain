@@ -99,7 +99,7 @@ def read_health_steps_chart(
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:read"])],
 )
 def read_health_steps_by_id(
-    health_steps_id: core_dependencies.PositiveId,
+    health_steps_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     response: Response,
@@ -155,7 +155,7 @@ def create_health_steps(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_health_steps(
     request: Request,
-    health_steps_id: core_dependencies.PositiveId,
+    health_steps_id: core_dependencies.UuidId,
     health_steps: health_steps_schema.HealthStepsUpdate,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
@@ -203,7 +203,7 @@ def edit_health_steps(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_health_steps(
     request: Request,
-    health_steps_id: core_dependencies.PositiveId,
+    health_steps_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     if_match: core_dependencies.IfMatch,
     db: core_dependencies.DbSession,

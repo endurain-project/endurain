@@ -1,5 +1,7 @@
 """Known-device operations owned by account security: listing and forgetting a user's devices."""
 
+import uuid
+
 import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
 
@@ -25,7 +27,7 @@ def list_user_devices(
 
 
 def forget_user_device(
-    device_id: int,
+    device_id: uuid.UUID,
     user_id: int,
     session_id: str,
     current_device_id: str | None,
@@ -68,7 +70,7 @@ def forget_user_device(
         details=sessions_audit_actions.SessionsRevokedDetails(sessions_revoked=sessions_ended),
     )
     db.commit()
-    logger.info("Known device forgotten", extra=core_logger.context(user_id=user_id, device_id=device_id))
+    logger.info("Known device forgotten", extra=core_logger.context(user_id=user_id, device_id=str(device_id)))
 
 
 def forget_other_user_devices(

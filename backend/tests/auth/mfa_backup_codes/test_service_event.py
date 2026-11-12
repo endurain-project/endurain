@@ -1,5 +1,6 @@
 """Consuming a backup code stages the notice event in the transaction that consumes it."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import core.exceptions as core_exceptions
@@ -11,12 +12,12 @@ import modules.auth.mfa_backup_codes.service as backup_service
 _CODE = "A3K9-7BDF"
 
 
-def _stored(code, hasher, code_id):
-    return MagicMock(id=code_id, code_hash=hasher.hash_password(code))
+def _stored(code, hasher):
+    return MagicMock(id=uuid.uuid4(), code_hash=hasher.hash_password(code))
 
 
 def test_a_consumed_code_stages_the_event_with_the_number_left(mock_db, password_hasher):
-    stored = [_stored(_CODE, password_hasher, 1), _stored("ZZZZ-ZZZZ", password_hasher, 2)]
+    stored = [_stored(_CODE, password_hasher), _stored("ZZZZ-ZZZZ", password_hasher)]
     with (
         patch.object(backup_crud, "get_user_unused_backup_codes", return_value=stored),
         patch.object(backup_crud, "mark_backup_code_as_used"),
@@ -29,7 +30,7 @@ def test_a_consumed_code_stages_the_event_with_the_number_left(mock_db, password
 
 def test_a_wrong_code_publishes_nothing(mock_db, password_hasher):
     with (
-        patch.object(backup_crud, "get_user_unused_backup_codes", return_value=[_stored(_CODE, password_hasher, 1)]),
+        patch.object(backup_crud, "get_user_unused_backup_codes", return_value=[_stored(_CODE, password_hasher)]),
         patch.object(backup_event_publishers, "publish_backup_code_used") as publish,
     ):
         assert backup_service.verify_and_consume_backup_code(5, "WRONG-CODE", password_hasher, mock_db) is False
@@ -39,7 +40,7 @@ def test_a_wrong_code_publishes_nothing(mock_db, password_hasher):
 
 def test_a_code_consumed_by_a_concurrent_request_publishes_nothing(mock_db, password_hasher):
     with (
-        patch.object(backup_crud, "get_user_unused_backup_codes", return_value=[_stored(_CODE, password_hasher, 1)]),
+        patch.object(backup_crud, "get_user_unused_backup_codes", return_value=[_stored(_CODE, password_hasher)]),
         patch.object(
             backup_crud, "mark_backup_code_as_used", side_effect=core_exceptions.NotFoundError("already used")
         ),

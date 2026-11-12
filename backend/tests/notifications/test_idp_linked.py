@@ -1,5 +1,6 @@
 """Tests for the identity-provider linked notification."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -25,7 +26,7 @@ class TestCreateIdpLinkedNotification:
             patch("modules.notifications.service.idp_integration.get_identity_provider", return_value=idp),
             patch(
                 "modules.notifications.service.notifications_crud.create_notification_once",
-                return_value=(MagicMock(id=3), True),
+                return_value=(MagicMock(id=uuid.UUID(int=3)), True),
             ) as create_once,
         ):
             _, ws_message, created = notifications_service.create_idp_linked_notification(1, 4, "event-1", mock_db)
@@ -45,7 +46,7 @@ class TestCreateIdpLinkedNotification:
             patch("modules.notifications.service.idp_integration.get_identity_provider", return_value=None),
             patch(
                 "modules.notifications.service.notifications_crud.create_notification_once",
-                return_value=(MagicMock(id=3), True),
+                return_value=(MagicMock(id=uuid.UUID(int=3)), True),
             ) as create_once,
         ):
             notifications_service.create_idp_linked_notification(1, 4, "event-1", mock_db)
@@ -68,7 +69,7 @@ class TestCreateIdpLinkedNotification:
             patch("modules.notifications.service.idp_integration.get_identity_provider", return_value=None),
             patch(
                 "modules.notifications.service.notifications_crud.create_notification_once",
-                return_value=(MagicMock(id=3), False),
+                return_value=(MagicMock(id=uuid.UUID(int=3)), False),
             ),
         ):
             _, _, created = notifications_service.create_idp_linked_notification(1, 4, "event-1", mock_db)
@@ -81,7 +82,11 @@ class TestNotifyIdpLinkedForEvent:
     @patch("modules.notifications.subscribers.core_database")
     @patch("modules.notifications.subscribers.notifications_service")
     def test_creates_notification_and_pushes(self, mock_notif, mock_db, mock_ws):
-        mock_notif.create_idp_linked_notification.return_value = (MagicMock(id=5), "IDP_LINKED_NOTIFICATION", True)
+        mock_notif.create_idp_linked_notification.return_value = (
+            MagicMock(id=uuid.UUID(int=5)),
+            "IDP_LINKED_NOTIFICATION",
+            True,
+        )
         event = _event()
 
         notification_subscribers.notify_idp_linked_for_event(event)
@@ -93,7 +98,11 @@ class TestNotifyIdpLinkedForEvent:
     @patch("modules.notifications.subscribers.core_database")
     @patch("modules.notifications.subscribers.notifications_service")
     def test_skips_push_for_a_duplicate_event(self, mock_notif, mock_db, mock_ws):
-        mock_notif.create_idp_linked_notification.return_value = (MagicMock(id=5), "IDP_LINKED_NOTIFICATION", False)
+        mock_notif.create_idp_linked_notification.return_value = (
+            MagicMock(id=uuid.UUID(int=5)),
+            "IDP_LINKED_NOTIFICATION",
+            False,
+        )
 
         notification_subscribers.notify_idp_linked_for_event(_event())
 

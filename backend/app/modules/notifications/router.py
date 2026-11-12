@@ -35,7 +35,7 @@ def read_unread_notifications_count(
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["notifications:read"])],
 )
 def read_notifications_by_id(
-    notification_id: core_dependencies.PositiveId,
+    notification_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
 ) -> notifications_schema.NotificationRead:
@@ -88,7 +88,7 @@ def read_notifications_user_pagination(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def mark_notification_as_read(
     request: Request,
-    notification_id: core_dependencies.PositiveId,
+    notification_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
 ) -> None:
@@ -139,7 +139,7 @@ def mark_notifications_as_read(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_notification(
     request: Request,
-    notification_id: core_dependencies.PositiveId,
+    notification_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
 ) -> None:

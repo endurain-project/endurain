@@ -1,5 +1,6 @@
 """Tests for core.key_rotation and the per-module re-encryption of stored secrets."""
 
+import uuid
 from datetime import UTC, datetime
 from typing import ClassVar
 
@@ -121,16 +122,19 @@ class TestWalker:
             Fernet(NEW_KEY.encode()).decrypt(value.encode())
 
     def test_the_first_batch_reads_from_the_first_row(self, db, rotating_keys):
+        factor_id = uuid.uuid4()
         db.execute(
-            insert(mfa_models.MFAFactor).values(id=1, user_id=1, type="totp", credential=_token(OLD_KEY, "first"))
+            insert(mfa_models.MFAFactor).values(
+                id=factor_id, user_id=1, type="totp", credential=_token(OLD_KEY, "first")
+            )
         )
         db.commit()
 
         batch = mfa_crud.stage_reencrypt_batch_mfa(None, 100, db)
 
-        assert batch.last_id == 1
+        assert batch.last_id == factor_id
         assert batch.counts.rotated == 1
-        assert mfa_crud.stage_reencrypt_batch_mfa(1, 100, db).last_id is None
+        assert mfa_crud.stage_reencrypt_batch_mfa(factor_id, 100, db).last_id is None
 
     def test_concurrent_change_is_not_overwritten(self, db, rotating_keys, monkeypatch):
         _add_mfa(db, _token(OLD_KEY, "stale"))
@@ -198,7 +202,7 @@ class TestModuleWiring:
     def test_identity_provider_links(self, db, rotating_keys):
         db.execute(
             insert(identity_link_models.IdpSessionToken).values(
-                id=1,
+                id=uuid.uuid4(),
                 session_id="session-1",
                 user_id=1,
                 idp_id=1,
@@ -221,7 +225,7 @@ class TestModuleWiring:
         now = datetime.now(UTC)
         db.execute(
             insert(rotated_token_models.RotatedRefreshToken).values(
-                id=1,
+                id=uuid.uuid4(),
                 token_family_id="family",
                 hashed_token="hash",
                 client_fingerprint="c" * 64,
@@ -244,7 +248,7 @@ class TestModuleWiring:
         stranger = _token(STRANGER_KEY, "stranger")
         db.execute(
             insert(user_integrations_models.UsersIntegrations).values(
-                id=1,
+                id=uuid.uuid4(),
                 user_id=1,
                 strava_client_id=_token(OLD_KEY, "client-id"),
                 strava_client_secret=_token(OLD_KEY, "client-secret"),
@@ -279,7 +283,7 @@ class TestModuleWiring:
         assert garmin["is_cn"] is False
 
     def test_users_integrations_without_garmin_token_is_skipped(self, db, rotating_keys):
-        db.execute(insert(user_integrations_models.UsersIntegrations).values(id=1, user_id=1))
+        db.execute(insert(user_integrations_models.UsersIntegrations).values(id=uuid.uuid4(), user_id=1))
         db.commit()
 
         user_integrations_service.reencrypt_stored_secrets(db)
@@ -299,14 +303,16 @@ class TestTokenSwapsSurviveRotation:
 
     def _strava_row(self, db, stored):
         db.execute(
-            insert(user_integrations_models.UsersIntegrations).values(id=1, user_id=1, strava_refresh_token=stored)
+            insert(user_integrations_models.UsersIntegrations).values(
+                id=uuid.uuid4(), user_id=1, strava_refresh_token=stored
+            )
         )
         db.commit()
 
     def _link_row(self, db, stored):
         db.execute(
             insert(identity_link_models.IdpSessionToken).values(
-                id=1, session_id="session-1", user_id=1, idp_id=1, refresh_token=stored
+                id=uuid.uuid4(), session_id="session-1", user_id=1, idp_id=1, refresh_token=stored
             )
         )
         db.commit()
@@ -376,7 +382,9 @@ class TestTokenSwapsSurviveRotation:
 
     def _garmin_row(self, db, stored):
         db.execute(
-            insert(user_integrations_models.UsersIntegrations).values(id=1, user_id=1, garminconnect_token=stored)
+            insert(user_integrations_models.UsersIntegrations).values(
+                id=uuid.uuid4(), user_id=1, garminconnect_token=stored
+            )
         )
         db.commit()
 

@@ -1,5 +1,6 @@
 """Rotated refresh token database models for reuse detection."""
 
+import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, text
@@ -12,7 +13,7 @@ class RotatedRefreshToken(Base):
     """Rotated refresh token for token reuse detection.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         token_family_id: UUID of the token family.
         hashed_token: Hashed old refresh token.
         client_fingerprint: SHA-256 hex of the rotating client's network and ``User-Agent``; an in-grace
@@ -37,10 +38,7 @@ class RotatedRefreshToken(Base):
         ),
     )
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     token_family_id: Mapped[str] = mapped_column(
         String(36),
         ForeignKey("users_sessions.token_family_id", ondelete="CASCADE"),

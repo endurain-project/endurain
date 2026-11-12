@@ -1,5 +1,6 @@
 """SQLAlchemy ORM model for follower relationships."""
 
+import uuid
 from datetime import datetime
 
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, UniqueConstraint
@@ -13,7 +14,7 @@ class Follower(Base, TimestampMixin):
     """Follow relationship between two users.
 
     Attributes:
-        id: Surrogate primary key.
+        id: Primary key, a random UUID.
         follower_id: The user who follows (the requester).
         followee_id: The user being followed.
         status: ``pending`` until the followee accepts, then ``accepted``.
@@ -26,11 +27,7 @@ class Follower(Base, TimestampMixin):
         CheckConstraint("status IN ('pending', 'accepted')", name="ck_followers_status"),
     )
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-        index=True,
-    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
     follower_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
@@ -56,7 +53,7 @@ class FollowerBlock(Base, TimestampMixin):
     """A user's block of another user: the blocked user cannot request to follow the blocker.
 
     Attributes:
-        id: Surrogate primary key.
+        id: Primary key, a random UUID.
         blocker_id: The user who blocked.
         blocked_id: The user who is blocked.
     """
@@ -67,7 +64,7 @@ class FollowerBlock(Base, TimestampMixin):
         CheckConstraint("blocker_id <> blocked_id", name="ck_follower_blocks_not_self"),
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, index=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
     blocker_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
@@ -88,7 +85,7 @@ class FollowRequestDecline(Base):
     Declining deletes the request itself, so this row is the only record of it.
 
     Attributes:
-        id: Surrogate primary key.
+        id: Primary key, a random UUID.
         follower_id: The requester whose request was declined.
         followee_id: The user who declined it.
         declined_at: When the request was declined.
@@ -99,7 +96,7 @@ class FollowRequestDecline(Base):
         UniqueConstraint("follower_id", "followee_id", name="uq_follow_request_declines_follower_followee"),
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     follower_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,

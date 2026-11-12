@@ -1,3 +1,5 @@
+import uuid
+
 import modules.health.health_targets.models as health_targets_models
 
 
@@ -33,7 +35,7 @@ class TestHealthTargetsModel:
 
         # Assert
         assert id_column.primary_key is True
-        assert id_column.autoincrement is True
+        assert id_column.type.python_type is uuid.UUID
 
     def test_health_targets_model_foreign_key(self):
         """
@@ -68,7 +70,7 @@ class TestHealthTargetsModel:
         Test HealthTargets model column types.
         """
         # Assert
-        assert health_targets_models.HealthTargets.id.type.python_type is int
+        assert health_targets_models.HealthTargets.id.type.python_type is uuid.UUID
         assert health_targets_models.HealthTargets.user_id.type.python_type is int
         assert health_targets_models.HealthTargets.steps.type.python_type is int
         assert health_targets_models.HealthTargets.sleep_seconds.type.python_type is int

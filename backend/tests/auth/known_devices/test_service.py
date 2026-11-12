@@ -1,5 +1,6 @@
 """Tests for recording sign-ins against the devices a user is known to sign in from."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
@@ -404,7 +405,7 @@ class TestListAndForget:
         with pytest.raises(core_exceptions.NotFoundError):
             known_devices_service.forget_device(device_id, 2, None, db)
         with pytest.raises(core_exceptions.NotFoundError):
-            known_devices_service.forget_device(device_id + 99, 1, None, db)
+            known_devices_service.forget_device(uuid.uuid4(), 1, None, db)
         assert known_devices_service.is_known_device(1, _DEVICE_ID, db) is True
 
     def test_forgetting_a_device_ends_its_sessions_and_only_those(self, db, publish):
@@ -481,7 +482,7 @@ class TestListAndForget:
         _session(db, "kept", 1, core_hashing.sha256_hex(_DEVICE_ID))
 
         with pytest.raises(core_exceptions.NotFoundError):
-            known_devices_service.forget_device(999, 1, None, db)
+            known_devices_service.forget_device(uuid.uuid4(), 1, None, db)
 
         assert _session_ids(db) == {"kept"}
 

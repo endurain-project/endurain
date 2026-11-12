@@ -1,5 +1,6 @@
 """Tests for the notifications of a backup code use, a refresh-token reuse and an administrator promotion."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -25,7 +26,8 @@ def _create(mock_db, **kwargs):
     with (
         patch(f"{_SERVICE}.users_integration.get_user", return_value=MagicMock(id=1)),
         patch(
-            f"{_SERVICE}.notifications_crud.create_notification_once", return_value=(MagicMock(id=3), True)
+            f"{_SERVICE}.notifications_crud.create_notification_once",
+            return_value=(MagicMock(id=uuid.UUID(int=3)), True),
         ) as create_once,
     ):
         notifications_service.create_account_security_changed_notification(
@@ -53,7 +55,7 @@ class TestAccountSecurityChangedOptions:
     def test_the_stored_options_validate_as_a_notification(self):
         notification = notifications_schema.NOTIFICATION_READ_ADAPTER.validate_python(
             {
-                "id": 1,
+                "id": uuid.UUID(int=1),
                 "user_id": 2,
                 "type": "account_security_changed",
                 "read": False,
@@ -72,7 +74,7 @@ class TestAdminUserPromotedType:
     def test_the_notification_names_the_promoted_user(self):
         notification = notifications_schema.NOTIFICATION_READ_ADAPTER.validate_python(
             {
-                "id": 1,
+                "id": uuid.UUID(int=1),
                 "user_id": 2,
                 "type": "admin_user_promoted",
                 "read": False,
@@ -87,7 +89,7 @@ class TestAdminUserPromotedType:
         with pytest.raises(ValidationError):
             notifications_schema.NOTIFICATION_READ_ADAPTER.validate_python(
                 {
-                    "id": 1,
+                    "id": uuid.UUID(int=1),
                     "user_id": 2,
                     "type": "admin_user_promoted",
                     "read": False,
@@ -102,7 +104,8 @@ class TestAdminUserPromotedType:
         with (
             patch(f"{_SERVICE}.users_integration.get_user", return_value=user),
             patch(
-                f"{_SERVICE}.notifications_crud.create_notification_once", return_value=(MagicMock(id=3), True)
+                f"{_SERVICE}.notifications_crud.create_notification_once",
+                return_value=(MagicMock(id=uuid.UUID(int=3)), True),
             ) as create_once,
         ):
             _, ws_message, created = notifications_service.create_admin_user_promoted_notification(
@@ -122,7 +125,11 @@ class TestBackupCodeUsedSubscriber:
     @patch(f"{_SUBSCRIBERS}.core_database")
     @patch(f"{_SUBSCRIBERS}.notifications_service")
     def test_notifies_the_owner_with_the_codes_left(self, mock_notif, _db, mock_ws):
-        mock_notif.create_account_security_changed_notification.return_value = (MagicMock(id=5), "WS", True)
+        mock_notif.create_account_security_changed_notification.return_value = (
+            MagicMock(id=uuid.UUID(int=5)),
+            "WS",
+            True,
+        )
         event = new_event(
             backup_codes_events.BACKUP_CODE_USED, {"user_id": 4, "backup_codes_remaining": 2}, source="test"
         )
@@ -154,7 +161,11 @@ class TestRefreshTokenReuseSubscriber:
     @patch(f"{_SUBSCRIBERS}.core_database")
     @patch(f"{_SUBSCRIBERS}.notifications_service")
     def test_notifies_the_owner(self, mock_notif, _db, mock_ws):
-        mock_notif.create_account_security_changed_notification.return_value = (MagicMock(id=5), "WS", True)
+        mock_notif.create_account_security_changed_notification.return_value = (
+            MagicMock(id=uuid.UUID(int=5)),
+            "WS",
+            True,
+        )
         event = new_event(authentication_events.REFRESH_REUSE_DETECTED, {"user_id": 4}, source="test")
 
         notification_subscribers.notify_refresh_reuse_for_event(event)
@@ -186,7 +197,7 @@ class TestAdminPromotedSubscriber:
     @patch(f"{_SUBSCRIBERS}.core_database")
     @patch(f"{_SUBSCRIBERS}.notifications_service")
     def test_notifies_only_the_admin_the_event_names(self, mock_notif, _db, mock_ws):
-        mock_notif.create_admin_user_promoted_notification.return_value = (MagicMock(id=5), "WS", True)
+        mock_notif.create_admin_user_promoted_notification.return_value = (MagicMock(id=uuid.UUID(int=5)), "WS", True)
         event = new_event(users_events.USERS_ADMIN_PROMOTED, {"user_id": 3, "admin_user_id": 8}, source="test")
 
         notification_subscribers.notify_admin_user_promoted_for_event(event)

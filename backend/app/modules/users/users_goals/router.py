@@ -95,7 +95,7 @@ def get_user_goals_results(
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
 )
 def get_user_goal(
-    goal_id: core_dependencies.PositiveId,
+    goal_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     response: Response,
@@ -146,7 +146,7 @@ def create_user_goal(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def update_user_goal(
     request: Request,
-    goal_id: core_dependencies.PositiveId,
+    goal_id: core_dependencies.UuidId,
     user_goal: user_goals_schema.UserGoalUpdate,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
@@ -181,7 +181,7 @@ def update_user_goal(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_user_goal(
     request: Request,
-    goal_id: core_dependencies.PositiveId,
+    goal_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     if_match: core_dependencies.IfMatch,
     db: core_dependencies.DbSession,

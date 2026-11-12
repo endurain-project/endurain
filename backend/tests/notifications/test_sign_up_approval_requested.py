@@ -1,5 +1,6 @@
 """Tests for the admin sign-up approval request notification."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -25,7 +26,7 @@ class TestCreateAdminSignUpApprovalNotification:
             patch("modules.notifications.service.users_integration.get_user", return_value=user),
             patch(
                 "modules.notifications.service.notifications_crud.create_notification_once",
-                return_value=(MagicMock(id=3), True),
+                return_value=(MagicMock(id=uuid.UUID(int=3)), True),
             ) as create_once,
         ):
             _, ws_message, created = notifications_service.create_admin_sign_up_approval_notification(
@@ -55,7 +56,7 @@ class TestNotifyAdminSignUpApprovalForEvent:
     @patch("modules.notifications.subscribers.notifications_service")
     def test_creates_notification_and_pushes_to_the_admin(self, mock_notif, mock_db, mock_ws):
         mock_notif.create_admin_sign_up_approval_notification.return_value = (
-            MagicMock(id=5),
+            MagicMock(id=uuid.UUID(int=5)),
             notifications_constants.ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST_WS_MESSAGE,
             True,
         )
@@ -71,7 +72,11 @@ class TestNotifyAdminSignUpApprovalForEvent:
     @patch("modules.notifications.subscribers.core_database")
     @patch("modules.notifications.subscribers.notifications_service")
     def test_skips_push_for_a_duplicate_event(self, mock_notif, mock_db, mock_ws):
-        mock_notif.create_admin_sign_up_approval_notification.return_value = (MagicMock(id=5), "X", False)
+        mock_notif.create_admin_sign_up_approval_notification.return_value = (
+            MagicMock(id=uuid.UUID(int=5)),
+            "X",
+            False,
+        )
 
         notification_subscribers.notify_admin_sign_up_approval_for_event(_event())
 

@@ -5,6 +5,8 @@ progress calculation is :mod:`modules.users.users_goals.progress_service`; what 
 modules may consume lives in :mod:`modules.users.users_goals.integration_service`.
 """
 
+import uuid
+
 from sqlalchemy.orm import Session
 
 import core.etag as core_etag
@@ -50,7 +52,7 @@ def list_goals(
     return user_goals_schema.UserGoalPage.build(goals, total, page.page_number, page.num_records)
 
 
-def get_goal(user_id: int, goal_id: int, db: Session) -> user_goals_schema.UserGoalRead:
+def get_goal(user_id: int, goal_id: uuid.UUID, db: Session) -> user_goals_schema.UserGoalRead:
     """Return one of a user's goals.
 
     Args:
@@ -93,7 +95,7 @@ def create_goal(
 
 def update_goal(
     user_id: int,
-    goal_id: int,
+    goal_id: uuid.UUID,
     user_goal: user_goals_schema.UserGoalUpdate,
     db: Session,
     *,
@@ -127,7 +129,7 @@ def update_goal(
     return updated
 
 
-def delete_goal(user_id: int, goal_id: int, db: Session, *, if_match: str) -> None:
+def delete_goal(user_id: int, goal_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Delete a user's goal and commit.
 
     Args:

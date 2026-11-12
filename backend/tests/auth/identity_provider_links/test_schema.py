@@ -1,5 +1,6 @@
 """Tests for user_identity_providers.schema module."""
 
+import uuid
 from datetime import UTC, datetime
 
 import pytest
@@ -191,7 +192,7 @@ class TestUserIdentityProviderRead:
         """
         # Arrange
         data = {
-            "id": 1,
+            "id": uuid.UUID(int=1),
             "user_id": 1,
             "idp_id": 1,
             "idp_subject": "user123@example.com",
@@ -202,7 +203,7 @@ class TestUserIdentityProviderRead:
         obj = UserIdentityProviderRead(**data)
 
         # Assert
-        assert obj.id == 1
+        assert obj.id == uuid.UUID(int=1)
         assert obj.linked_at is not None
         assert obj.last_login is None
 
@@ -216,7 +217,7 @@ class TestUserIdentityProviderRead:
         # Arrange
         now = datetime.now(UTC)
         data = {
-            "id": 1,
+            "id": uuid.UUID(int=1),
             "user_id": 1,
             "idp_id": 1,
             "idp_subject": "user123@example.com",
@@ -228,7 +229,7 @@ class TestUserIdentityProviderRead:
         obj = UserIdentityProviderRead(**data)
 
         # Assert
-        assert obj.id == 1
+        assert obj.id == uuid.UUID(int=1)
         assert obj.last_login == now
 
     def test_user_identity_provider_read_missing_linked_at(self):
@@ -239,7 +240,7 @@ class TestUserIdentityProviderRead:
         """
         # Arrange
         data = {
-            "id": 1,
+            "id": uuid.UUID(int=1),
             "user_id": 1,
             "idp_id": 1,
             "idp_subject": "user123@example.com",
@@ -265,7 +266,7 @@ class TestUserIdentityProviderResponse:
         # Arrange
         now = datetime.now(UTC)
         data = {
-            "id": 1,
+            "id": uuid.UUID(int=1),
             "user_id": 1,
             "idp_id": 1,
             "idp_subject": "user123@example.com",
@@ -276,7 +277,7 @@ class TestUserIdentityProviderResponse:
         obj = IdentityProviderLinkRead(**data)
 
         # Assert
-        assert obj.id == 1
+        assert obj.id == uuid.UUID(int=1)
         assert obj.idp_name is None
         assert obj.idp_slug is None
 
@@ -290,7 +291,7 @@ class TestUserIdentityProviderResponse:
         # Arrange
         now = datetime.now(UTC)
         data = {
-            "id": 1,
+            "id": uuid.UUID(int=1),
             "user_id": 1,
             "idp_id": 1,
             "idp_subject": "user123@example.com",
@@ -319,7 +320,7 @@ class TestUserIdentityProviderResponse:
 
         # Arrange
         class MockORM:
-            id = 1
+            id = uuid.UUID(int=1)
             user_id = 1
             idp_id = 1
             idp_subject = "user123@example.com"
@@ -330,7 +331,7 @@ class TestUserIdentityProviderResponse:
         obj = IdentityProviderLinkRead.model_validate(MockORM())
 
         # Assert
-        assert obj.id == 1
+        assert obj.id == uuid.UUID(int=1)
         assert obj.idp_subject == "user123@example.com"
 
 

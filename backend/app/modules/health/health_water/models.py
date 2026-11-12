@@ -4,6 +4,7 @@ This module defines the database models for storing user daily
 water intake data, including consumption amount and data source.
 """
 
+import uuid
 from datetime import date as date_type
 from decimal import Decimal
 
@@ -18,7 +19,7 @@ class HealthWater(core_sync.UpdatedAtMixin, Base):
     """User daily water intake tracking data.
 
     Attributes:
-        id: Primary key, auto-incremented unique identifier.
+        id: Primary key, a random UUID.
         user_id: Foreign key referencing users.id.
         date: Calendar date for the water intake record.
         amount_ml: Total water consumed in milliliters.
@@ -34,10 +35,7 @@ class HealthWater(core_sync.UpdatedAtMixin, Base):
         Index("ix_health_water_user_updated_at_id", "user_id", "updated_at", "id"),
     )
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,

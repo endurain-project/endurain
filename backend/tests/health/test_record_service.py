@@ -1,3 +1,4 @@
+import uuid
 from datetime import date
 from typing import ClassVar
 from unittest.mock import MagicMock, patch
@@ -16,6 +17,7 @@ import modules.health.schema as health_schema
 
 _EXISTS = "modules.health.record_crud.exists"
 _NO_RANGE = core_date_range.DateRange()
+_RECORD_ID = uuid.uuid4()
 
 
 class TestCommitWrite:
@@ -102,7 +104,7 @@ class TestUpsertDated:
 
     def test_an_existing_day_is_edited_not_created(self, mock_db):
         record = health_steps_schema.HealthStepsCreate(steps=10, date=date(2026, 3, 30))
-        find = MagicMock(return_value=MagicMock(id=7))
+        find = MagicMock(return_value=MagicMock(id=_RECORD_ID))
         create = MagicMock()
         edit = MagicMock(return_value="edited")
 
@@ -113,13 +115,13 @@ class TestUpsertDated:
         assert result == "edited"
         create.assert_not_called()
         record_id, update = edit.call_args.args
-        assert record_id == 7
+        assert record_id == _RECORD_ID
         assert isinstance(update, health_steps_schema.HealthStepsUpdate)
         assert update.steps == 10
 
 
 class TestRestoreArchivedRecords:
-    _IDENTITY: ClassVar[dict[str, int]] = {"id": 9, "user_id": 999, "version": 4}
+    _IDENTITY: ClassVar[dict[str, int | uuid.UUID]] = {"id": uuid.uuid4(), "user_id": 999, "version": 4}
 
     @staticmethod
     def _restore(rows, stage, **kwargs):
@@ -189,15 +191,15 @@ class TestGetRecord:
     @patch("modules.health.record_crud.get_owned")
     def test_returns_the_owned_row_as_its_read_schema(self, mock_get_owned, mock_db):
         mock_get_owned.return_value = MagicMock(
-            id=3, user_id=2, date=date(2024, 1, 15), steps=900, version=4, source="manual"
+            id=_RECORD_ID, user_id=2, date=date(2024, 1, 15), steps=900, version=4, source="manual"
         )
 
-        record = health_record_service.get_record(health_steps_crud.SPEC, 3, 2, mock_db)
+        record = health_record_service.get_record(health_steps_crud.SPEC, _RECORD_ID, 2, mock_db)
 
-        assert (record.id, record.steps, record.version) == (3, 900, 4)
-        mock_get_owned.assert_called_once_with(health_steps_crud.SPEC, 3, 2, mock_db)
+        assert (record.id, record.steps, record.version) == (_RECORD_ID, 900, 4)
+        mock_get_owned.assert_called_once_with(health_steps_crud.SPEC, _RECORD_ID, 2, mock_db)
 
     @patch("modules.health.record_crud.get_owned", side_effect=core_exceptions.NotFoundError("Health steps not found"))
     def test_a_record_of_another_user_is_not_found(self, _get_owned, mock_db):
         with pytest.raises(core_exceptions.NotFoundError, match="Health steps not found"):
-            health_record_service.get_record(health_steps_crud.SPEC, 3, 2, mock_db)
+            health_record_service.get_record(health_steps_crud.SPEC, _RECORD_ID, 2, mock_db)

@@ -1,5 +1,7 @@
 """Tests for ``modules.auth.mfa.models.MFAFactor``: the table, its constraints and its TOTP-per-user index."""
 
+import uuid
+
 import pytest
 from sqlalchemy.exc import IntegrityError
 
@@ -38,6 +40,13 @@ class TestFactorRows:
         db.add(MFAFactor(user_id=1, type="totp", credential="b"))
         with pytest.raises(IntegrityError):
             db.flush()
+
+    def test_a_row_gets_a_random_uuid_id_when_inserted(self, db):
+        factor = MFAFactor(user_id=1, type="totp", credential="a")
+        db.add(factor)
+        db.flush()
+
+        assert isinstance(factor.id, uuid.UUID)
 
     def test_the_type_is_limited_to_the_known_factors(self, db):
         db.add(MFAFactor(user_id=1, type="sms", credential="a"))

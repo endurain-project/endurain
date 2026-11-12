@@ -1,3 +1,5 @@
+import uuid
+
 import modules.auth.rotated_refresh_tokens.models as rotated_token_models
 
 
@@ -36,7 +38,7 @@ class TestRotatedRefreshTokenModel:
 
         # Assert
         assert id_column.primary_key is True
-        assert id_column.autoincrement is True
+        assert id_column.type.python_type is uuid.UUID
 
     def test_rotated_refresh_token_model_foreign_key(self):
         """
@@ -71,7 +73,7 @@ class TestRotatedRefreshTokenModel:
         model = rotated_token_models.RotatedRefreshToken
 
         # Assert
-        assert model.id.type.python_type is int
+        assert model.id.type.python_type is uuid.UUID
         assert model.token_family_id.type.python_type is str
         assert model.hashed_token.type.python_type is str
         assert model.rotation_count.type.python_type is int

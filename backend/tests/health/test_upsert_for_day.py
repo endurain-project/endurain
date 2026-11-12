@@ -1,3 +1,4 @@
+import uuid
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -8,14 +9,16 @@ import core.exceptions as core_exceptions
 import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 
+RECORD_ID = uuid.uuid4()
 
-def _record(record_id: int = 7):
+
+def _record(record_id: uuid.UUID = RECORD_ID):
     return SimpleNamespace(id=record_id)
 
 
 class TestUpsertForDay:
     def test_creates_the_record_when_the_day_has_none(self, mock_db):
-        created = _record(1)
+        created = _record(uuid.uuid4())
         edit = MagicMock()
 
         result = health_computation.upsert_for_day(lambda: None, lambda: created, edit, mock_db)
@@ -24,14 +27,14 @@ class TestUpsertForDay:
         edit.assert_not_called()
 
     def test_edits_the_record_the_day_already_has(self, mock_db):
-        existing, edited = _record(7), _record(7)
+        existing, edited = _record(), _record()
         create = MagicMock()
         edit = MagicMock(return_value=edited)
 
         result = health_computation.upsert_for_day(lambda: existing, create, edit, mock_db)
 
         assert result is edited
-        edit.assert_called_once_with(7)
+        edit.assert_called_once_with(RECORD_ID)
         create.assert_not_called()
 
     def test_a_writer_that_created_the_day_first_is_updated_instead(self, mock_db):
@@ -52,9 +55,9 @@ class TestUpsertForDay:
             health_computation.upsert_for_day(lambda: None, create, MagicMock(), mock_db)
 
     def test_a_row_changed_under_the_edit_is_read_again_and_retried(self, mock_db):
-        edit = MagicMock(side_effect=[StaleDataError("moved"), _record(7)])
+        edit = MagicMock(side_effect=[StaleDataError("moved"), _record()])
 
-        health_computation.upsert_for_day(lambda: _record(7), MagicMock(), edit, mock_db)
+        health_computation.upsert_for_day(lambda: _record(), MagicMock(), edit, mock_db)
 
         assert edit.call_count == 2
 
@@ -62,12 +65,12 @@ class TestUpsertForDay:
         edit = MagicMock(side_effect=StaleDataError("moved"))
 
         with pytest.raises(StaleDataError):
-            health_computation.upsert_for_day(lambda: _record(7), MagicMock(), edit, mock_db)
+            health_computation.upsert_for_day(lambda: _record(), MagicMock(), edit, mock_db)
 
         assert edit.call_count == health_constants.UPSERT_ATTEMPTS
 
     def test_a_row_deleted_between_attempts_is_raised(self, mock_db):
-        finds = iter([_record(7), None])
+        finds = iter([_record(), None])
         edit = MagicMock(side_effect=StaleDataError("moved"))
 
         with pytest.raises(StaleDataError):

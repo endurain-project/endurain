@@ -142,7 +142,7 @@ def read_health_sleep_resting_heart_rate_chart(
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:read"])],
 )
 def read_health_sleep_by_id(
-    health_sleep_id: core_dependencies.PositiveId,
+    health_sleep_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     response: Response,
@@ -198,7 +198,7 @@ def create_health_sleep(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_health_sleep(
     request: Request,
-    health_sleep_id: core_dependencies.PositiveId,
+    health_sleep_id: core_dependencies.UuidId,
     health_sleep: health_sleep_schema.HealthSleepUpdate,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
@@ -245,7 +245,7 @@ def edit_health_sleep(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_health_sleep(
     request: Request,
-    health_sleep_id: core_dependencies.PositiveId,
+    health_sleep_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     if_match: core_dependencies.IfMatch,
     db: core_dependencies.DbSession,
@@ -257,7 +257,7 @@ def delete_health_sleep(
 
     Args:
         request: The incoming request, read by the rate limiter.
-        health_sleep_id (int): The unique identifier of the health sleep record to delete.
+        health_sleep_id (uuid.UUID): The unique identifier of the health sleep record to delete.
         token_user_id (int): The user ID extracted from the access token.
         if_match: The ``If-Match`` precondition.
         db (Session): Database session dependency for executing the delete operation.

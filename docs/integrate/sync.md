@@ -30,7 +30,7 @@ GET /sync?cursor=<stored>        next time: only what changed since
 A page is `{"changes": [...], "next_cursor": "...", "has_more": false}`. Each change is one record:
 
 ```json
-{"type": "health_weight", "id": 81, "changed_at": "2026-11-11T07:30:00Z", "record": {"id": 81, "weight_kg": 70.4, "updated_at": "2026-11-11T07:30:00Z", "...": "..."}}
+{"type": "health_weight", "id": "5f0c2a7e-91b4-4d3a-8e6c-1a2b3c4d5e6f", "changed_at": "2026-11-11T07:30:00Z", "record": {"id": "5f0c2a7e-91b4-4d3a-8e6c-1a2b3c4d5e6f", "weight_kg": 70.4, "updated_at": "2026-11-11T07:30:00Z", "...": "..."}}
 {"type": "activity", "id": 412, "changed_at": "2026-11-11T08:02:11Z", "record": null}
 ```
 
@@ -44,5 +44,6 @@ A page is `{"changes": [...], "next_cursor": "...", "has_more": false}`. Each ch
 
 - **Changes appear about two minutes after they happen.** The server holds a change back until every transaction that could still commit an earlier change has ended, so a page never skips one. Do not sync more often than that expecting a fresher answer.
 - **A cursor lasts 90 days.** Deletions are remembered for 90 days, so a cursor older than that may have missed one. The server answers `410` with `urn:endurain:error:sync-expired`: discard your copy and sync from the start, with no cursor.
+- A cursor issued by an earlier server version answers `410` with `urn:endurain:error:sync-expired`: discard the copy and sync from the start.
 - A cursor is opaque and only this server can read it. A cursor the server did not issue is `400`.
 - Deleting the account deletes everything at once and reports nothing: the account can no longer sign in to sync.

@@ -1,4 +1,8 @@
+import uuid
 from datetime import date
+
+_ID = uuid.uuid4()
+_OTHER_ID = uuid.uuid4()
 
 
 class TestHealthWaterCreateSchema:
@@ -20,8 +24,8 @@ class TestHealthWaterReadSchema:
     def test_valid(self):
         from modules.health.health_water.schema import HealthWaterRead
 
-        data = HealthWaterRead(updated_at="2024-01-01T00:00:00Z", id=1, user_id=1, amount_ml=500.0)
-        assert data.id == 1
+        data = HealthWaterRead(updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, amount_ml=500.0)
+        assert data.id == _ID
         assert data.amount_ml == 500.0
 
 

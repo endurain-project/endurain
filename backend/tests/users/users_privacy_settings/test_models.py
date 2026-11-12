@@ -1,3 +1,5 @@
+import uuid
+
 import modules.users.users_privacy_settings.models as user_privacy_settings_models
 
 
@@ -44,7 +46,7 @@ class TestUsersPrivacySettingsModel:
 
         # Assert
         assert id_column.primary_key is True
-        assert id_column.autoincrement is True
+        assert id_column.type.python_type is uuid.UUID
 
     def test_users_privacy_settings_model_foreign_key(self):
         """
@@ -89,7 +91,7 @@ class TestUsersPrivacySettingsModel:
         model = user_privacy_settings_models.UsersPrivacySettings
 
         # Assert
-        assert model.id.type.python_type is int
+        assert model.id.type.python_type is uuid.UUID
         # user_id has ForeignKey, skip type check
         assert model.default_activity_visibility.type.python_type is str
         assert model.hide_activity_start_time.type.python_type is bool

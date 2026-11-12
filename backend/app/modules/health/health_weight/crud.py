@@ -1,5 +1,6 @@
 """CRUD operations for health weight records."""
 
+import uuid
 from datetime import date as date_type
 from datetime import datetime
 from decimal import Decimal
@@ -167,7 +168,7 @@ def create_health_weight(
 
 def edit_health_weight(
     user_id: int,
-    health_weight_id: int,
+    health_weight_id: uuid.UUID,
     health_weight: health_weight_schema.HealthWeightUpdate,
     db: Session,
     *,
@@ -233,7 +234,7 @@ def recalculate_bmi_for_user(user_id: int, height_cm: float | None, db: Session)
     db.flush()
 
 
-def delete_health_weight(user_id: int, health_weight_id: int, db: Session, *, if_match: str) -> None:
+def delete_health_weight(user_id: int, health_weight_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Stage the deletion of a user's weight record.
 
     Args:
@@ -280,7 +281,7 @@ def get_health_weight_chart(
 
 
 def list_changed(
-    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[health_weight_schema.HealthWeightRead]:
     """Retrieve a user's records changed after a position, oldest change first.
 

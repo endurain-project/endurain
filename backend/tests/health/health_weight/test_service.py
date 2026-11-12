@@ -1,3 +1,4 @@
+import uuid
 from datetime import date as datetime_date
 from unittest.mock import MagicMock, patch
 
@@ -13,6 +14,10 @@ import modules.health.health_weight.service as health_weight_service
 _PREFIX = "modules.health.health_weight.service"
 
 _NO_RANGE = core_date_range.DateRange()
+
+
+_ID = uuid.uuid4()
+_OTHER_ID = uuid.uuid4()
 
 
 def _user(height):
@@ -51,7 +56,7 @@ class TestStageCreate:
         stored = mock_create.call_args.args[1]
         assert stored.bmi is None
         health_weight_schema.HealthWeightRead.model_validate(
-            {**stored.model_dump(), "id": 1, "user_id": 1, "version": 1, "updated_at": "2024-01-01T00:00:00Z"}
+            {**stored.model_dump(), "id": _ID, "user_id": 1, "version": 1, "updated_at": "2024-01-01T00:00:00Z"}
         )
 
     @patch(f"{_PREFIX}.health_weight_crud.create_health_weight")
@@ -78,7 +83,7 @@ class TestStageEdit:
     def test_derives_bmi_when_weight_changes(self, _get_user, mock_edit, mock_db):
         record = health_weight_schema.HealthWeightUpdate(date=datetime_date(2024, 1, 15), weight_kg=81.0)
 
-        health_weight_service.stage_edit_health_weight(1, 7, record, mock_db, if_match="*")
+        health_weight_service.stage_edit_health_weight(1, _ID, record, mock_db, if_match="*")
 
         assert mock_edit.call_args.args[2].bmi == pytest.approx(81.0 / 1.8**2)
 
@@ -112,7 +117,7 @@ class TestUpsertHealthWeight:
     def test_a_writer_that_changed_the_row_first_is_retried_against_its_version(
         self, mock_get_by_date, mock_edit, mock_db
     ):
-        mock_get_by_date.return_value = MagicMock(id=7)
+        mock_get_by_date.return_value = MagicMock(id=_ID)
         mock_edit.side_effect = [StaleDataError("moved"), "stored"]
         record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 15), weight_kg=72.0, bmi=22.0)
 
@@ -124,7 +129,7 @@ class TestUpsertHealthWeight:
     @patch(f"{_PREFIX}.health_weight_crud.edit_health_weight", side_effect=StaleDataError("moved"))
     @patch(f"{_PREFIX}.health_weight_crud.get_health_weight_by_date_and_user_id")
     def test_a_row_that_keeps_moving_is_given_up_on(self, mock_get_by_date, mock_edit, mock_db):
-        mock_get_by_date.return_value = MagicMock(id=7)
+        mock_get_by_date.return_value = MagicMock(id=_ID)
         record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 15), weight_kg=72.0, bmi=22.0)
 
         with pytest.raises(StaleDataError):
@@ -135,12 +140,12 @@ class TestUpsertHealthWeight:
     @patch(f"{_PREFIX}.health_weight_crud.edit_health_weight")
     @patch(f"{_PREFIX}.health_weight_crud.get_health_weight_by_date_and_user_id")
     def test_updates_the_existing_record_of_the_date(self, mock_get_by_date, mock_edit, mock_db):
-        mock_get_by_date.return_value = MagicMock(id=7)
+        mock_get_by_date.return_value = MagicMock(id=_ID)
         record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 15), weight_kg=75.0, bmi=22.0)
 
         health_weight_service.stage_upsert_health_weight(1, record, mock_db)
 
-        assert mock_edit.call_args.args[:2] == (1, 7)
+        assert mock_edit.call_args.args[:2] == (1, _ID)
         assert mock_edit.call_args.args[2].date == datetime_date(2024, 1, 15)
         mock_db.commit.assert_not_called()
 
@@ -150,15 +155,15 @@ class TestEditAndDelete:
     def test_edit_commits(self, mock_edit, mock_db):
         record = health_weight_schema.HealthWeightUpdate(date=datetime_date(2024, 1, 15), weight_kg=75.0, bmi=22.0)
 
-        health_weight_service.edit_health_weight(1, 7, record, mock_db, if_match="*")
+        health_weight_service.edit_health_weight(1, _ID, record, mock_db, if_match="*")
 
         mock_db.commit.assert_called_once()
 
     @patch(f"{_PREFIX}.health_weight_crud.delete_health_weight")
     def test_delete_commits(self, mock_delete, mock_db):
-        health_weight_service.delete_health_weight(1, 5, mock_db, if_match="*")
+        health_weight_service.delete_health_weight(1, _ID, mock_db, if_match="*")
 
-        mock_delete.assert_called_once_with(1, 5, mock_db, if_match="*")
+        mock_delete.assert_called_once_with(1, _ID, mock_db, if_match="*")
         mock_db.commit.assert_called_once()
 
 
@@ -228,7 +233,7 @@ class TestFutureDate:
         update = health_weight_schema.HealthWeightUpdate(date=datetime_date(2024, 1, 16))
 
         with pytest.raises(core_exceptions.InvalidInputError):
-            health_weight_service.edit_health_weight(1, 5, update, mock_db, if_match="1")
+            health_weight_service.edit_health_weight(1, _ID, update, mock_db, if_match="1")
 
         mock_edit.assert_not_called()
 
@@ -236,7 +241,7 @@ class TestFutureDate:
 class TestRestoreProfileRecords:
     @patch(f"{_PREFIX}.stage_upsert_health_weight")
     def test_stages_each_row_without_the_row_identity(self, mock_upsert, mock_db):
-        rows = [{"id": 9, "user_id": 999, "version": 4, "date": "2024-01-15", "weight_kg": 75.5}]
+        rows = [{"id": str(_ID), "user_id": 999, "version": 4, "date": "2024-01-15", "weight_kg": 75.5}]
 
         assert health_weight_service.restore_profile_records(rows, 1, {}, mock_db) == 1
 

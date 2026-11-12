@@ -1,3 +1,4 @@
+import uuid
 from datetime import date as datetime_date
 from unittest.mock import patch
 
@@ -8,9 +9,11 @@ import modules.health.health_sleep.schema as health_sleep_schema
 _SERVICE = "modules.health.health_sleep.router.health_sleep_service"
 _HEADERS = {"Authorization": "Bearer mock_token"}
 _IF_MATCH_HEADERS = {**_HEADERS, "If-Match": '"1"'}
+_ID = uuid.uuid4()
+_OTHER_ID = uuid.uuid4()
 
 
-def _record(record_id: int = 1, day: int = 15, seconds: int = 28800) -> health_sleep_schema.HealthSleepRead:
+def _record(record_id: uuid.UUID = _ID, day: int = 15, seconds: int = 28800) -> health_sleep_schema.HealthSleepRead:
     return health_sleep_schema.HealthSleepRead(
         updated_at="2024-01-01T00:00:00Z",
         id=record_id,
@@ -20,7 +23,7 @@ def _record(record_id: int = 1, day: int = 15, seconds: int = 28800) -> health_s
     )
 
 
-def _item(record_id: int = 1, *, has_stages: bool = False) -> health_sleep_schema.HealthSleepListItem:
+def _item(record_id: uuid.UUID = _ID, *, has_stages: bool = False) -> health_sleep_schema.HealthSleepListItem:
     return health_sleep_schema.HealthSleepListItem(
         updated_at="2024-01-01T00:00:00Z",
         id=record_id,
@@ -30,7 +33,7 @@ def _item(record_id: int = 1, *, has_stages: bool = False) -> health_sleep_schem
     )
 
 
-def _item_with(record_id: int, seconds: int) -> health_sleep_schema.HealthSleepListItem:
+def _item_with(record_id: uuid.UUID, seconds: int) -> health_sleep_schema.HealthSleepListItem:
     return health_sleep_schema.HealthSleepListItem(
         updated_at="2024-01-01T00:00:00Z",
         id=record_id,
@@ -45,7 +48,7 @@ class TestReadHealthSleepAll:
     @patch(f"{_SERVICE}.list_health_sleep")
     def test_items_carry_the_stage_flag_not_the_stages(self, mock_list, fast_api_client, fast_api_app):
         mock_list.return_value = core_pagination.Page(
-            items=[_item(1, has_stages=True), _item(2, has_stages=False)], total=2, page=1, num_records=25
+            items=[_item(_ID, has_stages=True), _item(_OTHER_ID, has_stages=False)], total=2, page=1, num_records=25
         )
 
         response = fast_api_client.get("/health_sleep", headers=_HEADERS)
@@ -57,7 +60,7 @@ class TestReadHealthSleepAll:
     @patch(f"{_SERVICE}.list_health_sleep")
     def test_returns_the_page_and_total(self, mock_list, fast_api_client, fast_api_app):
         mock_list.return_value = core_pagination.Page(
-            items=[_item_with(1, 28800), _item_with(2, 30000)], total=2, page=1, num_records=25
+            items=[_item_with(_ID, 28800), _item_with(_OTHER_ID, 30000)], total=2, page=1, num_records=25
         )
 
         response = fast_api_client.get("/health_sleep", headers=_HEADERS)
@@ -154,7 +157,7 @@ class TestEditHealthSleep:
         mock_edit.return_value = _record(seconds=32400)
 
         response = fast_api_client.patch(
-            "/health_sleep/1",
+            f"/health_sleep/{_ID}",
             json={"date": "2024-01-15", "total_sleep_seconds": 32400},
             headers={**_HEADERS, "If-Match": '"1"'},
         )
@@ -167,7 +170,7 @@ class TestEditHealthSleep:
         mock_edit.side_effect = core_exceptions.NotFoundError("Health sleep not found")
 
         response = fast_api_client.patch(
-            "/health_sleep/999",
+            f"/health_sleep/{_OTHER_ID}",
             json={"date": "2024-01-15", "total_sleep_seconds": 32400},
             headers={**_HEADERS, "If-Match": '"1"'},
         )
@@ -178,17 +181,17 @@ class TestEditHealthSleep:
 class TestDeleteHealthSleep:
     @patch(f"{_SERVICE}.delete_health_sleep")
     def test_deletes(self, mock_delete, fast_api_client, fast_api_app):
-        response = fast_api_client.delete("/health_sleep/1", headers=_IF_MATCH_HEADERS)
+        response = fast_api_client.delete(f"/health_sleep/{_ID}", headers=_IF_MATCH_HEADERS)
 
         assert response.status_code == 204
-        assert mock_delete.call_args.args[:2] == (1, 1)
+        assert mock_delete.call_args.args[:2] == (1, _ID)
         assert mock_delete.call_args.kwargs == {"if_match": '"1"'}
 
     @patch(f"{_SERVICE}.delete_health_sleep")
     def test_not_found_is_404(self, mock_delete, fast_api_client, fast_api_app):
         mock_delete.side_effect = core_exceptions.NotFoundError("Health sleep not found")
 
-        response = fast_api_client.delete("/health_sleep/999", headers=_IF_MATCH_HEADERS)
+        response = fast_api_client.delete(f"/health_sleep/{_OTHER_ID}", headers=_IF_MATCH_HEADERS)
 
         assert response.status_code == 404
 
@@ -198,17 +201,17 @@ class TestReadHealthSleepById:
     def test_returns_the_record_with_its_etag(self, mock_get, fast_api_client, fast_api_app):
         mock_get.return_value = _record()
 
-        response = fast_api_client.get("/health_sleep/1", headers=_HEADERS)
+        response = fast_api_client.get(f"/health_sleep/{_ID}", headers=_HEADERS)
 
         assert response.status_code == 200
         assert response.headers["ETag"] == '"1"'
-        assert mock_get.call_args.args[:2] == (1, 1)
+        assert mock_get.call_args.args[:2] == (1, _ID)
 
     @patch(f"{_SERVICE}.get_health_sleep")
     def test_a_record_the_user_does_not_have_is_404(self, mock_get, fast_api_client, fast_api_app):
         mock_get.side_effect = core_exceptions.NotFoundError("Health sleep not found")
 
-        response = fast_api_client.get("/health_sleep/99", headers=_HEADERS)
+        response = fast_api_client.get(f"/health_sleep/{_OTHER_ID}", headers=_HEADERS)
 
         assert response.status_code == 404
 
@@ -216,11 +219,16 @@ class TestReadHealthSleepById:
 class TestCreateHealthSleepHeaders:
     @patch(f"{_SERVICE}.create_health_sleep")
     def test_create_names_the_record_and_its_version(self, mock_create, fast_api_client, fast_api_app):
-        mock_create.return_value = _record(record_id=7)
+        mock_create.return_value = _record(record_id=_OTHER_ID)
 
         response = fast_api_client.post(
             "/health_sleep", json={"date": "2024-01-15", "total_sleep_seconds": 28800}, headers=_HEADERS
         )
 
-        assert response.headers["Location"] == "/health_sleep/7"
+        assert response.headers["Location"] == f"/health_sleep/{_OTHER_ID}"
         assert response.headers["ETag"] == '"1"'
+
+
+class TestMalformedId:
+    def test_a_malformed_id_is_422(self, fast_api_client, fast_api_app):
+        assert fast_api_client.get("/health_sleep/not-a-uuid", headers=_HEADERS).status_code == 422

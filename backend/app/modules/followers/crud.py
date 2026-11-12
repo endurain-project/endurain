@@ -93,7 +93,7 @@ def _page(
     accepted_only: bool = False,
     pending_only: bool = False,
 ) -> list[followers_schema.FollowRelationshipRead]:
-    """Load one page of follow rows, ordered by ``id`` so paging is stable.
+    """Load one page of follow rows, ordered by creation time, then ``id``, so paging is stable.
 
     Args:
         column: See :func:`_filtered`.
@@ -109,7 +109,7 @@ def _page(
     """
     stmt = (
         _filtered(column, user_id, accepted_only, pending_only)
-        .order_by(followers_models.Follower.id)
+        .order_by(followers_models.Follower.created_at, followers_models.Follower.id)
         .offset((page_number - 1) * num_records)
         .limit(num_records)
     )
@@ -185,7 +185,7 @@ def get_all_following_by_user_id(
     """Retrieve one page of follow records where the user is the follower.
 
     Paginated for the same reason as :func:`get_all_followers_by_user_id`, and
-    ordered by ``id`` so paging is stable.
+    ordered by creation time, then ``id``, so paging is stable.
 
     Args:
         user_id: ID of the user whose following list to retrieve.
@@ -679,6 +679,6 @@ def list_blocked_user_ids(blocker_id: int, db: Session) -> list[int]:
     stmt = (
         select(followers_models.FollowerBlock.blocked_id)
         .where(followers_models.FollowerBlock.blocker_id == blocker_id)
-        .order_by(followers_models.FollowerBlock.id.desc())
+        .order_by(followers_models.FollowerBlock.created_at.desc(), followers_models.FollowerBlock.id.desc())
     )
     return list(db.scalars(stmt).all())

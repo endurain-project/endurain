@@ -1,6 +1,7 @@
 """Tests for MFA backup codes utilities."""
 
 import string
+import uuid
 from unittest.mock import MagicMock, patch
 
 import core.exceptions as core_exceptions
@@ -170,9 +171,9 @@ class TestVerifyAndConsumeBackupCode:
         codes_in_order = [correct_code, "WRONG111", "WRONG222", "WRONG333"]
 
         mock_codes = []
-        for index, code_str in enumerate(codes_in_order):
+        for code_str in codes_in_order:
             mock_code = MagicMock()
-            mock_code.id = index + 1
+            mock_code.id = uuid.uuid4()
             mock_code.code_hash = f"hash-for-{code_str}"
             mock_code.used = False
             mock_codes.append(mock_code)

@@ -1,5 +1,7 @@
 """User default gear database models."""
 
+import uuid
+
 from sqlalchemy import ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -10,7 +12,7 @@ class UsersDefaultGear(Base):
     """User default gear assignments for activity types.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         user_id: Foreign key to users table.
         run_gear_id: Default gear for run activities.
         trail_run_gear_id: Default gear for trail run activities.
@@ -37,10 +39,7 @@ class UsersDefaultGear(Base):
     __tablename__ = "users_default_gear"
     __table_args__ = (UniqueConstraint("user_id", name="uq_users_default_gear_user_id"),)
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,

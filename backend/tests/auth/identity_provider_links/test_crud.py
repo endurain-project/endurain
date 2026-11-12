@@ -1,5 +1,6 @@
 """Tests for staged identity-provider link persistence."""
 
+import uuid
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -18,7 +19,7 @@ from tests._helpers.db import create_sqlite_session
 
 def _link(**overrides):
     values = {
-        "id": 1,
+        "id": uuid.UUID(int=1),
         "user_id": 7,
         "idp_id": 3,
         "idp_subject": "subject-1",
@@ -60,7 +61,7 @@ def test_create_link_stages_row_and_translates_unique_race(mock_db):
         ),
     ):
         result = identity_links_crud.create_user_identity_provider(7, 3, "subject-1", mock_db)
-    assert result.id == 1
+    assert result.id == uuid.UUID(int=1)
     assert mock_db.flush.call_count == 2
     mock_db.commit.assert_not_called()
 
@@ -153,13 +154,15 @@ class TestSessionTokens:
             identity_links_crud.create_idp_session_token(session_id, user_id, 3, None, None, db)
         db.commit()
 
-        first = identity_links_crud.get_idp_session_tokens_page(0, 2, db)
+        first = identity_links_crud.get_idp_session_tokens_page(None, 2, db)
         second = identity_links_crud.get_idp_session_tokens_page(first[-1].id, 2, db)
-        mine = identity_links_crud.get_idp_session_tokens_page(0, 10, db, user_id=7)
+        mine = identity_links_crud.get_idp_session_tokens_page(None, 10, db, user_id=7)
 
-        assert [row.session_id for row in first] == ["s1", "s2"]
-        assert [row.session_id for row in second] == ["s3"]
-        assert [row.session_id for row in mine] == ["s1", "s3"]
+        every_row = identity_links_crud.get_idp_session_tokens_page(None, 10, db)
+        assert [row.id for row in every_row] == sorted(row.id for row in every_row)
+        assert first == every_row[:2]
+        assert second == every_row[2:]
+        assert [row.session_id for row in mine] == [row.session_id for row in every_row if row.user_id == 7]
         db.close()
 
     def test_a_replace_over_the_token_read_is_applied(self):

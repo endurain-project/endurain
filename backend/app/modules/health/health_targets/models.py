@@ -1,5 +1,6 @@
 """SQLAlchemy ORM model for per-user health targets."""
 
+import uuid
 from decimal import Decimal
 
 from sqlalchemy import ForeignKey, Index, Numeric
@@ -13,7 +14,7 @@ class HealthTargets(core_sync.UpdatedAtMixin, Base):
     """User health targets configuration.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         user_id: Foreign key to users table (unique).
         weight_kg: Target weight in kg.
         steps: Target daily steps count.
@@ -26,10 +27,7 @@ class HealthTargets(core_sync.UpdatedAtMixin, Base):
     __tablename__ = "health_targets"
     __table_args__ = (Index("ix_health_targets_user_updated_at_id", "user_id", "updated_at", "id"),)
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,

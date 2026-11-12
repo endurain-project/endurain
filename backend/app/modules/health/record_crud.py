@@ -6,6 +6,7 @@ check, and delete. It owns no table: the model and the schemas are the caller's.
 stages writes with ``flush`` and never commits.
 """
 
+import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -82,7 +83,7 @@ def duplicate_date_message(day: date | None) -> str:
 
 
 def get_owned[ModelT: Row, ReadT: BaseModel](
-    spec: RecordSpec[ModelT, ReadT], record_id: int, user_id: int, db: Session
+    spec: RecordSpec[ModelT, ReadT], record_id: uuid.UUID, user_id: int, db: Session
 ) -> ModelT:
     """Load a user's row by id.
 
@@ -105,7 +106,7 @@ def get_owned[ModelT: Row, ReadT: BaseModel](
 
 
 def exists[ModelT: Row, ReadT: BaseModel](
-    spec: RecordSpec[ModelT, ReadT], record_id: int, user_id: int, db: Session
+    spec: RecordSpec[ModelT, ReadT], record_id: uuid.UUID, user_id: int, db: Session
 ) -> bool:
     """Report whether a user has a record.
 
@@ -122,7 +123,7 @@ def exists[ModelT: Row, ReadT: BaseModel](
 
 
 def find_by_id[ModelT: Row, ReadT: BaseModel](
-    spec: RecordSpec[ModelT, ReadT], record_id: int, user_id: int, db: Session
+    spec: RecordSpec[ModelT, ReadT], record_id: uuid.UUID, user_id: int, db: Session
 ) -> ReadT | None:
     """Retrieve a user's record by id.
 
@@ -352,7 +353,7 @@ def edit_row[ModelT: Row, ReadT: BaseModel](
 
 def edit[ModelT: Row, ReadT: BaseModel](
     spec: RecordSpec[ModelT, ReadT],
-    record_id: int,
+    record_id: uuid.UUID,
     user_id: int,
     changes: BaseModel,
     db: Session,
@@ -385,7 +386,7 @@ def edit[ModelT: Row, ReadT: BaseModel](
 
 
 def delete[ModelT: Row, ReadT: BaseModel](
-    spec: RecordSpec[ModelT, ReadT], record_id: int, user_id: int, db: Session, *, if_match: str
+    spec: RecordSpec[ModelT, ReadT], record_id: uuid.UUID, user_id: int, db: Session, *, if_match: str
 ) -> None:
     """Stage the deletion of a user's record.
 
@@ -410,10 +411,10 @@ def delete[ModelT: Row, ReadT: BaseModel](
 def list_changed[RowT: core_sync.UpdatedAtMixin, ReadT: BaseModel](
     model: type[RowT],
     owner: InstrumentedAttribute[int],
-    row_id: InstrumentedAttribute[int],
+    row_id: InstrumentedAttribute[uuid.UUID],
     read_schema: type[ReadT],
     user_id: int,
-    after: core_sync.Position | None,
+    after: core_sync.Position[uuid.UUID] | None,
     until: datetime,
     limit: int,
     db: Session,
@@ -440,8 +441,8 @@ def list_changed[RowT: core_sync.UpdatedAtMixin, ReadT: BaseModel](
 
 
 def list_deletions(
-    sync_type: str, user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
-) -> list[core_sync.Deletion]:
+    sync_type: str, user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+) -> list[core_sync.Deletion[uuid.UUID]]:
     """Retrieve a user's deleted records of one type after a position, oldest deletion first.
 
     Args:

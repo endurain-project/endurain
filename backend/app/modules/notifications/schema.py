@@ -1,5 +1,6 @@
 """Pydantic schemas for notification entities."""
 
+import uuid
 from datetime import date, datetime
 from typing import Annotated, Any, Final, Literal
 
@@ -16,7 +17,6 @@ from pydantic import (
 
 import core.pagination as core_pagination
 import core.timezone as core_timezone
-import core.types as core_types
 import modules.notifications.constants as notifications_constants
 
 #: The most notifications one request may mark as read.
@@ -171,7 +171,7 @@ class _NotificationReadBase(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    id: StrictInt = Field(..., description="Unique notification ID")
+    id: uuid.UUID = Field(..., description="Unique notification ID")
     user_id: StrictInt = Field(
         ...,
         ge=1,
@@ -303,6 +303,6 @@ class NotificationsMarkRead(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    ids: list[core_types.RecordId] = Field(
+    ids: list[uuid.UUID] = Field(
         ..., min_length=1, max_length=MAX_MARK_READ_IDS, description="IDs of the notifications to mark as read"
     )

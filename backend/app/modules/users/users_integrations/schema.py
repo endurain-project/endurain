@@ -1,5 +1,6 @@
 """User integrations Pydantic schemas and validators."""
 
+import uuid
 from datetime import datetime
 from typing import Any
 
@@ -88,7 +89,7 @@ class UserIntegrationsRead(UserIntegrationsBase):
         strava_revoked_at: When Strava refused the refresh token, ``None`` while access is intact. Server-owned.
     """
 
-    id: StrictInt = Field(..., ge=1, description="Unique identifier for integrations")
+    id: uuid.UUID = Field(..., description="Unique identifier for integrations")
     user_id: StrictInt = Field(..., ge=1, description="Foreign key reference to the user")
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
     strava_revoked_at: datetime | None = Field(

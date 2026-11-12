@@ -1,5 +1,6 @@
 """CRUD operations for health steps records."""
 
+import uuid
 from datetime import date as date_type
 from datetime import datetime
 
@@ -113,7 +114,7 @@ def create_health_steps(
 
 def edit_health_steps(
     user_id: int,
-    health_steps_id: int,
+    health_steps_id: uuid.UUID,
     health_steps: health_steps_schema.HealthStepsUpdate,
     db: Session,
     *,
@@ -147,7 +148,7 @@ def edit_health_steps(
     )
 
 
-def delete_health_steps(user_id: int, health_steps_id: int, db: Session, *, if_match: str) -> None:
+def delete_health_steps(user_id: int, health_steps_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Stage the deletion of a user's steps record.
 
     Args:
@@ -194,7 +195,7 @@ def get_health_steps_chart(
 
 
 def list_changed(
-    user_id: int, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[health_steps_schema.HealthStepsRead]:
     """Retrieve a user's records changed after a position, oldest change first.
 

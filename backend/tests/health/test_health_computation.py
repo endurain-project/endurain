@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 
@@ -82,7 +83,7 @@ class TestIntervalStart:
 class TestToReadSchema:
     def test_validates_a_row_against_the_given_schema(self):
         row = SimpleNamespace(
-            id=1,
+            id=uuid.uuid4(),
             version=2,
             user_id=3,
             updated_at=datetime(2024, 1, 15, tzinfo=UTC),
@@ -97,9 +98,10 @@ class TestToReadSchema:
         assert result.steps == 9000
 
     def test_converts_every_row_in_order(self):
+        ids = [uuid.uuid4(), uuid.uuid4()]
         rows = [
             SimpleNamespace(
-                id=i,
+                id=ids[i - 1],
                 version=1,
                 user_id=3,
                 updated_at=datetime(2024, 1, 15, tzinfo=UTC),
@@ -110,4 +112,4 @@ class TestToReadSchema:
             for i in (1, 2)
         ]
 
-        assert [r.id for r in health_computation.to_read_schemas(health_steps_schema.HealthStepsRead, rows)] == [1, 2]
+        assert [r.id for r in health_computation.to_read_schemas(health_steps_schema.HealthStepsRead, rows)] == ids

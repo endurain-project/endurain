@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 from pydantic import ValidationError
 
@@ -199,8 +201,9 @@ class TestUsersPrivacySettingsReadSchema:
         Test UserPrivacySettingsRead schema with all valid fields.
         """
         # Arrange & Act
+        record_id = uuid.uuid4()
         settings = user_privacy_settings_schema.UserPrivacySettingsRead(
-            id=1,
+            id=record_id,
             user_id=1,
             default_activity_visibility=activity_constants.ActivityVisibility.PUBLIC,
             hide_activity_start_time=False,
@@ -218,7 +221,7 @@ class TestUsersPrivacySettingsReadSchema:
         )
 
         # Assert
-        assert settings.id == 1
+        assert settings.id == record_id
         assert settings.user_id == 1
         assert settings.default_activity_visibility == activity_constants.ActivityVisibility.PUBLIC.value
 
@@ -238,7 +241,7 @@ class TestUsersPrivacySettingsReadSchema:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            user_privacy_settings_schema.UserPrivacySettingsRead(id=1)
+            user_privacy_settings_schema.UserPrivacySettingsRead(id=uuid.uuid4())
 
         assert "user_id" in str(exc_info.value)
 
@@ -248,10 +251,12 @@ class TestUsersPrivacySettingsReadSchema:
         """
 
         # Arrange
+        record_id = uuid.uuid4()
+
         class MockORMModel:
             """Mock ORM model for testing."""
 
-            id = 1
+            id = record_id
             user_id = 1
             default_activity_visibility = "private"
             hide_activity_start_time = True
@@ -271,7 +276,7 @@ class TestUsersPrivacySettingsReadSchema:
         settings = user_privacy_settings_schema.UserPrivacySettingsRead.model_validate(MockORMModel())
 
         # Assert
-        assert settings.id == 1
+        assert settings.id == record_id
         assert settings.user_id == 1
         assert settings.default_activity_visibility == activity_constants.ActivityVisibility.PRIVATE.value
         assert settings.hide_activity_start_time is True

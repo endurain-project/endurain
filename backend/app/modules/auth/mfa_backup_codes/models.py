@@ -1,5 +1,6 @@
 """SQLAlchemy ORM models for MFA backup codes."""
 
+import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String
@@ -15,7 +16,7 @@ class MFABackupCode(Base):
     authentication method when their primary MFA device is unavailable.
 
     Attributes:
-        id: Primary key, auto-incrementing identifier.
+        id: Primary key, a random UUID.
         user_id: Foreign key to the users table, identifies the code owner.
         code_hash: Argon2 hash of the backup code for secure storage.
         used: Flag indicating whether the code has been consumed.
@@ -33,7 +34,7 @@ class MFABackupCode(Base):
 
     __tablename__ = "mfa_backup_codes"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,

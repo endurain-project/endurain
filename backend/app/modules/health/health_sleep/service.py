@@ -5,6 +5,7 @@ transaction boundary. What other modules may consume lives in
 :mod:`modules.health.health_sleep.integration_service`.
 """
 
+import uuid
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -125,7 +126,7 @@ def list_health_sleep(
 
 def stage_edit_health_sleep(
     user_id: int,
-    health_sleep_id: int,
+    health_sleep_id: uuid.UUID,
     health_sleep: health_sleep_schema.HealthSleepUpdate,
     db: Session,
     *,
@@ -212,7 +213,7 @@ def create_health_sleep(
 
 
 def _check_and_score_edit(
-    user_id: int, health_sleep_id: int, health_sleep: health_sleep_schema.HealthSleepUpdate, db: Session
+    user_id: int, health_sleep_id: uuid.UUID, health_sleep: health_sleep_schema.HealthSleepUpdate, db: Session
 ) -> None:
     """Refuse an update that makes the record contradict itself, and set the scores it produces.
 
@@ -243,7 +244,7 @@ def _check_and_score_edit(
 
 def edit_health_sleep(
     user_id: int,
-    health_sleep_id: int,
+    health_sleep_id: uuid.UUID,
     health_sleep: health_sleep_schema.HealthSleepUpdate,
     db: Session,
     *,
@@ -284,7 +285,7 @@ def edit_health_sleep(
     return updated
 
 
-def get_health_sleep(user_id: int, health_sleep_id: int, db: Session) -> health_sleep_schema.HealthSleepRead:
+def get_health_sleep(user_id: int, health_sleep_id: uuid.UUID, db: Session) -> health_sleep_schema.HealthSleepRead:
     """Return one of a user's sleep records.
 
     Args:
@@ -301,7 +302,7 @@ def get_health_sleep(user_id: int, health_sleep_id: int, db: Session) -> health_
     return health_record_service.get_record(health_sleep_crud.SPEC, health_sleep_id, user_id, db)
 
 
-def delete_health_sleep(user_id: int, health_sleep_id: int, db: Session, *, if_match: str) -> None:
+def delete_health_sleep(user_id: int, health_sleep_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Delete a sleep record and commit.
 
     Args:
