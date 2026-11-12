@@ -16,10 +16,11 @@ vi.mock('@/features/security/composables/useIdpStepUp', () => ({
 vi.mock('@/features/serverSettings/composables/useMailStepUpResume', () => ({
   useSettingsStepUpResume: () => undefined,
 }))
+const mutateAsync = vi.fn<() => Promise<void>>()
 vi.mock('@/features/serverSettings/composables/useServerSettings', () => ({
   useUpdateServerSettingsMutation: () => ({
     isPending: { value: false },
-    mutateAsync: vi.fn<() => Promise<void>>(),
+    mutateAsync,
   }),
 }))
 vi.mock('@/features/security/composables/useAdminStepUp', () => ({
@@ -121,5 +122,42 @@ describe('session policy validation', () => {
     })
 
     expect(form.validateField('accessTokenExpireMinutes')).toBeNull()
+  })
+})
+
+describe('step-up for the geocoding and tile server settings', () => {
+  const stepUpFields = [
+    'geocoding_service',
+    'geocoding_host',
+    'geocoding_use_https',
+    'tileserver_url',
+  ]
+  const edits = [
+    ['geocodingService', 'photon'],
+    ['geocodingHost', 'nominatim.example.com'],
+    ['geocodingUseHttps', false],
+    ['tileserverUrl', 'https://other.test/{z}/{x}/{y}.png'],
+  ] as const
+
+  it.each(edits)('asks for the step-up instead of saving when %s changes', async (field, value) => {
+    mutateAsync.mockClear()
+    const form = mountForm({ step_up_fields: stepUpFields })
+
+    form.setFieldValue(field, value)
+    await form.handleSubmit()
+
+    expect(form.isStepUpOpen.value).toBe(true)
+    expect(mutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('saves without a step-up when only the geocoding rate limit changes', async () => {
+    mutateAsync.mockClear()
+    const form = mountForm({ step_up_fields: stepUpFields })
+
+    form.setFieldValue('geocodingRateLimit', '2')
+    await form.handleSubmit()
+
+    expect(form.isStepUpOpen.value).toBe(false)
+    expect(mutateAsync).toHaveBeenCalledOnce()
   })
 })

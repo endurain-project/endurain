@@ -132,7 +132,8 @@ class TestTileServerUrlIsCheckedOnWrite:
             )
 
         edit_env.write.assert_not_called()
-        db.commit.assert_not_called()
+        # The only commit is the one that spends the step-up; the refused settings are never written.
+        db.commit.assert_called_once()
 
     def test_the_placeholders_are_filled_before_the_check(self, edit_env):
         """``{z}/{x}/{y}`` is not a parseable URL; the host is what matters."""
@@ -190,6 +191,10 @@ _SECURITY_CHANGES = {
     "refresh_token_expire_days": 14,
     "api_key_max_lifetime_days": 30,
     "public_shareable_links_user_info": True,
+    "geocoding_service": "photon",
+    "geocoding_host": "nominatim.example.com",
+    "geocoding_use_https": False,
+    "tileserver_url": "https://other.example.com/{z}/{x}/{y}.png",
 }
 
 
@@ -244,7 +249,7 @@ class TestSecurityFieldsNeedStepUp:
         edit_env.dns.side_effect = lambda *_, **__: calls.append("dns")
 
         server_settings_service.edit_server_settings(
-            _full_edit(edit_env.stored, tileserver_url="https://other.example.com/{z}/{x}/{y}.png"),
+            _full_edit(edit_env.stored, geocoding_rate_limit=2.0, currency="dollar"),
             None,
             MagicMock(),
             db,

@@ -63,10 +63,12 @@ SESSION_ENV_VARS: dict[str, str] = {
     "refresh_token_expire_days": "REFRESH_TOKEN_EXPIRE_DAYS",
 }
 
-#: The settings that govern who can sign up or sign in, whether MFA is required, how long a session or token lives
-#: and whether public links reveal their owner. Changing the stored value of any of them needs the administrator's
-#: step-up, so a stolen access token cannot weaken authentication or expose users. Appearance, map, geocoding, paging, the public-links switch and notification-retention settings are
-#: not here.
+#: The settings that govern who can sign up or sign in, whether MFA is required, how long a session or token lives,
+#: whether public links reveal their owner, and where the server sends its own requests (the geocoding service and
+#: the tile server, which the server dials with the stored API keys). Changing the stored value of any of them needs
+#: the administrator's step-up, so a stolen access token cannot weaken authentication, expose users or redirect
+#: outgoing requests. The write-only API keys, the geocoding rate limit, appearance, paging, the public-links
+#: switch and notification-retention settings are not here.
 SECURITY_FIELDS: frozenset[str] = frozenset(
     {
         "signup_enabled",
@@ -87,6 +89,10 @@ SECURITY_FIELDS: frozenset[str] = frozenset(
         "refresh_token_expire_days",
         "api_key_max_lifetime_days",
         "public_shareable_links_user_info",
+        "geocoding_service",
+        "geocoding_host",
+        "geocoding_use_https",
+        "tileserver_url",
     }
 )
 
