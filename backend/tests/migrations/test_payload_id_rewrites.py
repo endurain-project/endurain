@@ -47,10 +47,7 @@ _OWNED_PREFIXES = tuple(f"{package}." for package in _PACKAGES)
 _NOT_YET_REWRITTEN: frozenset[tuple[str, str]] = frozenset(
     {
         # modules.activities.activity.events
-        ("modules.activities.activity.events.ActivityCreatedPayload", "activity_id"),
         ("modules.activities.activity.events.ActivityCreatedPayload", "user_id"),
-        ("modules.activities.activity.events.ActivityDeletedPayload", "activity_id"),
-        ("modules.activities.activity.events.ActivityUpdatedPayload", "activity_id"),
         ("modules.activities.activity.events.ActivityUpdatedPayload", "user_id"),
         ("modules.activities.activity.events.VisibilityEditRequestedPayload", "user_id"),
         # modules.auth.account_security.events
@@ -304,4 +301,20 @@ def test_idp_revision_event_types_match_the_application_constants() -> None:
     assert stored_under["modules.auth.identity_providers.events.IdpLinkedPayload"] == (idp_events.IDP_LINKED,)
     assert stored_under["modules.auth.account_security.events.AccountSecurityChangedPayload"] == (
         account_security_events.ACCOUNT_SECURITY_CHANGED,
+    )
+
+
+def test_activity_revision_event_types_match_the_application_constants() -> None:
+    from modules.activities.activity import events as activity_events
+
+    stored_under = {payload_class: event_types for payload_class, _field, event_types, _parent in _declared_entries()}
+
+    assert stored_under["modules.activities.activity.events.ActivityCreatedPayload"] == (
+        activity_events.ACTIVITY_CREATED,
+    )
+    assert stored_under["modules.activities.activity.events.ActivityUpdatedPayload"] == (
+        activity_events.ACTIVITY_UPDATED,
+    )
+    assert stored_under["modules.activities.activity.events.ActivityDeletedPayload"] == (
+        activity_events.ACTIVITY_DELETED,
     )

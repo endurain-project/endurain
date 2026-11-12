@@ -1,22 +1,48 @@
 """Tests for migration 13: stored files named by an integer id are renamed to their UUID."""
 
+import io
 import uuid
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
 import sqlalchemy as sa
+from botocore.exceptions import ClientError
 from jasil.backends.storage_local import LocalStorage
+from jasil.backends.storage_s3 import S3Storage
 from sqlalchemy.orm import Session
 
 import migrations.migration_13 as migration_13
 import migrations.models as migrations_models
 import migrations.utils as migrations_utils
+import modules.activities.activity.models as activity_models
+import modules.activities.activity_media.models as activity_media_models
+from core.database import Base
 
 _MODULE = "migrations.migration_13"
 _AREA = "identity_provider_icons"
 _FIRST = uuid.UUID("11111111-1111-4111-8111-111111111111")
 _SECOND = uuid.UUID("22222222-2222-4222-8222-222222222222")
+_FILES = "activity_files"
+_THUMBNAILS = "activity_thumbnails"
+_MEDIA = "activity_media"
+_ACTIVITY = uuid.UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
+_OTHER_ACTIVITY = uuid.UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
+_MEDIA_ROW = uuid.UUID("cccccccc-cccc-4ccc-8ccc-cccccccccccc")
+_OTHER_MEDIA_ROW = uuid.UUID("dddddddd-dddd-4ddd-8ddd-dddddddddddd")
+_ACTIVITY_COLUMNS = {
+    "distance": 1,
+    "activity_type": 1,
+    "start_time": datetime(2026, 1, 1),
+    "end_time": datetime(2026, 1, 1),
+    "total_elapsed_time": 1,
+    "total_timer_time": 1,
+    "created_at": datetime(2026, 1, 1),
+    "user_id": 1,
+    **{column.name: False for column in activity_models.Activity.__table__.c if column.name.startswith("hide_")},
+}
 _IDS = sa.Table(
     "uuid_migration_ids",
     sa.MetaData(),
@@ -37,11 +63,59 @@ class _FailingCopy(LocalStorage):
         super().copy(src_area, src_key, dst_area, dst_key)
 
 
+class _FakeS3Client:
+    """The slice of a boto3 S3 client that ``S3Storage`` calls for listing, existence, copy and delete, in memory.
+
+    The calls take boto3's capitalised keyword names (``Key``, ``Prefix``), which is why they arrive as ``call``.
+    """
+
+    fail_copy_to: str | None = None
+
+    def __init__(self) -> None:
+        self.objects: dict[str, bytes] = {}
+
+    def put_object(self, **call: Any) -> None:
+        self.objects[call["Key"]] = call["Body"]
+
+    def get_object(self, **call: Any) -> dict[str, io.BytesIO]:
+        return {"Body": io.BytesIO(self.objects[call["Key"]])}
+
+    def head_object(self, **call: Any) -> dict[str, object]:
+        if call["Key"] not in self.objects:
+            raise ClientError({"Error": {"Code": "404"}}, "HeadObject")
+        return {"ContentLength": len(self.objects[call["Key"]]), "LastModified": datetime(2026, 1, 1)}
+
+    def delete_object(self, **call: Any) -> None:
+        self.objects.pop(call["Key"], None)
+
+    def copy(self, copy_source: dict[str, str], bucket: str, key: str) -> None:
+        if self.fail_copy_to is not None and key.endswith(self.fail_copy_to):
+            raise ClientError({"Error": {"Code": "500"}}, "CopyObject")
+        self.objects[key] = self.objects[copy_source["Key"]]
+
+    def get_paginator(self, _operation: str) -> "_FakeS3Client":
+        return self
+
+    def paginate(self, **call: Any) -> list[dict[str, list[dict[str, object]]]]:
+        return [
+            {
+                "Contents": [
+                    {"Key": key, "LastModified": datetime(2026, 1, 1)}
+                    for key in sorted(self.objects)
+                    if key.startswith(call["Prefix"])
+                ]
+            }
+        ]
+
+
 @pytest.fixture
 def db():
     engine = sa.create_engine("sqlite://", poolclass=sa.StaticPool)
     migrations_models.Migration.__table__.create(engine)
     _IDS.create(engine)
+    Base.metadata.create_all(
+        engine, tables=[activity_models.Activity.__table__, activity_media_models.ActivityMedia.__table__]
+    )
     with Session(engine) as session:
         session.add(migrations_models.Migration(id=13, name="v0.21.0", description="rename", executed=False))
         session.execute(
@@ -49,13 +123,29 @@ def db():
             [
                 {"table_name": "identity_providers", "old_id": 1, "new_id": _FIRST},
                 {"table_name": "identity_providers", "old_id": 2, "new_id": _SECOND},
+                {"table_name": "activities", "old_id": 1, "new_id": _ACTIVITY},
+                {"table_name": "activities", "old_id": 3, "new_id": _OTHER_ACTIVITY},
+            ],
+        )
+        session.execute(
+            sa.insert(activity_models.Activity.__table__),
+            [
+                {"id": _ACTIVITY, "map_thumbnail_path": "1.webp", **_ACTIVITY_COLUMNS},
+                {"id": _OTHER_ACTIVITY, "map_thumbnail_path": None, **_ACTIVITY_COLUMNS},
+            ],
+        )
+        session.execute(
+            sa.insert(activity_media_models.ActivityMedia.__table__),
+            [
+                {"id": _MEDIA_ROW, "activity_id": _ACTIVITY, "media_path": "1_aaa.jpg", "media_type": 1},
+                {"id": _OTHER_MEDIA_ROW, "activity_id": _ACTIVITY, "media_path": "1_bbb.jpg", "media_type": 1},
             ],
         )
         session.commit()
         yield session
 
 
-def _run(storage: LocalStorage, db: Session) -> None:
+def _run(storage: LocalStorage | S3Storage, db: Session) -> None:
     with patch(f"{_MODULE}.platform_runtime") as runtime:
         runtime.get_active_platform.return_value.storage = storage
         migration_13.process_migration_13(db)
@@ -149,3 +239,152 @@ class TestProcessMigration13:
 
         assert _executed(db) is False
         assert any(record.levelname == "ERROR" for record in caplog.records)
+
+
+def _stored_paths(db: Session) -> tuple[list[str | None], list[str | None]]:
+    db.rollback()
+    thumbnails = db.execute(
+        sa.select(activity_models.Activity.map_thumbnail_path).order_by(activity_models.Activity.id)
+    )
+    media = db.execute(
+        sa.select(activity_media_models.ActivityMedia.media_path).order_by(activity_media_models.ActivityMedia.id)
+    )
+    return sorted(thumbnails.scalars().all(), key=str), sorted(media.scalars().all())
+
+
+def _save_activity_blobs(storage: LocalStorage | S3Storage) -> None:
+    storage.save(_FILES, "processed/1.fit", b"fit", "application/octet-stream")
+    storage.save(_FILES, "processed/999.tcx", b"orphan", "application/octet-stream")
+    storage.save(_FILES, "upload_staging/abc.fit", b"staged", "application/octet-stream")
+    storage.save(_THUMBNAILS, "1.webp", b"thumb", "image/webp")
+    storage.save(_THUMBNAILS, "999.webp", b"orphan", "image/webp")
+    storage.save(_MEDIA, "1_aaa.jpg", b"aaa", "image/jpeg")
+    storage.save(_MEDIA, "1_bbb.jpg", b"bbb", "image/jpeg")
+    storage.save(_MEDIA, "999_eee.jpg", b"orphan", "image/jpeg")
+
+
+class TestActivityBlobs:
+    def test_renames_the_files_thumbnails_and_media_and_rewrites_their_columns(self, tmp_path: Path, db: Session):
+        storage = LocalStorage(str(tmp_path))
+        _save_activity_blobs(storage)
+
+        _run(storage, db)
+
+        assert storage.list_keys(_FILES, "") == sorted([f"processed/{_ACTIVITY}.fit", "upload_staging/abc.fit"])
+        assert storage.get(_FILES, f"processed/{_ACTIVITY}.fit") == b"fit"
+        assert storage.list_keys(_THUMBNAILS, "") == [f"{_ACTIVITY}.webp"]
+        assert storage.get(_THUMBNAILS, f"{_ACTIVITY}.webp") == b"thumb"
+        assert storage.list_keys(_MEDIA, "") == [f"{_ACTIVITY}_aaa.jpg", f"{_ACTIVITY}_bbb.jpg"]
+        assert storage.get(_MEDIA, f"{_ACTIVITY}_bbb.jpg") == b"bbb"
+        assert _stored_paths(db) == ([None, f"{_ACTIVITY}.webp"], [f"{_ACTIVITY}_aaa.jpg", f"{_ACTIVITY}_bbb.jpg"])
+        assert _executed(db) is True
+
+    def test_a_failing_media_copy_leaves_the_columns_and_the_integer_blobs_and_the_next_run_finishes(
+        self, tmp_path: Path, db: Session
+    ):
+        storage = _FailingCopy(str(tmp_path))
+        storage.fail = "1_bbb.jpg"
+        _save_activity_blobs(storage)
+
+        _run(storage, db)
+
+        assert _executed(db) is False
+        assert _table_exists(db) is True
+        assert _stored_paths(db)[1] == ["1_aaa.jpg", "1_bbb.jpg"]
+        assert storage.list_keys(_MEDIA, "") == sorted(
+            ["1_aaa.jpg", "1_bbb.jpg", "999_eee.jpg", f"{_ACTIVITY}_aaa.jpg"]
+        )
+
+        storage.fail = ""
+        _run(storage, db)
+
+        assert storage.list_keys(_MEDIA, "") == [f"{_ACTIVITY}_aaa.jpg", f"{_ACTIVITY}_bbb.jpg"]
+        assert _stored_paths(db)[1] == [f"{_ACTIVITY}_aaa.jpg", f"{_ACTIVITY}_bbb.jpg"]
+        assert _executed(db) is True
+
+    def test_an_existing_uuid_key_is_not_overwritten(self, tmp_path: Path, db: Session):
+        storage = LocalStorage(str(tmp_path))
+        storage.save(_MEDIA, "1_aaa.jpg", b"old", "image/jpeg")
+        storage.save(_MEDIA, f"{_ACTIVITY}_aaa.jpg", b"already copied", "image/jpeg")
+        storage.save(_FILES, "processed/1.fit", b"old", "application/octet-stream")
+        storage.save(_FILES, f"processed/{_ACTIVITY}.fit", b"already copied", "application/octet-stream")
+
+        _run(storage, db)
+
+        assert storage.get(_MEDIA, f"{_ACTIVITY}_aaa.jpg") == b"already copied"
+        assert storage.get(_FILES, f"processed/{_ACTIVITY}.fit") == b"already copied"
+        assert storage.list_keys(_MEDIA, "") == [f"{_ACTIVITY}_aaa.jpg"]
+
+    def test_a_second_run_changes_nothing(self, tmp_path: Path, db: Session):
+        storage = LocalStorage(str(tmp_path))
+        _save_activity_blobs(storage)
+        _run(storage, db)
+        paths = _stored_paths(db)
+
+        _run(storage, db)
+
+        assert _stored_paths(db) == paths
+        assert storage.list_keys(_MEDIA, "") == [f"{_ACTIVITY}_aaa.jpg", f"{_ACTIVITY}_bbb.jpg"]
+
+
+class TestActivityBlobsOnS3:
+    @pytest.fixture
+    def client(self) -> _FakeS3Client:
+        return _FakeS3Client()
+
+    @pytest.fixture
+    def storage(self, client: _FakeS3Client) -> S3Storage:
+        return S3Storage(client, "bucket", "endurain")
+
+    def test_renames_the_files_thumbnails_and_media_and_rewrites_their_columns(self, storage: S3Storage, db: Session):
+        _save_activity_blobs(storage)
+
+        _run(storage, db)
+
+        assert storage.list_keys(_FILES, "") == sorted([f"processed/{_ACTIVITY}.fit", "upload_staging/abc.fit"])
+        assert storage.list_keys(_THUMBNAILS, "") == [f"{_ACTIVITY}.webp"]
+        assert storage.list_keys(_MEDIA, "") == [f"{_ACTIVITY}_aaa.jpg", f"{_ACTIVITY}_bbb.jpg"]
+        assert storage.get(_MEDIA, f"{_ACTIVITY}_bbb.jpg") == b"bbb"
+        assert _stored_paths(db) == ([None, f"{_ACTIVITY}.webp"], [f"{_ACTIVITY}_aaa.jpg", f"{_ACTIVITY}_bbb.jpg"])
+        assert _executed(db) is True
+
+    def test_an_existing_uuid_key_is_not_overwritten(self, storage: S3Storage, db: Session):
+        storage.save(_MEDIA, "1_aaa.jpg", b"old", "image/jpeg")
+        storage.save(_MEDIA, f"{_ACTIVITY}_aaa.jpg", b"already copied", "image/jpeg")
+
+        _run(storage, db)
+
+        assert storage.get(_MEDIA, f"{_ACTIVITY}_aaa.jpg") == b"already copied"
+        assert storage.list_keys(_MEDIA, "") == [f"{_ACTIVITY}_aaa.jpg"]
+
+    def test_a_failing_copy_leaves_the_columns_and_the_integer_blobs_and_the_next_run_finishes(
+        self, storage: S3Storage, client: _FakeS3Client, db: Session
+    ):
+        client.fail_copy_to = f"{_ACTIVITY}_bbb.jpg"
+        _save_activity_blobs(storage)
+
+        _run(storage, db)
+
+        assert _executed(db) is False
+        assert _table_exists(db) is True
+        assert _stored_paths(db)[1] == ["1_aaa.jpg", "1_bbb.jpg"]
+        assert storage.list_keys(_MEDIA, "") == sorted(
+            ["1_aaa.jpg", "1_bbb.jpg", "999_eee.jpg", f"{_ACTIVITY}_aaa.jpg"]
+        )
+
+        client.fail_copy_to = None
+        _run(storage, db)
+
+        assert storage.list_keys(_MEDIA, "") == [f"{_ACTIVITY}_aaa.jpg", f"{_ACTIVITY}_bbb.jpg"]
+        assert _stored_paths(db)[1] == [f"{_ACTIVITY}_aaa.jpg", f"{_ACTIVITY}_bbb.jpg"]
+        assert _executed(db) is True
+
+    def test_a_second_run_changes_nothing(self, storage: S3Storage, db: Session):
+        _save_activity_blobs(storage)
+        _run(storage, db)
+        paths = _stored_paths(db)
+
+        _run(storage, db)
+
+        assert _stored_paths(db) == paths
+        assert storage.list_keys(_MEDIA, "") == [f"{_ACTIVITY}_aaa.jpg", f"{_ACTIVITY}_bbb.jpg"]

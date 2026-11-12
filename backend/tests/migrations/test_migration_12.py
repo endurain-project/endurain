@@ -1,6 +1,7 @@
 """Tests for migration 12: stored images lose their metadata."""
 
 import io
+import uuid
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -18,9 +19,9 @@ _JPEG = images.jpeg_with_exif((2000, 1000))
 _PNG = images.png_with_text()
 
 
-def _media(media_id: int, key: str) -> activity_media_contracts.ActivityMediaRecord:
+def _media(media_id: uuid.UUID, key: str) -> activity_media_contracts.ActivityMediaRecord:
     return activity_media_contracts.ActivityMediaRecord(
-        id=media_id, activity_id=1, media_path=key, media_type=1, content_hash=None
+        id=media_id, activity_id=uuid.uuid4(), media_path=key, media_type=1, content_hash=None
     )
 
 
@@ -32,7 +33,7 @@ def _run(storage: LocalStorage, *, photo_keys: list[tuple[int, str | None]], med
         patch(f"{_MODULE}.users_migration_service.get_stored_photo_keys", return_value=photo_keys),
         patch(
             f"{_MODULE}.activity_media_migration_service.get_all_activity_media",
-            return_value=[_media(index, key) for index, key in enumerate(media, start=1)],
+            return_value=[_media(uuid.uuid4(), key) for key in media],
         ),
     ):
         runtime.get_active_platform.return_value.storage = storage
@@ -122,7 +123,7 @@ class TestProcessMigration12:
             patch(f"{_MODULE}.users_migration_service.get_stored_photo_keys", return_value=[]),
             patch(
                 f"{_MODULE}.activity_media_migration_service.get_all_activity_media",
-                return_value=[_media(1, "1_a.jpg")],
+                return_value=[_media(uuid.uuid4(), "1_a.jpg")],
             ),
             patch.object(storage, "get", side_effect=get),
         ):

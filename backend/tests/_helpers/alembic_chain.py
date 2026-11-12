@@ -1,6 +1,7 @@
 """Helpers that run the application's real Alembic chain against a disposable PostgreSQL database."""
 
 import json
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -571,6 +572,84 @@ def _seed_v0_21_gear(connection: Connection) -> None:
     )
 
 
+def _seed_v0_21_activity_children(connection: Connection) -> None:
+    """Seed the children of activities 1 to 3, in the shape of revision 84, with out-of-id-order media.
+
+    Activities 1 and 3 get a map thumbnail named by their id. Activity 1 gets three laps in start order, two sets, three workout steps in ``message_index`` order, two streams and three media
+    rows (ids 4, 2 and 3, inserted out of id order) next to the seeded one. Activity 2 gets two streams and activity 3
+    one lap, two streams and one media row. Activity 1 and its first stream carry provider ids.
+    """
+    _execute(connection, "UPDATE activities SET map_thumbnail_path = id || '.webp' WHERE id IN (1, 3)")
+    _execute(
+        connection, "UPDATE activities SET strava_activity_id = 12345, garminconnect_activity_id = 67890 WHERE id = 1"
+    )
+    _execute(
+        connection,
+        """INSERT INTO activity_laps (id, activity_id, start_time)
+           VALUES (2, 1, '2024-05-01 10:10:00'), (3, 1, '2024-05-01 10:20:00'), (4, 3, '2024-05-03 10:00:00')""",
+    )
+    _execute(
+        connection,
+        """INSERT INTO activity_sets (id, activity_id, duration, set_type, start_time)
+           VALUES (2, 1, 40, 'rest', '2024-05-01 10:00:30')""",
+    )
+    _execute(
+        connection,
+        """INSERT INTO activity_workout_steps (id, activity_id, message_index, duration_type)
+           VALUES (2, 1, 1, 'time'), (3, 1, 2, 'time')""",
+    )
+    for stream_id, activity_id, stream_type in ((2, 1, 2), (3, 2, 1), (4, 2, 2), (5, 3, 1), (6, 3, 2)):
+        _execute(
+            connection,
+            "INSERT INTO activities_streams (id, activity_id, stream_type, stream_waypoints) "
+            "VALUES (:id, :activity_id, :stream_type, CAST(:waypoints AS json))",
+            id=stream_id,
+            activity_id=activity_id,
+            stream_type=stream_type,
+            waypoints=json.dumps([{"time": f"2024-05-0{activity_id}T10:00:00", "value": stream_id * 10}]),
+        )
+    _execute(connection, "UPDATE activities_streams SET strava_activity_stream_id = 555 WHERE id = 2")
+    _execute(
+        connection,
+        """INSERT INTO activity_media (id, activity_id, media_path, media_type)
+           VALUES (4, 1, '1_aaa.jpg', 1), (2, 1, '1_bbb.jpg', 1), (3, 1, '1_ccc.jpg', 1), (5, 3, '3_ddd.jpg', 1)""",
+    )
+
+
+def _seed_v0_21_activity_references(connection: Connection) -> None:
+    """Seed the notifications and ingestion jobs that carry activity ids: live, dangling, empty and null ones.
+
+    Notification 1 (source event ``...5555``), 6 (``...5556``) and 7 (``...5557``) name activities 1, 3 and 999.
+    """
+    for notification_id, notification_type, document in (
+        (6, 2, {"activity_id": 3, "activity_name": "Ride on second bike"}),
+        (7, 1, {"activity_id": 999}),
+    ):
+        _execute(
+            connection,
+            """INSERT INTO notifications (id, user_id, type, options, read, created_at, source_event_id)
+               VALUES (:id, 1, :type, CAST(:options AS json), false, '2024-05-01 10:00:00', :source_event_id)""",
+            id=notification_id,
+            source_event_id=f"55555555-5555-4555-8555-55555555555{notification_id}",
+            type=notification_type,
+            options=json.dumps(document),
+        )
+    for job_id, status, activity_ids in (
+        ("66666666-6666-4666-8666-666666666667", "pending", "[1, 3]"),
+        ("66666666-6666-4666-8666-666666666668", "failed", "[3, 999]"),
+        ("66666666-6666-4666-8666-666666666669", "completed", "[]"),
+        ("66666666-6666-4666-8666-666666666670", "pending", None),
+    ):
+        _execute(
+            connection,
+            """INSERT INTO activity_ingestion_jobs (id, user_id, filename, status, activity_ids, kind)
+               VALUES (:id, 1, 'seed.fit', :status, CAST(:activity_ids AS jsonb), 'upload')""",
+            id=job_id,
+            status=status,
+            activity_ids=activity_ids,
+        )
+
+
 def _seed_v0_21_health_record_deletions(connection: Connection) -> None:
     _execute(
         connection,
@@ -701,40 +780,63 @@ IDP_EVENT_CASES: tuple[tuple[str, dict[str, object]], ...] = (
     ("auth.account_security_changed", {"user_id": 1, "change": "identity_provider_unlinked", "idp_id": 99}),
     ("activity.created", {"activity_id": 1, "user_id": 1, "idp_id": 2}),
 )
-#: The metadata of every seeded event row.
+#: The metadata of every seeded identity-provider event row.
 IDP_EVENT_METADATA: dict[str, object] = {"user_id": 1, "request_id": "seed"}
+#: The id prefix of the identity-provider event rows: ``idp-event-<index>`` in the event log, ``idp-outbox-<index>-...``
+#: in the outbox and ``idp-job-<index>-<state>`` in the processing jobs.
+IDP_EVENT_PREFIX = "idp"
+#: The events the activities revision rewrites, as (event type, payload): ``activity_id`` 1 and 3 name seeded
+#: activities, 999 names none; the control is an event of another type that carries an integer ``activity_id`` and
+#: must stay as it is.
+ACTIVITY_EVENT_CASES: tuple[tuple[str, dict[str, object]], ...] = (
+    ("activity.created", {"activity_id": 1, "user_id": 1, "duplicate_start_time": False}),
+    ("activity.updated", {"activity_id": 3, "user_id": 1, "changed_fields": ["name"]}),
+    ("activity.deleted", {"activity_id": 999}),
+    ("auth.idp_linked", {"user_id": 1, "idp_id": 2, "activity_id": 1}),
+)
+#: The metadata of every seeded activity event row.
+ACTIVITY_EVENT_METADATA: dict[str, object] = {"activity_id": 1, "user_id": 1, "request_id": "seed"}
+#: The id prefix of the activity event rows, laid out as ``IDP_EVENT_PREFIX`` is.
+ACTIVITY_EVENT_PREFIX = "act"
 #: The states of the seeded processing jobs; ``retrying`` is a pending job that was attempted.
-IDP_JOB_STATES = ("pending", "retrying", "claimed", "dead_letter", "completed")
-#: The event log id of the case at an index of ``IDP_EVENT_CASES``; the outbox and job rows of the case carry the
-#: index in their ids (``idp-outbox-<index>-...``, ``idp-job-<index>-...``).
-IDP_EVENT_IDS = tuple(f"idp-event-{index}" for index in range(len(IDP_EVENT_CASES)))
+EVENT_JOB_STATES = ("pending", "retrying", "claimed", "dead_letter", "completed")
 
 
-def seed_idp_events(connection: Connection, prefix: str = "") -> None:
+def seed_events(
+    connection: Connection,
+    cases: Sequence[tuple[str, dict[str, object]]],
+    metadata: dict[str, object],
+    id_prefix: str,
+    table_prefix: str = "",
+) -> None:
     """Seed one event row per case in every substrate table, in each state a row can be in.
 
     The outbox gets an unrelayed and a relayed row per case, the processing jobs one row per case and state, the
-    event log one row per case. Every row carries ``IDP_EVENT_METADATA``.
+    event log one row per case. Every row carries ``metadata``. The ids are ``<id_prefix>-event-<index>`` in the log,
+    ``<id_prefix>-outbox-<index>-<relayed>`` in the outbox and ``<id_prefix>-job-<index>-<state>`` in the jobs.
 
     Args:
         connection: A connection on the database.
-        prefix: The prefix of the substrate table names: empty before JASIL renames them, ``jasil_`` after.
+        cases: The (event type, payload) of each event.
+        metadata: The metadata of every row.
+        id_prefix: The prefix of the row ids.
+        table_prefix: The prefix of the substrate table names: empty before JASIL renames them, ``jasil_`` after.
     """
     jsonb = postgresql.JSONB
     log = sa.table(
-        f"{prefix}event_log",
+        f"{table_prefix}event_log",
         *(sa.column(name) for name in ("id", "event_type", "event_source", "status")),
         sa.column("event_payload", jsonb),
         sa.column("event_metadata", jsonb),
     )
     outbox = sa.table(
-        f"{prefix}event_outbox",
+        f"{table_prefix}event_outbox",
         *(sa.column(name) for name in ("id", "event_id", "event_type", "source", "timestamp", "relayed_at")),
         sa.column("payload", jsonb),
         sa.column("event_metadata", jsonb),
     )
     jobs = sa.table(
-        f"{prefix}processing_jobs",
+        f"{table_prefix}processing_jobs",
         *(
             sa.column(name)
             for name in (
@@ -751,35 +853,36 @@ def seed_idp_events(connection: Connection, prefix: str = "") -> None:
         sa.column("payload", jsonb),
         sa.column("job_metadata", jsonb),
     )
-    cases = list(enumerate(IDP_EVENT_CASES))
+    numbered = list(enumerate(cases))
+    event_ids = [f"{id_prefix}-event-{index}" for index, _ in numbered]
     connection.execute(
         sa.insert(log),
         [
             {
-                "id": IDP_EVENT_IDS[index],
+                "id": event_ids[index],
                 "event_type": event_type,
                 "event_source": "seed",
                 "status": "published",
                 "event_payload": payload,
-                "event_metadata": IDP_EVENT_METADATA,
+                "event_metadata": metadata,
             }
-            for index, (event_type, payload) in cases
+            for index, (event_type, payload) in numbered
         ],
     )
     connection.execute(
         sa.insert(outbox),
         [
             {
-                "id": f"idp-outbox-{index}-{relayed}",
-                "event_id": f"{IDP_EVENT_IDS[index]}-{relayed}",
+                "id": f"{id_prefix}-outbox-{index}-{relayed}",
+                "event_id": f"{event_ids[index]}-{relayed}",
                 "event_type": event_type,
                 "source": "seed",
                 "timestamp": "2024-05-01T12:00:00+00:00",
                 "relayed_at": datetime(2024, 5, 1, 12, tzinfo=UTC) if relayed else None,
                 "payload": payload,
-                "event_metadata": IDP_EVENT_METADATA,
+                "event_metadata": metadata,
             }
-            for index, (event_type, payload) in cases
+            for index, (event_type, payload) in numbered
             for relayed in (False, True)
         ],
     )
@@ -787,8 +890,8 @@ def seed_idp_events(connection: Connection, prefix: str = "") -> None:
         sa.insert(jobs),
         [
             {
-                "id": f"idp-job-{index}-{state}",
-                "event_id": IDP_EVENT_IDS[index],
+                "id": f"{id_prefix}-job-{index}-{state}",
+                "event_id": event_ids[index],
                 "event_type": event_type,
                 "subscriber_id": f"seed.subscriber.{state}",
                 "source": "seed",
@@ -796,10 +899,10 @@ def seed_idp_events(connection: Connection, prefix: str = "") -> None:
                 "attempts": 2 if state == "retrying" else 0,
                 "max_attempts": 5,
                 "payload": payload,
-                "job_metadata": IDP_EVENT_METADATA,
+                "job_metadata": metadata,
             }
-            for index, (event_type, payload) in cases
-            for state in IDP_JOB_STATES
+            for index, (event_type, payload) in numbered
+            for state in EVENT_JOB_STATES
         ],
     )
 
@@ -830,4 +933,7 @@ def seed_v0_21(connection: Connection) -> None:
     _seed_v0_21_idp_session_tokens(connection)
     _seed_v0_21_second_identity_provider(connection)
     _seed_v0_21_idp_notifications(connection)
-    seed_idp_events(connection)
+    _seed_v0_21_activity_children(connection)
+    _seed_v0_21_activity_references(connection)
+    seed_events(connection, IDP_EVENT_CASES, IDP_EVENT_METADATA, IDP_EVENT_PREFIX)
+    seed_events(connection, ACTIVITY_EVENT_CASES, ACTIVITY_EVENT_METADATA, ACTIVITY_EVENT_PREFIX)

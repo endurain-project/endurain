@@ -5,6 +5,13 @@ change behaviour with a new function, not by editing one. The module sits beside
 under ``alembic/`` because every conversion revision shares it. PostgreSQL only: ``gen_random_uuid()`` is built in
 from PostgreSQL 13. Table and index names come only from the literal spec of a revision, never from input. The helpers that rewrite stored ids and record the mapping run
 while the parent still holds both its ``id`` and its ``new_id``.
+
+Helpers added for the activity tables:
+
+* :func:`add_uuid_ids_with_child_tables` maps the references and gives every child row its ``new_id`` in one rewrite.
+* :func:`swap_in_uuid_primary_key` is the swap half of :func:`give_uuid_primary_key`, for a table whose ``new_id``
+  is already filled.
+* :func:`rewrite_json_array_ids` rewrites the integer elements of a JSON array column.
 """
 
 from collections.abc import Sequence
@@ -13,6 +20,7 @@ from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.dialects.postgresql import aggregate_order_by
 
 from alembic import op
 
@@ -121,6 +129,24 @@ def give_uuid_primary_key(table: str, indexes: Sequence[IdIndex] = ()) -> None:
         op.create_index(index.name, table, list(index.columns))
 
 
+def swap_in_uuid_primary_key(table: str, indexes: Sequence[IdIndex] = ()) -> None:
+    """Replace a table's integer ``id`` by its already filled ``new_id`` as the UUID primary key.
+
+    Dropping the old column drops the primary key, every index that contains it and its serial sequence. Nothing
+    references these ids. No server default stays on the column: the models generate the UUID in Python.
+
+    Args:
+        table: The table to convert; it must have its integer ``id`` and a filled ``new_id``.
+        indexes: The indexes that contained ``id``, recreated on the new column.
+    """
+    op.drop_column(table, "id")
+    op.alter_column(table, "new_id", new_column_name="id")
+    op.alter_column(table, "id", existing_type=sa.Uuid(), nullable=False)
+    op.create_primary_key(f"{table}_pkey", table, ["id"])
+    for index in indexes:
+        op.create_index(index.name, table, list(index.columns))
+
+
 @dataclass(frozen=True)
 class IdReference:
     """A column that holds the ``id`` of a table being converted.
@@ -159,14 +185,34 @@ def _is_number(document: sa.ColumnElement[Any], key: str) -> sa.ColumnElement[bo
     return sa.func.jsonb_typeof(document[key]) == "number"
 
 
-def _with_uuid_id(document: sa.ColumnElement[Any], key: str, parent: sa.TableClause) -> sa.ColumnElement[Any]:
+def _integer_id(value_text: sa.ColumnElement[Any]) -> sa.ColumnElement[Any]:
+    """Return the text of a JSON number as an ``integer``, or ``NULL`` when it is not a plain id.
+
+    Comparing ``integer`` to ``numeric`` keeps PostgreSQL from using a primary key, so the lookup casts to the
+    column's own type. Only whole numbers of up to nine digits match; anything else names no row.
+    """
+    return sa.case((value_text.regexp_match("^[0-9]{1,9}$").is_not(None), sa.cast(value_text, sa.Integer)))
+
+
+def _with_uuid_id(
+    document: sa.ColumnElement[Any], key: str, parent: sa.TableClause, by_primary_key: bool = False
+) -> sa.ColumnElement[Any]:
     """Return the jsonb document with the integer under ``key`` replaced by the UUID of its parent row, as a string.
 
     An id that matches no parent row (a dangling reference) gets a fresh random UUID, so the value is still a valid
     id that names nothing.
+
+    Args:
+        document: The jsonb document.
+        key: The key that holds the id.
+        parent: The parent table, with its ``id`` and ``new_id``.
+        by_primary_key: Look the parent up with an ``integer`` comparison, so a large parent table is read through its
+            primary key instead of being scanned once per rewritten row.
     """
+    value = document[key].astext
+    matches = parent.c.id == (_integer_id(value) if by_primary_key else sa.cast(value, sa.Numeric))
     new_id = sa.func.coalesce(
-        sa.select(parent.c.new_id).where(parent.c.id == sa.cast(document[key].astext, sa.Numeric)).scalar_subquery(),
+        sa.select(parent.c.new_id).where(matches).scalar_subquery(),
         sa.func.gen_random_uuid(),
     )
     return sa.func.jsonb_set(
@@ -208,7 +254,30 @@ def add_uuid_ids_with_references(parent: str, references: Sequence[IdReference])
         )
 
 
-def rewrite_payload_ids(event_types: Sequence[str], key: str, parent: str) -> None:
+def add_uuid_ids_with_child_tables(parent: str, children: Sequence[IdReference]) -> None:
+    """Give a table and each child table random ``new_id`` values and map every child's reference, in one rewrite each.
+
+    Each child row gets its own ``new_id`` and its ``new_<column>`` in a single ``UPDATE``, so the heap of a large
+    child table is rewritten once. A ``NULL`` reference stays ``NULL``. Nothing is dropped: the stored ids can still be
+    rewritten from the integer ids before :func:`swap_in_uuid_ids` and :func:`swap_in_uuid_primary_key` replace them.
+
+    Args:
+        parent: The table being converted; it must still have its integer ``id``.
+        children: The columns that hold its ids, one per child table; each child must still have its integer ``id``.
+    """
+    parent_rows = sa.table(parent, sa.column("id"), sa.column("new_id"))
+    op.add_column(parent, sa.Column("new_id", sa.Uuid(), nullable=True))
+    op.execute(sa.update(parent_rows).values(new_id=sa.func.gen_random_uuid()))
+    for child in children:
+        new_column = f"new_{child.column}"
+        rows = sa.table(child.table, sa.column(child.column), sa.column("new_id"), sa.column(new_column))
+        op.add_column(child.table, sa.Column("new_id", sa.Uuid(), nullable=True))
+        op.add_column(child.table, sa.Column(new_column, sa.Uuid(), nullable=True))
+        parent_id = sa.select(parent_rows.c.new_id).where(parent_rows.c.id == rows.c[child.column]).scalar_subquery()
+        op.execute(sa.update(rows).values({"new_id": sa.func.gen_random_uuid(), new_column: parent_id}))
+
+
+def rewrite_payload_ids(event_types: Sequence[str], key: str, parent: str, by_primary_key: bool = False) -> None:
     """Rewrite an integer id in the payloads of the given event types to the UUID of its parent row.
 
     Every row of every present event table is rewritten whatever its status (pending, retrying, claimed, dead
@@ -218,6 +287,7 @@ def rewrite_payload_ids(event_types: Sequence[str], key: str, parent: str) -> No
         event_types: The event types whose payloads carry the id under ``key``.
         key: The payload key that holds the id.
         parent: The table whose ids the key holds; it must still have its ``new_id``.
+        by_primary_key: Look the parent up through its primary key (see :func:`_with_uuid_id`).
     """
     parents = sa.table(parent, sa.column("id"), sa.column("new_id"))
     for names, payload_column, _metadata_column in _EVENT_TABLES:
@@ -226,12 +296,12 @@ def rewrite_payload_ids(event_types: Sequence[str], key: str, parent: str) -> No
             document = rows.c[payload_column]
             op.execute(
                 sa.update(rows)
-                .values({payload_column: _with_uuid_id(document, key, parents)})
+                .values({payload_column: _with_uuid_id(document, key, parents, by_primary_key)})
                 .where(rows.c.event_type.in_(list(event_types)), _is_number(document, key))
             )
 
 
-def rewrite_metadata_ids(key: str, parent: str) -> None:
+def rewrite_metadata_ids(key: str, parent: str, by_primary_key: bool = False) -> None:
     """Rewrite an integer id under ``key`` in the metadata of every event row to the UUID of its parent row.
 
     Rows are matched by the presence of a numeric value under the key, whatever their event type.
@@ -239,6 +309,7 @@ def rewrite_metadata_ids(key: str, parent: str) -> None:
     Args:
         key: The metadata key that holds the id.
         parent: The table whose ids the key holds; it must still have its ``new_id``.
+        by_primary_key: Look the parent up through its primary key (see :func:`_with_uuid_id`).
     """
     parents = sa.table(parent, sa.column("id"), sa.column("new_id"))
     for names, _payload_column, metadata_column in _EVENT_TABLES:
@@ -247,12 +318,12 @@ def rewrite_metadata_ids(key: str, parent: str) -> None:
             document = rows.c[metadata_column]
             op.execute(
                 sa.update(rows)
-                .values({metadata_column: _with_uuid_id(document, key, parents)})
+                .values({metadata_column: _with_uuid_id(document, key, parents, by_primary_key)})
                 .where(_is_number(document, key))
             )
 
 
-def rewrite_notification_option_ids(key: str, parent: str) -> None:
+def rewrite_notification_option_ids(key: str, parent: str, by_primary_key: bool = False) -> None:
     """Rewrite an integer id under ``key`` in the notification options to the UUID of its parent row.
 
     The other keys of the options are kept.
@@ -260,15 +331,56 @@ def rewrite_notification_option_ids(key: str, parent: str) -> None:
     Args:
         key: The options key that holds the id.
         parent: The table whose ids the key holds; it must still have its ``new_id``.
+        by_primary_key: Look the parent up through its primary key (see :func:`_with_uuid_id`).
     """
     parents = sa.table(parent, sa.column("id"), sa.column("new_id"))
     rows = sa.table("notifications", sa.column("options", sa.JSON))
     document = sa.cast(rows.c.options, postgresql.JSONB)
     op.execute(
         sa.update(rows)
-        .values(options=sa.cast(_with_uuid_id(document, key, parents), sa.JSON))
+        .values(options=sa.cast(_with_uuid_id(document, key, parents, by_primary_key), sa.JSON))
         .where(rows.c.options.is_not(None), _is_number(document, key))
     )
+
+
+def rewrite_json_array_ids(table: str, column: str, parent: str) -> None:
+    """Rewrite the integer elements of a JSON array column to the UUID strings of their parent rows.
+
+    An element that matches no parent row becomes a fresh random UUID, as in the payload rewrites. String and ``null``
+    elements and the order of the elements are kept. ``NULL`` columns, empty arrays, arrays without a number and
+    values that are not arrays are not touched.
+
+    The column type is ``JSON`` with a ``JSONB`` variant on PostgreSQL; this helper declares it as ``JSONB``, the type
+    the database holds, so the column must be ``jsonb``.
+
+    Args:
+        table: The table that holds the array column.
+        column: The array column.
+        parent: The table whose ids the elements hold; it must still have its ``new_id``.
+    """
+    parents = sa.table(parent, sa.column("id"), sa.column("new_id"))
+    rows = sa.table(table, sa.column(column, postgresql.JSONB))
+    document = rows.c[column]
+    elements = (
+        sa.func.jsonb_array_elements(document)
+        .table_valued(sa.column("value", postgresql.JSONB), with_ordinality="ordinality")
+        .render_derived(name="elements")
+    )
+    is_number = sa.func.jsonb_typeof(elements.c.value) == "number"
+    new_id = sa.func.coalesce(
+        sa.select(parents.c.new_id)
+        .where(parents.c.id == _integer_id(sa.cast(elements.c.value, sa.Text)))
+        .scalar_subquery(),
+        sa.func.gen_random_uuid(),
+    )
+    rewritten = sa.case((is_number, sa.func.to_jsonb(sa.cast(new_id, sa.Text))), else_=elements.c.value)
+    values = (
+        sa.select(sa.func.jsonb_agg(aggregate_order_by(rewritten, elements.c.ordinality), type_=postgresql.JSONB))
+        .select_from(elements)
+        .scalar_subquery()
+    )
+    has_number = sa.exists(sa.select(1).select_from(elements).where(is_number))
+    op.execute(sa.update(rows).values({column: values}).where(sa.func.jsonb_typeof(document) == "array", has_number))
 
 
 def record_old_ids(parent: str) -> None:
