@@ -1,8 +1,10 @@
 """The combined activity detail routes."""
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import patch
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -12,6 +14,8 @@ from modules.activities.activity_detail.schema import ActivityDetailRead
 from modules.activities.activity_laps.schema import ActivityLapsPage
 from modules.activities.activity_sets.schema import ActivitySetsPage
 from modules.activities.activity_workout_steps.schema import ActivityWorkoutStepsPage
+
+_ACTIVITY_ID = uuid.uuid4()
 
 
 def _build_app(mock_db):
@@ -32,7 +36,7 @@ def _build_app(mock_db):
 
 def _detail() -> ActivityDetailRead:
     activity = ActivityRead(
-        id=5,
+        id=_ACTIVITY_ID,
         user_id=1,
         name="Run",
         activity_type=1,
@@ -58,21 +62,25 @@ class TestAuthenticatedDetail:
     def test_returns_the_activity_and_its_collections(self, mock_get, mock_db):
         mock_get.return_value = _detail()
 
-        response = TestClient(_build_app(mock_db)).get("/activities/5/detail", headers={"Authorization": "Bearer x"})
+        response = TestClient(_build_app(mock_db)).get(
+            f"/activities/{_ACTIVITY_ID}/detail", headers={"Authorization": "Bearer x"}
+        )
 
         assert response.status_code == 200
         body = response.json()
-        assert body["activity"]["id"] == 5
+        assert body["activity"]["id"] == str(_ACTIVITY_ID)
         assert set(body) == {"activity", "owner", "laps", "sets", "workout_steps"}
         assert body["laps"]["total"] == 0
         assert body["owner"] is None
-        mock_get.assert_called_once_with(5, 1, mock_db)
+        mock_get.assert_called_once_with(_ACTIVITY_ID, 1, mock_db)
 
     @patch("modules.activities.activity_detail.router.activity_detail_service.get_activity_detail")
     def test_carries_the_activitys_etag_for_a_later_save(self, mock_get, mock_db):
         mock_get.return_value = _detail()
 
-        response = TestClient(_build_app(mock_db)).get("/activities/5/detail", headers={"Authorization": "Bearer x"})
+        response = TestClient(_build_app(mock_db)).get(
+            f"/activities/{_ACTIVITY_ID}/detail", headers={"Authorization": "Bearer x"}
+        )
 
         assert response.headers["ETag"] == '"4"'
 
@@ -80,12 +88,17 @@ class TestAuthenticatedDetail:
     def test_an_invisible_activity_is_not_found(self, mock_get, mock_db):
         mock_get.side_effect = core_exceptions.NotFoundError("nope")
 
-        response = TestClient(_build_app(mock_db)).get("/activities/5/detail", headers={"Authorization": "Bearer x"})
+        response = TestClient(_build_app(mock_db)).get(
+            f"/activities/{_ACTIVITY_ID}/detail", headers={"Authorization": "Bearer x"}
+        )
 
         assert response.status_code == 404
 
-    def test_a_non_positive_activity_id_is_rejected(self, mock_db):
-        response = TestClient(_build_app(mock_db)).get("/activities/0/detail", headers={"Authorization": "Bearer x"})
+    @pytest.mark.parametrize("activity_id", ["0", "1", "not-a-uuid"])
+    def test_a_malformed_activity_id_is_rejected(self, mock_db, activity_id):
+        response = TestClient(_build_app(mock_db)).get(
+            f"/activities/{activity_id}/detail", headers={"Authorization": "Bearer x"}
+        )
 
         assert response.status_code == 422
 
@@ -95,16 +108,22 @@ class TestPublicDetail:
     def test_returns_the_activity_and_its_collections_without_credentials(self, mock_get, mock_db):
         mock_get.return_value = _detail()
 
-        response = TestClient(_build_app(mock_db)).get("/public/activities/5/detail")
+        response = TestClient(_build_app(mock_db)).get(f"/public/activities/{_ACTIVITY_ID}/detail")
 
         assert response.status_code == 200
-        assert response.json()["activity"]["id"] == 5
-        mock_get.assert_called_once_with(5, mock_db)
+        assert response.json()["activity"]["id"] == str(_ACTIVITY_ID)
+        mock_get.assert_called_once_with(_ACTIVITY_ID, mock_db)
 
     @patch("modules.activities.activity_detail.public_router.activity_detail_service.get_public_activity_detail")
     def test_an_activity_that_is_not_public_is_not_found(self, mock_get, mock_db):
         mock_get.side_effect = core_exceptions.NotFoundError("nope")
 
-        response = TestClient(_build_app(mock_db)).get("/public/activities/5/detail")
+        response = TestClient(_build_app(mock_db)).get(f"/public/activities/{_ACTIVITY_ID}/detail")
 
         assert response.status_code == 404
+
+    @pytest.mark.parametrize("activity_id", ["1", "not-a-uuid"])
+    def test_a_malformed_activity_id_is_rejected(self, mock_db, activity_id):
+        response = TestClient(_build_app(mock_db)).get(f"/public/activities/{activity_id}/detail")
+
+        assert response.status_code == 422

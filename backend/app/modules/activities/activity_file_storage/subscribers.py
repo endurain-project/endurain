@@ -37,7 +37,7 @@ def cleanup_activity_file_for_event(event: Event) -> None:
     already-deleted row is not needed, and the delete is idempotent.
 
     Args:
-        event: The ``activity.deleted`` event (payload ``{"activity_id": int}``).
+        event: The ``activity.deleted`` event (payload ``{"activity_id": uuid}``).
     """
     payload = platform_event_versioning.parse_payload(activity_events.ActivityDeletedPayload, event)
     storage = platform_runtime.get_active_platform().storage

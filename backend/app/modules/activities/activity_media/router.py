@@ -95,7 +95,7 @@ def create_activity_media(
 def delete_activity_media(
     request: Request,
     activity_id: activity_dependencies.ActivityId,
-    media_id: core_dependencies.PositiveId,
+    media_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     storage: core_dependencies.Storage,

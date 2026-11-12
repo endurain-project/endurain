@@ -8,6 +8,7 @@ show it: another session sees nothing until the commit.
 """
 
 import time
+import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
@@ -88,22 +89,22 @@ def _committed_activities(factory) -> int:
         return db.scalar(select(func.count()).select_from(activity_models.Activity)) or 0
 
 
-def _committed_outbox_rows(factory, activity_id: int) -> int:
+def _committed_outbox_rows(factory, activity_id: uuid.UUID) -> int:
     with factory() as db:
         return (
             db.execute(
                 text(
                     "SELECT count(*) FROM jasil_event_outbox WHERE event_type = :event_type "
-                    "AND (payload ->> 'activity_id')::int = :activity_id"
+                    "AND payload ->> 'activity_id' = :activity_id"
                 ),
-                {"event_type": activity_events.ACTIVITY_CREATED, "activity_id": activity_id},
+                {"event_type": activity_events.ACTIVITY_CREATED, "activity_id": str(activity_id)},
             ).scalar_one()
             or 0
         )
 
 
-def _bus_events_for(dispatched: list, activity_id: int) -> int:
-    return sum(1 for event in dispatched if event.payload.get("activity_id") == activity_id)
+def _bus_events_for(dispatched: list, activity_id: uuid.UUID) -> int:
+    return sum(1 for event in dispatched if event.payload.get("activity_id") == str(activity_id))
 
 
 def test_nothing_is_visible_or_delivered_before_the_commit(mode, pg_factory):
@@ -182,7 +183,7 @@ def test_concurrent_imports_of_one_activity_store_it_once_and_publish_once(mode,
 
     delivery, dispatched = mode
     barrier = threading.Barrier(6)
-    ids: list[int] = []
+    ids: list[uuid.UUID] = []
     errors: list[BaseException] = []
 
     def import_it() -> None:

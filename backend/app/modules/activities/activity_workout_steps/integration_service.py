@@ -1,5 +1,6 @@
 """Module surface for activity workout steps: ingestion and profile contributors."""
 
+import uuid
 from typing import Any
 
 from pydantic import InstanceOf, TypeAdapter
@@ -14,7 +15,7 @@ import modules.activities.contributors as activities_contributors
 
 
 def _list_workout_steps_for_activities(
-    activity_ids: list[int],
+    activity_ids: list[uuid.UUID],
     db: Session,
 ) -> list[activity_workout_steps_schema.ActivityWorkoutStepsRead]:
     """Return workout steps for activity IDs already scoped by the caller.
@@ -37,7 +38,7 @@ _PAYLOAD: TypeAdapter[list[activity_workout_steps_contracts.ActivityWorkoutSteps
 
 def _store_workout_steps(
     steps: list[activity_workout_steps_contracts.ActivityWorkoutStepsCreate],
-    activity_id: int,
+    activity_id: uuid.UUID,
     db: Session,
 ) -> None:
     """Store parsed workout steps for an activity.
@@ -51,7 +52,7 @@ def _store_workout_steps(
 
 
 def _parse_profile_record(
-    record: dict[str, Any], _activity_id: int
+    record: dict[str, Any], _activity_id: uuid.UUID
 ) -> activity_workout_steps_contracts.ActivityWorkoutStepsCreate:
     """Validate one archived workout step.
 

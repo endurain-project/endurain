@@ -7,6 +7,7 @@ key, signed URL) lives in ``signing.py``. Keeping this module purely
 bytes-in/bytes-out means the read path never has to import the rendering stack.
 """
 
+import uuid
 from collections.abc import Mapping, Sequence
 from typing import Any
 from urllib.parse import urlparse
@@ -66,7 +67,7 @@ DEFAULT_USER_AGENT = "Endurain - StaticMap backend thumbnail generator"
 
 
 def render_activity_thumbnail(
-    activity_id: int,
+    activity_id: uuid.UUID,
     waypoints: Sequence[Mapping[str, Any]],
     *,
     tile_url: str = server_settings_constants.DEFAULT_TILE_URL,

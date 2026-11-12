@@ -14,6 +14,7 @@ not need one. See :mod:`jasil.event_versioning` for why in-flight events make
 this necessary.
 """
 
+import uuid
 from typing import ClassVar
 
 from jasil.event_versioning import VersionedPayload
@@ -62,7 +63,7 @@ class ActivityCreatedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    activity_id: int
+    activity_id: uuid.UUID
     user_id: int
     duplicate_start_time: bool = False
 
@@ -78,7 +79,7 @@ class ActivityDeletedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    activity_id: int
+    activity_id: uuid.UUID
 
 
 class ActivityUpdatedPayload(VersionedPayload):
@@ -98,7 +99,7 @@ class ActivityUpdatedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    activity_id: int
+    activity_id: uuid.UUID
     user_id: int | None = None
     changed_fields: list[str] = Field(default_factory=list)
 

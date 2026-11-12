@@ -1,9 +1,14 @@
 """Tests for the activity lifecycle thumbnail subscribers."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
 from jasil.events import new_event
+
+ID1 = uuid.UUID("00000000-0000-4000-8000-000000000001")
+ID5 = uuid.UUID("00000000-0000-4000-8000-000000000005")
+ID9 = uuid.UUID("00000000-0000-4000-8000-000000000009")
 
 
 class TestOnActivityCreatedGenerateThumbnail:
@@ -12,7 +17,7 @@ class TestOnActivityCreatedGenerateThumbnail:
         return new_event("activity.created", payload, source="test")
 
     @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
-    def test_noop_for_non_int_activity_id(self, mock_runtime):
+    def test_noop_for_malformed_activity_id(self, mock_runtime):
         from modules.activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
 
         on_activity_created_generate_thumbnail(self._event({"activity_id": "x", "user_id": 2}))
@@ -24,7 +29,7 @@ class TestOnActivityCreatedGenerateThumbnail:
         from modules.activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
 
         # The owner id is required to load the activity's stream; without it, skip.
-        on_activity_created_generate_thumbnail(self._event({"activity_id": 1}))
+        on_activity_created_generate_thumbnail(self._event({"activity_id": str(ID1)}))
 
         mock_runtime.get_active_platform.assert_not_called()
 
@@ -39,7 +44,7 @@ class TestOnActivityCreatedGenerateThumbnail:
         mock_session.return_value.__enter__.return_value = MagicMock()
         mock_streams.get_stream_for_derivation.return_value = None
 
-        on_activity_created_generate_thumbnail(self._event({"activity_id": 1, "user_id": 2}))
+        on_activity_created_generate_thumbnail(self._event({"activity_id": str(ID1), "user_id": 2}))
 
         mock_resolve.assert_not_called()
         mock_generate.assert_not_called()
@@ -55,7 +60,7 @@ class TestOnActivityCreatedGenerateThumbnail:
         mock_session.return_value.__enter__.return_value = MagicMock()
         mock_streams.get_stream_for_derivation.return_value = MagicMock(stream_waypoints=[{"lat": 1.0, "lon": 2.0}])
 
-        on_activity_created_generate_thumbnail(self._event({"activity_id": 1, "user_id": 2}))
+        on_activity_created_generate_thumbnail(self._event({"activity_id": str(ID1), "user_id": 2}))
 
         mock_resolve.assert_not_called()
         mock_generate.assert_not_called()
@@ -76,15 +81,15 @@ class TestOnActivityCreatedGenerateThumbnail:
         mock_streams.get_stream_for_derivation.return_value = MagicMock(stream_waypoints=waypoints)
         mock_resolve.return_value = ("u", "#fff", None)
 
-        on_activity_created_generate_thumbnail(self._event({"activity_id": 5, "user_id": 9}))
+        on_activity_created_generate_thumbnail(self._event({"activity_id": str(ID5), "user_id": 9}))
 
         # The stream read is now access-free; the subscriber addresses it by activity id.
         stream_args = mock_streams.get_stream_for_derivation.call_args.args
-        assert stream_args[0] == 5
+        assert stream_args[0] == ID5
         assert stream_args[2] is db
         mock_generate.assert_called_once()
         gen_args = mock_generate.call_args.args
-        assert gen_args[0] == 5
+        assert gen_args[0] == ID5
         assert gen_args[1] == waypoints
         assert gen_args[2] is storage
 
@@ -96,7 +101,7 @@ class TestOnActivityCreatedGenerateThumbnail:
         mock_runtime.get_active_platform.side_effect = RuntimeError("boom")
 
         # Must not raise — a thumbnail failure never breaks activity import.
-        on_activity_created_generate_thumbnail(self._event({"activity_id": 1, "user_id": 2}))
+        on_activity_created_generate_thumbnail(self._event({"activity_id": str(ID1), "user_id": 2}))
 
         mock_logger.error.assert_called()
 
@@ -107,7 +112,7 @@ class TestOnActivityDeletedCleanupThumbnail:
         return new_event("activity.deleted", payload, source="test")
 
     @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
-    def test_noop_for_non_int_payload(self, mock_runtime):
+    def test_noop_for_malformed_payload(self, mock_runtime):
         from modules.activities.activity_thumbnail.subscribers import on_activity_deleted_cleanup_thumbnail
 
         on_activity_deleted_cleanup_thumbnail(self._event({"activity_id": None}))
@@ -122,9 +127,9 @@ class TestOnActivityDeletedCleanupThumbnail:
         storage = MagicMock()
         mock_runtime.get_active_platform.return_value.storage = storage
 
-        on_activity_deleted_cleanup_thumbnail(self._event({"activity_id": 9}))
+        on_activity_deleted_cleanup_thumbnail(self._event({"activity_id": str(ID9)}))
 
-        mock_delete.assert_called_once_with(9, storage)
+        mock_delete.assert_called_once_with(ID9, storage)
 
     @patch("modules.activities.activity_thumbnail.service.delete_activity_thumbnail")
     @patch("jasil.subscribers.logger")
@@ -136,7 +141,7 @@ class TestOnActivityDeletedCleanupThumbnail:
         mock_runtime.get_active_platform.return_value.storage = MagicMock()
 
         # Must not raise — a cleanup failure never breaks activity deletion.
-        on_activity_deleted_cleanup_thumbnail(self._event({"activity_id": 1}))
+        on_activity_deleted_cleanup_thumbnail(self._event({"activity_id": str(ID1)}))
 
         mock_logger.error.assert_called()
 
@@ -172,7 +177,9 @@ class TestDurableThumbnailHandlers:
         # A malformed payload (missing user_id) raises so the durable job surfaces
         # it via retry / dead-letter instead of silently completing.
         with pytest.raises(ValidationError):
-            generate_activity_thumbnail_for_event(new_event("activity.created", {"activity_id": 1}, source="test"))
+            generate_activity_thumbnail_for_event(
+                new_event("activity.created", {"activity_id": str(ID1)}, source="test")
+            )
 
         mock_runtime.get_active_platform.assert_not_called()
 
@@ -185,7 +192,7 @@ class TestDurableThumbnailHandlers:
         # The durable core propagates so the runner can retry/dead-letter.
         with pytest.raises(RuntimeError):
             generate_activity_thumbnail_for_event(
-                new_event("activity.created", {"activity_id": 1, "user_id": 2}, source="test")
+                new_event("activity.created", {"activity_id": str(ID1), "user_id": 2}, source="test")
             )
 
     @patch("modules.activities.activity_thumbnail.service.delete_activity_thumbnail")
@@ -197,7 +204,9 @@ class TestDurableThumbnailHandlers:
         mock_runtime.get_active_platform.return_value.storage = MagicMock()
 
         with pytest.raises(OSError):
-            cleanup_activity_thumbnail_for_event(new_event("activity.deleted", {"activity_id": 1}, source="test"))
+            cleanup_activity_thumbnail_for_event(
+                new_event("activity.deleted", {"activity_id": str(ID1)}, source="test")
+            )
 
     def test_register_durable_handlers(self):
         from jasil.jobs.registry import JobHandlerRegistry

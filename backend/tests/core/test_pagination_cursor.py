@@ -14,18 +14,20 @@ import pytest
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
 
+_ROW_ID = uuid.UUID("0b9f3c1e-7a4d-4f6b-9a51-2f0c8d7e6b12")
+
 
 class TestCursorRoundTrip:
     def test_encodes_and_decodes_a_position(self):
         moment = datetime(2026, 7, 29, 12, 30, tzinfo=UTC)
 
-        assert core_pagination.decode_cursor(core_pagination.encode_cursor(moment, 42)) == (moment, 42)
+        assert core_pagination.decode_uuid_cursor(core_pagination.encode_cursor(moment, _ROW_ID)) == (moment, _ROW_ID)
 
     def test_cursor_does_not_reveal_the_position_to_someone_who_decodes_it(self):
         """A follower sees a hidden start time as a feed entry's cursor, so base64 alone must not expose it."""
         import base64
 
-        cursor = core_pagination.encode_cursor(datetime(2026, 7, 29, 12, 30, tzinfo=UTC), 42)
+        cursor = core_pagination.encode_cursor(datetime(2026, 7, 29, 12, 30, tzinfo=UTC), _ROW_ID)
 
         decoded = base64.urlsafe_b64decode(cursor + "=" * (-len(cursor) % 4))
 
@@ -34,9 +36,9 @@ class TestCursorRoundTrip:
     def test_survives_a_separator_inside_the_timestamp(self):
         """rpartition, not partition: the id is the last field, not the second."""
         moment = datetime(2026, 7, 29, 12, 30, tzinfo=UTC)
-        raw = core_pagination.encode_cursor(moment, 7)
+        raw = core_pagination.encode_cursor(moment, _ROW_ID)
 
-        assert core_pagination.decode_cursor(raw) == (moment, 7)
+        assert core_pagination.decode_uuid_cursor(raw) == (moment, _ROW_ID)
 
     @pytest.mark.parametrize(
         "bad",
@@ -45,19 +47,13 @@ class TestCursorRoundTrip:
     )
     def test_rejects_a_cursor_this_server_did_not_issue(self, bad):
         with pytest.raises(core_exceptions.InvalidInputError):
-            core_pagination.decode_cursor(bad)
+            core_pagination.decode_uuid_cursor(bad)
 
     def test_a_text_id_round_trips(self):
         moment = datetime(2026, 7, 29, 12, 30, tzinfo=UTC)
         job_id = "0b9f3c1e-7a4d-4f6b-9a51-2f0c8d7e6b12"
 
         assert core_pagination.decode_text_cursor(core_pagination.encode_cursor(moment, job_id)) == (moment, job_id)
-
-    def test_a_text_id_is_not_an_integer_cursor(self):
-        cursor = core_pagination.encode_cursor(datetime(2026, 7, 29, tzinfo=UTC), "not-a-number")
-
-        with pytest.raises(core_exceptions.InvalidInputError):
-            core_pagination.decode_cursor(cursor)
 
     @pytest.mark.parametrize("bad", ["", "YWJj"], ids=["empty", "not-issued-by-the-server"])
     def test_a_text_cursor_this_server_did_not_issue_is_refused(self, bad):
@@ -85,8 +81,8 @@ class TestCursorPage:
 
         assert core_pagination.decode_uuid_cursor(core_pagination.encode_cursor(moment, row_id)) == (moment, row_id)
 
-    def test_an_integer_cursor_is_not_a_uuid_cursor(self):
-        cursor = core_pagination.encode_cursor(datetime(2026, 7, 29, tzinfo=UTC), 42)
+    def test_a_numeric_id_is_not_a_uuid_cursor(self):
+        cursor = core_pagination.encode_cursor(datetime(2026, 7, 29, tzinfo=UTC), "42")
 
         with pytest.raises(core_exceptions.InvalidInputError):
             core_pagination.decode_uuid_cursor(cursor)

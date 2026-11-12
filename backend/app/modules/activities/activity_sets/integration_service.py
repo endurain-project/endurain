@@ -1,5 +1,6 @@
 """Public persistence operations for activity workout sets."""
 
+import uuid
 from collections.abc import Sequence
 from typing import Any
 
@@ -15,7 +16,7 @@ import modules.activities.contributors as activities_contributors
 
 
 def _list_sets_for_activities(
-    activity_ids: list[int],
+    activity_ids: list[uuid.UUID],
     db: Session,
 ) -> list[activity_sets_schema.ActivitySetsRead]:
     """Return workout sets for activity IDs already scoped by the caller.
@@ -38,7 +39,7 @@ _PAYLOAD: TypeAdapter[list[activity_sets_contracts.ActivitySetsCreate | list[obj
 
 def _store_sets(
     sets: Sequence[activity_sets_contracts.ActivitySetsCreate | list[object]],
-    activity_id: int,
+    activity_id: uuid.UUID,
     db: Session,
 ) -> None:
     """Store parsed workout sets for an activity.
@@ -51,7 +52,7 @@ def _store_sets(
     activity_sets_crud.create_activity_sets(list(sets), activity_id, db)
 
 
-def _parse_profile_record(record: dict[str, Any], activity_id: int) -> activity_sets_contracts.ActivitySetsCreate:
+def _parse_profile_record(record: dict[str, Any], activity_id: uuid.UUID) -> activity_sets_contracts.ActivitySetsCreate:
     """Validate one archived set record onto the restored activity.
 
     Args:

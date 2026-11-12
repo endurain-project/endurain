@@ -10,6 +10,8 @@ per kilometre over an ultra, or a lap button pressed all day), so an unpaged
 read would put no bound on the work or the payload one request could ask for.
 """
 
+import uuid
+
 from sqlalchemy.orm import Session
 
 import core.pagination as core_pagination
@@ -52,7 +54,7 @@ _COLLECTION: activity_integration.ChildCollection[
 
 
 def list_activity_laps(
-    activity_id: int,
+    activity_id: uuid.UUID,
     requester_user_id: int,
     db: Session,
     *,
@@ -84,7 +86,7 @@ def list_activity_laps(
 
 
 def list_public_activity_laps(
-    activity_id: int,
+    activity_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,

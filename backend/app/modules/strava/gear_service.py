@@ -154,7 +154,7 @@ def set_activities_gear(user_id: int, db: Session) -> int:
         return 0
 
     # A page at a time, so a long history is never held in memory; only the matched ids are kept.
-    gear_assignments: dict[int, uuid.UUID | None] = {}
+    gear_assignments: dict[uuid.UUID, uuid.UUID | None] = {}
     page_number = 1
     while page := activity_integration.list_user_activities_page(
         user_id, db, page_number=page_number, num_records=_ACTIVITY_PAGE_SIZE

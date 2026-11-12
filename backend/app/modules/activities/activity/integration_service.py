@@ -70,7 +70,7 @@ def list_garminconnect_gear_activity_refs(
     user_id: int,
     db: Session,
     *,
-    after_id: int = 0,
+    after_id: uuid.UUID | None = None,
     limit: int = core_pagination.DEFAULT_MAINTENANCE_BATCH_SIZE,
 ) -> list[activity_contracts.ActivityGarminGearRef]:
     """Return one bounded page of a user's activities that carry a Garmin Connect gear id.
@@ -90,7 +90,7 @@ def list_garminconnect_gear_activity_refs(
 
 def bulk_set_activities_gear(
     user_id: int,
-    gear_assignments: Mapping[int, uuid.UUID | None],
+    gear_assignments: Mapping[uuid.UUID, uuid.UUID | None],
     db: Session,
 ) -> int:
     """Assign gear to many of a user's activities at once.
@@ -305,7 +305,7 @@ def store_parsed_activity(
 
 
 def resolve_readable_parent(
-    activity_id: int,
+    activity_id: uuid.UUID,
     requester_user_id: int,
     db: Session,
 ) -> activity_schema.ActivityRead | None:
@@ -322,7 +322,7 @@ def resolve_readable_parent(
     return activity_child_access_service.resolve_readable_parent(activity_id, requester_user_id, db)
 
 
-def resolve_public_parent(activity_id: int, db: Session) -> activity_schema.ActivityRead | None:
+def resolve_public_parent(activity_id: uuid.UUID, db: Session) -> activity_schema.ActivityRead | None:
     """Return the parent activity when it is publicly shareable.
 
     Args:
@@ -335,7 +335,7 @@ def resolve_public_parent(activity_id: int, db: Session) -> activity_schema.Acti
     return activity_child_access_service.resolve_public_parent(activity_id, db)
 
 
-def owns_activity(activity_id: int, user_id: int, db: Session) -> bool:
+def owns_activity(activity_id: uuid.UUID, user_id: int, db: Session) -> bool:
     """Return whether a user owns an activity.
 
     Args:
@@ -356,7 +356,7 @@ def owns_activity(activity_id: int, user_id: int, db: Session) -> bool:
 # when it is durable, so one call can never end another module's transaction.
 
 
-def set_thumbnail_key(activity_id: int, key: str | None, db: Session, *, expected_key: str | None = None) -> bool:
+def set_thumbnail_key(activity_id: uuid.UUID, key: str | None, db: Session, *, expected_key: str | None = None) -> bool:
     """Stage recording or clearing an activity's stored thumbnail key.
 
     The caller commits.
@@ -388,7 +388,7 @@ def clear_all_thumbnail_keys(db: Session) -> None:
 def list_activities_with_thumbnail(
     db: Session,
     *,
-    after_id: int = 0,
+    after_id: uuid.UUID | None = None,
     limit: int = core_pagination.DEFAULT_MAINTENANCE_BATCH_SIZE,
 ) -> list[activity_contracts.ActivityThumbnailRef]:
     """Return one bounded page of activity references carrying a stored thumbnail key.
@@ -408,7 +408,7 @@ def list_activities_without_thumbnail(
     db: Session,
     *,
     due_at: datetime,
-    after_id: int = 0,
+    after_id: uuid.UUID | None = None,
     limit: int = core_pagination.DEFAULT_MAINTENANCE_BATCH_SIZE,
 ) -> list[activity_contracts.ActivityThumbnailRef]:
     """Return one bounded page of activities with no stored thumbnail key that are due an attempt.
@@ -425,7 +425,7 @@ def list_activities_without_thumbnail(
     return activity_crud.get_activities_without_thumbnail(db, due_at=due_at, after_id=after_id, limit=limit)
 
 
-def defer_thumbnail_attempts(activity_ids: Sequence[int], retry_at: datetime, db: Session) -> None:
+def defer_thumbnail_attempts(activity_ids: Sequence[uuid.UUID], retry_at: datetime, db: Session) -> None:
     """Stage when activities that did not get a thumbnail may be tried again.
 
     The caller commits.
@@ -442,7 +442,7 @@ def list_activities_missing_location(
     db: Session,
     *,
     due_at: datetime,
-    after_id: int = 0,
+    after_id: uuid.UUID | None = None,
     limit: int = core_pagination.DEFAULT_EXTERNAL_IO_BATCH_SIZE,
 ) -> list[activity_contracts.ActivityLocationRef]:
     """Return one id-ordered page of activities whose location is unresolved and due a lookup.
@@ -459,7 +459,7 @@ def list_activities_missing_location(
     return activity_crud.get_activities_missing_location(db, due_at=due_at, after_id=after_id, limit=limit)
 
 
-def defer_location_lookups(activity_ids: Sequence[int], retry_at: datetime, db: Session) -> None:
+def defer_location_lookups(activity_ids: Sequence[uuid.UUID], retry_at: datetime, db: Session) -> None:
     """Stage when activities whose location did not resolve may be looked up again.
 
     The caller commits.
@@ -473,7 +473,7 @@ def defer_location_lookups(activity_ids: Sequence[int], retry_at: datetime, db: 
 
 
 def set_activity_location(
-    activity_id: int,
+    activity_id: uuid.UUID,
     city: str | None,
     town: str | None,
     country: str | None,
@@ -534,7 +534,7 @@ def delete_activities_batch_for_user(user_id: int, limit: int, db: Session) -> i
     return activity_service.delete_activities_batch_for_user(user_id, limit, db, source="api:delete_user")
 
 
-def filter_existing_activity_ids(activity_ids: Sequence[int], db: Session) -> set[int]:
+def filter_existing_activity_ids(activity_ids: Sequence[uuid.UUID], db: Session) -> set[uuid.UUID]:
     """Return which of the given activity IDs still have a row.
 
     Used by storage sweeps to tell a live blob from one whose activity is gone.
@@ -549,7 +549,7 @@ def filter_existing_activity_ids(activity_ids: Sequence[int], db: Session) -> se
     return activity_crud.get_existing_activity_ids(activity_ids, db)
 
 
-def get_readable_activity(activity_id: int, requester_user_id: int, db: Session) -> activity_schema.ActivityRead:
+def get_readable_activity(activity_id: uuid.UUID, requester_user_id: int, db: Session) -> activity_schema.ActivityRead:
     """Return an activity the requester owns or may see, masked as they may see it.
 
     Args:
@@ -582,7 +582,7 @@ def with_media(
     return activity_service.with_media([activity], requester_user_id, db)[0]
 
 
-def get_public_activity(activity_id: int, db: Session) -> activity_schema.ActivityRead:
+def get_public_activity(activity_id: uuid.UUID, db: Session) -> activity_schema.ActivityRead:
     """Return a publicly shared activity, masked as an anonymous viewer may see it.
 
     Args:
@@ -622,7 +622,7 @@ def read_bulk_edit_job(
     return activity_schema.ActivitiesBulkEditStatus.model_validate({**current.envelope(), "status": edit_state.status})
 
 
-def touch_activity(activity_id: int, db: Session) -> None:
+def touch_activity(activity_id: uuid.UUID, db: Session) -> None:
     """Stamp an activity's ``updated_at`` after a change to what its owner reads, such as its media.
 
     Leaves ``version`` alone: the change is not an edit of the activity.
@@ -635,7 +635,7 @@ def touch_activity(activity_id: int, db: Session) -> None:
 
 
 def list_changed_activities(
-    user_id: int, after: core_sync.Position[int] | None, until: datetime, limit: int, db: Session
+    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[activity_schema.ActivityRead]:
     """List the user's activities changed after a position, as the owner reads them.
 
@@ -654,7 +654,7 @@ def list_changed_activities(
 
 def list_activity_deletions(
     user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
-) -> list[core_sync.Deletion[int]]:
+) -> list[core_sync.Deletion[uuid.UUID]]:
     """List the user's deleted activities after a position.
 
     Args:

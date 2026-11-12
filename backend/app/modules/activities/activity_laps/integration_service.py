@@ -1,5 +1,6 @@
 """Contributor surface for activity laps."""
 
+import uuid
 from typing import Any
 
 from pydantic import TypeAdapter
@@ -13,7 +14,7 @@ import modules.activities.contributors as activities_contributors
 
 
 def _list_laps_for_activities(
-    activity_ids: list[int],
+    activity_ids: list[uuid.UUID],
     db: Session,
 ) -> list[activity_laps_schema.ActivityLapsRead]:
     """Return laps for activity IDs already scoped by the caller.
@@ -34,7 +35,7 @@ _PAYLOAD: TypeAdapter[list[dict[str, object]]] = TypeAdapter(list[dict[str, obje
 
 def _store_laps(
     laps: list[dict[str, object]],
-    activity_id: int,
+    activity_id: uuid.UUID,
     db: Session,
 ) -> None:
     """Store parsed laps for an activity.
@@ -47,7 +48,7 @@ def _store_laps(
     activity_laps_crud.create_activity_laps(laps, activity_id, db)
 
 
-def _parse_profile_record(record: dict[str, Any], _activity_id: int) -> dict[str, object]:
+def _parse_profile_record(record: dict[str, Any], _activity_id: uuid.UUID) -> dict[str, object]:
     """Validate one archived lap record.
 
     Laps are stored from plain dicts and carry no parent id of their own, so the

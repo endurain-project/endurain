@@ -1,9 +1,13 @@
+import uuid
 from unittest.mock import patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import core.exceptions as core_exceptions
+
+ACTIVITY_ID = uuid.UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
+STREAM_ID = uuid.UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
 
 
 def _build_app(mock_db):
@@ -38,7 +42,7 @@ class TestReadActivityStreams:
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = ActivityStreamsPage.build([], 0, 1, 200)
 
-        response = client.get("/activities/1/streams", headers={"Authorization": "Bearer x"})
+        response = client.get(f"/activities/{ACTIVITY_ID}/streams", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
         assert response.json() == {"items": [], "total": 0, "page": 1, "num_records": 200, "next": None}
 
@@ -47,9 +51,11 @@ class TestReadActivityStreams:
         from modules.activities.activity_streams.schema import ActivityStreamsRead
 
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = ActivityStreamsRead(id=1, activity_id=1, stream_type=1, stream_waypoints=[{"x": 1}])
+        mock_get.return_value = ActivityStreamsRead(
+            id=STREAM_ID, activity_id=ACTIVITY_ID, stream_type=1, stream_waypoints=[{"x": 1}]
+        )
 
-        response = client.get("/activities/1/streams/heart_rate", headers={"Authorization": "Bearer x"})
+        response = client.get(f"/activities/{ACTIVITY_ID}/streams/heart_rate", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
 
     @patch("modules.activities.activity_streams.router.activity_streams_service.get_activity_stream")
@@ -58,7 +64,7 @@ class TestReadActivityStreams:
         client = TestClient(_build_app(mock_db))
         mock_get.side_effect = core_exceptions.NotFoundError("Activity stream not found")
 
-        response = client.get("/activities/1/streams/heart_rate", headers={"Authorization": "Bearer x"})
+        response = client.get(f"/activities/{ACTIVITY_ID}/streams/heart_rate", headers={"Authorization": "Bearer x"})
         assert response.status_code == 404
         assert response.json()["detail"] == "Activity stream not found"
 
@@ -75,15 +81,29 @@ class TestStreamTypePath:
         stored = list(constants.ActivityStreamType)
         for stream_type in stored:
             mock_get.return_value = ActivityStreamsRead(
-                id=1, activity_id=1, stream_type=stream_type.stored, stream_waypoints=[]
+                id=STREAM_ID, activity_id=ACTIVITY_ID, stream_type=stream_type.stored, stream_waypoints=[]
             )
 
-            response = client.get(f"/activities/1/streams/{stream_type.value}", headers={"Authorization": "Bearer x"})
+            response = client.get(
+                f"/activities/{ACTIVITY_ID}/streams/{stream_type.value}", headers={"Authorization": "Bearer x"}
+            )
 
             assert response.status_code == 200, stream_type
 
     def test_an_unknown_type_and_the_stored_integer_are_rejected(self, mock_db):
         client = TestClient(_build_app(mock_db))
 
-        assert client.get("/activities/1/streams/0", headers={"Authorization": "Bearer x"}).status_code == 422
-        assert client.get("/activities/1/streams/1", headers={"Authorization": "Bearer x"}).status_code == 422
+        assert (
+            client.get(f"/activities/{ACTIVITY_ID}/streams/0", headers={"Authorization": "Bearer x"}).status_code == 422
+        )
+        assert (
+            client.get(f"/activities/{ACTIVITY_ID}/streams/1", headers={"Authorization": "Bearer x"}).status_code == 422
+        )
+
+
+class TestMalformedActivityId:
+    def test_a_malformed_activity_id_is_422(self, mock_db):
+        client = TestClient(_build_app(mock_db))
+
+        assert client.get("/activities/1/streams", headers={"Authorization": "Bearer x"}).status_code == 422
+        assert client.get("/activities/1/streams/heart_rate", headers={"Authorization": "Bearer x"}).status_code == 422

@@ -13,6 +13,7 @@ from jasil.backends.state_memory import MemoryState
 import modules.activities.activity.bulk_edit_constants as bulk_edit_constants
 import modules.activities.activity.bulk_edit_state_store as bulk_edit_state_store
 
+_AFTER_ID = uuid.uuid4()
 _Kind = bulk_edit_constants.BulkEditKind.VISIBILITY
 _Status = bulk_edit_constants.BulkEditStatus
 
@@ -49,10 +50,10 @@ class TestIntegrationService:
         db = MagicMock()
         mock_crud.get_garminconnect_gear_activity_refs.return_value = ["a"]
 
-        result = integration_service.list_garminconnect_gear_activity_refs(3, db, after_id=5, limit=10)
+        result = integration_service.list_garminconnect_gear_activity_refs(3, db, after_id=_AFTER_ID, limit=10)
 
         assert result == ["a"]
-        mock_crud.get_garminconnect_gear_activity_refs.assert_called_once_with(3, db, after_id=5, limit=10)
+        mock_crud.get_garminconnect_gear_activity_refs.assert_called_once_with(3, db, after_id=_AFTER_ID, limit=10)
 
     @patch("modules.activities.activity.integration_service.activity_service")
     def test_bulk_set_activities_gear_delegates(self, mock_service):

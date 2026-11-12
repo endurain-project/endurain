@@ -1,5 +1,6 @@
 """Tests for accepting, running and pruning activity upload jobs."""
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import ANY, MagicMock, patch
 
@@ -11,6 +12,9 @@ import modules.activities.activity_ingestion.constants as activity_ingestion_con
 import modules.activities.activity_ingestion.events as ingestion_events
 import modules.activities.activity_ingestion.service as ingestion_jobs
 import modules.activities.activity_ingestion.upload_entry_service as upload_entry_service
+
+_ID_A = uuid.UUID("00000000-0000-4000-8000-00000000000a")
+_ID_B = uuid.UUID("00000000-0000-4000-8000-00000000000b")
 
 
 def _received(fingerprint: str = "abc123") -> upload_entry_service.ReceivedUpload:
@@ -127,7 +131,7 @@ class TestAcceptUpload:
 
 class TestRunUploadJob:
     def test_marks_completed_with_the_created_activity_ids(self):
-        created = [MagicMock(id=11), MagicMock(id=12)]
+        created = [MagicMock(id=_ID_A), MagicMock(id=_ID_B)]
         with (
             patch.object(ingestion_jobs.core_database, "SessionLocal") as session_local,
             patch.object(ingestion_jobs.activity_ingestion_crud, "get_job_work_item", return_value=(7, "abc.gpx")),
@@ -142,7 +146,7 @@ class TestRunUploadJob:
 
         processing.assert_called_once()
         assert completed.call_args.args[0] == "job-1"
-        assert completed.call_args.args[1] == [11, 12]
+        assert completed.call_args.args[1] == [_ID_A, _ID_B]
 
     def test_the_owner_is_told_when_the_import_completes(self):
         with (
@@ -153,7 +157,7 @@ class TestRunUploadJob:
             patch.object(
                 ingestion_jobs.activity_ingestion_upload_entry_service,
                 "process_staged_upload",
-                return_value=[MagicMock(id=11)],
+                return_value=[MagicMock(id=_ID_A)],
             ),
             patch.object(ingestion_jobs.websocket_integration, "push_job_changed") as push,
         ):
@@ -178,7 +182,7 @@ class TestRunUploadJob:
 
         push.assert_called_once_with(7, "job-1", "activity_upload")
 
-    @pytest.mark.parametrize("created", [[MagicMock(id=11)], []], ids=["imported", "nothing_parsed"])
+    @pytest.mark.parametrize("created", [[MagicMock(id=_ID_A)], []], ids=["imported", "nothing_parsed"])
     def test_the_blob_is_discarded_only_after_the_outcome_is_committed(self, created):
         """A crash before the commit must retry against the blob, not find it gone."""
         events: list[str] = []
@@ -216,7 +220,7 @@ class TestRunUploadJob:
             patch.object(
                 ingestion_jobs.activity_ingestion_upload_entry_service,
                 "process_staged_upload",
-                return_value=[MagicMock(id=11)],
+                return_value=[MagicMock(id=_ID_A)],
             ),
             patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_staged_upload") as discard,
             pytest.raises(RuntimeError),

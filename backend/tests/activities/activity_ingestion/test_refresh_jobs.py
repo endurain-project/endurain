@@ -1,5 +1,6 @@
 """Tests for accepting and running provider refresh jobs."""
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
@@ -10,6 +11,9 @@ import modules.activities.activity_ingestion.constants as activity_ingestion_con
 import modules.activities.activity_ingestion.events as ingestion_events
 import modules.activities.activity_ingestion.provider_registry as provider_registry
 import modules.activities.activity_ingestion.service as ingestion_jobs
+
+_ID_A = uuid.UUID("00000000-0000-4000-8000-00000000000a")
+_ID_B = uuid.UUID("00000000-0000-4000-8000-00000000000b")
 
 
 class TestAcceptRefresh:
@@ -143,7 +147,7 @@ class TestRunRefreshJob:
         )
 
     def test_marks_completed_with_the_synced_activity_ids(self):
-        synced = [MagicMock(id=11), MagicMock(id=12)]
+        synced = [MagicMock(id=_ID_A), MagicMock(id=_ID_B)]
         with (
             patch.object(ingestion_jobs.core_database, "SessionLocal"),
             patch.object(ingestion_jobs.activity_ingestion_crud, "get_refresh_scope", return_value=_SCOPE),
@@ -156,7 +160,7 @@ class TestRunRefreshJob:
             ingestion_jobs.run_refresh_job("job-1", "storage")
 
         processing.assert_called_once()
-        assert completed.call_args.args[1] == [11, 12]
+        assert completed.call_args.args[1] == [_ID_A, _ID_B]
 
     def test_the_scope_comes_from_the_row_not_the_event(self):
         """A tampered payload must not make the worker sync somebody else's providers."""

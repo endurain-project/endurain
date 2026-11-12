@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from unittest.mock import MagicMock
@@ -30,7 +31,7 @@ class TestGetWeeklySummary:
         import modules.activities.activity.models as am
         import modules.activities.activity.summary_crud as crud
 
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=1, user_id=1)])
+        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=uuid.uuid4(), user_id=1)])
         r = crud.get_weekly_summary(
             user_id=1,
             target_date=datetime(2024, 1, 15),

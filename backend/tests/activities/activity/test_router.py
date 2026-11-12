@@ -45,6 +45,11 @@ def visible_owner():
         yield mock
 
 
+_ACTIVITY_ID = uuid.uuid4()
+_OTHER_ID = uuid.uuid4()
+_FEED_ID = uuid.uuid4()
+
+
 def _valid_activity(**kw):
     from modules.activities.activity.schema import ActivityRead
 
@@ -73,7 +78,7 @@ def _valid_activity(**kw):
         private_notes="secret",
         import_info={"imported": True},
         gear_id=uuid.uuid4(),
-        id=1,
+        id=_ACTIVITY_ID,
         user_id=1,
     )
     data.update(kw)
@@ -87,14 +92,14 @@ def _feed_entry(**kw):
     return ActivityFeedEntry(
         activity=activity,
         cursor_sort_value=datetime(2024, 1, 15, 8, tzinfo=UTC),
-        cursor_id=activity.id or 1,
+        cursor_id=activity.id,
     )
 
 
 def _assert_summary(item):
     assert "private_notes" not in item
     assert "import_info" not in item
-    assert item["id"] == 1
+    assert item["id"] == str(_ACTIVITY_ID)
     assert item["description"] == "desc"
     assert "media" in item
 
@@ -229,14 +234,14 @@ class TestFeed:
             patch("modules.activities.activity.service.activity_crud.get_own_feed_after") as own,
             patch("modules.activities.activity.service.users_integration.list_public_profiles") as profiles,
         ):
-            own.return_value = [_feed_entry(id=4, user_id=1)]
+            own.return_value = [_feed_entry(id=_FEED_ID, user_id=1)]
             profiles.return_value = {1: UserPublicRead(id=1, name="Me", username="me")}
             resp = TestClient(_build_app(mock_db)).get(
                 "/activities/feed?scope=mine", headers={"Authorization": "Bearer x"}
             )
 
         assert resp.status_code == 200
-        assert [item["id"] for item in resp.json()["items"]] == [4]
+        assert [item["id"] for item in resp.json()["items"]] == [str(_FEED_ID)]
         assert list(resp.json()["users"]) == ["1"]
         own.assert_called_once()
         following.assert_not_called()
@@ -256,9 +261,9 @@ class TestFeed:
         ):
             f.list_accepted_followee_ids.return_value = [5, 6]
             m.return_value = [
-                _feed_entry(id=1, user_id=5),
-                _feed_entry(id=2, user_id=6),
-                _feed_entry(id=3, user_id=5),
+                _feed_entry(id=uuid.uuid4(), user_id=5),
+                _feed_entry(id=uuid.uuid4(), user_id=6),
+                _feed_entry(id=uuid.uuid4(), user_id=5),
             ]
             profiles.return_value = {5: UserPublicRead(id=5, name="Ada", username="ada")}
             resp = TestClient(_build_app(mock_db)).get("/activities/feed", headers={"Authorization": "Bearer x"})
@@ -299,7 +304,7 @@ class TestFeed:
             followers.list_accepted_followee_ids.return_value = [5]
             get_feed.return_value = [
                 _feed_entry(hide_start_time=True, start_time=None, end_time=None),
-                _feed_entry(id=2),
+                _feed_entry(id=uuid.uuid4()),
             ]
 
             response = TestClient(_build_app(mock_db)).get(
@@ -472,7 +477,9 @@ class TestReadByID:
             "modules.activities.activity.service.activity_crud.get_activity_by_id_from_user_id_or_has_visibility"
         ) as m:
             m.return_value = _valid_activity()
-            resp = TestClient(_build_app(mock_db)).get("/activities/1", headers={"Authorization": "Bearer x"})
+            resp = TestClient(_build_app(mock_db)).get(
+                f"/activities/{_ACTIVITY_ID}", headers={"Authorization": "Bearer x"}
+            )
             assert resp.status_code == 200
             assert resp.json()["private_notes"] == "secret"
             assert resp.json()["import_info"] == {"imported": True}
@@ -482,7 +489,9 @@ class TestReadByID:
             "modules.activities.activity.service.activity_crud.get_activity_by_id_from_user_id_or_has_visibility"
         ) as m:
             m.return_value = None
-            resp = TestClient(_build_app(mock_db)).get("/activities/999", headers={"Authorization": "Bearer x"})
+            resp = TestClient(_build_app(mock_db)).get(
+                f"/activities/{uuid.uuid4()}", headers={"Authorization": "Bearer x"}
+            )
             assert resp.status_code == 404
 
 
@@ -497,7 +506,7 @@ class TestEdit:
         ):
             m.return_value = _valid_activity()
             resp = TestClient(_build_app(mock_db)).patch(
-                "/activities/1",
+                f"/activities/{_ACTIVITY_ID}",
                 headers={**{"Authorization": "Bearer x"}, "If-Match": '"1"'},
                 json={"name": "Run", "activity_type": "run", "visibility": "private"},
             )
@@ -514,7 +523,7 @@ class TestEdit:
         ):
             m.return_value = _valid_activity()
             resp = TestClient(_build_app(mock_db)).patch(
-                "/activities/1",
+                f"/activities/{_ACTIVITY_ID}",
                 headers={**{"Authorization": "Bearer x"}, "If-Match": '"1"'},
                 json={"visibility": "private"},
             )
@@ -531,27 +540,27 @@ class TestEdit:
         ):
             m.return_value = _valid_activity()
             resp = TestClient(_build_app(mock_db)).patch(
-                "/activities/7",
+                f"/activities/{_OTHER_ID}",
                 headers={**{"Authorization": "Bearer x"}, "If-Match": '"1"'},
                 json={"name": "Run", "visibility": "private"},
             )
             assert resp.status_code == 200
             # edit_activity(token_user_id, activity_id, activity_attributes, db)
-            assert m.call_args.args[1] == 7
+            assert m.call_args.args[1] == _OTHER_ID
 
     def test_rejects_id_in_body(self, mock_db):
         # id is not a body field; extra="forbid" rejects it.
         resp = TestClient(_build_app(mock_db)).patch(
-            "/activities/1",
+            f"/activities/{_ACTIVITY_ID}",
             headers={**{"Authorization": "Bearer x"}, "If-Match": '"1"'},
-            json={"id": 1, "name": "Run"},
+            json={"id": str(_ACTIVITY_ID), "name": "Run"},
         )
         assert resp.status_code == 422
 
     @pytest.mark.parametrize("body", [{"activity_type": 1}, {"visibility": 2}])
     def test_edit_refuses_the_stored_integers(self, mock_db, body):
         resp = TestClient(_build_app(mock_db)).patch(
-            "/activities/1", headers={"Authorization": "Bearer x", "If-Match": '"1"'}, json=body
+            f"/activities/{_ACTIVITY_ID}", headers={"Authorization": "Bearer x", "If-Match": '"1"'}, json=body
         )
         assert resp.status_code == 422
 
@@ -613,19 +622,19 @@ class TestDelete:
             patch("modules.activities.activity.service.activity_crud.delete_activity") as mock_del,
             patch("modules.activities.activity.service.activity_event_publishers") as mock_pub,
         ):
-            resp = TestClient(_build_app(mock_db)).delete("/activities/1", headers=_DELETE_HEADERS)
+            resp = TestClient(_build_app(mock_db)).delete(f"/activities/{_ACTIVITY_ID}", headers=_DELETE_HEADERS)
             # 204 with no body: the resource is gone, and the status says so.
             assert resp.status_code == 204
             assert resp.content == b""
             # Ownership is in the delete's lookup, so the route passes the
             # requester through instead of pre-fetching.
-            assert mock_del.call_args.args[0] == 1
+            assert mock_del.call_args.args[0] == _ACTIVITY_ID
             assert mock_del.call_args.args[1] == mock_pub.publish_activity_deleted.call_args.args[1]
             assert mock_del.call_args.kwargs == {"if_match": '"3"'}
             # The delete and the event are staged, then committed once, so the row
             # delete and the activity.deleted outbox row are atomic.
             mock_pub.publish_activity_deleted.assert_called_once()
-            assert mock_pub.publish_activity_deleted.call_args.args[0] == 1
+            assert mock_pub.publish_activity_deleted.call_args.args[0] == _ACTIVITY_ID
             assert "commit" not in mock_pub.publish_activity_deleted.call_args.kwargs
 
     def test_not_found(self, mock_db):
@@ -634,14 +643,16 @@ class TestDelete:
             patch("modules.activities.activity.service.activity_crud.delete_activity") as mock_del,
             patch("modules.activities.activity.service.activity_event_publishers") as mock_pub,
         ):
-            mock_del.side_effect = HTTPException(status_code=404, detail="Activity with id 999 not found")
-            resp = TestClient(_build_app(mock_db)).delete("/activities/999", headers=_DELETE_HEADERS)
+            mock_del.side_effect = HTTPException(status_code=404, detail="Activity not found")
+            resp = TestClient(_build_app(mock_db)).delete(f"/activities/{uuid.uuid4()}", headers=_DELETE_HEADERS)
             assert resp.status_code == 404
             mock_pub.publish_activity_deleted.assert_not_called()
 
     def test_without_if_match_is_428(self, mock_db):
         with patch("modules.activities.activity.service.activity_crud") as crud:
-            resp = TestClient(_build_app(mock_db)).delete("/activities/1", headers={"Authorization": "Bearer x"})
+            resp = TestClient(_build_app(mock_db)).delete(
+                f"/activities/{_ACTIVITY_ID}", headers={"Authorization": "Bearer x"}
+            )
 
         assert resp.status_code == 428
         crud.delete_activity.assert_not_called()
@@ -652,7 +663,7 @@ class TestDelete:
             patch("modules.activities.activity.service.activity_event_publishers") as mock_pub,
         ):
             crud.delete_activity.side_effect = core_exceptions.PreconditionFailedError("stale")
-            resp = TestClient(_build_app(mock_db)).delete("/activities/1", headers=_DELETE_HEADERS)
+            resp = TestClient(_build_app(mock_db)).delete(f"/activities/{_ACTIVITY_ID}", headers=_DELETE_HEADERS)
 
         assert resp.status_code == 412
         mock_pub.publish_activity_deleted.assert_not_called()
@@ -663,7 +674,7 @@ class TestDelete:
         with patch("modules.activities.activity.service.activity_crud") as crud:
             crud.get_activity_by_id_from_user_id.return_value = _valid_activity()
             crud.delete_activity.side_effect = StaleDataError("row changed")
-            resp = TestClient(_build_app(mock_db)).delete("/activities/1", headers=_DELETE_HEADERS)
+            resp = TestClient(_build_app(mock_db)).delete(f"/activities/{_ACTIVITY_ID}", headers=_DELETE_HEADERS)
 
         assert resp.status_code == 412
 
@@ -675,14 +686,16 @@ class TestActivityConcurrency:
         with patch("modules.activities.activity.service.get_activity") as m:
             m.return_value = _valid_activity()
             m.return_value.version = 3
-            resp = TestClient(_build_app(mock_db)).get("/activities/1", headers={"Authorization": "Bearer x"})
+            resp = TestClient(_build_app(mock_db)).get(
+                f"/activities/{_ACTIVITY_ID}", headers={"Authorization": "Bearer x"}
+            )
 
         assert resp.headers["ETag"] == '"3"'
 
     def test_patch_without_if_match_is_refused_as_precondition_required(self, mock_db):
         with patch("modules.activities.activity.service.activity_crud") as crud:
             resp = TestClient(_build_app(mock_db)).patch(
-                "/activities/1", json={"name": "x"}, headers={"Authorization": "Bearer x"}
+                f"/activities/{_ACTIVITY_ID}", json={"name": "x"}, headers={"Authorization": "Bearer x"}
             )
 
         assert resp.status_code == 428
@@ -692,7 +705,7 @@ class TestActivityConcurrency:
         with patch("modules.activities.activity.service.activity_crud") as crud:
             crud.edit_activity.side_effect = core_exceptions.PreconditionFailedError("stale")
             resp = TestClient(_build_app(mock_db)).patch(
-                "/activities/1",
+                f"/activities/{_ACTIVITY_ID}",
                 json={"name": "x"},
                 headers={"Authorization": "Bearer x", "If-Match": '"4"'},
             )
@@ -707,7 +720,7 @@ class TestActivityConcurrency:
             crud.get_activity_by_id_from_user_id.return_value = current
             crud.edit_activity.return_value = current
             resp = TestClient(_build_app(mock_db)).patch(
-                "/activities/1",
+                f"/activities/{_ACTIVITY_ID}",
                 json={"name": "x"},
                 headers={"Authorization": "Bearer x", "If-Match": '"5"'},
             )
@@ -730,7 +743,7 @@ class TestActivityConcurrency:
             crud.get_activity_by_id_from_user_id.return_value = current
             crud.edit_activity.side_effect = StaleDataError("row changed")
             resp = TestClient(_build_app(mock_db)).patch(
-                "/activities/1",
+                f"/activities/{_ACTIVITY_ID}",
                 json={"name": "x"},
                 headers={"Authorization": "Bearer x", "If-Match": '"5"'},
             )
@@ -775,3 +788,27 @@ class TestDateWindowBounds:
                 f"/users/1/activities/stats?period={period}&date=9998-12-31", headers={"Authorization": "Bearer x"}
             )
         assert resp.status_code == 200
+
+
+class TestMalformedActivityId:
+    """A path id that is not a UUID is a validation error, an unknown UUID is a 404."""
+
+    @pytest.mark.parametrize("activity_id", ["1", "not-a-uuid"])
+    @pytest.mark.parametrize("method", ["get", "patch", "delete"])
+    def test_is_a_validation_error(self, mock_db, method, activity_id):
+        resp = getattr(TestClient(_build_app(mock_db)), method)(
+            f"/activities/{activity_id}", headers={"Authorization": "Bearer x", "If-Match": '"1"'}
+        )
+
+        assert resp.status_code == 422
+
+    def test_an_unknown_uuid_is_not_found(self, mock_db):
+        with patch(
+            "modules.activities.activity.service.activity_crud.get_activity_by_id_from_user_id_or_has_visibility",
+            return_value=None,
+        ):
+            resp = TestClient(_build_app(mock_db)).get(
+                f"/activities/{uuid.uuid4()}", headers={"Authorization": "Bearer x"}
+            )
+
+        assert resp.status_code == 404

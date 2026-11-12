@@ -26,6 +26,8 @@ question, not a pagination one, and is deliberately left alone rather than
 answered with a control that looks like a fix without being one.
 """
 
+import uuid
+
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
@@ -210,7 +212,7 @@ def _with_zones(
 
 
 def list_activity_streams(
-    activity_id: int,
+    activity_id: uuid.UUID,
     requester_user_id: int,
     db: Session,
     *,
@@ -234,7 +236,7 @@ def list_activity_streams(
     if activity is None:
         logger.debug(
             "Refused a streams read; answering with an empty page",
-            extra=core_logger.context(activity_id=activity_id, requester_user_id=requester_user_id),
+            extra=core_logger.context(activity_id=str(activity_id), requester_user_id=requester_user_id),
         )
         return _page_of([], page_number, num_records)
 
@@ -246,7 +248,7 @@ def list_activity_streams(
 
 
 def get_activity_stream(
-    activity_id: int,
+    activity_id: uuid.UUID,
     stream_type: int,
     requester_user_id: int,
     db: Session,
@@ -284,7 +286,7 @@ def get_activity_stream(
 
 
 def list_public_activity_streams(
-    activity_id: int,
+    activity_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -305,7 +307,7 @@ def list_public_activity_streams(
     if activity is None:
         logger.debug(
             "Refused a public streams read; answering with an empty page",
-            extra=core_logger.context(activity_id=activity_id),
+            extra=core_logger.context(activity_id=str(activity_id)),
         )
         return _page_of([], page_number, num_records)
 
@@ -318,7 +320,7 @@ def list_public_activity_streams(
 
 
 def get_public_activity_stream(
-    activity_id: int,
+    activity_id: uuid.UUID,
     stream_type: int,
     db: Session,
 ) -> activity_streams_schema.ActivityStreamsRead:

@@ -1,6 +1,7 @@
 """Tests for ``GET /sync``: the page shape, the problem types and the parameters it passes on."""
 
 import json
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
@@ -63,7 +64,7 @@ def _cursor(**raw) -> str:
 
 
 def test_a_cursor_of_the_old_format_is_410_sync_expired():
-    old = _cursor(s=datetime.now(UTC).isoformat(), r=0, i=5)
+    old = _cursor(s=datetime.now(UTC).isoformat(), r=0, i=str(uuid.uuid4()))
 
     response = _client().get("/sync", params={"cursor": old})
 

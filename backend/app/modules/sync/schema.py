@@ -50,7 +50,7 @@ class SyncChange[RecordT: BaseModel, IdT: (int, uuid.UUID)](BaseModel):
     record: RecordT | None = Field(default=None, description="The record; null when it was deleted")
 
 
-class ActivityChange(SyncChange[activity_schema.ActivityRead, int]):
+class ActivityChange(SyncChange[activity_schema.ActivityRead, uuid.UUID]):
     """A changed or deleted activity."""
 
     type: Literal["activity"] = "activity"

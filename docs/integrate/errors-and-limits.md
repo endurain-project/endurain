@@ -12,7 +12,7 @@ Every error the API returns is an [RFC 9457](https://www.rfc-editor.org/rfc/rfc9
   "title": "Not Found",
   "status": 404,
   "detail": "Activity not found",
-  "instance": "/api/v1/activities/42",
+  "instance": "/api/v1/activities/7c9e6679-7425-40de-944b-e07fc1f90ae7",
   "request_id": "5f0d3c1e8b7a4c9d"
 }
 ```

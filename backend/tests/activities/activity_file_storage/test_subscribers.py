@@ -1,5 +1,6 @@
 """Tests for the activity source-file cleanup subscriber."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -8,6 +9,8 @@ from pydantic import ValidationError
 
 import modules.activities.activity.events as activity_events
 
+ACTIVITY_ID = uuid.UUID("00000000-0000-4000-8000-000000000042")
+
 
 def _deleted_event(payload):
     return new_event(activity_events.ACTIVITY_DELETED, payload, source="test")
@@ -15,7 +18,7 @@ def _deleted_event(payload):
 
 class TestCleanupActivityFileForEvent:
     @patch("modules.activities.activity_file_storage.subscribers.platform_runtime")
-    def test_raises_for_non_int_activity_id(self, mock_runtime):
+    def test_raises_for_malformed_activity_id(self, mock_runtime):
         from modules.activities.activity_file_storage.subscribers import cleanup_activity_file_for_event
 
         with pytest.raises(ValidationError):
@@ -31,9 +34,9 @@ class TestCleanupActivityFileForEvent:
         storage = MagicMock()
         mock_runtime.get_active_platform.return_value.storage = storage
 
-        cleanup_activity_file_for_event(_deleted_event({"activity_id": 42}))
+        cleanup_activity_file_for_event(_deleted_event({"activity_id": str(ACTIVITY_ID)}))
 
-        mock_delete.assert_called_once_with(42, storage)
+        mock_delete.assert_called_once_with(ACTIVITY_ID, storage)
 
 
 class TestOnActivityDeletedCleanupFile:
@@ -45,7 +48,7 @@ class TestOnActivityDeletedCleanupFile:
         mock_delete.side_effect = RuntimeError("boom")
 
         # A cleanup failure must never propagate out of the bus handler.
-        on_activity_deleted_cleanup_file(_deleted_event({"activity_id": 42}))
+        on_activity_deleted_cleanup_file(_deleted_event({"activity_id": str(ACTIVITY_ID)}))
 
     @patch("modules.activities.activity_file_storage.subscribers.platform_runtime")
     @patch("modules.activities.activity_file_storage.files.delete_activity_file")
@@ -55,9 +58,9 @@ class TestOnActivityDeletedCleanupFile:
         storage = MagicMock()
         mock_runtime.get_active_platform.return_value.storage = storage
 
-        on_activity_deleted_cleanup_file(_deleted_event({"activity_id": 42}))
+        on_activity_deleted_cleanup_file(_deleted_event({"activity_id": str(ACTIVITY_ID)}))
 
-        mock_delete.assert_called_once_with(42, storage)
+        mock_delete.assert_called_once_with(ACTIVITY_ID, storage)
 
 
 class TestRegistration:

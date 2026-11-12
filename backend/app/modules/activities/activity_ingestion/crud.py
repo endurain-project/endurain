@@ -4,6 +4,7 @@ Pure persistence: staging, parsing and executor choice live in ``service``,
 so this module never touches the filesystem and never publishes events.
 """
 
+import uuid
 from collections.abc import Collection, Sequence
 from datetime import UTC, datetime, timedelta
 
@@ -571,7 +572,7 @@ def release_due_deferred_jobs(limit: int, db: Session) -> list[tuple[str, int]]:
     return released
 
 
-def mark_completed(job_id: str, activity_ids: list[int], db: Session) -> None:
+def mark_completed(job_id: str, activity_ids: list[uuid.UUID], db: Session) -> None:
     """Stage a move of a job to the completed state and record what it created.
 
     Args:
@@ -584,7 +585,7 @@ def mark_completed(job_id: str, activity_ids: list[int], db: Session) -> None:
         return
     now = datetime.now(UTC)
     orm_job.status = activity_ingestion_constants.IngestionJobStatus.COMPLETED.value
-    orm_job.activity_ids = activity_ids
+    orm_job.activity_ids = [str(activity_id) for activity_id in activity_ids]
     orm_job.error_code = None
     orm_job.staged_key = None
     orm_job.updated_at = now

@@ -17,7 +17,6 @@ from pydantic import (
     ConfigDict,
     Field,
     StrictBool,
-    StrictInt,
     StrictStr,
     field_validator,
 )
@@ -252,8 +251,8 @@ class ActivityMediaEmbedded(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
-    id: StrictInt = Field(ge=1)
-    activity_id: StrictInt = Field(ge=1)
+    id: uuid.UUID
+    activity_id: uuid.UUID
     media_type: StoredMediaType
     url: str = Field(min_length=1)
 
@@ -275,7 +274,7 @@ class _ActivityServerFields(BaseModel):
             responses for the viewer's own activities and empty otherwise.
     """
 
-    id: int = Field(ge=1)
+    id: uuid.UUID
     map_thumbnail_path: str | None = Field(default=None, max_length=500, exclude=True)
     map_thumbnail_url: str | None = None
     version: int | None = Field(default=None, ge=1)

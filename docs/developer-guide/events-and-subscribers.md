@@ -23,7 +23,7 @@ ACTIVITY_CREATED = "activity.created"
 
 class ActivityCreatedPayload(VersionedPayload):
     SCHEMA_VERSION: ClassVar[int] = 1
-    activity_id: int
+    activity_id: uuid.UUID
     user_id: int | None = None
 ```
 

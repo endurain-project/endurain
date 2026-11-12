@@ -8,6 +8,7 @@ keep a lap from serving what its activity hides.
 """
 
 import dataclasses
+import uuid
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -17,6 +18,9 @@ import pytest
 import modules.activities.activity_laps.crud as activity_laps_crud
 import modules.activities.activity_laps.schema as activity_laps_schema
 import modules.activities.activity_laps.service as service
+
+_ACTIVITY_ID = uuid.UUID("00000000-0000-4000-8000-000000000005")
+_ROW_ID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
 
 
 class TestCollectionDeclaration:
@@ -37,20 +41,20 @@ class TestDelegation:
         mock_gate.resolve_readable_parent.return_value = None
         db = MagicMock()
 
-        page = service.list_activity_laps(5, 1, db)
+        page = service.list_activity_laps(_ACTIVITY_ID, 1, db)
 
         assert (page.items, page.total) == ([], 0)
-        mock_gate.resolve_readable_parent.assert_called_once_with(5, 1, db)
+        mock_gate.resolve_readable_parent.assert_called_once_with(_ACTIVITY_ID, 1, db)
 
     @patch("modules.activities.activity.child_collection_service.activity_child_access_service")
     def test_the_public_read_goes_through_the_public_gate(self, mock_gate):
         mock_gate.resolve_public_parent.return_value = None
         db = MagicMock()
 
-        page = service.list_public_activity_laps(5, db)
+        page = service.list_public_activity_laps(_ACTIVITY_ID, db)
 
         assert (page.items, page.total) == ([], 0)
-        mock_gate.resolve_public_parent.assert_called_once_with(5, db)
+        mock_gate.resolve_public_parent.assert_called_once_with(_ACTIVITY_ID, db)
 
 
 _EVERY_FLAG = (
@@ -67,8 +71,8 @@ _EVERY_FLAG = (
 
 def _lap(**fields) -> activity_laps_schema.ActivityLapsRead:
     return activity_laps_schema.ActivityLapsRead(
-        id=1,
-        activity_id=5,
+        id=_ROW_ID,
+        activity_id=_ACTIVITY_ID,
         start_time=datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC),
         start_position_lat=38.7,
         start_position_long=-9.1,
@@ -100,7 +104,7 @@ def _lap(**fields) -> activity_laps_schema.ActivityLapsRead:
 
 
 def _parent(**flags) -> SimpleNamespace:
-    return SimpleNamespace(id=5, user_id=1, hide_laps=False, **dict.fromkeys(_EVERY_FLAG, False) | flags)
+    return SimpleNamespace(id=_ACTIVITY_ID, user_id=1, hide_laps=False, **dict.fromkeys(_EVERY_FLAG, False) | flags)
 
 
 def _reading(*laps):

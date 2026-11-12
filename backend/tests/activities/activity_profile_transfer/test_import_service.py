@@ -31,6 +31,10 @@ def _zip(files: dict[str, object]) -> zipfile.ZipFile:
 
 _OLD_GEAR = str(uuid.uuid4())
 _NEW_GEAR = uuid.uuid4()
+_OLD_ACT = str(uuid.uuid4())
+_OTHER_ACT = str(uuid.uuid4())
+_UNKNOWN_ACT = str(uuid.uuid4())
+_NEW_ACT = uuid.uuid4()
 
 
 def _ctx(
@@ -70,7 +74,7 @@ def _ctx(
 
 
 _ACTIVITY = {
-    "id": 1,
+    "id": _OLD_ACT,
     "distance": 1000,
     "name": "Morning Run",
     "activity_type": 1,
@@ -109,7 +113,7 @@ class TestRestoreProfile:
         with activity_patch, global_patch:
             assert import_service.restore_profile(ctx) is None
 
-    @pytest.mark.parametrize("name", ["activity_files/1.gpx", "activity_media/1_a.png"])
+    @pytest.mark.parametrize("name", [f"activity_files/{_OLD_ACT}.gpx", f"activity_media/{_OLD_ACT}_a.png"])
     def test_files_or_media_in_the_archive_return_the_after_commit_work(self, name) -> None:
         ctx = _ctx({"data/activities.json": [], name: b"x"})
         activity_patch, global_patch = _no_contributors()
@@ -128,11 +132,11 @@ class TestRestoreProfile:
         media.assert_called_once_with(ctx, {})
 
     def test_the_after_commit_work_holds_the_restored_activity_ids(self) -> None:
-        ctx = _ctx({"data/activities.json": [_ACTIVITY], "activity_files/1.gpx": b"x"})
+        ctx = _ctx({"data/activities.json": [_ACTIVITY], f"activity_files/{_OLD_ACT}.gpx": b"x"})
         ctx.counts["activities"] = 0
         activity_patch, global_patch = _no_contributors()
         restored = MagicMock()
-        restored.id = 10
+        restored.id = _NEW_ACT
         with (
             activity_patch,
             global_patch,
@@ -144,7 +148,7 @@ class TestRestoreProfile:
             assert restore_files is not None
             restore_files()
 
-        files.assert_called_once_with(ctx, {1: 10})
+        files.assert_called_once_with(ctx, {_OLD_ACT: _NEW_ACT})
         assert ctx.ids == {}
 
     def test_the_gear_ids_published_by_the_gear_section_are_read(self) -> None:
@@ -165,7 +169,7 @@ class TestRestoreActivities:
         assert import_service._restore_activities(_ctx({"data/activities.json": []}), {}) == {}
 
     def test_the_activity_limit_is_checked_by_the_context(self) -> None:
-        ctx = _ctx({"data/activities.json": [{"id": 1}, {"id": 2}]}, max_activities=1)
+        ctx = _ctx({"data/activities.json": [{"id": _OLD_ACT}, {"id": _OTHER_ACT}]}, max_activities=1)
         activity_patch, global_patch = _no_contributors()
         with activity_patch, global_patch, pytest.raises(ActivityLimitError):
             import_service._restore_activities(ctx, {})
@@ -174,7 +178,7 @@ class TestRestoreActivities:
         check_memory = MagicMock()
         check_timeout = MagicMock()
         ctx = _ctx(
-            {"data/activities.json": [_ACTIVITY, {**_ACTIVITY, "id": 2}]},
+            {"data/activities.json": [_ACTIVITY, {**_ACTIVITY, "id": _OTHER_ACT}]},
             batch_size=1,
             check_memory=check_memory,
             check_timeout=check_timeout,
@@ -182,7 +186,7 @@ class TestRestoreActivities:
         ctx.counts["activities"] = 0
         activity_patch, global_patch = _no_contributors()
         restored = MagicMock()
-        restored.id = 10
+        restored.id = _NEW_ACT
         with (
             activity_patch,
             global_patch,
@@ -199,7 +203,7 @@ class TestRestoreActivities:
             {
                 "data/activities.json": [
                     {
-                        "id": 1,
+                        "id": _OLD_ACT,
                         "gear_id": _OLD_GEAR,
                         "distance": 1000,
                         "name": "Morning Run",
@@ -208,13 +212,13 @@ class TestRestoreActivities:
                         "end_time": "2024-01-01T09:00:00",
                     }
                 ],
-                "data/activity_laps_000.json": [{"activity_id": 1, "lap_index": 1}],
+                "data/activity_laps_000.json": [{"activity_id": _OLD_ACT, "lap_index": 1}],
             }
         )
         ctx.counts["activities"] = 0
         activity_patch, global_patch = _no_contributors()
         restored = MagicMock()
-        restored.id = 10
+        restored.id = _NEW_ACT
         with (
             activity_patch,
             global_patch,
@@ -223,7 +227,7 @@ class TestRestoreActivities:
         ):
             mapping = import_service._restore_activities(ctx, {_OLD_GEAR: _NEW_GEAR})
 
-        assert mapping == {1: 10}
+        assert mapping == {_OLD_ACT: _NEW_ACT}
         assert ctx.counts["activities"] == 1
         assert restore.call_args.args[0].gear_id == _NEW_GEAR
         components.assert_called_once()
@@ -234,7 +238,7 @@ class TestRestoreActivities:
         """An archive's activity is the full read shape, with its version and the URLs and media the server derives."""
         exported = profile_utils.model_to_dict(
             activity_schema.ActivityRead(
-                id=1,
+                id=uuid.UUID(_OLD_ACT),
                 user_id=3,
                 version=2,
                 distance=1000,
@@ -248,7 +252,7 @@ class TestRestoreActivities:
         ctx.counts["activities"] = 0
         activity_patch, global_patch = _no_contributors()
         restored = MagicMock()
-        restored.id = 10
+        restored.id = _NEW_ACT
         with (
             activity_patch,
             global_patch,
@@ -257,9 +261,26 @@ class TestRestoreActivities:
         ):
             mapping = import_service._restore_activities(ctx, {})
 
-        assert mapping == {1: 10}
+        assert mapping == {_OLD_ACT: _NEW_ACT}
         imported = restore.call_args.args[0]
         assert (imported.user_id, imported.name) == (1, "Morning Run")
+
+    def test_an_earlier_release_archive_with_integer_ids_is_imported(self) -> None:
+        ctx = _ctx({"data/activities.json": [{**_ACTIVITY, "id": 1}]})
+        ctx.counts["activities"] = 0
+        activity_patch, global_patch = _no_contributors()
+        restored = MagicMock()
+        restored.id = _NEW_ACT
+        with (
+            activity_patch,
+            global_patch,
+            patch.object(import_service.activity_integration, "restore_activity", return_value=restored),
+            patch.object(import_service, "_restore_activity_components") as components,
+        ):
+            mapping = import_service._restore_activities(ctx, {})
+
+        assert mapping == {"1": _NEW_ACT}
+        assert components.call_args.args[2] == "1"
 
     def test_an_activity_without_an_id_is_restored_but_gets_no_components(self) -> None:
         ctx = _ctx(
@@ -279,7 +300,7 @@ class TestRestoreActivities:
         ctx.counts["activities"] = 0
         activity_patch, global_patch = _no_contributors()
         restored = MagicMock()
-        restored.id = 10
+        restored.id = _NEW_ACT
         with (
             activity_patch,
             global_patch,
@@ -308,15 +329,15 @@ class TestRestoreActivityComponents:
         ctx.counts[count_key] = 0
         contributor = MagicMock(key=key, count_key=count_key)
         contributor.restore.return_value = 1
-        records = [{"activity_id": 1}]
-        new_activity = MagicMock(id=10, user_id=1)
+        records = [{"activity_id": _OLD_ACT}]
+        new_activity = MagicMock(id=_NEW_ACT, user_id=1)
 
         with patch.object(
             import_service.activities_contributor_registry, "profile_activity_contributors", return_value=(contributor,)
         ):
-            import_service._restore_activity_components(ctx, {key: records}, 1, new_activity)
+            import_service._restore_activity_components(ctx, {key: records}, _OLD_ACT, new_activity)
 
-        contributor.restore.assert_called_once_with(records, 1, new_activity, ctx.db)
+        contributor.restore.assert_called_once_with(records, _OLD_ACT, new_activity, ctx.db)
         assert ctx.counts[count_key] == 1
 
     def test_a_contributor_without_records_gets_an_empty_list(self) -> None:
@@ -324,14 +345,14 @@ class TestRestoreActivityComponents:
         ctx.counts["activity_laps"] = 0
         contributor = MagicMock(key="laps", count_key="activity_laps")
         contributor.restore.return_value = 0
-        new_activity = MagicMock(id=10, user_id=1)
+        new_activity = MagicMock(id=_NEW_ACT, user_id=1)
 
         with patch.object(
             import_service.activities_contributor_registry, "profile_activity_contributors", return_value=(contributor,)
         ):
-            import_service._restore_activity_components(ctx, {}, 1, new_activity)
+            import_service._restore_activity_components(ctx, {}, _OLD_ACT, new_activity)
 
-        contributor.restore.assert_called_once_with([], 1, new_activity, ctx.db)
+        contributor.restore.assert_called_once_with([], _OLD_ACT, new_activity, ctx.db)
         assert ctx.counts["activity_laps"] == 0
 
     @staticmethod
@@ -349,21 +370,23 @@ class TestRestoreActivityComponents:
             ),
             patch.object(media_integration, "_restore_media_records") as restore_media,
         ):
-            import_service._restore_activity_components(ctx, {"media": records}, 1, MagicMock(id=10, user_id=1))
+            import_service._restore_activity_components(
+                ctx, {"media": records}, _OLD_ACT, MagicMock(id=_NEW_ACT, user_id=1)
+            )
         return ctx, restore_media
 
     def test_media_with_a_valid_key_is_restored(self) -> None:
-        records = [{"activity_id": 1, "media_path": "1_photo.jpg", "media_type": 1}]
+        records = [{"activity_id": _OLD_ACT, "media_path": f"{_OLD_ACT}_photo.jpg", "media_type": 1}]
         ctx, restore_media = self._media_restore(records)
 
         restore_media.assert_called_once()
-        assert records[0]["media_path"] == "1_photo.jpg"
+        assert records[0]["media_path"] == f"{_OLD_ACT}_photo.jpg"
         assert ctx.counts["activity_media"] == 1
 
     def test_a_key_carrying_a_path_separator_is_skipped(self) -> None:
         """The archive is untrusted: such a value would address a blob outside the flat media area."""
         ctx, restore_media = self._media_restore(
-            [{"activity_id": 1, "media_path": "../../etc/1_passwd.jpg", "media_type": 1}]
+            [{"activity_id": _OLD_ACT, "media_path": f"../../etc/{_OLD_ACT}_passwd.jpg", "media_type": 1}]
         )
 
         restore_media.assert_not_called()
@@ -371,7 +394,7 @@ class TestRestoreActivityComponents:
 
     def test_a_key_without_the_activity_prefix_is_skipped(self) -> None:
         ctx, restore_media = self._media_restore(
-            [{"activity_id": 1, "media_path": "nounderscore.jpg", "media_type": 1}]
+            [{"activity_id": _OLD_ACT, "media_path": "nounderscore.jpg", "media_type": 1}]
         )
 
         restore_media.assert_not_called()
@@ -380,9 +403,9 @@ class TestRestoreActivityComponents:
     def test_only_the_records_of_the_activity_are_restored(self) -> None:
         ctx, _ = self._media_restore(
             [
-                {"activity_id": 1, "media_path": "1_a.jpg", "media_type": 1},
-                {"activity_id": 1, "media_path": "1_b.jpg", "media_type": 1},
-                {"activity_id": 2, "media_path": "2_c.jpg", "media_type": 1},
+                {"activity_id": _OLD_ACT, "media_path": f"{_OLD_ACT}_a.jpg", "media_type": 1},
+                {"activity_id": _OLD_ACT, "media_path": f"{_OLD_ACT}_b.jpg", "media_type": 1},
+                {"activity_id": _OTHER_ACT, "media_path": f"{_OTHER_ACT}_c.jpg", "media_type": 1},
             ]
         )
 
@@ -456,35 +479,55 @@ class TestLoadComponentsForBatch:
 
     def test_only_the_components_of_the_batch_are_kept(self) -> None:
         ctx = _ctx(
-            {"data/activity_laps_000.json": [{"activity_id": 1, "lap_index": 1}, {"activity_id": 2, "lap_index": 1}]}
+            {
+                "data/activity_laps_000.json": [
+                    {"activity_id": _OLD_ACT, "lap_index": 1},
+                    {"activity_id": _OTHER_ACT, "lap_index": 1},
+                ]
+            }
         )
         result = import_service._load_components_for_batch(
-            ctx, ["data/activity_laps_000.json"], [{"id": 1}, {"id": 3}], "laps"
+            ctx, ["data/activity_laps_000.json"], [{"id": _OLD_ACT}, {"id": _UNKNOWN_ACT}], "laps"
         )
 
         assert len(result) == 1
-        assert result[0]["activity_id"] == 1
+        assert result[0]["activity_id"] == _OLD_ACT
 
     def test_a_part_that_is_not_json_is_skipped(self) -> None:
         ctx = _ctx({"data/bad.json": b"not-valid-json"})
-        assert import_service._load_components_for_batch(ctx, ["data/bad.json"], [{"id": 1}], "laps") == []
+        assert import_service._load_components_for_batch(ctx, ["data/bad.json"], [{"id": _OLD_ACT}], "laps") == []
 
     def test_a_part_the_reader_cannot_read_is_skipped(self) -> None:
         ctx = _ctx({"data/laps.json": b"x" * 2048})
         with patch.object(profile_utils.ZipArchiveReader, "_read", side_effect=FileFormatError("bad format")):
-            assert import_service._load_components_for_batch(ctx, ["data/laps.json"], [{"id": 1}], "laps") == []
+            assert import_service._load_components_for_batch(ctx, ["data/laps.json"], [{"id": _OLD_ACT}], "laps") == []
 
     def test_a_memory_error_propagates(self) -> None:
-        ctx = _ctx({"data/laps.json": [{"activity_id": 1}]})
+        ctx = _ctx({"data/laps.json": [{"activity_id": _OLD_ACT}]})
         with (
             patch.object(profile_utils.ZipArchiveReader, "_read", side_effect=MemoryAllocationError("oom")),
             pytest.raises(MemoryAllocationError),
         ):
-            import_service._load_components_for_batch(ctx, ["data/laps.json"], [{"id": 1}], "laps")
+            import_service._load_components_for_batch(ctx, ["data/laps.json"], [{"id": _OLD_ACT}], "laps")
 
 
 class TestRestoreActivityFiles:
     def test_a_valid_file_is_stored_under_the_new_id(self) -> None:
+        ctx = _ctx({f"activity_files/{_OLD_ACT}.gpx": b"<gpx></gpx>"})
+        ctx.counts["activity_files"] = 0
+        validator = MagicMock()
+        validator.config.limits.max_activity_file_size = 1000000
+        with (
+            patch.object(import_service.file_uploads, "file_validator", validator),
+            patch.object(import_service.file_uploads, "validate_bytes_sync"),
+            patch.object(import_service.activity_file_storage_integration, "store_activity_file") as store,
+        ):
+            import_service._restore_activity_files(ctx, {_OLD_ACT: _NEW_ACT})
+
+        assert ctx.counts["activity_files"] == 1
+        store.assert_called_once_with(_NEW_ACT, ".gpx", b"<gpx></gpx>", ctx.storage)
+
+    def test_an_earlier_release_file_named_by_its_integer_id_is_stored_under_the_new_id(self) -> None:
         ctx = _ctx({"activity_files/1.gpx": b"<gpx></gpx>"})
         ctx.counts["activity_files"] = 0
         validator = MagicMock()
@@ -494,10 +537,9 @@ class TestRestoreActivityFiles:
             patch.object(import_service.file_uploads, "validate_bytes_sync"),
             patch.object(import_service.activity_file_storage_integration, "store_activity_file") as store,
         ):
-            import_service._restore_activity_files(ctx, {1: 10})
+            import_service._restore_activity_files(ctx, {"1": _NEW_ACT})
 
-        assert ctx.counts["activity_files"] == 1
-        store.assert_called_once_with(10, ".gpx", b"<gpx></gpx>", ctx.storage)
+        store.assert_called_once_with(_NEW_ACT, ".gpx", b"<gpx></gpx>", ctx.storage)
 
     def test_the_memory_check_keeps_its_operation_name(self) -> None:
         check_memory = MagicMock()
@@ -506,16 +548,16 @@ class TestRestoreActivityFiles:
         check_memory.assert_called_once_with("activity files import")
 
     def test_a_file_without_a_mapping_is_skipped(self) -> None:
-        ctx = _ctx({"activity_files/999.gpx": b"<gpx></gpx>"})
+        ctx = _ctx({f"activity_files/{_UNKNOWN_ACT}.gpx": b"<gpx></gpx>"})
         ctx.counts["activity_files"] = 0
         with patch.object(import_service.activity_file_storage_integration, "store_activity_file") as store:
-            import_service._restore_activity_files(ctx, {1: 10})
+            import_service._restore_activity_files(ctx, {_OLD_ACT: _NEW_ACT})
 
         store.assert_not_called()
         assert ctx.counts["activity_files"] == 0
 
     def test_an_invalid_file_is_dropped(self) -> None:
-        ctx = _ctx({"activity_files/1.gpx": b"<gpx></gpx>"})
+        ctx = _ctx({f"activity_files/{_OLD_ACT}.gpx": b"<gpx></gpx>"})
         ctx.counts["activity_files"] = 0
         validator = MagicMock()
         validator.config.limits.max_activity_file_size = 1000000
@@ -528,24 +570,22 @@ class TestRestoreActivityFiles:
             ),
             patch.object(import_service.activity_file_storage_integration, "store_activity_file") as store,
         ):
-            import_service._restore_activity_files(ctx, {1: 10})
+            import_service._restore_activity_files(ctx, {_OLD_ACT: _NEW_ACT})
 
         store.assert_not_called()
         assert ctx.counts["activity_files"] == 0
 
-    def test_a_file_without_a_numeric_id_is_skipped_and_logged(self) -> None:
+    def test_a_file_whose_name_is_not_an_archived_activity_is_skipped(self) -> None:
         ctx = _ctx({"activity_files/notes.gpx": b"data"})
         with (
             patch.object(import_service.activity_file_storage_integration, "store_activity_file") as store,
-            patch.object(import_service.logger, "debug") as debug,
         ):
-            import_service._restore_activity_files(ctx, {1: 2})
+            import_service._restore_activity_files(ctx, {_OLD_ACT: _NEW_ACT})
 
         store.assert_not_called()
-        assert any("without an activity id" in str(call.args[0]) for call in debug.call_args_list)
 
     def test_a_value_error_from_storing_is_not_swallowed(self) -> None:
-        ctx = _ctx({"activity_files/1.gpx": b"data"})
+        ctx = _ctx({f"activity_files/{_OLD_ACT}.gpx": b"data"})
         with (
             patch.object(import_service.file_uploads, "validate_bytes_sync"),
             patch.object(
@@ -555,13 +595,13 @@ class TestRestoreActivityFiles:
             ),
             pytest.raises(ValueError, match="storage rejected"),
         ):
-            import_service._restore_activity_files(ctx, {1: 2})
+            import_service._restore_activity_files(ctx, {_OLD_ACT: _NEW_ACT})
 
 
 class TestRestoreActivityMedia:
     def test_a_valid_image_is_stored_under_the_new_id(self) -> None:
         storage = MagicMock()
-        ctx = _ctx({"activity_media/1_photo.jpg": b"image-data"}, storage=storage)
+        ctx = _ctx({f"activity_media/{_OLD_ACT}_photo.jpg": b"image-data"}, storage=storage)
         ctx.counts["media"] = 0
         validator = MagicMock()
         validator.config.limits.max_image_size = 1000000
@@ -569,10 +609,10 @@ class TestRestoreActivityMedia:
             patch.object(import_service.file_uploads, "file_validator", validator),
             patch.object(import_service.file_uploads, "validate_bytes_sync"),
         ):
-            import_service._restore_activity_media(ctx, {1: 10})
+            import_service._restore_activity_media(ctx, {_OLD_ACT: _NEW_ACT})
 
         assert ctx.counts["media"] == 1
-        storage.save.assert_called_once_with("activity_media", "10_photo.jpg", b"image-data")
+        storage.save.assert_called_once_with("activity_media", f"{_NEW_ACT}_photo.jpg", b"image-data")
 
     def test_the_memory_check_keeps_its_operation_name(self) -> None:
         check_memory = MagicMock()
@@ -582,16 +622,16 @@ class TestRestoreActivityMedia:
 
     def test_an_image_without_a_mapping_is_skipped(self) -> None:
         storage = MagicMock()
-        ctx = _ctx({"activity_media/999_photo.jpg": b"image-data"}, storage=storage)
+        ctx = _ctx({f"activity_media/{_UNKNOWN_ACT}_photo.jpg": b"image-data"}, storage=storage)
         ctx.counts["media"] = 0
-        import_service._restore_activity_media(ctx, {1: 10})
+        import_service._restore_activity_media(ctx, {_OLD_ACT: _NEW_ACT})
 
         storage.save.assert_not_called()
         assert ctx.counts["media"] == 0
 
     def test_an_invalid_image_is_never_stored(self) -> None:
         storage = MagicMock()
-        ctx = _ctx({"activity_media/1_bad.jpg": b"image-data"}, storage=storage)
+        ctx = _ctx({f"activity_media/{_OLD_ACT}_bad.jpg": b"image-data"}, storage=storage)
         ctx.counts["media"] = 0
         validator = MagicMock()
         validator.config.limits.max_image_size = 1000000
@@ -603,26 +643,24 @@ class TestRestoreActivityMedia:
                 side_effect=core_exceptions.InvalidInputError("invalid image"),
             ),
         ):
-            import_service._restore_activity_media(ctx, {1: 10})
+            import_service._restore_activity_media(ctx, {_OLD_ACT: _NEW_ACT})
 
         assert ctx.counts["media"] == 0
         storage.save.assert_not_called()
 
-    def test_an_image_without_a_numeric_id_is_skipped_and_logged(self) -> None:
+    def test_an_image_whose_name_is_not_an_archived_activity_is_skipped(self) -> None:
         ctx = _ctx({"activity_media/abc_photo.png": b"data"})
         ctx.counts["media"] = 0
         with (
             patch.object(import_service.activity_media_integration, "store_media_blob") as store,
-            patch.object(import_service.logger, "debug") as debug,
         ):
-            import_service._restore_activity_media(ctx, {1: 2})
+            import_service._restore_activity_media(ctx, {_OLD_ACT: _NEW_ACT})
 
         store.assert_not_called()
         assert ctx.counts["media"] == 0
-        assert any("without an activity id" in str(call.args[0]) for call in debug.call_args_list)
 
     def test_a_value_error_from_storing_is_not_swallowed(self) -> None:
-        ctx = _ctx({"activity_media/1_photo.png": b"data"})
+        ctx = _ctx({f"activity_media/{_OLD_ACT}_photo.png": b"data"})
         with (
             patch.object(import_service.file_uploads, "validate_bytes_sync"),
             patch.object(
@@ -632,4 +670,4 @@ class TestRestoreActivityMedia:
             ),
             pytest.raises(ValueError, match="storage rejected"),
         ):
-            import_service._restore_activity_media(ctx, {1: 2})
+            import_service._restore_activity_media(ctx, {_OLD_ACT: _NEW_ACT})

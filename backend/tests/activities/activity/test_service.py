@@ -13,6 +13,19 @@ import modules.activities.activity.schema as activity_schema
 
 # A Thursday, so week bounds straddle a month boundary in neither direction.
 _TODAY = date(2026, 3, 12)
+_ID_1 = uuid.uuid4()
+_ID_2 = uuid.uuid4()
+_ID_4 = uuid.uuid4()
+_ID_5 = uuid.uuid4()
+_ID_7 = uuid.uuid4()
+_ID_8 = uuid.uuid4()
+_ID_9 = uuid.uuid4()
+_ID_11 = uuid.uuid4()
+_ID_12 = uuid.uuid4()
+_ID_13 = uuid.uuid4()
+_ID_14 = uuid.uuid4()
+_ID_15 = uuid.uuid4()
+_IDS = {n: uuid.uuid4() for n in (1, 2, 3)}
 
 
 @pytest.fixture(autouse=True)
@@ -289,10 +302,10 @@ class TestEditPublishesUpdated:
         from modules.activities.activity import service
 
         db = MagicMock()
-        service.edit_activity(5, 1, activity_schema.ActivityEdit(name="Run"), db, if_match="*")
+        service.edit_activity(_ID_5, 1, activity_schema.ActivityEdit(name="Run"), db, if_match="*")
 
-        mock_crud.edit_activity.assert_called_once_with(1, 5, ANY, db, if_match="*")
-        mock_publishers.publish_activity_updated.assert_called_once_with(5, 1, db, changed_fields=["name"])
+        mock_crud.edit_activity.assert_called_once_with(1, _ID_5, ANY, db, if_match="*")
+        mock_publishers.publish_activity_updated.assert_called_once_with(_ID_5, 1, db, changed_fields=["name"])
 
     @patch("modules.activities.activity.service.gears_integration")
     @patch("modules.activities.activity.service.activity_event_publishers")
@@ -307,7 +320,7 @@ class TestEditPublishesUpdated:
         db = MagicMock()
 
         with pytest.raises(core_exceptions.NotFoundError):
-            service.edit_activity(5, 1, activity_schema.ActivityEdit(gear_id=_GEAR_ID), db, if_match="*")
+            service.edit_activity(_ID_5, 1, activity_schema.ActivityEdit(gear_id=_GEAR_ID), db, if_match="*")
 
         mock_gears.require_owned_gears.assert_called_once_with(1, [_GEAR_ID], db)
         mock_crud.edit_activity.assert_not_called()
@@ -326,7 +339,7 @@ class TestEditPublishesUpdated:
         mock_crud.get_activity_by_id_from_user_id.return_value = None
 
         with pytest.raises(core_exceptions.NotFoundError):
-            service.edit_activity(5, 1, activity_schema.ActivityEdit(name="Run"), MagicMock(), if_match="*")
+            service.edit_activity(_ID_5, 1, activity_schema.ActivityEdit(name="Run"), MagicMock(), if_match="*")
 
     @patch("modules.activities.activity.service.activities_contributor_registry")
     @patch("modules.activities.activity.service.activity_event_publishers")
@@ -337,7 +350,7 @@ class TestEditPublishesUpdated:
         from modules.activities.activity import service
 
         db = MagicMock()
-        service.edit_activity(5, 1, activity_schema.ActivityEdit(name="Run"), db, if_match="*")
+        service.edit_activity(_ID_5, 1, activity_schema.ActivityEdit(name="Run"), db, if_match="*")
 
         db.commit.assert_called_once_with()
 
@@ -351,7 +364,7 @@ class TestEditPublishesUpdated:
         mock_crud.edit_activity.side_effect = StaleDataError()
 
         with pytest.raises(core_exceptions.PreconditionFailedError):
-            service.edit_activity(5, 1, activity_schema.ActivityEdit(name="Run"), db, if_match="*")
+            service.edit_activity(_ID_5, 1, activity_schema.ActivityEdit(name="Run"), db, if_match="*")
 
         db.rollback.assert_called_once()
         mock_publishers.publish_activity_updated.assert_not_called()
@@ -372,16 +385,16 @@ class TestCrossModuleWrites:
         from modules.activities.activity import service
 
         db = MagicMock()
-        mock_crud.bulk_set_activities_gear_id.return_value = [7, 8]
+        mock_crud.bulk_set_activities_gear_id.return_value = [_ID_7, _ID_8]
 
-        updated = service.bulk_set_activities_gear(3, {7: _GEAR_ID, 8: _GEAR_ID}, db, source="api:test")
+        updated = service.bulk_set_activities_gear(3, {_ID_7: _GEAR_ID, _ID_8: _GEAR_ID}, db, source="api:test")
 
         assert updated == 2
         db.commit.assert_not_called()
         # Only staged: the caller commits the updates and their events together.
-        mock_crud.bulk_set_activities_gear_id.assert_called_once_with(3, {7: _GEAR_ID, 8: _GEAR_ID}, db)
+        mock_crud.bulk_set_activities_gear_id.assert_called_once_with(3, {_ID_7: _GEAR_ID, _ID_8: _GEAR_ID}, db)
         mock_publishers.publish_activities_updated.assert_called_once_with(
-            [7, 8], 3, db, changed_fields=["gear_id"], source="api:test"
+            [_ID_7, _ID_8], 3, db, changed_fields=["gear_id"], source="api:test"
         )
 
     @patch("modules.activities.activity.service.activity_event_publishers")
@@ -390,7 +403,7 @@ class TestCrossModuleWrites:
         from modules.activities.activity import service
 
         db = MagicMock()
-        mock_crud.delete_all_strava_activities_for_user.return_value = [11, 12, 13, 14, 15]
+        mock_crud.delete_all_strava_activities_for_user.return_value = [_ID_11, _ID_12, _ID_13, _ID_14, _ID_15]
 
         deleted = service.delete_all_strava_activities(3, db, source="api:test", limit=500)
 
@@ -398,7 +411,7 @@ class TestCrossModuleWrites:
         db.commit.assert_not_called()
         mock_crud.delete_all_strava_activities_for_user.assert_called_once_with(3, db, limit=500)
         mock_publishers.publish_activities_deleted.assert_called_once_with(
-            [11, 12, 13, 14, 15], 3, db, source="api:test"
+            [_ID_11, _ID_12, _ID_13, _ID_14, _ID_15], 3, db, source="api:test"
         )
 
     @patch("modules.activities.activity.service.activity_event_publishers")
@@ -408,14 +421,14 @@ class TestCrossModuleWrites:
         from modules.activities.activity import service
 
         db = MagicMock()
-        mock_crud.delete_activities_batch_for_user.return_value = [1, 2]
+        mock_crud.delete_activities_batch_for_user.return_value = [_ID_1, _ID_2]
 
         deleted = service.delete_activities_batch_for_user(7, 50, db, source="api:test")
 
         assert deleted == 2
         db.commit.assert_not_called()
         mock_crud.delete_activities_batch_for_user.assert_called_once_with(7, 50, db)
-        mock_publishers.publish_activities_deleted.assert_called_once_with([1, 2], 7, db, source="api:test")
+        mock_publishers.publish_activities_deleted.assert_called_once_with([_ID_1, _ID_2], 7, db, source="api:test")
 
 
 class TestPageUserActivities:
@@ -423,7 +436,7 @@ class TestPageUserActivities:
         from modules.activities.activity import service
 
         activity = activity_schema.ActivityRead(
-            id=4, user_id=7, distance=0, name="Run", activity_type=1, private_notes="secret", import_info={"a": 1}
+            id=_ID_4, user_id=7, distance=0, name="Run", activity_type=1, private_notes="secret", import_info={"a": 1}
         )
         with (
             patch.object(service, "_require_visible_owner"),
@@ -472,10 +485,10 @@ class TestScrollOwnFeed:
         entries = [
             SimpleNamespace(
                 activity=activity_schema.ActivityRead(
-                    id=i, user_id=7, distance=0, name="Run", activity_type=1, private_notes="secret"
+                    id=_IDS[i], user_id=7, distance=0, name="Run", activity_type=1, private_notes="secret"
                 ),
                 cursor_sort_value=datetime(2024, 1, i, tzinfo=UTC),
-                cursor_id=i,
+                cursor_id=_IDS[i],
             )
             for i in (3, 2, 1)
         ]
@@ -496,14 +509,14 @@ class TestScrollOwnFeed:
         own.assert_called_once_with(7, None, 3, ANY)
         followers.list_accepted_followee_ids.assert_not_called()
         following.assert_not_called()
-        assert [item.id for item in page["items"]] == [3, 2]
+        assert [item.id for item in page["items"]] == [_IDS[3], _IDS[2]]
         assert all(isinstance(item, activity_schema.ActivitySummaryRead) for item in page["items"])
         assert all("private_notes" not in item.model_dump() for item in page["items"])
         assert page["next_cursor"] is not None
         assert profiles.call_args.args[0] == {7}
         assert page["users"] == {7: "me"}
         # The owner's media is looked up for the page, as in the following feed.
-        assert registry.resolve_media.call_args.args[0] == [3, 2]
+        assert registry.resolve_media.call_args.args[0] == [_IDS[3], _IDS[2]]
 
 
 class TestWithThumbnailUrls:
@@ -513,20 +526,20 @@ class TestWithThumbnailUrls:
     def test_sets_the_url_from_the_key(self, mock_registry):
         from modules.activities.activity import service
 
-        mock_registry.resolve_thumbnail_url.return_value = "/activities/7/thumbnail?t=abc"
-        activity = SimpleNamespace(id=7, map_thumbnail_path="7.webp", map_thumbnail_url=None)
+        mock_registry.resolve_thumbnail_url.return_value = f"/activities/{_ID_7}/thumbnail?t=abc"
+        activity = SimpleNamespace(id=_ID_7, map_thumbnail_path="7.webp", map_thumbnail_url=None)
 
         result = service._with_thumbnail_urls([activity])
 
-        assert result[0].map_thumbnail_url == "/activities/7/thumbnail?t=abc"
-        mock_registry.resolve_thumbnail_url.assert_called_once_with("7.webp", 7)
+        assert result[0].map_thumbnail_url == f"/activities/{_ID_7}/thumbnail?t=abc"
+        mock_registry.resolve_thumbnail_url.assert_called_once_with("7.webp", _ID_7)
 
     @patch("modules.activities.activity.service.activities_contributor_registry")
     def test_a_masked_key_yields_no_url(self, mock_registry):
         from modules.activities.activity import service
 
         mock_registry.resolve_thumbnail_url.return_value = None
-        activity = SimpleNamespace(id=7, map_thumbnail_path=None, map_thumbnail_url="stale")
+        activity = SimpleNamespace(id=_ID_7, map_thumbnail_path=None, map_thumbnail_url="stale")
 
         assert service._with_thumbnail_urls([activity])[0].map_thumbnail_url is None
 
@@ -538,16 +551,16 @@ class TestWithMedia:
     def test_resolves_the_owned_activities_in_one_call(self, mock_registry):
         from modules.activities.activity import service
 
-        photo = SimpleNamespace(id=1)
-        mock_registry.resolve_media.return_value = {7: [photo]}
-        own = SimpleNamespace(id=7, user_id=3, media=[])
-        also_own = SimpleNamespace(id=8, user_id=3, media=[])
-        other = SimpleNamespace(id=9, user_id=4, media=[])
+        photo = SimpleNamespace(id=uuid.uuid4())
+        mock_registry.resolve_media.return_value = {_ID_7: [photo]}
+        own = SimpleNamespace(id=_ID_7, user_id=3, media=[])
+        also_own = SimpleNamespace(id=_ID_8, user_id=3, media=[])
+        other = SimpleNamespace(id=_ID_9, user_id=4, media=[])
         db = MagicMock()
 
         result = service.with_media([own, also_own, other], 3, db)
 
-        mock_registry.resolve_media.assert_called_once_with([7, 8], db)
+        mock_registry.resolve_media.assert_called_once_with([_ID_7, _ID_8], db)
         assert result[0].media == [photo]
         assert result[1].media == []
         assert result[2].media == []
@@ -557,7 +570,7 @@ class TestWithMedia:
         from modules.activities.activity import service
 
         mock_registry.resolve_media.return_value = {}
-        other = SimpleNamespace(id=9, user_id=4, media=[])
+        other = SimpleNamespace(id=_ID_9, user_id=4, media=[])
 
         service.with_media([other], 3, MagicMock())
 

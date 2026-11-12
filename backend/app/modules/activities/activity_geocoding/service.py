@@ -14,6 +14,7 @@ subscriber (not part of parsing) keeps the parse path free of network I/O and
 lets the work run durably/async when durable jobs are enabled.
 """
 
+import uuid
 from datetime import timedelta
 
 from jasil.providers import ClockProvider, GeocodedPlace, GeocodingProvider
@@ -56,7 +57,7 @@ def reverse_geocode(
     return geocoding.reverse(latitude, longitude)
 
 
-def geocode_and_store_activity_location(activity_id: int, geocoding: GeocodingProvider, db: Session) -> bool:
+def geocode_and_store_activity_location(activity_id: uuid.UUID, geocoding: GeocodingProvider, db: Session) -> bool:
     """Resolve and persist a created activity's location from its GPS stream.
 
     Loads the activity's first GPS waypoint, reverse-geocodes it, and writes
@@ -95,7 +96,7 @@ def geocode_and_store_activity_location(activity_id: int, geocoding: GeocodingPr
         db,
     ):
         db.commit()
-        logger.debug("Stored the resolved activity location", extra=core_logger.context(activity_id=activity_id))
+        logger.debug("Stored the resolved activity location", extra=core_logger.context(activity_id=str(activity_id)))
     return True
 
 
@@ -136,7 +137,7 @@ def backfill_missing_activity_locations(
     stored = 0
     lookups = 0
     deferred = 0
-    after_id = 0
+    after_id: uuid.UUID | None = None
     while lookups < max_lookups:
         candidates = activity_integration.list_activities_missing_location(db, due_at=now, after_id=after_id)
         if not candidates:

@@ -5,6 +5,8 @@ activity, instead of every collection re-resolving the parent to decide the same
 What each child declares (its hide flag, its rows) stays in its own package.
 """
 
+import uuid
+
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
@@ -19,7 +21,7 @@ import modules.users.users.schema as users_schema
 
 
 def get_activity_detail(
-    activity_id: int, requester_user_id: int, db: Session
+    activity_id: uuid.UUID, requester_user_id: int, db: Session
 ) -> activity_detail_schema.ActivityDetailRead:
     """Return an activity with its child collections for an authenticated viewer.
 
@@ -44,7 +46,7 @@ def get_activity_detail(
     return _with_children(activity, owner, requester_user_id, db)
 
 
-def get_public_activity_detail(activity_id: int, db: Session) -> activity_detail_schema.ActivityDetailRead:
+def get_public_activity_detail(activity_id: uuid.UUID, db: Session) -> activity_detail_schema.ActivityDetailRead:
     """Return a publicly shared activity with its child collections for an anonymous viewer.
 
     Args:

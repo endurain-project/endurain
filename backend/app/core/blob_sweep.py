@@ -12,6 +12,7 @@ short session per batch for that lookup and closes it before any storage call, s
 waits on an object-storage round trip.
 """
 
+import uuid
 from collections.abc import Callable, Iterator
 from itertools import batched
 from time import time
@@ -34,8 +35,8 @@ _BATCH_SIZE = 500
 def sweep_orphaned_blobs(
     storage: platform_providers.StorageProvider,
     area: str,
-    existing_ids: Callable[[list[int], Session], set[int]],
-    owner_id_of: Callable[[str], int | None],
+    existing_ids: Callable[[list[uuid.UUID], Session], set[uuid.UUID]],
+    owner_id_of: Callable[[str], uuid.UUID | None],
     *,
     prefix: str = "",
     min_age_seconds: int = MIN_AGE_SECONDS,
@@ -65,9 +66,9 @@ def _candidates(
     storage: platform_providers.StorageProvider,
     area: str,
     prefix: str,
-    owner_id_of: Callable[[str], int | None],
+    owner_id_of: Callable[[str], uuid.UUID | None],
     cutoff: float,
-) -> Iterator[tuple[str, int]]:
+) -> Iterator[tuple[str, uuid.UUID]]:
     """Yield ``(key, owner id)`` for old-enough blobs this sweep owns.
 
     Args:
@@ -89,8 +90,8 @@ def _candidates(
 def _delete_orphans(
     storage: platform_providers.StorageProvider,
     area: str,
-    batch: tuple[tuple[str, int], ...],
-    existing_ids: Callable[[list[int], Session], set[int]],
+    batch: tuple[tuple[str, uuid.UUID], ...],
+    existing_ids: Callable[[list[uuid.UUID], Session], set[uuid.UUID]],
 ) -> int:
     """Delete the blobs of one batch whose owner is gone.
 

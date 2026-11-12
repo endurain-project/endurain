@@ -1,6 +1,9 @@
 """SQLAlchemy ORM models for activity media records."""
 
-from sqlalchemy import ForeignKey, Index, String
+import uuid
+from datetime import datetime
+
+from sqlalchemy import DateTime, ForeignKey, Index, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
@@ -20,8 +23,8 @@ class ActivityMedia(Base):
         Index("uq_activity_media_activity_content_hash", "activity_id", "content_hash", unique=True),
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    activity_id: Mapped[int] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    activity_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("activities.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -39,4 +42,10 @@ class ActivityMedia(Base):
     content_hash: Mapped[str | None] = mapped_column(
         String(length=64),
         comment="SHA-256 of the media bytes, used to no-op re-imports of the same photo",
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+        comment="When the media record was created",
     )

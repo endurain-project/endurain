@@ -107,6 +107,9 @@ def test_only_gear_not_stored_yet_is_counted():
 
 _GEAR_A = uuid.uuid4()
 _GEAR_B = uuid.uuid4()
+_ACT_1 = uuid.uuid4()
+_ACT_2 = uuid.uuid4()
+_ACT_3 = uuid.uuid4()
 
 
 def _ref(activity_id, gear_id):
@@ -115,7 +118,7 @@ def _ref(activity_id, gear_id):
 
 def test_activities_are_matched_page_by_page_and_each_page_is_committed():
     gears = [MagicMock(id=_GEAR_A, garminconnect_gear_id="g1"), MagicMock(id=_GEAR_B, garminconnect_gear_id="g2")]
-    pages = [[_ref(1, "g1"), _ref(2, "other")], [_ref(3, "g2")], []]
+    pages = [[_ref(_ACT_1, "g1"), _ref(_ACT_2, "other")], [_ref(_ACT_3, "g2")], []]
     db = MagicMock()
 
     with (
@@ -128,8 +131,8 @@ def test_activities_are_matched_page_by_page_and_each_page_is_committed():
         assigned = garmin_gear_service.set_activities_gear(1, db)
 
     assert assigned == 2
-    assert [call.kwargs["after_id"] for call in list_refs.call_args_list] == [0, 2, 3]
-    assert [call.args[1] for call in bulk_set.call_args_list] == [{1: _GEAR_A}, {3: _GEAR_B}]
+    assert [call.kwargs["after_id"] for call in list_refs.call_args_list] == [None, _ACT_2, _ACT_3]
+    assert [call.args[1] for call in bulk_set.call_args_list] == [{_ACT_1: _GEAR_A}, {_ACT_3: _GEAR_B}]
     assert db.commit.call_count == 2
 
 

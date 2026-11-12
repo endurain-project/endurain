@@ -25,7 +25,7 @@ def _read(notification_id: int):
             "id": _nid(notification_id),
             "user_id": 1,
             "type": "new_activity",
-            "options": {"activity_id": notification_id},
+            "options": {"activity_id": str(_nid(notification_id))},
             "created_at": datetime(2024, 1, notification_id, tzinfo=UTC),
         }
     )
@@ -109,13 +109,13 @@ class TestCreateActivityCreatedNotification:
             "modules.notifications.service.notifications_crud.create_notification_once", return_value=(stored, True)
         ) as create_once:
             notification, ws_message, created = notifications_service.create_activity_created_notification(
-                1, 5, False, "event-1", mock_db
+                1, uuid.UUID("11111111-1111-4111-8111-111111111111"), False, "event-1", mock_db
             )
 
         data = create_once.call_args.args[0]
         assert data.type == notifications_constants.NotificationType.NEW_ACTIVITY
         assert data.source_event_id == "event-1"
-        assert data.options == {"activity_id": 5}
+        assert data.options == {"activity_id": "11111111-1111-4111-8111-111111111111"}
         assert (notification, ws_message, created) == (stored, notifications_constants.NEW_ACTIVITY_WS_MESSAGE, True)
         mock_db.commit.assert_called_once()
 
@@ -136,7 +136,9 @@ class TestCreateActivityCreatedNotification:
             "modules.notifications.service.notifications_crud.create_notification_once",
             return_value=(MagicMock(id=_nid(9)), False),
         ):
-            _, _, created = notifications_service.create_activity_created_notification(1, 5, False, "event-1", mock_db)
+            _, _, created = notifications_service.create_activity_created_notification(
+                1, uuid.UUID("11111111-1111-4111-8111-111111111111"), False, "event-1", mock_db
+            )
         assert created is False
 
 

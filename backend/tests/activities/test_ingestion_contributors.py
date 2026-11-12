@@ -1,5 +1,6 @@
 """Tests that each ingestion contributor checks the parsed payload it is handed."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -16,13 +17,15 @@ import modules.activities.activity_streams.integration_service as activity_strea
 import modules.activities.activity_workout_steps.contracts as activity_workout_steps_contracts
 import modules.activities.activity_workout_steps.integration_service as activity_workout_steps_integration
 
+_ACTIVITY_ID = uuid.UUID("00000000-0000-4000-8000-00000000000a")
+
 
 def _activity() -> activity_schema.ActivityRead:
-    return activity_schema.ActivityRead(id=10, user_id=1, distance=0, name="Parsed", activity_type=1)
+    return activity_schema.ActivityRead(id=_ACTIVITY_ID, user_id=1, distance=0, name="Parsed", activity_type=1)
 
 
 _SET = activity_sets_contracts.ActivitySetsCreate(
-    activity_id=10, duration=30.0, set_type="active", start_time="2024-01-01T00:00:00Z"
+    activity_id=_ACTIVITY_ID, duration=30.0, set_type="active", start_time="2024-01-01T00:00:00Z"
 )
 _STEP = activity_workout_steps_contracts.ActivityWorkoutStepsCreate(message_index=0, duration_type="time")
 _STREAM = activity_streams_contracts.ParsedStream(stream_type=1, stream_waypoints=[{"hr": 140}])

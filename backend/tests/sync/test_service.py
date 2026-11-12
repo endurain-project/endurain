@@ -172,8 +172,8 @@ def _encrypted(**raw) -> str:
     return core_cryptography.encrypt_token_fernet(json.dumps({"t": NOW.isoformat(), **raw}))
 
 
-def test_paging_across_integer_and_uuid_sources_misses_and_repeats_nothing(db):
-    """Activities have integer ids and health records UUIDs; a cursor holds either kind of id."""
+def test_paging_across_sources_misses_and_repeats_nothing(db):
+    """Activities and health records both have UUID ids; a cursor holds the id of either."""
     expected = set()
     for day in range(1, 5):
         activity = _activity(start_time=datetime(2026, 1, day, tzinfo=UTC))
@@ -197,7 +197,7 @@ def test_paging_across_integer_and_uuid_sources_misses_and_repeats_nothing(db):
 
     assert len(seen) == len(set(seen)) == len(expected)
     assert set(seen) == expected
-    assert {type(record_id) for kind, record_id in seen if kind == "activity"} == {int}
+    assert {type(record_id) for kind, record_id in seen if kind == "activity"} == {uuid.UUID}
     assert {type(record_id) for kind, record_id in seen if kind == "health_weight"} == {uuid.UUID}
 
 
@@ -210,17 +210,24 @@ def test_a_tombstone_position_is_a_uuid(db):
 
 
 def test_a_cursor_without_the_current_format_is_expired(db):
-    old = _encrypted(s=T1.isoformat(), r=0, i=5)
+    old = _encrypted(s=T1.isoformat(), r=0, i=str(uuid.uuid4()))
 
     with pytest.raises(core_exceptions.SyncExpiredError):
         _sync(db, old)
 
 
 def test_a_cursor_of_the_previous_format_is_expired(db):
-    previous = _encrypted(f=sync_service._CURSOR_FORMAT - 1, s=T1.isoformat(), r=0, i=5)
+    previous = _encrypted(f=sync_service._CURSOR_FORMAT - 1, s=T1.isoformat(), r=0, i=str(uuid.uuid4()))
 
     with pytest.raises(core_exceptions.SyncExpiredError):
         _sync(db, previous)
+
+
+def test_a_format_3_cursor_is_expired_whatever_it_holds(db):
+    old = _encrypted(f=3, s=T1.isoformat(), r=0, i=str(uuid.uuid4()))
+
+    with pytest.raises(core_exceptions.SyncExpiredError):
+        _sync(db, old)
 
 
 _GEAR_RANK = 2 * [source.sync_type for source in sync_service._TYPES].index(sync_schema.SyncType.GEAR)
@@ -231,7 +238,7 @@ _GEAR_RANK = 2 * [source.sync_type for source in sync_service._TYPES].index(sync
     [
         {"f": sync_service._CURSOR_FORMAT, "s": T1.isoformat(), "r": 2, "i": "not-a-uuid"},
         {"f": sync_service._CURSOR_FORMAT, "s": T1.isoformat(), "r": _GEAR_RANK, "i": "5"},
-        {"f": sync_service._CURSOR_FORMAT, "s": T1.isoformat(), "r": 0, "i": "not-an-int"},
+        {"f": sync_service._CURSOR_FORMAT, "s": T1.isoformat(), "r": 0, "i": "5"},
         {"f": sync_service._CURSOR_FORMAT, "s": T1.isoformat(), "r": 999, "i": "1"},
     ],
 )

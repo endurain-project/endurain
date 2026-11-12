@@ -33,7 +33,7 @@ Public links are controlled by an administrator in **Settings → Server setting
 - **Enable public shareable links:** off by default. When on, anyone with the link to a *public* activity can view it without signing in.
 - **Show user info on public links:** when on, the link also shows the owner's name and profile photo.
 
-An activity is served to anonymous visitors only if all of these hold: public links are enabled, the activity's visibility is public, and the activity is not hidden. Its laps, sets, streams and workout steps are served only if those details are not hidden. For anyone who may not see an activity, Endurain answers as if it did not exist, so nobody can find out which activity ids exist.
+An activity is served to anonymous visitors only if all of these hold: public links are enabled, the activity's visibility is public, and the activity is not hidden. Its laps, sets, streams and workout steps are served only if those details are not hidden. For anyone who may not see an activity, Endurain answers as if it did not exist, so nobody can find out which activity ids exist. A shared link names the activity by a random id that cannot be guessed. Links made before the upgrade to v0.21.0 stop working and must be shared again.
 
 !!! warning
     Anyone who has a public link can open it and pass it on. Treat a public activity as published.

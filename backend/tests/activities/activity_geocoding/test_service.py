@@ -7,6 +7,7 @@ are covered in ``tests/core/test_platform_geocoding.py``.
 """
 
 import inspect
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
@@ -20,6 +21,9 @@ from modules.activities.activity_geocoding.service import (
     reverse_geocode,
 )
 
+UUID_1 = uuid.UUID("11111111-1111-4111-8111-111111111111")
+UUID_2 = uuid.UUID("22222222-2222-4222-8222-222222222222")
+UUID_3 = uuid.UUID("33333333-3333-4333-8333-333333333333")
 _SVC = "modules.activities.activity_geocoding.service"
 
 
@@ -154,12 +158,12 @@ class TestBackfill:
 
     def test_stores_a_resolved_location(self, mock_geo, mock_waypoints, mock_candidates, mock_update, mock_defer):
         db = MagicMock()
-        mock_candidates.side_effect = [[MagicMock(id=1)], []]
-        mock_waypoints.return_value = {1: [{"lat": 38.0, "lon": -9.0}]}
+        mock_candidates.side_effect = [[MagicMock(id=UUID_1)], []]
+        mock_waypoints.return_value = {UUID_1: [{"lat": 38.0, "lon": -9.0}]}
         mock_geo.return_value = GeocodedPlace(locality="Lisbon", country="Portugal")
 
         assert backfill_missing_activity_locations(MagicMock(), _clock(), db) == 1
-        mock_update.assert_called_once_with(1, "Lisbon", None, "Portugal", db)
+        mock_update.assert_called_once_with(UUID_1, "Lisbon", None, "Portugal", db)
         # One commit ends the read transaction before the lookups, one persists the result.
         assert db.commit.call_count == 2
         mock_defer.assert_not_called()
@@ -168,13 +172,13 @@ class TestBackfill:
         self, mock_geo, mock_waypoints, mock_candidates, _update, mock_defer
     ):
         db = MagicMock()
-        mock_candidates.side_effect = [[MagicMock(id=1), MagicMock(id=2)], []]
-        mock_waypoints.return_value = {1: []}
+        mock_candidates.side_effect = [[MagicMock(id=UUID_1), MagicMock(id=UUID_2)], []]
+        mock_waypoints.return_value = {UUID_1: []}
 
         backfill_missing_activity_locations(MagicMock(), _clock(), db)
 
         mock_geo.assert_not_called()
-        mock_defer.assert_called_once_with([1, 2], _NOW + LOOKUP_RETRY_DELAY, db)
+        mock_defer.assert_called_once_with([UUID_1, UUID_2], _NOW + LOOKUP_RETRY_DELAY, db)
 
     @pytest.mark.parametrize("place", [None, GeocodedPlace()], ids=["nothing", "empty_place"])
     def test_a_lookup_that_resolves_nothing_is_deferred(
@@ -182,21 +186,21 @@ class TestBackfill:
     ):
         """Open sea, a disabled provider or an outage: retried after the delay, never given up on."""
         db = MagicMock()
-        mock_candidates.side_effect = [[MagicMock(id=1)], []]
-        mock_waypoints.return_value = {1: [{"lat": 0.0, "lon": -30.0}]}
+        mock_candidates.side_effect = [[MagicMock(id=UUID_1)], []]
+        mock_waypoints.return_value = {UUID_1: [{"lat": 0.0, "lon": -30.0}]}
         mock_geo.return_value = place
 
         assert backfill_missing_activity_locations(MagicMock(), _clock(), db) == 0
         mock_update.assert_not_called()
-        mock_defer.assert_called_once_with([1], _NOW + LOOKUP_RETRY_DELAY, db)
+        mock_defer.assert_called_once_with([UUID_1], _NOW + LOOKUP_RETRY_DELAY, db)
 
     def test_does_not_count_a_row_that_did_not_change(
         self, mock_geo, mock_waypoints, mock_candidates, mock_update, _defer
     ):
         """An activity deleted between listing and writing is neither stored nor committed."""
         db = MagicMock()
-        mock_candidates.side_effect = [[MagicMock(id=1)], []]
-        mock_waypoints.return_value = {1: [{"lat": 38.0, "lon": -9.0}]}
+        mock_candidates.side_effect = [[MagicMock(id=UUID_1)], []]
+        mock_waypoints.return_value = {UUID_1: [{"lat": 38.0, "lon": -9.0}]}
         mock_geo.return_value = GeocodedPlace(locality="Lisbon", country="Portugal")
         mock_update.return_value = False
 
@@ -208,23 +212,23 @@ class TestBackfill:
         self, mock_geo, mock_waypoints, mock_candidates, mock_update, _defer
     ):
         db = MagicMock()
-        mock_candidates.side_effect = [[MagicMock(id=1), MagicMock(id=2)], [MagicMock(id=3)], []]
-        mock_waypoints.side_effect = [{}, {3: [{"lat": 38.0, "lon": -9.0}]}]
+        mock_candidates.side_effect = [[MagicMock(id=UUID_1), MagicMock(id=UUID_2)], [MagicMock(id=UUID_3)], []]
+        mock_waypoints.side_effect = [{}, {UUID_3: [{"lat": 38.0, "lon": -9.0}]}]
         mock_geo.return_value = GeocodedPlace(locality="Lisbon", country="Portugal")
 
         assert backfill_missing_activity_locations(MagicMock(), _clock(), db) == 1
-        mock_update.assert_called_once_with(3, "Lisbon", None, "Portugal", db)
-        assert [call.kwargs["after_id"] for call in mock_candidates.call_args_list] == [0, 2, 3]
+        mock_update.assert_called_once_with(UUID_3, "Lisbon", None, "Portugal", db)
+        assert [call.kwargs["after_id"] for call in mock_candidates.call_args_list] == [None, UUID_2, UUID_3]
 
     def test_lookups_are_capped_and_the_rest_stay_due(
         self, mock_geo, mock_waypoints, mock_candidates, _update, mock_defer
     ):
         db = MagicMock()
-        mock_candidates.side_effect = [[MagicMock(id=1), MagicMock(id=2), MagicMock(id=3)], []]
+        mock_candidates.side_effect = [[MagicMock(id=UUID_1), MagicMock(id=UUID_2), MagicMock(id=UUID_3)], []]
         mock_waypoints.return_value = {
-            1: [{"lat": 1.0, "lon": 1.0}],
-            2: [{"lat": 2.0, "lon": 2.0}],
-            3: [{"lat": 3.0, "lon": 3.0}],
+            UUID_1: [{"lat": 1.0, "lon": 1.0}],
+            UUID_2: [{"lat": 2.0, "lon": 2.0}],
+            UUID_3: [{"lat": 3.0, "lon": 3.0}],
         }
         mock_geo.return_value = None
 
@@ -232,4 +236,4 @@ class TestBackfill:
 
         assert mock_geo.call_count == 2
         # Activity 3 was never looked up, so it is not pushed back.
-        mock_defer.assert_called_once_with([1, 2], _NOW + LOOKUP_RETRY_DELAY, db)
+        mock_defer.assert_called_once_with([UUID_1, UUID_2], _NOW + LOOKUP_RETRY_DELAY, db)

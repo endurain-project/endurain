@@ -234,7 +234,7 @@ def _record_event_notification(
 
 def create_activity_created_notification(
     user_id: int,
-    activity_id: int,
+    activity_id: uuid.UUID,
     duplicate_start_time: bool,
     source_event_id: str,
     db: Session,
@@ -260,7 +260,7 @@ def create_activity_created_notification(
         notification_type = notifications_constants.NotificationType.NEW_ACTIVITY
         ws_message = notifications_constants.NEW_ACTIVITY_WS_MESSAGE
     return _record_event_notification(
-        user_id, notification_type, ws_message, {"activity_id": activity_id}, source_event_id, db
+        user_id, notification_type, ws_message, {"activity_id": str(activity_id)}, source_event_id, db
     )
 
 

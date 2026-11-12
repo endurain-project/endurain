@@ -1,5 +1,6 @@
 """Tests for the activity ingestion contract (ActivityCore, ParsedActivity)."""
 
+import uuid
 from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
@@ -115,7 +116,7 @@ class TestServerOwnedFieldsAreNotIngestionInputs:
         with pytest.raises(ValidationError) as exc:
             ActivityCore(
                 **core.model_dump(),
-                id=999,
+                id=uuid.uuid4(),
                 map_thumbnail_path="thumbnails/999.png",
             )
 

@@ -6,6 +6,7 @@ archive names and how one archived record becomes a stored row; the parent-id
 guard and the re-keying filter live here once.
 """
 
+import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -14,6 +15,7 @@ from pydantic import BaseModel, TypeAdapter
 from sqlalchemy.orm import Session
 
 import modules.activities.activity.schema as activity_schema
+import modules.users.users_profile.contracts as users_profile_contracts
 
 
 class PersistActivityComponent(Protocol):
@@ -53,7 +55,7 @@ class PersistFileComponent(Protocol):
 class ExportActivityRecords(Protocol):
     """Export profile records scoped to activity identifiers."""
 
-    def __call__(self, activity_ids: list[int], db: Session) -> Sequence[BaseModel]:
+    def __call__(self, activity_ids: list[uuid.UUID], db: Session) -> Sequence[BaseModel]:
         """Return the records for the given activities.
 
         Args:
@@ -71,7 +73,7 @@ class RestoreActivityRecords(Protocol):
     def __call__(
         self,
         records: list[dict[str, Any]],
-        original_activity_id: int,
+        original_activity_id: str,
         new_activity: activity_schema.ActivityRead,
         db: Session,
     ) -> int:
@@ -79,7 +81,7 @@ class RestoreActivityRecords(Protocol):
 
         Args:
             records: Profile records to restore.
-            original_activity_id: The activity's ID in the exported archive.
+            original_activity_id: The activity's archive-local key (``archived_id`` of its ID in the archive).
             new_activity: The activity the records are restored onto.
             db: Database session.
 
@@ -120,7 +122,7 @@ class RestoreGlobalRecords(Protocol):
 class ThumbnailUrlResolver(Protocol):
     """Resolve an activity's stored thumbnail key to a servable URL."""
 
-    def __call__(self, key: str | None, activity_id: int) -> str | None:
+    def __call__(self, key: str | None, activity_id: uuid.UUID) -> str | None:
         """Return the servable URL for a thumbnail key.
 
         Args:
@@ -136,8 +138,8 @@ class ActivityMediaResolver(Protocol):
     """Resolve the media of several activities to their client-facing read models."""
 
     def __call__(
-        self, activity_ids: list[int], db: Session
-    ) -> Mapping[int, Sequence[activity_schema.ActivityMediaEmbedded]]:
+        self, activity_ids: list[uuid.UUID], db: Session
+    ) -> Mapping[uuid.UUID, Sequence[activity_schema.ActivityMediaEmbedded]]:
         """Return the media of the given activities in one query.
 
         Args:
@@ -191,7 +193,7 @@ class ProfileGlobalContributor:
 class StoreChildRecords[R](Protocol):
     """Stage rows of type ``R`` for one activity through the child package's CRUD."""
 
-    def __call__(self, records: R, activity_id: int, db: Session, /) -> None:
+    def __call__(self, records: R, activity_id: uuid.UUID, db: Session, /) -> None:
         """Stage the rows for the activity.
 
         Args:
@@ -204,7 +206,7 @@ class StoreChildRecords[R](Protocol):
 class ParseChildRecord[R](Protocol):
     """Turn one archived profile record into a row of type ``R``."""
 
-    def __call__(self, record: dict[str, Any], activity_id: int, /) -> R:
+    def __call__(self, record: dict[str, Any], activity_id: uuid.UUID, /) -> R:
         """Validate one archived record for a restored activity.
 
         Args:
@@ -280,7 +282,7 @@ def child_profile_contributor[R](
 
     def restore(
         records: list[dict[str, Any]],
-        original_activity_id: int,
+        original_activity_id: str,
         new_activity: activity_schema.ActivityRead,
         db: Session,
     ) -> int:
@@ -288,7 +290,7 @@ def child_profile_contributor[R](
 
         Args:
             records: The archived records of the whole profile.
-            original_activity_id: The activity id the records were exported under.
+            original_activity_id: The archive-local key of the activity id the records were exported under.
             new_activity: The restored activity.
             db: Database session.
 
@@ -297,7 +299,7 @@ def child_profile_contributor[R](
         """
         restored: list[R] = []
         for record in records:
-            if record.get("activity_id") != original_activity_id:
+            if users_profile_contracts.archived_id(record.get("activity_id")) != original_activity_id:
                 continue
             data = dict(record)
             data.pop("id", None)

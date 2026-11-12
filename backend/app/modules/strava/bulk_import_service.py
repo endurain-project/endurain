@@ -331,7 +331,7 @@ def import_media_from_strava_bulk_export(
 
 
 def create_activity_media_from_strava_bulk_import(
-    activity_id: int,
+    activity_id: uuid.UUID,
     media_strava_filename: str,
     data: bytes,
     db: Session,

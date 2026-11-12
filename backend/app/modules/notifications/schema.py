@@ -87,7 +87,7 @@ class ActivityNotificationOptions(NotificationOptions):
         activity_id: The stored activity.
     """
 
-    activity_id: StrictInt = Field(..., description="ID of the activity the notification is about")
+    activity_id: uuid.UUID = Field(..., description="ID of the activity the notification is about")
 
 
 class UserReferenceNotificationOptions(NotificationOptions):

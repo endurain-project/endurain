@@ -30,7 +30,7 @@ router = APIRouter()
 def read_activity_media_file(
     request: Request,
     activity_id: activity_dependencies.ActivityId,
-    media_id: core_dependencies.PositiveId,
+    media_id: core_dependencies.UuidId,
     token: Annotated[str, Query(alias="t", description="Signed media access token")],
     db: core_dependencies.DbSession,
     storage: core_dependencies.Storage,

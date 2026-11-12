@@ -1,7 +1,11 @@
+import uuid
 from unittest.mock import MagicMock, patch
 
 from tests._helpers.db import setup_mock_execute
 from tests._helpers.models import mock_model
+
+ACTIVITY_ID = uuid.UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
+STREAM_ID = uuid.UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
 
 
 class TestCreateActivityStreams:
@@ -10,11 +14,11 @@ class TestCreateActivityStreams:
         import modules.activities.activity_streams.crud as crud
         from modules.activities.activity_streams.contracts import ActivityStreamsCreate
 
-        mock_activity = MagicMock(user_id=1, id=1)
+        mock_activity = MagicMock(user_id=STREAM_ID, id=ACTIVITY_ID)
         mock_streams_model.return_value = MagicMock()
         s = [
             ActivityStreamsCreate(
-                activity_id=1, stream_type=1, stream_waypoints=[{"hr": 145}], strava_activity_stream_id=None
+                activity_id=ACTIVITY_ID, stream_type=1, stream_waypoints=[{"hr": 145}], strava_activity_stream_id=None
             )
         ]
         crud.create_activity_streams(s, mock_activity, mock_db)
@@ -25,7 +29,7 @@ class TestCreateActivityStreams:
     def test_empty(self, mock_db):
         import modules.activities.activity_streams.crud as crud
 
-        mock_activity = MagicMock(user_id=1, id=1)
+        mock_activity = MagicMock(user_id=STREAM_ID, id=ACTIVITY_ID)
         crud.create_activity_streams([], mock_activity, mock_db)
         mock_db.add_all.assert_not_called()
 
@@ -40,12 +44,19 @@ class TestGetActivityStreams:
         from modules.activities.activity_streams.schema import ActivityStreamsRead
 
         mock_transform.return_value = [
-            ActivityStreamsRead(id=1, activity_id=1, stream_type=1, stream_waypoints=[], strava_activity_stream_id=None)
+            ActivityStreamsRead(
+                id=STREAM_ID,
+                activity_id=ACTIVITY_ID,
+                stream_type=1,
+                stream_waypoints=[],
+                strava_activity_stream_id=None,
+            )
         ]
         setup_mock_execute(
-            mock_db, return_scalars_all=[mock_model(m.ActivityStreams, id=1, activity_id=1, stream_type=1)]
+            mock_db,
+            return_scalars_all=[mock_model(m.ActivityStreams, id=STREAM_ID, activity_id=ACTIVITY_ID, stream_type=1)],
         )
-        assert len(crud.get_activity_streams(activity_id=1, db=mock_db)) == 1
+        assert len(crud.get_activity_streams(activity_id=ACTIVITY_ID, db=mock_db)) == 1
 
     @patch("modules.activities.activity_streams.crud.activity_streams_schema.ActivityStreamsRead.model_validate")
     def test_by_type(self, mock_validate, mock_db):
@@ -54,18 +65,19 @@ class TestGetActivityStreams:
         from modules.activities.activity_streams.schema import ActivityStreamsRead
 
         mock_validate.return_value = ActivityStreamsRead(
-            id=1, activity_id=1, stream_type=1, stream_waypoints=[], strava_activity_stream_id=None
+            id=STREAM_ID, activity_id=ACTIVITY_ID, stream_type=1, stream_waypoints=[], strava_activity_stream_id=None
         )
         setup_mock_execute(
-            mock_db, return_one_or_none=mock_model(m.ActivityStreams, id=1, activity_id=1, stream_type=1)
+            mock_db,
+            return_one_or_none=mock_model(m.ActivityStreams, id=STREAM_ID, activity_id=ACTIVITY_ID, stream_type=1),
         )
-        assert crud.get_activity_stream_by_type(activity_id=1, stream_type=1, db=mock_db) is not None
+        assert crud.get_activity_stream_by_type(activity_id=ACTIVITY_ID, stream_type=1, db=mock_db) is not None
 
     def test_by_type_missing(self, mock_db):
         import modules.activities.activity_streams.crud as crud
 
         mock_db.scalars.return_value.first.return_value = None
-        assert crud.get_activity_stream_by_type(activity_id=1, stream_type=1, db=mock_db) is None
+        assert crud.get_activity_stream_by_type(activity_id=ACTIVITY_ID, stream_type=1, db=mock_db) is None
 
     @patch("modules.activities.activity_streams.crud.activity_streams_serializers.to_read_schemas")
     def test_empty(self, mock_transform, mock_db):
@@ -73,7 +85,7 @@ class TestGetActivityStreams:
 
         mock_transform.return_value = []
         mock_db.scalars.return_value.all.return_value = []
-        assert crud.get_activity_streams(activity_id=1, db=mock_db) == []
+        assert crud.get_activity_streams(activity_id=ACTIVITY_ID, db=mock_db) == []
 
 
 class TestGetActivitiesStreams:
@@ -85,9 +97,11 @@ class TestGetActivitiesStreams:
         import modules.activities.activity_streams.models as m
 
         mock_transform.return_value = [MagicMock()]
-        mock_db.scalars.return_value.all.return_value = [MagicMock(spec=m.ActivityStreams, id=1, activity_id=1)]
+        mock_db.scalars.return_value.all.return_value = [
+            MagicMock(spec=m.ActivityStreams, id=STREAM_ID, activity_id=ACTIVITY_ID)
+        ]
 
-        assert len(crud.get_activities_streams(activity_ids=[1], db=mock_db)) == 1
+        assert len(crud.get_activities_streams(activity_ids=[ACTIVITY_ID], db=mock_db)) == 1
 
     def test_empty_ids_short_circuits(self, mock_db):
         import modules.activities.activity_streams.crud as crud
@@ -100,7 +114,7 @@ class TestGetActivitiesStreams:
 
         mock_db.scalars.return_value.all.return_value = []
 
-        assert crud.get_activities_streams(activity_ids=[1], db=mock_db) == []
+        assert crud.get_activities_streams(activity_ids=[ACTIVITY_ID], db=mock_db) == []
 
 
 class TestGetGpsStreamWaypointsForActivities:

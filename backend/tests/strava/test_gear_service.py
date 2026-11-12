@@ -14,6 +14,8 @@ import modules.gears.gear.schema as gears_schema
 import modules.strava.gear_service as gear_utils
 
 _GEAR_A = uuid.uuid4()
+_ACT_10 = uuid.uuid4()
+_ACT_11 = uuid.uuid4()
 _GEAR_B = uuid.uuid4()
 BIKE = gears_schema.GearType.BIKE
 SHOES = gears_schema.GearType.SHOES
@@ -131,7 +133,7 @@ class TestMatchGear:
 class TestSetActivitiesGear:
     def test_activities_are_assigned_and_the_caller_commits(self):
         db = MagicMock()
-        activities = [SimpleNamespace(id=10, strava_gear_id="a"), SimpleNamespace(id=11, strava_gear_id=None)]
+        activities = [SimpleNamespace(id=_ACT_10, strava_gear_id="a"), SimpleNamespace(id=_ACT_11, strava_gear_id=None)]
         gears = [SimpleNamespace(id=_GEAR_A, strava_gear_id="a")]
         with (
             patch.object(gear_utils.activity_integration, "list_user_activities_page", side_effect=[activities, []]),
@@ -141,13 +143,13 @@ class TestSetActivitiesGear:
             assigned = gear_utils.set_activities_gear(7, db)
 
         assert assigned == 1
-        bulk.assert_called_once_with(7, {10: _GEAR_A}, db)
+        bulk.assert_called_once_with(7, {_ACT_10: _GEAR_A}, db)
         db.commit.assert_not_called()
 
     def test_a_long_history_is_read_a_page_at_a_time_and_every_page_is_matched(self):
         size = gear_utils._ACTIVITY_PAGE_SIZE
-        first = [SimpleNamespace(id=i, strava_gear_id="a") for i in range(size)]
-        second = [SimpleNamespace(id=size, strava_gear_id="a")]
+        first = [SimpleNamespace(id=uuid.UUID(int=i), strava_gear_id="a") for i in range(size)]
+        second = [SimpleNamespace(id=uuid.UUID(int=size), strava_gear_id="a")]
         gears = [SimpleNamespace(id=_GEAR_A, strava_gear_id="a")]
         with (
             patch.object(
@@ -180,7 +182,7 @@ class TestSetActivitiesGear:
             patch.object(
                 gear_utils.activity_integration,
                 "list_user_activities_page",
-                side_effect=[[SimpleNamespace(id=1, strava_gear_id="zzz")]],
+                side_effect=[[SimpleNamespace(id=uuid.UUID(int=1), strava_gear_id="zzz")]],
             ),
             patch.object(gear_utils.gears_integration, "get_gear_user", return_value=gears),
             patch.object(gear_utils.activity_integration, "bulk_set_activities_gear") as bulk,

@@ -1,5 +1,6 @@
 """Storage-side sweeps for blobs no row owns or names."""
 
+import uuid
 from time import time
 from unittest.mock import MagicMock, patch
 
@@ -46,21 +47,28 @@ def _storage(objects: list[tuple[str, float]]) -> MagicMock:
     return storage
 
 
-def _id_of(key: str) -> int | None:
-    return int(key) if key.isdecimal() else None
+_ONE = uuid.UUID("00000000-0000-4000-8000-000000000001")
+_TWO = uuid.UUID("00000000-0000-4000-8000-000000000002")
+
+
+def _id_of(key: str) -> uuid.UUID | None:
+    try:
+        return uuid.UUID(key)
+    except ValueError:
+        return None
 
 
 class TestSweepOrphanedBlobs:
     def test_deletes_only_blobs_whose_owner_is_gone(self):
-        storage = _storage([("1", _OLD), ("2", _OLD)])
+        storage = _storage([(str(_ONE), _OLD), (str(_TWO), _OLD)])
 
-        removed = blob_sweep.sweep_orphaned_blobs(storage, "area", lambda ids, db: {1}, _id_of)
+        removed = blob_sweep.sweep_orphaned_blobs(storage, "area", lambda ids, db: {_ONE}, _id_of)
 
         assert removed == 1
-        storage.delete.assert_called_once_with("area", "2")
+        storage.delete.assert_called_once_with("area", str(_TWO))
 
     def test_skips_blobs_younger_than_the_age_guard(self):
-        storage = _storage([("2", time())])
+        storage = _storage([(str(_TWO), time())])
 
         removed = blob_sweep.sweep_orphaned_blobs(storage, "area", lambda ids, db: set(), _id_of)
 
@@ -111,11 +119,11 @@ class TestNoSessionAcrossStorageCalls:
         return storage
 
     def test_orphan_sweep_looks_up_each_batch_in_its_own_short_session(self, sessions):
-        storage = self._watching_storage([("1", _OLD), ("2", _OLD)], sessions)
+        storage = self._watching_storage([(str(_ONE), _OLD), (str(_TWO), _OLD)], sessions)
 
         def existing(ids, db):
             assert sessions.open == 1
-            return {1}
+            return {_ONE}
 
         assert blob_sweep.sweep_orphaned_blobs(storage, "area", existing, _id_of) == 1
         assert sessions.opened == 1

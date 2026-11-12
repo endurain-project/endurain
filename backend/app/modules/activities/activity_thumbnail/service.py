@@ -10,6 +10,7 @@ Sessions are opened by the entry point (``integration_service``) and passed down
 """
 
 import functools
+import uuid
 from collections.abc import Iterator, Mapping, Sequence
 from datetime import datetime, timedelta
 from typing import Any, Protocol
@@ -52,7 +53,9 @@ BACKFILL_LOCK_NAME = "thumbnail_backfill"
 class _ActivityPageFetcher(Protocol):
     """Activity scan that returns one keyset-paginated page of thumbnail references."""
 
-    def __call__(self, db: Session, *, after_id: int, limit: int) -> list[activity_contracts.ActivityThumbnailRef]:
+    def __call__(
+        self, db: Session, *, after_id: uuid.UUID | None, limit: int
+    ) -> list[activity_contracts.ActivityThumbnailRef]:
         """Return the page of references following ``after_id``."""
         ...
 
@@ -72,7 +75,7 @@ def _iter_activity_pages(
     Returns:
         Non-empty pages of thumbnail references, ordered by id.
     """
-    after_id = 0
+    after_id: uuid.UUID | None = None
     while True:
         page = fetch_page(
             db,
@@ -129,7 +132,7 @@ def resolve_tile_settings(db: Session) -> tuple[str, str, str | None]:
 
 
 def generate_and_store_thumbnail(
-    activity_id: int,
+    activity_id: uuid.UUID,
     waypoints: Sequence[Mapping[str, Any]],
     storage: platform_providers.StorageProvider,
     db: Session,
@@ -186,7 +189,7 @@ def generate_and_store_thumbnail(
 
 
 def generate_thumbnail_for_activity(
-    activity_id: int,
+    activity_id: uuid.UUID,
     user_id: int,
     storage: platform_providers.StorageProvider,
     db: Session,
@@ -234,7 +237,7 @@ def generate_thumbnail_for_activity(
     )
 
 
-def read_activity_thumbnail(activity_id: int, token: str, storage: platform_providers.StorageProvider) -> bytes:
+def read_activity_thumbnail(activity_id: uuid.UUID, token: str, storage: platform_providers.StorageProvider) -> bytes:
     """Return an activity's thumbnail bytes when the signed token is valid.
 
     Args:
@@ -268,7 +271,7 @@ def read_activity_thumbnail(activity_id: int, token: str, storage: platform_prov
     return data
 
 
-def delete_activity_thumbnail(activity_id: int, storage: platform_providers.StorageProvider) -> None:
+def delete_activity_thumbnail(activity_id: uuid.UUID, storage: platform_providers.StorageProvider) -> None:
     """Delete an activity's stored thumbnail blob.
 
     The key is derived from the activity ID, so the (possibly already deleted)
@@ -385,7 +388,7 @@ def _clear_references_to_missing_blobs(storage: platform_providers.StorageProvid
 
     One listing of the area answers for every activity, instead of an existence
     check per activity per pass (a HEAD request each on object storage). Only the
-    activity ids are kept, one integer per stored thumbnail, rather than the keys. A key
+    activity ids are kept, one id per stored thumbnail, rather than the keys. A key
     missing from the listing is confirmed individually before it is cleared: the
     listing was taken before the page was read, so a blob a subscriber stored in
     between would otherwise look missing.
@@ -461,7 +464,7 @@ def _run_missing_thumbnail_generation(storage: platform_providers.StorageProvide
             db,
         )
 
-        unrendered: list[int] = []
+        unrendered: list[uuid.UUID] = []
         for activity in page:
             if platform_jobs.lease_lost():
                 logger.warning("Thumbnail scheduler: lease lost; stopping the pass")
@@ -516,8 +519,11 @@ def _run_missing_thumbnail_generation(storage: platform_providers.StorageProvide
     )
 
 
-def _activity_id_of_thumbnail_key(key: str) -> int | None:
+def _activity_id_of_thumbnail_key(key: str) -> uuid.UUID | None:
     """Return the activity id a ``{id}.webp`` thumbnail key names.
+
+    Only the canonical lowercase UUID layout is recognised: an integer-layout key belongs to the
+    data migration that renames it and is never returned here.
 
     Args:
         key: A storage key in the thumbnail area.
@@ -526,7 +532,13 @@ def _activity_id_of_thumbnail_key(key: str) -> int | None:
         The activity id, or ``None`` when the key is not a thumbnail key.
     """
     stem, suffix = key.rsplit(".", 1) if "." in key else (key, "")
-    return int(stem) if suffix == "webp" and stem.isdecimal() else None
+    if suffix != "webp":
+        return None
+    try:
+        activity_id = uuid.UUID(stem)
+    except ValueError:
+        return None
+    return activity_id if stem == str(activity_id) else None
 
 
 def sweep_orphaned_thumbnails(storage: platform_providers.StorageProvider) -> int:

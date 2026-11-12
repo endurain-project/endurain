@@ -7,6 +7,7 @@ mock-based test can see: the failure is a job row that silently stays
 a real (SQLite) database and read the row back from a *fresh* session.
 """
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -24,6 +25,9 @@ from tests._helpers.db import (
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.models as ingestion_models
 import modules.activities.activity_ingestion.service as ingestion_jobs
+
+_ID_A = uuid.UUID("00000000-0000-4000-8000-00000000000a")
+_ID_B = uuid.UUID("00000000-0000-4000-8000-00000000000b")
 
 
 def _now() -> datetime:
@@ -91,7 +95,7 @@ def _read_job(factory, job_id: str = "job-1"):
 class TestUploadJob:
     def test_a_successful_import_is_recorded_as_completed(self, factory):
         _add_job(factory)
-        created = [SimpleNamespace(id=11), SimpleNamespace(id=12)]
+        created = [SimpleNamespace(id=_ID_A), SimpleNamespace(id=_ID_B)]
         with (
             patch.object(ingestion_jobs.core_database, "SessionLocal", factory),
             patch.object(
@@ -102,7 +106,7 @@ class TestUploadJob:
 
         job = _read_job(factory)
         assert job.status == "completed"
-        assert job.activity_ids == [11, 12]
+        assert job.activity_ids == [str(_ID_A), str(_ID_B)]
         # Cleared so a retry after success is a no-op rather than a re-import.
         assert job.staged_key is None
 
@@ -157,7 +161,7 @@ class TestUploadJob:
 class TestRefreshJob:
     def test_a_refresh_is_recorded_as_completed(self, factory):
         _add_job(factory, kind="refresh", staged_key=None)
-        synced = [SimpleNamespace(id=21)]
+        synced = [SimpleNamespace(id=_ID_A)]
 
         with (
             patch.object(ingestion_jobs.core_database, "SessionLocal", factory),
@@ -169,7 +173,7 @@ class TestRefreshJob:
 
         job = _read_job(factory)
         assert job.status == "completed"
-        assert job.activity_ids == [21]
+        assert job.activity_ids == [str(_ID_A)]
 
 
 class TestDeferredRefresh:
@@ -358,7 +362,14 @@ class TestFinishedJobsAreNotReopened:
 
     def test_a_completed_refresh_is_not_run_again_or_reopened(self, factory):
         done_at = datetime.now(UTC) - timedelta(minutes=5)
-        _add_job(factory, kind="refresh", staged_key=None, status="completed", completed_at=done_at, activity_ids=[1])
+        _add_job(
+            factory,
+            kind="refresh",
+            staged_key=None,
+            status="completed",
+            completed_at=done_at,
+            activity_ids=[str(_ID_A)],
+        )
 
         with (
             patch.object(ingestion_jobs.core_database, "SessionLocal", factory),
@@ -369,7 +380,7 @@ class TestFinishedJobsAreNotReopened:
         sync.assert_not_called()
         job = _read_job(factory)
         assert job.status == "completed"
-        assert job.activity_ids == [1]
+        assert job.activity_ids == [str(_ID_A)]
 
     def test_a_job_that_is_still_pending_moves_to_processing(self, factory):
         _add_job(factory, kind="refresh", staged_key=None)

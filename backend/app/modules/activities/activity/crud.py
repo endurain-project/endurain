@@ -337,7 +337,7 @@ def get_garminconnect_gear_activity_refs(
     user_id: int,
     db: Session,
     *,
-    after_id: int = 0,
+    after_id: uuid.UUID | None = None,
     limit: int = core_pagination.DEFAULT_MAINTENANCE_BATCH_SIZE,
 ) -> list[activity_contracts.ActivityGarminGearRef]:
     """Return one bounded page of a user's activities that carry a Garmin gear id.
@@ -348,22 +348,19 @@ def get_garminconnect_gear_activity_refs(
     Args:
         user_id: Owner user ID.
         db: Database session.
-        after_id: Return only activities with ``id`` greater than this.
+        after_id: Return only activities with ``id`` greater than this; ``None`` starts at the first row.
         limit: Maximum number of rows to return.
 
     Returns:
         The activity id and Garmin gear id of each matching row, empty when there are none.
     """
-    stmt = (
-        select(activity_models.Activity.id, activity_models.Activity.garminconnect_gear_id)
-        .where(
-            activity_models.Activity.user_id == user_id,
-            activity_models.Activity.garminconnect_gear_id.isnot(None),
-            activity_models.Activity.id > after_id,
-        )
-        .order_by(activity_models.Activity.id)
-        .limit(limit)
+    stmt = select(activity_models.Activity.id, activity_models.Activity.garminconnect_gear_id).where(
+        activity_models.Activity.user_id == user_id,
+        activity_models.Activity.garminconnect_gear_id.isnot(None),
     )
+    if after_id is not None:
+        stmt = stmt.where(activity_models.Activity.id > after_id)
+    stmt = stmt.order_by(activity_models.Activity.id).limit(limit)
     return [
         activity_contracts.ActivityGarminGearRef(id=row.id, garminconnect_gear_id=row.garminconnect_gear_id)
         for row in db.execute(stmt)
@@ -616,7 +613,7 @@ def get_user_activities_per_timeframe_and_activity_types(
 
 def _feed_slice(
     conditions: Sequence[ColumnElement[bool]],
-    after: tuple[datetime, int] | None,
+    after: tuple[datetime, uuid.UUID] | None,
     num_records: int,
     db: Session,
     *,
@@ -671,7 +668,7 @@ def _feed_slice(
 
 def get_following_feed_after(
     followee_ids: list[int],
-    after: tuple[datetime, int] | None,
+    after: tuple[datetime, uuid.UUID] | None,
     num_records: int,
     db: Session,
 ) -> list[activity_contracts.ActivityFeedEntry]:
@@ -706,7 +703,7 @@ def get_following_feed_after(
 
 def get_own_feed_after(
     user_id: int,
-    after: tuple[datetime, int] | None,
+    after: tuple[datetime, uuid.UUID] | None,
     num_records: int,
     db: Session,
 ) -> list[activity_contracts.ActivityFeedEntry]:
@@ -806,7 +803,7 @@ def sum_gear_usage_by_window(
 
 
 def get_activity_by_id_from_user_id_or_has_visibility(
-    activity_id: int, user_id: int, db: Session, *, followee_ids: Sequence[int] | None = None
+    activity_id: uuid.UUID, user_id: int, db: Session, *, followee_ids: Sequence[int] | None = None
 ) -> activity_schema.ActivityRead | None:
     """Get an activity by ID if owned or visible to the user.
 
@@ -837,7 +834,7 @@ def get_activity_by_id_from_user_id_or_has_visibility(
 
 
 def get_viewable_activity_by_id_for_user(
-    activity_id: int, user_id: int, db: Session, *, followee_ids: Sequence[int] | None = None
+    activity_id: uuid.UUID, user_id: int, db: Session, *, followee_ids: Sequence[int] | None = None
 ) -> activity_schema.ActivityRead | None:
     """Return an activity (unmasked) iff the user may view it — child-resource authz gate.
 
@@ -877,7 +874,7 @@ def get_viewable_activity_by_id_for_user(
     return activity_serializers.to_read_schema(activity)
 
 
-def get_activity_by_id_if_is_public(activity_id: int, db: Session) -> activity_schema.ActivityRead | None:
+def get_activity_by_id_if_is_public(activity_id: uuid.UUID, db: Session) -> activity_schema.ActivityRead | None:
     """Get an activity by ID if it is publicly shareable.
 
     Answers only the row-level question. Whether the server allows public
@@ -905,7 +902,7 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session) -> activity_s
     return schema
 
 
-def get_existing_activity_ids(activity_ids: Sequence[int], db: Session) -> set[int]:
+def get_existing_activity_ids(activity_ids: Sequence[uuid.UUID], db: Session) -> set[uuid.UUID]:
     """Return which of the given activity IDs still have a row.
 
     Args:
@@ -921,7 +918,7 @@ def get_existing_activity_ids(activity_ids: Sequence[int], db: Session) -> set[i
     return set(db.scalars(stmt).all())
 
 
-def get_activity_by_id(activity_id: int, db: Session) -> activity_schema.ActivityRead | None:
+def get_activity_by_id(activity_id: uuid.UUID, db: Session) -> activity_schema.ActivityRead | None:
     """Get an activity by ID without permission checks.
 
     Args:
@@ -998,7 +995,9 @@ def get_activity_by_dedup_key(dedup_key: str, user_id: int, db: Session) -> acti
     return activity_serializers.to_read_schema(activity)
 
 
-def get_activity_by_id_from_user_id(activity_id: int, user_id: int, db: Session) -> activity_schema.ActivityRead | None:
+def get_activity_by_id_from_user_id(
+    activity_id: uuid.UUID, user_id: int, db: Session
+) -> activity_schema.ActivityRead | None:
     """Get a user's activity by ID.
 
     Args:
@@ -1137,7 +1136,7 @@ def create_activity(
 
 
 def set_activity_thumbnail_key(
-    activity_id: int,
+    activity_id: uuid.UUID,
     thumbnail_path: str | None,
     db: Session,
     *,
@@ -1175,7 +1174,7 @@ def set_activity_thumbnail_key(
 
 
 def update_activity_location(
-    activity_id: int,
+    activity_id: uuid.UUID,
     city: str | None,
     town: str | None,
     country: str | None,
@@ -1218,7 +1217,7 @@ def get_activities_missing_location(
     db: Session,
     *,
     due_at: datetime,
-    after_id: int = 0,
+    after_id: uuid.UUID | None = None,
     limit: int = core_pagination.DEFAULT_EXTERNAL_IO_BATCH_SIZE,
 ) -> list[activity_contracts.ActivityLocationRef]:
     """Return references to activities whose location is unresolved and due a lookup.
@@ -1230,32 +1229,29 @@ def get_activities_missing_location(
     Args:
         db: Database session.
         due_at: Only rows due at or before this instant are returned.
-        after_id: Return only activities with ``id`` greater than this.
+        after_id: Return only activities with ``id`` greater than this; ``None`` starts at the first row.
         limit: Maximum number of candidate rows to return.
 
     Returns:
         Location references (id only) ordered by id.
     """
-    stmt = (
-        select(activity_models.Activity.id)
-        .where(
-            activity_models.Activity.city.is_(None),
-            activity_models.Activity.town.is_(None),
-            activity_models.Activity.country.is_(None),
-            or_(
-                activity_models.Activity.location_next_lookup_at.is_(None),
-                activity_models.Activity.location_next_lookup_at <= due_at,
-            ),
-            activity_models.Activity.id > after_id,
-        )
-        .order_by(activity_models.Activity.id)
-        .limit(limit)
+    stmt = select(activity_models.Activity.id).where(
+        activity_models.Activity.city.is_(None),
+        activity_models.Activity.town.is_(None),
+        activity_models.Activity.country.is_(None),
+        or_(
+            activity_models.Activity.location_next_lookup_at.is_(None),
+            activity_models.Activity.location_next_lookup_at <= due_at,
+        ),
     )
+    if after_id is not None:
+        stmt = stmt.where(activity_models.Activity.id > after_id)
+    stmt = stmt.order_by(activity_models.Activity.id).limit(limit)
     ids = db.execute(stmt).scalars().all()
     return [activity_contracts.ActivityLocationRef(id=activity_id) for activity_id in ids]
 
 
-def defer_location_lookups(activity_ids: Sequence[int], retry_at: datetime, db: Session) -> None:
+def defer_location_lookups(activity_ids: Sequence[uuid.UUID], retry_at: datetime, db: Session) -> None:
     """Stage the next lookup time for activities whose location did not resolve.
 
     Args:
@@ -1287,7 +1283,7 @@ def clear_all_activity_thumbnail_keys(db: Session) -> None:
 def get_activities_with_thumbnail(
     db: Session,
     *,
-    after_id: int = 0,
+    after_id: uuid.UUID | None = None,
     limit: int = core_pagination.DEFAULT_MAINTENANCE_BATCH_SIZE,
 ) -> list[activity_contracts.ActivityThumbnailRef]:
     """Return references to activities that have a map thumbnail.
@@ -1297,33 +1293,66 @@ def get_activities_with_thumbnail(
 
     Args:
         db: Database session.
-        after_id: Return only activities with ``id`` greater than this.
+        after_id: Return only activities with ``id`` greater than this; ``None`` starts at the first row.
         limit: Maximum number of rows to return.
 
     Returns:
         Thumbnail references (id + stored key) for rows with
         ``map_thumbnail_path`` set.
     """
-    stmt = (
-        select(activity_models.Activity.id, activity_models.Activity.map_thumbnail_path)
-        .where(
-            activity_models.Activity.map_thumbnail_path.isnot(None),
-            activity_models.Activity.id > after_id,
-        )
-        .order_by(activity_models.Activity.id)
-        .limit(limit)
+    stmt = select(activity_models.Activity.id, activity_models.Activity.map_thumbnail_path).where(
+        activity_models.Activity.map_thumbnail_path.isnot(None),
     )
+    if after_id is not None:
+        stmt = stmt.where(activity_models.Activity.id > after_id)
+    stmt = stmt.order_by(activity_models.Activity.id).limit(limit)
     return [
         activity_contracts.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path)
         for row in db.execute(stmt)
     ]
 
 
+def get_activity_thumbnail_keys(db: Session) -> list[tuple[uuid.UUID, str]]:
+    """Return the id and stored thumbnail key of every activity that has one.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        ``(activity id, map_thumbnail_path)`` pairs.
+    """
+    stmt = select(activity_models.Activity.id, activity_models.Activity.map_thumbnail_path).where(
+        activity_models.Activity.map_thumbnail_path.isnot(None)
+    )
+    return [(row.id, row.map_thumbnail_path) for row in db.execute(stmt)]
+
+
+def replace_activity_thumbnail_keys(changes: Sequence[tuple[uuid.UUID, str, str]], db: Session) -> None:
+    """Stage new thumbnail keys, each only where the activity still holds the key it was read with.
+
+    A Core ``UPDATE`` that leaves ``version`` alone, like :func:`set_activity_thumbnail_key`; the caller commits.
+
+    Args:
+        changes: ``(activity id, current key, new key)`` triples.
+        db: Database session.
+    """
+    for activity_id, old_key, new_key in changes:
+        db.execute(
+            sa_update(activity_models.Activity)
+            .where(
+                activity_models.Activity.id == activity_id,
+                activity_models.Activity.map_thumbnail_path == old_key,
+            )
+            .values(map_thumbnail_path=new_key)
+        )
+    db.flush()
+
+
 def get_activities_without_thumbnail(
     db: Session,
     *,
     due_at: datetime,
-    after_id: int = 0,
+    after_id: uuid.UUID | None = None,
     limit: int = core_pagination.DEFAULT_MAINTENANCE_BATCH_SIZE,
 ) -> list[activity_contracts.ActivityThumbnailRef]:
     """Return references to activities that have no map thumbnail and are due an attempt.
@@ -1335,33 +1364,30 @@ def get_activities_without_thumbnail(
     Args:
         db: Database session.
         due_at: Only rows not deferred past this instant are returned.
-        after_id: Return only activities with ``id`` greater than this.
+        after_id: Return only activities with ``id`` greater than this; ``None`` starts at the first row.
         limit: Maximum number of rows to return.
 
     Returns:
         Thumbnail references (id, with a null key) for rows with
         ``map_thumbnail_path`` set to NULL.
     """
-    stmt = (
-        select(activity_models.Activity.id, activity_models.Activity.map_thumbnail_path)
-        .where(
-            activity_models.Activity.map_thumbnail_path.is_(None),
-            or_(
-                activity_models.Activity.thumbnail_next_attempt_at.is_(None),
-                activity_models.Activity.thumbnail_next_attempt_at <= due_at,
-            ),
-            activity_models.Activity.id > after_id,
-        )
-        .order_by(activity_models.Activity.id)
-        .limit(limit)
+    stmt = select(activity_models.Activity.id, activity_models.Activity.map_thumbnail_path).where(
+        activity_models.Activity.map_thumbnail_path.is_(None),
+        or_(
+            activity_models.Activity.thumbnail_next_attempt_at.is_(None),
+            activity_models.Activity.thumbnail_next_attempt_at <= due_at,
+        ),
     )
+    if after_id is not None:
+        stmt = stmt.where(activity_models.Activity.id > after_id)
+    stmt = stmt.order_by(activity_models.Activity.id).limit(limit)
     return [
         activity_contracts.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path)
         for row in db.execute(stmt)
     ]
 
 
-def defer_thumbnail_attempts(activity_ids: Sequence[int], retry_at: datetime, db: Session) -> None:
+def defer_thumbnail_attempts(activity_ids: Sequence[uuid.UUID], retry_at: datetime, db: Session) -> None:
     """Stage the next attempt time for activities that did not get a thumbnail.
 
     Args:
@@ -1381,7 +1407,7 @@ def defer_thumbnail_attempts(activity_ids: Sequence[int], retry_at: datetime, db
 
 def edit_activity(
     user_id: int,
-    activity_id: int,
+    activity_id: uuid.UUID,
     activity_attributes: activity_schema.ActivityEdit | activity_schema.ActivityRead,
     db: Session,
     *,
@@ -1426,7 +1452,7 @@ def edit_activity(
     return activity_serializers.to_read_schema(db_activity)
 
 
-def _lock_user_activities(user_id: int, db: Session, activity_ids: Sequence[int] | None = None) -> None:
+def _lock_user_activities(user_id: int, db: Session, activity_ids: Sequence[uuid.UUID] | None = None) -> None:
     """Row-lock a user's activities in id order before a multi-row ``UPDATE``.
 
     A multi-row ``UPDATE`` locks rows in scan order, so two overlapping bulk
@@ -1444,7 +1470,7 @@ def _lock_user_activities(user_id: int, db: Session, activity_ids: Sequence[int]
     db.execute(stmt.order_by(activity_models.Activity.id).with_for_update())
 
 
-def edit_user_activities_visibility_batch(user_id: int, visibility: int, limit: int, db: Session) -> list[int]:
+def edit_user_activities_visibility_batch(user_id: int, visibility: int, limit: int, db: Session) -> list[uuid.UUID]:
     """Stage a visibility update for up to ``limit`` of a user's activities that do not have it yet.
 
     Only rows whose visibility differs are touched, so a repeated edit rewrites nothing and the batches of
@@ -1487,9 +1513,9 @@ def edit_user_activities_visibility_batch(user_id: int, visibility: int, limit: 
 
 def bulk_set_activities_gear_id(
     user_id: int,
-    gear_assignments: Mapping[int, uuid.UUID | None],
+    gear_assignments: Mapping[uuid.UUID, uuid.UUID | None],
     db: Session,
-) -> list[int]:
+) -> list[uuid.UUID]:
     """Stage a bulk ``gear_id`` update for many activities owned by a user.
 
     Assignments are grouped by target ``gear_id`` so the database
@@ -1511,11 +1537,11 @@ def bulk_set_activities_gear_id(
     if not gear_assignments:
         return []
     _lock_user_activities(user_id, db, list(gear_assignments))
-    by_gear: dict[uuid.UUID | None, list[int]] = defaultdict(list)
+    by_gear: dict[uuid.UUID | None, list[uuid.UUID]] = defaultdict(list)
     for activity_id, gear_id in gear_assignments.items():
         by_gear[gear_id].append(activity_id)
 
-    updated_ids: list[int] = []
+    updated_ids: list[uuid.UUID] = []
     for gear_id, activity_ids in by_gear.items():
         stmt = (
             sa_update(activity_models.Activity)
@@ -1530,7 +1556,7 @@ def bulk_set_activities_gear_id(
     return updated_ids
 
 
-def clear_gear_from_activities(gear_id: uuid.UUID, user_id: int, db: Session) -> list[int]:
+def clear_gear_from_activities(gear_id: uuid.UUID, user_id: int, db: Session) -> list[uuid.UUID]:
     """Stage unassigning a gear from every activity of a user that carries it.
 
     Args:
@@ -1552,7 +1578,7 @@ def clear_gear_from_activities(gear_id: uuid.UUID, user_id: int, db: Session) ->
     return sorted(row_id for (row_id,) in db.execute(stmt).all())
 
 
-def delete_activity(activity_id: int, user_id: int, db: Session, *, if_match: str) -> None:
+def delete_activity(activity_id: uuid.UUID, user_id: int, db: Session, *, if_match: str) -> None:
     """Stage the deletion of an activity owned by ``user_id``.
 
     Ownership is part of the ``WHERE`` clause rather than a precondition the
@@ -1587,7 +1613,7 @@ def delete_activity(activity_id: int, user_id: int, db: Session, *, if_match: st
     db.flush()
 
 
-def delete_all_strava_activities_for_user(user_id: int, db: Session, *, limit: int) -> list[int]:
+def delete_all_strava_activities_for_user(user_id: int, db: Session, *, limit: int) -> list[uuid.UUID]:
     """Stage the deletion of up to ``limit`` Strava-synced activities owned by a user.
 
     A caller that must remove them all calls this until fewer than ``limit`` come back,
@@ -1621,7 +1647,7 @@ def delete_all_strava_activities_for_user(user_id: int, db: Session, *, limit: i
     return batch_ids
 
 
-def delete_activities_batch_for_user(user_id: int, limit: int, db: Session) -> list[int]:
+def delete_activities_batch_for_user(user_id: int, limit: int, db: Session) -> list[uuid.UUID]:
     """Stage the deletion of up to ``limit`` of a user's activities.
 
     Used by account deletion, which repeats it, one transaction per batch, until nothing is left. The
@@ -1655,7 +1681,7 @@ def delete_activities_batch_for_user(user_id: int, limit: int, db: Session) -> l
     return deleted_ids
 
 
-def touch_activity(activity_id: int, db: Session) -> None:
+def touch_activity(activity_id: uuid.UUID, db: Session) -> None:
     """Stamp an activity's ``updated_at`` without bumping its ``version``.
 
     For a change to what the owner reads that is not an edit of the activity, such as its media.
@@ -1673,7 +1699,7 @@ def touch_activity(activity_id: int, db: Session) -> None:
 
 
 def get_changed_activities(
-    user_id: int, after: core_sync.Position[int] | None, until: datetime, limit: int, db: Session
+    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[activity_schema.ActivityRead]:
     """Read a user's activities changed after a position, oldest change first.
 
@@ -1702,7 +1728,7 @@ def get_changed_activities(
 
 def get_activity_deletions(
     user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
-) -> list[core_sync.Deletion[int]]:
+) -> list[core_sync.Deletion[uuid.UUID]]:
     """Read a user's activity tombstones after a position, oldest deletion first.
 
     Args:

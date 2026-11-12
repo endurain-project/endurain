@@ -25,7 +25,7 @@ class TestGetUserNotificationById:
             user_id=1,
             type=1,
             read=False,
-            options={"activity_id": 5},
+            options={"activity_id": "11111111-1111-4111-8111-111111111111"},
             created_at=datetime(2024, 1, 1),
         )
         mock_db.execute.return_value.scalars.return_value.first.return_value = n
@@ -69,7 +69,7 @@ class TestGetUserNotificationsAfter:
             user_id=1,
             type=1,
             read=False,
-            options={"activity_id": 5},
+            options={"activity_id": "11111111-1111-4111-8111-111111111111"},
             created_at=datetime(2024, 1, 1),
         )
         mock_db.execute.return_value.scalars.return_value.all.return_value = [n]
@@ -108,7 +108,7 @@ class TestUnreadOnlyFilter:
                     user_id=user_id,
                     type=1,
                     read=read,
-                    options={"activity_id": notification_id},
+                    options={"activity_id": str(_nid(notification_id))},
                     created_at=datetime(2024, 1, notification_id),
                 )
             )
@@ -161,7 +161,7 @@ class TestUnreadOnlyFilter:
                     user_id=1,
                     type=1,
                     read=False,
-                    options={"activity_id": 1},
+                    options={"activity_id": "11111111-1111-4111-8111-111111111111"},
                     created_at=datetime(2024, 1, 5),
                 )
             )
@@ -179,14 +179,16 @@ class TestCreateNotification:
         import modules.notifications.crud as crud
         import modules.notifications.schema as schema
 
-        notification_data = schema.NotificationCreate(user_id=1, type="new_activity", options={"activity_id": 5})
+        notification_data = schema.NotificationCreate(
+            user_id=1, type="new_activity", options={"activity_id": "11111111-1111-4111-8111-111111111111"}
+        )
 
         mock_notification = MagicMock()
         mock_notification.id = _nid(1)
         mock_notification.user_id = 1
         mock_notification.type = 1
         mock_notification.read = False
-        mock_notification.options = {"activity_id": 5}
+        mock_notification.options = {"activity_id": "11111111-1111-4111-8111-111111111111"}
         mock_notification.created_at = datetime(2024, 1, 1)
 
         with patch("modules.notifications.crud.notifications_models.Notification", return_value=mock_notification):
@@ -287,7 +289,7 @@ class TestMarkNotificationAsRead:
             user_id=1,
             type=1,
             read=False,
-            options={"activity_id": 5},
+            options={"activity_id": "11111111-1111-4111-8111-111111111111"},
             created_at=datetime(2024, 1, 1),
         )
         mock_db.execute.return_value.scalars.return_value.first.return_value = n
@@ -332,7 +334,7 @@ class TestDeleteNotificationsNamingUser:
             (2, 2, 12, named),  # follow accepted
             (3, 3, 41, named),  # admin sign-up approval
             (4, 1, 11, other),
-            (5, 1, 1, {"activity_id": 7}),
+            (5, 1, 1, {"activity_id": "11111111-1111-4111-8111-111111111111"}),
             (6, 2, 21, {}),
             (7, 2, 21, None),
         ]:
@@ -364,7 +366,11 @@ class TestDeleteAndMarkSeveral:
         for notification_id, user_id in [(1, 1), (2, 1), (3, 1), (4, 2)]:
             session.add(
                 m.Notification(
-                    id=_nid(notification_id), user_id=user_id, type=1, options={"activity_id": 5}, read=False
+                    id=_nid(notification_id),
+                    user_id=user_id,
+                    type=1,
+                    options={"activity_id": "11111111-1111-4111-8111-111111111111"},
+                    read=False,
                 )
             )
         session.commit()

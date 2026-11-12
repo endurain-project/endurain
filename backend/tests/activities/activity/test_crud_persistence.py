@@ -179,10 +179,16 @@ class TestLocationLookupSchedule:
         assert self._ids(db) == [earlier.id]
 
     def test_pages_after_the_given_id(self, db):
-        first = activity_crud.create_activity(_core(), db)
-        second = activity_crud.create_activity(_core(start_time="2026-07-29T09:00:00"), db)
+        first, second = sorted(
+            (
+                activity_crud.create_activity(_core(), db),
+                activity_crud.create_activity(_core(start_time="2026-07-29T09:00:00"), db),
+            ),
+            key=lambda activity: activity.id,
+        )
 
         assert self._ids(db, after_id=first.id) == [second.id]
+        assert self._ids(db) == [first.id, second.id]
 
 
 class TestThumbnailAttemptSchedule:

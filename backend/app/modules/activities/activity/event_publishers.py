@@ -12,6 +12,7 @@ the domain rows; otherwise the event dispatches on the bus after the outermost
 commit and is dropped on rollback.
 """
 
+import uuid
 from collections.abc import Callable, Iterable, Sequence
 
 import jasil.publisher as platform_publisher
@@ -22,7 +23,7 @@ import modules.activities.activity.events as activity_events
 
 
 def publish_activity_created(
-    activity_id: int,
+    activity_id: uuid.UUID,
     user_id: int,
     db: Session,
     *,
@@ -52,7 +53,7 @@ def publish_activity_created(
         duplicate_start_time=duplicate_start_time,
     )
     metadata = {
-        core_event_metadata.META_ACTIVITY_ID: activity_id,
+        core_event_metadata.META_ACTIVITY_ID: str(activity_id),
         core_event_metadata.META_USER_ID: user_id,
     }
     platform_publisher.publish_on_commit(
@@ -66,7 +67,7 @@ def publish_activity_created(
 
 
 def publish_activity_updated(
-    activity_id: int,
+    activity_id: uuid.UUID,
     user_id: int | None,
     db: Session,
     *,
@@ -91,7 +92,7 @@ def publish_activity_updated(
         changed_fields=sorted(changed_fields),
     )
     metadata = {
-        core_event_metadata.META_ACTIVITY_ID: activity_id,
+        core_event_metadata.META_ACTIVITY_ID: str(activity_id),
         core_event_metadata.META_USER_ID: user_id,
     }
     platform_publisher.publish_on_commit(
@@ -105,7 +106,7 @@ def publish_activity_updated(
 
 
 def publish_activities_updated(
-    activity_ids: Sequence[int],
+    activity_ids: Sequence[uuid.UUID],
     user_id: int | None,
     db: Session,
     *,
@@ -152,7 +153,7 @@ def publish_activities_updated(
 
 
 def publish_activity_deleted(
-    activity_id: int,
+    activity_id: uuid.UUID,
     user_id: int | None,
     db: Session,
 ) -> None:
@@ -166,7 +167,7 @@ def publish_activity_deleted(
     """
     deleted = activity_events.ActivityDeletedPayload(activity_id=activity_id)
     metadata = {
-        core_event_metadata.META_ACTIVITY_ID: activity_id,
+        core_event_metadata.META_ACTIVITY_ID: str(activity_id),
         core_event_metadata.META_USER_ID: user_id,
     }
     platform_publisher.publish_on_commit(
@@ -180,7 +181,7 @@ def publish_activity_deleted(
 
 
 def publish_activities_deleted(
-    activity_ids: Sequence[int],
+    activity_ids: Sequence[uuid.UUID],
     user_id: int | None,
     db: Session,
     *,

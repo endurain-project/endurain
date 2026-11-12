@@ -1,5 +1,6 @@
 """Audit rows of a change to who can see an activity."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import jasil.testing as jasil_testing
@@ -16,6 +17,7 @@ import modules.activities.activity.service as activity_service
 
 _JOBS = "modules.activities.activity.bulk_edit_job_service"
 _SERVICE = "modules.activities.activity.service"
+_ACTIVITY_ID = uuid.uuid4()
 _Kind = bulk_edit_constants.BulkEditKind.VISIBILITY
 
 
@@ -60,7 +62,7 @@ class TestBulkVisibilityRequest:
             patch(f"{_JOBS}.activity_event_publishers"),
             patch(f"{_JOBS}.activity_crud") as crud,
         ):
-            crud.edit_user_activities_visibility_batch.side_effect = [[1, 2], []]
+            crud.edit_user_activities_visibility_batch.side_effect = [[uuid.uuid4(), uuid.uuid4()], []]
             job_service.run_visibility_edit(payload, states)
 
         assert audit.entries == []
@@ -76,7 +78,7 @@ class TestSingleActivityEdit:
         ):
             crud.get_activity_by_id_from_user_id.return_value = MagicMock(**before)
             crud.edit_activity.return_value = MagicMock(**after)
-            activity_service.edit_activity(5, 1, edit, mock_db, if_match="*")
+            activity_service.edit_activity(_ACTIVITY_ID, 1, edit, mock_db, if_match="*")
 
     def test_a_changed_visibility_and_hide_flag_are_audited_by_name(self, mock_db):
         with jasil_testing.capture_audit() as audit:
@@ -88,7 +90,10 @@ class TestSingleActivityEdit:
             )
 
         entry = audit.assert_audited(
-            activity_audit_actions.VISIBILITY_UPDATE.id, target_type="activity", target_id="5", target_owner_id="1"
+            activity_audit_actions.VISIBILITY_UPDATE.id,
+            target_type="activity",
+            target_id=str(_ACTIVITY_ID),
+            target_owner_id="1",
         )
         assert entry.details == {"changed_fields": ["visibility", "hide_map"]}
 

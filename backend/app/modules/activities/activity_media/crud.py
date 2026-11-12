@@ -8,7 +8,11 @@ carries the storage key; turning that key into a servable URL is an addressing
 concern owned by ``service.py``, not by the persistence layer.
 """
 
-from sqlalchemy import func, select
+import uuid
+from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
+
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -17,6 +21,9 @@ import modules.activities.activity.constants as activity_constants
 import modules.activities.activity_media.contracts as activity_media_contracts
 import modules.activities.activity_media.models as activity_media_models
 import modules.activities.activity_media.serializers as activity_media_serializers
+
+#: The gap between the creation times of the photos of one batch, so they sort in the order they were given.
+_PHOTO_SPACING = timedelta(microseconds=1)
 
 
 def get_all_activity_media(
@@ -34,8 +41,29 @@ def get_all_activity_media(
     return [activity_media_serializers.to_read_schema(media) for media in db.scalars(stmt).all()]
 
 
+def replace_activity_media_paths(changes: Sequence[tuple[uuid.UUID, str, str]], db: Session) -> None:
+    """Stage new storage keys, each only where the media record still holds the key it was read with.
+
+    The caller commits.
+
+    Args:
+        changes: ``(media id, current media_path, new media_path)`` triples.
+        db: Database session.
+    """
+    for media_id, old_path, new_path in changes:
+        db.execute(
+            update(activity_media_models.ActivityMedia)
+            .where(
+                activity_media_models.ActivityMedia.id == media_id,
+                activity_media_models.ActivityMedia.media_path == old_path,
+            )
+            .values(media_path=new_path)
+        )
+    db.flush()
+
+
 def get_activity_media_by_id(
-    activity_media_id: int,
+    activity_media_id: uuid.UUID,
     db: Session,
 ) -> activity_media_contracts.ActivityMediaRecord | None:
     """Retrieve a single media record by id, without any permission check.
@@ -55,7 +83,7 @@ def get_activity_media_by_id(
 
 
 def get_media_for_activity(
-    activity_id: int,
+    activity_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -78,14 +106,14 @@ def get_media_for_activity(
     stmt = (
         select(activity_media_models.ActivityMedia)
         .where(activity_media_models.ActivityMedia.activity_id == activity_id)
-        .order_by(activity_media_models.ActivityMedia.id)
+        .order_by(activity_media_models.ActivityMedia.created_at, activity_media_models.ActivityMedia.id)
         .offset((page_number - 1) * num_records)
         .limit(num_records)
     )
     return [activity_media_serializers.to_read_schema(media) for media in db.scalars(stmt).all()]
 
 
-def count_media_for_activity(activity_id: int, db: Session) -> int:
+def count_media_for_activity(activity_id: uuid.UUID, db: Session) -> int:
     """Count an activity's media records.
 
     Args:
@@ -100,7 +128,7 @@ def count_media_for_activity(activity_id: int, db: Session) -> int:
 
 
 def get_activities_media(
-    activity_ids: list[int],
+    activity_ids: list[uuid.UUID],
     db: Session,
 ) -> list[activity_media_contracts.ActivityMediaRecord]:
     """Retrieve the media records of several activities at once.
@@ -119,14 +147,16 @@ def get_activities_media(
     if not activity_ids:
         return []
 
-    stmt = select(activity_media_models.ActivityMedia).where(
-        activity_media_models.ActivityMedia.activity_id.in_(activity_ids)
+    stmt = (
+        select(activity_media_models.ActivityMedia)
+        .where(activity_media_models.ActivityMedia.activity_id.in_(activity_ids))
+        .order_by(activity_media_models.ActivityMedia.created_at, activity_media_models.ActivityMedia.id)
     )
     return [activity_media_serializers.to_read_schema(media) for media in db.scalars(stmt).all()]
 
 
 def get_media_for_owned_activities(
-    activity_ids: list[int],
+    activity_ids: list[uuid.UUID],
     db: Session,
 ) -> list[activity_media_contracts.ActivityMediaRecord]:
     """Retrieve the media records of several activities the requester owns, oldest first, in one query.
@@ -147,7 +177,7 @@ def get_media_for_owned_activities(
     stmt = (
         select(activity_media_models.ActivityMedia)
         .where(activity_media_models.ActivityMedia.activity_id.in_(activity_ids))
-        .order_by(activity_media_models.ActivityMedia.id)
+        .order_by(activity_media_models.ActivityMedia.created_at, activity_media_models.ActivityMedia.id)
     )
     return [activity_media_serializers.to_read_schema(media) for media in db.scalars(stmt).all()]
 
@@ -171,7 +201,7 @@ def get_existing_media_paths(media_paths: list[str], db: Session) -> set[str]:
 
 
 def get_activity_media_by_content_hash(
-    activity_id: int,
+    activity_id: uuid.UUID,
     content_hash: str,
     db: Session,
 ) -> activity_media_contracts.ActivityMediaRecord | None:
@@ -198,7 +228,7 @@ def get_activity_media_by_content_hash(
 
 
 def create_activity_media(
-    activity_id: int,
+    activity_id: uuid.UUID,
     media_key: str,
     db: Session,
     *,
@@ -227,6 +257,7 @@ def create_activity_media(
             media_path=media_key,
             media_type=activity_constants.MediaType.PHOTO.stored,
             content_hash=content_hash,
+            created_at=datetime.now(UTC),
         )
         db.add(db_activity_media)
         db.flush()
@@ -240,7 +271,7 @@ def create_activity_media(
 
 def create_activity_medias(
     activity_media: list[activity_media_contracts.ActivityMediaCreate],
-    activity_id: int,
+    activity_id: uuid.UUID,
     db: Session,
 ) -> None:
     """Stage a batch of activity media records for a single activity.
@@ -251,13 +282,15 @@ def create_activity_medias(
         db: Database session.
     """
     media: list[activity_media_models.ActivityMedia] = []
-    for media_item in activity_media:
+    created_at = datetime.now(UTC)
+    for position, media_item in enumerate(activity_media):
         media.append(
             activity_media_models.ActivityMedia(
                 activity_id=activity_id,
                 media_path=media_item.media_path,
                 media_type=media_item.media_type.stored,
                 content_hash=media_item.content_hash,
+                created_at=created_at + position * _PHOTO_SPACING,
             )
         )
 
@@ -268,7 +301,7 @@ def create_activity_medias(
     db.flush()
 
 
-def delete_activity_media(activity_media_id: int, db: Session) -> None:
+def delete_activity_media(activity_media_id: uuid.UUID, db: Session) -> None:
     """Stage the deletion of an activity media record.
 
     Permission and file cleanup are the caller's concern; see

@@ -45,7 +45,7 @@ def cleanup_activity_media_for_event(event: Event) -> None:
     needed and the delete is idempotent.
 
     Args:
-        event: The ``activity.deleted`` event (payload ``{"activity_id": int}``).
+        event: The ``activity.deleted`` event (payload ``{"activity_id": uuid}``).
     """
     payload = platform_event_versioning.parse_payload(activity_events.ActivityDeletedPayload, event)
     activity_media_service.delete_media_files_for_activity(

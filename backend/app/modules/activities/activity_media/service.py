@@ -34,15 +34,19 @@ import modules.activities.activity_media.signing as activity_media_signing
 
 logger = core_logger.get_logger(__name__)
 
-# A stored key is ``{activity_id}_{suffix}``; ``suffix`` is a flat file name.
-_MEDIA_KEY_PATTERN = re.compile(r"(?P<activity_id>\d+)_(?P<suffix>[^/\\]+)")
+# A stored key is ``{activity_id}_{suffix}`` with the canonical lowercase UUID layout; ``suffix`` is a flat file
+# name. An integer-layout key belongs to the data migration that renames it and never matches.
+_FLAT_SUFFIX_PATTERN = re.compile(r"[^/\\]+")
+_MEDIA_KEY_PATTERN = re.compile(
+    r"(?P<activity_id>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})_(?P<suffix>[^/\\]+)"
+)
 
 
-def _key_prefix(activity_id: int) -> str:
+def _key_prefix(activity_id: uuid.UUID) -> str:
     """Return the prefix shared by every storage key of one activity.
 
-    ``activity_id`` is an int, so the prefix carries no metacharacters. The
-    trailing underscore keeps activity 42 from matching activity 421's keys.
+    ``activity_id`` is a UUID, so the prefix carries no metacharacters. The
+    trailing underscore ends the id, so one activity's prefix never matches another's keys.
 
     Args:
         activity_id: ID of the activity the media belongs to.
@@ -53,7 +57,7 @@ def _key_prefix(activity_id: int) -> str:
     return f"{activity_id}_"
 
 
-def _media_key(activity_id: int, suffix: str) -> str:
+def media_key(activity_id: uuid.UUID, suffix: str) -> str:
     """Return the storage key for ``suffix`` under an activity.
 
     Args:
@@ -66,7 +70,7 @@ def _media_key(activity_id: int, suffix: str) -> str:
     return f"{_key_prefix(activity_id)}{suffix}"
 
 
-def _require_owned_activity(activity_id: int, requester_user_id: int, db: Session) -> None:
+def _require_owned_activity(activity_id: uuid.UUID, requester_user_id: int, db: Session) -> None:
     """Raise :class:`NotFoundError` unless ``requester_user_id`` owns ``activity_id``.
 
     "Not found" rather than "forbidden" so a caller cannot use the media endpoints
@@ -89,7 +93,7 @@ def _require_owned_activity(activity_id: int, requester_user_id: int, db: Sessio
         raise core_exceptions.NotFoundError("Activity not found")
 
 
-def _build_storage_key(activity_id: int, original_name: str | None) -> str:
+def _build_storage_key(activity_id: uuid.UUID, original_name: str | None) -> str:
     """Build a storage key for an uploaded media file.
 
     The original filename is reduced to its basename and its extension checked
@@ -118,7 +122,7 @@ def _build_storage_key(activity_id: int, original_name: str | None) -> str:
         )
         raise core_exceptions.UnsupportedMediaTypeError("Unsupported media file type")
 
-    return _media_key(activity_id, f"{uuid.uuid4().hex}{extension}")
+    return media_key(activity_id, f"{uuid.uuid4().hex}{extension}")
 
 
 def _content_type_for(storage_key: str) -> str:
@@ -141,7 +145,9 @@ def _content_type_for(storage_key: str) -> str:
     )
 
 
-def _cleanup_orphaned_blob(storage: platform_providers.StorageProvider, storage_key: str, activity_id: int) -> None:
+def _cleanup_orphaned_blob(
+    storage: platform_providers.StorageProvider, storage_key: str, activity_id: uuid.UUID
+) -> None:
     """Best-effort delete of a blob whose database row was never created.
 
     Args:
@@ -160,7 +166,7 @@ def _cleanup_orphaned_blob(storage: platform_providers.StorageProvider, storage_
 
 
 def _persist_media_bytes(
-    activity_id: int,
+    activity_id: uuid.UUID,
     original_filename: str | None,
     data: bytes,
     storage: platform_providers.StorageProvider,
@@ -266,9 +272,9 @@ def _to_read_model(
 
 
 def list_media_for_activities(
-    activity_ids: list[int],
+    activity_ids: list[uuid.UUID],
     db: Session,
-) -> dict[int, list[activity_media_schema.ActivityMediaRead]]:
+) -> dict[uuid.UUID, list[activity_media_schema.ActivityMediaRead]]:
     """Resolve the media of several activities, oldest first, in one query.
 
     Performs no ownership check: the caller passes only activities whose media the
@@ -281,14 +287,14 @@ def list_media_for_activities(
     Returns:
         The read models keyed by activity ID; an activity without media has no entry.
     """
-    media: dict[int, list[activity_media_schema.ActivityMediaRead]] = {}
+    media: dict[uuid.UUID, list[activity_media_schema.ActivityMediaRead]] = {}
     for record in activity_media_crud.get_media_for_owned_activities(activity_ids, db):
         media.setdefault(record.activity_id, []).append(_to_read_model(record))
     return media
 
 
 def list_activity_media(
-    activity_id: int,
+    activity_id: uuid.UUID,
     requester_user_id: int,
     db: Session,
     *,
@@ -330,8 +336,8 @@ def list_activity_media(
 
 
 def read_activity_media_blob(
-    activity_id: int,
-    media_id: int,
+    activity_id: uuid.UUID,
+    media_id: uuid.UUID,
     token: str,
     storage: platform_providers.StorageProvider,
     db: Session,
@@ -388,7 +394,7 @@ def read_activity_media_blob(
 
 
 def store_activity_media(
-    activity_id: int,
+    activity_id: uuid.UUID,
     requester_user_id: int,
     original_filename: str | None,
     read_data: Callable[[], bytes],
@@ -435,7 +441,7 @@ def store_activity_media(
 
 
 def store_activity_media_bytes(
-    activity_id: int,
+    activity_id: uuid.UUID,
     original_filename: str | None,
     data: bytes,
     storage: platform_providers.StorageProvider,
@@ -476,8 +482,8 @@ def store_activity_media_bytes(
 
 
 def delete_activity_media(
-    activity_id: int,
-    media_id: int,
+    activity_id: uuid.UUID,
+    media_id: uuid.UUID,
     requester_user_id: int,
     storage: platform_providers.StorageProvider,
     db: Session,
@@ -525,7 +531,7 @@ def delete_activity_media(
     )
 
 
-def delete_media_files_for_activity(activity_id: int, storage: platform_providers.StorageProvider) -> int:
+def delete_media_files_for_activity(activity_id: uuid.UUID, storage: platform_providers.StorageProvider) -> int:
     """Remove every stored media blob belonging to one activity.
 
     Used by the ``activity.deleted`` cleanup subscriber. It works from the
@@ -561,7 +567,7 @@ def delete_media_files_for_activity(activity_id: int, storage: platform_provider
     return removed
 
 
-def list_media_blobs(activity_id: int, storage: platform_providers.StorageProvider) -> list[tuple[str, bytes]]:
+def list_media_blobs(activity_id: uuid.UUID, storage: platform_providers.StorageProvider) -> list[tuple[str, bytes]]:
     """Return every readable media blob attached to an activity.
 
     Best-effort per blob for the profile export: a blob that cannot be read is
@@ -599,7 +605,7 @@ def list_media_blobs(activity_id: int, storage: platform_providers.StorageProvid
 
 
 def store_media_blob(
-    activity_id: int,
+    activity_id: uuid.UUID,
     suffix: str,
     extension: str,
     data: bytes,
@@ -617,29 +623,32 @@ def store_media_blob(
     Returns:
         The storage key the blob was saved under.
     """
-    key = _media_key(activity_id, f"{suffix}{extension}")
+    key = media_key(activity_id, f"{suffix}{extension}")
     storage.save(activity_media_constants.MEDIA_STORAGE_AREA, key, data)
     return key
 
 
-def rekey_media_path(old_key: str, new_activity_id: int) -> str | None:
+def rekey_media_path(old_key: str, archived_activity_key: str, new_activity_id: uuid.UUID) -> str | None:
     """Return an exported media key re-addressed to a restored activity.
+
+    The archived key is matched by its text, whatever the archive's id looks like.
 
     Args:
         old_key: The ``media_path`` recorded in a profile archive.
+        archived_activity_key: The archive-local key of the activity the record was exported under.
         new_activity_id: The activity the record is being restored onto.
 
     Returns:
         The key under the new activity, or ``None`` when ``old_key`` is not a
-        flat ``{activity_id}_{suffix}`` key (the archive is untrusted).
+        flat ``{archived_activity_key}_{suffix}`` key (the archive is untrusted).
     """
-    match = _MEDIA_KEY_PATTERN.fullmatch(old_key)
-    if match is None:
+    suffix = old_key.removeprefix(f"{archived_activity_key}_")
+    if suffix == old_key or _FLAT_SUFFIX_PATTERN.fullmatch(suffix) is None:
         return None
-    return _media_key(new_activity_id, match.group("suffix"))
+    return media_key(new_activity_id, suffix)
 
 
-def _activity_id_of_media_key(key: str) -> int | None:
+def _activity_id_of_media_key(key: str) -> uuid.UUID | None:
     """Return the activity id a flat ``{activity_id}_{suffix}`` media key names.
 
     Args:
@@ -649,7 +658,7 @@ def _activity_id_of_media_key(key: str) -> int | None:
         The activity id, or ``None`` when the key does not match the layout.
     """
     match = _MEDIA_KEY_PATTERN.fullmatch(key)
-    return int(match.group("activity_id")) if match else None
+    return uuid.UUID(match.group("activity_id")) if match else None
 
 
 def sweep_orphaned_media(storage: platform_providers.StorageProvider) -> int:

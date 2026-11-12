@@ -23,7 +23,7 @@ def _read(**fields):
             "id": _ID,
             "user_id": 1,
             "type": "new_activity",
-            "options": {"activity_id": 5},
+            "options": {"activity_id": "11111111-1111-4111-8111-111111111111"},
             "created_at": datetime(2024, 1, 1),
             **fields,
         }

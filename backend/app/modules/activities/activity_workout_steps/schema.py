@@ -1,5 +1,7 @@
 """Activity workout steps schemas."""
 
+import uuid
+
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -66,8 +68,8 @@ class ActivityWorkoutStepsRead(ActivityWorkoutStepsBase):
         activity_id: FK to activities table.
     """
 
-    id: StrictInt
-    activity_id: StrictInt
+    id: uuid.UUID
+    activity_id: uuid.UUID
 
 
 #: One page of an activity's planned workout steps. A structured workout's step

@@ -1,5 +1,6 @@
 """Activity sets schemas."""
 
+import uuid
 from datetime import datetime
 
 from pydantic import (
@@ -54,8 +55,8 @@ class ActivitySetsRead(ActivitySetsBase):
             parent hides its start time from this viewer.
     """
 
-    id: StrictInt
-    activity_id: StrictInt
+    id: uuid.UUID
+    activity_id: uuid.UUID
     start_time: datetime | None
 
     model_config = ConfigDict(

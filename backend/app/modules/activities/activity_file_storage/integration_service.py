@@ -13,6 +13,8 @@ extensions rather than reading a column. There is no servable URL — the retain
 file is only consumed in-process (profile export) and on cleanup, never served.
 """
 
+import uuid
+
 import jasil.providers as platform_providers
 
 import core.logger as core_logger
@@ -23,7 +25,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def store_activity_file(
-    activity_id: int,
+    activity_id: uuid.UUID,
     extension: str,
     data: bytes,
     storage: platform_providers.StorageProvider,
@@ -53,7 +55,7 @@ def store_activity_file(
 
 
 def store_activity_file_for_ids(
-    activity_ids: list[int],
+    activity_ids: list[uuid.UUID],
     extension: str,
     data: bytes,
     storage: platform_providers.StorageProvider,
@@ -75,7 +77,7 @@ def store_activity_file_for_ids(
 
 
 def get_activity_file(
-    activity_id: int,
+    activity_id: uuid.UUID,
     storage: platform_providers.StorageProvider,
 ) -> tuple[str, bytes] | None:
     """Read an activity's retained source file, probing the known extensions.

@@ -7,6 +7,8 @@ files: it is derived from the activity id plus one of the known source
 extensions.
 """
 
+import uuid
+
 import jasil.providers as platform_providers
 
 import modules.activities.activity_file_storage.constants as activity_file_storage_constants
@@ -21,7 +23,7 @@ _PROCESSED_KEY_PREFIX = "processed"
 STORED_EXTENSIONS = (".gpx", ".fit", ".tcx")
 
 
-def activity_file_key(activity_id: int, extension: str) -> str:
+def activity_file_key(activity_id: uuid.UUID, extension: str) -> str:
     """Return the storage key for an activity's retained source file.
 
     Args:
@@ -30,7 +32,7 @@ def activity_file_key(activity_id: int, extension: str) -> str:
             (e.g. ``".fit"`` or ``"fit"``).
 
     Returns:
-        The storage key, e.g. ``"42.fit"``.
+        The storage key, e.g. ``"{activity_id}.fit"``.
     """
     ext = extension if extension.startswith(".") else f".{extension}"
     return f"{activity_id}{ext.lower()}"
@@ -40,16 +42,16 @@ def processed_storage_key(key: str) -> str:
     """Return the storage key placed under the ``processed`` hierarchy.
 
     Args:
-        key: The activity file key, e.g. ``"42.fit"``.
+        key: The activity file key, e.g. ``"{activity_id}.fit"``.
 
     Returns:
-        The prefixed storage key, e.g. ``"processed/42.fit"``.
+        The prefixed storage key, e.g. ``"processed/{activity_id}.fit"``.
     """
     return f"{_PROCESSED_KEY_PREFIX}/{key}"
 
 
 def delete_activity_file(
-    activity_id: int,
+    activity_id: uuid.UUID,
     storage: platform_providers.StorageProvider,
 ) -> None:
     """Delete an activity's retained source file(s).
@@ -67,8 +69,11 @@ def delete_activity_file(
         storage.delete(activity_file_storage_constants.ACTIVITY_FILE_STORAGE_AREA, processed_storage_key(key))
 
 
-def activity_id_of_processed_key(key: str) -> int | None:
+def activity_id_of_processed_key(key: str) -> uuid.UUID | None:
     """Return the activity id a ``processed/{id}.{ext}`` key names.
+
+    Only the canonical lowercase UUID layout is recognised: an integer-layout key
+    belongs to the data migration that renames it and is never returned here.
 
     Args:
         key: A storage key in the activity-files area.
@@ -79,4 +84,10 @@ def activity_id_of_processed_key(key: str) -> int | None:
     """
     stem, dot, extension = key.removeprefix(f"{_PROCESSED_KEY_PREFIX}/").rpartition(".")
     owned = key.startswith(f"{_PROCESSED_KEY_PREFIX}/") and f".{extension}" in STORED_EXTENSIONS
-    return int(stem) if owned and dot and stem.isdecimal() else None
+    if not (owned and dot):
+        return None
+    try:
+        activity_id = uuid.UUID(stem)
+    except ValueError:
+        return None
+    return activity_id if stem == str(activity_id) else None

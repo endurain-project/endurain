@@ -16,14 +16,14 @@ from tests._helpers.db import ensure_user
 def _create(pg_factory, count: int) -> list[uuid.UUID]:
     """Create ``count`` notifications, each in its own transaction so ``created_at`` strictly increases."""
     ids: list[uuid.UUID] = []
-    for n in range(count):
+    for _ in range(count):
         with pg_factory() as db:
             ids.append(
                 notifications_crud.create_notification(
                     notifications_schema.NotificationCreate(
                         user_id=1,
                         type=notifications_constants.NotificationType.NEW_ACTIVITY,
-                        options={"activity_id": n},
+                        options={"activity_id": str(uuid.uuid4())},
                     ),
                     db,
                 ).id

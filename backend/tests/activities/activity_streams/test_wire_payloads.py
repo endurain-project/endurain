@@ -6,6 +6,7 @@ waypoint schemas describe the payload in OpenAPI; they must not change a byte of
 """
 
 import json
+import uuid
 from typing import Any
 from unittest.mock import patch
 
@@ -21,6 +22,8 @@ import modules.activities.activity_streams.schema as activity_streams_schema
 import modules.auth.dependencies as auth_deps
 from modules.activities.activity_streams.constants import ActivityStreamType
 
+ACTIVITY_ID = uuid.UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
+STREAM_ID = uuid.UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
 _HEADERS = {"Authorization": "Bearer x"}
 _TIME = "2026-06-20T08:20:00"
 
@@ -56,18 +59,18 @@ def _key(stream_type: int) -> str:
 
 def _stream(stream_type: int, waypoints: list[dict[str, Any]]) -> activity_streams_schema.ActivityStreamsRead:
     return activity_streams_schema.ActivityStreamsRead(
-        id=stream_type, activity_id=9, stream_type=stream_type, stream_waypoints=waypoints
+        id=uuid.UUID(int=stream_type), activity_id=ACTIVITY_ID, stream_type=stream_type, stream_waypoints=waypoints
     )
 
 
 def _expected(stream_type: int, waypoints: list[dict[str, Any]]) -> dict[str, Any]:
     """The stream as it has always been served, in the key order it has always had."""
     return {
-        "activity_id": 9,
+        "activity_id": str(ACTIVITY_ID),
         "stream_type": _key(stream_type),
         "stream_waypoints": waypoints,
         "strava_activity_stream_id": None,
-        "id": stream_type,
+        "id": str(uuid.UUID(int=stream_type)),
         "zone_percentages": None,
     }
 
@@ -106,7 +109,7 @@ class TestAuthenticatedRouter:
         mock_get.return_value = _stream(stream_type, stored)
 
         response = TestClient(_app(mock_db, router, "/activities/{activity_id}", authenticated=True)).get(
-            f"/activities/1/streams/{_key(stream_type)}", headers=_HEADERS
+            f"/activities/{ACTIVITY_ID}/streams/{_key(stream_type)}", headers=_HEADERS
         )
 
         assert response.status_code == 200
@@ -119,7 +122,7 @@ class TestAuthenticatedRouter:
         )
 
         response = TestClient(_app(mock_db, router, "/activities/{activity_id}", authenticated=True)).get(
-            "/activities/1/streams", headers=_HEADERS
+            f"/activities/{ACTIVITY_ID}/streams", headers=_HEADERS
         )
 
         assert response.status_code == 200
@@ -136,7 +139,7 @@ class TestPublicRouter:
 
         response = TestClient(
             _app(mock_db, public_router, "/public/activities/{activity_id}", authenticated=False)
-        ).get(f"/public/activities/1/streams/{_key(stream_type)}")
+        ).get(f"/public/activities/{ACTIVITY_ID}/streams/{_key(stream_type)}")
 
         assert response.status_code == 200
         assert response.content == _compact(_expected(stream_type, stored))

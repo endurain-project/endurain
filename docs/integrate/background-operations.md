@@ -67,7 +67,7 @@ These routes start a job of one shape, `ActivityIngestionJobRead`, whatever the 
   "filename": "morning-run.fit",
   "status": "succeeded",
   "error_code": null,
-  "activity_ids": [412],
+  "activity_ids": ["7c9e6679-7425-40de-944b-e07fc1f90ae7"],
   "created_at": "2026-11-05T07:30:00Z",
   "updated_at": "2026-11-05T07:30:04Z",
   "finished_at": "2026-11-05T07:30:04Z"

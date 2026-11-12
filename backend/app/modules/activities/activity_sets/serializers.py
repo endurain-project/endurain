@@ -3,6 +3,8 @@
 ``crud`` calls these at its edges so ORM rows never leave the persistence layer.
 """
 
+import uuid
+
 from pydantic import BaseModel
 
 import modules.activities.activity_sets.contracts as activity_sets_contracts
@@ -44,7 +46,7 @@ def _extract_value(
 
 def to_orm(
     activity_set: activity_sets_contracts.ActivitySetsCreate | list[object],
-    activity_id: int,
+    activity_id: uuid.UUID,
 ) -> activity_sets_models.ActivitySets:
     """Build an ORM row from a set schema or a raw FIT parser row.
 

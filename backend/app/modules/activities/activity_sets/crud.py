@@ -1,5 +1,6 @@
 """Activity sets CRUD operations."""
 
+import uuid
 from collections.abc import Sequence
 
 from sqlalchemy import func, select
@@ -12,7 +13,7 @@ import modules.activities.activity_sets.serializers as activity_sets_serializers
 
 
 def get_activity_sets(
-    activity_id: int,
+    activity_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -35,7 +36,8 @@ def get_activity_sets(
     stmt = (
         select(activity_sets_models.ActivitySets)
         .where(activity_sets_models.ActivitySets.activity_id == activity_id)
-        .order_by(activity_sets_models.ActivitySets.id)
+        # Sets are recorded in start order; the id only breaks a tie so paging is stable.
+        .order_by(activity_sets_models.ActivitySets.start_time, activity_sets_models.ActivitySets.id)
         .offset((page_number - 1) * num_records)
         .limit(num_records)
     )
@@ -44,7 +46,7 @@ def get_activity_sets(
     return [activity_sets_serializers.to_read_schema(s) for s in activity_sets]
 
 
-def count_activity_sets(activity_id: int, db: Session) -> int:
+def count_activity_sets(activity_id: uuid.UUID, db: Session) -> int:
     """Count an activity's workout sets.
 
     Args:
@@ -63,7 +65,7 @@ def count_activity_sets(activity_id: int, db: Session) -> int:
 
 
 def get_activities_sets(
-    activity_ids: list[int],
+    activity_ids: list[uuid.UUID],
     db: Session,
 ) -> list[activity_sets_schema.ActivitySetsRead]:
     """Retrieve the workout sets of several activities at once.
@@ -90,7 +92,7 @@ def get_activities_sets(
 
 def create_activity_sets(
     activity_sets: Sequence[activity_sets_contracts.ActivitySetsCreate | list[object]],
-    activity_id: int,
+    activity_id: uuid.UUID,
     db: Session,
 ) -> None:
     """Stage activity sets for an activity (flushed, not committed).

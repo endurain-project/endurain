@@ -7,6 +7,7 @@ invisible to everyone else until the owner commits, and a failed flush poisons a
 session until somebody rolls it back.
 """
 
+import uuid
 from collections.abc import Generator
 from datetime import UTC, datetime
 from typing import Annotated
@@ -50,7 +51,7 @@ _PRIVACY_FLAGS = (
 _LAP = {"start_time": datetime(2026, 7, 28, 9, 0, tzinfo=UTC)}
 
 
-def _add_activity(factory, user_id: int = 1) -> int:
+def _add_activity(factory, user_id: int = 1) -> uuid.UUID:
     """Commit one activity and return its id."""
     ensure_user(factory, user_id)
     core = activity_contracts.ActivityCore(

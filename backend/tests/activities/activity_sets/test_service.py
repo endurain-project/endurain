@@ -8,6 +8,7 @@ keeps a set from serving the start its activity hides.
 """
 
 import dataclasses
+import uuid
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -15,6 +16,9 @@ from unittest.mock import MagicMock, patch
 import modules.activities.activity_sets.crud as activity_sets_crud
 import modules.activities.activity_sets.schema as activity_sets_schema
 import modules.activities.activity_sets.service as service
+
+_ACTIVITY_ID = uuid.UUID("00000000-0000-4000-8000-000000000005")
+_ROW_ID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
 
 
 class TestCollectionDeclaration:
@@ -35,26 +39,26 @@ class TestDelegation:
         mock_gate.resolve_readable_parent.return_value = None
         db = MagicMock()
 
-        page = service.list_activity_sets(5, 1, db)
+        page = service.list_activity_sets(_ACTIVITY_ID, 1, db)
 
         assert (page.items, page.total) == ([], 0)
-        mock_gate.resolve_readable_parent.assert_called_once_with(5, 1, db)
+        mock_gate.resolve_readable_parent.assert_called_once_with(_ACTIVITY_ID, 1, db)
 
     @patch("modules.activities.activity.child_collection_service.activity_child_access_service")
     def test_the_public_read_goes_through_the_public_gate(self, mock_gate):
         mock_gate.resolve_public_parent.return_value = None
         db = MagicMock()
 
-        page = service.list_public_activity_sets(5, db)
+        page = service.list_public_activity_sets(_ACTIVITY_ID, db)
 
         assert (page.items, page.total) == ([], 0)
-        mock_gate.resolve_public_parent.assert_called_once_with(5, db)
+        mock_gate.resolve_public_parent.assert_called_once_with(_ACTIVITY_ID, db)
 
 
 def _set() -> activity_sets_schema.ActivitySetsRead:
     return activity_sets_schema.ActivitySetsRead(
-        id=1,
-        activity_id=5,
+        id=_ROW_ID,
+        activity_id=_ACTIVITY_ID,
         duration=30.0,
         repetitions=10,
         weight=50.0,
@@ -67,7 +71,7 @@ def _set() -> activity_sets_schema.ActivitySetsRead:
 
 def _parent(**flags) -> SimpleNamespace:
     return SimpleNamespace(
-        **{"id": 5, "user_id": 1, "hide_workout_sets_steps": False, "hide_start_time": False} | flags
+        **{"id": _ACTIVITY_ID, "user_id": 1, "hide_workout_sets_steps": False, "hide_start_time": False} | flags
     )
 
 

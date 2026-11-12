@@ -1,6 +1,7 @@
 """Public record and blob operations for activity media."""
 
 import re
+import uuid
 from typing import Any
 
 import jasil.providers as platform_providers
@@ -15,6 +16,7 @@ import modules.activities.activity_media.crud as activity_media_crud
 import modules.activities.activity_media.schema as activity_media_schema
 import modules.activities.activity_media.service as activity_media_service
 import modules.activities.contributors as activities_contributors
+import modules.users.users_profile.contracts as users_profile_contracts
 
 logger = core_logger.get_logger(__name__)
 
@@ -22,7 +24,7 @@ _HASH_PATTERN = re.compile(activity_media_contracts.CONTENT_HASH_PATTERN)
 
 
 def _list_media_for_activities(
-    activity_ids: list[int],
+    activity_ids: list[uuid.UUID],
     db: Session,
 ) -> list[activity_media_contracts.ActivityMediaRecord]:
     """Return media records for activity IDs already scoped by the caller.
@@ -39,7 +41,7 @@ def _list_media_for_activities(
 
 def _restore_media_records(
     media: list[activity_media_contracts.ActivityMediaCreate],
-    activity_id: int,
+    activity_id: uuid.UUID,
     db: Session,
 ) -> None:
     """Restore media records for one activity.
@@ -54,7 +56,7 @@ def _restore_media_records(
 
 def _restore_profile_records(
     records: list[dict[str, Any]],
-    original_activity_id: int,
+    original_activity_id: str,
     new_activity: activity_schema.ActivityRead,
     db: Session,
 ) -> int:
@@ -62,7 +64,7 @@ def _restore_profile_records(
 
     Args:
         records: Profile records to restore.
-        original_activity_id: The activity's ID in the exported archive.
+        original_activity_id: The archive-local key of the activity (``archived_id`` of its ID in the archive).
         new_activity: The activity the records are restored onto.
         db: Database session.
 
@@ -72,13 +74,13 @@ def _restore_profile_records(
     media: list[activity_media_contracts.ActivityMediaCreate] = []
     seen_hashes: set[str] = set()
     for record in records:
-        if record.get("activity_id") != original_activity_id:
+        if users_profile_contracts.archived_id(record.get("activity_id")) != original_activity_id:
             continue
         data = dict(record)
         old_key = data.get("media_path")
         if not old_key:
             continue
-        media_path = activity_media_service.rekey_media_path(str(old_key), new_activity.id)
+        media_path = activity_media_service.rekey_media_path(str(old_key), original_activity_id, new_activity.id)
         if media_path is None:
             logger.warning(
                 "Skipping activity media with invalid key",
@@ -130,9 +132,9 @@ def profile_contributor() -> activities_contributors.ProfileActivityContributor:
 
 
 def media_for_activities(
-    activity_ids: list[int],
+    activity_ids: list[uuid.UUID],
     db: Session,
-) -> dict[int, list[activity_media_schema.ActivityMediaRead]]:
+) -> dict[uuid.UUID, list[activity_media_schema.ActivityMediaRead]]:
     """Return the media of several activities, as the per-activity endpoint returns it.
 
     Args:
@@ -146,7 +148,7 @@ def media_for_activities(
 
 
 def attach_media_bytes(
-    activity_id: int,
+    activity_id: uuid.UUID,
     original_filename: str | None,
     data: bytes,
     db: Session,
@@ -170,7 +172,7 @@ def attach_media_bytes(
 
 
 def list_media_blobs(
-    activity_id: int,
+    activity_id: uuid.UUID,
     storage: platform_providers.StorageProvider,
 ) -> list[tuple[str, bytes]]:
     """Return every readable media blob attached to an activity.
@@ -186,7 +188,7 @@ def list_media_blobs(
 
 
 def store_media_blob(
-    activity_id: int,
+    activity_id: uuid.UUID,
     suffix: str,
     extension: str,
     data: bytes,

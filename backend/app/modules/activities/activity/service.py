@@ -425,7 +425,7 @@ def with_media(
 
 
 def list_changed_activities(
-    user_id: int, after: core_sync.Position[int] | None, until: datetime, limit: int, db: Session
+    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[activity_schema.ActivityRead]:
     """List the owner's activities changed after a position, each as the owner's own list reads it.
 
@@ -605,7 +605,7 @@ def scroll_feed(
     Returns:
         The slice, the cursor for the next one and the public profile of each owner on the slice.
     """
-    after = core_pagination.decode_cursor(cursor) if cursor else None
+    after = core_pagination.decode_uuid_cursor(cursor) if cursor else None
     # Over-fetch by one: the extra row proves another slice exists without a
     # second query, and is dropped before serialising.
     if scope is activity_constants.FeedScope.MINE:
@@ -657,7 +657,7 @@ def list_activity_types(user_id: int, db: Session) -> dict[activity_constants.Ac
     }
 
 
-def get_activity(activity_id: int, requester_user_id: int, db: Session) -> activity_schema.ActivityRead:
+def get_activity(activity_id: uuid.UUID, requester_user_id: int, db: Session) -> activity_schema.ActivityRead:
     """Return an activity the requester owns or is permitted to see.
 
     Args:
@@ -685,7 +685,7 @@ def get_activity(activity_id: int, requester_user_id: int, db: Session) -> activ
     return _with_thumbnail_urls([activity])[0]
 
 
-def _require_public_activity(activity_id: int, db: Session) -> activity_schema.ActivityRead:
+def _require_public_activity(activity_id: uuid.UUID, db: Session) -> activity_schema.ActivityRead:
     """Return an activity that anonymous viewers may see, as stored.
 
     Args:
@@ -706,7 +706,7 @@ def _require_public_activity(activity_id: int, db: Session) -> activity_schema.A
     return activity
 
 
-def get_public_activity(activity_id: int, db: Session) -> activity_schema.ActivityRead:
+def get_public_activity(activity_id: uuid.UUID, db: Session) -> activity_schema.ActivityRead:
     """Return a publicly shared activity.
 
     Args:
@@ -735,7 +735,7 @@ def _is_visibility_field(field: str) -> bool:
 
 
 def _stage_visibility_update(
-    activity_id: int,
+    activity_id: uuid.UUID,
     user_id: int,
     before: activity_schema.ActivityRead,
     after: activity_schema.ActivityRead,
@@ -768,7 +768,7 @@ def _stage_visibility_update(
 
 
 def edit_activity(
-    activity_id: int,
+    activity_id: uuid.UUID,
     user_id: int,
     activity_attributes: activity_schema.ActivityEdit,
     db: Session,
@@ -827,7 +827,7 @@ def edit_activity(
     return _with_thumbnail_urls([updated])[0]
 
 
-def delete_activity(activity_id: int, user_id: int, db: Session, *, if_match: str) -> None:
+def delete_activity(activity_id: uuid.UUID, user_id: int, db: Session, *, if_match: str) -> None:
     """Delete one of the user's activities and publish ``activity.deleted``.
 
     The delete and the event are staged and committed together, so when durable
@@ -868,7 +868,7 @@ def delete_activity(activity_id: int, user_id: int, db: Session, *, if_match: st
 
 def bulk_set_activities_gear(
     user_id: int,
-    gear_assignments: Mapping[int, uuid.UUID | None],
+    gear_assignments: Mapping[uuid.UUID, uuid.UUID | None],
     db: Session,
     *,
     source: str,
@@ -982,7 +982,7 @@ def delete_activities_batch_for_user(user_id: int, limit: int, db: Session, *, s
     return len(deleted_ids)
 
 
-def owns_activity(activity_id: int, user_id: int, db: Session) -> bool:
+def owns_activity(activity_id: uuid.UUID, user_id: int, db: Session) -> bool:
     """Return whether the user owns the activity.
 
     Args:

@@ -4,7 +4,10 @@ This is where the access rule for laps / sets / streams / workout steps now
 lives; the four child CRUDs used to hold a copy each.
 """
 
+import uuid
 from unittest.mock import MagicMock, patch
+
+_ACTIVITY_ID = uuid.uuid4()
 
 
 class TestIsHiddenFrom:
@@ -60,7 +63,7 @@ class TestResolveParents:
         activity = MagicMock()
         mock_crud.get_viewable_activity_by_id_for_user.return_value = activity
 
-        assert child_access_service.resolve_readable_parent(5, 1, db) is activity
+        assert child_access_service.resolve_readable_parent(_ACTIVITY_ID, 1, db) is activity
 
     @patch("modules.activities.activity.child_access_service.followers_integration")
     @patch("modules.activities.activity.child_access_service.server_settings_integration")
@@ -72,5 +75,5 @@ class TestResolveParents:
         activity = MagicMock()
         mock_crud.get_activity_by_id_if_is_public.return_value = activity
 
-        assert child_access_service.resolve_public_parent(5, db) is activity
-        mock_crud.get_activity_by_id_if_is_public.assert_called_once_with(5, db)
+        assert child_access_service.resolve_public_parent(_ACTIVITY_ID, db) is activity
+        mock_crud.get_activity_by_id_if_is_public.assert_called_once_with(_ACTIVITY_ID, db)

@@ -19,6 +19,7 @@ Neither group is ever serialized to a client, so keeping them out of
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -92,7 +93,7 @@ class ActivityGarminGearRef:
         garminconnect_gear_id: The Garmin Connect gear UUID the activity carries.
     """
 
-    id: int
+    id: uuid.UUID
     garminconnect_gear_id: str
 
 
@@ -105,7 +106,7 @@ class ActivityThumbnailRef:
     ORM ``Activity`` row.
     """
 
-    id: int
+    id: uuid.UUID
     map_thumbnail_path: str | None = None
 
 
@@ -118,7 +119,7 @@ class ActivityLocationRef:
     city/town/country.
     """
 
-    id: int
+    id: uuid.UUID
 
 
 @dataclass(frozen=True)
@@ -134,7 +135,7 @@ class ActivityFeedEntry:
 
     activity: activity_schema.ActivityRead
     cursor_sort_value: datetime
-    cursor_id: int
+    cursor_id: uuid.UUID
 
 
 class ActivityCore(activity_schema.ActivityBase):

@@ -12,7 +12,6 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
-    Integer,
     String,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -25,7 +24,7 @@ class Activity(UpdatedAtMixin, Base):
     """Fitness activity record.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         user_id: Owner user ID.
         name: Activity name.
         description: Public description.
@@ -101,10 +100,7 @@ class Activity(UpdatedAtMixin, Base):
         Index("ix_activities_user_id_updated_at_id", "user_id", "updated_at", "id"),
     )
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
@@ -391,7 +387,7 @@ class ActivityDeletion(TombstoneMixin, Base):
     """A deleted activity, kept so a syncing client learns of the deletion.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         user_id: Owner of the deleted activity.
         record_id: The id the activity had.
         deleted_at: When the activity was deleted.
@@ -401,4 +397,4 @@ class ActivityDeletion(TombstoneMixin, Base):
 
     __table_args__ = (Index("ix_activity_deletions_user_id_deleted_at_id", "user_id", "deleted_at", "id"),)
 
-    record_id: Mapped[int] = mapped_column(Integer, nullable=False, comment="The id the deleted record had")
+    record_id: Mapped[uuid.UUID] = mapped_column(nullable=False, comment="The id the deleted record had")

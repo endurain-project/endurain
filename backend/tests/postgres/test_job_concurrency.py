@@ -213,7 +213,7 @@ class TestClaiming:
             _add_job(factory, kind, import_source="strava", files_total=1)
 
 
-def _add_activity_without_location(factory) -> int:
+def _add_activity_without_location(factory) -> uuid.UUID:
     core = activity_contracts.ActivityCore(
         user_id=_USER_ID,
         name="Ride",

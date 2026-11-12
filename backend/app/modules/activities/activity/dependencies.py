@@ -13,7 +13,7 @@ import modules.activities.activity.bulk_edit_state_store as bulk_edit_state_stor
 import modules.activities.activity.constants as activity_constants
 
 #: An activity id taken from the path.
-ActivityId = core_dependencies.PositiveId
+ActivityId = core_dependencies.UuidId
 
 
 #: The optional ``type`` filter of an activity list.

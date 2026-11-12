@@ -22,6 +22,7 @@ import-linter contracts.
 import contextlib
 import gzip
 import os
+import uuid
 from pathlib import Path
 
 import jasil.providers as platform_providers
@@ -123,7 +124,7 @@ def parse_file(
 def _retain_source_file(
     file_path: str,
     file_extension: str,
-    activity_ids: list[int],
+    activity_ids: list[uuid.UUID],
     storage: platform_providers.StorageProvider,
 ) -> None:
     """Persist the source file against each activity parsed from it, then consume it.

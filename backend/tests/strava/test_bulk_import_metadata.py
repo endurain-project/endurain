@@ -57,6 +57,7 @@ class TestDoesActivityStartTimeMatchTheCsv:
 _GEAR_1 = uuid.uuid4()
 _GEAR_2 = uuid.uuid4()
 _GEAR_3 = uuid.uuid4()
+_ACTIVITY = uuid.uuid4()
 
 
 class _MockGear:
@@ -74,11 +75,11 @@ def test_media_is_validated_as_an_image_before_it_is_stored(monkeypatch):
     monkeypatch.setattr(bulk_import_utils.file_uploads, "validate_local_file_sync", validate)
     monkeypatch.setattr(bulk_import_utils.activity_media_integration, "attach_media_bytes", store_media)
 
-    bulk_import_utils.create_activity_media_from_strava_bulk_import(7, "photo.jpg", b"image-bytes", Mock())
+    bulk_import_utils.create_activity_media_from_strava_bulk_import(_ACTIVITY, "photo.jpg", b"image-bytes", Mock())
 
     assert validate.call_args.kwargs == {"kind": UploadKind.IMAGE, "filename": "photo.jpg"}
     # The media module owns the key and the storage area; only bytes cross over.
-    assert store_media.call_args.args[:3] == (7, "photo.jpg", b"image-bytes")
+    assert store_media.call_args.args[:3] == (_ACTIVITY, "photo.jpg", b"image-bytes")
 
 
 def test_a_database_failure_while_storing_media_propagates(monkeypatch):
@@ -91,7 +92,7 @@ def test_a_database_failure_while_storing_media_propagates(monkeypatch):
     )
 
     with pytest.raises(sqlalchemy.exc.SQLAlchemyError):
-        bulk_import_utils.create_activity_media_from_strava_bulk_import(7, "photo.jpg", b"image-bytes", Mock())
+        bulk_import_utils.create_activity_media_from_strava_bulk_import(_ACTIVITY, "photo.jpg", b"image-bytes", Mock())
 
 
 def test_a_photo_the_media_module_rejects_is_skipped(monkeypatch, caplog):
@@ -103,7 +104,7 @@ def test_a_photo_the_media_module_rejects_is_skipped(monkeypatch, caplog):
     )
 
     with caplog.at_level(logging.DEBUG, logger=bulk_import_utils.logger.name):
-        bulk_import_utils.create_activity_media_from_strava_bulk_import(7, "photo.jpg", b"image-bytes", Mock())
+        bulk_import_utils.create_activity_media_from_strava_bulk_import(_ACTIVITY, "photo.jpg", b"image-bytes", Mock())
 
     assert [record.levelno for record in caplog.records if record.levelno >= logging.WARNING] == [logging.WARNING]
 
@@ -114,14 +115,14 @@ def test_invalid_media_is_rejected_before_it_is_stored(monkeypatch):
     monkeypatch.setattr(bulk_import_utils.file_uploads, "validate_local_file_sync", validate)
     monkeypatch.setattr(bulk_import_utils.activity_media_integration, "attach_media_bytes", store_media)
 
-    bulk_import_utils.create_activity_media_from_strava_bulk_import(7, "photo.jpg", b"not an image", Mock())
+    bulk_import_utils.create_activity_media_from_strava_bulk_import(_ACTIVITY, "photo.jpg", b"not an image", Mock())
 
     store_media.assert_not_called()
 
 
 class TestMediaFromTheArchive:
     def _activity(self):
-        return Mock(id=11)
+        return Mock(id=_ACTIVITY)
 
     def test_each_listed_photo_is_read_from_the_exports_media_folder(self, monkeypatch):
         store = Mock()

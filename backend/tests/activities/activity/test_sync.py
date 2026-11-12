@@ -4,7 +4,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import text, update
+from sqlalchemy import update
 from tests._helpers.db import create_sqlite_session
 
 import core.sync as core_sync
@@ -61,14 +61,13 @@ def _activity(user_id: int = 1, **overrides) -> activity_models.Activity:
     return activity_models.Activity(**values)
 
 
-def _stamp(db, activity_id: int, stamp: datetime) -> None:
+def _stamp(db, activity_id: uuid.UUID, stamp: datetime) -> None:
     db.execute(
-        text("UPDATE activities SET updated_at = :stamp WHERE id = :id"),
-        {"stamp": stamp.strftime("%Y-%m-%d %H:%M:%S.%f"), "id": activity_id},
+        update(activity_models.Activity).where(activity_models.Activity.id == activity_id).values(updated_at=stamp)
     )
 
 
-def _add(db, **overrides) -> int:
+def _add(db, **overrides) -> uuid.UUID:
     activity = _activity(**overrides)
     db.add(activity)
     db.flush()
@@ -132,7 +131,7 @@ class TestUpdatedAt:
 
 
 class TestTombstones:
-    def _tombstones(self, db) -> list[tuple[int, int]]:
+    def _tombstones(self, db) -> list[tuple[int, uuid.UUID]]:
         rows = db.query(activity_models.ActivityDeletion).order_by(activity_models.ActivityDeletion.record_id).all()
         return [(row.user_id, row.record_id) for row in rows]
 
@@ -156,8 +155,8 @@ class TestTombstones:
         deleted = activity_crud.delete_all_strava_activities_for_user(1, db, limit=10)
         db.commit()
 
-        assert deleted == strava
-        assert self._tombstones(db) == [(1, strava_id) for strava_id in strava]
+        assert sorted(deleted) == sorted(strava)
+        assert self._tombstones(db) == [(1, strava_id) for strava_id in sorted(strava)]
 
     def test_the_account_batch_delete_records_them(self, db):
         ids = [_add(db, start_time=datetime(2026, 2, 1 + n, tzinfo=UTC)) for n in range(3)]
@@ -166,13 +165,14 @@ class TestTombstones:
         deleted = activity_crud.delete_activities_batch_for_user(1, 10, db)
         db.commit()
 
-        assert sorted(deleted) == ids
-        assert sorted(record for _, record in self._tombstones(db)) == ids
+        assert sorted(deleted) == sorted(ids)
+        assert sorted(record for _, record in self._tombstones(db)) == sorted(ids)
 
 
 class TestSurfaces:
     def test_changed_activities_page_in_stamp_then_id_order_with_ties(self, db):
-        first, second, third, other = (_add(db, start_time=datetime(2026, 1, 1 + n, tzinfo=UTC)) for n in range(4))
+        tied_a, tied_b, third, other = (_add(db, start_time=datetime(2026, 1, 1 + n, tzinfo=UTC)) for n in range(4))
+        first, second = sorted((tied_a, tied_b))
         db.execute(update(activity_models.Activity).where(activity_models.Activity.id == other).values(user_id=2))
         _stamp(db, first, datetime(2026, 5, 1))
         _stamp(db, second, datetime(2026, 5, 1))
@@ -201,35 +201,39 @@ class TestSurfaces:
         assert [a.id for a in after] == [second]
 
     def test_deletions_page_in_order_and_belong_to_the_owner(self, db):
+        seven, eight, nine, ten = (uuid.uuid4() for _ in range(4))
         db.add_all(
             [
-                activity_models.ActivityDeletion(user_id=1, record_id=7, deleted_at=datetime(2026, 5, 1)),
-                activity_models.ActivityDeletion(user_id=1, record_id=8, deleted_at=datetime(2026, 5, 2)),
-                activity_models.ActivityDeletion(user_id=1, record_id=9, deleted_at=datetime(2026, 5, 3)),
-                activity_models.ActivityDeletion(user_id=2, record_id=10, deleted_at=datetime(2026, 5, 1)),
+                activity_models.ActivityDeletion(user_id=1, record_id=seven, deleted_at=datetime(2026, 5, 1)),
+                activity_models.ActivityDeletion(user_id=1, record_id=eight, deleted_at=datetime(2026, 5, 2)),
+                activity_models.ActivityDeletion(user_id=1, record_id=nine, deleted_at=datetime(2026, 5, 3)),
+                activity_models.ActivityDeletion(user_id=2, record_id=ten, deleted_at=datetime(2026, 5, 1)),
             ]
         )
         db.commit()
 
         page = activity_integration.list_activity_deletions(1, None, _FAR_FUTURE, 2, db)
-        assert [d.record_id for d in page] == [7, 8]
+        assert [d.record_id for d in page] == [seven, eight]
         assert {d.type for d in page} == {"activity"}
         assert page[0].position[0] == page[0].deleted_at
         assert all(isinstance(d.position[1], uuid.UUID) for d in page)
 
         rest = activity_integration.list_activity_deletions(1, page[-1].position, _FAR_FUTURE, 10, db)
-        assert [d.record_id for d in rest] == [9]
+        assert [d.record_id for d in rest] == [nine]
 
 
 class TestPrune:
     def test_removes_only_old_tombstones(self, db, monkeypatch):
         now = datetime.now(UTC)
+        old_record, recent_record = uuid.uuid4(), uuid.uuid4()
         db.add_all(
             [
                 activity_models.ActivityDeletion(
-                    user_id=1, record_id=1, deleted_at=now - core_sync.TOMBSTONE_RETENTION - timedelta(days=1)
+                    user_id=1, record_id=old_record, deleted_at=now - core_sync.TOMBSTONE_RETENTION - timedelta(days=1)
                 ),
-                activity_models.ActivityDeletion(user_id=1, record_id=2, deleted_at=now - timedelta(days=1)),
+                activity_models.ActivityDeletion(
+                    user_id=1, record_id=recent_record, deleted_at=now - timedelta(days=1)
+                ),
             ]
         )
         db.commit()
@@ -245,7 +249,7 @@ class TestPrune:
 
         activity_scheduled_jobs.prune_activity_deletions()
 
-        assert [row.record_id for row in db.query(activity_models.ActivityDeletion).all()] == [2]
+        assert [row.record_id for row in db.query(activity_models.ActivityDeletion).all()] == [recent_record]
 
     def test_the_job_is_scheduled_daily(self):
         (job,) = activity_scheduled_jobs.recurring_jobs()

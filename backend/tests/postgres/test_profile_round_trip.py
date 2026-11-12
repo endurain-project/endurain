@@ -478,9 +478,9 @@ class _Normaliser:
     """
 
     #: ``activity_files/{activity_id}.gpx`` and ``activity_media/{activity_id}_{suffix}``.
-    _BLOB = re.compile(r"^(?P<folder>activity_files|activity_media)/(?P<id>\d+)(?P<rest>[._].*)$")
+    _BLOB = re.compile(r"^(?P<folder>activity_files|activity_media)/(?P<id>[0-9a-f-]{36})(?P<rest>[._].*)$")
     _USER_IMAGE = re.compile(r"^user_images/\d+(?P<ext>\..*)$")
-    _MEDIA_KEY = re.compile(r"^(?P<id>\d+)_(?P<rest>.*)$")
+    _MEDIA_KEY = re.compile(r"^(?P<id>[0-9a-f-]{36})_(?P<rest>.*)$")
 
     def __init__(self, entries: dict[str, Any]) -> None:
         self.gears = {row["id"]: f"gear-{position}" for position, row in enumerate(entries["data/gears.json"])}
@@ -492,7 +492,7 @@ class _Normaliser:
         if match := self._USER_IMAGE.match(entry):
             return f"user_images/user{match['ext']}"
         if match := self._BLOB.match(entry):
-            return f"{match['folder']}/{self.activities[int(match['id'])]}{match['rest']}"
+            return f"{match['folder']}/{self.activities[match['id']]}{match['rest']}"
         return entry
 
     def entry(self, name: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -515,7 +515,7 @@ class _Normaliser:
                 # A signed URL naming the owner: only whether there is a photo can carry over.
                 out[key] = bool(value)
             elif key == "media_path" and isinstance(value, str) and (match := self._MEDIA_KEY.match(value)):
-                out[key] = f"{self.activities[int(match['id'])]}_{match['rest']}"
+                out[key] = f"{self.activities[match['id']]}_{match['rest']}"
             else:
                 out[key] = value
         return out

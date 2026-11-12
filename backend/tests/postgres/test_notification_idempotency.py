@@ -26,7 +26,7 @@ def test_concurrent_deliveries_of_one_event_create_one_notification(pg_factory):
                     user_id=1,
                     type=notifications_constants.NotificationType.NEW_ACTIVITY,
                     source_event_id=event_id,
-                    options={"activity_id": 7},
+                    options={"activity_id": str(uuid.uuid4())},
                 ),
                 db,
             )

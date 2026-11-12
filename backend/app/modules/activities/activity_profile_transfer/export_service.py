@@ -6,6 +6,7 @@ bounded however many activities the user has. The retained source files and the 
 read from storage after the export's read transaction is committed.
 """
 
+import uuid
 from collections.abc import Callable, Iterator, Sequence
 
 from pydantic import BaseModel
@@ -41,7 +42,7 @@ def export_profile(ctx: users_profile_contracts.ProfileExportContext) -> users_p
     ctx.check_memory("activity collection start")
     logger.debug("Starting batched activity collection", extra=core_logger.context(batch_size=ctx.batch_size))
 
-    activity_ids: list[int] = []
+    activity_ids: list[uuid.UUID] = []
     ctx.archive.write_json_stream(constants.ACTIVITIES_PATH, _iter_activity_batches(activity_ids, ctx))
     logger.debug("Written activities to the archive", extra=core_logger.context(count=len(activity_ids)))
 
@@ -80,7 +81,7 @@ def _report_zero_counts(counts: dict[str, int]) -> None:
 
 
 def _iter_activity_batches(
-    activity_ids: list[int], ctx: users_profile_contracts.ProfileExportContext
+    activity_ids: list[uuid.UUID], ctx: users_profile_contracts.ProfileExportContext
 ) -> Iterator[list[activity_schema.ActivityRead]]:
     """Yield the user's activities a page at a time, recording each activity's id.
 
@@ -139,7 +140,9 @@ def _get_activities_batch(user_id: int, offset: int, limit: int, db: Session) ->
     )
 
 
-def _write_activity_components(ctx: users_profile_contracts.ProfileExportContext, activity_ids: list[int]) -> None:
+def _write_activity_components(
+    ctx: users_profile_contracts.ProfileExportContext, activity_ids: list[uuid.UUID]
+) -> None:
     """Write the activity-scoped components, a batch of activities at a time.
 
     Args:
@@ -178,8 +181,8 @@ def _write_component_chunked(
     ctx: users_profile_contracts.ProfileExportContext,
     component_key: str,
     base_filename: str,
-    export: Callable[[list[int], Session], Sequence[BaseModel]],
-    activity_ids: list[int],
+    export: Callable[[list[uuid.UUID], Session], Sequence[BaseModel]],
+    activity_ids: list[uuid.UUID],
     batch_size: int,
 ) -> None:
     """Write a large component in chunks.
@@ -265,8 +268,8 @@ def _write_component_simple(
     ctx: users_profile_contracts.ProfileExportContext,
     component_key: str,
     base_filename: str,
-    export: Callable[[list[int], Session], Sequence[BaseModel]],
-    activity_ids: list[int],
+    export: Callable[[list[uuid.UUID], Session], Sequence[BaseModel]],
+    activity_ids: list[uuid.UUID],
     batch_size: int,
 ) -> None:
     """Write a small component as a single file.
@@ -305,11 +308,11 @@ def _write_component_simple(
     )
 
 
-def _write_activity_files(ctx: users_profile_contracts.ProfileExportContext, activity_ids: list[int]) -> None:
+def _write_activity_files(ctx: users_profile_contracts.ProfileExportContext, activity_ids: list[uuid.UUID]) -> None:
     """Write each activity's retained source file into the archive.
 
     Reads the files through the platform ``StorageProvider`` (local disk or object storage) and writes
-    each under ``activity_files/{id}{ext}``.
+    each under ``activity_files/{activity_id}{ext}``.
 
     Args:
         ctx: The export context.
@@ -337,12 +340,12 @@ def _write_activity_files(ctx: users_profile_contracts.ProfileExportContext, act
             continue
 
 
-def _write_activity_media(ctx: users_profile_contracts.ProfileExportContext, activity_ids: list[int]) -> None:
+def _write_activity_media(ctx: users_profile_contracts.ProfileExportContext, activity_ids: list[uuid.UUID]) -> None:
     """Write each activity's media files into the archive.
 
     Read through the platform ``StorageProvider`` rather than by walking a local directory, so an
     export is complete regardless of which storage backend is configured. Keys are
-    ``{activity_id}_{uuid}{ext}``, so each activity's blobs are listed by its own prefix instead of
+    ``{activity_id}_{suffix}{ext}``, so each activity's blobs are listed by its own prefix instead of
     scanning every stored file and filtering.
 
     Args:

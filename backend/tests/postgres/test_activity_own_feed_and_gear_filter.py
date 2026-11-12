@@ -51,7 +51,7 @@ def _walk(factory, user_id, size):
         seen.append([entry.activity.id for entry in page])
         if len(entries) <= size:
             return seen
-        after = core_pagination.decode_cursor(
+        after = core_pagination.decode_uuid_cursor(
             core_pagination.encode_cursor(page[-1].cursor_sort_value, page[-1].cursor_id)
         )
 

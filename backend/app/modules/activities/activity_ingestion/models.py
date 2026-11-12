@@ -71,7 +71,7 @@ class ActivityIngestionJob(Base):
         status: Lifecycle state: pending, processing, deferred, completed, or failed.
         retry_after: When a deferred refresh runs again; set only while ``status`` is deferred.
         error_code: Stable, sanitized reason when ``status`` is failed.
-        activity_ids: Ids created by the import, so the client can refresh
+        activity_ids: UUID strings of the activities created by the import, so the client can refresh
             exactly what changed instead of invalidating the whole feed.
         created_at: When the request was accepted.
         updated_at: When the job last changed state.
@@ -191,7 +191,7 @@ class ActivityIngestionJob(Base):
         nullable=True,
         comment="Sanitized failure reason when status is failed",
     )
-    activity_ids: Mapped[list[int] | None] = mapped_column(
+    activity_ids: Mapped[list[str] | None] = mapped_column(
         JSON().with_variant(JSONB(), "postgresql"),
         nullable=True,
         comment="Ids of the activities the import created",

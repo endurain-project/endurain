@@ -1,5 +1,6 @@
 """Process-local registry for installed activity package contributors."""
 
+import uuid
 from collections.abc import Mapping, Sequence
 
 from sqlalchemy.orm import Session
@@ -123,7 +124,7 @@ def register_thumbnail_url_resolver(resolver: activities_contributors.ThumbnailU
     _thumbnail_url_resolver = resolver
 
 
-def resolve_thumbnail_url(key: str | None, activity_id: int) -> str | None:
+def resolve_thumbnail_url(key: str | None, activity_id: uuid.UUID) -> str | None:
     """Return the servable URL for an activity's stored thumbnail key.
 
     The seam that keeps the root ``activity`` package from importing
@@ -157,8 +158,8 @@ def register_media_resolver(resolver: activities_contributors.ActivityMediaResol
 
 
 def resolve_media(
-    activity_ids: list[int], db: Session
-) -> Mapping[int, Sequence[activity_schema.ActivityMediaEmbedded]]:
+    activity_ids: list[uuid.UUID], db: Session
+) -> Mapping[uuid.UUID, Sequence[activity_schema.ActivityMediaEmbedded]]:
     """Return the media of several activities in one batch.
 
     The seam that keeps the root ``activity`` package from importing

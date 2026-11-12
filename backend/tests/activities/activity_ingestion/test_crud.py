@@ -1,5 +1,6 @@
 """Tests for activity upload job persistence."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
@@ -10,6 +11,9 @@ import modules.activities.activity_ingestion.constants as activity_ingestion_con
 import modules.activities.activity_ingestion.crud as ingestion_crud
 import modules.activities.activity_ingestion.models as activity_ingestion_models
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
+
+_ID_A = uuid.UUID("00000000-0000-4000-8000-00000000000a")
+_ID_B = uuid.UUID("00000000-0000-4000-8000-00000000000b")
 
 _NOW = datetime(2026, 7, 28, 10, 0, 0, tzinfo=UTC)
 _KIND = activity_ingestion_constants.IngestionJobKind.UPLOAD
@@ -84,11 +88,11 @@ class TestGetUploadJob:
         assert filtered == {"id", "user_id"}
 
     def test_maps_a_completed_job(self, mock_db):
-        _stub_first(mock_db, _row(status="completed", activity_ids=[11, 12], completed_at=_NOW))
+        _stub_first(mock_db, _row(status="completed", activity_ids=[str(_ID_A), str(_ID_B)], completed_at=_NOW))
         result = ingestion_crud.get_ingestion_job("job-1", 7, mock_db)
         assert result is not None
         assert result.status == core_job_status.JobState.SUCCEEDED
-        assert result.activity_ids == [11, 12]
+        assert result.activity_ids == [_ID_A, _ID_B]
 
     def test_maps_a_failed_job(self, mock_db):
         _stub_first(mock_db, _row(status="failed", error_code="invalid_file"))
@@ -116,9 +120,9 @@ class TestTerminalTransitions:
     def test_mark_completed_records_ids_and_clears_the_staged_key(self, mock_db):
         row = _row(status="processing")
         mock_db.get.return_value = row
-        ingestion_crud.mark_completed("job-1", [11], mock_db)
+        ingestion_crud.mark_completed("job-1", [_ID_A], mock_db)
         assert row.status == "completed"
-        assert row.activity_ids == [11]
+        assert row.activity_ids == [str(_ID_A)]
         # Cleared so a retry after success is a no-op rather than a re-import.
         assert row.staged_key is None
         assert row.completed_at is not None
@@ -209,3 +213,17 @@ class TestSchemaMapping:
     def test_the_staged_key_is_not_part_of_the_read_schema(self):
         """It is an internal filesystem detail and must not reach a client."""
         assert "staged_key" not in activity_ingestion_schema.ActivityIngestionJobRead.model_fields
+
+
+class TestActivityIdsRoundTrip:
+    def test_a_completed_jobs_activity_ids_round_trip_as_uuid_strings(self, mock_db):
+        row = _row(status="processing")
+        mock_db.get.return_value = row
+        ingestion_crud.mark_completed("job-1", [_ID_A, _ID_B], mock_db)
+        assert row.activity_ids == [str(_ID_A), str(_ID_B)]
+
+        row.completed_at = _NOW
+        _stub_first(mock_db, row)
+        result = ingestion_crud.get_ingestion_job("job-1", 7, mock_db)
+        assert result is not None
+        assert result.activity_ids == [_ID_A, _ID_B]

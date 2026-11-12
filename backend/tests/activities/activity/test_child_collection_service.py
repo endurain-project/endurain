@@ -6,6 +6,7 @@ per-package tests only check that each package declares itself correctly (and la
 declared field masking).
 """
 
+import uuid
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -21,9 +22,11 @@ _RESOLVE_PUBLIC = (
     "modules.activities.activity.child_collection_service.activity_child_access_service.resolve_public_parent"
 )
 
+_ACTIVITY_ID = uuid.uuid4()
+
 
 def _parent(**kw):
-    return SimpleNamespace(**{"id": 5, "user_id": 1, "hide_laps": False, **kw})
+    return SimpleNamespace(**{"id": _ACTIVITY_ID, "user_id": 1, "hide_laps": False, **kw})
 
 
 def _collection(fetch=None, count=None, fields_by_hide_flag=None):
@@ -43,17 +46,17 @@ class TestListForRequester:
         mock_resolve.return_value = _parent()
         db = MagicMock()
 
-        page = _collection().list_for_requester(5, 1, db, page_number=1, num_records=10)
+        page = _collection().list_for_requester(_ACTIVITY_ID, 1, db, page_number=1, num_records=10)
 
         assert (page.items, page.total) == (["row"], 1)
-        mock_resolve.assert_called_once_with(5, 1, db)
+        mock_resolve.assert_called_once_with(_ACTIVITY_ID, 1, db)
 
     @patch(_RESOLVE_READABLE, return_value=None)
     def test_an_invisible_parent_never_touches_persistence(self, _resolve):
         """A refused read must not query, so it cannot leak timing or rows."""
         fetch, count = MagicMock(), MagicMock()
 
-        page = _collection(fetch, count).list_for_requester(5, 1, MagicMock(), page_number=1, num_records=10)
+        page = _collection(fetch, count).list_for_requester(_ACTIVITY_ID, 1, MagicMock(), page_number=1, num_records=10)
 
         assert (page.items, page.total) == ([], 0)
         fetch.assert_not_called()
@@ -64,7 +67,7 @@ class TestListForRequester:
         mock_resolve.return_value = _parent(hide_laps=True)
         fetch, count = MagicMock(), MagicMock()
 
-        page = _collection(fetch, count).list_for_requester(5, 2, MagicMock(), page_number=1, num_records=10)
+        page = _collection(fetch, count).list_for_requester(_ACTIVITY_ID, 2, MagicMock(), page_number=1, num_records=10)
 
         assert (page.items, page.total) == ([], 0)
         fetch.assert_not_called()
@@ -78,10 +81,10 @@ class TestListForRequester:
         db = MagicMock()
 
         page = _collection(fetch, MagicMock(return_value=250)).list_for_requester(
-            5, 1, db, page_number=2, num_records=100
+            _ACTIVITY_ID, 1, db, page_number=2, num_records=100
         )
 
-        fetch.assert_called_once_with(5, db, page_number=2, num_records=100)
+        fetch.assert_called_once_with(_ACTIVITY_ID, db, page_number=2, num_records=100)
         assert page.total == 250
         assert page.next == 3
 
@@ -92,16 +95,16 @@ class TestListPublic:
         mock_resolve.return_value = _parent()
         db = MagicMock()
 
-        page = _collection().list_public(5, db, page_number=1, num_records=10)
+        page = _collection().list_public(_ACTIVITY_ID, db, page_number=1, num_records=10)
 
         assert page.items == ["row"]
-        mock_resolve.assert_called_once_with(5, db)
+        mock_resolve.assert_called_once_with(_ACTIVITY_ID, db)
 
     @patch(_RESOLVE_PUBLIC, return_value=None)
     def test_a_non_public_parent_never_touches_persistence(self, _resolve):
         fetch, count = MagicMock(), MagicMock()
 
-        page = _collection(fetch, count).list_public(5, MagicMock(), page_number=1, num_records=10)
+        page = _collection(fetch, count).list_public(_ACTIVITY_ID, MagicMock(), page_number=1, num_records=10)
 
         assert (page.items, page.total) == ([], 0)
         fetch.assert_not_called()
@@ -112,7 +115,7 @@ class TestListPublic:
         mock_resolve.return_value = _parent(hide_laps=True)
         fetch = MagicMock()
 
-        page = _collection(fetch).list_public(5, MagicMock(), page_number=1, num_records=10)
+        page = _collection(fetch).list_public(_ACTIVITY_ID, MagicMock(), page_number=1, num_records=10)
 
         assert page.items == []
         fetch.assert_not_called()
@@ -121,7 +124,7 @@ class TestListPublic:
     @patch(_RESOLVE_PUBLIC, return_value=None)
     def test_the_public_gate_is_a_different_question(self, _public, mock_readable):
         """An anonymous read must never fall through to the authenticated gate."""
-        _collection().list_public(5, MagicMock(), page_number=1, num_records=10)
+        _collection().list_public(_ACTIVITY_ID, MagicMock(), page_number=1, num_records=10)
 
         mock_readable.assert_not_called()
 
@@ -145,7 +148,7 @@ class TestViewerMask:
         fetch = MagicMock(return_value=[_Row()])
 
         page = _collection(fetch, fields_by_hide_flag=_FIELDS).list_for_requester(
-            5, 2, MagicMock(), page_number=1, num_records=10
+            _ACTIVITY_ID, 2, MagicMock(), page_number=1, num_records=10
         )
 
         assert page.items == [_Row(lat=None, long=None)]
@@ -156,7 +159,7 @@ class TestViewerMask:
         fetch = MagicMock(return_value=[_Row()])
 
         page = _collection(fetch, fields_by_hide_flag=_FIELDS).list_for_requester(
-            5, 2, MagicMock(), page_number=1, num_records=10
+            _ACTIVITY_ID, 2, MagicMock(), page_number=1, num_records=10
         )
 
         assert page.items == [_Row()]
@@ -167,7 +170,7 @@ class TestViewerMask:
         fetch = MagicMock(return_value=[_Row()])
 
         page = _collection(fetch, fields_by_hide_flag=_FIELDS).list_public(
-            5, MagicMock(), page_number=1, num_records=10
+            _ACTIVITY_ID, MagicMock(), page_number=1, num_records=10
         )
 
         assert page.items == [_Row(heart_rate=None)]
@@ -178,7 +181,7 @@ class TestViewerMask:
         fetch = MagicMock(return_value=[_Row()])
 
         page = _collection(fetch, fields_by_hide_flag=_FIELDS).list_for_requester(
-            5, 1, MagicMock(), page_number=1, num_records=10
+            _ACTIVITY_ID, 1, MagicMock(), page_number=1, num_records=10
         )
 
         assert page.items == [_Row()]
@@ -208,7 +211,7 @@ class TestListForActivity:
         page = _collection(fetch).list_for_activity(_parent(), 2, db, page_number=1, num_records=10)
 
         assert (page.items, page.total) == (["row"], 1)
-        fetch.assert_called_once_with(5, db, page_number=1, num_records=10)
+        fetch.assert_called_once_with(_ACTIVITY_ID, db, page_number=1, num_records=10)
 
     def test_a_non_owner_is_answered_with_an_empty_page_and_nothing_is_queried(self):
         fetch, count = MagicMock(), MagicMock()

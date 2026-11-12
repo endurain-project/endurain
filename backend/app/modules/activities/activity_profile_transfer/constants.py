@@ -9,7 +9,7 @@ ACTIVITIES_PATH = "data/activities.json"
 #: Archive folder holding each activity's retained source file, keyed ``{activity_id}{ext}``.
 ACTIVITY_FILES_FOLDER = "activity_files/"
 
-#: Archive folder holding each activity's media, keyed ``{activity_id}_{uuid}{ext}``.
+#: Archive folder holding each activity's media, keyed ``{activity_id}_{suffix}{ext}``.
 ACTIVITY_MEDIA_FOLDER = "activity_media/"
 
 #: Fields an archived activity carries that a read resolves for the viewer; they are dropped on import.

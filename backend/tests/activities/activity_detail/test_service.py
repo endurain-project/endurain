@@ -1,5 +1,6 @@
 """The combined activity detail is the activity plus its child collections, gated once."""
 
+import uuid
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -32,6 +33,9 @@ def users():
         yield users_integration
 
 
+_ACTIVITY_ID = uuid.uuid4()
+
+
 def _detail():
     """Replace the response model, so stand-in pages need not validate."""
     return patch.object(detail_service.activity_detail_schema, "ActivityDetailRead")
@@ -40,13 +44,13 @@ def _detail():
 class TestGetActivityDetail:
     def test_reads_the_activity_once_and_each_child_for_it(self, children, users):
         laps, sets, steps = children
-        activity, db = SimpleNamespace(id=5, user_id=3), MagicMock()
+        activity, db = SimpleNamespace(id=_ACTIVITY_ID, user_id=3), MagicMock()
         with patch(_ACTIVITY) as activity_integration, _detail() as build:
             activity_integration.get_readable_activity.return_value = activity
             activity_integration.with_media.return_value = activity
-            detail_service.get_activity_detail(5, 1, db)
+            detail_service.get_activity_detail(_ACTIVITY_ID, 1, db)
 
-        activity_integration.get_readable_activity.assert_called_once_with(5, 1, db)
+        activity_integration.get_readable_activity.assert_called_once_with(_ACTIVITY_ID, 1, db)
         activity_integration.with_media.assert_called_once_with(activity, 1, db)
         users.list_public_profiles.assert_called_once_with({3}, db)
         laps.list_for_activity.assert_called_once_with(activity, 1, db)
@@ -62,11 +66,11 @@ class TestGetActivityDetail:
 
     def test_an_owner_who_is_not_visible_is_null(self, children, users):
         users.list_public_profiles.return_value = {}
-        activity = SimpleNamespace(id=5, user_id=3)
+        activity = SimpleNamespace(id=_ACTIVITY_ID, user_id=3)
         with patch(_ACTIVITY) as activity_integration, _detail() as build:
             activity_integration.get_readable_activity.return_value = activity
             activity_integration.with_media.return_value = activity
-            detail_service.get_activity_detail(5, 1, MagicMock())
+            detail_service.get_activity_detail(_ACTIVITY_ID, 1, MagicMock())
 
         assert build.call_args.kwargs["owner"] is None
 
@@ -74,7 +78,7 @@ class TestGetActivityDetail:
         with patch(_ACTIVITY) as activity_integration:
             activity_integration.get_readable_activity.side_effect = core_exceptions.NotFoundError("nope")
             with pytest.raises(core_exceptions.NotFoundError):
-                detail_service.get_activity_detail(5, 1, MagicMock())
+                detail_service.get_activity_detail(_ACTIVITY_ID, 1, MagicMock())
 
         for child in children:
             child.list_for_activity.assert_not_called()
@@ -83,16 +87,16 @@ class TestGetActivityDetail:
 class TestGetPublicActivityDetail:
     def test_reads_the_public_activity_and_each_child_as_anonymous(self, children, users):
         laps, sets, steps = children
-        activity, db = SimpleNamespace(id=5, user_id=3), MagicMock()
+        activity, db = SimpleNamespace(id=_ACTIVITY_ID, user_id=3), MagicMock()
         with patch(_ACTIVITY) as activity_integration, _detail() as build:
             activity_integration.get_public_activity.return_value = activity
-            detail_service.get_public_activity_detail(5, db)
+            detail_service.get_public_activity_detail(_ACTIVITY_ID, db)
 
         activity_integration.with_media.assert_not_called()
         users.get_public_user.assert_called_once_with(3, db)
         assert build.call_args.kwargs["owner"] == "public-owner"
 
-        activity_integration.get_public_activity.assert_called_once_with(5, db)
+        activity_integration.get_public_activity.assert_called_once_with(_ACTIVITY_ID, db)
         laps.list_for_activity.assert_called_once_with(activity, None, db)
         sets.list_for_activity.assert_called_once_with(activity, None, db)
         steps.list_for_activity.assert_called_once_with(activity, None, db)
@@ -100,8 +104,8 @@ class TestGetPublicActivityDetail:
     def test_an_owner_the_server_does_not_share_is_null_not_a_refusal(self, children, users):
         users.get_public_user.side_effect = core_exceptions.NotFoundError("hidden")
         with patch(_ACTIVITY) as activity_integration, _detail() as build:
-            activity_integration.get_public_activity.return_value = SimpleNamespace(id=5, user_id=3)
-            detail_service.get_public_activity_detail(5, MagicMock())
+            activity_integration.get_public_activity.return_value = SimpleNamespace(id=_ACTIVITY_ID, user_id=3)
+            detail_service.get_public_activity_detail(_ACTIVITY_ID, MagicMock())
 
         assert build.call_args.kwargs["owner"] is None
 
@@ -109,7 +113,7 @@ class TestGetPublicActivityDetail:
         with patch(_ACTIVITY) as activity_integration:
             activity_integration.get_public_activity.side_effect = core_exceptions.NotFoundError("nope")
             with pytest.raises(core_exceptions.NotFoundError):
-                detail_service.get_public_activity_detail(5, MagicMock())
+                detail_service.get_public_activity_detail(_ACTIVITY_ID, MagicMock())
 
 
 class TestPublicOwnerVisibility:
@@ -136,8 +140,8 @@ class TestPublicOwnerVisibility:
             patch(self._USER_SETTINGS, return_value=settings),
             patch(self._USER_CRUD, return_value=owner),
         ):
-            activity_integration.get_public_activity.return_value = SimpleNamespace(id=5, user_id=3)
-            detail_service.get_public_activity_detail(5, MagicMock())
+            activity_integration.get_public_activity.return_value = SimpleNamespace(id=_ACTIVITY_ID, user_id=3)
+            detail_service.get_public_activity_detail(_ACTIVITY_ID, MagicMock())
         return build.call_args.kwargs["owner"]
 
     def test_the_owner_is_the_public_projection_when_user_info_is_shared(self, children):

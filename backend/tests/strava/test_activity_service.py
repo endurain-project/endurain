@@ -189,12 +189,12 @@ class TestSaveActivityStreamsLaps:
         def _fake_store(parsed, db):
             captured["parsed"] = parsed
             captured["db"] = db
-            return activity_schema.ActivityRead(id=42, user_id=1, distance=0, name="X", activity_type=1)
+            return activity_schema.ActivityRead(id=uuid.UUID(int=42), user_id=1, distance=0, name="X", activity_type=1)
 
         monkeypatch.setattr(activity_utils.activity_integration, "store_parsed_activity", _fake_store)
 
         activity = activity_schema.ActivityRead(
-            id=1, user_id=1, distance=1000, name="Ride", activity_type=1, strava_activity_id=555
+            id=uuid.UUID(int=1), user_id=1, distance=1000, name="Ride", activity_type=1, strava_activity_id=555
         )
         stream_data = [
             (True, 1, [{"hr": 140}]),
@@ -206,7 +206,7 @@ class TestSaveActivityStreamsLaps:
 
         result = activity_utils.save_activity_streams_laps(activity, stream_data, laps, db)
 
-        assert result.id == 42
+        assert result.id == uuid.UUID(int=42)
         parsed = captured["parsed"]
         assert [stream.stream_type for stream in parsed.components["streams"]] == [1, 7]
         assert parsed.components["laps"] == laps
@@ -222,11 +222,11 @@ class TestSaveActivityStreamsLaps:
 
         def _fake_store(parsed, db):
             captured["parsed"] = parsed
-            return activity_schema.ActivityRead(id=1, user_id=1, distance=0, name="X", activity_type=1)
+            return activity_schema.ActivityRead(id=uuid.UUID(int=1), user_id=1, distance=0, name="X", activity_type=1)
 
         monkeypatch.setattr(activity_utils.activity_integration, "store_parsed_activity", _fake_store)
 
-        activity = activity_schema.ActivityRead(id=1, user_id=1, distance=0, name="X", activity_type=1)
+        activity = activity_schema.ActivityRead(id=uuid.UUID(int=1), user_id=1, distance=0, name="X", activity_type=1)
         activity_utils.save_activity_streams_laps(activity, [], None, Mock())
 
         parsed = captured["parsed"]
@@ -269,7 +269,7 @@ class TestProcessActivity:
 
         def _fake_save(*args, **kwargs):
             seen["during_save"] = _TrackingSession.open_count
-            return activity_schema.ActivityRead(id=7, user_id=1, distance=0, name="X", activity_type=1)
+            return activity_schema.ActivityRead(id=uuid.UUID(int=7), user_id=1, distance=0, name="X", activity_type=1)
 
         monkeypatch.setattr(activity_utils, "parse_activity", _fake_parse)
         monkeypatch.setattr(activity_utils, "save_activity_streams_laps", _fake_save)
@@ -281,7 +281,7 @@ class TestProcessActivity:
 
         result = activity_utils.process_activity(Mock(id=555), 1, Mock(), "UTC", Mock(), Mock(), Mock())
 
-        assert result.id == 7
+        assert result.id == uuid.UUID(int=7)
         assert seen["during_parse"] == 0
         # The store gets its own short session.
         assert seen["during_save"] == 1

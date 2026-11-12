@@ -21,7 +21,7 @@ class TestNotificationReadCreatedAt:
                 "id": uuid.UUID(int=1),
                 "user_id": 1,
                 "type": "new_activity",
-                "options": {"activity_id": 5},
+                "options": {"activity_id": "11111111-1111-4111-8111-111111111111"},
                 "read": False,
                 "created_at": created_at,
             }
@@ -75,8 +75,8 @@ class TestTypedOptions:
     @pytest.mark.parametrize(
         ("notification_type", "options"),
         [
-            ("new_activity", {"activity_id": 3}),
-            ("duplicate_activity", {"activity_id": 3}),
+            ("new_activity", {"activity_id": "11111111-1111-4111-8111-111111111111"}),
+            ("duplicate_activity", {"activity_id": "11111111-1111-4111-8111-111111111111"}),
             ("new_follower_request", {"user_id": 2, "user_name": "A", "user_username": "a"}),
             ("new_follower_request_accepted", {"user_id": 2, "user_name": "A", "user_username": "a"}),
             ("admin_new_sign_up_approval_request", {"user_id": 2, "user_name": "A", "user_username": "a"}),
@@ -107,7 +107,12 @@ class TestTypedOptions:
 
     @pytest.mark.parametrize(
         ("notification_type", "options"),
-        [("new_activity", {}), ("new_activity", {"activity_id": "x"}), ("new_follower_request", {"user_id": 2})],
+        [
+            ("new_activity", {}),
+            ("new_activity", {"activity_id": "x"}),
+            ("new_activity", {"activity_id": 3}),
+            ("new_follower_request", {"user_id": 2}),
+        ],
     )
     def test_options_of_the_wrong_shape_are_refused(self, notification_type, options):
         with pytest.raises(ValidationError):

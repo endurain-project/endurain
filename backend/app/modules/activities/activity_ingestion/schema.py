@@ -1,5 +1,6 @@
 """Pydantic schemas for the activity ingestion job surface."""
 
+import uuid
 from datetime import datetime
 
 from pydantic import Field
@@ -48,6 +49,6 @@ class ActivityIngestionJobRead(core_job_status.JobStatus):
     provider: str | None = None
     error_code: activity_ingestion_constants.IngestionJobErrorCode | None = None
     retry_after: datetime | None = None
-    activity_ids: list[int] = Field(default=[])
+    activity_ids: list[uuid.UUID] = Field(default=[])
     created_at: datetime
     updated_at: datetime

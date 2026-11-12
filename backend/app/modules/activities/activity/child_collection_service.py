@@ -12,6 +12,7 @@ CRUD calls, its page type and, when its rows repeat data the parent hides field 
 field, its mask — and this owns *how* the read runs.
 """
 
+import uuid
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Protocol
@@ -29,7 +30,7 @@ logger = core_logger.get_logger(__name__)
 class FetchChildPage[ItemT](Protocol):
     """Read one page of a child collection's rows for an activity."""
 
-    def __call__(self, activity_id: int, db: Session, *, page_number: int, num_records: int) -> list[ItemT]:
+    def __call__(self, activity_id: uuid.UUID, db: Session, *, page_number: int, num_records: int) -> list[ItemT]:
         """Return one page of rows.
 
         Args:
@@ -63,7 +64,7 @@ class ChildCollection[ItemT: BaseModel, PageT]:
     name: str
     hide_attr: str
     fetch: FetchChildPage[ItemT]
-    count: Callable[[int, Session], int]
+    count: Callable[[uuid.UUID, Session], int]
     build: Callable[[list[ItemT], int, int, int], PageT]
     fields_by_hide_flag: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
 
@@ -126,7 +127,7 @@ class ChildCollection[ItemT: BaseModel, PageT]:
 
     def list_for_requester(
         self,
-        activity_id: int,
+        activity_id: uuid.UUID,
         requester_user_id: int,
         db: Session,
         *,
@@ -193,7 +194,7 @@ class ChildCollection[ItemT: BaseModel, PageT]:
 
     def list_public(
         self,
-        activity_id: int,
+        activity_id: uuid.UUID,
         db: Session,
         *,
         page_number: int,

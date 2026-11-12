@@ -8,7 +8,7 @@ Public endpoints send no `Authorization`, `X-Client-Type` or `X-CSRF-Token` head
 
 ## Shared activities
 
-These serve an activity that its owner made public. They work only when an administrator has enabled [public shareable links](../features/sharing-and-privacy.md#public-links).
+These serve an activity that its owner made public. They work only when an administrator has enabled [public shareable links](../features/sharing-and-privacy.md#public-links). `{activity_id}` and `{media_id}` are UUIDs.
 
 | Method and path | Returns |
 | --------------- | ------- |

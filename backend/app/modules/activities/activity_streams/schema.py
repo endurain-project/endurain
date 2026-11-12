@@ -1,5 +1,6 @@
 """Pydantic schemas for activity stream data."""
 
+import uuid
 from typing import Annotated, Any
 
 from pydantic import (
@@ -34,7 +35,7 @@ class ActivityStreamsBase(BaseModel):
         extra="forbid",
     )
 
-    activity_id: StrictInt
+    activity_id: uuid.UUID
     stream_type: StrictInt
     stream_waypoints: list[dict[str, Any]]
     strava_activity_stream_id: StrictInt | None = None
@@ -63,7 +64,7 @@ class ActivityStreamsRead(ActivityStreamsBase):
             cannot go stale.
     """
 
-    id: StrictInt
+    id: uuid.UUID
     zone_percentages: ActivityStreamZones | None = None
 
 
@@ -197,11 +198,11 @@ class _ActivityStreamResponse[WaypointT: StreamWaypoint](BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    activity_id: StrictInt
+    activity_id: uuid.UUID
     stream_type: StoredStreamType
     stream_waypoints: list[WaypointT]
     strava_activity_stream_id: StrictInt | None = None
-    id: StrictInt
+    id: uuid.UUID
     zone_percentages: ActivityStreamZones | None = None
 
 

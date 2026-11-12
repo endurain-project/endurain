@@ -1,5 +1,6 @@
 """Tests for the activities' section of the profile data export."""
 
+import uuid
 from collections.abc import Iterable, Sequence
 from unittest.mock import MagicMock, patch
 
@@ -14,9 +15,11 @@ import modules.activities.activity_profile_transfer.export_service as export_ser
 import modules.users.users_profile.contracts as users_profile_contracts
 from modules.users.users_profile.exceptions import MemoryAllocationError
 
+_A, _B, _C = (uuid.UUID(int=n) for n in (1, 2, 3))
+
 
 class _Row(BaseModel):
-    id: int | None = None
+    id: uuid.UUID | None = None
 
 
 class _FakeArchive:
@@ -95,7 +98,7 @@ class TestExportProfile:
 
     def test_activities_are_streamed_in_batches_and_files_are_deferred(self) -> None:
         ctx, archive = _ctx(batch_size=2)
-        batches = [[_Row(id=1), _Row(id=2)], [_Row(id=3)], []]
+        batches = [[_Row(id=_A), _Row(id=_B)], [_Row(id=_C)], []]
         activity_patch, global_patch = _no_contributors()
         with (
             patch.object(export_service, "_get_activities_batch", side_effect=batches),
@@ -107,21 +110,21 @@ class TestExportProfile:
         ):
             after_commit = export_service.export_profile(ctx)
 
-            assert archive.entries["data/activities.json"] == [{"id": 1}, {"id": 2}, {"id": 3}]
+            assert archive.entries["data/activities.json"] == [{"id": str(_A)}, {"id": str(_B)}, {"id": str(_C)}]
             assert ctx.counts["activities"] == 3
-            components.assert_called_once_with(ctx, [1, 2, 3])
+            components.assert_called_once_with(ctx, [_A, _B, _C])
             files.assert_not_called()
             assert after_commit is not None
             after_commit()
-            files.assert_called_once_with(ctx, [1, 2, 3])
-            media.assert_called_once_with(ctx, [1, 2, 3])
+            files.assert_called_once_with(ctx, [_A, _B, _C])
+            media.assert_called_once_with(ctx, [_A, _B, _C])
 
     def test_the_time_limit_is_checked_between_the_files_and_the_media(self) -> None:
         calls = MagicMock()
         ctx, _ = _ctx(check_timeout=calls.check_timeout)
         activity_patch, global_patch = _no_contributors()
         with (
-            patch.object(export_service, "_get_activities_batch", side_effect=[[_Row(id=1)], []]),
+            patch.object(export_service, "_get_activities_batch", side_effect=[[_Row(id=_A)], []]),
             patch.object(export_service, "_write_activity_components"),
             patch.object(export_service, "_write_activity_files", calls.files),
             patch.object(export_service, "_write_activity_media", calls.media),
@@ -149,14 +152,14 @@ class TestExportProfile:
 
         def fetch(user_id, offset, limit, db):
             order.append(f"fetch{offset}")
-            return [_Row(id=offset + 1)] if offset < 2 else []
+            return [_Row(id=uuid.UUID(int=offset + 1))] if offset < 2 else []
 
         original = archive.write_json_stream
 
         def stream(path, batches):
             def tracked():
                 for batch in batches:
-                    order.append(f"batch{batch[0].id}")
+                    order.append(f"batch{batch[0].id.int}")
                     yield batch
 
             original(path, tracked())
@@ -176,18 +179,20 @@ class TestExportProfile:
     def test_get_activities_batch_pages_through_the_activity_surface(self) -> None:
         with patch(
             "modules.activities.activity_profile_transfer.export_service.activity_integration.list_user_activities_page",
-            return_value=[_Row(id=1)],
+            return_value=[_Row(id=_A)],
         ) as listing:
             result = export_service._get_activities_batch(1, 4, 2, MagicMock(spec=Session))
 
-        assert result[0].id == 1
+        assert result[0].id == _A
         assert listing.call_args.kwargs == {"page_number": 3, "num_records": 2}
 
     def test_a_failing_batch_fails_the_export_instead_of_dropping_its_activities(self) -> None:
         ctx, _ = _ctx(batch_size=2)
         with (
             patch.object(
-                export_service, "_get_activities_batch", side_effect=[[_Row(id=1), _Row(id=2)], ValueError("bad page")]
+                export_service,
+                "_get_activities_batch",
+                side_effect=[[_Row(id=_A), _Row(id=_B)], ValueError("bad page")],
             ),
             patch.object(export_service, "_write_activity_components") as components,
             pytest.raises(ValueError, match="bad page"),
@@ -222,9 +227,9 @@ class TestExportProfile:
         contributor = MagicMock(
             key="exercise_titles", archive_path="data/activity_exercise_titles.json", count_key="titles"
         )
-        contributor.export.return_value = [_Row(id=1), _Row(id=2)]
+        contributor.export.return_value = [_Row(id=_A), _Row(id=_B)]
         with (
-            patch.object(export_service, "_get_activities_batch", side_effect=[[_Row(id=1)], []]),
+            patch.object(export_service, "_get_activities_batch", side_effect=[[_Row(id=_A)], []]),
             patch.object(export_service, "_write_activity_components"),
             patch.object(
                 export_service.activities_contributor_registry, "profile_activity_contributors", return_value=()
@@ -270,14 +275,14 @@ class TestWriteActivityComponents:
             patch.object(export_service, "_write_component_chunked") as chunked,
             patch.object(export_service, "_write_component_simple") as simple,
         ):
-            export_service._write_activity_components(ctx, [1])
+            export_service._write_activity_components(ctx, [_A])
 
         assert chunked.call_count == 3
         assert simple.call_count == 2
 
 
 def _rows(n: int) -> list[_Row]:
-    return [_Row(id=i) for i in range(n)]
+    return [_Row(id=uuid.UUID(int=i + 1)) for i in range(n)]
 
 
 def _chunked(ctx, export, activity_ids, batch_size):
@@ -287,14 +292,14 @@ def _chunked(ctx, export, activity_ids, batch_size):
 class TestWriteComponentChunked:
     def test_a_single_batch_is_written_under_the_plain_name(self) -> None:
         ctx, archive = _ctx()
-        _chunked(ctx, lambda ids, db: _rows(len(ids)), [1, 2], 5)
+        _chunked(ctx, lambda ids, db: _rows(len(ids)), [_A, _B], 5)
 
         assert list(archive.entries) == ["data/activity_laps.json"]
         assert ctx.counts["laps"] == 2
 
     def test_full_chunks_and_the_remainder_are_numbered(self) -> None:
         ctx, archive = _ctx()
-        _chunked(ctx, lambda ids, db: _rows(len(ids)), [1, 2, 3], 2)
+        _chunked(ctx, lambda ids, db: _rows(len(ids)), [_A, _B, _C], 2)
 
         assert list(archive.entries) == ["data/activity_laps_000.json", "data/activity_laps_001.json"]
         assert len(archive.entries["data/activity_laps_000.json"]) == 2
@@ -305,13 +310,13 @@ class TestWriteComponentChunked:
 
     def test_buffer_overflow_across_batches_writes_several_chunks(self) -> None:
         ctx, archive = _ctx()
-        _chunked(ctx, lambda ids, db: _rows(len(ids) + 1) if ids else [], [1, 2], 2)
+        _chunked(ctx, lambda ids, db: _rows(len(ids) + 1) if ids else [], [_A, _B], 2)
 
         assert len(archive.entries) >= 2
 
     def test_an_empty_result_writes_an_empty_file(self) -> None:
         ctx, archive = _ctx()
-        _chunked(ctx, lambda ids, db: [], [1, 2], 5)
+        _chunked(ctx, lambda ids, db: [], [_A, _B], 5)
 
         assert archive.entries == {"data/activity_laps.json": []}
         assert ctx.counts["laps"] == 0
@@ -323,13 +328,13 @@ class TestWriteComponentChunked:
             raise RuntimeError("fail")
 
         with pytest.raises(RuntimeError, match="fail"):
-            _chunked(ctx, fail, [1, 2, 3], 2)
+            _chunked(ctx, fail, [_A, _B, _C], 2)
 
     def test_a_memory_error_propagates_with_the_batch_operation_name(self) -> None:
         check_memory = MagicMock(side_effect=MemoryAllocationError("oom"))
         ctx, _ = _ctx(check_memory=check_memory)
         with pytest.raises(MemoryAllocationError):
-            _chunked(ctx, lambda ids, db: [], [1, 2], 5)
+            _chunked(ctx, lambda ids, db: [], [_A, _B], 5)
 
         check_memory.assert_called_once_with("laps batch 1")
 
@@ -344,7 +349,7 @@ class TestWriteComponentSimple:
     def test_the_records_of_every_batch_are_written_as_one_file(self) -> None:
         ctx, archive = _ctx()
         reader = MagicMock(return_value=_rows(2))
-        _simple(ctx, reader, [1], 5)
+        _simple(ctx, reader, [_A], 5)
 
         reader.assert_called_once()
         assert len(archive.entries["data/activity_workout_steps.json"]) == 2
@@ -357,16 +362,16 @@ class TestWriteComponentSimple:
             raise RuntimeError("fail")
 
         with pytest.raises(RuntimeError, match="fail"):
-            _simple(ctx, fail, [1, 2, 3], 2)
+            _simple(ctx, fail, [_A, _B, _C], 2)
 
     def test_a_memory_error_propagates(self) -> None:
         ctx, _ = _ctx(check_memory=MagicMock(side_effect=MemoryAllocationError("oom")))
         with pytest.raises(MemoryAllocationError):
-            _simple(ctx, lambda ids, db: [], [1], 5)
+            _simple(ctx, lambda ids, db: [], [_A], 5)
 
     def test_an_empty_result_writes_an_empty_file(self) -> None:
         ctx, archive = _ctx()
-        _simple(ctx, lambda ids, db: [], [1], 5)
+        _simple(ctx, lambda ids, db: [], [_A], 5)
 
         assert archive.entries == {"data/activity_workout_steps.json": []}
 
@@ -376,7 +381,7 @@ class TestActivityFiles:
         ctx, archive = _ctx()
         ctx.counts["activity_files"] = 0
         with patch.object(export_service.activity_file_storage_integration, "get_activity_file", return_value=None):
-            export_service._write_activity_files(ctx, [1])
+            export_service._write_activity_files(ctx, [_A])
 
         assert ctx.counts["activity_files"] == 0
         assert archive.entries == {}
@@ -387,25 +392,25 @@ class TestActivityFiles:
         with patch.object(
             export_service.activity_file_storage_integration,
             "get_activity_file",
-            return_value=("1.gpx", b"<gpx></gpx>"),
+            return_value=(f"{_A}.gpx", b"<gpx></gpx>"),
         ):
-            export_service._write_activity_files(ctx, [1])
+            export_service._write_activity_files(ctx, [_A])
 
         assert ctx.counts["activity_files"] == 1
-        assert archive.entries["activity_files/1.gpx"] == b"<gpx></gpx>"
+        assert archive.entries[f"activity_files/{_A}.gpx"] == b"<gpx></gpx>"
 
     def test_reads_retained_files_from_the_plain_local_layout(self, tmp_path) -> None:
         storage = LocalStorage(
             str(tmp_path),
             plain_areas=frozenset({activity_file_storage_constants.ACTIVITY_FILE_STORAGE_AREA}),
         )
-        storage.save(activity_file_storage_constants.ACTIVITY_FILE_STORAGE_AREA, "processed/1.gpx", b"<gpx/>")
+        storage.save(activity_file_storage_constants.ACTIVITY_FILE_STORAGE_AREA, f"processed/{_A}.gpx", b"<gpx/>")
         ctx, archive = _ctx(storage=storage)
         ctx.counts["activity_files"] = 0
-        export_service._write_activity_files(ctx, [1])
+        export_service._write_activity_files(ctx, [_A])
 
         assert ctx.counts["activity_files"] == 1
-        assert archive.entries["activity_files/1.gpx"] == b"<gpx/>"
+        assert archive.entries[f"activity_files/{_A}.gpx"] == b"<gpx/>"
 
     def test_a_read_error_skips_only_that_activity(self) -> None:
         ctx, archive = _ctx()
@@ -413,12 +418,12 @@ class TestActivityFiles:
         with patch.object(
             export_service.activity_file_storage_integration,
             "get_activity_file",
-            side_effect=[OSError("read failed"), ("2.gpx", b"<gpx></gpx>")],
+            side_effect=[OSError("read failed"), (f"{_B}.gpx", b"<gpx></gpx>")],
         ):
-            export_service._write_activity_files(ctx, [1, 2])
+            export_service._write_activity_files(ctx, [_A, _B])
 
         assert ctx.counts["activity_files"] == 1
-        assert list(archive.entries) == ["activity_files/2.gpx"]
+        assert list(archive.entries) == [f"activity_files/{_B}.gpx"]
 
 
 class TestActivityMedia:
@@ -427,48 +432,48 @@ class TestActivityMedia:
         storage.list_keys.return_value = []
         ctx, archive = _ctx(storage=storage)
         ctx.counts["media"] = 0
-        export_service._write_activity_media(ctx, [1])
+        export_service._write_activity_media(ctx, [_A])
 
         assert ctx.counts["media"] == 0
         assert archive.entries == {}
 
     def test_with_files(self) -> None:
         storage = MagicMock()
-        storage.list_keys.return_value = ["1_image.jpg"]
+        storage.list_keys.return_value = [f"{_A}_image.jpg"]
         storage.get.return_value = b"image-bytes"
         ctx, archive = _ctx(storage=storage)
         ctx.counts["media"] = 0
-        export_service._write_activity_media(ctx, [1])
+        export_service._write_activity_media(ctx, [_A])
 
         assert ctx.counts["media"] == 1
-        assert archive.entries["activity_media/1_image.jpg"] == b"image-bytes"
+        assert archive.entries[f"activity_media/{_A}_image.jpg"] == b"image-bytes"
 
     def test_a_missing_blob_is_skipped(self) -> None:
         storage = MagicMock()
-        storage.list_keys.return_value = ["1_image.jpg"]
+        storage.list_keys.return_value = [f"{_A}_image.jpg"]
         storage.get.return_value = None
         ctx, _ = _ctx(storage=storage)
         ctx.counts["media"] = 0
-        export_service._write_activity_media(ctx, [1])
+        export_service._write_activity_media(ctx, [_A])
 
         assert ctx.counts["media"] == 0
 
     def test_a_failing_blob_does_not_abort_the_rest(self) -> None:
         storage = MagicMock()
-        storage.list_keys.return_value = ["1_bad.jpg", "1_good.jpg"]
+        storage.list_keys.return_value = [f"{_A}_bad.jpg", f"{_A}_good.jpg"]
         storage.get.side_effect = [StorageBackendUnavailableError("backend down"), b"good-bytes"]
         ctx, archive = _ctx(storage=storage)
         ctx.counts["media"] = 0
-        export_service._write_activity_media(ctx, [1])
+        export_service._write_activity_media(ctx, [_A])
 
         assert ctx.counts["media"] == 1
-        assert archive.entries["activity_media/1_good.jpg"] == b"good-bytes"
+        assert archive.entries[f"activity_media/{_A}_good.jpg"] == b"good-bytes"
 
     def test_a_listing_failure_skips_that_activity_only(self) -> None:
         storage = MagicMock()
         storage.list_keys.side_effect = StorageBackendUnavailableError("permission denied")
         ctx, _ = _ctx(storage=storage)
         ctx.counts["media"] = 0
-        export_service._write_activity_media(ctx, [1])
+        export_service._write_activity_media(ctx, [_A])
 
         assert ctx.counts["media"] == 0

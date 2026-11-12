@@ -32,7 +32,9 @@ class TestReadActivityLaps:
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = ActivityLapsPage.build([], 0, 1, 200)
 
-        response = client.get("/activities/1/laps", headers={"Authorization": "Bearer x"})
+        response = client.get(
+            "/activities/00000000-0000-4000-8000-000000000001/laps", headers={"Authorization": "Bearer x"}
+        )
         assert response.status_code == 200
 
     @patch("modules.activities.activity_laps.router.activity_laps_service.list_activity_laps")
@@ -40,6 +42,14 @@ class TestReadActivityLaps:
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = ActivityLapsPage.build([], 0, 1, 200)
 
-        response = client.get("/activities/999/laps", headers={"Authorization": "Bearer x"})
+        response = client.get(
+            "/activities/00000000-0000-4000-8000-000000000999/laps", headers={"Authorization": "Bearer x"}
+        )
         assert response.status_code == 200
         assert response.json()["items"] == [] and response.json()["total"] == 0
+
+    def test_a_malformed_activity_id_answers_422(self, mock_db):
+        client = TestClient(_build_app(mock_db))
+
+        response = client.get("/activities/not-a-uuid/laps", headers={"Authorization": "Bearer x"})
+        assert response.status_code == 422

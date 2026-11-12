@@ -155,7 +155,7 @@ def set_activities_gear(user_id: int, db: Session) -> int:
     gears = gears_integration.get_gear_user(user_id, db)
 
     assigned = 0
-    after_id = 0
+    after_id: uuid.UUID | None = None
     while page := activity_integration.list_garminconnect_gear_activity_refs(user_id, db, after_id=after_id):
         after_id = page[-1].id
         # {activity_id: gear_id} for the page's activities that have a match

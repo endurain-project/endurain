@@ -8,8 +8,7 @@ Rows stamped in the last :data:`SETTLE` are held back. Postgres stamps a row whe
 transaction still open when a page is read can later commit a row stamped before that page's end; waiting past
 the longest transaction this application runs keeps such a row from being skipped.
 
-A record's id is an integer or a UUID depending on its type, so each source declares the :class:`_IdKind` of its
-records; a tombstone's own id is always a UUID. Ids are only compared within one rank, as the last tie-break.
+Every record id and every tombstone id is a UUID. Ids are only compared within one rank, as the last tie-break.
 """
 
 import json
@@ -17,7 +16,7 @@ import uuid
 from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Protocol
+from typing import Protocol
 
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
@@ -51,35 +50,19 @@ class _Changed(Protocol):
     """A changed record as a module returns it: its id and when it last changed."""
 
     @property
-    def id(self) -> int | uuid.UUID | None: ...
+    def id(self) -> uuid.UUID | None: ...
 
     @property
     def updated_at(self) -> datetime | None: ...
 
 
-@dataclass(frozen=True)
-class _IdKind[IdT: (int, uuid.UUID)]:
-    """How the ids of one kind of row are read from a cursor and bounded in a keyset walk.
-
-    Attributes:
-        parse: Reads an id from its cursor string.
-        first: The lowest id, before every row of a stamp.
-        last: The highest id, after every row of a stamp.
-    """
-
-    parse: Callable[[str], IdT]
-    first: IdT
-    last: IdT
-
-
-_INT_ID = _IdKind(int, 0, core_types.INT32_MAX)
-_UUID_ID = _IdKind(uuid.UUID, core_types.NIL_UUID, core_types.MAX_UUID)
-
 #: Reads a type's changed records after a position: ``(user_id, after, until, limit, db)``.
-_ChangedReader = Callable[[int, Any, datetime, int, Session], Sequence[_Changed]]
+_ChangedReader = Callable[[int, core_sync.Position[uuid.UUID] | None, datetime, int, Session], Sequence[_Changed]]
 
 #: Reads a type's tombstones after a position: ``(user_id, after, until, limit, db)``.
-_DeletedReader = Callable[[int, core_sync.Position[uuid.UUID] | None, datetime, int, Session], Sequence[Any]]
+_DeletedReader = Callable[
+    [int, core_sync.Position[uuid.UUID] | None, datetime, int, Session], Sequence[core_sync.Deletion[uuid.UUID]]
+]
 
 
 @dataclass(frozen=True)
@@ -92,7 +75,6 @@ class _TypeSources:
         changed: Reads its changed records, each with ``id`` and ``updated_at``.
         deleted: Reads its tombstones as :class:`core.sync.Deletion`.
         change: The change model of the type.
-        id_kind: The kind of id its records have.
     """
 
     sync_type: sync_schema.SyncType
@@ -100,7 +82,6 @@ class _TypeSources:
     changed: _ChangedReader
     deleted: _DeletedReader
     change: type[BaseModel]
-    id_kind: _IdKind[Any]
 
 
 _TYPES: tuple[_TypeSources, ...] = (
@@ -110,7 +91,6 @@ _TYPES: tuple[_TypeSources, ...] = (
         activity_integration.list_changed_activities,
         activity_integration.list_activity_deletions,
         sync_schema.ActivityChange,
-        _INT_ID,
     ),
     _TypeSources(
         _Type.HEALTH_WEIGHT,
@@ -118,7 +98,6 @@ _TYPES: tuple[_TypeSources, ...] = (
         health_weight_integration.list_changed_health_weight,
         health_weight_integration.list_health_weight_deletions,
         sync_schema.HealthWeightChange,
-        _UUID_ID,
     ),
     _TypeSources(
         _Type.HEALTH_STEPS,
@@ -126,7 +105,6 @@ _TYPES: tuple[_TypeSources, ...] = (
         health_steps_integration.list_changed_health_steps,
         health_steps_integration.list_health_steps_deletions,
         sync_schema.HealthStepsChange,
-        _UUID_ID,
     ),
     _TypeSources(
         _Type.HEALTH_SLEEP,
@@ -134,7 +112,6 @@ _TYPES: tuple[_TypeSources, ...] = (
         health_sleep_integration.list_changed_health_sleep,
         health_sleep_integration.list_health_sleep_deletions,
         sync_schema.HealthSleepChange,
-        _UUID_ID,
     ),
     _TypeSources(
         _Type.HEALTH_WATER,
@@ -142,7 +119,6 @@ _TYPES: tuple[_TypeSources, ...] = (
         health_water_integration.list_changed_health_water,
         health_water_integration.list_health_water_deletions,
         sync_schema.HealthWaterChange,
-        _UUID_ID,
     ),
     _TypeSources(
         _Type.HEALTH_POOP,
@@ -150,7 +126,6 @@ _TYPES: tuple[_TypeSources, ...] = (
         health_poop_integration.list_changed_health_poop,
         health_poop_integration.list_health_poop_deletions,
         sync_schema.HealthPoopChange,
-        _UUID_ID,
     ),
     _TypeSources(
         _Type.HEALTH_FASTING,
@@ -158,7 +133,6 @@ _TYPES: tuple[_TypeSources, ...] = (
         health_fasting_integration.list_changed_health_fasting,
         health_fasting_integration.list_health_fasting_deletions,
         sync_schema.HealthFastingChange,
-        _UUID_ID,
     ),
     _TypeSources(
         _Type.HEALTH_TARGETS,
@@ -166,7 +140,6 @@ _TYPES: tuple[_TypeSources, ...] = (
         health_targets_integration.list_changed_health_targets,
         health_targets_integration.list_health_targets_deletions,
         sync_schema.HealthTargetsChange,
-        _UUID_ID,
     ),
     _TypeSources(
         _Type.GEAR,
@@ -174,7 +147,6 @@ _TYPES: tuple[_TypeSources, ...] = (
         gear_integration.list_changed_gears,
         gear_integration.list_gear_deletions,
         sync_schema.GearChange,
-        _UUID_ID,
     ),
     _TypeSources(
         _Type.GEAR_COMPONENT,
@@ -182,15 +154,14 @@ _TYPES: tuple[_TypeSources, ...] = (
         gear_components_integration.list_changed_gear_components,
         gear_components_integration.list_gear_component_deletions,
         sync_schema.GearComponentChange,
-        _UUID_ID,
     ),
 )
 
 #: The cursor format: the version of what a cursor encodes, so a cursor of an older shape is refused.
-_CURSOR_FORMAT = 3
+_CURSOR_FORMAT = 4
 
 #: The place of a change in the walk: ``(stamp, rank, id)``.
-_Order = tuple[datetime, int, int | uuid.UUID]
+_Order = tuple[datetime, int, uuid.UUID]
 
 
 @dataclass(frozen=True)
@@ -226,16 +197,14 @@ class _RawCursor(BaseModel):
     f: int | None = None
     s: datetime | None = None
     r: int | None = None
-    i: str | int | None = None
+    i: str | None = None
     t: datetime
 
 
-def _id_kind(rank: int) -> _IdKind[Any]:
+def _check_rank(rank: int) -> None:
     # An even rank is a type's changed records, an odd one its tombstones.
-    index, is_deletion = divmod(rank, 2)
-    if not 0 <= index < len(_TYPES):
+    if not 0 <= rank // 2 < len(_TYPES):
         raise core_exceptions.InvalidInputError("Invalid sync cursor")
-    return _UUID_ID if is_deletion else _TYPES[index].id_kind
 
 
 def _decode(cursor: str) -> _Cursor:
@@ -249,24 +218,25 @@ def _decode(cursor: str) -> _Cursor:
     if raw.s is None or raw.r is None or raw.i is None:
         return _Cursor(None, raw.t)
     try:
-        row_id = _id_kind(raw.r).parse(str(raw.i))
+        _check_rank(raw.r)
+        row_id = uuid.UUID(raw.i)
     except ValueError as err:
         raise core_exceptions.InvalidInputError("Invalid sync cursor") from err
     return _Cursor((raw.s, raw.r, row_id), raw.t)
 
 
-def _after(rank: int, position: _Order | None) -> core_sync.Position[Any] | None:
+def _after(rank: int, position: _Order | None) -> core_sync.Position[uuid.UUID] | None:
     # A source ranked before the cursor's has reported everything at the cursor's stamp, the cursor's own source
     # continues after its id, and a source ranked after it has reported nothing at that stamp yet.
     if position is None:
         return None
     stamp, cursor_rank, row_id = position
-    kind = _id_kind(rank)
+    _check_rank(rank)
     if rank < cursor_rank:
-        return stamp, kind.last
+        return stamp, core_types.MAX_UUID
     if rank == cursor_rank:
         return stamp, row_id
-    return stamp, kind.first
+    return stamp, core_types.NIL_UUID
 
 
 @dataclass(frozen=True)
@@ -285,7 +255,9 @@ def _record_entries(source: _TypeSources, rank: int, records: Sequence[_Changed]
     return entries
 
 
-def _deletion_entries(source: _TypeSources, rank: int, deletions: Sequence[core_sync.Deletion[Any]]) -> list[_Entry]:
+def _deletion_entries(
+    source: _TypeSources, rank: int, deletions: Sequence[core_sync.Deletion[uuid.UUID]]
+) -> list[_Entry]:
     entries = []
     for deletion in deletions:
         change = source.change.model_validate({"id": deletion.record_id, "changed_at": deletion.deleted_at})

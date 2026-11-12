@@ -1,5 +1,6 @@
 """Tests for the core activity ingestion service (store_parsed_activity)."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -32,7 +33,7 @@ class TestStoreParsedActivity:
     def test_stores_activity_and_component(self, mock_crud, mock_registry, mock_pub):
         import modules.activities.activity.ingestion_service as ingestion_service
 
-        created = MagicMock(id=7, user_id=3)
+        created = MagicMock(id=uuid.uuid4(), user_id=3)
         mock_crud.create_activity = MagicMock(return_value=created)
         contributor = MagicMock(key="streams")
         mock_registry.get_activity_ingestion_contributor.return_value = contributor
@@ -48,7 +49,7 @@ class TestStoreParsedActivity:
         mock_registry.get_activity_ingestion_contributor.assert_called_once_with("streams")
         contributor.persist.assert_called_once_with(component_data, created, db)
         mock_pub.publish_activity_created.assert_called_once()
-        assert mock_pub.publish_activity_created.call_args.args[:2] == (7, 3)
+        assert mock_pub.publish_activity_created.call_args.args[:2] == (created.id, 3)
 
     @patch("modules.activities.activity.ingestion_service.activity_event_publishers")
     @patch("modules.activities.activity.ingestion_service.activities_contributor_registry")
@@ -56,7 +57,7 @@ class TestStoreParsedActivity:
     def test_no_components_skips_contributor_lookup(self, mock_crud, mock_registry, mock_pub):
         import modules.activities.activity.ingestion_service as ingestion_service
 
-        mock_crud.create_activity = MagicMock(return_value=MagicMock(id=1, user_id=1))
+        mock_crud.create_activity = MagicMock(return_value=MagicMock(id=uuid.uuid4(), user_id=1))
 
         ingestion_service.store_parsed_activity(_parsed(), MagicMock())
 
@@ -68,7 +69,7 @@ class TestStoreParsedActivity:
     def test_persists_each_non_null_component(self, mock_crud, mock_registry, mock_pub):
         import modules.activities.activity.ingestion_service as ingestion_service
 
-        created = MagicMock(id=9, user_id=1)
+        created = MagicMock(id=uuid.uuid4(), user_id=1)
         mock_crud.create_activity = MagicMock(return_value=created)
         contributors = {key: MagicMock(key=key) for key in ("laps", "sets", "workout_steps")}
         mock_registry.get_activity_ingestion_contributor.side_effect = contributors.get
@@ -112,7 +113,7 @@ class TestStoreParsedActivity:
     def test_persists_components_and_activity_without_committing(self, mock_crud, mock_registry, mock_pub):
         import modules.activities.activity.ingestion_service as ingestion_service
 
-        created = MagicMock(id=7, user_id=3, is_hidden=False)
+        created = MagicMock(id=uuid.uuid4(), user_id=3, is_hidden=False)
         mock_crud.create_activity = MagicMock(return_value=created)
         contributor = MagicMock(key="streams")
         mock_registry.get_activity_ingestion_contributor.return_value = contributor
@@ -137,7 +138,7 @@ class TestStoreParsedActivity:
 
         import modules.activities.activity.ingestion_service as ingestion_service
 
-        mock_crud.create_activity = MagicMock(return_value=MagicMock(id=5, user_id=2, is_hidden=False))
+        mock_crud.create_activity = MagicMock(return_value=MagicMock(id=uuid.uuid4(), user_id=2, is_hidden=False))
         contributor = MagicMock(key="streams")
         contributor.persist.side_effect = SQLAlchemyError("boom")
         mock_registry.get_activity_ingestion_contributor.return_value = contributor
@@ -194,7 +195,7 @@ class TestStoreParsedActivity:
         import modules.activities.activity.contracts as schema
         import modules.activities.activity.ingestion_service as ingestion_service
 
-        existing = MagicMock(id=42, user_id=3)
+        existing = MagicMock(id=uuid.uuid4(), user_id=3)
         mock_crud.get_activity_by_dedup_key = MagicMock(return_value=existing)
         mock_crud.create_activity = MagicMock()
         db = MagicMock()
@@ -229,7 +230,7 @@ class TestStoreParsedActivity:
         import modules.activities.activity.contracts as schema
         import modules.activities.activity.ingestion_service as ingestion_service
 
-        winner = MagicMock(id=42, user_id=3)
+        winner = MagicMock(id=uuid.uuid4(), user_id=3)
         # Not found before the insert, found after the conflict — the race.
         mock_crud.get_activity_by_dedup_key = MagicMock(side_effect=[None, winner])
         mock_crud.create_activity = MagicMock(
@@ -297,7 +298,7 @@ class TestStoreParsedActivity:
         import modules.activities.activity.ingestion_service as ingestion_service
 
         mock_crud.get_activity_by_dedup_key = MagicMock(return_value=None)
-        mock_crud.create_activity = MagicMock(return_value=MagicMock(id=7, user_id=3, is_hidden=False))
+        mock_crud.create_activity = MagicMock(return_value=MagicMock(id=uuid.uuid4(), user_id=3, is_hidden=False))
 
         activity = MagicMock(strava_activity_id=123, garminconnect_activity_id=None, user_id=3)
         parsed = _parsed(activity=activity, source=schema.ImportSource(kind="upload"))
@@ -317,7 +318,7 @@ class TestStoreParsedActivity:
         import modules.activities.activity.ingestion_service as ingestion_service
 
         mock_crud.get_activity_by_dedup_key = MagicMock(return_value=None)
-        mock_crud.create_activity = MagicMock(return_value=MagicMock(id=8, user_id=3, is_hidden=False))
+        mock_crud.create_activity = MagicMock(return_value=MagicMock(id=uuid.uuid4(), user_id=3, is_hidden=False))
 
         activity = MagicMock(strava_activity_id=None, garminconnect_activity_id=456, user_id=3)
         parsed = _parsed(activity=activity, source=schema.ImportSource(kind="garmin"))
@@ -334,7 +335,7 @@ class TestStoreParsedActivity:
         import modules.activities.activity.contracts as schema
         import modules.activities.activity.ingestion_service as ingestion_service
 
-        existing = MagicMock(id=99, user_id=3)
+        existing = MagicMock(id=uuid.uuid4(), user_id=3)
         mock_crud.get_activity_by_dedup_key = MagicMock(return_value=existing)
         mock_crud.create_activity = MagicMock()
 

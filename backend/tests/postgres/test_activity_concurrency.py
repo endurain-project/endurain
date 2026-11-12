@@ -6,6 +6,7 @@ connections can.
 """
 
 import threading
+import uuid
 
 import pytest
 
@@ -15,13 +16,13 @@ import modules.activities.activity.schema as activity_schema
 from tests.postgres.test_transaction_ownership import _add_activity
 
 
-def _edit(factory, activity_id: int, name: str, *, if_match: str = "*") -> None:
+def _edit(factory, activity_id: uuid.UUID, name: str, *, if_match: str = "*") -> None:
     with factory() as db:
         activity_crud.edit_activity(1, activity_id, activity_schema.ActivityEdit(name=name), db, if_match=if_match)
         db.commit()
 
 
-def _version(factory, activity_id: int) -> int:
+def _version(factory, activity_id: uuid.UUID) -> int:
     with factory() as db:
         activity = activity_crud.get_activity_by_id_from_user_id(activity_id, 1, db)
         assert activity is not None
@@ -66,15 +67,16 @@ def test_a_background_thumbnail_write_does_not_change_the_version(pg_factory):
 
 
 def test_setting_a_thumbnail_key_on_a_deleted_activity_reports_it(pg_factory):
+    unknown_id = uuid.uuid4()
     with pg_factory() as db:
-        assert activity_crud.set_activity_thumbnail_key(424242, "424242.webp", db) is False
+        assert activity_crud.set_activity_thumbnail_key(unknown_id, f"{unknown_id}.webp", db) is False
 
 
 def test_delete_all_waits_for_a_bulk_edit_that_holds_the_rows(pg_factory):
     """Both take the row locks in id order first, so overlapping bulk writes queue instead of deadlocking."""
     activity_id = _add_activity(pg_factory)
     finished = threading.Event()
-    deleted: list[int] = []
+    deleted: list[uuid.UUID] = []
 
     def delete_all() -> None:
         with pg_factory() as db:

@@ -14,6 +14,8 @@ the parent's data (a lap's start time and position, a stream's samples) has to b
 masked by the parent's other ``hide_*`` flags too, not only by the one guarding it.
 """
 
+import uuid
+
 from sqlalchemy.orm import Session
 
 import modules.activities.activity.crud as activity_crud
@@ -23,7 +25,7 @@ import modules.server_settings.integration_service as server_settings_integratio
 
 
 def resolve_readable_parent(
-    activity_id: int,
+    activity_id: uuid.UUID,
     requester_user_id: int,
     db: Session,
 ) -> activity_schema.ActivityRead | None:
@@ -47,7 +49,7 @@ def resolve_readable_parent(
     )
 
 
-def resolve_public_parent(activity_id: int, db: Session) -> activity_schema.ActivityRead | None:
+def resolve_public_parent(activity_id: uuid.UUID, db: Session) -> activity_schema.ActivityRead | None:
     """Return the parent activity when it is publicly shareable.
 
     Enforces the server-wide ``public_shareable_links`` setting, ``visibility == 0``

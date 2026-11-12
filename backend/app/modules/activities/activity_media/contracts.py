@@ -12,7 +12,9 @@ required. While one class served as read response, CRUD return type, export DTO
 reader had to null-check fields that are in fact always present on a read.
 """
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt
+import uuid
+
+from pydantic import BaseModel, ConfigDict, Field
 
 import modules.activities.activity.schema as activity_schema
 
@@ -60,8 +62,8 @@ class ActivityMediaRecord(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
-    id: StrictInt = Field(ge=1)
-    activity_id: StrictInt = Field(ge=1)
+    id: uuid.UUID
+    activity_id: uuid.UUID
     media_path: str = Field(min_length=1, max_length=250)
     media_type: activity_schema.StoredMediaType
     content_hash: str | None = Field(default=None, max_length=64)

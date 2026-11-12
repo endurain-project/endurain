@@ -1,7 +1,12 @@
+import uuid
 from unittest.mock import patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+
+ACT = "00000000-0000-4000-8000-000000000001"
+OTHER = "00000000-0000-4000-8000-000000000999"
+MEDIA = "00000000-0000-4000-8000-0000000000a1"
 
 
 def _build_app(mock_db, with_media=None):
@@ -30,7 +35,7 @@ class TestReadActivityMedia:
         client = TestClient(_build_app(mock_db))
         mock_list.return_value = {"items": [], "total": 0, "page": 1, "num_records": 200, "next": None}
 
-        response = client.get("/activities/1/media", headers={"Authorization": "Bearer x"})
+        response = client.get(f"/activities/{ACT}/media", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
         mock_list.assert_called_once()
 
@@ -41,7 +46,7 @@ class TestReadActivityMedia:
 
         # A collection endpoint answers with the page envelope: no media (or an
         # activity the caller cannot see) is an empty page, not ``null``.
-        response = client.get("/activities/999/media", headers={"Authorization": "Bearer x"})
+        response = client.get(f"/activities/{OTHER}/media", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
         assert response.json()["items"] == []
 
@@ -56,7 +61,7 @@ class TestUploadActivityMedia:
         mock_store.side_effect = HTTPException(status_code=404, detail="Activity not found")
 
         response = client.post(
-            "/activities/2/media",
+            f"/activities/{OTHER}/media",
             files={"file": ("test.jpg", b"fake-image-data", "image/jpeg")},
             headers={"Authorization": "Bearer x"},
         )
@@ -70,20 +75,23 @@ class TestUploadActivityMedia:
 
         client = TestClient(_build_app(mock_db))
         mock_store.return_value = ActivityMediaRead(
-            id=1, activity_id=1, media_type=1, url="/api/v1/activities/1/media/1/file?t=tok"
+            id=uuid.UUID(MEDIA),
+            activity_id=uuid.UUID(ACT),
+            media_type=1,
+            url=f"/api/v1/activities/{ACT}/media/{MEDIA}/file?t=tok",
         )
 
         response = client.post(
-            "/activities/1/media",
+            f"/activities/{ACT}/media",
             files={"file": ("test.jpg", b"fake-image-data", "image/jpeg")},
             headers={"Authorization": "Bearer x"},
         )
         assert response.status_code == 201
-        assert response.json()["id"] == 1
+        assert response.json()["id"] == MEDIA
         # The opaque storage key is not part of the API contract.
         assert "media_path" not in response.json()
         # The route passes the path activity id and the token user through unchanged.
-        assert mock_store.call_args.args[0] == 1
+        assert mock_store.call_args.args[0] == uuid.UUID(ACT)
         assert mock_store.call_args.args[1] == 1
 
 
@@ -93,5 +101,19 @@ class TestDeleteActivityMedia:
         client = TestClient(_build_app(mock_db))
         mock_delete.return_value = None
 
-        response = client.delete("/activities/1/media/1", headers={"Authorization": "Bearer x"})
+        response = client.delete(f"/activities/{ACT}/media/{MEDIA}", headers={"Authorization": "Bearer x"})
         assert response.status_code == 204
+
+
+class TestMalformedIds:
+    def test_a_malformed_activity_id_is_unprocessable(self, mock_db):
+        client = TestClient(_build_app(mock_db))
+
+        assert client.get("/activities/1/media", headers={"Authorization": "Bearer x"}).status_code == 422
+
+    def test_a_malformed_media_id_is_unprocessable(self, mock_db):
+        client = TestClient(_build_app(mock_db))
+
+        response = client.delete(f"/activities/{ACT}/media/5", headers={"Authorization": "Bearer x"})
+
+        assert response.status_code == 422

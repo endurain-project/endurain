@@ -7,6 +7,8 @@ import pytest
 from jasil.events import new_event
 from pydantic import ValidationError
 
+_ACTIVITY_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
+
 
 def _event(payload):
     return new_event("activity.created", payload, source="test")
@@ -14,7 +16,7 @@ def _event(payload):
 
 class TestOnActivityCreatedNotify:
     @patch("modules.notifications.subscribers.notifications_service")
-    def test_noop_for_non_int_activity_id(self, mock_notif):
+    def test_noop_for_non_uuid_activity_id(self, mock_notif):
         from modules.notifications.subscribers import on_activity_created_notify
 
         on_activity_created_notify(_event({"activity_id": "x", "user_id": 2}))
@@ -24,7 +26,7 @@ class TestOnActivityCreatedNotify:
     def test_noop_when_user_id_missing(self, mock_notif):
         from modules.notifications.subscribers import on_activity_created_notify
 
-        on_activity_created_notify(_event({"activity_id": 1}))
+        on_activity_created_notify(_event({"activity_id": str(_ACTIVITY_ID)}))
         mock_notif.create_activity_created_notification.assert_not_called()
 
     @patch("modules.notifications.integration_service.websocket_integration")
@@ -38,9 +40,11 @@ class TestOnActivityCreatedNotify:
             "NEW_ACTIVITY_NOTIFICATION",
             True,
         )
-        on_activity_created_notify(_event({"activity_id": 1, "user_id": 2, "duplicate_start_time": False}))
+        on_activity_created_notify(
+            _event({"activity_id": str(_ACTIVITY_ID), "user_id": 2, "duplicate_start_time": False})
+        )
 
-        assert mock_notif.create_activity_created_notification.call_args.args[:3] == (2, 1, False)
+        assert mock_notif.create_activity_created_notification.call_args.args[:3] == (2, _ACTIVITY_ID, False)
         mock_ws.push_to_user.assert_called_once()
 
     @patch("modules.notifications.integration_service.websocket_integration")
@@ -54,7 +58,7 @@ class TestOnActivityCreatedNotify:
             "NEW_ACTIVITY_NOTIFICATION",
             False,
         )
-        event = _event({"activity_id": 1, "user_id": 2, "duplicate_start_time": False})
+        event = _event({"activity_id": str(_ACTIVITY_ID), "user_id": 2, "duplicate_start_time": False})
         on_activity_created_notify(event)
 
         assert mock_notif.create_activity_created_notification.call_args.args[3] == event.event_id
@@ -71,8 +75,10 @@ class TestOnActivityCreatedNotify:
             "NEW_DUPLICATE_ACTIVITY_START_TIME_NOTIFICATION",
             True,
         )
-        on_activity_created_notify(_event({"activity_id": 4, "user_id": 8, "duplicate_start_time": True}))
-        assert mock_notif.create_activity_created_notification.call_args.args[:3] == (8, 4, True)
+        on_activity_created_notify(
+            _event({"activity_id": str(_ACTIVITY_ID), "user_id": 8, "duplicate_start_time": True})
+        )
+        assert mock_notif.create_activity_created_notification.call_args.args[:3] == (8, _ACTIVITY_ID, True)
 
     @patch("jasil.subscribers.logger")
     @patch("modules.notifications.subscribers.core_database")
@@ -81,7 +87,7 @@ class TestOnActivityCreatedNotify:
         from modules.notifications.subscribers import on_activity_created_notify
 
         mock_notif.create_activity_created_notification.side_effect = RuntimeError("boom")
-        on_activity_created_notify(_event({"activity_id": 1, "user_id": 2}))
+        on_activity_created_notify(_event({"activity_id": str(_ACTIVITY_ID), "user_id": 2}))
         mock_logger.error.assert_called()
 
 
@@ -91,7 +97,7 @@ class TestNotifyActivityCreatedForEvent:
         from modules.notifications.subscribers import notify_activity_created_for_event
 
         with pytest.raises(ValidationError):
-            notify_activity_created_for_event(_event({"activity_id": 1}))
+            notify_activity_created_for_event(_event({"activity_id": str(_ACTIVITY_ID)}))
         mock_notif.create_activity_created_notification.assert_not_called()
 
     @patch("modules.notifications.subscribers.core_database")
@@ -101,7 +107,7 @@ class TestNotifyActivityCreatedForEvent:
 
         mock_notif.create_activity_created_notification.side_effect = RuntimeError("boom")
         with pytest.raises(RuntimeError):
-            notify_activity_created_for_event(_event({"activity_id": 1, "user_id": 2}))
+            notify_activity_created_for_event(_event({"activity_id": str(_ACTIVITY_ID), "user_id": 2}))
 
 
 class TestRegisterActivityNotificationConsumers:

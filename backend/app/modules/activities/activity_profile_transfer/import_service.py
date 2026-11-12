@@ -88,7 +88,7 @@ def _restore_global_components(ctx: users_profile_contracts.ProfileImportContext
 def _restore_activity_components(
     ctx: users_profile_contracts.ProfileImportContext,
     component_data: dict[str, list[dict[str, Any]]],
-    original_activity_id: int,
+    original_activity_id: str,
     new_activity: activity_schema.ActivityRead,
 ) -> None:
     """Restore the contributed components for a single restored activity.
@@ -110,7 +110,7 @@ def _restore_activity_components(
 
 def _restore_activities(
     ctx: users_profile_contracts.ProfileImportContext, gears_id_mapping: dict[str, uuid.UUID]
-) -> dict[int, int]:
+) -> dict[str, uuid.UUID]:
     """Restore the archived activities in batches to manage memory.
 
     Args:
@@ -124,7 +124,7 @@ def _restore_activities(
         ActivityLimitError: If too many activities.
         ImportTimeoutError: If operation times out.
     """
-    activities_id_mapping: dict[int, int] = {}
+    activities_id_mapping: dict[str, uuid.UUID] = {}
 
     activities_data = ctx.archive.load_json(constants.ACTIVITIES_PATH)
     if not activities_data:
@@ -186,7 +186,7 @@ def _restore_activities(
                 users_profile_contracts.archived_id(activity_data.get("gear_id")) or ""
             )
 
-            original_activity_id = activity_data.get("id")
+            original_activity_id = users_profile_contracts.archived_id(activity_data.get("id"))
             fields = {
                 key: value
                 for key, value in users_profile_contracts.without_row_identity(activity_data).items()
@@ -225,11 +225,15 @@ def _filter_components_for_batch(
         The records that belong to the batch's activities.
     """
     activity_ids = {
-        activity.get("id")
+        archived
         for activity in activities_batch
-        if isinstance(activity, dict) and activity.get("id") is not None
+        if (archived := users_profile_contracts.archived_id(activity.get("id")))
     }
-    return [record for record in records if isinstance(record, dict) and record.get("activity_id") in activity_ids]
+    return [
+        record
+        for record in records
+        if isinstance(record, dict) and users_profile_contracts.archived_id(record.get("activity_id")) in activity_ids
+    ]
 
 
 def _get_split_files_list(file_list: frozenset[str], base_filename: str) -> list[str]:
@@ -272,14 +276,22 @@ def _load_components_for_batch(
     if not component_files:
         return []
 
-    batch_activity_ids = set(activity.get("id") for activity in activities_batch if activity.get("id") is not None)
+    batch_activity_ids = {
+        archived
+        for activity in activities_batch
+        if (archived := users_profile_contracts.archived_id(activity.get("id")))
+    }
 
     all_components = []
 
     for filename in component_files:
         components = ctx.archive.load_json_part(filename)
         # Only keep components for activities in this batch
-        filtered = [component for component in components if component.get("activity_id") in batch_activity_ids]
+        filtered = [
+            component
+            for component in components
+            if users_profile_contracts.archived_id(component.get("activity_id")) in batch_activity_ids
+        ]
         all_components.extend(filtered)
 
         if filtered:
@@ -297,7 +309,7 @@ def _load_components_for_batch(
 
 
 def _restore_activity_files(
-    ctx: users_profile_contracts.ProfileImportContext, activities_id_mapping: dict[int, int]
+    ctx: users_profile_contracts.ProfileImportContext, activities_id_mapping: dict[str, uuid.UUID]
 ) -> None:
     """Extract and store the archived activity files under the restored ids.
 
@@ -313,14 +325,7 @@ def _restore_activity_files(
         if path.lower().endswith((".gpx", ".fit", ".tcx")) and path.startswith(constants.ACTIVITY_FILES_FOLDER):
             file_id_str = os.path.splitext(os.path.basename(path))[0]
             ext = os.path.splitext(path)[1]
-            try:
-                file_id_int = int(file_id_str)
-            except ValueError:
-                logger.debug(
-                    "Skipped an archive file without an activity id", extra=core_logger.context(file_path=path)
-                )
-                continue
-            new_id = activities_id_mapping.get(file_id_int)
+            new_id = activities_id_mapping.get(file_id_str)
 
             if new_id is None:
                 continue
@@ -350,7 +355,7 @@ def _restore_activity_files(
 
 
 def _restore_activity_media(
-    ctx: users_profile_contracts.ProfileImportContext, activities_id_mapping: dict[int, int]
+    ctx: users_profile_contracts.ProfileImportContext, activities_id_mapping: dict[str, uuid.UUID]
 ) -> None:
     """Extract and store the archived activity media under the restored ids.
 
@@ -369,14 +374,7 @@ def _restore_activity_media(
 
             if "_" in base_name:
                 orig_id_str, suffix = base_name.split("_", 1)
-                try:
-                    orig_id_int = int(orig_id_str)
-                except ValueError:
-                    logger.debug(
-                        "Skipped an archive file without an activity id", extra=core_logger.context(file_path=path)
-                    )
-                    continue
-                new_id = activities_id_mapping.get(orig_id_int)
+                new_id = activities_id_mapping.get(orig_id_str)
 
                 if new_id is None:
                     continue

@@ -31,7 +31,7 @@ A page is `{"changes": [...], "next_cursor": "...", "has_more": false}`. Each ch
 
 ```json
 {"type": "health_weight", "id": "5f0c2a7e-91b4-4d3a-8e6c-1a2b3c4d5e6f", "changed_at": "2026-11-11T07:30:00Z", "record": {"id": "5f0c2a7e-91b4-4d3a-8e6c-1a2b3c4d5e6f", "weight_kg": 70.4, "updated_at": "2026-11-11T07:30:00Z", "...": "..."}}
-{"type": "activity", "id": 412, "changed_at": "2026-11-11T08:02:11Z", "record": null}
+{"type": "activity", "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7", "changed_at": "2026-11-11T08:02:11Z", "record": null}
 ```
 
 - **A change** carries the whole record as `GET` on the record returns it: replace your copy.
