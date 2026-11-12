@@ -55,7 +55,7 @@ def mark_factor_used(factor_id: int, db: Session) -> None:
     )
 
 
-def stage_reencrypt_batch_mfa(after_id: int, limit: int, db: Session) -> core_key_rotation.BatchResult:
+def stage_reencrypt_batch_mfa(after_id: int | None, limit: int, db: Session) -> core_key_rotation.BatchResult[int]:
     """Stage the re-encryption of up to ``limit`` factor rows after ``after_id`` (flushed, not committed)."""
     model = auth_mfa_models.MFAFactor
     return core_key_rotation.stage_reencrypt_batch(model, model.id, (model.credential,), after_id, limit, db)

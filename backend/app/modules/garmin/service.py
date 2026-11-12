@@ -149,31 +149,6 @@ def linked_session(
         save_refreshed_token(user_id, session)
 
 
-def get_user_garminconnect_client(user_id: int, db: Session) -> garminconnect.Garmin | None:
-    """Return an authenticated Garmin Connect client for a linked user, changing nothing.
-
-    Serves data migrations, which read the account and never unlink it.
-
-    Args:
-        user_id: The user whose Garmin Connect account to use.
-        db: Database session.
-
-    Returns:
-        The client, or ``None`` when Garmin Connect is not linked or the stored session is unusable.
-    """
-    try:
-        session = get_user_garminconnect_session(user_id, db)
-    except core_exceptions.UndecryptableError as err:
-        # Swallowed here, so this is the only place the unusable session is reported.
-        logger.warning(
-            "Garmin Connect session could not be decrypted; treating the account as unusable",
-            exc_info=err,
-            extra=core_logger.context(user_id=user_id),
-        )
-        return None
-    return session.client if session is not None else None
-
-
 def save_refreshed_token(user_id: int, session: GarminSession) -> None:
     """Store the token a sync's client refreshed, so the next sync restores a live one.
 

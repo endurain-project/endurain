@@ -10,7 +10,7 @@ import migrations.startup as migrations_startup
 
 
 def test_every_step_runs_while_the_lock_is_held():
-    order: list[str] = []
+    order: list[object] = []
 
     @contextmanager
     def lock():
@@ -23,12 +23,14 @@ def test_every_step_runs_while_the_lock_is_held():
     with (
         patch.object(migrations_startup, "migration_lock", lock),
         patch.object(migrations_startup, "run_alembic_upgrade", lambda: order.append("alembic")),
-        patch.object(migrations_startup, "bootstrap_substrate_schema", lambda: order.append("substrate")),
+        patch.object(
+            migrations_startup, "bootstrap_substrate_schema", lambda engine: order.append(("substrate", engine))
+        ),
         patch.object(migrations_startup, "check_migrations", AsyncMock(side_effect=lambda: order.append("data"))),
     ):
         asyncio.run(migrations_startup.migrate_schema_and_data())
 
-    assert order == ["lock", "alembic", "substrate", "data", "unlock"]
+    assert order == ["lock", "alembic", ("substrate", migrations_startup.engine), "data", "unlock"]
 
 
 def test_the_lock_is_released_when_a_step_fails():

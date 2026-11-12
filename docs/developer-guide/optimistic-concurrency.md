@@ -119,14 +119,13 @@ A system writer has no version to name. It passes `if_match="*"` to the service,
 
 | Writer | Why it uses `*` |
 | ------ | --------------- |
-| Data migrations (`migration_service`) | They rewrite rows to a known shape. |
 | The profile importer | The archive carries the exporting account's rows, so it drops `id`, `user_id` and `version` and overwrites. |
 | The IDP profile sync | The identity provider is the source of truth for name and email. |
 | Provider upserts (Garmin Connect health data) | The day's record is created or updated by whoever gets there first. |
 
 An upsert that loses the version race re-reads the row and applies again, up to `UPSERT_ATTEMPTS` times (`modules/health/constants.py`). Each round lets at least one writer through, so the limit is the number of concurrent writers of one day it serves.
 
-`users_crud.update_user` takes `if_match` as an optional argument, unlike the other CRUD functions: fourteen callers are system writers, and only the routes that serve a client require the header.
+`users_crud.update_user` takes `if_match` as an optional argument, unlike the other CRUD functions: four callers are system writers, and only the routes that serve a client require the header.
 
 ## What is not versioned
 

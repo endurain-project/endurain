@@ -42,12 +42,6 @@ def _sql(mock_db) -> str:
 
 
 class TestReads:
-    def test_get_all_users(self, mock_db):
-        rows = [MagicMock(), MagicMock()]
-        _many(mock_db, rows)
-
-        assert users_crud.get_all_users(mock_db) == rows
-
     def test_get_user_by_id_found(self, mock_db):
         row = MagicMock(spec=users_models.Users)
         _one(mock_db, row)

@@ -1,7 +1,7 @@
 """1: enforce gear nickname uniqueness per user
 
 Revision ID: 9a4e6c2d1f73
-Revises: d54bdd779392
+Revises: c5cfe02a11c2
 Create Date: 2026-10-20 00:00:00.000000
 
 Gear creation checks for an existing nickname before inserting, which is
@@ -31,7 +31,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "9a4e6c2d1f73"
-down_revision: str | None = "d54bdd779392"
+down_revision: str | None = "c5cfe02a11c2"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

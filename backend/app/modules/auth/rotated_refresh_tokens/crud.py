@@ -93,7 +93,7 @@ def delete_by_family(token_family_id: str, db: Session) -> int:
     return matched
 
 
-def stage_reencrypt_batch_tokens(after_id: int, limit: int, db: Session) -> core_key_rotation.BatchResult:
+def stage_reencrypt_batch_tokens(after_id: int | None, limit: int, db: Session) -> core_key_rotation.BatchResult[int]:
     """Stage the re-encryption of up to ``limit`` tokens rows after ``after_id`` (flushed, not committed)."""
     model = rotated_token_models.RotatedRefreshToken
     return core_key_rotation.stage_reencrypt_batch(

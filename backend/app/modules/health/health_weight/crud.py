@@ -24,21 +24,6 @@ SPEC = health_record_crud.RecordSpec(
 )
 
 
-def get_all_health_weight(db: Session) -> list[health_weight_schema.HealthWeightRead]:
-    """Retrieve every weight record of every user (migration use only).
-
-    Args:
-        db: Database session.
-
-    Returns:
-        The records ordered by date descending.
-    """
-    stmt = select(health_weight_models.HealthWeight).order_by(desc(health_weight_models.HealthWeight.date))
-    return health_computation.to_read_schemas(
-        health_weight_schema.HealthWeightRead, list(db.execute(stmt).scalars().all())
-    )
-
-
 def get_health_weight_number_by_user_id(
     user_id: int, db: Session, since: date_type | None = None, until: date_type | None = None
 ) -> int:

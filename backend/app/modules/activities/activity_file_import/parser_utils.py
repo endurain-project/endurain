@@ -481,7 +481,7 @@ def generate_activity_laps(
 ) -> list[LapMetrics]:
     """Split waypoints into distance-based laps and compute metrics.
 
-    Reads the streams a parser just built and, in data migrations, the streams stored as JSON.
+    Reads the streams a parser just built.
 
     Args:
         lat_lon_waypoints: List of lat/lon dicts.

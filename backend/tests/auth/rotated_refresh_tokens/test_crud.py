@@ -154,7 +154,7 @@ def test_reencryption_skips_a_cleared_replacement():
     db.query(rotated_token_models.RotatedRefreshToken).update({"expires_at": now - timedelta(seconds=1)})
     rotated_token_crud.clear_expired_replacements(now, 100, db)
 
-    result = rotated_token_crud.stage_reencrypt_batch_tokens(0, 100, db)
+    result = rotated_token_crud.stage_reencrypt_batch_tokens(None, 100, db)
 
     assert result.counts.rotated == 0
     assert result.counts.undecryptable == 0

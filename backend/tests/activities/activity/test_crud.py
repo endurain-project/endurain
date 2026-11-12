@@ -109,24 +109,6 @@ class TestGetUserActivitiesWithPagination:
         assert r is not None
 
 
-class TestGetAllActivities:
-    @patch("modules.activities.activity.crud.activity_serializers.to_read_schema")
-    def test_success(self, mock_ser, mock_db):
-        import modules.activities.activity.crud as crud
-        import modules.activities.activity.models as am
-
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=1)])
-        mock_ser.return_value = MagicMock()
-        r = crud.get_all_activities(db=mock_db)
-        assert r is not None and len(r) == 1
-
-    def test_empty(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        setup_mock_execute(mock_db, return_scalars_all=[])
-        assert crud.get_all_activities(db=mock_db) == []
-
-
 class TestGetActivityByID:
     @patch("modules.activities.activity.crud.activity_serializers.to_read_schema")
     def test_success(self, mock_ser, mock_db):
@@ -551,23 +533,6 @@ class TestActivityByStravaGarmin:
             crud.get_activity_by_garminconnect_id_from_user_id(activity_garminconnect_id=999, user_id=1, db=mock_db)
             is None
         )
-
-
-class TestGetAllActivitiesForMigration:
-    def test_success(self, mock_db):
-        import modules.activities.activity.crud as crud
-        import modules.activities.activity.models as am
-
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=1, user_id=2)])
-        refs = crud.get_all_activities_for_migration(db=mock_db)
-        assert len(refs) == 1
-        assert refs[0].id == 1 and refs[0].user_id == 2
-
-    def test_empty(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        setup_mock_execute(mock_db, return_scalars_all=[])
-        assert crud.get_all_activities_for_migration(db=mock_db) == []
 
 
 class TestGetGarminGearActivityRefs:
@@ -1313,18 +1278,6 @@ class TestDeleteActivitiesBatchForUser:
         result = crud.delete_activities_batch_for_user(user_id=1, limit=2, db=mock_db)
         assert result == [1, 2, 3]
         mock_db.commit.assert_not_called()
-
-
-class TestGetActivitiesWithLegacyThumbnailPath:
-    def test_returns_refs(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        row = MagicMock(id=7, map_thumbnail_path="/data/x/7.png")
-        setup_mock_execute(mock_db, return_scalars_all=[row])
-        result = crud.get_activities_with_legacy_thumbnail_path(mock_db)
-        assert len(result) == 1
-        assert result[0].id == 7
-        assert result[0].map_thumbnail_path == "/data/x/7.png"
 
 
 class TestLocalTimeBucketing:

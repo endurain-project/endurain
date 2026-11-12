@@ -91,19 +91,6 @@ def _filtered[RowT: tuple[object, ...]](
     return stmt
 
 
-def get_all_users(db: Session) -> list[users_schema.UserRead]:
-    """Retrieve all users.
-
-    Args:
-        db: Database session.
-
-    Returns:
-        All user schemas.
-    """
-    users = db.execute(select(users_models.Users)).scalars().all()
-    return [users_serializers.to_read_schema(user) for user in users]
-
-
 def get_users_number(
     db: Session,
     *,
@@ -396,9 +383,9 @@ def get_stored_photo_keys(db: Session) -> list[tuple[int, str | None]]:
     """Return every user's raw stored photo value (migration use only).
 
     The read schema resolves ``photo_path`` into a signed URL, so a migration
-    that needs the value actually on the row cannot go through
-    :func:`get_all_users`. Scalars are returned rather than model instances so
-    no ORM object leaves this module.
+    that needs the value actually on the row cannot go through the read schemas.
+    Scalars are returned rather than model instances so no ORM object leaves
+    this module.
 
     Args:
         db: Database session.

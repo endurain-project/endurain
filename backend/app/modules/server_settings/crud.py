@@ -173,7 +173,7 @@ def edit_mail_settings(
     return server_settings_serializers.to_mail_settings_read(row)
 
 
-def stage_reencrypt_batch_settings(after_id: int, limit: int, db: Session) -> core_key_rotation.BatchResult:
+def stage_reencrypt_batch_settings(after_id: int | None, limit: int, db: Session) -> core_key_rotation.BatchResult[int]:
     """Stage the re-encryption of up to ``limit`` settings rows after ``after_id`` (flushed, not committed)."""
     model = server_settings_models.ServerSettings
     return core_key_rotation.stage_reencrypt_batch(
@@ -189,7 +189,7 @@ def stage_reencrypt_batch_settings(after_id: int, limit: int, db: Session) -> co
     )
 
 
-def stage_reencrypt_batch_mail(after_id: int, limit: int, db: Session) -> core_key_rotation.BatchResult:
+def stage_reencrypt_batch_mail(after_id: int | None, limit: int, db: Session) -> core_key_rotation.BatchResult[int]:
     """Stage the re-encryption of up to ``limit`` mail rows after ``after_id`` (flushed, not committed)."""
     model = server_settings_models.MailSettings
     return core_key_rotation.stage_reencrypt_batch(model, model.id, (model.password,), after_id, limit, db)

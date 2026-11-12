@@ -45,14 +45,6 @@ def _returns_one(mock_db, row):
 
 
 class TestListReads:
-    def test_get_all_health_weight(self, mock_db):
-        _returns_scalars(mock_db, [_row(1), _row(2)])
-
-        result = health_weight_crud.get_all_health_weight(mock_db)
-
-        assert [r.id for r in result] == [1, 2]
-        mock_db.execute.assert_called_once()
-
     def test_get_all_health_weight_by_user_id_empty(self, mock_db):
         _returns_scalars(mock_db, [])
 

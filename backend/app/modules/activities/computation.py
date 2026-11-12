@@ -4,9 +4,9 @@ Turn raw waypoint streams into activity metrics (speed, elevation, pace,
 averages, normalized power). Side-effect-free: no network, database or
 filesystem I/O, and no import of any other module.
 
-Module-level rather than inside a sub-package because three different consumers
-need them — the file parsers, the Strava adapter, and the data migrations — and
-the Strava one is outside this module. Living in ``activity_file_import`` made
+Module-level rather than inside a sub-package because two different consumers
+need them — the file parsers and the Strava adapter — and the Strava one is
+outside this module. Living in ``activity_file_import`` made
 that a reach into a package whose whole contract is "parsers only"; living here
 says the activities namespace publishes its metric maths alongside its explicit
 composition and contributor surfaces.

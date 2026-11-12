@@ -295,7 +295,9 @@ def set_icon_uploaded(idp_id: int, is_set: bool, db: Session) -> tuple[int, bool
     return row.version, had_icon
 
 
-def stage_reencrypt_batch_providers(after_id: int, limit: int, db: Session) -> core_key_rotation.BatchResult:
+def stage_reencrypt_batch_providers(
+    after_id: int | None, limit: int, db: Session
+) -> core_key_rotation.BatchResult[int]:
     """Stage the re-encryption of up to ``limit`` providers rows after ``after_id`` (flushed, not committed)."""
     model = identity_provider_models.IdentityProvider
     return core_key_rotation.stage_reencrypt_batch(

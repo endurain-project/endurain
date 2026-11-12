@@ -9,7 +9,7 @@ from contextlib import contextmanager
 
 import jasil.migrations as jasil_migrations
 from alembic.config import Config
-from sqlalchemy import text
+from sqlalchemy import Engine, text
 
 import core.logger as core_logger
 import migrations.utils as migrations_utils
@@ -63,7 +63,7 @@ def run_alembic_upgrade() -> None:
     command.upgrade(alembic_cfg, "head")
 
 
-def bootstrap_substrate_schema() -> None:
+def bootstrap_substrate_schema(engine: Engine) -> None:
     """Adopt, upgrade, and verify the substrate's migration history.
 
     ``event_log``, ``event_outbox`` and ``processing_jobs`` are created by this
@@ -75,8 +75,8 @@ def bootstrap_substrate_schema() -> None:
     Must run after the application's own Alembic upgrade, which is what creates
     or normalises any legacy tables being adopted.
 
-    Returns:
-        None.
+    Args:
+        engine: The engine of the database to bootstrap.
     """
     if jasil_migrations.adopt_existing_schema(engine):
         logger.info("Adopted existing substrate tables", extra=core_logger.context(console=True))
@@ -116,5 +116,5 @@ async def migrate_schema_and_data() -> None:
     """
     with migration_lock():
         run_alembic_upgrade()
-        bootstrap_substrate_schema()
+        bootstrap_substrate_schema(engine)
         await check_migrations()

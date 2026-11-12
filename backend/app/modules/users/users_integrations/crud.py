@@ -549,7 +549,7 @@ def edit_user_integrations(
     return user_integrations_serializers.to_read_schema(db_user_integrations)
 
 
-def stage_reencrypt_batch_strava(after_id: int, limit: int, db: Session) -> core_key_rotation.BatchResult:
+def stage_reencrypt_batch_strava(after_id: int | None, limit: int, db: Session) -> core_key_rotation.BatchResult[int]:
     """Stage the re-encryption of up to ``limit`` strava rows after ``after_id`` (flushed, not committed)."""
     model = user_integrations_models.UsersIntegrations
     return core_key_rotation.stage_reencrypt_batch(
@@ -567,14 +567,14 @@ def stage_reencrypt_batch_strava(after_id: int, limit: int, db: Session) -> core
     )
 
 
-def stage_reencrypt_batch_garmin(after_id: int, limit: int, db: Session) -> core_key_rotation.BatchResult:
+def stage_reencrypt_batch_garmin(after_id: int | None, limit: int, db: Session) -> core_key_rotation.BatchResult[int]:
     """Stage the re-encryption of the secrets in up to ``limit`` Garmin tokens after ``after_id``.
 
     The rows are locked while they are read, so a concurrent token write waits for the batch and is never
     overwritten. A secret no configured key decrypts is left as it is.
 
     Args:
-        after_id: Keyset cursor; only rows with a greater id are read.
+        after_id: Keyset cursor; only rows with a greater id are read, and None reads from the first row.
         limit: Maximum number of rows to read.
         db: SQLAlchemy database session.
 
@@ -582,7 +582,10 @@ def stage_reencrypt_batch_garmin(after_id: int, limit: int, db: Session) -> core
         The last id read and the secrets rewritten or left undecryptable.
     """
     model = user_integrations_models.UsersIntegrations
-    rows = db.execute(select(model).where(model.id > after_id).order_by(model.id).limit(limit).with_for_update())
+    query = select(model)
+    if after_id is not None:
+        query = query.where(model.id > after_id)
+    rows = db.execute(query.order_by(model.id).limit(limit).with_for_update())
     rotated = undecryptable = 0
     last_id = None
     for row in rows.scalars():

@@ -2,7 +2,7 @@
 
 import asyncio
 import threading
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -17,7 +17,6 @@ def _run(sync: dict, pending: list) -> None:
     with (
         patch.object(migrations_utils.migrations_crud, "get_migrations_not_executed", return_value=pending),
         patch.object(migrations_utils, "_SYNC_MIGRATIONS", sync),
-        patch.object(migrations_utils, "_ASYNC_MIGRATIONS", {}),
     ):
         asyncio.run(migrations_utils.check_migrations_not_executed(MagicMock()))
 
@@ -55,15 +54,3 @@ def test_migrations_run_in_order_and_a_failure_stops_the_rest():
         _run({1: lambda _db: order.append(1), 2: fail, 3: lambda _db: order.append(3)}, _pending(1, 2, 3))
 
     assert order == [1, 2]
-
-
-def test_an_async_migration_is_awaited_on_the_loop():
-    handler = AsyncMock()
-    with (
-        patch.object(migrations_utils.migrations_crud, "get_migrations_not_executed", return_value=_pending(4)),
-        patch.object(migrations_utils, "_SYNC_MIGRATIONS", {}),
-        patch.object(migrations_utils, "_ASYNC_MIGRATIONS", {4: handler}),
-    ):
-        asyncio.run(migrations_utils.check_migrations_not_executed(MagicMock()))
-
-    handler.assert_awaited_once()

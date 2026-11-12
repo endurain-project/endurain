@@ -197,30 +197,6 @@ class TestCreateActivityMedias:
         mock_db.commit.assert_not_called()
 
 
-class TestEditActivityMediaMediaPath:
-    def test_success(self, mock_db):
-        import modules.activities.activity_media.crud as crud
-        import modules.activities.activity_media.models as m
-
-        mock_media = MagicMock(
-            spec=m.ActivityMedia, id=1, activity_id=1, media_path="/old/path", media_type=1, content_hash=None
-        )
-        mock_db.scalars.return_value.first.return_value = mock_media
-        result = crud.edit_activity_media_media_path(1, "/new/path", mock_db)
-        mock_db.flush.assert_called_once()
-        mock_db.commit.assert_not_called()
-        mock_db.refresh.assert_called_once_with(mock_media)
-        assert result.media_path == "/new/path"
-
-    def test_not_found(self, mock_db):
-        import modules.activities.activity_media.crud as crud
-
-        mock_db.scalars.return_value.first.return_value = None
-        with pytest.raises(core_exceptions.NotFoundError) as e:
-            crud.edit_activity_media_media_path(1, "/new/path", mock_db)
-        assert e.value.status_code == 404
-
-
 class TestDeleteActivityMedia:
     def test_success(self, mock_db):
         import modules.activities.activity_media.crud as crud

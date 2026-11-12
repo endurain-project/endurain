@@ -8,12 +8,11 @@ carries the storage key; turning that key into a servable URL is an addressing
 concern owned by ``service.py``, not by the persistence layer.
 """
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
-import core.pagination as core_pagination
 import modules.activities.activity.constants as activity_constants
 import modules.activities.activity_media.contracts as activity_media_contracts
 import modules.activities.activity_media.models as activity_media_models
@@ -198,43 +197,6 @@ def get_activity_media_by_content_hash(
     return activity_media_serializers.to_read_schema(media) if media is not None else None
 
 
-def get_media_with_legacy_path(
-    db: Session,
-    *,
-    after_id: int = 0,
-    limit: int = core_pagination.DEFAULT_EXTERNAL_IO_BATCH_SIZE,
-) -> list[activity_media_contracts.ActivityMediaRecord]:
-    r"""Return media rows whose stored value is a legacy filesystem path.
-
-    Legacy values are absolute paths (they contain a ``/`` or ``\`` separator);
-    the storage keys that replaced them (e.g. ``42_ab12.jpg``) never do. Ordered
-    by id and paged via ``after_id`` so the data migration can process them in
-    bounded batches (migration use only).
-
-    Args:
-        db: Database session.
-        after_id: Return only media with ``id`` greater than this.
-        limit: Maximum number of rows to return.
-
-    Returns:
-        The matching media records.
-    """
-    stmt = (
-        select(activity_media_models.ActivityMedia)
-        .where(
-            activity_media_models.ActivityMedia.media_path.isnot(None),
-            or_(
-                activity_media_models.ActivityMedia.media_path.like("%/%"),
-                activity_media_models.ActivityMedia.media_path.like("%\\%"),
-            ),
-            activity_media_models.ActivityMedia.id > after_id,
-        )
-        .order_by(activity_media_models.ActivityMedia.id)
-        .limit(limit)
-    )
-    return [activity_media_serializers.to_read_schema(media) for media in db.scalars(stmt).all()]
-
-
 def create_activity_media(
     activity_id: int,
     media_key: str,
@@ -304,36 +266,6 @@ def create_activity_medias(
 
     db.add_all(media)
     db.flush()
-
-
-def edit_activity_media_media_path(
-    activity_media_id: int, media_path: str, db: Session
-) -> activity_media_contracts.ActivityMediaRecord:
-    """Update the ``media_path`` of an activity media record.
-
-    Args:
-        activity_media_id: ID of the activity media record to update.
-        media_path: New filesystem path to assign.
-        db: Database session.
-
-    Returns:
-        The refreshed media record.
-
-    Raises:
-        NotFoundError: If the record does not exist.
-    """
-    stmt = select(activity_media_models.ActivityMedia).where(
-        activity_media_models.ActivityMedia.id == activity_media_id
-    )
-    db_activity_media = db.scalars(stmt).first()
-
-    if db_activity_media is None:
-        raise core_exceptions.NotFoundError("Activity media not found")
-
-    db_activity_media.media_path = media_path
-    db.flush()
-    db.refresh(db_activity_media)
-    return activity_media_serializers.to_read_schema(db_activity_media)
 
 
 def delete_activity_media(activity_media_id: int, db: Session) -> None:

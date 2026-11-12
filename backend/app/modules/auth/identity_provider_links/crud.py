@@ -352,7 +352,9 @@ def delete_idp_session_token_if_unchanged(session_id: str, expected_refresh_toke
     return True
 
 
-def stage_reencrypt_batch_session_tokens(after_id: int, limit: int, db: Session) -> core_key_rotation.BatchResult:
+def stage_reencrypt_batch_session_tokens(
+    after_id: int | None, limit: int, db: Session
+) -> core_key_rotation.BatchResult[int]:
     """Stage the re-encryption of up to ``limit`` session-token rows after ``after_id`` (flushed, not committed)."""
     model = identity_link_models.IdpSessionToken
     return core_key_rotation.stage_reencrypt_batch(

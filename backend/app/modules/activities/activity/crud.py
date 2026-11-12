@@ -234,55 +234,6 @@ def _apply_user_activity_filters[RowT: tuple[object, ...]](
     return stmt
 
 
-def get_all_activities(
-    db: Session,
-) -> list[activity_schema.ActivityRead]:
-    """Return every activity in the database, serialized.
-
-    Note:
-        Loads all rows in memory. Intended for migration
-        scripts only — do not call from request handlers.
-
-    Args:
-        db: Database session.
-
-    Returns:
-        The activity schemas, empty when there are none.
-    """
-    activities = db.execute(select(activity_models.Activity)).scalars().all()
-    if not activities:
-        return []
-    return [activity_serializers.to_read_schema(a) for a in activities]
-
-
-def get_all_activities_for_migration(
-    db: Session,
-) -> list[activity_contracts.ActivityMigrationRef]:
-    """Return a lightweight reference for every activity (migration use only).
-
-    Projects only the identity, owner, provider ids, and time bounds the
-    data-backfill migrations read, so no ORM row leaves the CRUD layer.
-
-    Args:
-        db: Database session.
-
-    Returns:
-        A migration reference per activity, or an empty list when there are none.
-    """
-    activities = db.execute(select(activity_models.Activity)).scalars().all()
-    return [
-        activity_contracts.ActivityMigrationRef(
-            id=activity.id,
-            user_id=activity.user_id,
-            start_time=activity.start_time,
-            end_time=activity.end_time,
-            strava_activity_id=activity.strava_activity_id,
-            garminconnect_activity_id=activity.garminconnect_activity_id,
-        )
-        for activity in activities
-    ]
-
-
 def get_user_activities(
     user_id: int,
     db: Session,
@@ -1425,44 +1376,6 @@ def defer_thumbnail_attempts(activity_ids: Sequence[int], retry_at: datetime, db
         .values(thumbnail_next_attempt_at=retry_at)
     )
     db.flush()
-
-
-def get_activities_with_legacy_thumbnail_path(
-    db: Session,
-    *,
-    after_id: int = 0,
-    limit: int = core_pagination.DEFAULT_EXTERNAL_IO_BATCH_SIZE,
-) -> list[activity_contracts.ActivityThumbnailRef]:
-    """Return references to activities whose thumbnail value is a legacy filesystem path.
-
-    Legacy values are absolute paths (they contain a ``/`` separator); the new
-    storage keys (e.g. ``42.webp``) never do. Ordered by id and paged via
-    ``after_id`` so migration 8 can process them in bounded batches (migration
-    use only).
-
-    Args:
-        db: Database session.
-        after_id: Return only activities with ``id`` greater than this.
-        limit: Maximum number of rows to return.
-
-    Returns:
-        Thumbnail references (id + stored key) for rows with a legacy thumbnail
-        path.
-    """
-    stmt = (
-        select(activity_models.Activity)
-        .where(
-            activity_models.Activity.map_thumbnail_path.isnot(None),
-            activity_models.Activity.map_thumbnail_path.like("%/%"),
-            activity_models.Activity.id > after_id,
-        )
-        .order_by(activity_models.Activity.id)
-        .limit(limit)
-    )
-    rows = db.execute(stmt).scalars().all()
-    return [
-        activity_contracts.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path) for row in rows
-    ]
 
 
 def edit_activity(
