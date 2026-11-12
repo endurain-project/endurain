@@ -82,10 +82,23 @@ def test_many_rows_on_one_stamp_page_without_gaps_or_repeats(factory):
             update(activity_models.Activity).where(activity_models.Activity.id.in_(ids)).values(updated_at=stamp)
         )
         db.execute(update(gear_models.Gear).where(gear_models.Gear.id.in_(gears)).values(updated_at=stamp))
+        weights = [
+            weight_models.HealthWeight(user_id=_USER, date=date(2026, 1, 1 + n), weight_kg=Decimal("70"))
+            for n in range(5)
+        ]
+        db.add_all(weights)
+        db.flush()
+        weight_ids = [weight.id for weight in weights]
+        db.execute(
+            update(weight_models.HealthWeight)
+            .where(weight_models.HealthWeight.id.in_(weight_ids))
+            .values(updated_at=stamp)
+        )
         db.commit()
 
     changes, _ = _walk(factory, size=3)
 
     keys = [(kind, record_id) for kind, record_id, _ in changes]
     assert len(keys) == len(set(keys))
-    assert {("activity", activity_id) for activity_id in ids} | {("gear", gear_id) for gear_id in gears} <= set(keys)
+    expected = {("activity", activity_id) for activity_id in ids} | {("gear", gear_id) for gear_id in gears}
+    assert expected | {("health_weight", weight_id) for weight_id in weight_ids} <= set(keys)

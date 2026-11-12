@@ -121,7 +121,8 @@ def _execute(connection: Connection, statement: str, **params: str) -> None:
     connection.execute(sa.text(statement), params)
 
 
-def _seed_users(connection: Connection) -> None:
+def seed_users(connection: Connection) -> None:
+    """Insert users 1 (admin), 2 (regular) and 3 (regular), in the shape every revision of the chain accepts."""
     _execute(
         connection,
         """INSERT INTO users (id, name, username, email, preferred_language, email_verified, pending_admin_approval,
@@ -129,6 +130,8 @@ def _seed_users(connection: Connection) -> None:
            VALUES (1, 'Admin User', 'admin', 'admin@example.com', 'en', true, false, true, 'male', 'admin',
                'monday', 'metric', 'euro'),
                (2, 'Regular User', 'regular', 'regular@example.com', 'en', true, false, true, 'female', 'regular',
+               'monday', 'metric', 'euro'),
+               (3, 'Third User', 'third', 'third@example.com', 'en', true, false, true, 'female', 'regular',
                'monday', 'metric', 'euro')""",
     )
 
@@ -170,10 +173,12 @@ def _seed_users_integrations(connection: Connection) -> None:
 
 
 def _seed_users_goals(connection: Connection) -> None:
+    """Seed three goals of user 1, inserted out of id order, with distinct scopes and distances."""
     _execute(
         connection,
         "INSERT INTO users_goals (id, user_id, interval, goal_distance, activity_type, goal_type) "
-        "VALUES (1, 1, 'weekly', 50000, 'run', 'distance')",
+        "VALUES (3, 1, 'monthly', 30000, 'run', 'distance'), (1, 1, 'weekly', 10000, 'run', 'distance'), "
+        "(2, 1, 'daily', 20000, 'ride', 'distance')",
     )
 
 
@@ -257,7 +262,13 @@ def _seed_sign_up_tokens(connection: Connection) -> None:
 
 
 def _seed_followers(connection: Connection) -> None:
-    _execute(connection, "INSERT INTO followers (id, follower_id, followee_id, status) VALUES (1, 2, 1, 'accepted')")
+    """Seed three relationships out of id order: id 2 was created before id 1 and id 3 ties with id 2."""
+    _execute(
+        connection,
+        "INSERT INTO followers (id, follower_id, followee_id, status, created_at) "
+        "VALUES (3, 2, 1, 'accepted', '2024-05-01 10:00:01'), (1, 1, 2, 'accepted', '2024-05-01 10:00:02'), "
+        "(2, 3, 1, 'accepted', '2024-05-01 10:00:01')",
+    )
 
 
 def _seed_notifications(connection: Connection) -> None:
@@ -441,7 +452,7 @@ def _mark_data_migrations_executed(connection: Connection) -> None:
 
 
 def seed_v0_20(connection: Connection) -> None:
-    """Insert one linked row into every table of the v0.20.x head and mark its data migrations executed.
+    """Insert one linked row into every table of the v0.20.x head (three goals and three followers, out of id order) and mark its data migrations executed.
 
     The statements are written against the v0.20 head shape and run in dependency order: users first, then what
     refers to them, then the activities and the substrate tables. ``server_settings`` and ``migrations`` are filled
@@ -450,7 +461,7 @@ def seed_v0_20(connection: Connection) -> None:
     Args:
         connection: A connection on a database at ``V0_20_HEAD``.
     """
-    _seed_users(connection)
+    seed_users(connection)
     _seed_users_local_credentials(connection)
     _seed_users_mfa(connection)
     _seed_mfa_backup_codes(connection)
@@ -532,7 +543,11 @@ def _seed_v0_21_follow_request_declines(connection: Connection) -> None:
 
 
 def _seed_v0_21_follower_blocks(connection: Connection) -> None:
-    _execute(connection, "INSERT INTO follower_blocks (id, blocker_id, blocked_id) VALUES (1, 1, 2)")
+    """Seed three blocks inserted out of id order in one transaction, so their ``created_at`` ties."""
+    _execute(
+        connection,
+        "INSERT INTO follower_blocks (id, blocker_id, blocked_id) VALUES (2, 1, 2), (3, 1, 3), (1, 2, 3)",
+    )
 
 
 def _seed_v0_21_mfa_factors(connection: Connection) -> None:

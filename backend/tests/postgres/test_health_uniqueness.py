@@ -6,15 +6,11 @@ The unique ``(user_id, date)`` constraint is what holds, and the service then up
 the other writer created.
 """
 
-import importlib.util
 import threading
 from datetime import date
 from decimal import Decimal
-from pathlib import Path
 
 import pytest
-from alembic.migration import MigrationContext
-from alembic.operations import Operations
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 
@@ -27,13 +23,14 @@ import modules.health.health_water.models as water_models
 import modules.health.health_water.schema as water_schema
 import modules.health.health_water.service as water_service
 import modules.health.health_weight.models as weight_models
+from tests._helpers import alembic_chain
 from tests._helpers.db import ensure_user
 
 _THREADS = 6
 _DAY = date(2026, 10, 1)
 
-_MIGRATION_PATH = Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/11_health_one_record_per_day.py"
-_TABLES = ("health_steps", "health_weight", "health_sleep", "health_water")
+_REVISION_BEFORE = "f4c8a2e6b7d1"
+_REVISION = "a6d2f8c41e75"
 
 
 @pytest.fixture
@@ -131,35 +128,24 @@ def test_the_database_refuses_a_second_record_for_a_day(factory, model, values):
             db.commit()
 
 
-def _load_migration():
-    spec = importlib.util.spec_from_file_location("health_one_record_per_day", _MIGRATION_PATH)
-    migration = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(migration)
-    return migration
-
-
-def test_the_migration_merges_duplicates_before_enforcing_the_constraints(factory):
-    with factory() as db:
-        for table in _TABLES:
-            db.execute(text(f"ALTER TABLE {table} DROP CONSTRAINT uq_{table}_user_date"))
+def test_the_migration_merges_duplicates_before_enforcing_the_constraints(upgrade_db):
+    alembic_chain.upgrade(upgrade_db, _REVISION_BEFORE)
+    with upgrade_db.begin() as connection:
+        alembic_chain.seed_users(connection)
         for steps in (100, 200, 300):
-            db.execute(
+            connection.execute(
                 text("INSERT INTO health_steps (user_id, date, steps) VALUES (1, :d, :s)"), {"d": _DAY, "s": steps}
             )
-        db.execute(text("INSERT INTO health_steps (user_id, date, steps) VALUES (2, :d, 50)"), {"d": _DAY})
+        connection.execute(text("INSERT INTO health_steps (user_id, date, steps) VALUES (2, :d, 50)"), {"d": _DAY})
         for ml in (100, 250):
-            db.execute(
+            connection.execute(
                 text("INSERT INTO health_water (user_id, date, amount_ml) VALUES (1, :d, :ml)"), {"d": _DAY, "ml": ml}
             )
-        db.commit()
 
-        migration = _load_migration()
-        with Operations.context(MigrationContext.configure(connection=db.connection())):
-            migration.upgrade()
-        db.commit()
+    alembic_chain.upgrade(upgrade_db, _REVISION)
 
-        steps = db.execute(text("SELECT user_id, steps FROM health_steps ORDER BY user_id")).all()
-        water = db.execute(text("SELECT user_id, amount_ml FROM health_water")).all()
-
+    with upgrade_db.connect() as connection:
+        steps = connection.execute(text("SELECT user_id, steps FROM health_steps ORDER BY user_id")).all()
+        water = connection.execute(text("SELECT user_id, amount_ml FROM health_water")).all()
     assert [tuple(row) for row in steps] == [(1, 300), (2, 50)]
     assert [(row.user_id, row.amount_ml) for row in water] == [(1, Decimal(350))]

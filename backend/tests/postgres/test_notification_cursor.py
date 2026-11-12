@@ -1,7 +1,10 @@
 """The notification list is a keyset feed: a notification created between two slices shifts nothing."""
 
+import uuid
+
 from sqlalchemy import update
 
+import core.pagination as core_pagination
 import modules.notifications.constants as notifications_constants
 import modules.notifications.crud as notifications_crud
 import modules.notifications.models as notifications_models
@@ -10,25 +13,27 @@ import modules.notifications.service as notifications_service
 from tests._helpers.db import ensure_user
 
 
-def _create(pg_factory, count: int) -> list[int]:
-    with pg_factory() as db:
-        ids = [
-            notifications_crud.create_notification(
-                notifications_schema.NotificationCreate(
-                    user_id=1,
-                    type=notifications_constants.NotificationType.NEW_ACTIVITY,
-                    options={"activity_id": n},
-                ),
-                db,
-            ).id
-            for n in range(count)
-        ]
-        db.commit()
+def _create(pg_factory, count: int) -> list[uuid.UUID]:
+    """Create ``count`` notifications, each in its own transaction so ``created_at`` strictly increases."""
+    ids: list[uuid.UUID] = []
+    for n in range(count):
+        with pg_factory() as db:
+            ids.append(
+                notifications_crud.create_notification(
+                    notifications_schema.NotificationCreate(
+                        user_id=1,
+                        type=notifications_constants.NotificationType.NEW_ACTIVITY,
+                        options={"activity_id": n},
+                    ),
+                    db,
+                ).id
+            )
+            db.commit()
     return ids
 
 
-def _walk(pg_factory, num_records: int, *, unread_only: bool = False) -> list[int]:
-    seen: list[int] = []
+def _walk(pg_factory, num_records: int, *, unread_only: bool = False) -> list[uuid.UUID]:
+    seen: list[uuid.UUID] = []
     cursor = None
     while True:
         with pg_factory() as db:
@@ -74,3 +79,12 @@ def test_unread_only_pages_over_the_unread_rows_with_the_cursor(pg_factory):
     seen = _walk(pg_factory, 2, unread_only=True)
 
     assert seen == [i for i in ids[::-1] if i not in read_ids]
+
+
+def test_the_cursor_round_trips_a_notification_uuid(pg_factory):
+    ensure_user(pg_factory, 1)
+    ids = _create(pg_factory, 3)
+    with pg_factory() as db:
+        first = notifications_service.list_notifications(1, db, cursor=None, num_records=1)
+    assert first.next_cursor is not None
+    assert core_pagination.decode_uuid_cursor(first.next_cursor)[1] == ids[-1]
