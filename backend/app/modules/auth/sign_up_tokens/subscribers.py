@@ -17,6 +17,7 @@ import modules.auth.sign_up_tokens.service as sign_up_service
 
 logger = core_logger.get_logger(__name__)
 SIGN_UP_VERIFICATION_EMAIL_SUBSCRIBER_ID = "auth.send_sign_up_verification_email"
+ADMIN_INVITATION_EMAIL_SUBSCRIBER_ID = "auth.send_admin_invitation_email"
 EMAIL_CHANGE_VERIFICATION_EMAIL_SUBSCRIBER_ID = "auth.send_email_change_verification_email"
 EMAIL_CHANGED_EMAIL_SUBSCRIBER_ID = "auth.send_email_changed_email"
 SIGN_UP_APPROVAL_REQUEST_EMAIL_SUBSCRIBER_ID = "auth.send_sign_up_approval_request_email"
@@ -62,6 +63,21 @@ def send_verification_email_for_event(event: Event) -> None:
         )
     _deliver_email(mail, message, "verification")
     logger.debug("Sign-up verification event processed", extra=core_logger.context(user_id=payload.user_id))
+
+
+def send_admin_invitation_email_for_event(event: Event) -> None:
+    """Send the invitation email for an account an administrator created without a password."""
+    payload = platform_event_versioning.parse_payload(sign_up_events.SignUpUserPayload, event)
+    mail = platform_runtime.get_active_platform().mail
+    with core_database.SessionLocal() as db:
+        message = sign_up_service.prepare_admin_invitation_email(
+            payload.user_id,
+            event.event_id,
+            core_config.settings.ENDURAIN_HOST,
+            db,
+        )
+    _deliver_email(mail, message, "admin-invitation")
+    logger.debug("Admin invitation event processed", extra=core_logger.context(user_id=payload.user_id))
 
 
 def send_email_change_verification_email_for_event(event: Event) -> None:
@@ -166,6 +182,7 @@ def send_email_change_address_taken_email_for_event(event: Event) -> None:
 
 
 on_sign_up_verification_requested = best_effort(send_verification_email_for_event)
+on_admin_invitation_requested = best_effort(send_admin_invitation_email_for_event)
 on_email_change_verification_requested = best_effort(send_email_change_verification_email_for_event)
 on_email_change_requested = best_effort(send_email_change_requested_email_for_event)
 on_email_changed = best_effort(send_email_changed_email_for_event)
@@ -178,6 +195,7 @@ on_email_change_address_taken = best_effort(send_email_change_address_taken_emai
 def register_bus_subscribers(events: EventBusProvider) -> None:
     """Register the sign-up bus subscribers."""
     events.subscribe(sign_up_events.SIGN_UP_VERIFICATION_REQUESTED, on_sign_up_verification_requested)
+    events.subscribe(sign_up_events.ADMIN_INVITATION_REQUESTED, on_admin_invitation_requested)
     events.subscribe(sign_up_events.EMAIL_CHANGE_VERIFICATION_REQUESTED, on_email_change_verification_requested)
     events.subscribe(sign_up_events.EMAIL_CHANGE_REQUESTED, on_email_change_requested)
     events.subscribe(sign_up_events.EMAIL_CHANGED, on_email_changed)
@@ -193,6 +211,11 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
         sign_up_events.SIGN_UP_VERIFICATION_REQUESTED,
         SIGN_UP_VERIFICATION_EMAIL_SUBSCRIBER_ID,
         send_verification_email_for_event,
+    )
+    registry.register(
+        sign_up_events.ADMIN_INVITATION_REQUESTED,
+        ADMIN_INVITATION_EMAIL_SUBSCRIBER_ID,
+        send_admin_invitation_email_for_event,
     )
     registry.register(
         sign_up_events.EMAIL_CHANGE_VERIFICATION_REQUESTED,

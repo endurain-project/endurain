@@ -1,3 +1,4 @@
+import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
@@ -257,6 +258,7 @@ describe.each(cases)('%s 422 handling', (_name, component, props, fieldError, me
   let wrapper: VueWrapper
 
   beforeEach(async () => {
+    setActivePinia(createPinia())
     vi.clearAllMocks()
     vi.mocked(apiFetch).mockRejectedValue(unprocessable([fieldError]))
     wrapper = mountDialog(component, props)

@@ -182,13 +182,13 @@ export interface EditUserFields {
 
 /**
  * Fields the admin supplies to create a user — the same set as
- * {@link EditUserFields} plus the initial password.
+ * {@link EditUserFields} plus the initial password, which is left out to invite the user to choose one.
  */
 export interface CreateUserInput {
   name: string
   username: string
   email: string
-  password: string
+  password?: string
   accessType: UserAccessType
   active: boolean
   emailVerified: boolean

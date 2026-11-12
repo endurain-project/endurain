@@ -76,6 +76,12 @@
       "confirmPassword": "Potwierdź hasło",
       "mustChangePasswordHint": "Użytkownik będzie musiał wybrać nowe hasło przy następnym logowaniu.",
       "confirmPasswordRequired": "Potwierdź hasło",
+      "passwordMode": "Jak użytkownik otrzymuje hasło",
+      "passwordModeInvitation": "Wyślij e-mailem zaproszenie do wyboru hasła",
+      "passwordModePassword": "Ustaw hasło teraz",
+      "passwordModeHint": "Użytkownik otrzymuje e-mail z linkiem ważnym 24 godziny, aby wybrać własne hasło.",
+      "invitationNeedsActive": "Nieaktywnego konta nie można zaprosić. Ustaw hasło.",
+      "inviteSuccess": "Użytkownik dodany, zaproszenie wysłane",
       "preferredLanguage": "Preferowany język",
       "languages": {
         "ca": "Kataloński",
@@ -955,6 +961,7 @@
       "createDescription": "Potwierdź swoją tożsamość, aby wygenerować nowy klucz API.",
       "createSuccess": "Utworzono klucz API",
       "createError": "Nie udało się utworzyć klucza API. Spróbuj ponownie.",
+      "apiKeyLimit": "Osiągnięto limit 25 aktywnych kluczy API. Unieważnij lub usuń jeden i spróbuj ponownie.",
       "expiryTooLate": "Ta data wygaśnięcia jest późniejsza, niż pozwala serwer. Wybierz wcześniejszą datę lub pozostaw pole puste.",
       "invalidCredentials": "Twoje hasło lub kod są nieprawidłowe.",
       "expiryNotFuture": "Ta data wygaśnięcia nie jest w przyszłości. Wybierz późniejszą datę.",
@@ -997,6 +1004,12 @@
       "reauthRequired": "Potwierdź swoją tożsamość u dostawcy tożsamości, aby kontynuować.",
       "failed": "Ponowne logowanie przez dostawcę tożsamości nie powiodło się. Spróbuj ponownie.",
       "notFresh": "Dostawca tożsamości nie poprosił o ponowne zalogowanie. Skontaktuj się z administratorem."
+    },
+    "tabs": {
+      "label": "Sekcje bezpieczeństwa",
+      "account": "Konto",
+      "sessions": "Sesje i dostęp",
+      "danger": "Strefa zagrożenia"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "Nie ustawiono",
     "emailManagedIn": "Twój e-mail zmieniasz w ustawieniach zabezpieczeń.",
     "emailManagedLink": "Otwórz ustawienia zabezpieczeń",
+    "usernameManagedIn": "Swoją nazwę użytkownika zmieniasz w ustawieniach zabezpieczeń.",
     "error": {
       "title": "Nie udało się wczytać Twojego profilu",
       "description": "Coś poszło nie tak podczas wczytywania profilu. Możesz spróbować ponownie.",
@@ -1133,7 +1147,7 @@
       "title": "Edytuj profil",
       "description": "Zaktualizuj dane swojego konta",
       "success": "Zaktualizowano profil",
-      "conflict": "Ta nazwa użytkownika lub e-mail są już używane",
+      "conflict": "Te zmiany są sprzeczne z zapisanym profilem. Odśwież stronę i spróbuj ponownie.",
       "error": "Nie udało się zaktualizować profilu. Spróbuj ponownie."
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "Nie udało się odblokować tego użytkownika. Spróbuj ponownie.",
       "loadError": "Nie udało się wczytać zablokowanych użytkowników.",
       "retry": "Spróbuj ponownie"
+    },
+    "tabs": {
+      "label": "Sekcje profilu",
+      "profile": "Profil",
+      "privacy": "Prywatność i dane"
     }
   }
 }

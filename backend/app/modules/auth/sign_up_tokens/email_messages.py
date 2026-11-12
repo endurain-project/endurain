@@ -112,6 +112,26 @@ def get_signup_confirmation_email(
     return _verification_email("signup_confirmation", user_name, signup_link, frontend_host, locale)
 
 
+def get_admin_invitation_email(
+    user_name: str,
+    invitation_link: str,
+    frontend_host: str,
+    locale: str | None = None,
+) -> tuple[str, str, str]:
+    """Build a localized email inviting the recipient to choose the password of the account an administrator made.
+
+    Args:
+        user_name: The recipient's display name.
+        invitation_link: The URL where the recipient chooses a password.
+        frontend_host: Base URL of the frontend, used in links and the footer.
+        locale: Preferred locale code for the recipient.
+
+    Returns:
+        A 3-tuple of (subject, html_content, text_content).
+    """
+    return _verification_email("admin_invitation", user_name, invitation_link, frontend_host, locale)
+
+
 def get_email_change_confirmation_email(
     user_name: str,
     verification_link: str,

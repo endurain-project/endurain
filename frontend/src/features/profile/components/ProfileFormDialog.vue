@@ -292,6 +292,18 @@ watch(open, (isOpen) => {
         </template>
       </FormField>
 
+      <FormField :label="t('settings.users.form.username')">
+        <template #default="{ fieldId }">
+          <Input :id="fieldId" :model-value="props.profile.username" name="username" disabled />
+          <p class="text-hint">
+            {{ t('settings.profile.usernameManagedIn') }}
+            <RouterLink :to="{ name: 'settings-security' }" class="underline" @click="open = false">
+              {{ t('settings.profile.emailManagedLink') }}
+            </RouterLink>
+          </p>
+        </template>
+      </FormField>
+
       <FormField :label="t('settings.users.form.email')">
         <template #default="{ fieldId }">
           <Input

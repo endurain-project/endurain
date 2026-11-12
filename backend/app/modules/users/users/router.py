@@ -71,7 +71,8 @@ def read_users(
 
     With `users:read-all` the page holds full records and every filter is available. With only `users:read` it
     holds public projections of active users who are discoverable (those who switched off "Let others find me
-    in search" are left out; their profile stays reachable by id), and a state filter is refused with 403.
+    in search" are left out; their profile stays reachable by id), a state filter is refused with 403, and a request
+    without `username` or `username_contains` of at least 3 characters is refused with 422.
     `num_records` defaults to the server's page size and may not exceed it; a larger value is refused with 422.
     """
     if "users:read-all" in scopes:
@@ -88,6 +89,7 @@ def read_users(
         )
     if any(state is not None for state in (active, email_verified, pending_approval, external_auth)):
         auth_dependencies.require_scopes(scopes, "users:read-all")
+    users_dependencies.require_search_term(username, username_contains)
     return users_service.list_public_users(page, db, username=username, username_contains=username_contains)
 
 
@@ -138,6 +140,10 @@ def create_user(
     An administrator account needs the creating administrator's own step-up verification in `step_up` (their
     current password or, for an account without one, a fresh identity-provider sign-in, and an MFA code when MFA
     is enabled). A regular account needs no `step_up`.
+
+    The `password` is optional when the server has mail configured: without it the account is created active with
+    no password and its owner is emailed a link, valid for 24 hours, to choose one. Without mail, or for an inactive
+    account, a missing password is refused.
 
     Args:
         request: The incoming request, read by the rate limiter.

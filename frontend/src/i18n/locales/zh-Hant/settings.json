@@ -76,6 +76,12 @@
       "confirmPassword": "確認密碼",
       "mustChangePasswordHint": "該使用者下次登入時必須選擇新密碼。",
       "confirmPasswordRequired": "確認密碼",
+      "passwordMode": "使用者如何取得密碼",
+      "passwordModeInvitation": "透過電子郵件寄送邀請，由使用者選擇密碼",
+      "passwordModePassword": "立即設定密碼",
+      "passwordModeHint": "使用者會收到一封郵件，其中的連結 24 小時內有效，可用來選擇自己的密碼。",
+      "invitationNeedsActive": "未啟用的帳戶無法被邀請，請改為設定密碼。",
+      "inviteSuccess": "使用者已新增，邀請已寄出",
       "preferredLanguage": "偏好語言",
       "languages": {
         "ca": "加泰隆尼亞語",
@@ -955,6 +961,7 @@
       "createDescription": "確認您的身分以建立新的 API 金鑰。",
       "createSuccess": "API 金鑰已建立",
       "createError": "無法建立 API 金鑰，請再試一次。",
+      "apiKeyLimit": "您已達到 25 個有效 API 金鑰的上限。請撤銷或刪除一個後再試。",
       "expiryTooLate": "該過期時間晚於伺服器允許的範圍。請選擇更早的日期，或留空。",
       "invalidCredentials": "您的密碼或驗證碼不正確。",
       "expiryNotFuture": "該到期時間不在未來，請選擇更晚的日期。",
@@ -997,6 +1004,12 @@
       "reauthRequired": "請透過您的身分提供者確認身分以繼續。",
       "failed": "透過身分提供者重新登入失敗，請再試一次。",
       "notFresh": "您的身分提供者沒有要求您重新登入，請聯絡管理員。"
+    },
+    "tabs": {
+      "label": "安全性分區",
+      "account": "帳戶",
+      "sessions": "工作階段與存取",
+      "danger": "危險區域"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "未設定",
     "emailManagedIn": "您的電子郵件需在安全性設定中變更。",
     "emailManagedLink": "開啟安全性設定",
+    "usernameManagedIn": "您的使用者名稱需在安全性設定中變更。",
     "error": {
       "title": "無法載入您的個人資料",
       "description": "載入您的個人資料時發生錯誤，請再試一次。",
@@ -1133,7 +1147,7 @@
       "title": "編輯個人資料",
       "description": "更新您的帳戶詳細資訊",
       "success": "個人資料已更新",
-      "conflict": "該使用者名稱或電子郵件已被使用",
+      "conflict": "這些變更與已儲存的資料衝突。請重新載入後再試。",
       "error": "無法更新您的個人資料，請再試一次。"
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "無法解除封鎖此使用者，請重試。",
       "loadError": "無法載入已封鎖的使用者。",
       "retry": "重試"
+    },
+    "tabs": {
+      "label": "個人資料分區",
+      "profile": "個人資料",
+      "privacy": "隱私與資料"
     }
   }
 }

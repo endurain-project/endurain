@@ -76,6 +76,12 @@
       "confirmPassword": "Confirm password",
       "mustChangePasswordHint": "The user will have to choose a new password at their next sign-in.",
       "confirmPasswordRequired": "Confirm the password",
+      "passwordMode": "How the user gets a password",
+      "passwordModeInvitation": "Email an invitation to choose a password",
+      "passwordModePassword": "Set a password now",
+      "passwordModeHint": "The user receives an email with a link, valid for 24 hours, to choose their own password.",
+      "invitationNeedsActive": "An inactive account cannot be invited. Set a password instead.",
+      "inviteSuccess": "User added and invitation sent",
       "preferredLanguage": "Preferred language",
       "languages": {
         "ca": "Catalan",
@@ -955,6 +961,7 @@
       "createDescription": "Confirm your identity to mint a new API key.",
       "createSuccess": "API key created",
       "createError": "Couldn't create the API key. Please try again.",
+      "apiKeyLimit": "You have reached the limit of 25 active API keys. Revoke or delete one and try again.",
       "expiryTooLate": "That expiry is later than the server allows. Choose an earlier date or leave it empty.",
       "invalidCredentials": "Your password or code is incorrect.",
       "expiryNotFuture": "That expiry is not in the future. Choose a later date.",
@@ -1129,6 +1136,7 @@
     "notSet": "Not set",
     "emailManagedIn": "Your email is changed in Security settings.",
     "emailManagedLink": "Open Security settings",
+    "usernameManagedIn": "Your username is changed in Security settings.",
     "error": {
       "title": "Couldn't load your profile",
       "description": "Something went wrong while loading your profile. You can try again.",
@@ -1139,7 +1147,7 @@
       "title": "Edit profile",
       "description": "Update your account details",
       "success": "Profile updated",
-      "conflict": "That username or email is already in use",
+      "conflict": "These changes conflict with your saved profile. Reload and try again.",
       "error": "Couldn't update your profile. Please try again."
     },
     "photo": {

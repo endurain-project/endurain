@@ -76,6 +76,12 @@
       "confirmPassword": "Jelszó megerősítése",
       "mustChangePasswordHint": "A felhasználónak a következő bejelentkezéskor új jelszót kell választania.",
       "confirmPasswordRequired": "Jelszó megerősítése",
+      "passwordMode": "Hogyan kapja meg a felhasználó a jelszavát",
+      "passwordModeInvitation": "Meghívó küldése e-mailben a jelszó kiválasztásához",
+      "passwordModePassword": "Jelszó megadása most",
+      "passwordModeHint": "A felhasználó e-mailt kap egy 24 óráig érvényes hivatkozással, amellyel saját jelszót választhat.",
+      "invitationNeedsActive": "Inaktív fiók nem hívható meg. Adj meg helyette jelszót.",
+      "inviteSuccess": "Felhasználó hozzáadva, meghívó elküldve",
       "preferredLanguage": "Preferált nyelv",
       "languages": {
         "ca": "Katalán",
@@ -955,6 +961,7 @@
       "createDescription": "Erősítsd meg az identitásodat egy új API-kulcs létrehozásához.",
       "createSuccess": "API-kulcs létrehozva",
       "createError": "Nem sikerült létrehozni az API-kulcsot. Kérjük, próbáld újra.",
+      "apiKeyLimit": "Elérte a 25 aktív API-kulcs korlátját. Vonjon vissza vagy töröljön egyet, majd próbálja újra.",
       "expiryTooLate": "Ez a lejárat későbbi, mint amit a szerver megenged. Válassz korábbi dátumot, vagy hagyd üresen.",
       "invalidCredentials": "A jelszavad vagy a kódod helytelen.",
       "expiryNotFuture": "Ez a lejárat nem a jövőben van. Válassz egy későbbi dátumot.",
@@ -997,6 +1004,12 @@
       "reauthRequired": "A folytatáshoz erősítsd meg a személyazonosságodat az identitásszolgáltatóddal.",
       "failed": "Az újbóli bejelentkezés az identitásszolgáltatóddal nem sikerült. Kérjük, próbáld újra.",
       "notFresh": "Az identitásszolgáltatód nem kérte az újbóli bejelentkezést. Fordulj a rendszergazdához."
+    },
+    "tabs": {
+      "label": "Biztonsági szakaszok",
+      "account": "Fiók",
+      "sessions": "Munkamenetek és hozzáférés",
+      "danger": "Veszélyzóna"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "Nincs beállítva",
     "emailManagedIn": "Az e-mail-címedet a Biztonság beállításokban módosíthatod.",
     "emailManagedLink": "Biztonsági beállítások megnyitása",
+    "usernameManagedIn": "A felhasználónevedet a Biztonság beállításokban módosíthatod.",
     "error": {
       "title": "Nem sikerült betölteni a profilodat",
       "description": "Valami hiba történt a profilod betöltése közben. Megpróbálhatod újra.",
@@ -1133,7 +1147,7 @@
       "title": "Profil szerkesztése",
       "description": "Frissítsd a fiókod adatait",
       "success": "Profil frissítve",
-      "conflict": "Ez a felhasználónév vagy e-mail-cím már használatban van",
+      "conflict": "Ezek a módosítások ütköznek a mentett profilloddal. Töltsd újra az oldalt, és próbáld meg újra.",
       "error": "Nem sikerült frissíteni a profilodat. Kérjük, próbáld újra."
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "Nem sikerült feloldani a felhasználó letiltását. Próbáld újra.",
       "loadError": "Nem sikerült betölteni a letiltott felhasználókat.",
       "retry": "Próbáld újra"
+    },
+    "tabs": {
+      "label": "Profil szakaszai",
+      "profile": "Profil",
+      "privacy": "Adatvédelem és adatok"
     }
   }
 }

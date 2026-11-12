@@ -4,7 +4,7 @@ Administrators configure the instance in **Settings → Server settings**. The p
 
 If someone else changed the settings while you were editing, your save is refused with a message to reload, so you never overwrite their change by accident.
 
-Saving a change to a setting that decides who can sign up or sign in, whether two-step verification is required, how long a session or token lives, whether public links show who shared them asks for your own password and MFA code (or a fresh identity-provider sign-in if your account has no password), so a stolen session cannot weaken them. These are the sign-up and sign-in switches (including **Allow local username and password login**, single sign-on and its auto-redirect), the two-step verification requirement, the password rules and breach check, the session and token lifetimes, the API key lifetime, the audit trail retention and legal hold, and showing the owner's info on public links. Changing any other setting, such as units, maps or notification retention, needs no confirmation.
+Saving a change to a setting that decides who can sign up or sign in, whether two-step verification is required, how long a session or token lives, whether public links show who shared them, or where the server sends its own requests (the reverse geocoding service, host and HTTPS switch, and the tile server URL) asks for your own password and MFA code (or a fresh identity-provider sign-in if your account has no password), so a stolen session cannot weaken them. These are the sign-up and sign-in switches (including **Allow local username and password login**, single sign-on and its auto-redirect), the two-step verification requirement, the password rules and breach check, the session and token lifetimes, the API key lifetime, showing the owner's info on public links, the reverse geocoding service, host and HTTPS switch, and the tile server URL, because the server calls those addresses with the stored API keys. Changing any other setting, such as units, the geocoding rate limit, an API key or notification retention, needs no confirmation.
 
 ## Settings that an environment variable controls
 
@@ -31,7 +31,7 @@ The variables are listed, with their removal date, in [Advanced setup](../gettin
 
 | Setting | Meaning |
 | ------- | ------- |
-| Allow sign-up | Whether the sign-up form is available. When off, confirming a verification link and asking for a new one are refused too, so accounts still unconfirmed stay pending until sign-up is turned on again or you activate them |
+| Allow sign-up | Whether the sign-up form is available. When off, confirming a verification link of a pending sign-up and asking for a new one are refused too, so accounts still unconfirmed stay pending until sign-up is turned on again or you activate them; an account you activated without a password can still choose one from its link |
 | Allow new user sign-ups through single sign-on | Whether an identity provider may create an account at the first sign-in of someone no account matches (off by default). The provider must also have **Auto-create users** on. Independent of **Allow sign-up** |
 | Require email verification | New users must open an emailed link first |
 | Require admin approval | An administrator must approve new users |
@@ -124,7 +124,7 @@ The image shown on the login page. Upload an image of up to 5 MB, ideally square
 
 Saving the email settings asks for your own password and MFA code (or a fresh identity-provider sign-in if your account has no password), because a mail server you point Endurain at receives every password-reset link.
 
-Use **Send test email** to check the settings: it sends a message to you straight away and shows the failure reason if it cannot. Email is used for sign-up verification, approval notices and password resets. Without it those flows cannot send mail; see [Accounts, sign-up and password reset](accounts-and-sign-in.md).
+Use **Send test email** to check the settings: it sends a message to you straight away and shows the failure reason if it cannot. Email is used for sign-up verification, approval notices, password resets and the invitation an administrator's new account without a password sends. Without it those flows cannot send mail; see [Accounts, sign-up and password reset](accounts-and-sign-in.md).
 
 When several replicas run, the email and geocoding settings are cached for a few seconds in each process, so a change reaches every replica quickly but not instantly.
 

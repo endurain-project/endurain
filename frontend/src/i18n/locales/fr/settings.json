@@ -76,6 +76,12 @@
       "confirmPassword": "Confirmer le mot de passe",
       "mustChangePasswordHint": "L'utilisateur devra choisir un nouveau mot de passe lors de sa prochaine connexion.",
       "confirmPasswordRequired": "Confirmer le mot de passe",
+      "passwordMode": "Comment l'utilisateur obtient son mot de passe",
+      "passwordModeInvitation": "Envoyer une invitation par e-mail pour choisir un mot de passe",
+      "passwordModePassword": "Définir un mot de passe maintenant",
+      "passwordModeHint": "L'utilisateur reçoit un e-mail avec un lien, valable 24 heures, pour choisir son propre mot de passe.",
+      "invitationNeedsActive": "Un compte inactif ne peut pas être invité. Définissez plutôt un mot de passe.",
+      "inviteSuccess": "Utilisateur ajouté et invitation envoyée",
       "preferredLanguage": "Langue préférée",
       "languages": {
         "ca": "Catalan",
@@ -955,6 +961,7 @@
       "createDescription": "Confirmez votre identité pour créer une nouvelle clé API.",
       "createSuccess": "Clé API créée",
       "createError": "Impossible de créer la clé API. Veuillez réessayer.",
+      "apiKeyLimit": "Vous avez atteint la limite de 25 clés d'API actives. Révoquez-en ou supprimez-en une, puis réessayez.",
       "expiryTooLate": "Cette expiration est postérieure à ce que le serveur autorise. Choisissez une date antérieure ou laissez vide.",
       "invalidCredentials": "Votre mot de passe ou code est incorrect.",
       "expiryNotFuture": "Cette expiration n'est pas dans le futur. Choisissez une date ultérieure.",
@@ -997,6 +1004,12 @@
       "reauthRequired": "Confirmez votre identité auprès de votre fournisseur d'identité pour continuer.",
       "failed": "La reconnexion avec votre fournisseur d'identité a échoué. Veuillez réessayer.",
       "notFresh": "Votre fournisseur d'identité ne vous a pas demandé de vous reconnecter. Contactez votre administrateur."
+    },
+    "tabs": {
+      "label": "Sections de sécurité",
+      "account": "Compte",
+      "sessions": "Sessions et accès",
+      "danger": "Zone de danger"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "Non défini",
     "emailManagedIn": "Votre e-mail se modifie dans les paramètres de sécurité.",
     "emailManagedLink": "Ouvrir les paramètres de sécurité",
+    "usernameManagedIn": "Votre nom d'utilisateur se modifie dans les paramètres de sécurité.",
     "error": {
       "title": "Impossible de charger votre profil",
       "description": "Une erreur s'est produite lors du chargement de votre profil. Vous pouvez réessayer.",
@@ -1133,7 +1147,7 @@
       "title": "Modifier le profil",
       "description": "Mettez à jour les détails de votre compte",
       "success": "Profil mis à jour",
-      "conflict": "Ce nom d'utilisateur ou cet e-mail est déjà utilisé",
+      "conflict": "Ces modifications entrent en conflit avec votre profil enregistré. Rechargez et réessayez.",
       "error": "Impossible de mettre à jour votre profil. Veuillez réessayer."
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "Impossible de débloquer cet utilisateur. Veuillez réessayer.",
       "loadError": "Impossible de charger vos utilisateurs bloqués.",
       "retry": "Réessayer"
+    },
+    "tabs": {
+      "label": "Sections du profil",
+      "profile": "Profil",
+      "privacy": "Confidentialité et données"
     }
   }
 }

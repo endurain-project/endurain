@@ -76,6 +76,12 @@
       "confirmPassword": "Potvrdi lozinku",
       "mustChangePasswordHint": "Korisnik će morati da izabere novu lozinku pri sledećoj prijavi.",
       "confirmPasswordRequired": "Potvrdi lozinku",
+      "passwordMode": "Kako korisnik dobija lozinku",
+      "passwordModeInvitation": "Pošalji pozivnicu e-poštom za izbor lozinke",
+      "passwordModePassword": "Postavi lozinku sada",
+      "passwordModeHint": "Korisnik dobija e-poruku sa vezom, važećom 24 sata, za izbor sopstvene lozinke.",
+      "invitationNeedsActive": "Neaktivan nalog ne može biti pozvan. Umesto toga postavite lozinku.",
+      "inviteSuccess": "Korisnik je dodat i pozivnica je poslata",
       "preferredLanguage": "Željeni jezik",
       "languages": {
         "ca": "Katalonski",
@@ -955,6 +961,7 @@
       "createDescription": "Potvrdite svoj identitet da biste kreirali novi API ključ.",
       "createSuccess": "API ključ je kreiran",
       "createError": "Nije moguće kreirati API ključ. Pokušajte ponovo.",
+      "apiKeyLimit": "Достигли сте ограничење од 25 активних API кључева. Опозовите или обришите један и покушајте поново.",
       "expiryTooLate": "Ovaj datum isteka je kasniji nego što server dozvoljava. Izaberite raniji datum ili ostavite prazno.",
       "invalidCredentials": "Vaša lozinka ili kod su netačni.",
       "expiryNotFuture": "Taj rok isteka nije u budućnosti. Izaberite kasniji datum.",
@@ -997,6 +1004,12 @@
       "reauthRequired": "Potvrdite svoj identitet kod provajdera identiteta za nastavak.",
       "failed": "Ponovna prijava preko provajdera identiteta nije uspela. Pokušajte ponovo.",
       "notFresh": "Provajder identiteta nije tražio ponovnu prijavu. Obratite se administratoru."
+    },
+    "tabs": {
+      "label": "Odeljci bezbednosti",
+      "account": "Nalog",
+      "sessions": "Sesije i pristup",
+      "danger": "Opasna zona"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "Nije podešeno",
     "emailManagedIn": "Vaša e-pošta se menja u bezbednosnim podešavanjima.",
     "emailManagedLink": "Otvori bezbednosna podešavanja",
+    "usernameManagedIn": "Vaše korisničko ime se menja u bezbednosnim podešavanjima.",
     "error": {
       "title": "Nije moguće učitati vaš profil",
       "description": "Nešto je pošlo naopako prilikom učitavanja vašeg profila. Možete pokušati ponovo.",
@@ -1133,7 +1147,7 @@
       "title": "Izmeni profil",
       "description": "Ažurirajte detalje svog naloga",
       "success": "Profil je ažuriran",
-      "conflict": "To korisničko ime ili email su već u upotrebi",
+      "conflict": "Ove promene su u sukobu sa sačuvanim profilom. Osvežite stranicu i pokušajte ponovo.",
       "error": "Nije moguće ažurirati vaš profil. Pokušajte ponovo."
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "Nije moguće odblokirati ovog korisnika. Pokušajte ponovo.",
       "loadError": "Nije moguće učitati blokirane korisnike.",
       "retry": "Pokušaj ponovo"
+    },
+    "tabs": {
+      "label": "Odeljci profila",
+      "profile": "Profil",
+      "privacy": "Privatnost i podaci"
     }
   }
 }

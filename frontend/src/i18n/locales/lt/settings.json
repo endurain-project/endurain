@@ -76,6 +76,12 @@
       "confirmPassword": "Patvirtinti slaptažodį",
       "mustChangePasswordHint": "Naudotojas turės pasirinkti naują slaptažodį kitą kartą prisijungdamas.",
       "confirmPasswordRequired": "Patvirtinti slaptažodį",
+      "passwordMode": "Kaip naudotojas gauna slaptažodį",
+      "passwordModeInvitation": "Išsiųsti kvietimą el. paštu slaptažodžiui pasirinkti",
+      "passwordModePassword": "Nustatyti slaptažodį dabar",
+      "passwordModeHint": "Naudotojas gauna el. laišką su nuoroda, galiojančia 24 valandas, savo slaptažodžiui pasirinkti.",
+      "invitationNeedsActive": "Neaktyvios paskyros pakviesti negalima. Vietoj to nustatykite slaptažodį.",
+      "inviteSuccess": "Naudotojas pridėtas ir kvietimas išsiųstas",
       "preferredLanguage": "Pageidaujama kalba",
       "languages": {
         "ca": "Katalonų",
@@ -955,6 +961,7 @@
       "createDescription": "Patvirtinkite savo tapatybę, kad sukurtumėte naują API raktą.",
       "createSuccess": "API raktas sukurtas",
       "createError": "Nepavyko sukurti API rakto. Bandykite dar kartą.",
+      "apiKeyLimit": "Pasiekėte 25 aktyvių API raktų ribą. Atšaukite arba ištrinkite vieną ir bandykite dar kartą.",
       "expiryTooLate": "Šis galiojimo pabaigos laikas vėlesnis, nei leidžia serveris. Pasirinkite ankstesnę datą arba palikite tuščią.",
       "invalidCredentials": "Jūsų slaptažodis arba kodas neteisingas.",
       "expiryNotFuture": "Šis galiojimo pabaigos laikas nėra ateityje. Pasirinkite vėlesnę datą.",
@@ -997,6 +1004,12 @@
       "reauthRequired": "Norėdami tęsti, patvirtinkite savo tapatybę per tapatybės teikėją.",
       "failed": "Nepavyko iš naujo prisijungti per tapatybės teikėją. Bandykite dar kartą.",
       "notFresh": "Jūsų tapatybės teikėjas neprašė prisijungti iš naujo. Susisiekite su administratoriumi."
+    },
+    "tabs": {
+      "label": "Saugumo skiltys",
+      "account": "Paskyra",
+      "sessions": "Seansai ir prieiga",
+      "danger": "Pavojinga zona"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "Nenustatyta",
     "emailManagedIn": "Jūsų el. paštas keičiamas saugumo nustatymuose.",
     "emailManagedLink": "Atidaryti saugumo nustatymus",
+    "usernameManagedIn": "Jūsų naudotojo vardas keičiamas saugumo nustatymuose.",
     "error": {
       "title": "Nepavyko įkelti jūsų profilio",
       "description": "Įkeliant jūsų profilį kažkas nepavyko. Galite bandyti dar kartą.",
@@ -1133,7 +1147,7 @@
       "title": "Redaguoti profilį",
       "description": "Atnaujinkite savo paskyros detales",
       "success": "Profilis atnaujintas",
-      "conflict": "Šis naudotojo vardas arba el. paštas jau naudojamas",
+      "conflict": "Šie pakeitimai nesuderinami su išsaugotu profiliu. Įkelkite iš naujo ir bandykite dar kartą.",
       "error": "Nepavyko atnaujinti jūsų profilio. Bandykite dar kartą."
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "Nepavyko atblokuoti šio naudotojo. Bandyk dar kartą.",
       "loadError": "Nepavyko įkelti užblokuotų naudotojų.",
       "retry": "Bandyti dar kartą"
+    },
+    "tabs": {
+      "label": "Profilio skiltys",
+      "profile": "Profilis",
+      "privacy": "Privatumas ir duomenys"
     }
   }
 }

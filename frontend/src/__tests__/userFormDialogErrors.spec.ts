@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it, vi } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
@@ -19,6 +20,11 @@ vi.mock('@/features/security/composables/useAdminStepUp', async (importOriginal)
   ...(await importOriginal<typeof import('@/features/security/composables/useAdminStepUp')>()),
   useAdminStepUp: () => ({ requirePassword: ref(true), requireMfa: ref(false) }),
 }))
+
+// The form reads the mail settings through a store-backed query.
+beforeEach(() => {
+  setActivePinia(createPinia())
+})
 
 const user: ManagedUser = {
   id: 1,

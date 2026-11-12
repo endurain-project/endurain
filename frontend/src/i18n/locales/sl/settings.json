@@ -76,6 +76,12 @@
       "confirmPassword": "Potrdi geslo",
       "mustChangePasswordHint": "Uporabnik bo moral ob naslednji prijavi izbrati novo geslo.",
       "confirmPasswordRequired": "Potrdi geslo",
+      "passwordMode": "Kako uporabnik dobi geslo",
+      "passwordModeInvitation": "Pošlji vabilo po e-pošti za izbiro gesla",
+      "passwordModePassword": "Nastavi geslo zdaj",
+      "passwordModeHint": "Uporabnik prejme e-pošto s povezavo, veljavno 24 ur, za izbiro lastnega gesla.",
+      "invitationNeedsActive": "Neaktivnega računa ni mogoče povabiti. Namesto tega nastavite geslo.",
+      "inviteSuccess": "Uporabnik dodan, vabilo poslano",
       "preferredLanguage": "Želeni jezik",
       "languages": {
         "ca": "Katalonščina",
@@ -955,6 +961,7 @@
       "createDescription": "Potrdi svojo identiteto za ustvaritev novega API ključa.",
       "createSuccess": "API ključ ustvarjen",
       "createError": "API ključa ni bilo mogoče ustvariti. Prosim, poskusi znova.",
+      "apiKeyLimit": "Dosegli ste omejitev 25 aktivnih ključev API. Prekličite ali izbrišite enega in poskusite znova.",
       "expiryTooLate": "Ta potek veljavnosti je poznejši, kot dovoljuje strežnik. Izberi zgodnejši datum ali pusti prazno.",
       "invalidCredentials": "Tvoje geslo ali koda je napačna.",
       "expiryNotFuture": "Ta datum poteka ni v prihodnosti. Izberi poznejši datum.",
@@ -997,6 +1004,12 @@
       "reauthRequired": "Za nadaljevanje potrdi svojo identiteto pri ponudniku identitete.",
       "failed": "Ponovna prijava prek ponudnika identitete ni uspela. Poskusi znova.",
       "notFresh": "Ponudnik identitete ni zahteval ponovne prijave. Obrni se na skrbnika."
+    },
+    "tabs": {
+      "label": "Razdelki varnosti",
+      "account": "Račun",
+      "sessions": "Seje in dostop",
+      "danger": "Nevarno območje"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "Ni nastavljeno",
     "emailManagedIn": "Tvoja e-pošta se spreminja v varnostnih nastavitvah.",
     "emailManagedLink": "Odpri varnostne nastavitve",
+    "usernameManagedIn": "Tvoje uporabniško ime se spreminja v varnostnih nastavitvah.",
     "error": {
       "title": "Tvojega profila ni bilo mogoče naložiti",
       "description": "Med nalaganjem tvojega profila je prišlo do napake. Poskusi znova.",
@@ -1133,7 +1147,7 @@
       "title": "Uredi profil",
       "description": "Posodobi podatke računa",
       "success": "Profil posodobljen",
-      "conflict": "To uporabniško ime ali e-pošta je že zasedena",
+      "conflict": "Te spremembe so v nasprotju s shranjenim profilom. Znova naloži stran in poskusi znova.",
       "error": "Tvojega profila ni bilo mogoče posodobiti. Prosim, poskusi znova."
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "Tega uporabnika ni bilo mogoče odblokirati. Poskusite znova.",
       "loadError": "Blokiranih uporabnikov ni bilo mogoče naložiti.",
       "retry": "Poskusi znova"
+    },
+    "tabs": {
+      "label": "Razdelki profila",
+      "profile": "Profil",
+      "privacy": "Zasebnost in podatki"
     }
   }
 }

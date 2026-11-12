@@ -76,6 +76,12 @@
       "confirmPassword": "Potvrďte heslo",
       "mustChangePasswordHint": "Uživatel bude muset při příštím přihlášení zvolit nové heslo.",
       "confirmPasswordRequired": "Potvrďte heslo",
+      "passwordMode": "Jak uživatel získá heslo",
+      "passwordModeInvitation": "Poslat e-mailem pozvánku k volbě hesla",
+      "passwordModePassword": "Nastavit heslo hned",
+      "passwordModeHint": "Uživatel obdrží e-mail s odkazem platným 24 hodin, kde si zvolí vlastní heslo.",
+      "invitationNeedsActive": "Neaktivní účet nelze pozvat. Nastavte místo toho heslo.",
+      "inviteSuccess": "Uživatel byl přidán a pozvánka odeslána",
       "preferredLanguage": "Preferovaný jazyk",
       "languages": {
         "ca": "Katalánština",
@@ -955,6 +961,7 @@
       "createDescription": "Potvrďte svou identitu pro vytvoření nového API klíče.",
       "createSuccess": "API klíč vytvořen",
       "createError": "Nepodařilo se vytvořit API klíč. Zkuste to prosím znovu.",
+      "apiKeyLimit": "Dosáhli jste limitu 25 aktivních klíčů API. Zrušte nebo smažte jeden a zkuste to znovu.",
       "expiryTooLate": "Toto datum vypršení je pozdější, než server povoluje. Zvolte dřívější datum nebo pole ponechte prázdné.",
       "invalidCredentials": "Vaše heslo nebo kód je nesprávný.",
       "expiryNotFuture": "Toto datum vypršení není v budoucnosti. Zvolte pozdější datum.",
@@ -997,6 +1004,12 @@
       "reauthRequired": "Pro pokračování potvrďte svou totožnost u poskytovatele identity.",
       "failed": "Opětovné přihlášení přes poskytovatele identity se nezdařilo. Zkuste to prosím znovu.",
       "notFresh": "Poskytovatel identity nevyžadoval opětovné přihlášení. Kontaktujte správce."
+    },
+    "tabs": {
+      "label": "Sekce zabezpečení",
+      "account": "Účet",
+      "sessions": "Relace a přístup",
+      "danger": "Nebezpečná zóna"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "Nenastaveno",
     "emailManagedIn": "Váš e-mail se mění v nastavení zabezpečení.",
     "emailManagedLink": "Otevřít nastavení zabezpečení",
+    "usernameManagedIn": "Vaše uživatelské jméno se mění v nastavení zabezpečení.",
     "error": {
       "title": "Nepodařilo se načíst váš profil",
       "description": "Při načítání vašeho profilu se něco pokazilo. Můžete to zkusit znovu.",
@@ -1133,7 +1147,7 @@
       "title": "Upravit profil",
       "description": "Aktualizujte podrobnosti svého účtu",
       "success": "Profil aktualizován",
-      "conflict": "Toto uživatelské jméno nebo e-mail se již používá",
+      "conflict": "Tyto změny jsou v konfliktu s uloženým profilem. Načtěte stránku znovu a zkuste to znovu.",
       "error": "Nepodařilo se aktualizovat váš profil. Zkuste to prosím znovu."
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "Tohoto uživatele se nepodařilo odblokovat. Zkuste to prosím znovu.",
       "loadError": "Blokované uživatele se nepodařilo načíst.",
       "retry": "Zkusit znovu"
+    },
+    "tabs": {
+      "label": "Sekce profilu",
+      "profile": "Profil",
+      "privacy": "Soukromí a data"
     }
   }
 }

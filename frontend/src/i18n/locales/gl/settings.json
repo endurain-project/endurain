@@ -76,6 +76,12 @@
       "confirmPassword": "Confirmar contrasinal",
       "mustChangePasswordHint": "O usuario terá que escoller un contrasinal novo no seu próximo inicio de sesión.",
       "confirmPasswordRequired": "Confirmar contrasinal",
+      "passwordMode": "Como obtén o usuario o contrasinal",
+      "passwordModeInvitation": "Enviar unha invitación por correo para escoller un contrasinal",
+      "passwordModePassword": "Definir un contrasinal agora",
+      "passwordModeHint": "O usuario recibe un correo cunha ligazón, válida durante 24 horas, para escoller o seu contrasinal.",
+      "invitationNeedsActive": "Unha conta inactiva non pode ser convidada. Define un contrasinal.",
+      "inviteSuccess": "Usuario engadido e invitación enviada",
       "preferredLanguage": "Idioma preferido",
       "languages": {
         "ca": "Catalán",
@@ -955,6 +961,7 @@
       "createDescription": "Confirma a túa identidade para crear unha nova clave de API.",
       "createSuccess": "Clave de API creada",
       "createError": "Non se puido crear a clave de API. Por favor, téntao de novo.",
+      "apiKeyLimit": "Alcanzaches o límite de 25 claves de API activas. Revoga ou elimina unha e téntao de novo.",
       "expiryTooLate": "Esa caducidade é posterior á que permite o servidor. Escolle unha data anterior ou déixao en branco.",
       "invalidCredentials": "O teu contrasinal ou código é incorrecto.",
       "expiryNotFuture": "Esa caducidade non está no futuro. Escolle unha data posterior.",
@@ -997,6 +1004,12 @@
       "reauthRequired": "Confirma a túa identidade co teu provedor de identidade para continuar.",
       "failed": "Fallou o novo inicio de sesión co teu provedor de identidade. Por favor, téntao de novo.",
       "notFresh": "O teu provedor de identidade non che pediu que inicies sesión de novo. Contacta co teu administrador."
+    },
+    "tabs": {
+      "label": "Seccións de seguranza",
+      "account": "Conta",
+      "sessions": "Sesións e acceso",
+      "danger": "Zona de perigo"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "Non establecido",
     "emailManagedIn": "O teu correo electrónico cámbiase na configuración de Seguridade.",
     "emailManagedLink": "Abrir configuración de Seguridade",
+    "usernameManagedIn": "O teu nome de usuario cámbiase na configuración de Seguridade.",
     "error": {
       "title": "Non se puido cargar o teu perfil",
       "description": "Produciuse un erro ao cargar o teu perfil. Podes tentar de novo.",
@@ -1133,7 +1147,7 @@
       "title": "Editar perfil",
       "description": "Actualiza os detalles da túa conta",
       "success": "Perfil actualizado",
-      "conflict": "Ese nome de usuario ou correo electrónico xa está en uso",
+      "conflict": "Estes cambios entran en conflito co teu perfil gardado. Recarga e téntao de novo.",
       "error": "Non se puido actualizar o teu perfil. Por favor, téntao de novo."
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "Non se puido desbloquear este usuario. Téntao de novo.",
       "loadError": "Non se puideron cargar os teus usuarios bloqueados.",
       "retry": "Tentar de novo"
+    },
+    "tabs": {
+      "label": "Seccións do perfil",
+      "profile": "Perfil",
+      "privacy": "Privacidade e datos"
     }
   }
 }

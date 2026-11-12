@@ -76,6 +76,12 @@
       "confirmPassword": "Vahvista salasana",
       "mustChangePasswordHint": "Käyttäjän on valittava uusi salasana seuraavalla kirjautumiskerralla.",
       "confirmPasswordRequired": "Vahvista salasana",
+      "passwordMode": "Miten käyttäjä saa salasanan",
+      "passwordModeInvitation": "Lähetä sähköpostikutsu salasanan valitsemiseksi",
+      "passwordModePassword": "Aseta salasana nyt",
+      "passwordModeHint": "Käyttäjä saa sähköpostin, jossa on 24 tuntia voimassa oleva linkki oman salasanan valitsemiseen.",
+      "invitationNeedsActive": "Epäaktiivista tiliä ei voi kutsua. Aseta salasana.",
+      "inviteSuccess": "Käyttäjä lisätty ja kutsu lähetetty",
       "preferredLanguage": "Ensisijainen kieli",
       "languages": {
         "ca": "Katalaani",
@@ -955,6 +961,7 @@
       "createDescription": "Vahvista henkilöllisyytesi luodaksesi uuden API-avaimen.",
       "createSuccess": "API-avain luotu",
       "createError": "API-avainta ei voitu luoda. Yritä uudelleen.",
+      "apiKeyLimit": "Olet saavuttanut 25 aktiivisen API-avaimen rajan. Peruuta tai poista yksi ja yritä uudelleen.",
       "expiryTooLate": "Tämä vanhenemispäivä on myöhempi kuin palvelin sallii. Valitse aikaisempi päivämäärä tai jätä kenttä tyhjäksi.",
       "invalidCredentials": "Salasanasi tai koodisi on virheellinen.",
       "expiryNotFuture": "Tämä vanhenemispäivä ei ole tulevaisuudessa. Valitse myöhempi päivämäärä.",
@@ -997,6 +1004,12 @@
       "reauthRequired": "Vahvista henkilöllisyytesi tunnistuspalvelullasi jatkaaksesi.",
       "failed": "Uudelleen kirjautuminen tunnistuspalvelullasi epäonnistui. Yritä uudelleen.",
       "notFresh": "Tunnistuspalvelusi ei pyytänyt sinua kirjautumaan uudelleen. Ota yhteyttä ylläpitäjääsi."
+    },
+    "tabs": {
+      "label": "Tietoturvan osiot",
+      "account": "Tili",
+      "sessions": "Istunnot ja käyttöoikeudet",
+      "danger": "Vaaravyöhyke"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "Ei asetettu",
     "emailManagedIn": "Sähköpostisi vaihdetaan turvallisuusasetuksissa.",
     "emailManagedLink": "Avaa turvallisuusasetukset",
+    "usernameManagedIn": "Käyttäjänimesi vaihdetaan turvallisuusasetuksissa.",
     "error": {
       "title": "Profiiliasi ei voitu ladata",
       "description": "Profiilisi lataamisessa tapahtui virhe. Voit yrittää uudelleen.",
@@ -1133,7 +1147,7 @@
       "title": "Muokkaa profiilia",
       "description": "Päivitä tilisi tiedot",
       "success": "Profiili päivitetty",
-      "conflict": "Kyseinen käyttäjätunnus tai sähköposti on jo käytössä",
+      "conflict": "Nämä muutokset ovat ristiriidassa tallennetun profiilisi kanssa. Lataa sivu uudelleen ja yritä uudelleen.",
       "error": "Profiiliasi ei voitu päivittää. Yritä uudelleen."
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "Käyttäjän eston poistaminen epäonnistui. Yritä uudelleen.",
       "loadError": "Estettyjen käyttäjien lataaminen epäonnistui.",
       "retry": "Yritä uudelleen"
+    },
+    "tabs": {
+      "label": "Profiilin osiot",
+      "profile": "Profiili",
+      "privacy": "Yksityisyys ja tiedot"
     }
   }
 }

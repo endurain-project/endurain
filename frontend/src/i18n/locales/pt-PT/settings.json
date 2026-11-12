@@ -76,6 +76,12 @@
       "confirmPassword": "Confirmar palavra-passe",
       "mustChangePasswordHint": "O utilizador terá de escolher uma nova palavra-passe no próximo início de sessão.",
       "confirmPasswordRequired": "Confirmar palavra-passe",
+      "passwordMode": "Como o utilizador obtém a palavra-passe",
+      "passwordModeInvitation": "Enviar um convite por email para escolher uma palavra-passe",
+      "passwordModePassword": "Definir uma palavra-passe agora",
+      "passwordModeHint": "O utilizador recebe um email com uma ligação, válida durante 24 horas, para escolher a sua própria palavra-passe.",
+      "invitationNeedsActive": "Uma conta inativa não pode ser convidada. Defina antes uma palavra-passe.",
+      "inviteSuccess": "Utilizador adicionado e convite enviado",
       "preferredLanguage": "Idioma preferido",
       "languages": {
         "ca": "Catalão",
@@ -955,6 +961,7 @@
       "createDescription": "Confirma a tua identidade para criar uma nova chave de API.",
       "createSuccess": "Chave de API criada",
       "createError": "Não foi possível criar a chave de API. Tenta novamente.",
+      "apiKeyLimit": "Atingiu o limite de 25 chaves de API ativas. Revogue ou elimine uma e tente novamente.",
       "expiryTooLate": "Essa expiração é posterior à que o servidor permite. Escolhe uma data anterior ou deixa em branco.",
       "invalidCredentials": "A tua palavra-passe ou código está incorreto.",
       "expiryNotFuture": "Essa expiração não está no futuro. Escolhe uma data posterior.",
@@ -997,6 +1004,12 @@
       "reauthRequired": "Confirma a tua identidade com o teu fornecedor de identidade para continuar.",
       "failed": "Falhou o novo início de sessão com o teu fornecedor de identidade. Tenta novamente.",
       "notFresh": "O teu fornecedor de identidade não te pediu para iniciar sessão novamente. Contacta o teu administrador."
+    },
+    "tabs": {
+      "label": "Secções de segurança",
+      "account": "Conta",
+      "sessions": "Sessões e acesso",
+      "danger": "Zona de perigo"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "Não definido",
     "emailManagedIn": "O teu email é alterado nas definições de Segurança.",
     "emailManagedLink": "Abrir definições de Segurança",
+    "usernameManagedIn": "O teu nome de utilizador é alterado nas definições de Segurança.",
     "error": {
       "title": "Não foi possível carregar o teu perfil",
       "description": "Ocorreu um erro ao carregar o teu perfil. Podes tentar novamente.",
@@ -1133,7 +1147,7 @@
       "title": "Editar perfil",
       "description": "Atualiza os detalhes da tua conta",
       "success": "Perfil atualizado",
-      "conflict": "Esse nome de utilizador ou email já está em uso",
+      "conflict": "Estas alterações entram em conflito com o teu perfil guardado. Recarrega e tenta novamente.",
       "error": "Não foi possível atualizar o teu perfil. Tenta novamente."
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "Não foi possível desbloquear este utilizador. Tenta novamente.",
       "loadError": "Não foi possível carregar os teus utilizadores bloqueados.",
       "retry": "Tentar novamente"
+    },
+    "tabs": {
+      "label": "Secções do perfil",
+      "profile": "Perfil",
+      "privacy": "Privacidade e dados"
     }
   }
 }

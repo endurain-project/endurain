@@ -88,6 +88,19 @@ def request_email_change_resend(user_id: int, state: StateProvider, db: Session)
     sign_up_service.request_email_change_resend(user_id, state, db)
 
 
+def request_admin_invitation_email(user_id: int, db: Session) -> None:
+    """Stage the invitation email of an account an administrator created without a password; the caller commits.
+
+    Args:
+        user_id: The account that chooses its password from the invitation.
+        db: Database session.
+
+    Raises:
+        ServiceUnavailableError: If mail is not configured.
+    """
+    sign_up_service.request_admin_invitation_email(user_id, db)
+
+
 def request_sign_up_admin_approval(user_id: int, db: Session) -> bool:
     """Stage the administrators' approval requests for a new account with the caller's transaction.
 

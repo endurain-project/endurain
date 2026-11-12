@@ -76,6 +76,12 @@
       "confirmPassword": "Bekräfta lösenord",
       "mustChangePasswordHint": "Användaren måste välja ett nytt lösenord vid nästa inloggning.",
       "confirmPasswordRequired": "Bekräfta lösenord",
+      "passwordMode": "Hur användaren får ett lösenord",
+      "passwordModeInvitation": "Skicka en inbjudan med e-post för att välja ett lösenord",
+      "passwordModePassword": "Ange ett lösenord nu",
+      "passwordModeHint": "Användaren får ett e-postmeddelande med en länk, giltig i 24 timmar, för att välja sitt eget lösenord.",
+      "invitationNeedsActive": "Ett inaktivt konto kan inte bjudas in. Ange ett lösenord i stället.",
+      "inviteSuccess": "Användare tillagd och inbjudan skickad",
       "preferredLanguage": "Föredraget språk",
       "languages": {
         "ca": "Katalanska",
@@ -955,6 +961,7 @@
       "createDescription": "Bekräfta din identitet för att skapa en ny API-nyckel.",
       "createSuccess": "API-nyckel skapad",
       "createError": "Kunde inte skapa API-nyckeln. Försök igen.",
+      "apiKeyLimit": "Du har nått gränsen på 25 aktiva API-nycklar. Återkalla eller ta bort en och försök igen.",
       "expiryTooLate": "Det här utgångsdatumet ligger senare än servern tillåter. Välj ett tidigare datum eller lämna fältet tomt.",
       "invalidCredentials": "Ditt lösenord eller din kod är felaktig.",
       "expiryNotFuture": "Det utgångsdatumet ligger inte i framtiden. Välj ett senare datum.",
@@ -997,6 +1004,12 @@
       "reauthRequired": "Bekräfta din identitet hos din identitetsleverantör för att fortsätta.",
       "failed": "Den nya inloggningen hos din identitetsleverantör misslyckades. Försök igen.",
       "notFresh": "Din identitetsleverantör bad dig inte logga in igen. Kontakta din administratör."
+    },
+    "tabs": {
+      "label": "Säkerhetsavsnitt",
+      "account": "Konto",
+      "sessions": "Sessioner och åtkomst",
+      "danger": "Farozon"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "Inte angivet",
     "emailManagedIn": "Din e-post ändras i säkerhetsinställningarna.",
     "emailManagedLink": "Öppna säkerhetsinställningar",
+    "usernameManagedIn": "Ditt användarnamn ändras i säkerhetsinställningarna.",
     "error": {
       "title": "Kunde inte ladda din profil",
       "description": "Något gick fel när din profil laddades. Du kan försöka igen.",
@@ -1133,7 +1147,7 @@
       "title": "Redigera profil",
       "description": "Uppdatera dina kontouppgifter",
       "success": "Profil uppdaterad",
-      "conflict": "Det användarnamnet eller den e-postadressen används redan",
+      "conflict": "Ändringarna står i konflikt med din sparade profil. Ladda om och försök igen.",
       "error": "Kunde inte uppdatera din profil. Försök igen."
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "Det gick inte att avblockera användaren. Försök igen.",
       "loadError": "Det gick inte att läsa in dina blockerade användare.",
       "retry": "Försök igen"
+    },
+    "tabs": {
+      "label": "Profilavsnitt",
+      "profile": "Profil",
+      "privacy": "Integritet och data"
     }
   }
 }

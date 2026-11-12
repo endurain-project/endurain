@@ -34,14 +34,17 @@ class UserCreateDetails(VersionedPayload):
     Attributes:
         access_type: The access tier the account was created with.
         method: How the account was created.
+        invited: Whether an administrator created it without a password and mailed its owner an invitation to
+            choose one.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    SCHEMA_VERSION: ClassVar[int] = 2
+    SCHEMA_VERSION: ClassVar[int] = 3
 
     access_type: str
     method: UserCreateMethod
+    invited: bool = False
 
 
 class UserUpdateDetails(VersionedPayload):

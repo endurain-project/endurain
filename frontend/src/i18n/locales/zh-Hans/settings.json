@@ -76,6 +76,12 @@
       "confirmPassword": "确认密码",
       "mustChangePasswordHint": "该用户下次登录时必须选择新密码。",
       "confirmPasswordRequired": "确认密码",
+      "passwordMode": "用户如何获得密码",
+      "passwordModeInvitation": "通过电子邮件发送邀请，由用户选择密码",
+      "passwordModePassword": "立即设置密码",
+      "passwordModeHint": "用户会收到一封邮件，其中的链接 24 小时内有效，可用来选择自己的密码。",
+      "invitationNeedsActive": "未激活的账户无法被邀请，请改为设置密码。",
+      "inviteSuccess": "用户已添加，邀请已发送",
       "preferredLanguage": "首选语言",
       "languages": {
         "ca": "加泰罗尼亚语",
@@ -955,6 +961,7 @@
       "createDescription": "确认身份以创建新的 API 密钥。",
       "createSuccess": "API 密钥已创建",
       "createError": "无法创建 API 密钥，请重试。",
+      "apiKeyLimit": "您已达到 25 个有效 API 密钥的上限。请撤销或删除一个后重试。",
       "expiryTooLate": "该过期时间晚于服务器允许的范围。请选择更早的日期，或留空。",
       "invalidCredentials": "密码或验证码不正确。",
       "expiryNotFuture": "该到期时间不在未来，请选择更晚的日期。",
@@ -997,6 +1004,12 @@
       "reauthRequired": "请通过您的身份提供者确认身份以继续。",
       "failed": "通过身份提供者重新登录失败，请重试。",
       "notFresh": "您的身份提供者没有要求您重新登录，请联系管理员。"
+    },
+    "tabs": {
+      "label": "安全分区",
+      "account": "账户",
+      "sessions": "会话与访问",
+      "danger": "危险区域"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "未设置",
     "emailManagedIn": "您的电子邮件需在安全设置中更改。",
     "emailManagedLink": "打开安全设置",
+    "usernameManagedIn": "您的用户名需在安全设置中更改。",
     "error": {
       "title": "无法加载您的个人资料",
       "description": "加载个人资料时出现错误，请重试。",
@@ -1133,7 +1147,7 @@
       "title": "编辑个人资料",
       "description": "更新您的账户详情",
       "success": "个人资料已更新",
-      "conflict": "该用户名或邮箱已被使用",
+      "conflict": "这些更改与已保存的资料冲突。请刷新后重试。",
       "error": "无法更新您的个人资料，请重试。"
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "无法取消屏蔽该用户，请重试。",
       "loadError": "无法加载已屏蔽的用户。",
       "retry": "重试"
+    },
+    "tabs": {
+      "label": "个人资料分区",
+      "profile": "个人资料",
+      "privacy": "隐私与数据"
     }
   }
 }

@@ -76,6 +76,12 @@
       "confirmPassword": "Potvrďte heslo",
       "mustChangePasswordHint": "Používateľ bude musieť pri ďalšom prihlásení zvoliť nové heslo.",
       "confirmPasswordRequired": "Potvrďte heslo",
+      "passwordMode": "Ako používateľ získa heslo",
+      "passwordModeInvitation": "Poslať e-mailom pozvánku na zvolenie hesla",
+      "passwordModePassword": "Nastaviť heslo hneď",
+      "passwordModeHint": "Používateľ dostane e-mail s odkazom platným 24 hodín, kde si zvolí vlastné heslo.",
+      "invitationNeedsActive": "Neaktívny účet nemožno pozvať. Nastavte namiesto toho heslo.",
+      "inviteSuccess": "Používateľ bol pridaný a pozvánka odoslaná",
       "preferredLanguage": "Preferovaný jazyk",
       "languages": {
         "ca": "Katalánčina",
@@ -955,6 +961,7 @@
       "createDescription": "Potvrďte svoju identitu na vytvorenie nového API kľúča.",
       "createSuccess": "API kľúč vytvorený",
       "createError": "API kľúč sa nepodarilo vytvoriť. Skúste to znova.",
+      "apiKeyLimit": "Dosiahli ste limit 25 aktívnych kľúčov API. Zrušte alebo odstráňte jeden a skúste to znova.",
       "expiryTooLate": "Tento dátum vypršania je neskorší, než server povoľuje. Zvoľte skorší dátum alebo pole ponechajte prázdne.",
       "invalidCredentials": "Vaše heslo alebo kód je nesprávne.",
       "expiryNotFuture": "Tento dátum platnosti nie je v budúcnosti. Vyberte neskorší dátum.",
@@ -997,6 +1004,12 @@
       "reauthRequired": "Ak chcete pokračovať, potvrďte svoju totožnosť u poskytovateľa identity.",
       "failed": "Opätovné prihlásenie cez poskytovateľa identity zlyhalo. Skúste to prosím znova.",
       "notFresh": "Poskytovateľ identity nevyžadoval opätovné prihlásenie. Kontaktujte správcu."
+    },
+    "tabs": {
+      "label": "Sekcie zabezpečenia",
+      "account": "Účet",
+      "sessions": "Relácie a prístup",
+      "danger": "Nebezpečná zóna"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "Nenastavené",
     "emailManagedIn": "Váš e-mail sa mení v nastaveniach zabezpečenia.",
     "emailManagedLink": "Otvoriť nastavenia zabezpečenia",
+    "usernameManagedIn": "Vaše používateľské meno sa mení v nastaveniach zabezpečenia.",
     "error": {
       "title": "Váš profil sa nepodarilo načítať",
       "description": "Pri načítavaní vášho profilu sa niečo pokazilo. Môžete to skúsiť znova.",
@@ -1133,7 +1147,7 @@
       "title": "Upraviť profil",
       "description": "Aktualizujte detaily svojho účtu",
       "success": "Profil aktualizovaný",
-      "conflict": "Toto používateľské meno alebo e-mail sa už používa",
+      "conflict": "Tieto zmeny sú v konflikte s uloženým profilom. Načítajte stránku znova a skúste to znova.",
       "error": "Váš profil sa nepodarilo aktualizovať. Skúste to znova."
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "Tohto používateľa sa nepodarilo odblokovať. Skúste to znova.",
       "loadError": "Blokovaných používateľov sa nepodarilo načítať.",
       "retry": "Skúsiť znova"
+    },
+    "tabs": {
+      "label": "Sekcie profilu",
+      "profile": "Profil",
+      "privacy": "Súkromie a dáta"
     }
   }
 }

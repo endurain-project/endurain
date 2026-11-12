@@ -76,6 +76,12 @@
       "confirmPassword": "Bekræft adgangskode",
       "mustChangePasswordHint": "Brugeren skal vælge en ny adgangskode ved sit næste login.",
       "confirmPasswordRequired": "Bekræft adgangskode",
+      "passwordMode": "Hvordan brugeren får en adgangskode",
+      "passwordModeInvitation": "Send en invitation på e-mail til at vælge en adgangskode",
+      "passwordModePassword": "Angiv en adgangskode nu",
+      "passwordModeHint": "Brugeren får en e-mail med et link, der er gyldigt i 24 timer, til at vælge sin egen adgangskode.",
+      "invitationNeedsActive": "En inaktiv konto kan ikke inviteres. Angiv en adgangskode i stedet.",
+      "inviteSuccess": "Bruger tilføjet og invitation sendt",
       "preferredLanguage": "Foretrukket sprog",
       "languages": {
         "ca": "Catalansk",
@@ -955,6 +961,7 @@
       "createDescription": "Bekræft din identitet for at oprette en ny API-nøgle.",
       "createSuccess": "API-nøgle oprettet",
       "createError": "Kunne ikke oprette API-nøglen. Prøv venligst igen.",
+      "apiKeyLimit": "Du har nået grænsen på 25 aktive API-nøgler. Tilbagekald eller slet en, og prøv igen.",
       "expiryTooLate": "Denne udløbsdato ligger senere, end serveren tillader. Vælg en tidligere dato, eller lad feltet stå tomt.",
       "invalidCredentials": "Din adgangskode eller kode er forkert.",
       "expiryNotFuture": "Den udløbsdato ligger ikke i fremtiden. Vælg en senere dato.",
@@ -997,6 +1004,12 @@
       "reauthRequired": "Bekræft din identitet hos din identitetsudbyder for at fortsætte.",
       "failed": "Det mislykkedes at logge ind igen hos din identitetsudbyder. Prøv venligst igen.",
       "notFresh": "Din identitetsudbyder bad dig ikke om at logge ind igen. Kontakt din administrator."
+    },
+    "tabs": {
+      "label": "Sikkerhedssektioner",
+      "account": "Konto",
+      "sessions": "Sessioner og adgang",
+      "danger": "Farezone"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "Ikke angivet",
     "emailManagedIn": "Din e-mail ændres i sikkerhedsindstillingerne.",
     "emailManagedLink": "Åbn sikkerhedsindstillinger",
+    "usernameManagedIn": "Dit brugernavn ændres i sikkerhedsindstillingerne.",
     "error": {
       "title": "Kunne ikke indlæse din profil",
       "description": "Noget gik galt under indlæsningen af din profil. Du kan prøve igen.",
@@ -1133,7 +1147,7 @@
       "title": "Redigér profil",
       "description": "Opdatér dine kontooplysninger",
       "success": "Profil opdateret",
-      "conflict": "Det brugernavn eller den e-mail er allerede i brug",
+      "conflict": "Disse ændringer er i konflikt med din gemte profil. Genindlæs og prøv igen.",
       "error": "Kunne ikke opdatere din profil. Prøv venligst igen."
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "Kunne ikke fjerne blokeringen af denne bruger. Prøv igen.",
       "loadError": "Kunne ikke indlæse dine blokerede brugere.",
       "retry": "Prøv igen"
+    },
+    "tabs": {
+      "label": "Profilsektioner",
+      "profile": "Profil",
+      "privacy": "Privatliv og data"
     }
   }
 }

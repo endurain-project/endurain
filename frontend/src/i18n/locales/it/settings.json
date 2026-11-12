@@ -76,6 +76,12 @@
       "confirmPassword": "Conferma password",
       "mustChangePasswordHint": "L'utente dovrà scegliere una nuova password al prossimo accesso.",
       "confirmPasswordRequired": "Conferma password",
+      "passwordMode": "Come l'utente ottiene la password",
+      "passwordModeInvitation": "Invia un invito via email per scegliere una password",
+      "passwordModePassword": "Imposta subito una password",
+      "passwordModeHint": "L'utente riceve un'email con un link, valido per 24 ore, per scegliere la propria password.",
+      "invitationNeedsActive": "Un account inattivo non può essere invitato. Imposta invece una password.",
+      "inviteSuccess": "Utente aggiunto e invito inviato",
       "preferredLanguage": "Lingua preferita",
       "languages": {
         "ca": "Catalano",
@@ -955,6 +961,7 @@
       "createDescription": "Conferma la tua identità per creare una nuova chiave API.",
       "createSuccess": "Chiave API creata",
       "createError": "Impossibile creare la chiave API. Riprova.",
+      "apiKeyLimit": "Hai raggiunto il limite di 25 chiavi API attive. Revoca o elimina una chiave e riprova.",
       "expiryTooLate": "Questa scadenza è successiva a quella consentita dal server. Scegli una data precedente o lascia vuoto.",
       "invalidCredentials": "La tua password o il codice non sono corretti.",
       "expiryNotFuture": "Quella scadenza non è nel futuro. Scegli una data successiva.",
@@ -997,6 +1004,12 @@
       "reauthRequired": "Conferma la tua identità con il tuo provider di identità per continuare.",
       "failed": "Il nuovo accesso con il tuo provider di identità non è riuscito. Riprova.",
       "notFresh": "Il tuo provider di identità non ti ha chiesto di accedere di nuovo. Contatta il tuo amministratore."
+    },
+    "tabs": {
+      "label": "Sezioni di sicurezza",
+      "account": "Account",
+      "sessions": "Sessioni e accesso",
+      "danger": "Zona pericolosa"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "Non impostato",
     "emailManagedIn": "La tua e-mail si cambia nelle impostazioni di sicurezza.",
     "emailManagedLink": "Apri le impostazioni di sicurezza",
+    "usernameManagedIn": "Il tuo nome utente si cambia nelle impostazioni di sicurezza.",
     "error": {
       "title": "Impossibile caricare il profilo",
       "description": "Si è verificato un errore durante il caricamento del profilo. Puoi riprovare.",
@@ -1133,7 +1147,7 @@
       "title": "Modifica profilo",
       "description": "Aggiorna i dettagli del tuo account",
       "success": "Profilo aggiornato",
-      "conflict": "Quel nome utente o email è già in uso",
+      "conflict": "Queste modifiche sono in conflitto con il profilo salvato. Ricarica e riprova.",
       "error": "Impossibile aggiornare il profilo. Riprova."
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "Impossibile sbloccare questo utente. Riprova.",
       "loadError": "Impossibile caricare i tuoi utenti bloccati.",
       "retry": "Riprova"
+    },
+    "tabs": {
+      "label": "Sezioni del profilo",
+      "profile": "Profilo",
+      "privacy": "Privacy e dati"
     }
   }
 }

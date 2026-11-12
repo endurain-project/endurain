@@ -121,12 +121,16 @@ describe('ProfileFormDialog height', () => {
 })
 
 describe('ProfileFormDialog username', () => {
-  it('has no username field and never sends one, as it is changed in the security settings', async () => {
+  it('shows the username read-only with a link to the security settings and never sends it', async () => {
     vi.mocked(apiFetch).mockResolvedValue({ ...profile })
     const wrapper = await mountDialog()
     await wrapper.find('input[name="name"]').setValue('Renamed')
 
-    expect(wrapper.find('input[name="username"]').exists()).toBe(false)
+    const username = wrapper.find('input[name="username"]')
+    expect(username.exists()).toBe(true)
+    expect((username.element as HTMLInputElement).value).toBe('tester')
+    expect(username.attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain(i18n.global.t('settings.profile.usernameManagedIn'))
     expect(await saveBody(wrapper)).not.toHaveProperty('username')
   })
 })

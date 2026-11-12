@@ -76,6 +76,12 @@
       "confirmPassword": "Apstiprināt paroli",
       "mustChangePasswordHint": "Lietotājam nākamajā pieteikšanās reizē būs jāizvēlas jauna parole.",
       "confirmPasswordRequired": "Apstiprināt paroli",
+      "passwordMode": "Kā lietotājs saņem paroli",
+      "passwordModeInvitation": "Nosūtīt uzaicinājumu pa e-pastu, lai izvēlētos paroli",
+      "passwordModePassword": "Iestatīt paroli tagad",
+      "passwordModeHint": "Lietotājs saņem e-pastu ar saiti, kas derīga 24 stundas, lai izvēlētos savu paroli.",
+      "invitationNeedsActive": "Neaktīvu kontu nevar uzaicināt. Tā vietā iestatiet paroli.",
+      "inviteSuccess": "Lietotājs pievienots un uzaicinājums nosūtīts",
       "preferredLanguage": "Vēlamā valoda",
       "languages": {
         "ca": "Katalāņu",
@@ -955,6 +961,7 @@
       "createDescription": "Apstipriniet savu identitāti, lai izveidotu jaunu API atslēgu.",
       "createSuccess": "API atslēga izveidota",
       "createError": "Neizdevās izveidot API atslēgu. Lūdzu, mēģiniet vēlreiz.",
+      "apiKeyLimit": "Jūs esat sasniedzis 25 aktīvo API atslēgu ierobežojumu. Atsauciet vai izdzēsiet vienu un mēģiniet vēlreiz.",
       "expiryTooLate": "Šis derīguma beigu datums ir vēlāks, nekā atļauj serveris. Izvēlieties agrāku datumu vai atstājiet tukšu.",
       "invalidCredentials": "Jūsu parole vai kods ir nepareizs.",
       "expiryNotFuture": "Šis derīguma termiņš nav nākotnē. Izvēlieties vēlāku datumu.",
@@ -997,6 +1004,12 @@
       "reauthRequired": "Lai turpinātu, apstipriniet savu identitāti ar identitātes pakalpojumu sniedzēju.",
       "failed": "Atkārtota pieteikšanās ar identitātes pakalpojumu sniedzēju neizdevās. Lūdzu, mēģiniet vēlreiz.",
       "notFresh": "Identitātes pakalpojumu sniedzējs neprasīja pieteikties vēlreiz. Sazinieties ar administratoru."
+    },
+    "tabs": {
+      "label": "Drošības sadaļas",
+      "account": "Konts",
+      "sessions": "Sesijas un piekļuve",
+      "danger": "Bīstamā zona"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "Nav iestatīts",
     "emailManagedIn": "Jūsu e-pasts tiek mainīts drošības iestatījumos.",
     "emailManagedLink": "Atvērt drošības iestatījumus",
+    "usernameManagedIn": "Jūsu lietotājvārds tiek mainīts drošības iestatījumos.",
     "error": {
       "title": "Neizdevās ielādēt jūsu profilu",
       "description": "Ielādējot jūsu profilu, kaut kas nogāja greizi. Varat mēģināt vēlreiz.",
@@ -1133,7 +1147,7 @@
       "title": "Rediģēt profilu",
       "description": "Atjauniniet sava konta detaļas",
       "success": "Profils atjaunināts",
-      "conflict": "Šis lietotājvārds vai e-pasts jau tiek izmantots",
+      "conflict": "Šīs izmaiņas ir pretrunā ar saglabāto profilu. Pārlādējiet un mēģiniet vēlreiz.",
       "error": "Neizdevās atjaunināt jūsu profilu. Lūdzu, mēģiniet vēlreiz."
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "Neizdevās atbloķēt šo lietotāju. Mēģini vēlreiz.",
       "loadError": "Neizdevās ielādēt bloķētos lietotājus.",
       "retry": "Mēģināt vēlreiz"
+    },
+    "tabs": {
+      "label": "Profila sadaļas",
+      "profile": "Profils",
+      "privacy": "Privātums un dati"
     }
   }
 }

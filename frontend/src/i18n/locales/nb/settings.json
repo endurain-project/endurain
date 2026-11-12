@@ -76,6 +76,12 @@
       "confirmPassword": "Bekreft passord",
       "mustChangePasswordHint": "Brukeren må velge et nytt passord ved neste innlogging.",
       "confirmPasswordRequired": "Bekreft passord",
+      "passwordMode": "Hvordan brukeren får et passord",
+      "passwordModeInvitation": "Send en invitasjon på e-post for å velge et passord",
+      "passwordModePassword": "Angi et passord nå",
+      "passwordModeHint": "Brukeren får en e-post med en lenke, gyldig i 24 timer, for å velge sitt eget passord.",
+      "invitationNeedsActive": "En inaktiv konto kan ikke inviteres. Angi et passord i stedet.",
+      "inviteSuccess": "Bruker lagt til og invitasjon sendt",
       "preferredLanguage": "Foretrukket språk",
       "languages": {
         "ca": "Katalansk",
@@ -955,6 +961,7 @@
       "createDescription": "Bekreft identiteten din for å lage en ny API-nøkkel.",
       "createSuccess": "API-nøkkel opprettet",
       "createError": "Kunne ikke opprette API-nøkkelen. Vennligst prøv igjen.",
+      "apiKeyLimit": "Du har nådd grensen på 25 aktive API-nøkler. Tilbakekall eller slett en, og prøv igjen.",
       "expiryTooLate": "Denne utløpsdatoen er senere enn serveren tillater. Velg en tidligere dato, eller la feltet stå tomt.",
       "invalidCredentials": "Passordet eller koden din er feil.",
       "expiryNotFuture": "Den utløpsdatoen er ikke i fremtiden. Velg en senere dato.",
@@ -997,6 +1004,12 @@
       "reauthRequired": "Bekreft identiteten din hos identitetsleverandøren for å fortsette.",
       "failed": "Ny innlogging med identitetsleverandøren mislyktes. Vennligst prøv igjen.",
       "notFresh": "Identitetsleverandøren ba deg ikke om å logge inn på nytt. Kontakt administratoren din."
+    },
+    "tabs": {
+      "label": "Sikkerhetsseksjoner",
+      "account": "Konto",
+      "sessions": "Økter og tilgang",
+      "danger": "Faresone"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "Ikke satt",
     "emailManagedIn": "E-posten din endres i sikkerhetsinnstillingene.",
     "emailManagedLink": "Åpne sikkerhetsinnstillingene",
+    "usernameManagedIn": "Brukernavnet ditt endres i sikkerhetsinnstillingene.",
     "error": {
       "title": "Kunne ikke laste profilen din",
       "description": "Noe gikk galt under lasting av profilen din. Du kan prøve igjen.",
@@ -1133,7 +1147,7 @@
       "title": "Rediger profil",
       "description": "Oppdater kontodetaljene dine",
       "success": "Profil oppdatert",
-      "conflict": "Det brukernavnet eller den e-posten er allerede i bruk",
+      "conflict": "Disse endringene er i konflikt med den lagrede profilen din. Last inn på nytt og prøv igjen.",
       "error": "Kunne ikke oppdatere profilen din. Vennligst prøv igjen."
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "Kunne ikke oppheve blokkeringen av denne brukeren. Prøv igjen.",
       "loadError": "Kunne ikke laste inn de blokkerte brukerne dine.",
       "retry": "Prøv igjen"
+    },
+    "tabs": {
+      "label": "Profilseksjoner",
+      "profile": "Profil",
+      "privacy": "Personvern og data"
     }
   }
 }

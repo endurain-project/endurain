@@ -76,6 +76,12 @@
       "confirmPassword": "Wachtwoord bevestigen",
       "mustChangePasswordHint": "De gebruiker moet bij de volgende keer inloggen een nieuw wachtwoord kiezen.",
       "confirmPasswordRequired": "Wachtwoord bevestigen",
+      "passwordMode": "Hoe de gebruiker een wachtwoord krijgt",
+      "passwordModeInvitation": "Een uitnodiging mailen om een wachtwoord te kiezen",
+      "passwordModePassword": "Nu een wachtwoord instellen",
+      "passwordModeHint": "De gebruiker ontvangt een e-mail met een link, 24 uur geldig, om zelf een wachtwoord te kiezen.",
+      "invitationNeedsActive": "Een inactief account kan niet worden uitgenodigd. Stel in plaats daarvan een wachtwoord in.",
+      "inviteSuccess": "Gebruiker toegevoegd en uitnodiging verzonden",
       "preferredLanguage": "Voorkeurstaal",
       "languages": {
         "ca": "Catalaans",
@@ -955,6 +961,7 @@
       "createDescription": "Bevestig je identiteit om een nieuwe API-sleutel aan te maken.",
       "createSuccess": "API-sleutel aangemaakt",
       "createError": "API-sleutel kon niet worden aangemaakt. Probeer het opnieuw.",
+      "apiKeyLimit": "Je hebt de limiet van 25 actieve API-sleutels bereikt. Trek er een in of verwijder er een en probeer het opnieuw.",
       "expiryTooLate": "Deze vervaldatum ligt later dan de server toestaat. Kies een eerdere datum of laat het veld leeg.",
       "invalidCredentials": "Je wachtwoord of code is onjuist.",
       "expiryNotFuture": "Die vervaldatum ligt niet in de toekomst. Kies een latere datum.",
@@ -997,6 +1004,12 @@
       "reauthRequired": "Bevestig je identiteit bij je identiteitsprovider om door te gaan.",
       "failed": "Opnieuw inloggen bij je identiteitsprovider is mislukt. Probeer het opnieuw.",
       "notFresh": "Je identiteitsprovider heeft niet gevraagd om opnieuw in te loggen. Neem contact op met je beheerder."
+    },
+    "tabs": {
+      "label": "Beveiligingssecties",
+      "account": "Account",
+      "sessions": "Sessies en toegang",
+      "danger": "Gevarenzone"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "Niet ingesteld",
     "emailManagedIn": "Je e-mailadres wijzig je in de beveiligingsinstellingen.",
     "emailManagedLink": "Beveiligingsinstellingen openen",
+    "usernameManagedIn": "Je gebruikersnaam wijzig je in de beveiligingsinstellingen.",
     "error": {
       "title": "Profiel kon niet worden geladen",
       "description": "Er is iets misgegaan bij het laden van je profiel. Je kunt het opnieuw proberen.",
@@ -1133,7 +1147,7 @@
       "title": "Profiel bewerken",
       "description": "Accountgegevens bijwerken",
       "success": "Profiel bijgewerkt",
-      "conflict": "Die gebruikersnaam of dat e-mailadres is al in gebruik",
+      "conflict": "Deze wijzigingen conflicteren met je opgeslagen profiel. Laad opnieuw en probeer het nog eens.",
       "error": "Profiel kon niet worden bijgewerkt. Probeer het opnieuw."
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "Deze gebruiker kon niet worden gedeblokkeerd. Probeer het opnieuw.",
       "loadError": "Je geblokkeerde gebruikers konden niet worden geladen.",
       "retry": "Opnieuw proberen"
+    },
+    "tabs": {
+      "label": "Profielsecties",
+      "profile": "Profiel",
+      "privacy": "Privacy en gegevens"
     }
   }
 }

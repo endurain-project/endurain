@@ -25,6 +25,24 @@ def publish_sign_up_verification_requested(user_id: int, db: Session) -> None:
     )
 
 
+def publish_admin_invitation_requested(user_id: int, db: Session) -> None:
+    """Stage ``auth.admin_invitation_requested`` in the caller's transaction.
+
+    Args:
+        user_id: The user an administrator created without a password.
+        db: The producer's DB session; the caller commits it.
+    """
+    payload = sign_up_tokens_events.SignUpUserPayload(user_id=user_id)
+    platform_publisher.publish_on_commit(
+        sign_up_tokens_events.ADMIN_INVITATION_REQUESTED,
+        payload.model_dump(),
+        source="api:create_user",
+        metadata={core_event_metadata.META_USER_ID: user_id},
+        db=db,
+        schema_version=payload.SCHEMA_VERSION,
+    )
+
+
 def publish_email_change_verification_requested(user_id: int, db: Session) -> None:
     """Stage ``auth.email_change_verification_requested`` in the caller's transaction.
 

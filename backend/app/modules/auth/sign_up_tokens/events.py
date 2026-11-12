@@ -12,6 +12,9 @@ from pydantic import ConfigDict
 # Published after a user signed up and must verify their email address.
 SIGN_UP_VERIFICATION_REQUESTED = "auth.sign_up_verification_requested"
 
+# Published after an administrator created an account without a password, so its owner can choose one.
+ADMIN_INVITATION_REQUESTED = "auth.admin_invitation_requested"
+
 # Published after an email change was requested and the pending address must confirm it.
 EMAIL_CHANGE_VERIFICATION_REQUESTED = "auth.email_change_verification_requested"
 
@@ -35,7 +38,7 @@ SIGN_UP_EXISTING_ACCOUNT = "auth.sign_up_existing_account"
 
 
 class SignUpUserPayload(VersionedPayload):
-    """Validated payload for the events that email one user: verification, approval and notices.
+    """Validated payload for the events that email one user: verification, invitation, approval and notices.
 
     Attributes:
         user_id: The user who receives the email.

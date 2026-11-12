@@ -27,6 +27,14 @@ DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
         ),
     ),
     DurableSubscriberNet(
+        sign_up_tokens_subscribers.ADMIN_INVITATION_EMAIL_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "An invitation email is a transient reaction to an administrator creating the account; the user row is "
+            "the source of truth and a lost email is recovered by the administrator setting a password."
+        ),
+    ),
+    DurableSubscriberNet(
         sign_up_tokens_subscribers.EMAIL_CHANGE_VERIFICATION_EMAIL_SUBSCRIBER_ID,
         None,
         exempt_reason=(

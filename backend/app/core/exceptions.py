@@ -234,14 +234,14 @@ class EmailVerificationDisabledError(PermissionDeniedError):
 
 
 class PasswordRequiredError(InvalidInputError):
-    """A sign-up request arrived without the password the server needs while email verification is off.
+    """A request arrived without the password the server needs: a sign-up while email verification is off, or an
+    account an administrator creates while mail is not configured to invite its owner.
 
-    Clients branch on the ``password-required`` problem type to ask the user for a password and send the same request
-    again.
+    Clients branch on the ``password-required`` problem type to ask for a password and send the same request again.
     """
 
     code = "password-required"
-    default_detail = "A password is required to sign up"
+    default_detail = "A password is required"
 
 
 class IdpReauthRequiredError(UnauthenticatedError):
@@ -329,6 +329,17 @@ class IssuerLockedError(ConflictError):
 
     code = "issuer-locked"
     default_detail = "The issuer cannot change while users are linked to this provider"
+
+
+class ApiKeyLimitError(ConflictError):
+    """The user already holds the most active API keys one account may have.
+
+    Renders as ``409``. Clients branch on the ``api-key-limit`` problem type to tell the user to revoke or delete a
+    key first.
+    """
+
+    code = "api-key-limit"
+    default_detail = "The account already has the maximum number of active API keys"
 
 
 class JobAlreadyRunningError(ConflictError):

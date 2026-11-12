@@ -76,6 +76,12 @@
       "confirmPassword": "Kinnita parool",
       "mustChangePasswordHint": "Kasutaja peab oma järgmisel sisselogimisel valima uue parooli.",
       "confirmPasswordRequired": "Kinnita parool",
+      "passwordMode": "Kuidas kasutaja parooli saab",
+      "passwordModeInvitation": "Saada e-kirjaga kutse parooli valimiseks",
+      "passwordModePassword": "Määra parool kohe",
+      "passwordModeHint": "Kasutaja saab e-kirja lingiga, mis kehtib 24 tundi, oma parooli valimiseks.",
+      "invitationNeedsActive": "Mitteaktiivset kontot ei saa kutsuda. Määra selle asemel parool.",
+      "inviteSuccess": "Kasutaja lisatud ja kutse saadetud",
       "preferredLanguage": "Eelistatud keel",
       "languages": {
         "ca": "Katalaani",
@@ -955,6 +961,7 @@
       "createDescription": "Kinnita oma identiteet, et luua uus API-võti.",
       "createSuccess": "API-võti loodud",
       "createError": "API-võtit ei õnnestunud luua. Palun proovi uuesti.",
+      "apiKeyLimit": "Olete jõudnud 25 aktiivse API võtme piirini. Tühistage või kustutage üks ja proovige uuesti.",
       "expiryTooLate": "See aegumiskuupäev on hilisem, kui server lubab. Vali varasem kuupäev või jäta väli tühjaks.",
       "invalidCredentials": "Sinu parool või kood on vale.",
       "expiryNotFuture": "See aegumiskuupäev ei ole tulevikus. Vali hilisem kuupäev.",
@@ -997,6 +1004,12 @@
       "reauthRequired": "Jätkamiseks kinnita oma identiteet identiteedipakkujaga.",
       "failed": "Identiteedipakkuja kaudu uuesti sisselogimine ebaõnnestus. Palun proovi uuesti.",
       "notFresh": "Sinu identiteedipakkuja ei palunud sul uuesti sisse logida. Võta ühendust oma administraatoriga."
+    },
+    "tabs": {
+      "label": "Turvalisuse jaotised",
+      "account": "Konto",
+      "sessions": "Seansid ja juurdepääs",
+      "danger": "Ohutsoon"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "Määramata",
     "emailManagedIn": "Sinu e-posti muudetakse turvaseadetes.",
     "emailManagedLink": "Ava turvaseaded",
+    "usernameManagedIn": "Sinu kasutajanime muudetakse turvaseadetes.",
     "error": {
       "title": "Sinu profiili ei õnnestunud laadida",
       "description": "Sinu profiili laadimisel läks midagi valesti. Võid uuesti proovida.",
@@ -1133,7 +1147,7 @@
       "title": "Muuda profiili",
       "description": "Uuenda oma konto üksikasju",
       "success": "Profiil uuendatud",
-      "conflict": "See kasutajanimi või e-post on juba kasutusel",
+      "conflict": "Need muudatused on vastuolus sinu salvestatud profiiliga. Laadi uuesti ja proovi uuesti.",
       "error": "Sinu profiili ei õnnestunud uuendada. Palun proovi uuesti."
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "Selle kasutaja blokeeringut ei õnnestunud eemaldada. Proovi uuesti.",
       "loadError": "Sinu blokeeritud kasutajaid ei õnnestunud laadida.",
       "retry": "Proovi uuesti"
+    },
+    "tabs": {
+      "label": "Profiili jaotised",
+      "profile": "Profiil",
+      "privacy": "Privaatsus ja andmed"
     }
   }
 }

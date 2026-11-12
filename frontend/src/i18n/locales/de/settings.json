@@ -76,6 +76,12 @@
       "confirmPassword": "Passwort bestätigen",
       "mustChangePasswordHint": "Der Benutzer muss bei der nächsten Anmeldung ein neues Passwort wählen.",
       "confirmPasswordRequired": "Passwort bestätigen",
+      "passwordMode": "Wie der Benutzer ein Passwort erhält",
+      "passwordModeInvitation": "Einladung per E-Mail zum Wählen eines Passworts senden",
+      "passwordModePassword": "Jetzt ein Passwort festlegen",
+      "passwordModeHint": "Der Benutzer erhält eine E-Mail mit einem 24 Stunden gültigen Link, um sein eigenes Passwort zu wählen.",
+      "invitationNeedsActive": "Ein inaktives Konto kann nicht eingeladen werden. Lege stattdessen ein Passwort fest.",
+      "inviteSuccess": "Benutzer hinzugefügt und Einladung gesendet",
       "preferredLanguage": "Bevorzugte Sprache",
       "languages": {
         "ca": "Katalanisch",
@@ -955,6 +961,7 @@
       "createDescription": "Bestätige deine Identität, um einen neuen API-Schlüssel zu erstellen.",
       "createSuccess": "API-Schlüssel erstellt",
       "createError": "Der API-Schlüssel konnte nicht erstellt werden. Bitte versuche es erneut.",
+      "apiKeyLimit": "Du hast das Limit von 25 aktiven API-Schlüsseln erreicht. Widerrufe oder lösche einen und versuche es erneut.",
       "expiryTooLate": "Dieses Ablaufdatum liegt später, als der Server erlaubt. Wähle ein früheres Datum oder lass das Feld leer.",
       "invalidCredentials": "Dein Passwort oder Code ist falsch.",
       "expiryNotFuture": "Dieses Ablaufdatum liegt nicht in der Zukunft. Wähle ein späteres Datum.",
@@ -997,6 +1004,12 @@
       "reauthRequired": "Bestätige deine Identität bei deinem Identitätsanbieter, um fortzufahren.",
       "failed": "Die erneute Anmeldung bei deinem Identitätsanbieter ist fehlgeschlagen. Bitte versuche es erneut.",
       "notFresh": "Dein Identitätsanbieter hat dich nicht zur erneuten Anmeldung aufgefordert. Wende dich an deinen Administrator."
+    },
+    "tabs": {
+      "label": "Sicherheitsbereiche",
+      "account": "Konto",
+      "sessions": "Sitzungen & Zugriff",
+      "danger": "Gefahrenzone"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "Nicht festgelegt",
     "emailManagedIn": "Deine E-Mail änderst du in den Sicherheitseinstellungen.",
     "emailManagedLink": "Sicherheitseinstellungen öffnen",
+    "usernameManagedIn": "Deinen Benutzernamen änderst du in den Sicherheitseinstellungen.",
     "error": {
       "title": "Dein Profil konnte nicht geladen werden",
       "description": "Beim Laden deines Profils ist etwas schiefgelaufen. Du kannst es erneut versuchen.",
@@ -1133,7 +1147,7 @@
       "title": "Profil bearbeiten",
       "description": "Deine Kontodaten aktualisieren",
       "success": "Profil aktualisiert",
-      "conflict": "Dieser Benutzername oder diese E-Mail wird bereits verwendet",
+      "conflict": "Diese Änderungen stehen im Konflikt mit deinem gespeicherten Profil. Lade neu und versuche es erneut.",
       "error": "Dein Profil konnte nicht aktualisiert werden. Bitte versuche es erneut."
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "Die Blockierung dieses Nutzers konnte nicht aufgehoben werden. Bitte versuche es erneut.",
       "loadError": "Deine blockierten Nutzer konnten nicht geladen werden.",
       "retry": "Erneut versuchen"
+    },
+    "tabs": {
+      "label": "Profilbereiche",
+      "profile": "Profil",
+      "privacy": "Datenschutz & Daten"
     }
   }
 }

@@ -1,5 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { describe, expect, it, vi } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
@@ -21,6 +22,11 @@ vi.mock('@/features/security/composables/useAdminStepUp', async (importOriginal)
   ...(await importOriginal<typeof import('@/features/security/composables/useAdminStepUp')>()),
   useAdminStepUp: () => ({ requirePassword: ref(true), requireMfa: ref(false) }),
 }))
+
+// The form reads the mail settings through a store-backed query.
+beforeEach(() => {
+  setActivePinia(createPinia())
+})
 
 const user: ManagedUser = {
   id: 1,
@@ -462,5 +468,88 @@ describe('UserFormDialog create step-up', () => {
     await flushPromises()
 
     expect(wrapper.emitted('update:open')).toBeUndefined()
+  })
+})
+
+describe('UserFormDialog invitation', () => {
+  const PASSWORD = 'a-very-long-password-123'
+
+  /** Mounts the create form; the mail settings the form reads are seeded, so no request is made for them. */
+  async function mountInvite(mailConfigured: boolean) {
+    const queryClient = new QueryClient()
+    queryClient.setQueryData(queryKeys.serverSettings.mail(), {
+      version: 1,
+      host: mailConfigured ? 'smtp.example.com' : null,
+      port: 587,
+      security: 'starttls',
+      username: null,
+      fromAddress: null,
+      passwordSet: false,
+      envManaged: {},
+      emailStatus: { configured: mailConfigured, problems: [] },
+    })
+    const wrapper = mount(UserFormDialog, {
+      props: { open: false, user: null },
+      global: { plugins: [i18n, [VueQueryPlugin, { queryClient }]], stubs },
+    })
+    await wrapper.setProps({ open: true })
+    await flushPromises()
+    return wrapper
+  }
+
+  async function fillProfile(wrapper: Awaited<ReturnType<typeof mountInvite>>) {
+    await wrapper.find('input[name="name"]').setValue('New')
+    await wrapper.find('input[name="username"]').setValue('newuser')
+    await wrapper.find('input[name="email"]').setValue('new@example.com')
+  }
+
+  const createBody = async (): Promise<Record<string, unknown>> => {
+    const posts = () =>
+      vi
+        .mocked(apiFetch)
+        .mock.calls.filter(([path, init]) => path === '/users' && init?.method === 'POST')
+    await vi.waitFor(() => expect(posts()).toHaveLength(1))
+    return JSON.parse(String(posts()[0]![1]?.body)) as Record<string, unknown>
+  }
+
+  it('defaults to an invitation and asks for no password when mail is configured', async () => {
+    vi.mocked(apiFetch).mockClear()
+    vi.mocked(apiFetch).mockResolvedValue({ ...user })
+    const wrapper = await mountInvite(true)
+
+    expect(wrapper.find('select[name="passwordMode"]').exists()).toBe(true)
+    expect(wrapper.find('input[name="new-password"]').exists()).toBe(false)
+
+    await fillProfile(wrapper)
+    await wrapper.find('form').trigger('submit')
+
+    expect(await createBody()).not.toHaveProperty('password')
+  })
+
+  it('sets a password when the administrator chooses to', async () => {
+    vi.mocked(apiFetch).mockClear()
+    vi.mocked(apiFetch).mockResolvedValue({ ...user })
+    const wrapper = await mountInvite(true)
+    await wrapper.find('select[name="passwordMode"]').setValue('password')
+    await fillProfile(wrapper)
+    await wrapper.find('input[name="new-password"]').setValue(PASSWORD)
+    await wrapper.find('input[name="confirm-password"]').setValue(PASSWORD)
+    await wrapper.find('form').trigger('submit')
+
+    expect(await createBody()).toMatchObject({ password: PASSWORD })
+  })
+
+  it('offers no choice and asks for a password when mail is not configured', async () => {
+    const wrapper = await mountInvite(false)
+
+    expect(wrapper.find('select[name="passwordMode"]').exists()).toBe(false)
+    expect(wrapper.find('input[name="new-password"]').exists()).toBe(true)
+  })
+
+  it('asks for a password for an inactive account, which an invitation cannot activate', async () => {
+    const wrapper = await mountInvite(true)
+    await wrapper.find('input[role="switch"]').setValue(false)
+
+    expect(wrapper.find('input[name="new-password"]').exists()).toBe(true)
   })
 })

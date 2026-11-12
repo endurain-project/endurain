@@ -76,6 +76,12 @@
       "confirmPassword": "Confirma la contrasenya",
       "mustChangePasswordHint": "L'usuari haurà de triar una contrasenya nova en el seu proper inici de sessió.",
       "confirmPasswordRequired": "Confirma la contrasenya",
+      "passwordMode": "Com obté la contrasenya l'usuari",
+      "passwordModeInvitation": "Envia una invitació per correu per triar una contrasenya",
+      "passwordModePassword": "Defineix una contrasenya ara",
+      "passwordModeHint": "L'usuari rep un correu amb un enllaç, vàlid durant 24 hores, per triar la seva contrasenya.",
+      "invitationNeedsActive": "Un compte inactiu no es pot convidar. Defineix-hi una contrasenya.",
+      "inviteSuccess": "Usuari afegit i invitació enviada",
       "preferredLanguage": "Idioma preferit",
       "languages": {
         "ca": "Català",
@@ -955,6 +961,7 @@
       "createDescription": "Confirma la teva identitat per crear una nova clau API.",
       "createSuccess": "Clau API creada",
       "createError": "No s'ha pogut crear la clau API. Torna-ho a intentar.",
+      "apiKeyLimit": "Heu assolit el límit de 25 claus d'API actives. Revoqueu-ne o elimineu-ne una i torneu-ho a provar.",
       "expiryTooLate": "Aquesta caducitat és posterior a la que permet el servidor. Tria una data anterior o deixa-ho buit.",
       "invalidCredentials": "La teva contrasenya o codi no és correcte.",
       "expiryNotFuture": "Aquesta caducitat no és futura. Tria una data posterior.",
@@ -997,6 +1004,12 @@
       "reauthRequired": "Confirma la teva identitat amb el teu proveïdor d'identitat per continuar.",
       "failed": "Ha fallat el nou inici de sessió amb el teu proveïdor d'identitat. Torna-ho a intentar.",
       "notFresh": "El teu proveïdor d'identitat no t'ha demanat que tornis a iniciar sessió. Contacta amb l'administrador."
+    },
+    "tabs": {
+      "label": "Seccions de seguretat",
+      "account": "Compte",
+      "sessions": "Sessions i accés",
+      "danger": "Zona de perill"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "No definit",
     "emailManagedIn": "El teu correu es canvia a la configuració de Seguretat.",
     "emailManagedLink": "Obre la configuració de Seguretat",
+    "usernameManagedIn": "El teu nom d'usuari es canvia a la configuració de Seguretat.",
     "error": {
       "title": "No s'ha pogut carregar el teu perfil",
       "description": "S'ha produït un error en carregar el teu perfil. Pots tornar-ho a intentar.",
@@ -1133,7 +1147,7 @@
       "title": "Edita el perfil",
       "description": "Actualitza els detalls del teu compte",
       "success": "Perfil actualitzat",
-      "conflict": "Aquest nom d'usuari o correu ja està en ús",
+      "conflict": "Aquests canvis entren en conflicte amb el teu perfil desat. Torna a carregar i prova-ho de nou.",
       "error": "No s'ha pogut actualitzar el teu perfil. Torna-ho a intentar."
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "No s'ha pogut desbloquejar aquest usuari. Torna-ho a intentar.",
       "loadError": "No s'han pogut carregar els teus usuaris blocats.",
       "retry": "Torna-ho a intentar"
+    },
+    "tabs": {
+      "label": "Seccions del perfil",
+      "profile": "Perfil",
+      "privacy": "Privadesa i dades"
     }
   }
 }

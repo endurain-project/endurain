@@ -331,7 +331,12 @@ def _stage_default_data(user_id: int, db: Session) -> None:
 
 
 def _stage_user_create_audit(
-    created: users_schema.UserRead, access_type: str, method: users_audit_actions.UserCreateMethod, db: Session
+    created: users_schema.UserRead,
+    access_type: str,
+    method: users_audit_actions.UserCreateMethod,
+    db: Session,
+    *,
+    invited: bool = False,
 ) -> None:
     """Stage the audit row of a new account in the transaction that commits it.
 
@@ -340,6 +345,7 @@ def _stage_user_create_audit(
         access_type: The access tier the account was created with.
         method: How the account is being created.
         db: Database session.
+        invited: Whether the account has no password and its owner is invited to choose one.
     """
     jasil_audit.stage(
         db,
@@ -347,7 +353,7 @@ def _stage_user_create_audit(
         target_type="user",
         target_id=str(created.id),
         target_owner_id=str(created.id),
-        details=users_audit_actions.UserCreateDetails(access_type=access_type, method=method),
+        details=users_audit_actions.UserCreateDetails(access_type=access_type, method=method, invited=invited),
     )
 
 
@@ -356,8 +362,10 @@ def _stage_user(
 ) -> users_schema.UserRead:
     """Stage a user with their password and default data (flushed, not committed).
 
+    A user created without a password gets no local credential: they choose one from an emailed invitation.
+
     Args:
-        user: User creation data with a plain text password.
+        user: User creation data with a plain text password, or none.
         method: How the account is being created, for its audit row.
         db: Database session.
 
@@ -370,9 +378,11 @@ def _stage_user(
     """
     server_settings = server_settings_integration.get_server_settings(db)
     access_type = users_schema.normalize_access_type(user.access_type)
-    hashed_password = credentials_integration.validate_and_hash_password_for_user(
-        server_settings, access_type, user.password, db, username=user.username, email=user.email
-    )
+    hashed_password: str | None = None
+    if user.password is not None:
+        hashed_password = credentials_integration.validate_and_hash_password_for_user(
+            server_settings, access_type, user.password, db, username=user.username, email=user.email
+        )
 
     fields = user.model_dump(exclude={"password", "access_type"})
     fields.update(username=user.username.lower(), email=user.email.lower(), access_type=access_type)
@@ -383,11 +393,12 @@ def _stage_user(
 
     # An administrator knows the password they created an account with, so its owner must choose a new one at the
     # first sign-in; the first administrator and every other creation chose their own.
-    credentials_integration.set_local_password_hash(
-        created.id, hashed_password, db, change_required=method == users_audit_actions.UserCreateMethod.ADMIN
-    )
+    if hashed_password is not None:
+        credentials_integration.set_local_password_hash(
+            created.id, hashed_password, db, change_required=method == users_audit_actions.UserCreateMethod.ADMIN
+        )
     _stage_default_data(created.id, db)
-    _stage_user_create_audit(created, access_type, method, db)
+    _stage_user_create_audit(created, access_type, method, db, invited=hashed_password is None)
     return created
 
 
@@ -401,11 +412,13 @@ def create_user(
 ) -> users_schema.UserRead:
     """Create a user as an administrator, with their password and default data.
 
-    An administrator account needs the creating administrator's own step-up verification, so a stolen access
-    token cannot mint one. It is the creating administrator's credentials that are checked, not the new user's.
+    Without a password the account is created active with no local credential, and its owner is mailed an invitation
+    link to choose one, which needs mail to be configured. An administrator account needs the creating
+    administrator's own step-up verification, so a stolen access token cannot mint one. It is the creating administrator's credentials that are checked, not the new user's.
+    Every other active administrator is told of a new administrator account.
 
     Args:
-        user: User creation data with a plain text password.
+        user: User creation data with a plain text password, or none to invite the user to choose one.
         step_up: The administrator's step-up verification; verified as empty credentials when missing.
         actor_id: ID of the administrator creating the user.
         session_id: The administrator's session.
@@ -419,11 +432,16 @@ def create_user(
         StepUpFailedError: If the new user is an administrator and the step-up fails.
         ConflictError: If the username or email is already taken.
         PasswordPolicyError: If the password fails the configured policy.
+        PasswordRequiredError: If there is no password and mail is not configured to send an invitation.
     """
+    invited = user.password is None
+    if invited and not server_settings_integration.is_mail_configured(db):
+        raise core_exceptions.PasswordRequiredError("A password is required because the server has no mail configured")
     # The breach check is a network call, so it runs before the step-up and the account stage any write.
-    credentials_integration.reject_breached_password(
-        server_settings_integration.get_server_settings(db), user.password, db
-    )
+    if user.password is not None:
+        credentials_integration.reject_breached_password(
+            server_settings_integration.get_server_settings(db), user.password, db
+        )
     if users_schema.normalize_access_type(user.access_type) == users_schema.UserAccessType.ADMIN.value:
         account_security_integration.verify_step_up(
             step_up or auth_schema.StepUpVerification(),
@@ -439,6 +457,10 @@ def create_user(
         db.rollback()
         raise
 
+    if users_schema.normalize_access_type(created.access_type) == users_schema.UserAccessType.ADMIN.value:
+        _stage_admin_promotion_notices(created.id, db)
+    if invited:
+        sign_up_tokens_integration.request_admin_invitation_email(created.id, db)
     db.commit()
     logger.info("User created", extra=core_logger.context(user_id=created.id))
     return created
@@ -796,9 +818,19 @@ def _stage_access_change_notices(before: users_schema.UserRead, after: users_sch
             after.id, change.ROLE_CHANGED_BY_ADMIN, db, access_type=new_access_type
         )
     if new_access_type == users_schema.UserAccessType.ADMIN.value:
-        for admin in users_crud.get_users_admin(db):
-            if admin.active and admin.id != after.id:
-                users_event_publishers.publish_admin_promoted(after.id, admin.id, db)
+        _stage_admin_promotion_notices(after.id, db)
+
+
+def _stage_admin_promotion_notices(user_id: int, db: Session) -> None:
+    """Stage the promotion notice of a new administrator for every other active administrator; the caller commits.
+
+    Args:
+        user_id: The user who became an administrator, by promotion or by creation.
+        db: Database session.
+    """
+    for admin in users_crud.get_users_admin(db):
+        if admin.active and admin.id != user_id:
+            users_event_publishers.publish_admin_promoted(user_id, admin.id, db)
 
 
 def _edit_ends_sessions(before: users_schema.UserRead, requested: users_schema.UserEdit) -> bool:

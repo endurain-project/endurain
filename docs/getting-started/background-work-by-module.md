@@ -191,6 +191,7 @@ Recurring jobs are declared by each module and run by the scheduler of the API p
 | Delete unverified sign-ups whose verification link expired | 60 min | no | Deletes the account row; each one is audited as `users.user.purge` |
 | Revoke identity provider tokens of ended sessions | 15 min | yes | Net for identity provider token revocation |
 | Prune known devices unseen for 400 days | 24 h | yes | Retention, in batches |
+| Delete API keys revoked or expired more than 30 days ago | 60 min | yes | Retention, in batches |
 | Refresh trusted-proxy hostnames | 1 min | no | Keeps `TRUSTED_PROXIES` names current |
 | Prune event log, outbox and job bookkeeping | 24 h | yes | Retention |
 
@@ -244,7 +245,7 @@ Each section says what triggers the work, what happens locally and when distribu
 
 | | |
 | --- | --- |
-| Triggers | A sign-up verification, an approval request to administrators, an approved notice, a password reset request, an email-change confirmation, a notice to the previous address after an email change |
+| Triggers | A sign-up verification, an invitation to choose a password for an account an administrator created, an approval request to administrators, an approved notice, a password reset request, an email-change confirmation, a notice to the previous address after an email change |
 | Local | The email is sent from the subscriber pool. A failed send is logged and not retried |
 | Distributed | Durable job. A failed send is retried with backoff, which is why [email retries](advanced-setup.md#supported-environment-variables) need `JOBS_ENABLED=true` |
 | If dropped | Nothing repairs it. A lost reset email is recovered by requesting another, a lost verification email by signing up again or an administrator, a lost email-change confirmation by resending it from Settings. The user and token rows stay the source of truth. A password reset request answers the same for every address and only stages the event; the subscriber decides (account state, the five-minute cooldown, the audit row), so a dropped event leaves no cooldown or audit row behind |
@@ -322,6 +323,7 @@ Every durable job is one subscriber reacting to one event. The **subscriber id**
 | `followers.notify_accepted` | `follower.accepted` | Bus | Nothing, by design | Nothing |
 | `followers.clear_request_notification` | `follower.request_removed` | Bus | Nothing, by design | Nothing |
 | `auth.send_sign_up_verification_email` | `auth.sign_up_verification_requested` | Bus | The user signs up again, or an administrator helps | Nothing |
+| `auth.send_admin_invitation_email` | `auth.admin_invitation_requested` | Bus | The administrator sets a password for the account | Nothing |
 | `auth.send_email_change_verification_email` | `auth.email_change_verification_requested` | Bus | The user resends the confirmation from Settings, or an administrator helps | Nothing |
 | `auth.send_email_change_requested_email` | `auth.email_change_requested` | Bus | Nothing: the notice is a courtesy, and the change stays unconfirmed | Nothing |
 | `auth.send_email_changed_email` | `auth.email_changed` | Bus | Nothing: the notice is a courtesy | Nothing |

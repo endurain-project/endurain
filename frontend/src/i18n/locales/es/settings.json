@@ -76,6 +76,12 @@
       "confirmPassword": "Confirmar contraseña",
       "mustChangePasswordHint": "El usuario tendrá que elegir una contraseña nueva en su próximo inicio de sesión.",
       "confirmPasswordRequired": "Confirmar contraseña",
+      "passwordMode": "Cómo obtiene el usuario su contraseña",
+      "passwordModeInvitation": "Enviar una invitación por correo para elegir una contraseña",
+      "passwordModePassword": "Establecer una contraseña ahora",
+      "passwordModeHint": "El usuario recibe un correo con un enlace, válido durante 24 horas, para elegir su propia contraseña.",
+      "invitationNeedsActive": "Una cuenta inactiva no puede ser invitada. Establece una contraseña.",
+      "inviteSuccess": "Usuario añadido e invitación enviada",
       "preferredLanguage": "Idioma preferido",
       "languages": {
         "ca": "Catalán",
@@ -955,6 +961,7 @@
       "createDescription": "Confirma tu identidad para crear una nueva clave API.",
       "createSuccess": "Clave API creada",
       "createError": "No se pudo crear la clave API. Inténtalo de nuevo.",
+      "apiKeyLimit": "Has alcanzado el límite de 25 claves de API activas. Revoca o elimina una e inténtalo de nuevo.",
       "expiryTooLate": "Esa expiración es posterior a la que permite el servidor. Elige una fecha anterior o déjalo vacío.",
       "invalidCredentials": "Tu contraseña o código es incorrecto.",
       "expiryNotFuture": "Esa caducidad no está en el futuro. Elige una fecha posterior.",
@@ -997,6 +1004,12 @@
       "reauthRequired": "Confirma tu identidad con tu proveedor de identidad para continuar.",
       "failed": "Falló el nuevo inicio de sesión con tu proveedor de identidad. Inténtalo de nuevo.",
       "notFresh": "Tu proveedor de identidad no te pidió que iniciaras sesión de nuevo. Contacta con tu administrador."
+    },
+    "tabs": {
+      "label": "Secciones de seguridad",
+      "account": "Cuenta",
+      "sessions": "Sesiones y acceso",
+      "danger": "Zona de peligro"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "Sin definir",
     "emailManagedIn": "Tu correo se cambia en los ajustes de seguridad.",
     "emailManagedLink": "Abrir ajustes de seguridad",
+    "usernameManagedIn": "Tu nombre de usuario se cambia en los ajustes de seguridad.",
     "error": {
       "title": "No se pudo cargar tu perfil",
       "description": "Algo salió mal al cargar tu perfil. Puedes intentarlo de nuevo.",
@@ -1133,7 +1147,7 @@
       "title": "Editar perfil",
       "description": "Actualiza los detalles de tu cuenta",
       "success": "Perfil actualizado",
-      "conflict": "Ese nombre de usuario o correo ya está en uso",
+      "conflict": "Estos cambios entran en conflicto con tu perfil guardado. Recarga e inténtalo de nuevo.",
       "error": "No se pudo actualizar tu perfil. Inténtalo de nuevo."
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "No se pudo desbloquear a este usuario. Inténtalo de nuevo.",
       "loadError": "No se pudieron cargar tus usuarios bloqueados.",
       "retry": "Intentar de nuevo"
+    },
+    "tabs": {
+      "label": "Secciones del perfil",
+      "profile": "Perfil",
+      "privacy": "Privacidad y datos"
     }
   }
 }

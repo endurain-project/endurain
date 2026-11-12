@@ -76,6 +76,12 @@
       "confirmPassword": "Parolayı onayla",
       "mustChangePasswordHint": "Kullanıcı bir sonraki girişinde yeni bir parola seçmek zorunda kalacak.",
       "confirmPasswordRequired": "Parolayı onayla",
+      "passwordMode": "Kullanıcı parolasını nasıl alır",
+      "passwordModeInvitation": "Parola seçmesi için e-posta ile davet gönder",
+      "passwordModePassword": "Parolayı şimdi belirle",
+      "passwordModeHint": "Kullanıcı, kendi parolasını seçmesi için 24 saat geçerli bir bağlantı içeren bir e-posta alır.",
+      "invitationNeedsActive": "Devre dışı bir hesap davet edilemez. Bunun yerine bir parola belirleyin.",
+      "inviteSuccess": "Kullanıcı eklendi ve davet gönderildi",
       "preferredLanguage": "Tercih edilen dil",
       "languages": {
         "ca": "Katalanca",
@@ -955,6 +961,7 @@
       "createDescription": "Yeni bir API anahtarı oluşturmak için kimliğinizi onaylayın.",
       "createSuccess": "API anahtarı oluşturuldu",
       "createError": "API anahtarı oluşturulamadı. Lütfen tekrar deneyin.",
+      "apiKeyLimit": "25 etkin API anahtarı sınırına ulaştınız. Birini iptal edin veya silin ve tekrar deneyin.",
       "expiryTooLate": "Bu bitiş tarihi sunucunun izin verdiğinden daha geç. Daha erken bir tarih seçin veya boş bırakın.",
       "invalidCredentials": "Parolanız veya kodunuz yanlış.",
       "expiryNotFuture": "Bu son kullanma tarihi gelecekte değil. Daha ileri bir tarih seçin.",
@@ -997,6 +1004,12 @@
       "reauthRequired": "Devam etmek için kimliğinizi kimlik sağlayıcınızla doğrulayın.",
       "failed": "Kimlik sağlayıcınızla yeniden giriş yapılamadı. Lütfen tekrar deneyin.",
       "notFresh": "Kimlik sağlayıcınız sizden yeniden giriş yapmanızı istemedi. Yöneticinizle iletişime geçin."
+    },
+    "tabs": {
+      "label": "Güvenlik bölümleri",
+      "account": "Hesap",
+      "sessions": "Oturumlar ve erişim",
+      "danger": "Tehlikeli bölge"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "Ayarlanmadı",
     "emailManagedIn": "E-postanız Güvenlik ayarlarından değiştirilir.",
     "emailManagedLink": "Güvenlik ayarlarını aç",
+    "usernameManagedIn": "Kullanıcı adınız Güvenlik ayarlarından değiştirilir.",
     "error": {
       "title": "Profiliniz yüklenemedi",
       "description": "Profiliniz yüklenirken bir şeyler ters gitti. Tekrar deneyebilirsiniz.",
@@ -1133,7 +1147,7 @@
       "title": "Profili düzenle",
       "description": "Hesap ayrıntılarınızı güncelleyin",
       "success": "Profil güncellendi",
-      "conflict": "Bu kullanıcı adı veya e-posta zaten kullanılıyor",
+      "conflict": "Bu değişiklikler kayıtlı profilinizle çakışıyor. Sayfayı yenileyip tekrar deneyin.",
       "error": "Profiliniz güncellenemedi. Lütfen tekrar deneyin."
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "Bu kullanıcının engeli kaldırılamadı. Lütfen tekrar dene.",
       "loadError": "Engellenen kullanıcılar yüklenemedi.",
       "retry": "Tekrar dene"
+    },
+    "tabs": {
+      "label": "Profil bölümleri",
+      "profile": "Profil",
+      "privacy": "Gizlilik ve veriler"
     }
   }
 }

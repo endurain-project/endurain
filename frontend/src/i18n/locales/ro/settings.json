@@ -76,6 +76,12 @@
       "confirmPassword": "Confirmă parola",
       "mustChangePasswordHint": "Utilizatorul va trebui să aleagă o parolă nouă la următoarea autentificare.",
       "confirmPasswordRequired": "Confirmă parola",
+      "passwordMode": "Cum primește utilizatorul parola",
+      "passwordModeInvitation": "Trimite o invitație prin e-mail pentru alegerea unei parole",
+      "passwordModePassword": "Setează o parolă acum",
+      "passwordModeHint": "Utilizatorul primește un e-mail cu un link, valabil 24 de ore, pentru a-și alege propria parolă.",
+      "invitationNeedsActive": "Un cont inactiv nu poate fi invitat. Setează în schimb o parolă.",
+      "inviteSuccess": "Utilizator adăugat și invitație trimisă",
       "preferredLanguage": "Limbă preferată",
       "languages": {
         "ca": "Catalană",
@@ -955,6 +961,7 @@
       "createDescription": "Confirmă-ți identitatea pentru a genera o nouă cheie API.",
       "createSuccess": "Cheie API creată",
       "createError": "Nu am putut crea cheia API. Te rugăm să încerci din nou.",
+      "apiKeyLimit": "Ați atins limita de 25 de chei API active. Revocați sau ștergeți una și încercați din nou.",
       "expiryTooLate": "Această expirare este ulterioară celei permise de server. Alege o dată anterioară sau lasă gol.",
       "invalidCredentials": "Parola sau codul tău este incorect.",
       "expiryNotFuture": "Acea expirare nu este în viitor. Alege o dată ulterioară.",
@@ -997,6 +1004,12 @@
       "reauthRequired": "Confirmă-ți identitatea prin furnizorul tău de identitate pentru a continua.",
       "failed": "Autentificarea repetată prin furnizorul de identitate a eșuat. Te rugăm să încerci din nou.",
       "notFresh": "Furnizorul tău de identitate nu ți-a cerut să te autentifici din nou. Contactează administratorul."
+    },
+    "tabs": {
+      "label": "Secțiunile de securitate",
+      "account": "Cont",
+      "sessions": "Sesiuni și acces",
+      "danger": "Zonă periculoasă"
     }
   },
   "integrations": {
@@ -1123,6 +1136,7 @@
     "notSet": "Nesetat",
     "emailManagedIn": "E-mailul se schimbă din setările de Securitate.",
     "emailManagedLink": "Deschide setările de Securitate",
+    "usernameManagedIn": "Numele de utilizator se schimbă din setările de Securitate.",
     "error": {
       "title": "Nu am putut încărca profilul tău",
       "description": "Ceva nu a mers bine la încărcarea profilului tău. Poți încerca din nou.",
@@ -1133,7 +1147,7 @@
       "title": "Editează profilul",
       "description": "Actualizează-ți detaliile contului",
       "success": "Profil actualizat",
-      "conflict": "Acel nume de utilizator sau e-mail este deja folosit",
+      "conflict": "Aceste modificări sunt în conflict cu profilul salvat. Reîncarcă și încearcă din nou.",
       "error": "Nu am putut actualiza profilul tău. Te rugăm să încerci din nou."
     },
     "photo": {
@@ -1277,6 +1291,11 @@
       "unblockError": "Nu s-a putut debloca acest utilizator. Încearcă din nou.",
       "loadError": "Nu s-au putut încărca utilizatorii blocați.",
       "retry": "Încearcă din nou"
+    },
+    "tabs": {
+      "label": "Secțiunile profilului",
+      "profile": "Profil",
+      "privacy": "Confidențialitate și date"
     }
   }
 }

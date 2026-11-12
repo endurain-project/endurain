@@ -47,6 +47,7 @@ import {
   WEEKDAY_OPTIONS,
 } from '@/features/users/utils/userFieldOptions'
 import { useCreateUserMutation, useUpdateUserMutation } from '@/features/users/composables/useUsers'
+import { useMailSettingsQuery } from '@/features/serverSettings/composables/useServerSettings'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -92,6 +93,7 @@ interface UserFormValues {
   name: string
   username: string
   email: string
+  passwordMode: PasswordMode
   password: string
   confirmPassword: string
   accessType: UserAccessType
@@ -111,12 +113,16 @@ interface UserFormValues {
   maxHeartRate: number | null
 }
 
+/** How a new account gets its password: the user chooses it from an emailed invitation, or the administrator sets it. */
+type PasswordMode = 'invitation' | 'password'
+
 /** The pristine values used for "add" and as the reset baseline. */
 function defaultValues(): UserFormValues {
   return {
     name: '',
     username: '',
     email: '',
+    passwordMode: 'invitation',
     password: '',
     confirmPassword: '',
     accessType: 'regular',
@@ -199,7 +205,7 @@ async function submitForm(
           name: formValues.name.trim(),
           username: formValues.username.trim(),
           email: formValues.email.trim(),
-          password: formValues.password,
+          password: invites.value ? undefined : formValues.password,
           accessType: formValues.accessType,
           active: formValues.active,
           emailVerified: formValues.emailVerified,
@@ -215,7 +221,12 @@ async function submitForm(
           maxHeartRate,
         },
       })
-      emit('success', t('settings.users.form.createSuccess'))
+      emit(
+        'success',
+        invites.value
+          ? t('settings.users.form.inviteSuccess')
+          : t('settings.users.form.createSuccess'),
+      )
     }
     isStepUpOpen.value = false
     open.value = false
@@ -277,6 +288,10 @@ const {
   policyError,
 } = usePasswordPolicy(activeAccessType)
 
+// Same constraint again: whether the new account is invited to choose its own password (which needs mail and
+// an active account) is mirrored into a ref for the password validators, kept in sync via the watch below.
+const invites = ref(false)
+
 const FORM_KEYS = [
   'name',
   'username',
@@ -320,7 +335,7 @@ const {
     // Password is required only when creating; edits never change it here, so
     // the validator passes (returns null) in edit mode where the field is hidden.
     password: (value: string) =>
-      props.user
+      props.user || invites.value
         ? null
         : compose(
             required<string>(t('settings.users.form.passwordRequired')),
@@ -330,7 +345,9 @@ const {
     // `passwordsMatch`/`confirmPasswordError` computeds below (a validator here
     // can't safely read the sibling `password` field — see `values` note above).
     confirmPassword: (value: string) =>
-      props.user ? null : required<string>(t('settings.users.form.confirmPasswordRequired'))(value),
+      props.user || invites.value
+        ? null
+        : required<string>(t('settings.users.form.confirmPasswordRequired'))(value),
     heightCm: heightCmValidator(t('settings.users.form.heightInvalid')),
     maxHeartRate: maxHeartRateValidator(t('settings.users.form.maxHeartRateInvalid')),
     // Height is captured per unit system and only the active system's inputs
@@ -350,6 +367,10 @@ const {
 })
 
 const isEditing = computed(() => props.user !== null)
+const mailSettings = useMailSettingsQuery()
+const mailConfigured = computed(() => mailSettings.data.value?.emailStatus.configured === true)
+// An invitation activates the account when its owner chooses a password, so an inactive account cannot take one.
+const invitationAvailable = computed(() => mailConfigured.value && values.active)
 const isMetric = computed(() => values.units === 'metric')
 
 const { matches: confirmationMatches, error: confirmPasswordError } = usePasswordConfirmation(
@@ -357,7 +378,8 @@ const { matches: confirmationMatches, error: confirmPasswordError } = usePasswor
   () => values.confirmPassword,
 )
 // Only relevant when creating: the password fields are hidden on edit.
-const passwordsMatch = computed(() => isEditing.value || confirmationMatches.value)
+const passwordsMatch = computed(() => isEditing.value || invites.value || confirmationMatches.value)
+const asksForPassword = computed(() => !isEditing.value && !invites.value)
 
 // Keep `activeUnits` in step with the unit selector so the height validators
 // re-run against the correct system whenever the user toggles units.
@@ -365,6 +387,14 @@ watch(
   () => values.units,
   (units) => {
     activeUnits.value = units
+  },
+  { immediate: true },
+)
+// Keep `invites` in step with the mail configuration, the active flag and the chosen password mode.
+watch(
+  [() => props.user, invitationAvailable, () => values.passwordMode],
+  ([user, available, mode]) => {
+    invites.value = user === null && available && mode === 'invitation'
   },
   { immediate: true },
 )
@@ -617,7 +647,32 @@ watch(
       </FormField>
 
       <FormField
-        v-if="!isEditing"
+        v-if="!isEditing && mailConfigured"
+        class="sm:col-span-2"
+        :label="t('settings.users.form.passwordMode')"
+        :hint="
+          invitationAvailable
+            ? t('settings.users.form.passwordModeHint')
+            : t('settings.users.form.invitationNeedsActive')
+        "
+      >
+        <template #default="{ fieldId }">
+          <Select
+            :id="fieldId"
+            v-model="values.passwordMode"
+            name="passwordMode"
+            :disabled="isSubmitting || !invitationAvailable"
+          >
+            <option value="invitation">
+              {{ t('settings.users.form.passwordModeInvitation') }}
+            </option>
+            <option value="password">{{ t('settings.users.form.passwordModePassword') }}</option>
+          </Select>
+        </template>
+      </FormField>
+
+      <FormField
+        v-if="asksForPassword"
         class="sm:col-span-2"
         :label="t('settings.users.form.password')"
         :error="errors.password"
@@ -645,7 +700,7 @@ watch(
       </FormField>
 
       <FormField
-        v-if="!isEditing"
+        v-if="asksForPassword"
         class="sm:col-span-2"
         :label="t('settings.users.form.confirmPassword')"
         :placeholder="t('settings.users.form.confirmPassword')"
