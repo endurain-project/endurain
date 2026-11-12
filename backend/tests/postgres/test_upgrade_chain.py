@@ -20,10 +20,15 @@ _REVISION_85 = "b41c0afdc9d9"
 _REVISION_86 = "3e7a91d4c0b8"
 _REVISION_87 = "e05703e64861"
 _REVISION_88 = "dc5f0450aaf0"
+_REVISION_89 = "ecaa46b32646"
 _RETIRED_DATA_MIGRATIONS = {1, 2, 3, 4, 5, 6, 8, 9, 10}
 _UNPREFIXED_SUBSTRATE_TABLES = ("event_log", "event_outbox", "processing_jobs")
-#: The one table revision 87 empties by design: its record ids name health rows whose ids change.
+#: The tables the chain empties by design: their record ids name rows whose ids change (revisions 87 and 89).
+_TABLES_EMPTIED_BY_THE_CHAIN = {"health_record_deletions", "gear_deletions", "gear_component_deletions"}
+#: The one table revision 87 empties.
 _TABLE_EMPTIED_BY_REVISION_87 = "health_record_deletions"
+#: The tombstone tables revision 89 empties.
+_TABLES_EMPTIED_BY_REVISION_89 = ("gear_deletions", "gear_component_deletions")
 _REVISION_87_TABLES = (
     "health_fasting",
     "health_poop",
@@ -79,7 +84,9 @@ def _assert_every_table_has_rows(engine) -> None:
 
 def _assert_every_table_has_rows_but_the_emptied_one(engine) -> None:
     counts = {**alembic_chain.row_counts(engine), **_substrate_row_counts(engine)}
-    assert counts.pop(_TABLE_EMPTIED_BY_REVISION_87) == 0
+    assert {name for name, count in counts.items() if count == 0} == _TABLES_EMPTIED_BY_THE_CHAIN
+    for name in _TABLES_EMPTIED_BY_THE_CHAIN:
+        counts.pop(name)
     assert [name for name, count in counts.items() if count == 0] == []
 
 
@@ -144,7 +151,11 @@ def test_a_seeded_v0_20_install_upgrades_to_head_keeping_every_row(upgrade_db):
     alembic_chain.upgrade(upgrade_db, "head")
 
     after = alembic_chain.row_counts(upgrade_db)
-    assert after == {**before, "migrations": before["migrations"] - 9 + 1, _TABLE_EMPTIED_BY_REVISION_87: 0}
+    assert after == {
+        **before,
+        "migrations": before["migrations"] - 9 + 1,
+        **dict.fromkeys(_TABLES_EMPTIED_BY_THE_CHAIN, 0),
+    }
     assert set(_migrations_state(upgrade_db)) == {7, 11, 12, 13}
     assert _scalar(upgrade_db, "SELECT to_regclass('cadence_spm_migration_rows')") is None
     assert _scalar(upgrade_db, "SELECT start_time FROM activity_sets WHERE id = 1").isoformat() == (
@@ -235,7 +246,7 @@ def test_revision_87_gives_the_leaf_tables_uuid_primary_keys(upgrade_db):
     assert followers_before == [(1, 2), (3, 1), (2, 1)]
     assert blocks_before == [(2, 3), (1, 2), (1, 3)]
 
-    alembic_chain.upgrade(upgrade_db, "head")
+    alembic_chain.upgrade(upgrade_db, _REVISION_88)
 
     assert alembic_chain.row_counts(upgrade_db) == {
         **counts_before,
@@ -283,6 +294,7 @@ def test_revision_87_gives_the_leaf_tables_uuid_primary_keys(upgrade_db):
         for table in _KEPT_TOMBSTONE_TABLES:
             rows = sa.table(table, sa.column("record_id"))
             assert connection.execute(sa.select(rows.c.record_id)).scalars().all() == [100]
+    alembic_chain.upgrade(upgrade_db, "head")
     assert alembic_chain.schema_differences(upgrade_db) == []
     alembic_chain.bootstrap_substrate(upgrade_db)
     assert alembic_chain.schema_differences(upgrade_db) == []
@@ -401,7 +413,7 @@ def test_revision_88_converts_identity_providers_and_their_references(upgrade_db
         upgrade_db, "SELECT id, event_payload FROM event_log WHERE event_type = 'activity.created' ORDER BY id"
     )
 
-    alembic_chain.upgrade(upgrade_db, "head")
+    alembic_chain.upgrade(upgrade_db, _REVISION_88)
 
     assert alembic_chain.row_counts(upgrade_db) == {**counts_before, "migrations": counts_before["migrations"] + 1}
     for table, column in (
@@ -447,6 +459,7 @@ def test_revision_88_converts_identity_providers_and_their_references(upgrade_db
         ("identity_providers", old_ids[slug], new_ids[slug]) for slug in old_ids
     )
     assert _migrations_state(upgrade_db)[13] is False
+    alembic_chain.upgrade(upgrade_db, "head")
     assert alembic_chain.schema_differences(upgrade_db) == []
     alembic_chain.bootstrap_substrate(upgrade_db)
     assert alembic_chain.schema_differences(upgrade_db) == []
@@ -487,12 +500,173 @@ def test_revision_88_rewrites_the_jasil_prefixed_substrate_tables(upgrade_db):
 
 
 def test_revision_88_is_irreversible(upgrade_db):
-    alembic_chain.upgrade(upgrade_db, "head")
+    alembic_chain.upgrade(upgrade_db, _REVISION_88)
 
     with pytest.raises(NotImplementedError):
         alembic_chain.downgrade(upgrade_db, _REVISION_87)
 
     assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == _REVISION_88
+
+
+_GEAR_REFERENCES = (
+    ("activities", "gear_id"),
+    ("gear_components", "gear_id"),
+    *(
+        ("users_default_gear", f"{activity_type}_gear_id")
+        for activity_type in (
+            "run",
+            "trail_run",
+            "virtual_run",
+            "ride",
+            "gravel_ride",
+            "mtb_ride",
+            "virtual_ride",
+            "ows",
+            "walk",
+            "hike",
+            "tennis",
+            "alpine_ski",
+            "nordic_ski",
+            "snowboard",
+            "windsurf",
+        )
+    ),
+)
+_GEAR_RECORD_ID_TABLES = ("gear_deletions", "gear_component_deletions")
+
+
+#: The column that identifies a row of each referencing table across the conversion: ``gear_components`` gets new ids.
+_GEAR_ROW_KEYS = {"activities": "id", "gear_components": "type", "users_default_gear": "user_id"}
+
+
+def _gear_pairs(engine, table: str, column: str) -> list[tuple]:
+    """Return (row key, nickname of the gear the column references) of every row, whatever the type of the ids."""
+    key = _GEAR_ROW_KEYS[table]
+    rows = sa.table(table, sa.column(key), sa.column(column))
+    gear = sa.table("gear", sa.column("id"), sa.column("nickname"))
+    statement = (
+        sa.select(rows.c[key], gear.c.nickname)
+        .select_from(rows.outerjoin(gear, gear.c.id == rows.c[column]))
+        .order_by(rows.c[key])
+    )
+    with engine.connect() as connection:
+        return [tuple(row) for row in connection.execute(statement)]
+
+
+def _count_not_null(engine, table: str, column: str) -> int:
+    rows = sa.table(table, sa.column(column))
+    with engine.connect() as connection:
+        return connection.execute(sa.select(sa.func.count(rows.c[column]))).scalar_one()
+
+
+def _count_joined_to_gear(engine, table: str, column: str) -> int:
+    rows = sa.table(table, sa.column(column))
+    gear = sa.table("gear", sa.column("id"))
+    with engine.connect() as connection:
+        return connection.execute(
+            sa.select(sa.func.count()).select_from(rows.join(gear, gear.c.id == rows.c[column]))
+        ).scalar_one()
+
+
+def _substrate_rows(engine) -> dict[str, list[tuple]]:
+    """Return every row of the three unprefixed substrate tables, whole and ordered by id."""
+    with engine.connect() as connection:
+        return {
+            table: [
+                tuple(row)
+                for row in connection.execute(
+                    sa.select(sa.text("*")).select_from(sa.table(table)).order_by(sa.column("id"))
+                )
+            ]
+            for table in _UNPREFIXED_SUBSTRATE_TABLES
+        }
+
+
+def test_revision_89_converts_gear_and_its_references(upgrade_db):
+    _seed_to_87(upgrade_db)
+    alembic_chain.upgrade(upgrade_db, _REVISION_88)
+    counts_before = alembic_chain.row_counts(upgrade_db)
+    pairs_before = {(table, column): _gear_pairs(upgrade_db, table, column) for table, column in _GEAR_REFERENCES}
+    for table, column in _GEAR_REFERENCES:
+        pairs = pairs_before[(table, column)]
+        assert any(nickname is not None for _, nickname in pairs), (table, column)
+        if table != "gear_components":
+            assert any(nickname is None for _, nickname in pairs), (table, column)
+    components_before = _rows(upgrade_db, "SELECT type, brand FROM gear_components ORDER BY id")
+    assert len(components_before) == 4
+    assert _rows(upgrade_db, "SELECT type FROM gear_components ORDER BY purchase_date") != [
+        (kind,) for kind, _ in components_before
+    ]
+    providers_before = _rows(
+        upgrade_db, "SELECT nickname, strava_gear_id, garminconnect_gear_id FROM gear ORDER BY nickname"
+    )
+    assert ("Second bike", "b12345", "garmin-gear-2") in providers_before
+    substrate_before = _substrate_rows(upgrade_db)
+    migration_ids_before = _rows(upgrade_db, "SELECT table_name, old_id, new_id::text FROM uuid_migration_ids")
+    migrations_before = _migrations_state(upgrade_db)
+
+    alembic_chain.upgrade(upgrade_db, _REVISION_89)
+
+    assert alembic_chain.row_counts(upgrade_db) == {
+        **counts_before,
+        "migrations": counts_before["migrations"],
+        **dict.fromkeys(_GEAR_RECORD_ID_TABLES, 0),
+    }
+    uuid_columns = [("gear", "id"), ("gear_components", "id"), *_GEAR_REFERENCES]
+    uuid_columns += [(table, "record_id") for table in _GEAR_RECORD_ID_TABLES]
+    for table, column in uuid_columns:
+        assert _data_type(upgrade_db, table, column) == "uuid", (table, column)
+    assert _data_type(upgrade_db, "activities", "id") == "integer"
+    for table in ("gear", "gear_components", "users_default_gear", "activities"):
+        assert _data_type(upgrade_db, table, "user_id") == "integer"
+    assert _scalar(upgrade_db, "SELECT count(DISTINCT id) FROM gear") == 3
+    assert _scalar(upgrade_db, "SELECT count(DISTINCT id) FROM gear_components") == 4
+    assert {(table, column): _gear_pairs(upgrade_db, table, column) for table, column in _GEAR_REFERENCES} == (
+        pairs_before
+    )
+    for table, column in _GEAR_REFERENCES:
+        assert _count_joined_to_gear(upgrade_db, table, column) == _count_not_null(upgrade_db, table, column)
+    assert _rows(upgrade_db, "SELECT type, brand FROM gear_components ORDER BY created_at, id") == components_before
+    assert _data_type(upgrade_db, "gear_components", "created_at") == "timestamp with time zone"
+    assert (
+        _scalar(
+            upgrade_db,
+            "SELECT is_nullable FROM information_schema.columns "
+            "WHERE table_name = 'gear_components' AND column_name = 'created_at'",
+        )
+        == "NO"
+    )
+    steps = _rows(upgrade_db, "SELECT created_at - MIN(created_at) OVER () FROM gear_components ORDER BY 1")
+    assert [step[0] for step in steps] == [timedelta(microseconds=index) for index in range(4)]
+    assert (
+        _rows(upgrade_db, "SELECT nickname, strava_gear_id, garminconnect_gear_id FROM gear ORDER BY nickname")
+        == providers_before
+    )
+    assert _substrate_rows(upgrade_db) == substrate_before
+    assert _rows(upgrade_db, "SELECT table_name, old_id, new_id::text FROM uuid_migration_ids") == migration_ids_before
+    assert _migrations_state(upgrade_db) == migrations_before
+    alembic_chain.upgrade(upgrade_db, "head")
+    assert alembic_chain.schema_differences(upgrade_db) == []
+    alembic_chain.bootstrap_substrate(upgrade_db)
+    assert alembic_chain.schema_differences(upgrade_db) == []
+
+    with upgrade_db.begin() as connection:
+        connection.execute(sa.text("DELETE FROM gear WHERE nickname = 'Second bike'"))
+    assert _scalar(upgrade_db, "SELECT gear_id FROM activities WHERE name = 'Ride on second bike'") is None
+    assert _scalar(upgrade_db, "SELECT count(*) FROM gear_components") == 2
+    for table, column in _GEAR_REFERENCES:
+        assert _count_joined_to_gear(upgrade_db, table, column) == _count_not_null(upgrade_db, table, column)
+    assert _scalar(upgrade_db, "SELECT trail_run_gear_id FROM users_default_gear WHERE user_id = 1") is None
+    assert _scalar(upgrade_db, "SELECT run_gear_id FROM users_default_gear WHERE user_id = 1") is not None
+
+
+def test_revision_89_is_irreversible(upgrade_db):
+    alembic_chain.upgrade(upgrade_db, "head")
+
+    with pytest.raises(NotImplementedError):
+        alembic_chain.downgrade(upgrade_db, _REVISION_88)
+
+    assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == _REVISION_89
 
 
 def test_migration_13_renames_the_icons_after_the_upgrade(upgrade_db, tmp_path):

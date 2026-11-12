@@ -1,5 +1,7 @@
 """Builders shared by the gears tests."""
 
+import uuid
+
 import modules.gears.contracts as gears_contracts
 import modules.gears.contributor_registry as gears_contributor_registry
 import modules.gears.contributors as gears_contributors
@@ -12,11 +14,11 @@ def gear_create(nickname: str = "Road Bike", **overrides) -> gear_schema.GearCre
     return gear_schema.GearCreate(**{"nickname": nickname, "gear_type": gear_schema.GearType.BIKE, **overrides})
 
 
-def _component_fields(gear_id: int, overrides: dict) -> dict:
+def _component_fields(gear_id: uuid.UUID, overrides: dict) -> dict:
     return {"gear_id": gear_id, "type": "chain", "brand": "Shimano", "model": "XT", **overrides}
 
 
-def component_create(gear_id: int = 1, **overrides) -> gear_components_schema.GearComponentCreate:
+def component_create(gear_id: uuid.UUID, **overrides) -> gear_components_schema.GearComponentCreate:
     """Return a chain create payload for a gear with the given overrides."""
     return gear_components_schema.GearComponentCreate(**_component_fields(gear_id, overrides))
 

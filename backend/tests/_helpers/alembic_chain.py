@@ -522,6 +522,55 @@ def _seed_v0_21_gear_component_deletions(connection: Connection) -> None:
     _execute(connection, "INSERT INTO gear_component_deletions (id, user_id, record_id) VALUES (1, 1, 100)")
 
 
+def _seed_v0_21_gear(connection: Connection) -> None:
+    """Seed two more gear (one of user 2, one with provider ids), four components out of id order and their references.
+
+    Gear 1 and 2 belong to user 1 and gear 3 to user 2. The default gear of user 1 names gears 1 and 2 in eight
+    columns and the default gear of user 2 names gear 3 in the other seven, so every gear column of
+    ``users_default_gear`` is set in one row and null in the other. Activity 2 has no gear and activity 3 has gear 2.
+    """
+    _execute(
+        connection,
+        """INSERT INTO gear (id, brand, model, nickname, gear_type, user_id, active, initial_distance,
+               strava_gear_id, garminconnect_gear_id)
+           VALUES (2, 'Brand 2', 'Model 2', 'Second bike', 1, 1, true, 0, 'b12345', 'garmin-gear-2'),
+               (3, 'Brand 3', 'Model 3', 'Other user bike', 1, 2, true, 0, NULL, NULL)""",
+    )
+    _execute(
+        connection,
+        """INSERT INTO gear_components (id, user_id, gear_id, type, brand, model, purchase_date, active)
+           VALUES (2, 1, 2, 'tyre', 'Brand B', 'Model B', '2024-03-01', true),
+               (3, 1, 1, 'saddle', 'Brand C', 'Model C', '2024-02-01', false),
+               (4, 1, 2, 'pedals', 'Brand D', 'Model D', '2024-01-01', true)""",
+    )
+    _execute(
+        connection,
+        """UPDATE users_default_gear
+           SET run_gear_id = 1, trail_run_gear_id = 2, virtual_run_gear_id = 1, gravel_ride_gear_id = 2,
+               mtb_ride_gear_id = 1, virtual_ride_gear_id = 2, ows_gear_id = 1, walk_gear_id = 2
+           WHERE user_id = 1""",
+    )
+    _execute(
+        connection,
+        """INSERT INTO users_default_gear (id, user_id, hike_gear_id, tennis_gear_id, alpine_ski_gear_id,
+               nordic_ski_gear_id, snowboard_gear_id, windsurf_gear_id, version)
+           VALUES (2, 2, 3, 3, 3, 3, 3, 3, 1)""",
+    )
+    _execute(
+        connection,
+        """INSERT INTO activities (id, user_id, name, distance, activity_type, start_time, end_time, created_at,
+               visibility, gear_id, total_elapsed_time, total_timer_time, hide_start_time, hide_location, hide_map,
+               hide_hr, hide_power, hide_cadence, hide_elevation, hide_speed, hide_pace, hide_laps,
+               hide_workout_sets_steps, hide_gear, is_hidden, import_info, version)
+           VALUES (2, 1, 'Ride without gear', 5000, 2, '2024-05-02 10:00:00', '2024-05-02 11:00:00',
+               '2024-05-02 12:00:00', 0, NULL, 3600, 3500, false, false, false, false, false, false, false, false,
+               false, false, false, false, false, NULL, 1),
+               (3, 1, 'Ride on second bike', 7000, 2, '2024-05-03 10:00:00', '2024-05-03 11:00:00',
+               '2024-05-03 12:00:00', 0, 2, 3600, 3500, false, false, false, false, false, false, false, false,
+               false, false, false, false, false, NULL, 1)""",
+    )
+
+
 def _seed_v0_21_health_record_deletions(connection: Connection) -> None:
     _execute(
         connection,
@@ -769,6 +818,7 @@ def seed_v0_21(connection: Connection) -> None:
     _seed_v0_21_activity_deletions(connection)
     _seed_v0_21_gear_deletions(connection)
     _seed_v0_21_gear_component_deletions(connection)
+    _seed_v0_21_gear(connection)
     _seed_v0_21_health_record_deletions(connection)
     _seed_v0_21_auth_known_devices(connection)
     _seed_v0_21_follow_request_declines(connection)
