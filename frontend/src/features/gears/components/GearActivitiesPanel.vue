@@ -35,7 +35,7 @@ const activities = computed(() => activitiesQuery.data.value?.records ?? [])
 const activityRows = computed<{ activity: GearActivity; to: RouteLocationRaw }[]>(() =>
   activities.value.map((activity) => ({
     activity,
-    to: { name: 'activity', params: { id: String(activity.id) } },
+    to: { name: 'activity', params: { id: activity.id } },
   })),
 )
 const activitiesTotal = computed(() => activitiesQuery.data.value?.total ?? 0)

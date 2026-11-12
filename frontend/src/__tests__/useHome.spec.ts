@@ -17,7 +17,7 @@ import {
   useUserActivitiesFeed,
 } from '@/features/home/composables/useHome'
 
-import { makeActivity } from './fixtures/activity'
+import { makeActivity, activityUuid } from './fixtures/activity'
 
 vi.mock('pinia', async (importOriginal) => ({
   ...(await importOriginal<typeof import('pinia')>()),
@@ -50,7 +50,10 @@ vi.mock('@/features/upload/composables/usePinnedActivities', () => ({
 const jane: ActivityOwner = { name: 'Jane Runner', username: 'jane', avatarUrl: null }
 
 const slice: ActivityFeedSlice = {
-  items: [makeActivity({ id: 1, userId: 7 }), makeActivity({ id: 2, userId: 8 })],
+  items: [
+    makeActivity({ id: activityUuid(1), userId: 7 }),
+    makeActivity({ id: activityUuid(2), userId: 8 }),
+  ],
   nextCursor: null,
   owners: new Map<number, ActivityOwner | null>([
     [7, jane],
@@ -173,12 +176,19 @@ describe('useUserActivitiesFeed', () => {
 })
 
 describe('embedded activity media', () => {
-  const photo: ActivityMedia = { id: 5, activityId: 1, url: '/media/1/5?t=abc' }
+  const photo: ActivityMedia = {
+    id: activityUuid(5),
+    activityId: activityUuid(1),
+    url: `/media/${activityUuid(1)}/${activityUuid(5)}?t=abc`,
+  }
 
   it('seeds the media of each activity on the home feed, so no card requests /media', async () => {
     vi.mocked(fetchFollowersActivities).mockResolvedValue({
       ...slice,
-      items: [makeActivity({ id: 1, media: [photo] }), makeActivity({ id: 2 })],
+      items: [
+        makeActivity({ id: activityUuid(1), media: [photo] }),
+        makeActivity({ id: activityUuid(2) }),
+      ],
     })
     const queryClient = new QueryClient()
     mountWith(queryClient, () => {
@@ -189,7 +199,7 @@ describe('embedded activity media', () => {
 
     const galleries: ReturnType<typeof useActivityMediaQuery>[] = []
     mountWith(queryClient, () => {
-      galleries.push(useActivityMediaQuery(1), useActivityMediaQuery(2))
+      galleries.push(useActivityMediaQuery(activityUuid(1)), useActivityMediaQuery(activityUuid(2)))
     })
     await flushPromises()
 
@@ -201,7 +211,7 @@ describe('embedded activity media', () => {
   it('seeds the media of the following feed too', async () => {
     vi.mocked(fetchFollowersActivities).mockResolvedValue({
       ...slice,
-      items: [makeActivity({ id: 1, userId: 7, media: [photo] })],
+      items: [makeActivity({ id: activityUuid(1), userId: 7, media: [photo] })],
     })
     const queryClient = new QueryClient()
     mountWith(queryClient, () => {
@@ -209,6 +219,6 @@ describe('embedded activity media', () => {
     })
     await flushPromises()
 
-    expect(queryClient.getQueryData(queryKeys.activities.media(1))).toEqual([photo])
+    expect(queryClient.getQueryData(queryKeys.activities.media(activityUuid(1)))).toEqual([photo])
   })
 })

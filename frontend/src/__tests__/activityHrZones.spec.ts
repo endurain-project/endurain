@@ -4,12 +4,14 @@ import type { ActivityStream, ActivityStreamType, HrZoneBucket } from '@/feature
 
 import { extractHrZones, hrZoneColor } from '@/features/activities/utils/hrZones'
 
+import { activityUuid } from './fixtures/activity'
+
 /** Builds a stream fixture carrying optional HR zones. */
 function stream(
   streamType: ActivityStreamType,
   hrZones: HrZoneBucket[] | null = null,
 ): ActivityStream {
-  return { id: 1, streamType, waypoints: [], hrZones }
+  return { id: activityUuid(1), streamType, waypoints: [], hrZones }
 }
 
 const ZONES: HrZoneBucket[] = [

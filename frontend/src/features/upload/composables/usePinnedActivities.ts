@@ -13,7 +13,7 @@ import type { ActivityFeedSlice, ActivitySummary } from '@/features/activities/t
  * date ordering. Nothing persists, so a reload restores the server ordering.
  * Insertion order is upload order, oldest first.
  */
-const pinned = shallowReactive(new Map<number, ActivitySummary>())
+const pinned = shallowReactive(new Map<string, ActivitySummary>())
 
 /**
  * Pins freshly uploaded activities to the top of the home feed.
@@ -33,7 +33,7 @@ export function pinActivities(activities: ActivitySummary[]): void {
  * @param activityId - The activity to stop pinning.
  * @returns Nothing.
  */
-export function unpinActivity(activityId: number): void {
+export function unpinActivity(activityId: string): void {
   pinned.delete(activityId)
 }
 

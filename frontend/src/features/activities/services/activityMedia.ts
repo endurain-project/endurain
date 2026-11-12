@@ -29,7 +29,7 @@ export function mapActivityMedia(dto: ActivityMediaDto): ActivityMedia {
  * @returns The activity's media, newest first as returned by the backend.
  */
 export async function fetchActivityMedia(
-  activityId: number,
+  activityId: string,
   signal?: AbortSignal,
 ): Promise<ActivityMedia[]> {
   const dtos = await fetchAllPages<ActivityMediaDto>(`/activities/${activityId}/media`, undefined, {
@@ -49,7 +49,7 @@ export async function fetchActivityMedia(
  * @returns The newly created media record.
  * @throws {HttpError} When the upload or validation fails.
  */
-export async function uploadActivityMedia(activityId: number, file: File): Promise<ActivityMedia> {
+export async function uploadActivityMedia(activityId: string, file: File): Promise<ActivityMedia> {
   const formData = new FormData()
   formData.append('file', file, file.name)
   const dto = await apiFetch<ActivityMediaDto>(`/activities/${activityId}/media`, {
@@ -68,7 +68,7 @@ export async function uploadActivityMedia(activityId: number, file: File): Promi
  * @param mediaId - The media record id to delete.
  * @throws {HttpError} When the delete fails.
  */
-export async function deleteActivityMedia(activityId: number, mediaId: number): Promise<void> {
+export async function deleteActivityMedia(activityId: string, mediaId: string): Promise<void> {
   await apiFetch(`/activities/${activityId}/media/${mediaId}`, {
     method: 'DELETE',
     responseType: 'void',

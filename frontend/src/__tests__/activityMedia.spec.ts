@@ -9,14 +9,15 @@ import {
   mapActivityMedia,
   uploadActivityMedia,
 } from '@/features/activities/services/activityMedia'
+import { activityUuid } from './fixtures/activity'
 
 vi.mock('@/services/http', () => ({ apiFetch: vi.fn<typeof apiFetch>() }))
 
 const mediaDto: ActivityMediaDto = {
-  id: 3,
-  activity_id: 5,
+  id: activityUuid(3),
+  activity_id: activityUuid(5),
   media_type: 'photo',
-  url: '/api/v1/activities/5/media/3/file?t=signed-token',
+  url: `/api/v1/activities/${activityUuid(5)}/media/${activityUuid(3)}/file?t=signed-token`,
 }
 
 beforeEach(() => {
@@ -26,8 +27,10 @@ beforeEach(() => {
 describe('mapActivityMedia', () => {
   it('uses the signed url the backend returns', () => {
     const media = mapActivityMedia(mediaDto)
-    expect(media).toMatchObject({ id: 3, activityId: 5 })
-    expect(media.url).toContain('/activities/5/media/3/file?t=signed-token')
+    expect(media).toMatchObject({ id: activityUuid(3), activityId: activityUuid(5) })
+    expect(media.url).toContain(
+      `/activities/${activityUuid(5)}/media/${activityUuid(3)}/file?t=signed-token`,
+    )
   })
 
   it('leaves an absolute presigned url untouched', () => {
@@ -40,19 +43,24 @@ describe('fetchActivityMedia', () => {
   it('requests the activity media endpoint and maps the list', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({ items: [mediaDto], next: null })
 
-    const media = await fetchActivityMedia(5)
+    const media = await fetchActivityMedia(activityUuid(5))
 
-    expect(apiFetch).toHaveBeenCalledWith('/activities/5/media?num_records=200&page_number=1', {
-      auth: true,
-      signal: undefined,
-    })
+    expect(apiFetch).toHaveBeenCalledWith(
+      `/activities/${activityUuid(5)}/media?num_records=200&page_number=1`,
+      {
+        auth: true,
+        signal: undefined,
+      },
+    )
     expect(media).toHaveLength(1)
-    expect(media[0]?.url).toContain('/activities/5/media/3/file?t=signed-token')
+    expect(media[0]?.url).toContain(
+      `/activities/${activityUuid(5)}/media/${activityUuid(3)}/file?t=signed-token`,
+    )
   })
 
   it('maps an empty page to an empty array', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({ items: [], next: null })
-    expect(await fetchActivityMedia(5)).toEqual([])
+    expect(await fetchActivityMedia(activityUuid(5))).toEqual([])
   })
 })
 
@@ -61,13 +69,13 @@ describe('uploadActivityMedia', () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(mediaDto)
     const file = new File(['x'], 'photo.jpg', { type: 'image/jpeg' })
 
-    const media = await uploadActivityMedia(5, file)
+    const media = await uploadActivityMedia(activityUuid(5), file)
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities/5/media',
+      `/activities/${activityUuid(5)}/media`,
       expect.objectContaining({ method: 'POST', timeoutMs: 0, body: expect.any(FormData) }),
     )
-    expect(media.id).toBe(3)
+    expect(media.id).toBe(activityUuid(3))
   })
 })
 
@@ -75,11 +83,14 @@ describe('deleteActivityMedia', () => {
   it('sends a DELETE to the media endpoint', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(undefined)
 
-    await deleteActivityMedia(5, 3)
+    await deleteActivityMedia(activityUuid(5), activityUuid(3))
 
-    expect(apiFetch).toHaveBeenCalledWith('/activities/5/media/3', {
-      method: 'DELETE',
-      responseType: 'void',
-    })
+    expect(apiFetch).toHaveBeenCalledWith(
+      `/activities/${activityUuid(5)}/media/${activityUuid(3)}`,
+      {
+        method: 'DELETE',
+        responseType: 'void',
+      },
+    )
   })
 })

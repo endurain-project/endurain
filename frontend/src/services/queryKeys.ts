@@ -175,30 +175,30 @@ export const queryKeys = {
      * @param id - Activity identifier.
      * @returns A detail query key for a single activity.
      */
-    detail: (id: number) => ['activities', 'detail', id] as const,
+    detail: (id: string) => ['activities', 'detail', id] as const,
     /**
      * @param id - Activity identifier.
      * @returns A key for the full activity (with private notes) read before an edit from a list row.
      */
-    full: (id: number) => ['activities', 'detail', id, 'full'] as const,
+    full: (id: string) => ['activities', 'detail', id, 'full'] as const,
     /**
      * @param id - Activity identifier.
      * @returns A query key for an activity's metric streams.
      */
-    streams: (id: number) => ['activities', 'detail', id, 'streams'] as const,
+    streams: (id: string) => ['activities', 'detail', id, 'streams'] as const,
     /**
      * @param id - Activity identifier.
      * @returns A query key for an activity's laps.
      */
-    laps: (id: number) => ['activities', 'detail', id, 'laps'] as const,
+    laps: (id: string) => ['activities', 'detail', id, 'laps'] as const,
     /** Planned workout steps for one activity. */
-    workoutSteps: (id: number) => ['activities', 'detail', id, 'workout-steps'] as const,
+    workoutSteps: (id: string) => ['activities', 'detail', id, 'workout-steps'] as const,
     /** Performed workout sets for one activity. */
-    sets: (id: number) => ['activities', 'detail', id, 'sets'] as const,
+    sets: (id: string) => ['activities', 'detail', id, 'sets'] as const,
     /** The exercise-name catalogue (shared across activities). */
     exerciseTitles: () => ['activities', 'exercise-titles'] as const,
     /** Media (photos) attached to one activity. */
-    media: (id: number) => ['activities', 'detail', id, 'media'] as const,
+    media: (id: string) => ['activities', 'detail', id, 'media'] as const,
     /** Every activity owner's identity; prefix of {@link owner}. */
     owners: () => ['activities', 'owner'] as const,
     /** The activity's owner user (public or authenticated), keyed by user id. */

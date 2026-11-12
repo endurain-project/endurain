@@ -4630,9 +4630,10 @@ export interface components {
             changed_at: string;
             /**
              * Id
+             * Format: uuid
              * @description The record's id
              */
-            readonly id: number;
+            readonly id: string;
             /** @description The record; null when it was deleted */
             record?: components["schemas"]["ActivityRead"] | null;
             /**
@@ -4813,7 +4814,7 @@ export interface components {
              * Activity Ids
              * @default []
              */
-            activity_ids: number[];
+            activity_ids: string[];
             /**
              * Created At
              * Format: date-time
@@ -4870,8 +4871,11 @@ export interface components {
          *             parent hides its start time from this viewer.
          */
         ActivityLapsRead: {
-            /** Activity Id */
-            activity_id: number;
+            /**
+             * Activity Id
+             * Format: uuid
+             */
+            activity_id: string;
             /**
              * Avg Cadence
              * @description Average cadence in revolutions per minute (steps per minute for running)
@@ -4952,8 +4956,11 @@ export interface components {
              * @description Lowest altitude in meters
              */
             enhanced_min_altitude?: number | null;
-            /** Id */
-            readonly id: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            readonly id: string;
             /** Intensity */
             intensity?: string | null;
             /** Lap Trigger */
@@ -5054,10 +5061,16 @@ export interface components {
          *         url: Signed, servable address of the photo.
          */
         ActivityMediaEmbedded: {
-            /** Activity Id */
-            activity_id: number;
-            /** Id */
-            readonly id: number;
+            /**
+             * Activity Id
+             * Format: uuid
+             */
+            activity_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            readonly id: string;
             media_type: components["schemas"]["MediaType"];
             /** Url */
             url: string;
@@ -5072,10 +5085,16 @@ export interface components {
          *     with it; see :class:`~modules.activities.activity_media.contracts.ActivityMediaRecord`.
          */
         ActivityMediaRead: {
-            /** Activity Id */
-            activity_id: number;
-            /** Id */
-            readonly id: number;
+            /**
+             * Activity Id
+             * Format: uuid
+             */
+            activity_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            readonly id: string;
             media_type: components["schemas"]["MediaType"];
             /** Url */
             url: string;
@@ -5090,9 +5109,10 @@ export interface components {
         ActivityNotificationOptions: {
             /**
              * Activity Id
+             * Format: uuid
              * @description ID of the activity the notification is about
              */
-            activity_id: number;
+            activity_id: string;
         };
         /**
          * ActivityNotificationRead
@@ -5217,8 +5237,11 @@ export interface components {
             hide_start_time?: boolean | null;
             /** Hide Workout Sets Steps */
             hide_workout_sets_steps?: boolean | null;
-            /** Id */
-            readonly id: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            readonly id: string;
             /** Import Info */
             import_info?: {
                 [key: string]: unknown;
@@ -5332,8 +5355,11 @@ export interface components {
          *             parent hides its start time from this viewer.
          */
         ActivitySetsRead: {
-            /** Activity Id */
-            activity_id: number;
+            /**
+             * Activity Id
+             * Format: uuid
+             */
+            activity_id: string;
             /** Category */
             category?: number | null;
             /** Category Subtype */
@@ -5343,8 +5369,11 @@ export interface components {
              * @description Duration of the set in seconds
              */
             duration: number;
-            /** Id */
-            readonly id: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            readonly id: string;
             /** Repetitions */
             repetitions?: number | null;
             /** Set Type */
@@ -5561,8 +5590,11 @@ export interface components {
             hide_start_time?: boolean | null;
             /** Hide Workout Sets Steps */
             hide_workout_sets_steps?: boolean | null;
-            /** Id */
-            readonly id: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            readonly id: string;
             /**
              * Is Hidden
              * @default false
@@ -5682,8 +5714,11 @@ export interface components {
          *         activity_id: FK to activities table.
          */
         ActivityWorkoutStepsRead: {
-            /** Activity Id */
-            activity_id: number;
+            /**
+             * Activity Id
+             * Format: uuid
+             */
+            activity_id: string;
             /** Duration Type */
             duration_type: string;
             /**
@@ -5700,8 +5735,11 @@ export interface components {
              * @description Weight of the exercise in kilograms
              */
             exercise_weight?: number | null;
-            /** Id */
-            readonly id: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            readonly id: string;
             /** Intensity */
             intensity?: string | null;
             /** Message Index */
@@ -5842,10 +5880,16 @@ export interface components {
          * @description The cadence stream (`cadence`).
          */
         CadenceStreamRead: {
-            /** Activity Id */
-            activity_id: number;
-            /** Id */
-            readonly id: number;
+            /**
+             * Activity Id
+             * Format: uuid
+             */
+            activity_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            readonly id: string;
             /** Strava Activity Stream Id */
             strava_activity_stream_id?: number | null;
             stream_type: components["schemas"]["ActivityStreamType"];
@@ -5976,10 +6020,16 @@ export interface components {
          * @description The elevation stream (`elevation`).
          */
         ElevationStreamRead: {
-            /** Activity Id */
-            activity_id: number;
-            /** Id */
-            readonly id: number;
+            /**
+             * Activity Id
+             * Format: uuid
+             */
+            activity_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            readonly id: string;
             /** Strava Activity Stream Id */
             strava_activity_stream_id?: number | null;
             stream_type: components["schemas"]["ActivityStreamType"];
@@ -9020,10 +9070,16 @@ export interface components {
          * @description The heart-rate stream (`heart_rate`).
          */
         HeartRateStreamRead: {
-            /** Activity Id */
-            activity_id: number;
-            /** Id */
-            readonly id: number;
+            /**
+             * Activity Id
+             * Format: uuid
+             */
+            activity_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            readonly id: string;
             /** Strava Activity Stream Id */
             strava_activity_stream_id?: number | null;
             stream_type: components["schemas"]["ActivityStreamType"];
@@ -10300,10 +10356,16 @@ export interface components {
          * @description The GPS map stream (`map`).
          */
         MapStreamRead: {
-            /** Activity Id */
-            activity_id: number;
-            /** Id */
-            readonly id: number;
+            /**
+             * Activity Id
+             * Format: uuid
+             */
+            activity_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            readonly id: string;
             /** Strava Activity Stream Id */
             strava_activity_stream_id?: number | null;
             stream_type: components["schemas"]["ActivityStreamType"];
@@ -10625,10 +10687,16 @@ export interface components {
          * @description The pace stream (`pace`).
          */
         PaceStreamRead: {
-            /** Activity Id */
-            activity_id: number;
-            /** Id */
-            readonly id: number;
+            /**
+             * Activity Id
+             * Format: uuid
+             */
+            activity_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            readonly id: string;
             /** Strava Activity Stream Id */
             strava_activity_stream_id?: number | null;
             stream_type: components["schemas"]["ActivityStreamType"];
@@ -11080,10 +11148,16 @@ export interface components {
          * @description The power stream (`power`).
          */
         PowerStreamRead: {
-            /** Activity Id */
-            activity_id: number;
-            /** Id */
-            readonly id: number;
+            /**
+             * Activity Id
+             * Format: uuid
+             */
+            activity_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            readonly id: string;
             /** Strava Activity Stream Id */
             strava_activity_stream_id?: number | null;
             stream_type: components["schemas"]["ActivityStreamType"];
@@ -11926,10 +12000,16 @@ export interface components {
          * @description The speed stream (`speed`).
          */
         SpeedStreamRead: {
-            /** Activity Id */
-            activity_id: number;
-            /** Id */
-            readonly id: number;
+            /**
+             * Activity Id
+             * Format: uuid
+             */
+            activity_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            readonly id: string;
             /** Strava Activity Stream Id */
             strava_activity_stream_id?: number | null;
             stream_type: components["schemas"]["ActivityStreamType"];
@@ -12276,10 +12356,16 @@ export interface components {
          * @description The temperature stream (`temperature`).
          */
         TemperatureStreamRead: {
-            /** Activity Id */
-            activity_id: number;
-            /** Id */
-            readonly id: number;
+            /**
+             * Activity Id
+             * Format: uuid
+             */
+            activity_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            readonly id: string;
             /** Strava Activity Stream Id */
             strava_activity_stream_id?: number | null;
             stream_type: components["schemas"]["ActivityStreamType"];
@@ -15601,7 +15687,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                activity_id: number;
+                activity_id: string;
             };
             cookie?: never;
         };
@@ -15704,7 +15790,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                activity_id: number;
+                activity_id: string;
             };
             cookie?: never;
         };
@@ -15839,7 +15925,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                activity_id: number;
+                activity_id: string;
             };
             cookie?: never;
         };
@@ -15985,7 +16071,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                activity_id: number;
+                activity_id: string;
             };
             cookie?: never;
         };
@@ -16085,7 +16171,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                activity_id: number;
+                activity_id: string;
             };
             cookie?: never;
         };
@@ -16183,7 +16269,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                activity_id: number;
+                activity_id: string;
             };
             cookie?: never;
         };
@@ -16283,7 +16369,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                activity_id: number;
+                activity_id: string;
             };
             cookie?: never;
         };
@@ -16414,8 +16500,8 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                activity_id: number;
-                media_id: number;
+                activity_id: string;
+                media_id: string;
             };
             cookie?: never;
         };
@@ -16520,8 +16606,8 @@ export interface operations {
             };
             header?: never;
             path: {
-                activity_id: number;
-                media_id: number;
+                activity_id: string;
+                media_id: string;
             };
             cookie?: never;
         };
@@ -16599,7 +16685,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                activity_id: number;
+                activity_id: string;
             };
             cookie?: never;
         };
@@ -16697,7 +16783,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                activity_id: number;
+                activity_id: string;
             };
             cookie?: never;
         };
@@ -16792,7 +16878,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                activity_id: number;
+                activity_id: string;
                 stream_type: components["schemas"]["ActivityStreamType"];
             };
             cookie?: never;
@@ -16891,7 +16977,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                activity_id: number;
+                activity_id: string;
             };
             cookie?: never;
         };
@@ -16969,7 +17055,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                activity_id: number;
+                activity_id: string;
             };
             cookie?: never;
         };
@@ -31501,7 +31587,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                activity_id: number;
+                activity_id: string;
             };
             cookie?: never;
         };
@@ -31576,7 +31662,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                activity_id: number;
+                activity_id: string;
             };
             cookie?: never;
         };
@@ -31654,7 +31740,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                activity_id: number;
+                activity_id: string;
             };
             cookie?: never;
         };
@@ -31732,7 +31818,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                activity_id: number;
+                activity_id: string;
             };
             cookie?: never;
         };
@@ -31810,7 +31896,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                activity_id: number;
+                activity_id: string;
             };
             cookie?: never;
         };
@@ -31885,7 +31971,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                activity_id: number;
+                activity_id: string;
                 stream_type: components["schemas"]["ActivityStreamType"];
             };
             cookie?: never;
@@ -31964,7 +32050,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                activity_id: number;
+                activity_id: string;
             };
             cookie?: never;
         };

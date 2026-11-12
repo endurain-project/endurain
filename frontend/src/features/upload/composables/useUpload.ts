@@ -246,7 +246,7 @@ function patchUserFeed(queryClient: QueryClient, activities: ActivitySummary[]):
  */
 async function backfillMissingThumbnails(
   queryClient: QueryClient,
-  activityIds: number[],
+  activityIds: string[],
 ): Promise<void> {
   let awaiting = activityIds
   markAwaitingThumbnail(awaiting)

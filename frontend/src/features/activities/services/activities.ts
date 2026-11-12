@@ -212,7 +212,7 @@ export function mapActivityLap(dto: ActivityLapDto): ActivityLap {
  * @param id - Activity identifier.
  * @returns The activity, or `null` when not found/accessible.
  */
-export async function fetchActivity(id: number): Promise<Activity | null> {
+export async function fetchActivity(id: string): Promise<Activity | null> {
   try {
     const dto = await apiFetch<ActivityDto | null>(`/activities/${id}`)
     return dto ? mapActivity(dto) : null
@@ -246,7 +246,7 @@ function completeRows<Dto, T>(page: ChildPage<Dto>, map: (dto: Dto) => T): T[] |
  * @returns The activity and each collection that arrived in full, or `null` when not found/accessible.
  */
 export async function fetchActivityDetail(
-  id: number,
+  id: string,
   context: ActivityFetchContext,
 ): Promise<ActivityDetail | null> {
   const path = resourcePath(
@@ -546,7 +546,7 @@ export async function refreshActivities(signal?: AbortSignal): Promise<ActivityI
  * @returns The activity's streams.
  */
 export async function fetchActivityStreams(
-  id: number,
+  id: string,
   context: ActivityFetchContext,
 ): Promise<ActivityStream[]> {
   const path = resourcePath(
@@ -566,7 +566,7 @@ export async function fetchActivityStreams(
  * @returns The activity's laps.
  */
 export async function fetchActivityLaps(
-  id: number,
+  id: string,
   context: ActivityFetchContext,
 ): Promise<ActivityLap[]> {
   const path = resourcePath(
@@ -639,7 +639,7 @@ export function mapActivityExerciseTitle(dto: ActivityExerciseTitleDto): Activit
  * @returns The activity's workout steps.
  */
 export async function fetchActivityWorkoutSteps(
-  id: number,
+  id: string,
   context: ActivityFetchContext,
 ): Promise<ActivityWorkoutStep[]> {
   const path = resourcePath(
@@ -659,7 +659,7 @@ export async function fetchActivityWorkoutSteps(
  * @returns The activity's workout sets.
  */
 export async function fetchActivitySets(
-  id: number,
+  id: string,
   context: ActivityFetchContext,
 ): Promise<ActivityWorkoutSet[]> {
   const path = resourcePath(
@@ -720,7 +720,7 @@ export async function setActivityGear(
  * @param version - The activity version the caller read, for `If-Match`.
  * @throws {HttpError} When the delete fails (e.g. not found, not owned, or `412` when stale).
  */
-export async function deleteActivity(id: number, version: number): Promise<void> {
+export async function deleteActivity(id: string, version: number): Promise<void> {
   await apiFetch(`/activities/${id}`, { method: 'DELETE', headers: ifMatchHeaders(version) })
 }
 
@@ -776,7 +776,7 @@ export async function updateUserActivitiesVisibility(
  * @throws {HttpError} When the update fails, including 412 when the copy is stale.
  */
 export async function editActivity(
-  id: number,
+  id: string,
   input: ActivityEditInput,
   version: number,
 ): Promise<Activity> {

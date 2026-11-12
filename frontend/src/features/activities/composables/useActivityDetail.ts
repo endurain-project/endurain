@@ -45,10 +45,9 @@ import {
   uploadActivityMedia,
 } from '@/features/activities/services/activityMedia'
 
-/** Resolves a reactive activity id to a positive number, or `0` when invalid. */
-function resolveId(id: MaybeRefOrGetter<number | null>): number {
-  const value = toValue(id)
-  return value !== null && Number.isFinite(value) && value > 0 ? value : 0
+/** Resolves a reactive activity id to its string, or `''` when unavailable. */
+function resolveId(id: MaybeRefOrGetter<string | null>): string {
+  return toValue(id) ?? ''
 }
 
 /**
@@ -65,7 +64,7 @@ function resolveId(id: MaybeRefOrGetter<number | null>): number {
  * @param id - Reactive activity id from the route.
  * @returns The TanStack query result; data is `null` when not found/accessible.
  */
-export function useActivityQuery(id: MaybeRefOrGetter<number | null>) {
+export function useActivityQuery(id: MaybeRefOrGetter<string | null>) {
   const client = useQueryClient()
   const auth = useAuthStore()
 
@@ -95,7 +94,7 @@ export function useActivityQuery(id: MaybeRefOrGetter<number | null>) {
       }
       return detail.activity
     },
-    enabled: computed(() => resolveId(id) > 0),
+    enabled: computed(() => resolveId(id) !== ''),
   })
 }
 
@@ -110,7 +109,7 @@ export function useActivityQuery(id: MaybeRefOrGetter<number | null>) {
 export function useFullActivityReader() {
   const client = useQueryClient()
 
-  return (id: number): Promise<Activity | null> =>
+  return (id: string): Promise<Activity | null> =>
     client.fetchQuery({
       queryKey: queryKeys.activities.full(id),
       queryFn: () => fetchActivity(id),
@@ -148,7 +147,7 @@ export function useActivityOwnerQuery(
  * @returns The TanStack query result for the streams.
  */
 export function useActivityStreamsQuery(
-  id: MaybeRefOrGetter<number | null>,
+  id: MaybeRefOrGetter<string | null>,
   enabled: MaybeRefOrGetter<boolean>,
 ) {
   const auth = useAuthStore()
@@ -157,7 +156,7 @@ export function useActivityStreamsQuery(
     queryKey: computed(() => queryKeys.activities.streams(resolveId(id))),
     queryFn: ({ signal }) =>
       fetchActivityStreams(resolveId(id), { authenticated: auth.isAuthenticated, signal }),
-    enabled: computed(() => resolveId(id) > 0 && toValue(enabled)),
+    enabled: computed(() => resolveId(id) !== '' && toValue(enabled)),
     staleTime: 5 * 60_000,
   })
 }
@@ -170,7 +169,7 @@ export function useActivityStreamsQuery(
  * @returns The TanStack query result for the laps.
  */
 export function useActivityLapsQuery(
-  id: MaybeRefOrGetter<number | null>,
+  id: MaybeRefOrGetter<string | null>,
   enabled: MaybeRefOrGetter<boolean>,
 ) {
   const auth = useAuthStore()
@@ -179,7 +178,7 @@ export function useActivityLapsQuery(
     queryKey: computed(() => queryKeys.activities.laps(resolveId(id))),
     queryFn: ({ signal }) =>
       fetchActivityLaps(resolveId(id), { authenticated: auth.isAuthenticated, signal }),
-    enabled: computed(() => resolveId(id) > 0 && toValue(enabled)),
+    enabled: computed(() => resolveId(id) !== '' && toValue(enabled)),
     staleTime: 5 * 60_000,
   })
 }
@@ -194,7 +193,7 @@ export function useActivityLapsQuery(
  * @returns The TanStack query result for the workout steps.
  */
 export function useActivityWorkoutStepsQuery(
-  id: MaybeRefOrGetter<number | null>,
+  id: MaybeRefOrGetter<string | null>,
   enabled: MaybeRefOrGetter<boolean>,
 ) {
   const auth = useAuthStore()
@@ -203,7 +202,7 @@ export function useActivityWorkoutStepsQuery(
     queryKey: computed(() => queryKeys.activities.workoutSteps(resolveId(id))),
     queryFn: ({ signal }) =>
       fetchActivityWorkoutSteps(resolveId(id), { authenticated: auth.isAuthenticated, signal }),
-    enabled: computed(() => resolveId(id) > 0 && toValue(enabled)),
+    enabled: computed(() => resolveId(id) !== '' && toValue(enabled)),
     staleTime: 5 * 60_000,
   })
 }
@@ -217,7 +216,7 @@ export function useActivityWorkoutStepsQuery(
  * @returns The TanStack query result for the workout sets.
  */
 export function useActivitySetsQuery(
-  id: MaybeRefOrGetter<number | null>,
+  id: MaybeRefOrGetter<string | null>,
   enabled: MaybeRefOrGetter<boolean>,
 ) {
   const auth = useAuthStore()
@@ -226,7 +225,7 @@ export function useActivitySetsQuery(
     queryKey: computed(() => queryKeys.activities.sets(resolveId(id))),
     queryFn: ({ signal }) =>
       fetchActivitySets(resolveId(id), { authenticated: auth.isAuthenticated, signal }),
-    enabled: computed(() => resolveId(id) > 0 && toValue(enabled)),
+    enabled: computed(() => resolveId(id) !== '' && toValue(enabled)),
     staleTime: 5 * 60_000,
   })
 }
@@ -303,7 +302,7 @@ function invalidateGearUsage(client: QueryClient): void {
  * @param client - The active query client.
  * @param id - The activity whose cached copy can no longer be trusted.
  */
-function refetchActivity(client: QueryClient, id: number): void {
+function refetchActivity(client: QueryClient, id: string): void {
   void client.invalidateQueries({ queryKey: queryKeys.activities.detail(id), exact: true })
 }
 
@@ -374,7 +373,7 @@ export function useDisplayUnits(): ComputedRef<Units> {
 export function useDeleteActivityMutation() {
   const client = useQueryClient()
 
-  return useMutation<void, Error, { id: number; version: number }>({
+  return useMutation<void, Error, { id: string; version: number }>({
     mutationFn: ({ id, version }) => deleteActivity(id, version),
     onSuccess: (_data, { id }) => {
       client.removeQueries({ queryKey: queryKeys.activities.detail(id) })
@@ -395,13 +394,13 @@ export function useDeleteActivityMutation() {
  * @param id - Reactive activity id.
  * @returns The TanStack query result for the activity's media.
  */
-export function useActivityMediaQuery(id: MaybeRefOrGetter<number | null>) {
+export function useActivityMediaQuery(id: MaybeRefOrGetter<string | null>) {
   const auth = useAuthStore()
 
   return useQuery<ActivityMedia[]>({
     queryKey: computed(() => queryKeys.activities.media(resolveId(id))),
     queryFn: ({ signal }) => fetchActivityMedia(resolveId(id), signal),
-    enabled: computed(() => auth.isAuthenticated && resolveId(id) > 0),
+    enabled: computed(() => auth.isAuthenticated && resolveId(id) !== ''),
     staleTime: 5 * 60_000,
   })
 }
@@ -413,7 +412,7 @@ export function useActivityMediaQuery(id: MaybeRefOrGetter<number | null>) {
  * @param id - Reactive activity id.
  * @returns The TanStack mutation for uploading activity media.
  */
-export function useUploadActivityMediaMutation(id: MaybeRefOrGetter<number | null>) {
+export function useUploadActivityMediaMutation(id: MaybeRefOrGetter<string | null>) {
   const client = useQueryClient()
 
   return useMutation<ActivityMedia, Error, File>({
@@ -431,13 +430,13 @@ export function useUploadActivityMediaMutation(id: MaybeRefOrGetter<number | nul
  * @param id - Reactive activity id (for cache invalidation).
  * @returns The TanStack mutation for deleting activity media.
  */
-export function useDeleteActivityMediaMutation(id: MaybeRefOrGetter<number | null>) {
+export function useDeleteActivityMediaMutation(id: MaybeRefOrGetter<string | null>) {
   const client = useQueryClient()
 
-  return useMutation<void, Error, number>({
+  return useMutation<void, Error, string>({
     // The delete route is nested under the activity, so the id the composable
     // already tracks for cache invalidation is now part of the request path.
-    mutationFn: (mediaId) => deleteActivityMedia(resolveId(id) ?? 0, mediaId),
+    mutationFn: (mediaId) => deleteActivityMedia(resolveId(id), mediaId),
     onSettled: () => {
       void client.invalidateQueries({ queryKey: queryKeys.activities.media(resolveId(id)) })
     },
@@ -456,7 +455,7 @@ export function useDeleteActivityMediaMutation(id: MaybeRefOrGetter<number | nul
 export function useEditActivityMutation() {
   const client = useQueryClient()
 
-  return useMutation<Activity, Error, { id: number; input: ActivityEditInput; version: number }>({
+  return useMutation<Activity, Error, { id: string; input: ActivityEditInput; version: number }>({
     mutationFn: ({ id, input, version }) => editActivity(id, input, version),
     onSuccess: (updated) => {
       client.setQueryData(queryKeys.activities.detail(updated.id), updated)

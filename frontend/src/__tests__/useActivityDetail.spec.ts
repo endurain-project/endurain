@@ -17,7 +17,7 @@ import {
 } from '@/features/activities/services/activities'
 import { queryKeys } from '@/services/queryKeys'
 
-import { makeActivity } from './fixtures/activity'
+import { makeActivity, activityUuid } from './fixtures/activity'
 
 vi.mock('@/features/activities/services/activities', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/activities/services/activities')>()),
@@ -27,7 +27,7 @@ vi.mock('@/features/activities/services/activities', async (importOriginal) => (
   setActivityGear: vi.fn<(activity: Activity, gearId: number | null) => Promise<Activity>>(),
 }))
 
-const ACTIVITY_ID = 5
+const ACTIVITY_ID = activityUuid(5)
 const GEAR_ID = '00000000-0000-4000-8000-000000000003'
 
 const editInput: ActivityEditInput = {
@@ -68,7 +68,7 @@ const UNAFFECTED_ACTIVITY_KEYS = {
   workoutSteps: queryKeys.activities.workoutSteps(ACTIVITY_ID),
   sets: queryKeys.activities.sets(ACTIVITY_ID),
   media: queryKeys.activities.media(ACTIVITY_ID),
-  otherDetail: queryKeys.activities.detail(99),
+  otherDetail: queryKeys.activities.detail(activityUuid(99)),
   exerciseTitles: queryKeys.activities.exerciseTitles(),
   owner: queryKeys.activities.owner(5),
 }
@@ -116,7 +116,10 @@ function mountMutation<T>(queryClient: QueryClient, useMutation: () => T): T {
 /** Builds a client with every key above, plus the edited activity's detail, in the cache. */
 function seededClient(): QueryClient {
   const queryClient = new QueryClient()
-  queryClient.setQueryData(queryKeys.activities.detail(ACTIVITY_ID), makeActivity({ id: 5 }))
+  queryClient.setQueryData(
+    queryKeys.activities.detail(ACTIVITY_ID),
+    makeActivity({ id: ACTIVITY_ID }),
+  )
   for (const key of [
     ...Object.values(AGGREGATE_KEYS),
     ...Object.values(UNAFFECTED_ACTIVITY_KEYS),

@@ -22,7 +22,7 @@ const props = withDefaults(
     /** GPS track points; when non-empty the interactive map leads the slides. */
     points: GeoPoint[]
     /** The activity whose photos populate the remaining slides. */
-    activityId: number
+    activityId: string
     /**
      * Static map thumbnail used as the lead slide when no GPS `points` are
      * given (e.g. the home feed, which avoids a live map per card). Ignored

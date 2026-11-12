@@ -22,7 +22,9 @@ import {
   useActivityWorkoutStepsQuery,
 } from '@/features/activities/composables/useActivityDetail'
 
-import { makeActivity } from './fixtures/activity'
+import { makeActivity, activityUuid } from './fixtures/activity'
+
+const ACTIVITY_ID = activityUuid(5)
 
 vi.mock('pinia', async (importOriginal) => ({
   ...(await importOriginal<typeof import('pinia')>()),
@@ -44,10 +46,10 @@ vi.mock('@/features/activities/services/activities', async (importOriginal) => (
   fetchActivityWorkoutSteps: vi.fn<(id: number) => Promise<unknown[]>>(),
 }))
 
-const lap = { id: 1 } as ActivityDetail['laps'] extends (infer T)[] | null ? T : never
+const lap = { id: activityUuid(1) } as ActivityDetail['laps'] extends (infer T)[] | null ? T : never
 
 const detail: ActivityDetail = {
-  activity: makeActivity({ id: 5 }),
+  activity: makeActivity({ id: ACTIVITY_ID }),
   laps: [lap],
   sets: [],
   workoutSteps: [],
@@ -79,7 +81,7 @@ describe('useActivityQuery', () => {
     vi.mocked(fetchActivityDetail).mockResolvedValue(detail)
     let query: ReturnType<typeof useActivityQuery> | undefined
     mountWith(new QueryClient(), () => {
-      query = useActivityQuery(5)
+      query = useActivityQuery(ACTIVITY_ID)
     })
     await flushPromises()
 
@@ -90,7 +92,7 @@ describe('useActivityQuery', () => {
     vi.mocked(fetchActivityDetail).mockResolvedValue(null)
     let query: ReturnType<typeof useActivityQuery> | undefined
     mountWith(new QueryClient(), () => {
-      query = useActivityQuery(5)
+      query = useActivityQuery(ACTIVITY_ID)
     })
     await flushPromises()
 
@@ -101,37 +103,41 @@ describe('useActivityQuery', () => {
     vi.mocked(fetchActivityDetail).mockResolvedValue(detail)
     const queryClient = new QueryClient()
     mountWith(queryClient, () => {
-      useActivityQuery(5)
+      useActivityQuery(ACTIVITY_ID)
     })
     await flushPromises()
     wrapper?.unmount()
 
     let laps: ReturnType<typeof useActivityLapsQuery> | undefined
     mountWith(queryClient, () => {
-      laps = useActivityLapsQuery(5, true)
-      useActivitySetsQuery(5, true)
-      useActivityWorkoutStepsQuery(5, true)
+      laps = useActivityLapsQuery(ACTIVITY_ID, true)
+      useActivitySetsQuery(ACTIVITY_ID, true)
+      useActivityWorkoutStepsQuery(ACTIVITY_ID, true)
     })
     await flushPromises()
 
     expect(laps?.data.value).toEqual([lap])
-    expect(queryClient.getQueryData(queryKeys.activities.sets(5))).toEqual([])
+    expect(queryClient.getQueryData(queryKeys.activities.sets(ACTIVITY_ID))).toEqual([])
     expect(fetchActivityLaps).not.toHaveBeenCalled()
     expect(fetchActivitySets).not.toHaveBeenCalled()
     expect(fetchActivityWorkoutSteps).not.toHaveBeenCalled()
   })
 
   it('seeds the media and the owner it carried, so the detail page makes no request for them', async () => {
-    const photo = { id: 9, activityId: 5, url: '/media/5/9?t=abc' }
+    const photo = {
+      id: activityUuid(9),
+      activityId: ACTIVITY_ID,
+      url: `/media/${ACTIVITY_ID}/${activityUuid(9)}?t=abc`,
+    }
     const jane = { name: 'Jane Runner', username: 'jane', avatarUrl: null }
     vi.mocked(fetchActivityDetail).mockResolvedValue({
       ...detail,
-      activity: makeActivity({ id: 5, userId: 7, media: [photo] }),
+      activity: makeActivity({ id: ACTIVITY_ID, userId: 7, media: [photo] }),
       owner: jane,
     })
     const queryClient = new QueryClient()
     mountWith(queryClient, () => {
-      useActivityQuery(5)
+      useActivityQuery(ACTIVITY_ID)
     })
     await flushPromises()
     wrapper?.unmount()
@@ -139,8 +145,8 @@ describe('useActivityQuery', () => {
     let media: ReturnType<typeof useActivityMediaQuery> | undefined
     let owner: ReturnType<typeof useActivityOwnerQuery> | undefined
     mountWith(queryClient, () => {
-      media = useActivityMediaQuery(5)
-      owner = useActivityOwnerQuery(makeActivity({ id: 5, userId: 7 }))
+      media = useActivityMediaQuery(ACTIVITY_ID)
+      owner = useActivityOwnerQuery(makeActivity({ id: ACTIVITY_ID, userId: 7 }))
     })
     await flushPromises()
 
@@ -154,11 +160,11 @@ describe('useActivityQuery', () => {
   it('keeps a hidden owner as null rather than looking it up', async () => {
     vi.mocked(fetchActivityDetail).mockResolvedValue({
       ...detail,
-      activity: makeActivity({ id: 5, userId: 7 }),
+      activity: makeActivity({ id: ACTIVITY_ID, userId: 7 }),
     })
     const queryClient = new QueryClient()
     mountWith(queryClient, () => {
-      useActivityQuery(5)
+      useActivityQuery(ACTIVITY_ID)
     })
     await flushPromises()
 
@@ -170,15 +176,15 @@ describe('useActivityQuery', () => {
     vi.mocked(fetchActivityLaps).mockResolvedValue([lap, lap])
     const queryClient = new QueryClient()
     mountWith(queryClient, () => {
-      useActivityQuery(5)
+      useActivityQuery(ACTIVITY_ID)
     })
     await flushPromises()
-    expect(queryClient.getQueryData(queryKeys.activities.laps(5))).toBeUndefined()
+    expect(queryClient.getQueryData(queryKeys.activities.laps(ACTIVITY_ID))).toBeUndefined()
     wrapper?.unmount()
 
     let laps: ReturnType<typeof useActivityLapsQuery> | undefined
     mountWith(queryClient, () => {
-      laps = useActivityLapsQuery(5, true)
+      laps = useActivityLapsQuery(ACTIVITY_ID, true)
     })
     await flushPromises()
 
@@ -190,10 +196,10 @@ describe('useActivityQuery', () => {
     vi.mocked(fetchActivityDetail).mockResolvedValue(null)
     const queryClient = new QueryClient()
     mountWith(queryClient, () => {
-      useActivityQuery(5)
+      useActivityQuery(ACTIVITY_ID)
     })
     await flushPromises()
 
-    expect(queryClient.getQueryData(queryKeys.activities.laps(5))).toBeUndefined()
+    expect(queryClient.getQueryData(queryKeys.activities.laps(ACTIVITY_ID))).toBeUndefined()
   })
 })

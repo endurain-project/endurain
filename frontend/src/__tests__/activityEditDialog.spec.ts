@@ -6,7 +6,7 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { apiFetch } from '@/services/http'
 import i18n from '@/i18n'
 import ActivityEditDialog from '@/features/activities/components/ActivityEditDialog.vue'
-import { makeActivity, makeActivitySummary } from './fixtures/activity'
+import { makeActivity, makeActivitySummary, activityUuid } from './fixtures/activity'
 import type { Activity, ActivitySummary } from '@/features/activities/types'
 
 vi.mock('@/services/http', () => ({
@@ -58,7 +58,7 @@ describe('ActivityEditDialog name', () => {
 describe('ActivityEditDialog from a list row', () => {
   /** The full read of the activity: it carries the private notes and a newer version. */
   const fullDto = {
-    id: 1,
+    id: activityUuid(1),
     user_id: 7,
     version: 6,
     name: 'Morning run',
@@ -77,9 +77,9 @@ describe('ActivityEditDialog from a list row', () => {
     let resolve: (value: unknown) => void = () => undefined
     vi.mocked(apiFetch).mockReturnValue(new Promise((done) => (resolve = done)))
 
-    const wrapper = await openDialog(makeActivitySummary({ id: 1 }))
+    const wrapper = await openDialog(makeActivitySummary({ id: activityUuid(1) }))
 
-    expect(apiFetch).toHaveBeenCalledWith('/activities/1')
+    expect(apiFetch).toHaveBeenCalledWith(`/activities/${activityUuid(1)}`)
     expect(wrapper.text()).toContain(i18n.global.t('activities.edit.loading'))
     expect(wrapper.find('input').exists()).toBe(false)
     expect(wrapper.find('button[type="submit"]').attributes('disabled')).toBeDefined()
@@ -96,21 +96,21 @@ describe('ActivityEditDialog from a list row', () => {
 
   it('saves with the version of the full activity as If-Match', async () => {
     vi.mocked(apiFetch).mockResolvedValue(fullDto)
-    const wrapper = await openDialog(makeActivitySummary({ id: 1, version: 2 }))
+    const wrapper = await openDialog(makeActivitySummary({ id: activityUuid(1), version: 2 }))
     await flushPromises()
 
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities/1',
+      `/activities/${activityUuid(1)}`,
       expect.objectContaining({ method: 'PATCH', headers: { 'If-Match': '"6"' } }),
     )
   })
 
   it('offers a retry when the activity cannot be read', async () => {
     vi.mocked(apiFetch).mockRejectedValue(new Error('boom'))
-    const wrapper = await openDialog(makeActivitySummary({ id: 1 }))
+    const wrapper = await openDialog(makeActivitySummary({ id: activityUuid(1) }))
     await flushPromises()
 
     expect(wrapper.text()).toContain(i18n.global.t('activities.edit.loadError'))

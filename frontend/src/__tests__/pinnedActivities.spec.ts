@@ -14,7 +14,7 @@ import {
 } from '@/features/upload/composables/usePinnedActivities'
 import { replaceActivitiesInFeed } from '@/features/upload/composables/useUpload'
 
-import { makeActivity } from './fixtures/activity'
+import { makeActivity, activityUuid } from './fixtures/activity'
 
 vi.mock('pinia', async (importOriginal) => ({
   ...(await importOriginal<typeof import('pinia')>()),
@@ -38,18 +38,18 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
 
   // The pins are module state, so each test releases the ones it made.
   afterEach(() => {
-    for (const id of [2, 12, 22]) {
+    for (const id of [2, 12, 22].map(activityUuid)) {
       unpinActivity(id)
     }
   })
 
   it('keeps an uploaded activity on top when a refetch returns the server ordering', async () => {
-    const newest = makeActivity({ id: 1 })
-    const uploaded = makeActivity({ id: 2, name: 'Old ride' })
+    const newest = makeActivity({ id: activityUuid(1) })
+    const uploaded = makeActivity({ id: activityUuid(2), name: 'Old ride' })
     vi.mocked(fetchFollowersActivities).mockResolvedValue(slice([newest]))
 
     const client = new QueryClient()
-    let ids: () => number[] = () => []
+    let ids: () => string[] = () => []
     let thumbnail: () => string | null = () => null
     mount(
       defineComponent({
@@ -71,7 +71,7 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
     await client.invalidateQueries({ queryKey: ['activities'] })
     await flushPromises()
 
-    expect(ids()).toEqual([2, 1])
+    expect(ids()).toEqual([activityUuid(2), activityUuid(1)])
 
     // The thumbnail backfill updates the pin and then writes the feed cache.
     const withThumbnail = { ...uploaded, mapThumbnailUrl: 'thumb' }
@@ -82,12 +82,12 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
     )
     await flushPromises()
 
-    expect(ids()).toEqual([2, 1])
+    expect(ids()).toEqual([activityUuid(2), activityUuid(1)])
     expect(thumbnail()).toBe('thumb')
   })
 
   it('prefers a newer copy from the refetch over the stored pin', async () => {
-    const uploaded = makeActivity({ id: 12 })
+    const uploaded = makeActivity({ id: activityUuid(12) })
     pinActivities([uploaded])
     vi.mocked(fetchFollowersActivities).mockResolvedValue(
       slice([{ ...uploaded, mapThumbnailUrl: 'late' }]),
@@ -111,13 +111,13 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
   })
 
   it('stops showing a deleted activity once it is unpinned and the feed refetches', async () => {
-    const kept = makeActivity({ id: 21 })
-    const deleted = makeActivity({ id: 22 })
+    const kept = makeActivity({ id: activityUuid(21) })
+    const deleted = makeActivity({ id: activityUuid(22) })
     pinActivities([deleted])
     vi.mocked(fetchFollowersActivities).mockResolvedValue(slice([kept, deleted]))
 
     const client = new QueryClient()
-    let ids: () => number[] = () => []
+    let ids: () => string[] = () => []
     mount(
       defineComponent({
         setup() {
@@ -131,20 +131,22 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
       { global: { plugins: [[VueQueryPlugin, { queryClient: client }]] } },
     )
     await flushPromises()
-    expect(ids()).toEqual([22, 21])
+    expect(ids()).toEqual([activityUuid(22), activityUuid(21)])
 
-    unpinActivity(22)
+    unpinActivity(activityUuid(22))
     vi.mocked(fetchFollowersActivities).mockResolvedValue(slice([kept]))
     await client.invalidateQueries({ queryKey: ['activities'] })
     await flushPromises()
 
-    expect(ids()).toEqual([21])
+    expect(ids()).toEqual([activityUuid(21)])
   })
 
   it('refreshes a pinned activity the feed pages do not carry when the feed refetches', async () => {
-    const stale = makeActivity({ id: 22, city: null, mapThumbnailUrl: null })
+    const stale = makeActivity({ id: activityUuid(22), city: null, mapThumbnailUrl: null })
     pinActivities([stale])
-    vi.mocked(fetchFollowersActivities).mockResolvedValue(slice([makeActivity({ id: 21 })]))
+    vi.mocked(fetchFollowersActivities).mockResolvedValue(
+      slice([makeActivity({ id: activityUuid(21) })]),
+    )
 
     const client = new QueryClient()
     let top: () => ActivitySummary | undefined = () => undefined
@@ -165,6 +167,6 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
     await client.invalidateQueries({ queryKey: ['activities'] })
     await flushPromises()
 
-    expect(top()).toMatchObject({ id: 22, city: 'Samora', mapThumbnailUrl: 'map' })
+    expect(top()).toMatchObject({ id: activityUuid(22), city: 'Samora', mapThumbnailUrl: 'map' })
   })
 })

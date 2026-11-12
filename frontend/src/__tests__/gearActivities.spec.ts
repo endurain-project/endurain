@@ -4,13 +4,14 @@ import type { GearActivity, GearActivityDto } from '@/features/gears/types'
 
 import { apiFetch } from '@/services/http'
 import { fetchGearActivities, mapGearActivity } from '@/features/gears/services/gearActivities'
+import { activityUuid } from './fixtures/activity'
 
 vi.mock('@/services/http', () => ({
   apiFetch: vi.fn<typeof apiFetch>(),
 }))
 
 const activityDto: GearActivityDto = {
-  id: 11,
+  id: activityUuid(11),
   name: 'Morning Ride',
   activity_type: 'ride',
   start_time: '2024-03-01T07:00:00Z',
@@ -21,7 +22,7 @@ const activityDto: GearActivityDto = {
 }
 
 const mappedActivity: GearActivity = {
-  id: 11,
+  id: activityUuid(11),
   name: 'Morning Ride',
   activityType: 'ride',
   startTime: '2024-03-01T07:00:00Z',
@@ -38,14 +39,14 @@ describe('mapGearActivity', () => {
   it('defaults absent optionals to null', () => {
     expect(
       mapGearActivity({
-        id: 7,
+        id: activityUuid(7),
         name: 'Run',
         activity_type: 'trail_run',
         distance: 5000,
         is_hidden: false,
       }),
     ).toEqual({
-      id: 7,
+      id: activityUuid(7),
       name: 'Run',
       activityType: 'trail_run',
       startTime: null,

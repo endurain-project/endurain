@@ -100,7 +100,7 @@ export function presentNotification(
         icon: Activity,
         titleKey: `${base}.newActivity.title`,
         bodyKey: `${base}.newActivity.body`,
-        to: { name: 'activity', params: { id: String(notification.options.activity_id) } },
+        to: { name: 'activity', params: { id: notification.options.activity_id } },
       }
     }
     case 'duplicate_activity': {
@@ -108,7 +108,7 @@ export function presentNotification(
         icon: CopyCheck,
         titleKey: `${base}.duplicateActivity.title`,
         bodyKey: `${base}.duplicateActivity.body`,
-        to: { name: 'activity', params: { id: String(notification.options.activity_id) } },
+        to: { name: 'activity', params: { id: notification.options.activity_id } },
       }
     }
     case 'new_follower_request': {

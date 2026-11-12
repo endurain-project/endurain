@@ -16,6 +16,7 @@ import { useUploadActivityFileMutation } from '@/features/upload/composables/use
 import { useProfileImportQuery } from '@/features/profile/composables/useDataTransfer'
 import { fetchJob, followJob, listJobs } from '@/services/jobStatus'
 import { queryKeys } from '@/services/queryKeys'
+import { activityUuid } from './fixtures/activity'
 
 vi.mock('@/features/activities/services/activities', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/activities/services/activities')>()),
@@ -100,10 +101,12 @@ describe('goal results follow activity changes', () => {
 
   it('an activity edit refreshes goal results', async () => {
     const client = seededClient()
-    vi.mocked(editActivity).mockResolvedValue({ id: 3 } as Awaited<ReturnType<typeof editActivity>>)
+    vi.mocked(editActivity).mockResolvedValue({ id: activityUuid(3) } as Awaited<
+      ReturnType<typeof editActivity>
+    >)
     const mutation = mountHook(client, useEditActivityMutation)
 
-    await mutation.mutateAsync({ id: 3, input: {} as never, version: 1 })
+    await mutation.mutateAsync({ id: activityUuid(3), input: {} as never, version: 1 })
     await flushPromises()
 
     expect(goalResultsStale(client)).toBe(true)

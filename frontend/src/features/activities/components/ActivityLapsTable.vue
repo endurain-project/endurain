@@ -68,7 +68,7 @@ const activeSummary = computed(() => {
 })
 
 interface LapRow {
-  id: number
+  id: string
   index: number
   intensity: string | null
   distance: string

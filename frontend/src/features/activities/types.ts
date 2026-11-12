@@ -101,7 +101,7 @@ export interface HrZoneBucket {
 
 /** One metric stream for an activity (e.g. the full heart-rate series). */
 export interface ActivityStream {
-  id: number
+  id: string
   streamType: ActivityStreamType
   waypoints: StreamWaypoint[]
   /** Decoded heart-rate zone buckets, present only on the HR stream. */
@@ -110,7 +110,7 @@ export interface ActivityStream {
 
 /** A single lap/split within an activity. */
 export interface ActivityLap {
-  id: number
+  id: string
   /** Distance in metres. */
   totalDistance: number | null
   /** Elapsed (wall-clock) time in seconds. */
@@ -162,7 +162,7 @@ export interface ActivityWorkoutStep {
 
 /** One performed set of a strength/structured workout. */
 export interface ActivityWorkoutSet {
-  id: number
+  id: string
   /** FIT exercise category code (pairs with {@link categorySubtype} for lookup). */
   category: number | null
   /** FIT exercise name code. */
@@ -213,7 +213,7 @@ export interface ActivityPrivacy {
  * mapper boundary.
  */
 export interface ActivitySummary {
-  id: number
+  id: string
   userId: number | null
   name: string
   description: string | null
@@ -313,8 +313,8 @@ export interface ActivitiesPage {
  * resolved from its storage key; the key itself is not addressable.
  */
 export interface ActivityMedia {
-  id: number
-  activityId: number
+  id: string
+  activityId: string
   url: string
 }
 

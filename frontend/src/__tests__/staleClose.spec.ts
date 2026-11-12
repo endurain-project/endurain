@@ -32,7 +32,7 @@ import ProfileFormDialog from '@/features/profile/components/ProfileFormDialog.v
 import ProfileSettingsView from '@/features/profile/views/ProfileSettingsView.vue'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { FormDialog } from '@/components/ui/form-dialog'
-import { makeActivity } from './fixtures/activity'
+import { makeActivity, activityUuid } from './fixtures/activity'
 
 // Only the network seam is replaced; the real `HttpError` stays so `instanceof` checks hold.
 vi.mock('@/services/http', async (importOriginal) => ({
@@ -298,7 +298,7 @@ describe('ActivityGearCard', () => {
 
   function mountCard() {
     const activity: Activity = makeActivity({
-      id: 5,
+      id: activityUuid(5),
       gearId: '00000000-0000-4000-8000-000000000002',
       activityType: 'run',
     })

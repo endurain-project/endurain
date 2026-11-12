@@ -11,7 +11,7 @@ import {
   METRIC_PRIVACY_FIELD,
 } from '@/features/activities/utils/streams'
 
-import { makeActivity } from './fixtures/activity'
+import { makeActivity, activityUuid } from './fixtures/activity'
 
 /** Resolves a unit key to itself; every tested key reads the same in English. */
 function unitLabel(unit: UnitKey): string {
@@ -23,7 +23,7 @@ function stream(
   streamType: ActivityStreamType,
   waypoints: ActivityStream['waypoints'],
 ): ActivityStream {
-  return { id: 1, streamType, waypoints, hrZones: null }
+  return { id: activityUuid(1), streamType, waypoints, hrZones: null }
 }
 
 describe('buildStreamChart', () => {

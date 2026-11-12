@@ -168,7 +168,7 @@ export type GearActivityDto = Schemas['ActivitySummaryRead']
  * @property totalTimerTime - Moving time in seconds, or `null`.
  */
 export interface GearActivity {
-  id: number
+  id: string
   name: string
   activityType: ActivityType
   startTime: string | null

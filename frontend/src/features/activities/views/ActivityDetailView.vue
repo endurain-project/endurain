@@ -41,6 +41,7 @@ import {
 } from '@/features/activities/utils/privacy'
 import { extractHrZones } from '@/features/activities/utils/hrZones'
 import { buildStreamCharts, extractTrackPoints } from '@/features/activities/utils/streams'
+import { isUuid } from '@/utils/validation'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -49,11 +50,12 @@ const { data: currentUser } = useCurrentUser()
 const units = useDisplayUnits()
 
 const activityId = computed(() => {
-  const raw = Number(route.params.id)
-  return Number.isFinite(raw) && raw > 0 ? raw : null
+  const raw = route.params.id
+  return typeof raw === 'string' && isUuid(raw) ? raw : null
 })
 
-const { data: activity, isPending, isError, refetch } = useActivityQuery(activityId)
+// `isLoading` (not `isPending`) so a malformed id, whose query never runs, shows not-found instead of the skeleton.
+const { data: activity, isLoading, isError, refetch } = useActivityQuery(activityId)
 
 const activityLoaded = computed(() => !!activity.value)
 const { data: streams } = useActivityStreamsQuery(activityId, activityLoaded)
@@ -175,7 +177,7 @@ const chartPanels = computed<ChartGridPanel[]>(() => {
 
 // `data` is `null` (not `undefined`) once a fetch resolves to a missing or
 // non-shareable activity; distinguish that from the still-loading state.
-const notFound = computed(() => !isPending.value && !isError.value && activity.value === null)
+const notFound = computed(() => !isLoading.value && !isError.value && !activity.value)
 </script>
 
 <template>
@@ -187,7 +189,7 @@ const notFound = computed(() => !isPending.value && !isError.value && activity.v
 
     <!-- Loading: mirror the summary (athlete header + metrics), the map, the
          charts grid, and the splits table so the placeholder matches the load. -->
-    <template v-if="isPending">
+    <template v-if="isLoading">
       <!-- Summary: athlete header + at-a-glance metrics (one card, as loaded). -->
       <Card class="flex flex-col gap-3" aria-busy="true">
         <div class="flex items-start justify-between gap-3">

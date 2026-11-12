@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import type { ActivityLap } from '@/features/activities/types'
 import { normalizeLaps, summarizeActiveLaps } from '@/features/activities/utils/laps'
+import { activityUuid } from './fixtures/activity'
 
 function makeLap(overrides: Partial<ActivityLap> = {}): ActivityLap {
   return {
-    id: 1,
+    id: activityUuid(1),
     totalDistance: 1000,
     totalElapsedTime: 300,
     totalTimerTime: 300,
@@ -27,7 +28,10 @@ describe('normalizeLaps', () => {
 
   it('scores each lap relative to the fastest pace (non-swimming)', () => {
     const result = normalizeLaps(
-      [makeLap({ id: 1, enhancedAvgPace: 0.3 }), makeLap({ id: 2, enhancedAvgPace: 0.4 })],
+      [
+        makeLap({ id: activityUuid(1), enhancedAvgPace: 0.3 }),
+        makeLap({ id: activityUuid(2), enhancedAvgPace: 0.4 }),
+      ],
       'run',
     )
     expect(result.map((entry) => entry.swimIsRest)).toEqual([false, false])
@@ -37,16 +41,16 @@ describe('normalizeLaps', () => {
   })
 
   it('returns a null score when a lap has no pace', () => {
-    const result = normalizeLaps([makeLap({ id: 1, enhancedAvgPace: null })], 'run')
+    const result = normalizeLaps([makeLap({ id: activityUuid(1), enhancedAvgPace: null })], 'run')
     expect(result.map((entry) => entry.normalizedScore)).toEqual([null])
   })
 
   it('marks zero-distance swim laps as rests', () => {
     const result = normalizeLaps(
       [
-        makeLap({ id: 1, totalDistance: 50, enhancedAvgPace: 0.5 }),
-        makeLap({ id: 2, totalDistance: 0, enhancedAvgPace: null }),
-        makeLap({ id: 3, totalDistance: 50, enhancedAvgPace: 0.6 }),
+        makeLap({ id: activityUuid(1), totalDistance: 50, enhancedAvgPace: 0.5 }),
+        makeLap({ id: activityUuid(2), totalDistance: 0, enhancedAvgPace: null }),
+        makeLap({ id: activityUuid(3), totalDistance: 50, enhancedAvgPace: 0.6 }),
       ],
       'lap_swimming',
     )
@@ -56,8 +60,8 @@ describe('normalizeLaps', () => {
   it('treats two consecutive swim rests as a drill (second is not a rest)', () => {
     const result = normalizeLaps(
       [
-        makeLap({ id: 1, totalDistance: 0, enhancedAvgPace: null }),
-        makeLap({ id: 2, totalDistance: 0, enhancedAvgPace: null }),
+        makeLap({ id: activityUuid(1), totalDistance: 0, enhancedAvgPace: null }),
+        makeLap({ id: activityUuid(2), totalDistance: 0, enhancedAvgPace: null }),
       ],
       'lap_swimming',
     )
@@ -66,7 +70,7 @@ describe('normalizeLaps', () => {
 
   it('never flags swim rests for non-swimming activities', () => {
     const result = normalizeLaps(
-      [makeLap({ id: 1, totalDistance: 0, enhancedAvgPace: null })],
+      [makeLap({ id: activityUuid(1), totalDistance: 0, enhancedAvgPace: null })],
       'run',
     )
     expect(result.map((entry) => entry.swimIsRest)).toEqual([false])
@@ -75,8 +79,8 @@ describe('normalizeLaps', () => {
   it('marks intensity="rest" laps as rests for any sport and nulls their score', () => {
     const result = normalizeLaps(
       [
-        makeLap({ id: 1, enhancedAvgPace: 0.3, intensity: 'active' }),
-        makeLap({ id: 2, enhancedAvgPace: 5, intensity: 'rest' }),
+        makeLap({ id: activityUuid(1), enhancedAvgPace: 0.3, intensity: 'active' }),
+        makeLap({ id: activityUuid(2), enhancedAvgPace: 5, intensity: 'rest' }),
       ],
       'run',
     )
@@ -90,9 +94,9 @@ describe('normalizeLaps', () => {
     // baseline the active laps would score far below 100.
     const result = normalizeLaps(
       [
-        makeLap({ id: 1, enhancedAvgPace: 0.3, intensity: 'active' }),
-        makeLap({ id: 2, enhancedAvgPace: 0.1, intensity: 'rest' }),
-        makeLap({ id: 3, enhancedAvgPace: 0.4, intensity: 'active' }),
+        makeLap({ id: activityUuid(1), enhancedAvgPace: 0.3, intensity: 'active' }),
+        makeLap({ id: activityUuid(2), enhancedAvgPace: 0.1, intensity: 'rest' }),
+        makeLap({ id: activityUuid(3), enhancedAvgPace: 0.4, intensity: 'active' }),
       ],
       'run',
     )
@@ -111,9 +115,24 @@ describe('summarizeActiveLaps', () => {
   it('sums only active laps and derives average speed and pace', () => {
     const summary = summarizeActiveLaps(
       [
-        makeLap({ id: 1, totalDistance: 2000, totalElapsedTime: 400, intensity: 'active' }),
-        makeLap({ id: 2, totalDistance: 20, totalElapsedTime: 120, intensity: 'rest' }),
-        makeLap({ id: 3, totalDistance: 2000, totalElapsedTime: 400, intensity: 'active' }),
+        makeLap({
+          id: activityUuid(1),
+          totalDistance: 2000,
+          totalElapsedTime: 400,
+          intensity: 'active',
+        }),
+        makeLap({
+          id: activityUuid(2),
+          totalDistance: 20,
+          totalElapsedTime: 120,
+          intensity: 'rest',
+        }),
+        makeLap({
+          id: activityUuid(3),
+          totalDistance: 2000,
+          totalElapsedTime: 400,
+          intensity: 'active',
+        }),
       ],
       'run',
     )
@@ -129,9 +148,9 @@ describe('summarizeActiveLaps', () => {
     // flag, so the summary must still separate them for swimming activities.
     const summary = summarizeActiveLaps(
       [
-        makeLap({ id: 1, totalDistance: 50, totalElapsedTime: 60, intensity: null }),
-        makeLap({ id: 2, totalDistance: 0, totalElapsedTime: 30, intensity: null }),
-        makeLap({ id: 3, totalDistance: 50, totalElapsedTime: 60, intensity: null }),
+        makeLap({ id: activityUuid(1), totalDistance: 50, totalElapsedTime: 60, intensity: null }),
+        makeLap({ id: activityUuid(2), totalDistance: 0, totalElapsedTime: 30, intensity: null }),
+        makeLap({ id: activityUuid(3), totalDistance: 50, totalElapsedTime: 60, intensity: null }),
       ],
       'lap_swimming',
     )
@@ -142,7 +161,14 @@ describe('summarizeActiveLaps', () => {
 
   it('returns null when active laps have no usable distance or time', () => {
     const summary = summarizeActiveLaps(
-      [makeLap({ id: 1, totalDistance: null, totalElapsedTime: null, intensity: 'active' })],
+      [
+        makeLap({
+          id: activityUuid(1),
+          totalDistance: null,
+          totalElapsedTime: null,
+          intensity: 'active',
+        }),
+      ],
       'run',
     )
     expect(summary).toBeNull()

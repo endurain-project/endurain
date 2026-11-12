@@ -24,7 +24,7 @@ import {
 import type { Activity, ActivityFeedSlice } from '@/features/activities/types'
 import * as realtime from '@/composables/useRealtime'
 
-import { makeActivity } from './fixtures/activity'
+import { makeActivity, activityUuid } from './fixtures/activity'
 
 vi.mock('@/services/runtime', () => ({
   getApiBaseUrl: () => '',
@@ -208,7 +208,9 @@ describe('followIngestionJob', () => {
     const watch = vi.spyOn(realtime, 'watchJob')
     fetchMock
       .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'running' })))
-      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'succeeded', activity_ids: [7] })))
+      .mockResolvedValueOnce(
+        jsonResponse(uploadJob({ status: 'succeeded', activity_ids: [activityUuid(7)] })),
+      )
 
     await followIngestionJob('job-1', { intervalMs: 0 })
 
@@ -235,12 +237,16 @@ describe('followIngestionJob', () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'queued' })))
       .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'running' })))
-      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'succeeded', activity_ids: [7, 8] })))
+      .mockResolvedValueOnce(
+        jsonResponse(
+          uploadJob({ status: 'succeeded', activity_ids: [activityUuid(7), activityUuid(8)] }),
+        ),
+      )
 
     const job = await followIngestionJob('job-1', { intervalMs: 0 })
 
     expect(fetchMock).toHaveBeenCalledTimes(3)
-    expect(job.activity_ids).toEqual([7, 8])
+    expect(job.activity_ids).toEqual([activityUuid(7), activityUuid(8)])
   })
 
   it('keeps polling a refresh that is waiting for a provider rate limit to clear', async () => {
@@ -248,12 +254,14 @@ describe('followIngestionJob', () => {
       .mockResolvedValueOnce(
         jsonResponse(uploadJob({ status: 'queued', retry_after: '2026-01-01T12:00:00Z' })),
       )
-      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'succeeded', activity_ids: [3] })))
+      .mockResolvedValueOnce(
+        jsonResponse(uploadJob({ status: 'succeeded', activity_ids: [activityUuid(3)] })),
+      )
 
     const job = await followIngestionJob('job-1', { intervalMs: 0 })
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(job.activity_ids).toEqual([3])
+    expect(job.activity_ids).toEqual([activityUuid(3)])
   })
 
   it('surfaces the sanitized failure code', async () => {
@@ -291,19 +299,28 @@ function feed(pages: Activity[][]): InfiniteData<ActivityFeedSlice> {
 
 describe('prependActivitiesToFeed', () => {
   it('pins the new activities to the top of the first page', () => {
-    const result = prependActivitiesToFeed(feed([[makeActivity({ id: 1 })]]), [
-      makeActivity({ id: 2 }),
+    const result = prependActivitiesToFeed(feed([[makeActivity({ id: activityUuid(1) })]]), [
+      makeActivity({ id: activityUuid(2) }),
     ])
 
-    expect(result?.pages[0]?.items.map((activity) => activity.id)).toEqual([2, 1])
+    expect(result?.pages[0]?.items.map((activity) => activity.id)).toEqual([
+      activityUuid(2),
+      activityUuid(1),
+    ])
   })
 
   it('removes an existing copy from any page before pinning it to the top', () => {
-    const data = feed([[makeActivity({ id: 1 })], [makeActivity({ id: 2 })]])
+    const data = feed([
+      [makeActivity({ id: activityUuid(1) })],
+      [makeActivity({ id: activityUuid(2) })],
+    ])
 
-    const result = prependActivitiesToFeed(data, [makeActivity({ id: 2 })])
+    const result = prependActivitiesToFeed(data, [makeActivity({ id: activityUuid(2) })])
 
-    expect(result?.pages[0]?.items.map((activity) => activity.id)).toEqual([2, 1])
+    expect(result?.pages[0]?.items.map((activity) => activity.id)).toEqual([
+      activityUuid(2),
+      activityUuid(1),
+    ])
     expect(result?.pages[1]?.items).toEqual([])
   })
 
@@ -312,7 +329,7 @@ describe('prependActivitiesToFeed', () => {
   })
 
   it('returns the value untouched when there are no new activities', () => {
-    const data = feed([[makeActivity({ id: 1 })]])
+    const data = feed([[makeActivity({ id: activityUuid(1) })]])
 
     expect(prependActivitiesToFeed(data, [])).toBe(data)
   })
@@ -320,25 +337,40 @@ describe('prependActivitiesToFeed', () => {
 
 describe('replaceActivitiesInFeed', () => {
   it('swaps the matching row in place, on any page', () => {
-    const data = feed([[makeActivity({ id: 1 })], [makeActivity({ id: 2 })]])
-
-    const result = replaceActivitiesInFeed(data, [
-      makeActivity({ id: 2, mapThumbnailUrl: '/api/v1/activities/2/thumbnail?t=x' }),
+    const data = feed([
+      [makeActivity({ id: activityUuid(1) })],
+      [makeActivity({ id: activityUuid(2) })],
     ])
 
-    expect(result?.pages[0]?.items.map((activity) => activity.id)).toEqual([1])
-    expect(result?.pages[1]?.items[0]?.mapThumbnailUrl).toBe('/api/v1/activities/2/thumbnail?t=x')
+    const result = replaceActivitiesInFeed(data, [
+      makeActivity({
+        id: activityUuid(2),
+        mapThumbnailUrl: `/api/v1/activities/${activityUuid(2)}/thumbnail?t=x`,
+      }),
+    ])
+
+    expect(result?.pages[0]?.items.map((activity) => activity.id)).toEqual([activityUuid(1)])
+    expect(result?.pages[1]?.items[0]?.mapThumbnailUrl).toBe(
+      `/api/v1/activities/${activityUuid(2)}/thumbnail?t=x`,
+    )
   })
 
   it('leaves rows it has no replacement for untouched', () => {
-    const data = feed([[makeActivity({ id: 1 }), makeActivity({ id: 2 })]])
+    const data = feed([
+      [makeActivity({ id: activityUuid(1) }), makeActivity({ id: activityUuid(2) })],
+    ])
 
     const result = replaceActivitiesInFeed(data, [
-      makeActivity({ id: 2, mapThumbnailUrl: '/api/v1/activities/2/thumbnail?t=x' }),
+      makeActivity({
+        id: activityUuid(2),
+        mapThumbnailUrl: `/api/v1/activities/${activityUuid(2)}/thumbnail?t=x`,
+      }),
     ])
 
     expect(result?.pages[0]?.items[0]?.mapThumbnailUrl).toBeNull()
-    expect(result?.pages[0]?.items[1]?.mapThumbnailUrl).toBe('/api/v1/activities/2/thumbnail?t=x')
+    expect(result?.pages[0]?.items[1]?.mapThumbnailUrl).toBe(
+      `/api/v1/activities/${activityUuid(2)}/thumbnail?t=x`,
+    )
   })
 
   it('returns the value untouched when there is nothing cached', () => {
@@ -346,7 +378,7 @@ describe('replaceActivitiesInFeed', () => {
   })
 
   it('returns the value untouched when there are no replacements', () => {
-    const data = feed([[makeActivity({ id: 1 })]])
+    const data = feed([[makeActivity({ id: activityUuid(1) })]])
 
     expect(replaceActivitiesInFeed(data, [])).toBe(data)
   })
@@ -354,28 +386,28 @@ describe('replaceActivitiesInFeed', () => {
 
 describe('pending thumbnails', () => {
   afterEach(() => {
-    clearAwaitingThumbnail([1, 2])
+    clearAwaitingThumbnail([activityUuid(1), activityUuid(2)])
   })
 
   it('reports nothing as awaiting by default', () => {
-    expect(isAwaitingThumbnail(1)).toBe(false)
+    expect(isAwaitingThumbnail(activityUuid(1))).toBe(false)
   })
 
   it('reports marked activities as awaiting', () => {
-    markAwaitingThumbnail([1, 2])
+    markAwaitingThumbnail([activityUuid(1), activityUuid(2)])
 
-    expect(isAwaitingThumbnail(1)).toBe(true)
-    expect(isAwaitingThumbnail(2)).toBe(true)
-    expect(isAwaitingThumbnail(3)).toBe(false)
+    expect(isAwaitingThumbnail(activityUuid(1))).toBe(true)
+    expect(isAwaitingThumbnail(activityUuid(2))).toBe(true)
+    expect(isAwaitingThumbnail(activityUuid(3))).toBe(false)
   })
 
   it('stops reporting an activity once it is cleared', () => {
-    markAwaitingThumbnail([1, 2])
+    markAwaitingThumbnail([activityUuid(1), activityUuid(2)])
 
-    clearAwaitingThumbnail([1])
+    clearAwaitingThumbnail([activityUuid(1)])
 
-    expect(isAwaitingThumbnail(1)).toBe(false)
-    expect(isAwaitingThumbnail(2)).toBe(true)
+    expect(isAwaitingThumbnail(activityUuid(1))).toBe(false)
+    expect(isAwaitingThumbnail(activityUuid(2))).toBe(true)
   })
 })
 

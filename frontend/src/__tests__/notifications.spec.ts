@@ -18,6 +18,7 @@ import {
   applyOptimisticReadAll,
   restoreNotifications,
 } from '@/features/notifications/composables/useNotifications'
+import { activityUuid } from './fixtures/activity'
 
 vi.mock('@/services/http', () => ({
   apiFetch: vi.fn<typeof apiFetch>(),
@@ -32,7 +33,7 @@ const dto: NotificationDto = {
   id: uuidOf(7),
   type: 'new_activity',
   read: false,
-  options: { activity_id: 42 },
+  options: { activity_id: activityUuid(42) },
   created_at: '2026-06-19T10:00:00Z',
   user_id: 1,
 }
@@ -42,7 +43,7 @@ function notification(overrides: { id?: string; read?: boolean } = {}): Notifica
     id: uuidOf(7),
     type: 'new_activity',
     read: false,
-    options: { activity_id: 42 },
+    options: { activity_id: activityUuid(42) },
     createdAt: '2026-06-19T10:00:00Z',
     userId: 1,
     ...overrides,

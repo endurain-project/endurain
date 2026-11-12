@@ -21,6 +21,7 @@ import type {
 } from '@/features/notifications/types'
 
 import { presentNotification } from '@/features/notifications/utils/notificationPresenter'
+import { activityUuid } from './fixtures/activity'
 
 /**
  * Builds a notification with sensible defaults so each test only states the
@@ -49,20 +50,20 @@ const NO_OPTIONS = {}
 
 describe('presentNotification', () => {
   it('presents a new-activity notification with a deep link', () => {
-    const result = presentNotification(make('new_activity', { activity_id: 42 }))
+    const result = presentNotification(make('new_activity', { activity_id: activityUuid(42) }))
 
     expect(result.icon).toBe(Activity)
     expect(result.titleKey).toBe('notifications.types.newActivity.title')
     expect(result.bodyKey).toBe('notifications.types.newActivity.body')
-    expect(result.to).toEqual({ name: 'activity', params: { id: '42' } })
+    expect(result.to).toEqual({ name: 'activity', params: { id: activityUuid(42) } })
   })
 
   it('presents a duplicate-activity notification', () => {
-    const result = presentNotification(make('duplicate_activity', { activity_id: 7 }))
+    const result = presentNotification(make('duplicate_activity', { activity_id: activityUuid(7) }))
 
     expect(result.icon).toBe(CopyCheck)
     expect(result.titleKey).toBe('notifications.types.duplicateActivity.title')
-    expect(result.to).toEqual({ name: 'activity', params: { id: '7' } })
+    expect(result.to).toEqual({ name: 'activity', params: { id: activityUuid(7) } })
   })
 
   it('links a follower request to the viewer followers list', () => {
