@@ -31,6 +31,8 @@ platform = container.build_platform(substrate_settings)
 runtime.set_active_platform(platform)
 # Without a registered durable subscriber the publisher falls back to the in-process bus.
 module_registry.register_durable_handlers(jobs_registry.registry)
+# The follow service stages audit rows, so the audit catalog must be registered as the API registers it.
+module_registry.configure_application()
 
 import modules.followers.service as followers_service
 import modules.users.users.models as users_models
