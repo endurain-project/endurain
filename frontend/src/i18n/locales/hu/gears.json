@@ -33,6 +33,7 @@
     "nicknameRequired": "A becenév megadása kötelező",
     "nicknameTooLong": "A becenév legfeljebb 250 karakter lehet",
     "nicknameTaken": "Már van ilyen becenevű felszerelésed",
+    "componentsOutsideType": "Előbb távolítsa el azokat az alkatrészeket, amelyek nem illenek az új felszerelés-típushoz.",
     "gearType": "Típus",
     "brand": "Márka",
     "brandTooLong": "A márka legfeljebb 250 karakter lehet",

@@ -103,7 +103,7 @@ class TestEditGearType:
         gear_components_crud.create_gear_component(component_create(created.id, type="chain"), 1, db)
         self._install_real_counter()
 
-        with pytest.raises(core_exceptions.ConflictError, match="Remove the components"):
+        with pytest.raises(core_exceptions.ComponentsOutsideGearTypeError, match="Remove the components"):
             service.edit_gear(created.id, schema.GearUpdate(gear_type=schema.GearType.SHOES), 1, db, if_match="*")
 
         commit_spy.assert_not_called()

@@ -33,6 +33,7 @@
     "nicknameRequired": "El apodo es obligatorio",
     "nicknameTooLong": "El apodo debe tener 250 caracteres o menos",
     "nicknameTaken": "Ya tienes equipamiento con ese apodo",
+    "componentsOutsideType": "Elimina primero los componentes que no encajan con el nuevo tipo de equipo.",
     "gearType": "Tipo",
     "brand": "Marca",
     "brandTooLong": "La marca debe tener 250 caracteres o menos",

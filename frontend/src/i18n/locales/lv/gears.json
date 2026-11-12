@@ -33,6 +33,7 @@
     "nicknameRequired": "Iesauka ir obligāta",
     "nicknameTooLong": "Iesaukai jābūt 250 rakstzīmju vai īsākai",
     "nicknameTaken": "Jums jau ir inventārs ar šādu iesauku",
+    "componentsOutsideType": "Vispirms noņemiet komponentes, kas neder jaunajam aprīkojuma veidam.",
     "gearType": "Veids",
     "brand": "Zīmols",
     "brandTooLong": "Zīmolam jābūt 250 rakstzīmju vai īsākam",

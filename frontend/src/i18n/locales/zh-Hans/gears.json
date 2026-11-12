@@ -33,6 +33,7 @@
     "nicknameRequired": "昵称为必填项",
     "nicknameTooLong": "昵称不得超过 250 个字符",
     "nicknameTaken": "您已有同名装备",
+    "componentsOutsideType": "请先移除不适用于新装备类型的组件。",
     "gearType": "类型",
     "brand": "品牌",
     "brandTooLong": "品牌不得超过 250 个字符",

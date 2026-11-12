@@ -33,6 +33,7 @@
     "nicknameRequired": "Smeknamn krävs",
     "nicknameTooLong": "Smeknamnet får vara högst 250 tecken",
     "nicknameTaken": "Du har redan utrustning med det smeknamnet",
+    "componentsOutsideType": "Ta först bort de komponenter som inte passar den nya utrustningstypen.",
     "gearType": "Typ",
     "brand": "Märke",
     "brandTooLong": "Märket får vara högst 250 tecken",

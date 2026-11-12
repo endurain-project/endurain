@@ -33,6 +33,7 @@
     "nicknameRequired": "Lempinimi on pakollinen",
     "nicknameTooLong": "Lempinimi saa olla enintään 250 merkkiä",
     "nicknameTaken": "Sinulla on jo varuste tällä lempinimellä",
+    "componentsOutsideType": "Poista ensin osat, jotka eivät sovi uuteen varustetyyppiin.",
     "gearType": "Tyyppi",
     "brand": "Merkki",
     "brandTooLong": "Merkki saa olla enintään 250 merkkiä",

@@ -33,6 +33,7 @@
     "nicknameRequired": "Le surnom est obligatoire",
     "nicknameTooLong": "Le surnom doit contenir 250 caractères ou moins",
     "nicknameTaken": "Vous avez déjà un équipement avec ce surnom",
+    "componentsOutsideType": "Supprimez d'abord les composants qui ne conviennent pas au nouveau type d'équipement.",
     "gearType": "Type",
     "brand": "Marque",
     "brandTooLong": "La marque doit contenir 250 caractères ou moins",

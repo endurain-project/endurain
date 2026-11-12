@@ -33,6 +33,7 @@
     "nicknameRequired": "El sobrenom és obligatori",
     "nicknameTooLong": "El sobrenom ha de tenir 250 caràcters o menys",
     "nicknameTaken": "Ja tens equipament amb aquest sobrenom",
+    "componentsOutsideType": "Elimina primer els components que no encaixen amb el nou tipus d'equipament.",
     "gearType": "Tipus",
     "brand": "Marca",
     "brandTooLong": "La marca ha de tenir 250 caràcters o menys",

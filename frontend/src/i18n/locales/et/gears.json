@@ -33,6 +33,7 @@
     "nicknameRequired": "Hüüdnimi on kohustuslik",
     "nicknameTooLong": "Hüüdnimi tohib olla kuni 250 tähemärki",
     "nicknameTaken": "Sul on juba selle hüüdnimega varustus",
+    "componentsOutsideType": "Eemalda esmalt komponendid, mis uude varustuse tüüpi ei sobi.",
     "gearType": "Tüüp",
     "brand": "Bränd",
     "brandTooLong": "Bränd tohib olla kuni 250 tähemärki",

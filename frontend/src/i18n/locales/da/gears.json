@@ -33,6 +33,7 @@
     "nicknameRequired": "Kælenavn er påkrævet",
     "nicknameTooLong": "Kælenavn må højst være 250 tegn",
     "nicknameTaken": "Du har allerede udstyr med det kælenavn",
+    "componentsOutsideType": "Fjern først de komponenter, der ikke passer til den nye udstyrstype.",
     "gearType": "Type",
     "brand": "Mærke",
     "brandTooLong": "Mærke må højst være 250 tegn",

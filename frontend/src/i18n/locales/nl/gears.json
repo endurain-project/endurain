@@ -33,6 +33,7 @@
     "nicknameRequired": "Bijnaam is verplicht",
     "nicknameTooLong": "Bijnaam mag maximaal 250 tekens zijn",
     "nicknameTaken": "Je hebt al uitrusting met die bijnaam",
+    "componentsOutsideType": "Verwijder eerst de onderdelen die niet passen bij het nieuwe uitrustingstype.",
     "gearType": "Type",
     "brand": "Merk",
     "brandTooLong": "Merk mag maximaal 250 tekens zijn",

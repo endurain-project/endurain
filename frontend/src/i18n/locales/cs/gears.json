@@ -33,6 +33,7 @@
     "nicknameRequired": "Přezdívka je povinná",
     "nicknameTooLong": "Přezdívka musí mít nejvýše 250 znaků",
     "nicknameTaken": "Vybavení s touto přezdívkou již máte",
+    "componentsOutsideType": "Nejprve odeberte komponenty, které se nehodí k novému typu vybavení.",
     "gearType": "Typ",
     "brand": "Značka",
     "brandTooLong": "Značka musí mít nejvýše 250 znaků",

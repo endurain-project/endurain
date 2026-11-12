@@ -33,6 +33,7 @@
     "nicknameRequired": "O alcume é obrigatorio",
     "nicknameTooLong": "O alcume debe ter 250 caracteres ou menos",
     "nicknameTaken": "Xa tes equipamento con ese alcume",
+    "componentsOutsideType": "Elimina primeiro os compoñentes que non encaixan co novo tipo de equipamento.",
     "gearType": "Tipo",
     "brand": "Marca",
     "brandTooLong": "A marca debe ter 250 caracteres ou menos",

@@ -33,6 +33,7 @@
     "nicknameRequired": "Spitzname ist erforderlich",
     "nicknameTooLong": "Spitzname darf maximal 250 Zeichen lang sein",
     "nicknameTaken": "Du hast bereits Ausrüstung mit diesem Spitznamen",
+    "componentsOutsideType": "Entferne zuerst die Komponenten, die nicht zum neuen Ausrüstungstyp passen.",
     "gearType": "Typ",
     "brand": "Marke",
     "brandTooLong": "Marke darf maximal 250 Zeichen lang sein",

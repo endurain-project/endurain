@@ -33,6 +33,7 @@
     "nicknameRequired": "Nickname is required",
     "nicknameTooLong": "Nickname must be 250 characters or fewer",
     "nicknameTaken": "You already have gear with that nickname",
+    "componentsOutsideType": "Remove the components that don't fit the new gear type first.",
     "gearType": "Type",
     "brand": "Brand",
     "brandTooLong": "Brand must be 250 characters or fewer",

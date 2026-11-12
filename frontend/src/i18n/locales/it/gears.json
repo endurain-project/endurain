@@ -33,6 +33,7 @@
     "nicknameRequired": "Il soprannome è obbligatorio",
     "nicknameTooLong": "Il soprannome deve avere al massimo 250 caratteri",
     "nicknameTaken": "Hai già un'attrezzatura con quel soprannome",
+    "componentsOutsideType": "Rimuovi prima i componenti che non sono adatti al nuovo tipo di attrezzatura.",
     "gearType": "Tipo",
     "brand": "Marca",
     "brandTooLong": "La marca deve avere al massimo 250 caratteri",

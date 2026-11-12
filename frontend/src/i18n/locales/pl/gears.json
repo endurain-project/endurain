@@ -33,6 +33,7 @@
     "nicknameRequired": "Nazwa jest wymagana",
     "nicknameTooLong": "Nazwa może mieć maksymalnie 250 znaków",
     "nicknameTaken": "Masz już sprzęt o tej nazwie",
+    "componentsOutsideType": "Najpierw usuń komponenty, które nie pasują do nowego typu sprzętu.",
     "gearType": "Typ",
     "brand": "Marka",
     "brandTooLong": "Marka może mieć maksymalnie 250 znaków",

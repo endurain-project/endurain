@@ -141,6 +141,15 @@ class TestWrites:
 
         assert client.patch("/gears/1", json={"brand": "x"}, headers={**_HEADERS, "If-Match": '"1"'}).status_code == 412
 
+    @patch("modules.gears.gear.service.edit_gear")
+    def test_a_type_change_blocked_by_components_is_a_typed_409(self, mock_edit, client):
+        mock_edit.side_effect = core_exceptions.ComponentsOutsideGearTypeError()
+
+        response = client.patch("/gears/1", json={"gear_type": "shoes"}, headers={**_HEADERS, "If-Match": '"1"'})
+
+        assert response.status_code == 409
+        assert response.json()["type"] == "urn:endurain:error:components-outside-gear-type"
+
     def test_an_edit_cannot_clear_a_required_field_or_set_a_provider_id(self, client):
         assert (
             client.patch("/gears/1", json={"nickname": None}, headers={**_HEADERS, "If-Match": '"1"'}).status_code

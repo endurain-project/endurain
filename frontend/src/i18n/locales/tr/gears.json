@@ -33,6 +33,7 @@
     "nicknameRequired": "Takma ad zorunludur",
     "nicknameTooLong": "Takma ad en fazla 250 karakter olmalı",
     "nicknameTaken": "Bu takma ada sahip bir ekipmanınız zaten var",
+    "componentsOutsideType": "Önce yeni ekipman türüne uymayan bileşenleri kaldırın.",
     "gearType": "Tür",
     "brand": "Marka",
     "brandTooLong": "Marka en fazla 250 karakter olmalı",

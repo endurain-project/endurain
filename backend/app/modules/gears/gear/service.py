@@ -305,7 +305,7 @@ def _require_components_fit_type_change(
     Raises:
         NotFoundError: If the user has no such gear.
         PreconditionFailedError: If the gear changed since the client read it.
-        ConflictError: If the type changes and a component is not valid for the new type.
+        ComponentsOutsideGearTypeError: If the type changes and a component is not valid for the new type.
     """
     gears_crud.lock_gear(gear_id, user_id, db)
     current = gears_crud.get_gear_user_by_id(user_id, gear_id, db)
@@ -316,7 +316,7 @@ def _require_components_fit_type_change(
         return
     readers = gears_contributor_registry.readers()
     if readers.count_components_outside_type(gear_id, user_id, new_type, db) > 0:
-        raise core_exceptions.ConflictError("Remove the components that do not fit the new gear type first")
+        raise core_exceptions.ComponentsOutsideGearTypeError()
 
 
 def edit_gear(
@@ -344,8 +344,9 @@ def edit_gear(
 
     Raises:
         NotFoundError: If the user has no such gear.
-        ConflictError: If the new nickname is already taken, or the gear type changes while the gear
-            has components that are not valid for the new type.
+        ConflictError: If the new nickname is already taken.
+        ComponentsOutsideGearTypeError: If the gear type changes while the gear has components that are
+            not valid for the new type.
         PreconditionFailedError: If the gear changed since the client read it.
     """
     with core_etag.refuse_stale_write(

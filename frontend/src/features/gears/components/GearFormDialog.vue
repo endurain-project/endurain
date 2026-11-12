@@ -149,6 +149,8 @@ async function submitForm(values: GearFormValues): Promise<void> {
     if (isStaleWrite(error)) {
       open.value = false
       emit('error', t('app.staleError'))
+    } else if (isProblem(error, 'components-outside-gear-type')) {
+      emit('error', t('gears.form.componentsOutsideType'))
     } else if (isProblem(error, 'conflict')) {
       emit('error', t('gears.form.nicknameTaken'))
     } else {

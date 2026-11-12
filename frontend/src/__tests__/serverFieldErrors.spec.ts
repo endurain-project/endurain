@@ -297,3 +297,24 @@ describe.each(cases)('%s 422 handling', (_name, component, props, fieldError, me
     expect(wrapper.emitted('error')).toHaveLength(1)
   })
 })
+
+describe('GearFormDialog 409 handling', () => {
+  it.each([
+    ['conflict', 'gears.form.nicknameTaken'],
+    ['components-outside-gear-type', 'gears.form.componentsOutsideType'],
+  ])('reports the %s problem with its own message', async (code, key) => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    vi.mocked(apiFetch).mockRejectedValue(
+      new HttpError(409, 'Conflict', null, `urn:endurain:error:${code}`),
+    )
+    const wrapper = mountDialog(GearFormDialog, { gear, units: 'metric', currency: 'euro' })
+    await wrapper.setProps({ open: true })
+
+    await wrapper.find('input').setValue('Changed')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.emitted('error')).toEqual([[(i18n.global.t as (k: string) => string)(key)]])
+  })
+})

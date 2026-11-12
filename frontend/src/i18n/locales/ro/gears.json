@@ -33,6 +33,7 @@
     "nicknameRequired": "Porecla este obligatorie",
     "nicknameTooLong": "Porecla trebuie să aibă cel mult 250 de caractere",
     "nicknameTaken": "Ai deja un echipament cu acea poreclă",
+    "componentsOutsideType": "Elimină mai întâi componentele care nu se potrivesc noului tip de echipament.",
     "gearType": "Tip",
     "brand": "Marcă",
     "brandTooLong": "Marca trebuie să aibă cel mult 250 de caractere",

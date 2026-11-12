@@ -33,6 +33,7 @@
     "nicknameRequired": "暱稱為必填",
     "nicknameTooLong": "暱稱不可超過 250 個字元",
     "nicknameTaken": "您已有相同暱稱的裝備",
+    "componentsOutsideType": "請先移除不適用於新裝備類型的元件。",
     "gearType": "類型",
     "brand": "品牌",
     "brandTooLong": "品牌不可超過 250 個字元",

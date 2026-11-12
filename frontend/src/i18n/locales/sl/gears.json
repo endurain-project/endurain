@@ -33,6 +33,7 @@
     "nicknameRequired": "Vzdevek je obvezen",
     "nicknameTooLong": "Vzdevek mora biti 250 znakov ali manj",
     "nicknameTaken": "Oprema s tem vzdevkom že obstaja",
+    "componentsOutsideType": "Najprej odstranite komponente, ki ne ustrezajo novi vrsti opreme.",
     "gearType": "Vrsta",
     "brand": "Znamka",
     "brandTooLong": "Znamka mora biti 250 znakov ali manj",

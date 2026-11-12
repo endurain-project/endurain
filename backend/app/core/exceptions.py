@@ -342,6 +342,17 @@ class ApiKeyLimitError(ConflictError):
     default_detail = "The account already has the maximum number of active API keys"
 
 
+class ComponentsOutsideGearTypeError(ConflictError):
+    """A gear's type cannot change while it has components the new type does not allow.
+
+    Renders as ``409``. Clients branch on the ``components-outside-gear-type`` problem type to tell the user to remove
+    the components that do not fit the new type first.
+    """
+
+    code = "components-outside-gear-type"
+    default_detail = "Remove the components that do not fit the new gear type first"
+
+
 class JobAlreadyRunningError(ConflictError):
     """A start route refused a second run of work that is still running.
 

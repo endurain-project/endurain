@@ -33,6 +33,7 @@
     "nicknameRequired": "Nadimak je obavezan",
     "nicknameTooLong": "Nadimak mora imati 250 znakova ili manje",
     "nicknameTaken": "Već imate opremu s tim nadimkom",
+    "componentsOutsideType": "Prvo uklonite komponente koje ne odgovaraju novoj vrsti opreme.",
     "gearType": "Vrsta",
     "brand": "Marka",
     "brandTooLong": "Marka mora imati 250 znakova ili manje",

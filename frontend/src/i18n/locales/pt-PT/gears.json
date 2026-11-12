@@ -33,6 +33,7 @@
     "nicknameRequired": "A alcunha é obrigatória",
     "nicknameTooLong": "A alcunha deve ter 250 caracteres ou menos",
     "nicknameTaken": "Já tens equipamento com essa alcunha",
+    "componentsOutsideType": "Remova primeiro os componentes que não se adequam ao novo tipo de equipamento.",
     "gearType": "Tipo",
     "brand": "Marca",
     "brandTooLong": "A marca deve ter 250 caracteres ou menos",
