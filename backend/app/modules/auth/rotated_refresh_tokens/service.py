@@ -167,6 +167,9 @@ def check_token_reuse(raw_token: str, db: Session, *, ip_address: str, user_agen
     if not rotated_token:
         return (False, False)
 
+    # The family id is the session id, the handle exchanged for tokens, so only a one-way fingerprint is logged.
+    family = core_hashing.log_fingerprint(rotated_token.token_family_id)
+
     # Token was already rotated - check grace period
     now = datetime.now(UTC)
 
@@ -174,18 +177,14 @@ def check_token_reuse(raw_token: str, db: Session, *, ip_address: str, user_agen
         if not _is_rotating_client(rotated_token, ip_address, user_agent):
             logger.warning(
                 "Token reuse within grace period came from another client",
-                extra=core_logger.context(
-                    token_family_id=rotated_token.token_family_id, rotation_count=rotated_token.rotation_count
-                ),
+                extra=core_logger.context(session=family, rotation_count=rotated_token.rotation_count),
             )
             return (True, False)
 
         # Within grace period from the rotating client - a legitimate retry
         logger.warning(
             "Token reuse within grace period",
-            extra=core_logger.context(
-                token_family_id=rotated_token.token_family_id, rotation_count=rotated_token.rotation_count
-            ),
+            extra=core_logger.context(session=family, rotation_count=rotated_token.rotation_count),
         )
         return (True, True)
 
@@ -193,7 +192,7 @@ def check_token_reuse(raw_token: str, db: Session, *, ip_address: str, user_agen
     logger.warning(
         "Token reuse detected after grace period",
         extra=core_logger.context(
-            token_family_id=rotated_token.token_family_id,
+            session=family,
             rotation_count=rotated_token.rotation_count,
             rotated_at=rotated_token.rotated_at.isoformat(),
         ),

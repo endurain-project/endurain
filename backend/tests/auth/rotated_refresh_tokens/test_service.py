@@ -170,6 +170,39 @@ class TestCheckTokenReuse:
         assert in_grace is False
 
 
+class TestReuseLogsNoSessionId:
+    """A reuse log line names the token family by fingerprint, since the family id is the session id."""
+
+    @pytest.mark.parametrize(
+        ("expires_in", "same_client"),
+        [(30, True), (30, False), (-30, True)],
+        ids=["in grace", "in grace from another client", "after grace"],
+    )
+    @patch("modules.auth.rotated_refresh_tokens.service.rotated_token_crud")
+    @patch("modules.auth.rotated_refresh_tokens.service.hmac_hash_token")
+    def test_the_family_id_is_logged_as_a_fingerprint(self, mock_hash, mock_crud, expires_in, same_client, caplog):
+        import logging
+
+        family_id = "9f2c1d7e-session-handle-0001"
+        now = datetime.now(UTC)
+        token = MagicMock(spec=rotated_token_models.RotatedRefreshToken)
+        token.expires_at = now + timedelta(seconds=expires_in)
+        token.client_fingerprint = _FINGERPRINT if same_client else "another-client"
+        token.token_family_id = family_id
+        token.rotation_count = 1
+        token.rotated_at = now - timedelta(seconds=90)
+        mock_crud.get_rotated_token_by_hashes.return_value = token
+
+        with caplog.at_level(logging.DEBUG):
+            rotated_token_utils.check_token_reuse("raw-token", MagicMock(), ip_address=_IP, user_agent=_UA)
+
+        assert caplog.records
+        for record in caplog.records:
+            assert family_id not in record.getMessage()
+            assert family_id not in str(record.__dict__)
+        assert any(hashing.log_fingerprint(family_id) in str(record.__dict__) for record in caplog.records)
+
+
 class TestGetGraceReplayToken:
     """
     Test suite for get_grace_replay_token function.

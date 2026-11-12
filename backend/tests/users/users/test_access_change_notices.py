@@ -137,6 +137,58 @@ class TestPromotion:
         assert calls.index(("promoted", 1, 2)) < calls.index(("commit",))
 
 
+class TestCreation:
+    @pytest.fixture
+    def create(self, mock_db, staged):
+        def _create(created, admins):
+            staged.crud.get_users_admin.return_value = list(admins)
+            mock_db.commit.side_effect = lambda: staged.calls.append(("commit",))
+            with (
+                patch(f"{_SERVICE}._stage_user", return_value=created),
+                patch(f"{_SERVICE}.credentials_integration.reject_breached_password"),
+            ):
+                users_service.create_user(
+                    users_schema.UserCreate(
+                        name="New",
+                        username="new",
+                        email="new@example.com",
+                        password="SecurePass1!",
+                        access_type=created.access_type,
+                        active=True,
+                    ),
+                    None,
+                    9,
+                    "sid",
+                    MagicMock(),
+                    mock_db,
+                )
+            return staged.calls
+
+        return _create
+
+    def test_each_other_active_administrator_is_told_of_a_new_administrator(self, create):
+        admins = [
+            _user(2, access_type="admin"),
+            _user(3, access_type="admin", active=False),
+            _user(5, access_type="admin"),
+            _user(7, access_type="admin"),
+        ]
+
+        calls = create(_user(7, access_type="admin"), admins)
+
+        assert [call for call in calls if call[0] == "promoted"] == [("promoted", 7, 2), ("promoted", 7, 5)]
+
+    def test_the_notice_is_staged_before_the_commit(self, create):
+        calls = create(_user(7, access_type="admin"), [_user(2, access_type="admin")])
+
+        assert calls.index(("promoted", 7, 2)) < calls.index(("commit",))
+
+    def test_a_new_regular_user_tells_no_administrator(self, create):
+        calls = create(_user(7), [_user(2, access_type="admin")])
+
+        assert not [call for call in calls if call[0] == "promoted"]
+
+
 class TestDeactivation:
     def test_the_user_is_told_before_the_commit(self, mock_db, staged):
         calls = staged.edit(mock_db, _user(1), _user(1, active=False))

@@ -24,6 +24,7 @@ def _row(**overrides):
         "last_used_at": None,
         "created_at": datetime.now(UTC),
         "is_active": True,
+        "revoked_at": None,
     }
     values.update(overrides)
     return SimpleNamespace(**values)
@@ -94,6 +95,7 @@ def test_revoke_and_delete_stage_owned_key(mock_db):
     mock_db.execute.return_value.scalar_one_or_none.return_value = row
     api_keys_crud.revoke_api_key(row.id, row.user_id, mock_db)
     assert row.is_active is False
+    assert row.revoked_at is not None
     mock_db.commit.assert_not_called()
 
     mock_db.execute.return_value.rowcount = 1
@@ -105,3 +107,13 @@ def test_revoke_missing_key_raises_not_found(mock_db):
     mock_db.execute.return_value.scalar_one_or_none.return_value = None
     with pytest.raises(core_exceptions.NotFoundError):
         api_keys_crud.revoke_api_key("missing", 1, mock_db)
+
+
+def test_revoking_a_revoked_key_keeps_its_first_revocation_time(mock_db):
+    first = datetime.now(UTC) - timedelta(days=3)
+    row = _row(is_active=False, revoked_at=first)
+    mock_db.execute.return_value.scalar_one_or_none.return_value = row
+
+    api_keys_crud.revoke_api_key(row.id, row.user_id, mock_db)
+
+    assert row.revoked_at == first

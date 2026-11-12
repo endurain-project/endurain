@@ -12,6 +12,7 @@ from joserfc.errors import (
 import core.exceptions as core_exceptions
 import modules.auth.access_tokens.service as auth_token_manager
 import modules.auth.authentication.token_service as auth_token_service
+import modules.auth.constants as auth_constants
 from modules.auth.constants import ClientType
 from modules.users.users.schema import UserAccessType, UserRead
 
@@ -650,3 +651,20 @@ class TestAdminTokenScopeNames:
             "users:read-all",
         } <= scopes
         assert not {scope for scope in scopes if "_" in scope}
+
+
+class TestScopesForAccessType:
+    """The scopes of an access type, which fails closed on a value it does not know."""
+
+    def test_a_regular_user_holds_the_regular_scopes(self):
+        assert auth_token_manager.scopes_for_access_type("regular") == auth_constants.REGULAR_ACCESS_SCOPE
+
+    def test_an_administrator_holds_the_administrator_scopes(self):
+        assert auth_token_manager.scopes_for_access_type("admin") == auth_constants.ADMIN_ACCESS_SCOPE
+
+    @pytest.mark.parametrize("access_type", ["superuser", "Admin", "", "0"])
+    def test_an_unknown_access_type_raises_a_server_error_and_grants_nothing(self, access_type):
+        with pytest.raises(core_exceptions.ProcessingError) as raised:
+            auth_token_manager.scopes_for_access_type(access_type)
+
+        assert raised.value.status_code == 500

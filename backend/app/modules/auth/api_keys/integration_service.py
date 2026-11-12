@@ -1,6 +1,6 @@
 """Operations exposed to authentication peers."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
@@ -53,6 +53,11 @@ def create_api_key(
         expires_at,
         db,
     )
+
+
+def count_active_api_keys(user_id: int, db: Session) -> int:
+    """Return how many API keys a user holds that are not revoked and have not expired."""
+    return api_keys_crud.count_active_api_keys(user_id, datetime.now(UTC), db)
 
 
 def revoke_api_key(api_key_id: str, user_id: int, db: Session) -> None:

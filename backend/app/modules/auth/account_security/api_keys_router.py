@@ -44,7 +44,10 @@ def list_user_api_keys(
     "",
     response_model=api_keys_schema.UserApiKeyCreatedRead,
     status_code=status.HTTP_201_CREATED,
-    responses={201: {"headers": core_openapi_contract.NO_STORE_RESPONSE_HEADERS}},
+    responses={
+        201: {"headers": core_openapi_contract.NO_STORE_RESPONSE_HEADERS},
+        409: {"description": "The account already holds the maximum number of active API keys."},
+    },
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
@@ -61,7 +64,7 @@ def create_user_api_key(
     ],
     db: core_dependencies.DbSession,
 ) -> api_keys_schema.UserApiKeyCreatedRead:
-    """Create an API key after step-up verification."""
+    """Create an API key after step-up verification. An account holds at most 25 active keys."""
     core_cache_control.set_no_store(response)
     return api_key_service.create_user_api_key(token_user_id, token_session_id, data, expires_at, step_up_store, db)
 

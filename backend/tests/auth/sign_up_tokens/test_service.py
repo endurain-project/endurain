@@ -3,12 +3,14 @@
 import contextlib
 from unittest.mock import MagicMock, patch
 
+import jasil.audit as jasil_audit
 import pytest
 from jasil.backends.state_memory import MemoryState
 from jasil.providers import StateBackendUnavailableError
 
 import core.exceptions as core_exceptions
 import modules.auth.credentials.contracts as credentials_contracts
+import modules.auth.sign_up_tokens.audit_actions as sign_up_audit_actions
 import modules.auth.sign_up_tokens.contracts as sign_up_contracts
 import modules.auth.sign_up_tokens.schema as sign_up_schema
 import modules.auth.sign_up_tokens.service as sign_up_service
@@ -514,11 +516,18 @@ class TestConfirmSignUp:
 
 
 class TestSignUpOff:
-    """With sign-up off, a confirmation or a resend is refused before anything of the request is looked at."""
+    """With sign-up off, a resend and a real sign-up's confirmation are refused; an activated account still confirms."""
 
     @pytest.fixture
     def deps(self):
-        names = ["credentials_integration", "users_integration", "sign_up_event_publishers", "core_email_cooldown"]
+        names = [
+            "credentials_integration",
+            "users_integration",
+            "sign_up_event_publishers",
+            "core_email_cooldown",
+            "sessions_integration",
+            "password_reset_tokens_integration",
+        ]
         mocks = {name: MagicMock() for name in names}
         settings = _settings(verification=True)
         settings.signup_enabled = False
@@ -527,17 +536,64 @@ class TestSignUpOff:
             patch(f"{_MODULE}.verify_sign_up_token") as verify_token,
             patch.multiple(_MODULE, **mocks),
         ):
+            verify_token.return_value = _claim()
+            mocks["users_integration"].is_deactivated.return_value = False
+            mocks["credentials_integration"].validate_and_hash_password_for_user.return_value = "hashed"
+            mocks["credentials_integration"].has_local_password.return_value = False
             yield mocks | {"verify_token": verify_token}
 
-    def test_a_confirmation_is_refused_like_the_sign_up_request(self, deps, mock_db):
+    def test_a_real_sign_up_confirmation_is_refused_and_writes_nothing(self, deps, mock_db):
+        deps["users_integration"].get_user.return_value = MagicMock(id=7, active=False, access_type="regular")
+
         with pytest.raises(core_exceptions.PermissionDeniedError) as refused:
             sign_up_service.confirm_sign_up("tok", "ChosenPass1!", mock_db)
 
         assert refused.value.status_code == 403
-        deps["credentials_integration"].reject_breached_password.assert_not_called()
-        deps["verify_token"].assert_not_called()
-        deps["users_integration"].get_user.assert_not_called()
+        deps["credentials_integration"].set_local_password_hash.assert_not_called()
+        deps["sessions_integration"].delete_sessions_by_user.assert_not_called()
         mock_db.commit.assert_not_called()
+
+    def test_a_refused_real_sign_up_rolls_back_the_claim_and_audits_the_failure(self, deps, mock_db):
+        deps["users_integration"].get_user.return_value = MagicMock(id=7, active=False, access_type="regular")
+
+        with (
+            patch(f"{_MODULE}.jasil_audit.record_detached") as record,
+            pytest.raises(core_exceptions.PermissionDeniedError),
+        ):
+            sign_up_service.confirm_sign_up("tok", "ChosenPass1!", mock_db)
+
+        mock_db.rollback.assert_called_once()
+        record.assert_called_once()
+        assert record.call_args.args == (sign_up_audit_actions.SIGN_UP_CONFIRM,)
+        assert record.call_args.kwargs == {
+            "outcome": jasil_audit.Outcome.FAILURE,
+            "target_type": "user",
+            "target_id": "7",
+            "target_owner_id": "7",
+            "details": sign_up_audit_actions.SignUpConfirmDetails(reason="sign_up_disabled"),
+        }
+
+    def test_an_activated_passwordless_account_still_chooses_its_password(self, deps, mock_db):
+        deps["users_integration"].get_user.return_value = MagicMock(id=7, active=True, access_type="regular")
+
+        result = sign_up_service.confirm_sign_up("tok", "ChosenPass1!", mock_db)
+
+        deps["credentials_integration"].set_local_password_hash.assert_called_once_with(
+            7, "hashed", mock_db, change_required=False
+        )
+        mock_db.commit.assert_called_once()
+        assert result.next_step is sign_up_schema.SignUpNextStep.SIGN_IN
+
+    def test_the_breach_check_runs_before_the_claim_for_either_account(self, deps, mock_db):
+        deps["users_integration"].get_user.return_value = MagicMock(id=7, active=False, access_type="regular")
+        order: list[str] = []
+        deps["credentials_integration"].reject_breached_password.side_effect = lambda *a, **k: order.append("breach")
+        deps["verify_token"].side_effect = lambda *a, **k: (order.append("claim"), _claim())[1]
+
+        with pytest.raises(core_exceptions.PermissionDeniedError):
+            sign_up_service.confirm_sign_up("tok", "ChosenPass1!", mock_db)
+
+        assert order == ["breach", "claim"]
 
     def test_a_resend_is_refused_like_the_sign_up_request(self, deps, mock_db, state):
         with pytest.raises(core_exceptions.PermissionDeniedError) as refused:
@@ -551,6 +607,7 @@ class TestSignUpOff:
     def test_the_refusal_is_the_one_the_sign_up_request_gives(self, deps, mock_db, state):
         with pytest.raises(core_exceptions.PermissionDeniedError) as signed_up:
             sign_up_service.signup(_signup_user(), state, mock_db)
+        deps["users_integration"].get_user.return_value = MagicMock(id=7, active=False, access_type="regular")
         with pytest.raises(core_exceptions.PermissionDeniedError) as confirmed:
             sign_up_service.confirm_sign_up("tok", "ChosenPass1!", mock_db)
         with pytest.raises(core_exceptions.PermissionDeniedError) as resent:

@@ -78,6 +78,20 @@ class ScopeDeniedDetails(VersionedPayload):
     missing_scopes: list[str]
 
 
+class MfaEnrolmentDeniedDetails(VersionedPayload):
+    """Details of ``auth.mfa_enrolment.denied``.
+
+    Attributes:
+        credential_type: How the refused request authenticated, e.g. ``access_token`` or ``api_key``.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    SCHEMA_VERSION: ClassVar[int] = 1
+
+    credential_type: str
+
+
 LOGOUT = jasil_audit.AuditAction(
     id="auth.session.logout",
     category=jasil_audit.Category.AUTHENTICATION,
@@ -121,6 +135,15 @@ SCOPE_DENIED = jasil_audit.AuditAction(
     details_model=ScopeDeniedDetails,
 )
 
+MFA_ENROLMENT_DENIED = jasil_audit.AuditAction(
+    id="auth.mfa_enrolment.denied",
+    category=jasil_audit.Category.AUTHORIZATION,
+    severity=jasil_audit.Severity.MEDIUM,
+    description_key="audit.auth.mfa_enrolment.denied",
+    description_default="A request was refused because the account must enrol two-step verification first",
+    details_model=MfaEnrolmentDeniedDetails,
+)
+
 #: Every action this package writes, registered by the composition root.
 ACTIONS: tuple[jasil_audit.AuditAction, ...] = (
     LOGOUT,
@@ -128,4 +151,5 @@ ACTIONS: tuple[jasil_audit.AuditAction, ...] = (
     REFRESH_TOKEN_REUSE,
     API_KEY_AUTHENTICATE,
     SCOPE_DENIED,
+    MFA_ENROLMENT_DENIED,
 )

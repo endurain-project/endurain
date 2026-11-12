@@ -252,6 +252,30 @@ class TestTheLinkSurvivesConfirmation:
         platform.keys.assert_called_once_with(7, db)
         assert audit.assert_audited(_ACTION, target_id="7").details["email_restored"] is False
 
+    def test_an_address_not_restored_revokes_the_reset_tokens_and_audits_it(self, db, platform, security_generations):
+        link = _request(db)
+        _confirm(db)
+        db.query(users_models.Users).filter_by(id=8).update({"email": _OLD})
+        db.commit()
+
+        with (
+            patch(f"{_SERVICE}.password_reset_tokens_integration.revoke_unused_tokens") as revoke,
+            jasil_testing.capture_audit() as audit,
+        ):
+            _revert(db, link)
+
+        revoke.assert_called_once_with(7, db)
+        assert audit.assert_audited(_ACTION, target_id="7").details["reset_tokens_revoked"] is True
+
+    def test_a_restored_address_is_audited_without_a_reset_token_revocation(self, db, platform, security_generations):
+        link = _request(db)
+        _confirm(db)
+
+        with jasil_testing.capture_audit() as audit:
+            _revert(db, link)
+
+        assert audit.assert_audited(_ACTION, target_id="7").details["reset_tokens_revoked"] is False
+
 
 def _reserve_for_user_7(db):
     """Request and confirm a change of user 7, so that the old address is reserved for it."""

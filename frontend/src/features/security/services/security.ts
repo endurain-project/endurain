@@ -86,6 +86,9 @@ const API_KEY_SCOPE_GROUP: Record<ApiKeyScope, (typeof API_KEY_SCOPE_GROUPS)[num
   'users:read': 'users',
 }
 
+/** Problem type of a create refused because the account already holds the most active API keys. */
+export const API_KEY_LIMIT_TYPE = 'urn:endurain:error:api-key-limit'
+
 /** The scopes an API key can be granted, in display order. */
 export const API_KEY_SCOPES = Object.keys(API_KEY_SCOPE_GROUP) as ApiKeyScope[]
 

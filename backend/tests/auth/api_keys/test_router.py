@@ -7,6 +7,7 @@ import pytest
 from fastapi import HTTPException, status
 
 import core.exceptions as core_exceptions
+import modules.auth.api_keys.constants as api_keys_constants
 import modules.auth.api_keys.models as users_api_keys_models
 import modules.auth.api_keys.schema as api_keys_schema
 
@@ -80,6 +81,26 @@ class TestCreateUserApiKey:
     Test suite for POST /api_keys endpoint.
     """
 
+    @pytest.fixture(autouse=True)
+    def below_the_key_limit(self):
+        """Count no active keys so a create reaches the step-up and the key insert."""
+        with patch("modules.auth.account_security.api_key_service.api_keys_integration.count_active_api_keys") as count:
+            count.return_value = 0
+            yield count
+
+    def test_create_user_api_key_at_the_limit_returns_409(self, below_the_key_limit, fast_api_client, fast_api_app):
+        """Test that 409 with the api-key-limit problem type is returned at the cap."""
+        below_the_key_limit.return_value = api_keys_constants.MAX_ACTIVE_API_KEYS_PER_USER
+
+        response = fast_api_client.post(
+            "/api-keys",
+            json={"step_up": {"current_password": "pw"}, "name": "FitoTrack", "scopes": ["activities:upload"]},
+            headers={"Authorization": "Bearer mock_token"},
+        )
+
+        assert response.status_code == 409
+        assert response.json()["type"] == "urn:endurain:error:api-key-limit"
+
     @patch("modules.auth.account_security.api_key_service.create_user_api_key")
     def test_create_user_api_key_success(
         self,
@@ -143,6 +164,7 @@ class TestCreateUserApiKey:
         # Arrange
         mock_get_user.side_effect = core_exceptions.NotFoundError("User not found")
         mock_db.execute.return_value.scalar_one_or_none.return_value = None
+        mock_db.execute.return_value.scalar_one.return_value = 0
 
         payload = {
             "step_up": {"current_password": "pw"},

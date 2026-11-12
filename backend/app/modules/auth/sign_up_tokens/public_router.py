@@ -83,7 +83,8 @@ def confirm_sign_up(
 ) -> sign_up_schema.SignUpRead:
     """Confirm a sign-up with the token of its emailed link and choose the account's password.
 
-    Refused while sign-up is turned off, whatever the token; the account stays pending.
+    Refused while sign-up is turned off when the token belongs to a pending sign-up, which stays pending and keeps
+    its link; an account an administrator activated without a password can still choose one.
     """
     return sign_up_service.confirm_sign_up(confirm_data.token, confirm_data.password, db)
 

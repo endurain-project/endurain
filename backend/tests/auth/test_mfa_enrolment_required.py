@@ -4,12 +4,16 @@ from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import jasil.testing as jasil_testing
 import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
+from jasil.backends.state_memory import MemoryState
+from jasil.providers import StateBackendUnavailableError
 
 import core.config as core_config
 import core.database as core_database
+import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
 import modules.auth.authentication.principal_service as principal_service
 import modules.auth.constants as auth_constants
@@ -129,6 +133,8 @@ def client():
     app = FastAPI()
     core_exceptions.register_exception_handlers(app)
     app.dependency_overrides[core_database.get_db] = lambda: MagicMock()
+    state = MemoryState()
+    app.dependency_overrides[core_dependencies.get_platform_state] = lambda: state
     root = core_config.ROOT_PATH
 
     def _ok():
@@ -190,6 +196,62 @@ class TestTheRefusal:
             response = client.post(core_config.ROOT_PATH + "/profile/password/change")
 
         assert response.status_code == 200
+
+
+class TestTheRefusalIsAudited:
+    def _refused(self, client, principal: Principal | None = None):
+        with _resolving(principal or _principal(enrolment_required=True)):
+            return client.post(core_config.ROOT_PATH + "/profile/password/change")
+
+    def test_a_refusal_writes_a_denied_row_without_any_credential_value(self, client):
+        with jasil_testing.capture_audit() as audit:
+            self._refused(client)
+
+        entry = audit.assert_audited("auth.mfa_enrolment.denied", outcome="denied")
+        assert entry.details == {"credential_type": "access_token"}
+
+    def test_a_client_retrying_in_the_same_session_is_audited_once(self, client):
+        with jasil_testing.capture_audit() as audit:
+            for _ in range(3):
+                assert self._refused(client).status_code == 403
+
+        assert len(audit.matching("auth.mfa_enrolment.denied")) == 1
+
+    def test_another_session_is_audited_on_its_own(self, client):
+        other = Principal(
+            user_id=1,
+            username="u",
+            email="u@example.com",
+            is_active=True,
+            is_superuser=True,
+            scopes=frozenset(auth_constants.ADMIN_ACCESS_SCOPE),
+            credential=AccessTokenCred(session_id="other"),
+            mfa_enrolment_required=True,
+        )
+
+        with jasil_testing.capture_audit() as audit:
+            self._refused(client)
+            self._refused(client, other)
+
+        assert len(audit.matching("auth.mfa_enrolment.denied")) == 2
+
+    def test_an_account_that_need_not_enrol_writes_nothing(self, client):
+        with jasil_testing.capture_audit() as audit:
+            self._refused(client, _principal(enrolment_required=False))
+
+        audit.assert_not_audited("auth.mfa_enrolment.denied")
+
+    def test_an_unreachable_state_store_still_audits_the_refusal(self, client):
+        class _Down(MemoryState):
+            def set_if_absent(self, *args, **kwargs):
+                raise StateBackendUnavailableError("down")
+
+        client.app.dependency_overrides[core_dependencies.get_platform_state] = lambda: _Down()
+        with jasil_testing.capture_audit() as audit:
+            response = self._refused(client)
+
+        assert response.status_code == 403
+        audit.assert_audited("auth.mfa_enrolment.denied", outcome="denied")
 
 
 class TestWhatAnUnenrolledAccountMayStillDo:

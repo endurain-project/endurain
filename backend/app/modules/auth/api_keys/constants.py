@@ -1,6 +1,13 @@
 """API key constants."""
 
+from datetime import timedelta
 from enum import StrEnum
+
+#: Most active API keys one user may hold; a key is active while it is not revoked and has not expired.
+MAX_ACTIVE_API_KEYS_PER_USER = 25
+
+#: How long a revoked or expired API key is kept before the scheduled purge deletes it.
+STALE_API_KEY_RETENTION = timedelta(days=30)
 
 
 class ApiKeyScope(StrEnum):

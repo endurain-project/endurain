@@ -702,7 +702,7 @@ class TestResendEndpoint:
 
 
 class TestSignUpOffEndpoints:
-    """With sign-up off, the confirm and resend routes answer like the request route."""
+    """With sign-up off, the resend route and a pending sign-up's confirmation answer like the request route."""
 
     @pytest.fixture(autouse=True)
     def sign_up_off(self):
@@ -716,14 +716,29 @@ class TestSignUpOffEndpoints:
         ("path", "body"),
         [
             ("/sign-up/sign-up/request", {"name": "N", "username": "nobody", "email": "u@example.com"}),
-            ("/sign-up/sign-up/confirm", {"token": "tok", "password": "ChosenPass1!"}),
             ("/sign-up/sign-up/resend", {"email": "u@example.com"}),
         ],
     )
-    def test_the_three_routes_refuse_alike(self, signup_client, path, body) -> None:
+    def test_the_request_and_resend_routes_refuse_alike(self, signup_client, path, body) -> None:
         body = body | {"preferred_language": "en"} if path.endswith("request") else body
 
         response = signup_client.post(path, json=body)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.json()["type"] == "urn:endurain:error:permission-denied"
+        assert "not enabled" in response.json()["detail"].lower()
+
+    @patch("modules.auth.sign_up_tokens.service.credentials_integration")
+    @patch("modules.auth.sign_up_tokens.service.users_integration")
+    @patch("modules.auth.sign_up_tokens.service.verify_sign_up_token")
+    def test_a_pending_sign_up_confirmation_is_refused_alike(
+        self, claim, mock_users, _credentials, signup_client
+    ) -> None:
+        claim.return_value = MagicMock(user_id=10)
+        mock_users.get_user.return_value = MagicMock(id=10, active=False)
+        mock_users.is_deactivated.return_value = False
+
+        response = signup_client.post("/sign-up/sign-up/confirm", json={"token": "tok", "password": "ChosenPass1!"})
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert response.json()["type"] == "urn:endurain:error:permission-denied"

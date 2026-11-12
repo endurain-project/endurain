@@ -14,6 +14,30 @@ import modules.users.users.deletion_state_store as users_deletion_state_store
 MIN_SEARCH_TERM_LENGTH = 3
 
 
+def require_search_term(username: str | None, username_contains: str | None) -> None:
+    """Refuse a directory read that names no search term of the minimum length, so the whole list cannot be paged.
+
+    Args:
+        username: The exact-username filter, or None.
+        username_contains: The contains filter, or None.
+
+    Raises:
+        RequestValidationError: When neither filter holds at least ``MIN_SEARCH_TERM_LENGTH`` characters (422).
+    """
+    if any(term is not None and len(term) >= MIN_SEARCH_TERM_LENGTH for term in (username, username_contains)):
+        return
+    raise RequestValidationError(
+        [
+            {
+                "type": "missing",
+                "loc": ("query", "username_contains"),
+                "msg": f"Send username or username_contains with at least {MIN_SEARCH_TERM_LENGTH} characters",
+                "input": None,
+            }
+        ]
+    )
+
+
 def directory_page_params(
     db: core_dependencies.DbSession,
     page_number: Annotated[int | None, Query(ge=1, le=core_pagination.MAX_PAGE_NUMBER)] = None,

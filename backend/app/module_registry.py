@@ -50,6 +50,7 @@ import modules.activities.activity_workout_steps.integration_service as activity
 import modules.activities.contributor_registry as activities_contributor_registry
 import modules.auth.account_security.audit_actions as account_security_audit_actions
 import modules.auth.account_security.subscriber_registry as account_security_subscriber_registry
+import modules.auth.api_keys.scheduled_jobs as api_keys_scheduled_jobs
 import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.subscriber_registry as authentication_subscriber_registry
 import modules.auth.dependencies as auth_dependencies
@@ -64,6 +65,7 @@ import modules.auth.login_audit.audit_actions as login_audit_actions
 import modules.auth.mfa.scheduled_jobs as mfa_scheduled_jobs
 import modules.auth.mfa_backup_codes.audit_actions as mfa_backup_codes_audit_actions
 import modules.auth.oauth_state.scheduled_jobs as oauth_state_scheduled_jobs
+import modules.auth.onboarding.audit_actions as onboarding_audit_actions
 import modules.auth.onboarding.scheduled_jobs as onboarding_scheduled_jobs
 import modules.auth.password_reset_tokens.audit_actions as password_reset_tokens_audit_actions
 import modules.auth.password_reset_tokens.scheduled_jobs as password_reset_tokens_scheduled_jobs
@@ -343,6 +345,7 @@ MODULES: tuple[RuntimeModule, ...] = (
             ),
         ),
     ),
+    RuntimeModule(name="api_keys", recurring_jobs=api_keys_scheduled_jobs.recurring_jobs),
     RuntimeModule(
         name="sessions",
         recurring_jobs=auth_sessions_scheduled_jobs.recurring_jobs,
@@ -407,6 +410,7 @@ MODULES: tuple[RuntimeModule, ...] = (
     ),
     RuntimeModule(
         name="onboarding",
+        audit_actions=onboarding_audit_actions.ACTIONS,
         startup_tasks=(
             StartupTask(
                 "issue_onboarding_token",

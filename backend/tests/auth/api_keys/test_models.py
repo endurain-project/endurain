@@ -100,3 +100,9 @@ class TestUsersApiKeysModel:
     def test_users_api_keys_model_is_active_not_nullable(self):
         """Test is_active column is not nullable."""
         assert users_api_keys_models.UsersApiKeys.is_active.nullable is False
+
+    def test_users_api_keys_model_revoked_at_nullable(self):
+        """Test revoked_at is nullable and timezone-aware (an active key has none)."""
+        column = users_api_keys_models.UsersApiKeys.revoked_at
+        assert column.nullable is True
+        assert column.type.timezone is True

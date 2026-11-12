@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+import jasil.testing as jasil_testing
 import pytest
 from jasil.backends.state_memory import MemoryState
 
@@ -155,6 +156,90 @@ class TestCompleteOnboarding:
             onboarding_service.complete_onboarding(_request("t"), store, mock_db)
 
         mock_db.commit.assert_not_called()
+
+
+class TestRefusalsAreAudited:
+    @pytest.fixture(autouse=True)
+    def _breach_check_off(self):
+        with patch(
+            "modules.auth.onboarding.service.server_settings_integration.get_server_settings",
+            return_value=MagicMock(password_breach_check_enabled=False),
+        ):
+            yield
+
+    def _refuse(self, users, store, mock_db, token, exc):
+        with jasil_testing.capture_audit() as audit, pytest.raises(exc):
+            onboarding_service.complete_onboarding(_request(token), store, mock_db)
+        return audit
+
+    @patch(_USERS)
+    def test_an_existing_account_is_audited_without_the_token(self, users, store, mock_db):
+        users.any_user_exists.return_value = True
+
+        audit = self._refuse(users, store, mock_db, "secret-token", core_exceptions.ConflictError)
+
+        entry = audit.assert_audited("auth.onboarding.refuse", outcome="denied")
+        assert entry.details == {"reason": "account_exists"}
+
+    @patch(_USERS)
+    def test_a_bad_token_is_audited_without_the_token(self, users, store, mock_db):
+        users.any_user_exists.return_value = False
+
+        audit = self._refuse(users, store, mock_db, "secret-token", core_exceptions.InvalidInputError)
+
+        entry = audit.assert_audited("auth.onboarding.refuse", outcome="denied")
+        assert entry.details == {"reason": "invalid_token"}
+
+    @patch(_USERS)
+    def test_a_weak_password_is_audited(self, users, store, mock_db):
+        users.any_user_exists.return_value = False
+        users.stage_first_admin.side_effect = credentials_contracts.PasswordTooShortError("short")
+
+        audit = self._refuse(users, store, mock_db, store.issue(), credentials_contracts.PasswordPolicyError)
+
+        entry = audit.assert_audited("auth.onboarding.refuse", outcome="denied")
+        assert entry.details == {"reason": "password_policy"}
+
+    @patch(_USERS)
+    def test_a_breached_password_is_audited(self, users, store, mock_db):
+        users.any_user_exists.return_value = False
+        with patch(
+            "modules.auth.onboarding.service.credentials_integration.reject_breached_password",
+            side_effect=credentials_contracts.PasswordTooShortError("breached"),
+        ):
+            audit = self._refuse(users, store, mock_db, store.issue(), credentials_contracts.PasswordPolicyError)
+
+        assert audit.assert_audited("auth.onboarding.refuse").details == {"reason": "password_policy"}
+
+    @patch(_USERS)
+    def test_losing_the_race_for_an_account_is_audited(self, users, store, mock_db):
+        users.any_user_exists.return_value = False
+        users.stage_first_admin.side_effect = core_exceptions.ConflictError("An account already exists")
+
+        audit = self._refuse(users, store, mock_db, store.issue(), core_exceptions.ConflictError)
+
+        assert audit.assert_audited("auth.onboarding.refuse").details == {"reason": "account_exists"}
+
+    @patch(_USERS)
+    def test_losing_the_race_for_the_token_is_audited(self, users, mock_db):
+        users.any_user_exists.return_value = False
+        store = MagicMock()
+        store.exists.return_value = True
+        store.claim.return_value = False
+
+        audit = self._refuse(users, store, mock_db, "t", core_exceptions.InvalidInputError)
+
+        assert audit.assert_audited("auth.onboarding.refuse").details == {"reason": "invalid_token"}
+
+    @patch(_USERS)
+    def test_a_success_records_no_refusal(self, users, store, mock_db):
+        users.any_user_exists.return_value = False
+        users.stage_first_admin.return_value = MagicMock(id=1)
+
+        with jasil_testing.capture_audit() as audit:
+            onboarding_service.complete_onboarding(_request(store.issue()), store, mock_db)
+
+        audit.assert_not_audited("auth.onboarding.refuse")
 
 
 class TestRequestShape:

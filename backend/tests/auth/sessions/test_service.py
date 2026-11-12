@@ -335,6 +335,26 @@ def test_family_invalidation_stages_session_and_token_deletion(mock_db):
     mock_db.commit.assert_not_called()
 
 
+def test_family_invalidation_logs_a_fingerprint_not_the_family_id(mock_db, caplog):
+    import logging
+
+    import core.hashing as core_hashing
+
+    family_id = "9f2c1d7e-session-handle-0001"
+    with (
+        patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_family", return_value=1),
+        patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family", return_value=1),
+        caplog.at_level(logging.DEBUG),
+    ):
+        sessions_service.invalidate_token_family(family_id, mock_db)
+
+    assert caplog.records
+    for record in caplog.records:
+        assert family_id not in record.getMessage()
+        assert family_id not in str(record.__dict__)
+    assert any(core_hashing.log_fingerprint(family_id) in str(record.__dict__) for record in caplog.records)
+
+
 def test_stage_delete_session_cleans_linked_records_without_committing(mock_db):
     session = _session(oauth_state_id="state-id")
     with (

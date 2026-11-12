@@ -1,8 +1,12 @@
 """API-key lookup for request authentication."""
 
+from datetime import UTC, datetime
+
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import core.pagination as core_pagination
+import modules.auth.api_keys.constants as api_keys_constants
 import modules.auth.api_keys.crud as api_keys_crud
 import modules.auth.api_keys.schema as api_keys_schema
 
@@ -27,3 +31,9 @@ def get_api_key_by_hash(key_hash: str, db: Session) -> api_keys_schema.UserApiKe
 def update_last_used(api_key_id: str, db: Session) -> None:
     """Stage the API key's last-used timestamp."""
     api_keys_crud.update_last_used(api_key_id, db)
+
+
+def delete_stale_api_keys(db: Session) -> int:
+    """Delete the keys revoked or expired longer ago than the retention, one batch per commit."""
+    cutoff = datetime.now(UTC) - api_keys_constants.STALE_API_KEY_RETENTION
+    return core_database.delete_in_batches(lambda limit: api_keys_crud.delete_stale_api_keys(cutoff, limit, db), db)

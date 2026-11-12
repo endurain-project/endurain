@@ -8,11 +8,13 @@ from typing import Annotated
 import jasil.audit as jasil_audit
 from fastapi import Depends, Path, Request
 from fastapi.security import APIKeyHeader, SecurityScopes
+from jasil.providers import StateBackendUnavailableError, StateProvider
 from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
+import core.hashing as core_hashing
 import core.logger as core_logger
 import core.network as core_network
 import core.request_context as core_request_context
@@ -30,6 +32,9 @@ import modules.auth.schema as auth_schema
 import modules.auth.sessions.contracts as sessions_contracts
 
 logger = core_logger.get_logger(__name__)
+
+#: How long a credential's MFA-enrolment refusal is audited once.
+_MFA_ENROLMENT_AUDIT_WINDOW_SECONDS = 24 * 60 * 60
 
 get_bearer_token = authentication_dependencies.get_bearer_token
 header_api_key_scheme = APIKeyHeader(name="X-API-Key", scheme_name="ApiKey", auto_error=False)
@@ -92,14 +97,37 @@ def _is_mfa_enrolment_request(request: Request) -> bool:
     )
 
 
-def _require_mfa_enrolment_exempt(principal: auth_contracts.Principal, request: Request) -> None:
+def _claim_mfa_enrolment_audit(principal: auth_contracts.Principal, state: StateProvider) -> bool:
+    """Claim the day's audit row for a credential's MFA-enrolment refusals, so a retrying client writes one.
+
+    The claim is keyed by a hash of the credential's id, so no session id or key id reaches the state store. When
+    the store cannot be reached the row is written, since an audit row must not be lost to a retry guard.
+
+    Args:
+        principal: The refused caller.
+        state: The platform state provider.
+
+    Returns:
+        True when the refusal is to be audited, False when the credential was audited within the day.
+    """
+    key = f"endurain:auth:mfa_enrolment_denied:{core_hashing.sha256_hex(str(principal.credential_id()))}"
+    try:
+        return state.set_if_absent(key, b"1", _MFA_ENROLMENT_AUDIT_WINDOW_SECONDS)
+    except StateBackendUnavailableError as err:
+        logger.error("MFA-enrolment refusal audit guard unavailable", exc_info=err)
+        return True
+
+
+def _require_mfa_enrolment_exempt(principal: auth_contracts.Principal, request: Request, state: StateProvider) -> None:
     """Refuse a request from an account that must enrol MFA, unless enrolment needs it.
 
-    Every authenticated request passes here, so the refusal is stated once rather than per route.
+    Every authenticated request passes here, so the refusal is stated once rather than per route. It is audited
+    at most once per credential per day.
 
     Args:
         principal: The resolved caller.
         request: The request, whose method and path say what it is for.
+        state: The platform state provider.
 
     Raises:
         MfaEnrolmentRequiredError: When the server requires MFA of the account, it has none and the request is not
@@ -110,6 +138,12 @@ def _require_mfa_enrolment_exempt(principal: auth_contracts.Principal, request: 
     logger.warning(
         "Request refused: user <user_id> must enrol MFA", extra=core_logger.context(user_id=principal.user_id)
     )
+    if _claim_mfa_enrolment_audit(principal, state):
+        jasil_audit.record_detached(
+            authentication_audit_actions.MFA_ENROLMENT_DENIED,
+            outcome=jasil_audit.Outcome.DENIED,
+            details=authentication_audit_actions.MfaEnrolmentDeniedDetails(credential_type=principal.credential_type()),
+        )
     raise core_exceptions.MfaEnrolmentRequiredError()
 
 
@@ -159,6 +193,7 @@ def get_principal(
     db: core_dependencies.DbSession,
     access_token: Annotated[str | None, Depends(get_bearer_token)],
     api_key_header: Annotated[str | None, Depends(header_api_key_scheme)],
+    state: core_dependencies.PlatformState,
 ) -> auth_contracts.Principal:
     """Resolve the caller's access token or API key once per request, and refuse it while it must enrol MFA.
 
@@ -170,6 +205,7 @@ def get_principal(
         db: Database session.
         access_token: The ``Authorization: Bearer`` token, if any.
         api_key_header: The ``X-API-Key`` header, if any.
+        state: The platform state provider.
 
     Returns:
         The caller.
@@ -178,7 +214,7 @@ def get_principal(
     if principal is None:
         principal = _resolve_principal(request, db, access_token, api_key_header)
         request.state.principal = principal
-    _require_mfa_enrolment_exempt(principal, request)
+    _require_mfa_enrolment_exempt(principal, request, state)
     return principal
 
 

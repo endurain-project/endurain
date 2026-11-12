@@ -31,8 +31,8 @@ def test_resolver_caches_principal_for_request():
     with patch.object(
         auth_dependencies.authentication_integration, "resolve_from_access_token", return_value=principal
     ) as resolve:
-        assert auth_dependencies.get_principal(request, db, "token", None) is principal
-        assert auth_dependencies.get_principal(request, db, "token", None) is principal
+        assert auth_dependencies.get_principal(request, db, "token", None, MagicMock()) is principal
+        assert auth_dependencies.get_principal(request, db, "token", None, MagicMock()) is principal
     resolve.assert_called_once_with("token", db)
 
 

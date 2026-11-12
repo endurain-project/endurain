@@ -3,7 +3,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
 import core.database as core_database
@@ -36,6 +36,14 @@ def count_api_keys(user_id: int, db: Session) -> int:
     """Return how many API keys an owner has."""
     return db.execute(
         select(func.count(api_keys_models.UsersApiKeys.id)).where(api_keys_models.UsersApiKeys.user_id == user_id)
+    ).scalar_one()
+
+
+def count_active_api_keys(user_id: int, now: datetime, db: Session) -> int:
+    """Return how many API keys an owner has that are not revoked and expire after ``now``."""
+    model = api_keys_models.UsersApiKeys
+    return db.execute(
+        select(func.count(model.id)).where(model.user_id == user_id, model.is_active.is_(True), model.expires_at > now)
     ).scalar_one()
 
 
@@ -102,7 +110,9 @@ def revoke_api_key(api_key_id: str, user_id: int, db: Session) -> None:
     ).scalar_one_or_none()
     if row is None:
         raise core_exceptions.NotFoundError(f"API key {api_key_id} not found for user {user_id}")
-    row.is_active = False
+    if row.is_active:
+        row.is_active = False
+        row.revoked_at = datetime.now(UTC)
     db.flush()
 
 
@@ -110,8 +120,20 @@ def revoke_all_api_keys_for_user(user_id: int, db: Session) -> int:
     """Stage revocation of every active API key a user owns and return how many were revoked."""
     model = api_keys_models.UsersApiKeys
     return core_database.rowcount(
-        db, update(model).where(model.user_id == user_id, model.is_active.is_(True)).values(is_active=False)
+        db,
+        update(model)
+        .where(model.user_id == user_id, model.is_active.is_(True))
+        .values(is_active=False, revoked_at=datetime.now(UTC)),
     )
+
+
+def delete_stale_api_keys(cutoff: datetime, limit: int, db: Session) -> int:
+    """Stage deletion of up to ``limit`` keys revoked or expired before ``cutoff`` and return the row count."""
+    model = api_keys_models.UsersApiKeys
+    stale = select(model.id).where(or_(model.revoked_at < cutoff, model.expires_at < cutoff)).limit(limit)
+    matched = core_database.rowcount(db, delete(model).where(model.id.in_(stale)))
+    db.flush()
+    return matched
 
 
 def delete_api_key(api_key_id: str, user_id: int, db: Session) -> None:

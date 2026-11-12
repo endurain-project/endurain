@@ -6,6 +6,7 @@ import jasil.audit as jasil_audit
 from jasil.event_versioning import VersionedPayload
 from sqlalchemy.orm import Session
 
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.auth.account_security.audit_actions as account_security_audit_actions
@@ -13,6 +14,7 @@ import modules.auth.account_security.event_publishers as account_security_event_
 import modules.auth.account_security.events as account_security_events
 import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.account_security.step_up_store as step_up_store_module
+import modules.auth.api_keys.constants as api_keys_constants
 import modules.auth.api_keys.integration_service as api_keys_integration
 import modules.auth.api_keys.schema as api_keys_schema
 import modules.auth.identity_providers.constants as identity_providers_constants
@@ -59,9 +61,14 @@ def create_user_api_key(
 ) -> api_keys_schema.UserApiKeyCreatedRead:
     """Verify step-up, stage a key expiring at ``expires_at``, and commit it before returning its secret once.
 
-    The request schema has already refused unsupported scopes, so such a request never spends an
-    identity-provider step-up ticket.
+    The request schema has already refused unsupported scopes, and a user at the key limit is refused here, so
+    neither request spends an identity-provider step-up ticket.
+
+    Raises:
+        ApiKeyLimitError: When the user already holds the most active keys.
     """
+    if api_keys_integration.count_active_api_keys(user_id, db) >= api_keys_constants.MAX_ACTIVE_API_KEYS_PER_USER:
+        raise core_exceptions.ApiKeyLimitError
     step_up_service.verify_step_up_credentials(
         user_id,
         data.step_up.current_password,

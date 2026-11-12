@@ -383,11 +383,18 @@ def scopes_for_access_type(access_type: str) -> tuple[str, ...]:
         access_type: The user's access type.
 
     Returns:
-        The regular scopes for a regular user, the administrator scopes otherwise.
+        The regular scopes for a regular user, the administrator scopes for an administrator.
+
+    Raises:
+        ProcessingError: If the access type is neither, so no scope is granted on a value the code does not know.
     """
-    if access_type == users_schema.UserAccessType.REGULAR.value:
-        return auth_constants.REGULAR_ACCESS_SCOPE
-    return auth_constants.ADMIN_ACCESS_SCOPE
+    match access_type:
+        case users_schema.UserAccessType.REGULAR:
+            return auth_constants.REGULAR_ACCESS_SCOPE
+        case users_schema.UserAccessType.ADMIN:
+            return auth_constants.ADMIN_ACCESS_SCOPE
+    logger.error("Refusing to derive scopes for an unknown access type")
+    raise core_exceptions.ProcessingError
 
 
 def get_token_manager() -> TokenManager:

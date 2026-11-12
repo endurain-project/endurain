@@ -15,7 +15,11 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { HttpError } from '@/services/http'
 import { useToasts } from '@/composables/useToasts'
-import { API_KEY_SCOPES, apiKeyExpiryInstant } from '@/features/security/services/security'
+import {
+  API_KEY_LIMIT_TYPE,
+  API_KEY_SCOPES,
+  apiKeyExpiryInstant,
+} from '@/features/security/services/security'
 import {
   isStepUpFailed,
   isStepUpLocked,
@@ -129,6 +133,8 @@ function onCreate(input: ApiKeyCreateInput): void {
               : 'settings.security.apiKeys.expiryTooLate',
           ),
         )
+      } else if (error instanceof HttpError && error.type === API_KEY_LIMIT_TYPE) {
+        toasts.error(t('settings.security.apiKeys.apiKeyLimit'))
       } else if (refusedScope(error)) {
         toasts.error(t('settings.security.apiKeys.invalidScopes'))
       } else {

@@ -57,7 +57,7 @@ class TestGetPrincipal:
         request = _request()
         request.state.principal = _principal()
         with patch("modules.auth.dependencies.authentication_integration.resolve_from_access_token") as resolve:
-            assert get_principal(request, MagicMock(), "token", None) is request.state.principal
+            assert get_principal(request, MagicMock(), "token", None, MagicMock()) is request.state.principal
         resolve.assert_not_called()
 
     @patch("modules.auth.dependencies.authentication_integration.resolve_from_access_token")
@@ -66,7 +66,7 @@ class TestGetPrincipal:
         db = MagicMock()
         mock_resolve.return_value = _principal(user_id=7)
 
-        result = get_principal(request, db, "bearer-token", None)
+        result = get_principal(request, db, "bearer-token", None, MagicMock())
 
         assert result.user_id == 7
         assert request.state.principal is result
@@ -78,7 +78,7 @@ class TestGetPrincipal:
         db = MagicMock()
         mock_resolve.return_value = _principal(ApiKeyCred(api_key_id="2", key_prefix="sk"), user_id=8)
 
-        result = get_principal(request, db, None, "sk-123")
+        result = get_principal(request, db, None, "sk-123", MagicMock())
 
         assert result.user_id == 8
         assert result.is_api_key()
@@ -92,7 +92,7 @@ class TestGetPrincipal:
             patch("modules.auth.dependencies.authentication_integration.resolve_from_api_key") as mock_resolve,
             pytest.raises(core_exceptions.UnauthenticatedError) as exc_info,
         ):
-            get_principal(_request({"api_key": "qk-456"}), MagicMock(), None, None)
+            get_principal(_request({"api_key": "qk-456"}), MagicMock(), None, None, MagicMock())
         assert exc_info.value.status_code == 401
         mock_resolve.assert_not_called()
 
@@ -104,13 +104,13 @@ class TestGetPrincipal:
         mock_settings = MagicMock()
         mock_settings.ALLOW_API_KEY_QUERY_PARAM = True
         with patch("modules.auth.dependencies.core_config.settings", mock_settings):
-            result = get_principal(request, db, None, None)
+            result = get_principal(request, db, None, None, MagicMock())
         assert result.user_id == 9
         mock_resolve.assert_called_once_with("qk-456", request, db)
 
     def test_no_credentials_raises_401(self):
         with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
-            get_principal(_request(), MagicMock(), None, None)
+            get_principal(_request(), MagicMock(), None, None, MagicMock())
         assert exc_info.value.status_code == 401
 
 

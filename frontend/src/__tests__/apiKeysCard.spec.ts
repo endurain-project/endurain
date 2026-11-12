@@ -145,6 +145,17 @@ describe('ApiKeysCard create refusals', () => {
     )
   })
 
+  it('tells the user when the account holds the most active keys', async () => {
+    await createFailsWith(
+      null,
+      new HttpError(409, 'Conflict', null, 'urn:endurain:error:api-key-limit'),
+    )
+
+    expect(mocks.toastError).toHaveBeenCalledWith(
+      i18n.global.t('settings.security.apiKeys.apiKeyLimit'),
+    )
+  })
+
   it('shows the generic error for a 400, which this route does not raise', async () => {
     await createFailsWith(
       null,

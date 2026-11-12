@@ -3,7 +3,7 @@
 from datetime import date as date_type
 from datetime import datetime
 
-from sqlalchemy import DateTime, String
+from sqlalchemy import CheckConstraint, DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -56,6 +56,7 @@ class Users(Base):
     """
 
     __tablename__ = "users"
+    __table_args__ = (CheckConstraint("access_type IN ('regular', 'admin')", name="ck_users_access_type"),)
 
     id: Mapped[int] = mapped_column(
         primary_key=True,

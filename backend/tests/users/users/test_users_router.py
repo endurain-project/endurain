@@ -153,6 +153,23 @@ class TestReadUsers:
         assert regular_client.get("/users?username=dee").status_code == 200
         assert mock_search.call_args.kwargs == {"username": "dee", "username_contains": None}
 
+    @pytest.mark.parametrize("query", ["", "page_number=2", "username=ab"])
+    @patch(f"{_SERVICE}.list_public_users")
+    def test_a_regular_token_without_a_search_term_of_three_characters_is_refused(
+        self, mock_search, query, regular_client, page_size_setting
+    ):
+        response = regular_client.get(f"/users?{query}")
+
+        assert response.status_code == 422
+        assert response.json()["errors"][0]["field"] == "query.username_contains"
+        mock_search.assert_not_called()
+
+    @patch(f"{_SERVICE}.list_users")
+    def test_an_administrator_lists_every_user_without_a_filter(self, mock_list, client, page_size_setting):
+        mock_list.return_value = core_pagination.Page(items=[_user(1)], total=1, page=1, num_records=20)
+
+        assert client.get("/users").status_code == 200
+
     @pytest.mark.parametrize(
         "query",
         ["active=true", "email_verified=true", "pending_approval=false", "external_auth=true"],

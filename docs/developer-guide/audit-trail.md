@@ -14,8 +14,8 @@ An action that falls in one of these categories gets an audit action and a row.
 
 | Category | Audit | Examples |
 | -------- | ----- | -------- |
-| Authentication and credentials | Sign-ins (successful and refused), sign-outs, lockouts, refused refreshes and API keys, password, MFA, backup code and API key changes, sessions signed out, password reset requests | `auth.session.login`, `auth.lockout.apply`, `auth.backup_codes.use`, `auth.password_reset.request` |
-| Identity and account lifecycle | Accounts created, confirmed, approved, changed or deleted; email changes; sign-in providers linked or unlinked | `users.user.create`, `auth.sign_up.confirm`, `users.email.change`, `auth.identity_link.link` |
+| Authentication and credentials | Sign-ins (successful and refused), sign-outs, lockouts, refused refreshes and API keys, requests refused because the account must enrol MFA (once per credential per day), password, MFA, backup code and API key changes, sessions signed out, password reset requests | `auth.session.login`, `auth.lockout.apply`, `auth.backup_codes.use`, `auth.password_reset.request`, `auth.mfa_enrolment.denied` |
+| Identity and account lifecycle | Accounts created, confirmed, approved, changed or deleted; refused first-run onboarding attempts; email changes; sign-in providers linked or unlinked | `users.user.create`, `auth.onboarding.refuse`, `auth.sign_up.confirm`, `users.email.change`, `auth.identity_link.link` |
 | Admin actions | Anything an administrator does to another user or to server settings | `users.user.update`, `auth.identity_provider.update`, `server_settings.settings.update`, `server_settings.logs.clear` |
 | Integrations | Linking or unlinking a third-party account, storing its secrets | `strava.account.link`, `garmin.account.revoke`, `strava.client.update` |
 | Data leaving or entering the system | Exports, downloads, imports | `users.profile_export.download`, `users.profile_import.request`, `activities.import.request` |

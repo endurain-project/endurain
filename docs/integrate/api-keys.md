@@ -161,7 +161,11 @@ The `key` field is **never** returned in list or subsequent get responses — on
 
 **Revoke API Key (`POST /profile/api-keys/{id}/revoke`):**
 
-Revocation soft-deletes the key by setting `is_active = false`. Revoked keys are rejected immediately but remain visible in the list (useful for audit purposes). Returns HTTP 204 on success.
+Revocation soft-deletes the key by setting `is_active = false`. Revoked keys are rejected immediately but remain visible in the list for a while. Returns HTTP 204 on success.
+
+**Limit and retention:**
+
+An account holds at most 25 active API keys; a key is active while it is not revoked and has not expired. `POST /profile/api-keys` answers `409` with `urn:endurain:error:api-key-limit` at the limit: revoke or delete a key first. Endurain deletes a key 30 days after it was revoked or expired, so it then leaves the list.
 
 **Delete API Key (`DELETE /profile/api-keys/{id}`):**
 
@@ -173,7 +177,7 @@ Permanently removes the key from the database. Returns HTTP 204 on success.
 | -------- | ------ |
 | **Storage** | SHA-256 hex digest stored server-side; raw key never persisted |
 | **Lookup** | The server hashes the presented key with SHA-256 and finds the row by an indexed equality match on the digest. The 256-bit random key cannot be guessed from timing differences in that lookup |
-| **Revocation** | Immediate — revoked keys are rejected at validation time |
+| **Revocation** | Immediate — revoked keys are rejected at validation time, and deleted after 30 days |
 | **Expiry** | Every key expires, at most the server's maximum API key lifetime (365 days by default) after creation; expired keys are rejected at validation time with timezone-aware comparison |
 | **Audit and usage tracking** | A successful authentication stamps `last_used_at` on the key, at most once every 5 minutes, and writes a debug log line with key prefix, user ID, endpoint and client IP; it is not an audit row. Every refusal (unknown, revoked or expired key, inactive owner) is audited as `auth.api_key.authenticate` without the key, its prefix or its hash |
 | **No self-escalation** | An API key never holds `account:security`, so it cannot create, list, or revoke API keys (JWT required) |

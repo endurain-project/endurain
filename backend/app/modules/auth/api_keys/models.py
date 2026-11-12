@@ -26,6 +26,8 @@ class UsersApiKeys(Base):
         created_at: Key creation timestamp.
         is_active: Whether the key is active. Set to
             False to revoke without deleting.
+        revoked_at: When the key was revoked, or None while
+            it has not been.
     """
 
     __tablename__ = "users_api_keys"
@@ -83,4 +85,9 @@ class UsersApiKeys(Base):
         default=True,
         nullable=False,
         comment=("Whether the key is active. False = revoked (soft delete)"),
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When the key was revoked; null while it has not been",
     )

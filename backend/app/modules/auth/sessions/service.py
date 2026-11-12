@@ -320,10 +320,11 @@ def invalidate_token_family(token_family_id: str, db: Session) -> int:
     for owner_id, session_id in owners:
         sessions_event_publishers.publish_sessions_revoked(owner_id, db, session_id=session_id)
     tokens_deleted = rotated_refresh_tokens_integration.delete_by_family(token_family_id, db)
+    # The family id is the session id, the handle exchanged for tokens, so only a one-way fingerprint is logged.
     logger.warning(
         "Invalidated refresh-token family after reuse detection",
         extra=core_logger.context(
-            token_family_id=token_family_id,
+            session=core_hashing.log_fingerprint(token_family_id),
             sessions_deleted=sessions_deleted,
             tokens_deleted=tokens_deleted,
         ),

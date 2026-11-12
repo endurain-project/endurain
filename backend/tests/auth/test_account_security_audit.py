@@ -428,6 +428,7 @@ class TestApiKeyAudit:
         with (
             patch.object(api_key_service.step_up_service, "verify_step_up_credentials"),
             patch.object(api_key_service.users_integration, "require_user"),
+            patch.object(api_key_service.api_keys_integration, "count_active_api_keys", return_value=0),
             patch.object(api_key_service.api_keys_integration, "generate_api_key", return_value="raw"),
             patch.object(api_key_service.api_keys_integration, "create_api_key", return_value=created),
             patch.object(api_keys_schema, "UserApiKeyCreatedRead"),

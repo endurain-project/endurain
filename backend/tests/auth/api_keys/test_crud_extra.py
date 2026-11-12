@@ -1,5 +1,6 @@
 """Additional API-key persistence contract tests."""
 
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -31,3 +32,26 @@ def test_revoke_all_deactivates_only_the_users_active_keys(mock_db):
     assert statement.startswith("UPDATE users_api_keys SET is_active=")
     assert "users_api_keys.user_id" in statement
     assert "users_api_keys.is_active" in statement
+    assert "revoked_at=" in statement
+
+
+def test_count_active_counts_the_users_unrevoked_unexpired_keys(mock_db):
+    mock_db.execute.return_value.scalar_one.return_value = 4
+
+    assert api_keys_crud.count_active_api_keys(7, datetime.now(UTC), mock_db) == 4
+
+    statement = str(mock_db.execute.call_args.args[0])
+    assert "users_api_keys.user_id" in statement
+    assert "users_api_keys.is_active" in statement
+    assert "users_api_keys.expires_at >" in statement
+
+
+def test_delete_stale_removes_keys_revoked_or_expired_before_the_cutoff(mock_db):
+    mock_db.execute.return_value.rowcount = 3
+
+    assert api_keys_crud.delete_stale_api_keys(datetime.now(UTC), 100, mock_db) == 3
+
+    statement = str(mock_db.execute.call_args.args[0])
+    assert statement.startswith("DELETE FROM users_api_keys")
+    assert "users_api_keys.revoked_at <" in statement
+    assert "users_api_keys.expires_at <" in statement

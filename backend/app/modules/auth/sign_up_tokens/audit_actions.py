@@ -15,13 +15,13 @@ class SignUpConfirmDetails(VersionedPayload):
 
     Attributes:
         password_set: Whether the confirmation set the account's password; None for a refused token.
-        reason: Why a token was refused, when it is known: ``security_changed`` for an email change requested before
-            a security change of the account.
+        reason: Why a token was refused, when it is known: ``sign_up_disabled`` for a sign-up confirmed while
+            sign-up is off, ``security_changed`` for an email change requested before a security change of the account.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    SCHEMA_VERSION: ClassVar[int] = 1
+    SCHEMA_VERSION: ClassVar[int] = 2
 
     password_set: bool | None = None
     reason: str | None = None
@@ -35,16 +35,19 @@ class EmailChangeCancelDetails(VersionedPayload):
         api_keys_revoked: How many of the user's API keys it revoked.
         change_applied: Whether the change, or a later change voided by the link, had been confirmed.
         email_restored: Whether the account's previous address was put back.
+        reset_tokens_revoked: Whether the account's unused password-reset tokens were revoked because the previous
+            address could not be put back.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    SCHEMA_VERSION: ClassVar[int] = 2
+    SCHEMA_VERSION: ClassVar[int] = 3
 
     sessions_revoked: int = 0
     api_keys_revoked: int = 0
     change_applied: bool = False
     email_restored: bool = False
+    reset_tokens_revoked: bool = False
 
 
 SIGN_UP_CONFIRM = jasil_audit.AuditAction(
