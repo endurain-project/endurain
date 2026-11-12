@@ -1,10 +1,15 @@
 {
-  "repository": "Saugykla",
+  "releaseNotes": "{version} versijos pastabos",
+  "project": "Projektas",
+  "website": "Svetainė",
   "documentation": "Dokumentacija",
+  "sourceCode": "Šaltinio kodas",
+  "community": "Bendruomenė",
   "mastodon": "Endurain Mastodon paskyra",
   "bluesky": "Endurain Bluesky profilis",
   "discord": "Endurain Discord serveris",
   "linkedin": "Endurain LinkedIn puslapis",
+  "externalLink": "atidaroma naujame skirtuke",
   "compatibleStrava": "Suderinama su Strava",
   "worksGarmin": "Veikia su Garmin Connect"
 }

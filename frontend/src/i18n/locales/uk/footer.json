@@ -1,10 +1,15 @@
 {
-  "repository": "Репозиторій",
+  "releaseNotes": "Примітки до випуску {version}",
+  "project": "Проєкт",
+  "website": "Вебсайт",
   "documentation": "Документація",
+  "sourceCode": "Вихідний код",
+  "community": "Спільнота",
   "mastodon": "Акаунт Endurain у Mastodon",
   "bluesky": "Профіль Endurain у Bluesky",
   "discord": "Сервер Endurain у Discord",
   "linkedin": "Сторінка Endurain у LinkedIn",
+  "externalLink": "відкривається в новій вкладці",
   "compatibleStrava": "Сумісно зі Strava",
   "worksGarmin": "Працює з Garmin Connect"
 }

@@ -1,10 +1,15 @@
 {
-  "repository": "Хранилище",
+  "releaseNotes": "Бележки по версия {version}",
+  "project": "Проект",
+  "website": "Уебсайт",
   "documentation": "Документация",
+  "sourceCode": "Изходен код",
+  "community": "Общност",
   "mastodon": "Mastodon акаунт на Endurain",
   "bluesky": "Bluesky профил на Endurain",
   "discord": "Discord сървър на Endurain",
   "linkedin": "LinkedIn страница на Endurain",
+  "externalLink": "отваря се в нов раздел",
   "compatibleStrava": "Съвместимо със Strava",
   "worksGarmin": "Работи с Garmin Connect"
 }

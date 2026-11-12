@@ -1,10 +1,15 @@
 {
-  "repository": "Repozitorij",
+  "releaseNotes": "Napomene o izdanju {version}",
+  "project": "Projekt",
+  "website": "Web-stranica",
   "documentation": "Dokumentacija",
+  "sourceCode": "Izvorni kôd",
+  "community": "Zajednica",
   "mastodon": "Endurain Mastodon račun",
   "bluesky": "Endurain Bluesky profil",
   "discord": "Endurain Discord poslužitelj",
   "linkedin": "Endurain LinkedIn stranica",
+  "externalLink": "otvara se u novoj kartici",
   "compatibleStrava": "Kompatibilno sa Strava",
   "worksGarmin": "Radi s Garmin Connect"
 }

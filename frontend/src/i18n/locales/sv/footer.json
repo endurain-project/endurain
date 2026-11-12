@@ -1,10 +1,15 @@
 {
-  "repository": "Förråd",
+  "releaseNotes": "Versionsanteckningar för {version}",
+  "project": "Projekt",
+  "website": "Webbplats",
   "documentation": "Dokumentation",
+  "sourceCode": "Källkod",
+  "community": "Community",
   "mastodon": "Endurains Mastodon-konto",
   "bluesky": "Endurains Bluesky-profil",
   "discord": "Endurains Discord-server",
   "linkedin": "Endurains LinkedIn-sida",
+  "externalLink": "öppnas i en ny flik",
   "compatibleStrava": "Kompatibel med Strava",
   "worksGarmin": "Fungerar med Garmin Connect"
 }

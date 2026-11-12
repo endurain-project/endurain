@@ -1,10 +1,15 @@
 {
-  "repository": "Repozitář",
+  "releaseNotes": "Poznámky k vydání {version}",
+  "project": "Projekt",
+  "website": "Web",
   "documentation": "Dokumentace",
+  "sourceCode": "Zdrojový kód",
+  "community": "Komunita",
   "mastodon": "Účet Endurain na Mastodonu",
   "bluesky": "Profil Endurain na Bluesky",
   "discord": "Discord server Endurain",
   "linkedin": "Stránka Endurain na LinkedInu",
+  "externalLink": "otevře se na nové kartě",
   "compatibleStrava": "Kompatibilní se službou Strava",
   "worksGarmin": "Funguje s Garmin Connect"
 }

@@ -1,10 +1,15 @@
 {
-  "repository": "代码仓库",
+  "releaseNotes": "{version} 发行说明",
+  "project": "项目",
+  "website": "网站",
   "documentation": "文档",
+  "sourceCode": "源代码",
+  "community": "社区",
   "mastodon": "Endurain 的 Mastodon 账号",
   "bluesky": "Endurain 的 Bluesky 主页",
   "discord": "Endurain 的 Discord 服务器",
   "linkedin": "Endurain 的 LinkedIn 主页",
+  "externalLink": "在新标签页中打开",
   "compatibleStrava": "兼容 Strava",
   "worksGarmin": "支持 Garmin Connect"
 }

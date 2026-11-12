@@ -1,10 +1,15 @@
 {
-  "repository": "Repositoorium",
+  "releaseNotes": "Versiooni {version} väljalaskemärkmed",
+  "project": "Projekt",
+  "website": "Veebisait",
   "documentation": "Dokumentatsioon",
+  "sourceCode": "Lähtekood",
+  "community": "Kogukond",
   "mastodon": "Enduraini Mastodoni konto",
   "bluesky": "Enduraini Blueskyi profiil",
   "discord": "Enduraini Discordi server",
   "linkedin": "Enduraini LinkedIni leht",
+  "externalLink": "avaneb uuel vahekaardil",
   "compatibleStrava": "Ühildub Stravaga",
   "worksGarmin": "Töötab Garmin Connectiga"
 }

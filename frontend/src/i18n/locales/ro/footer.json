@@ -1,10 +1,15 @@
 {
-  "repository": "Depozit",
+  "releaseNotes": "Note de lansare {version}",
+  "project": "Proiect",
+  "website": "Site web",
   "documentation": "Documentație",
+  "sourceCode": "Cod sursă",
+  "community": "Comunitate",
   "mastodon": "Contul Mastodon Endurain",
   "bluesky": "Profilul Bluesky Endurain",
   "discord": "Serverul Discord Endurain",
   "linkedin": "Pagina LinkedIn Endurain",
+  "externalLink": "se deschide într-o filă nouă",
   "compatibleStrava": "Compatibil cu Strava",
   "worksGarmin": "Funcționează cu Garmin Connect"
 }

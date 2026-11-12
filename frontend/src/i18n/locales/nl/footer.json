@@ -1,10 +1,15 @@
 {
-  "repository": "Repository",
+  "releaseNotes": "Release-opmerkingen {version}",
+  "project": "Project",
+  "website": "Website",
   "documentation": "Documentatie",
+  "sourceCode": "Broncode",
+  "community": "Community",
   "mastodon": "Endurain op Mastodon",
   "bluesky": "Endurain op Bluesky",
   "discord": "Endurain Discord-server",
   "linkedin": "Endurain op LinkedIn",
+  "externalLink": "opent in een nieuw tabblad",
   "compatibleStrava": "Compatibel met Strava",
   "worksGarmin": "Werkt met Garmin Connect"
 }

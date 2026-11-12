@@ -1,10 +1,15 @@
 {
-  "repository": "Koodivarasto",
+  "releaseNotes": "Julkaisutiedot {version}",
+  "project": "Projekti",
+  "website": "Verkkosivusto",
   "documentation": "Dokumentaatio",
+  "sourceCode": "Lähdekoodi",
+  "community": "Yhteisö",
   "mastodon": "Endurainin Mastodon-tili",
   "bluesky": "Endurainin Bluesky-profiili",
   "discord": "Endurainin Discord-palvelin",
   "linkedin": "Endurainin LinkedIn-sivu",
+  "externalLink": "avautuu uudelle välilehdelle",
   "compatibleStrava": "Yhteensopiva Stravan kanssa",
   "worksGarmin": "Toimii Garmin Connectin kanssa"
 }
