@@ -15,7 +15,7 @@ import { apiFetch } from '@/services/http'
  * @throws {HttpError} When the request fails (400 account has a password, 404 not linked, 429 locked out).
  */
 export async function startIdpStepUp(
-  idpId: number,
+  idpId: string,
   action: StepUpAction,
   codeChallenge: string,
   redirect: string,

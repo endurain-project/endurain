@@ -22,7 +22,7 @@ vi.mock('@/features/security/composables/useAdminStepUp', async (importOriginal)
 }))
 
 const provider: IdentityProvider = {
-  id: 3,
+  id: '00000000-0000-4000-8000-000000000003',
   version: 4,
   name: 'Authentik',
   slug: 'authentik',
@@ -294,7 +294,7 @@ describe('IdentityProviderFormDialog step-up', () => {
     await confirmStepUp(wrapper)
 
     const { path, method, body } = sentBody()
-    expect(path).toBe('/identity-providers/3')
+    expect(path).toBe('/identity-providers/00000000-0000-4000-8000-000000000003')
     expect(method).toBe('PATCH')
     expect(body).toMatchObject({ name: 'Renamed', step_up: { current_password: 'admin-pw' } })
     expect(body).not.toHaveProperty('client_secret')
@@ -338,8 +338,16 @@ describe('IdentityProviderFormDialog step-up', () => {
   })
 
   it.each([
-    ['another provider', 'admin_idp_edit', { variant: 'form', idpId: 9, draft: {} }],
-    ['a toggle', 'admin_idp_edit', { variant: 'toggle', idpId: 3, enabled: false }],
+    [
+      'another provider',
+      'admin_idp_edit',
+      { variant: 'form', idpId: '00000000-0000-4000-8000-000000000009', draft: {} },
+    ],
+    [
+      'a toggle',
+      'admin_idp_edit',
+      { variant: 'toggle', idpId: '00000000-0000-4000-8000-000000000003', enabled: false },
+    ],
     ['a create', 'admin_idp_create', { variant: 'form', draft: {} }],
   ])('does not open the edit of a provider for %s', async (_label, action, pending) => {
     const wrapper = mountDialog({
@@ -359,7 +367,11 @@ describe('IdentityProviderFormDialog step-up', () => {
       resume: {
         action: 'admin_idp_edit',
         reauth: { ticket: 't1', codeVerifier: 'v1' },
-        pending: { variant: 'form', idpId: 3, draft: { name: 'Draft' } },
+        pending: {
+          variant: 'form',
+          idpId: '00000000-0000-4000-8000-000000000003',
+          draft: { name: 'Draft' },
+        },
       },
     })
     await flushPromises()

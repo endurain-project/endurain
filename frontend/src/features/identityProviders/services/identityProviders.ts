@@ -196,7 +196,7 @@ export async function createIdentityProvider(
  * @throws {HttpError} When the request fails (e.g. duplicate slug, not found).
  */
 export async function updateIdentityProvider(
-  id: number,
+  id: string,
   input: IdentityProviderInput,
   version: number,
   stepUp: StepUpInput,
@@ -227,7 +227,7 @@ export async function updateIdentityProvider(
  * @throws {HttpError} When the request fails (e.g. users still linked, `403` when the step-up is refused, or `412` when stale).
  */
 export async function deleteIdentityProvider(
-  id: number,
+  id: string,
   version: number,
   stepUp: StepUpInput,
 ): Promise<void> {
@@ -250,7 +250,7 @@ export async function deleteIdentityProvider(
  * @param file - The PNG, JPEG or WebP image.
  * @throws {HttpError} When the upload fails (e.g. wrong file type or too large).
  */
-export async function uploadIdentityProviderIcon(id: number, file: File): Promise<void> {
+export async function uploadIdentityProviderIcon(id: string, file: File): Promise<void> {
   const formData = new FormData()
   formData.append('file', file)
   await apiFetch(`/identity-providers/${id}/icon`, {
@@ -266,7 +266,7 @@ export async function uploadIdentityProviderIcon(id: number, file: File): Promis
  * @param id - The provider id.
  * @throws {HttpError} When the deletion fails.
  */
-export async function deleteIdentityProviderIcon(id: number): Promise<void> {
+export async function deleteIdentityProviderIcon(id: string): Promise<void> {
   await apiFetch(`/identity-providers/${id}/icon`, {
     method: 'DELETE',
     responseType: 'void',

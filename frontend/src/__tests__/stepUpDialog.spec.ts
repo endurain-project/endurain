@@ -16,8 +16,20 @@ vi.mock('@/features/security/composables/useIdpStepUp', () => ({
 vi.mock('@/features/security/composables/useLinkedAccounts', () => ({
   useLinkedProvidersQuery: () => ({
     data: computed(() => [
-      { id: 1, idpId: 11, name: 'Keycloak', slug: 'kc', icon: null },
-      { id: 2, idpId: 12, name: 'Authentik', slug: 'ak', icon: null },
+      {
+        id: 1,
+        idpId: '00000000-0000-4000-8000-000000000011',
+        name: 'Keycloak',
+        slug: 'kc',
+        icon: null,
+      },
+      {
+        id: 2,
+        idpId: '00000000-0000-4000-8000-000000000012',
+        name: 'Authentik',
+        slug: 'ak',
+        icon: null,
+      },
     ]),
     isPending: computed(() => false),
     isError: computed(() => false),
@@ -85,7 +97,9 @@ describe('StepUpDialog', () => {
     expect(labels).toContain('Continue with Keycloak')
     expect(labels).toContain('Continue with Authentik')
     await buttons[labels.indexOf('Continue with Authentik')]!.trigger('click')
-    expect(start).toHaveBeenCalledWith(12, 'mfa_disable', { type: 'x' })
+    expect(start).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000012', 'mfa_disable', {
+      type: 'x',
+    })
   })
 
   it('shows the confirmed state and MFA field once a ticket exists, and emits the proof', async () => {
@@ -146,7 +160,10 @@ describe('StepUpDialog', () => {
     await wrapper.find('#stepup-confirm-phrase').setValue('joao')
     const buttons = wrapper.findAll('button[type="button"]')
     await buttons.find((button) => button.text() === 'Continue with Keycloak')!.trigger('click')
-    expect(start).toHaveBeenCalledWith(11, 'mfa_disable', { type: 'x', typedPhrase: 'joao' })
+    expect(start).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000011', 'mfa_disable', {
+      type: 'x',
+      typedPhrase: 'joao',
+    })
   })
 
   it('refills the confirmation phrase on the reopen that resumes the sign-in, and only then', async () => {

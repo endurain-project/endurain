@@ -40,7 +40,7 @@ export type IdentityProviderTemplateDto = Schemas['IdentityProviderTemplateRead'
  * @property userinfoEndpoint - Discovered OIDC userinfo endpoint, or `null`.
  */
 export interface IdentityProvider {
-  id: number
+  id: string
   /** Row version echoed as `If-Match` when the provider is edited. */
   version: number
   name: string

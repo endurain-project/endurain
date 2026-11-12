@@ -31,7 +31,7 @@ vi.mock('@/services/http', () => ({
 /** Builds a full `IdentityProvider` wire payload, overridable per case. */
 function makeProviderDto(overrides: Partial<IdentityProviderDto> = {}): IdentityProviderDto {
   return {
-    id: 3,
+    id: '00000000-0000-4000-8000-000000000003',
     version: 1,
     name: 'Keycloak',
     slug: 'keycloak',
@@ -102,7 +102,7 @@ function makeInput(overrides: Partial<IdentityProviderInput> = {}): IdentityProv
 describe('mapIdentityProvider', () => {
   it('maps the wire shape to the clean camel-cased model', () => {
     expect(mapIdentityProvider(makeProviderDto())).toEqual({
-      id: 3,
+      id: '00000000-0000-4000-8000-000000000003',
       version: 1,
       name: 'Keycloak',
       slug: 'keycloak',
@@ -185,9 +185,15 @@ describe('identity providers service requests', () => {
   it('fetchIdentityProviders reads every page and maps the providers', async () => {
     vi.mocked(apiFetch)
       .mockResolvedValueOnce({ items: [makeProviderDto()], next: 2 })
-      .mockResolvedValueOnce({ items: [makeProviderDto({ id: 4 })], next: null })
+      .mockResolvedValueOnce({
+        items: [makeProviderDto({ id: '00000000-0000-4000-8000-000000000004' })],
+        next: null,
+      })
 
-    expect((await fetchIdentityProviders()).map((provider) => provider.id)).toEqual([3, 4])
+    expect((await fetchIdentityProviders()).map((provider) => provider.id)).toEqual([
+      '00000000-0000-4000-8000-000000000003',
+      '00000000-0000-4000-8000-000000000004',
+    ])
     expect(apiFetch).toHaveBeenNthCalledWith(
       1,
       '/identity-providers?num_records=200&page_number=1',
@@ -267,10 +273,15 @@ describe('identity providers service requests', () => {
       return Promise.resolve(makeProviderDto())
     })
 
-    await updateIdentityProvider(3, makeInput({ clientSecret: null }), 4, stepUp)
+    await updateIdentityProvider(
+      '00000000-0000-4000-8000-000000000003',
+      makeInput({ clientSecret: null }),
+      4,
+      stepUp,
+    )
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/identity-providers/3',
+      '/identity-providers/00000000-0000-4000-8000-000000000003',
       expect.objectContaining({ method: 'PATCH', headers: { 'If-Match': '"4"' } }),
     )
     const parsed = JSON.parse(body as string) as Record<string, unknown>
@@ -289,7 +300,12 @@ describe('identity providers service requests', () => {
       return Promise.resolve(makeProviderDto())
     })
 
-    await updateIdentityProvider(3, makeInput({ clientId: null, clientSecret: null }), 4, stepUp)
+    await updateIdentityProvider(
+      '00000000-0000-4000-8000-000000000003',
+      makeInput({ clientId: null, clientSecret: null }),
+      4,
+      stepUp,
+    )
 
     expect(JSON.parse(body as string) as Record<string, unknown>).not.toHaveProperty('client_id')
   })
@@ -301,7 +317,12 @@ describe('identity providers service requests', () => {
       return Promise.resolve(makeProviderDto())
     })
 
-    await updateIdentityProvider(3, makeInput({ clientSecret: 'rotated' }), 4, stepUp)
+    await updateIdentityProvider(
+      '00000000-0000-4000-8000-000000000003',
+      makeInput({ clientSecret: 'rotated' }),
+      4,
+      stepUp,
+    )
 
     expect((JSON.parse(body as string) as Record<string, unknown>).client_secret).toBe('rotated')
   })
@@ -309,24 +330,27 @@ describe('identity providers service requests', () => {
   it('deleteIdentityProvider POSTs the step-up to the delete route', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await deleteIdentityProvider(3, 5, stepUp)
+    await deleteIdentityProvider('00000000-0000-4000-8000-000000000003', 5, stepUp)
 
-    expect(apiFetch).toHaveBeenCalledWith('/identity-providers/3/delete', {
-      method: 'POST',
-      headers: { 'If-Match': '"5"' },
-      body: JSON.stringify({ step_up: { current_password: 'admin-pw', mfa_code: null } }),
-      responseType: 'void',
-    })
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/identity-providers/00000000-0000-4000-8000-000000000003/delete',
+      {
+        method: 'POST',
+        headers: { 'If-Match': '"5"' },
+        body: JSON.stringify({ step_up: { current_password: 'admin-pw', mfa_code: null } }),
+        responseType: 'void',
+      },
+    )
   })
 
   it('uploadIdentityProviderIcon posts the file as multipart form data', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
     const file = new File(['png'], 'logo.png', { type: 'image/png' })
 
-    await uploadIdentityProviderIcon(3, file)
+    await uploadIdentityProviderIcon('00000000-0000-4000-8000-000000000003', file)
 
     const [path, init] = vi.mocked(apiFetch).mock.calls[0] ?? ['', {}]
-    expect(path).toBe('/identity-providers/3/icon')
+    expect(path).toBe('/identity-providers/00000000-0000-4000-8000-000000000003/icon')
     expect(init).toMatchObject({ method: 'PUT', responseType: 'void' })
     expect((init as { body: FormData }).body.get('file')).toBe(file)
   })
@@ -334,12 +358,15 @@ describe('identity providers service requests', () => {
   it('deleteIdentityProviderIcon issues a DELETE', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await deleteIdentityProviderIcon(3)
+    await deleteIdentityProviderIcon('00000000-0000-4000-8000-000000000003')
 
-    expect(apiFetch).toHaveBeenCalledWith('/identity-providers/3/icon', {
-      method: 'DELETE',
-      responseType: 'void',
-    })
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/identity-providers/00000000-0000-4000-8000-000000000003/icon',
+      {
+        method: 'DELETE',
+        responseType: 'void',
+      },
+    )
   })
 })
 

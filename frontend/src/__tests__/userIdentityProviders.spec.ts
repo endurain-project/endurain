@@ -18,7 +18,7 @@ function makeIdpDto(overrides: Partial<UserIdentityProviderDto> = {}): UserIdent
   return {
     id: '00000000-0000-4000-8000-000000000003',
     user_id: 7,
-    idp_id: 11,
+    idp_id: '00000000-0000-4000-8000-000000000011',
     idp_name: 'Authelia',
     idp_slug: 'authelia',
     idp_icon: null,
@@ -39,7 +39,7 @@ describe('user identity providers service', () => {
   it('mapUserIdentityProvider camel-cases the wire shape', () => {
     expect(mapUserIdentityProvider(makeIdpDto())).toEqual({
       id: '00000000-0000-4000-8000-000000000003',
-      idpId: 11,
+      idpId: '00000000-0000-4000-8000-000000000011',
       name: 'Authelia',
       slug: 'authelia',
       providerType: 'oidc',
@@ -77,22 +77,25 @@ describe('user identity providers service', () => {
   it('unlinkUserIdentityProvider POSTs to the unlink route with the admin step-up', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await unlinkUserIdentityProvider(7, 11, {
+    await unlinkUserIdentityProvider(7, '00000000-0000-4000-8000-000000000011', {
       currentPassword: null,
       mfaCode: null,
       idpReauth: { ticket: 't1', codeVerifier: 'v1' },
     })
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7/identity-providers/11/unlink', {
-      method: 'POST',
-      body: JSON.stringify({
-        step_up: {
-          current_password: null,
-          mfa_code: null,
-          idp_reauth: { ticket: 't1', code_verifier: 'v1' },
-        },
-      }),
-      responseType: 'void',
-    })
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/users/7/identity-providers/00000000-0000-4000-8000-000000000011/unlink',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          step_up: {
+            current_password: null,
+            mfa_code: null,
+            idp_reauth: { ticket: 't1', code_verifier: 'v1' },
+          },
+        }),
+        responseType: 'void',
+      },
+    )
   })
 })

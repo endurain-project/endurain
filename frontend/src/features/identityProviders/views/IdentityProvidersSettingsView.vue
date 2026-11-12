@@ -128,7 +128,7 @@ function confirmDelete(stepUp: StepUpInput): void {
 
 // Inline enable/disable. It is an edit of the provider, so it needs the administrator's step-up too.
 // Tracks the row in flight so its switch shows as busy.
-const togglingId = ref<number | null>(null)
+const togglingId = ref<string | null>(null)
 const toggleTarget = ref<{ provider: IdentityProvider; enabled: boolean } | null>(null)
 const isToggleStepUpOpen = ref(false)
 const toggleReauth = ref<IdpReauth | null>(null)

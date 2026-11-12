@@ -128,7 +128,9 @@ describe('presentNotification', () => {
   })
 
   it('names the linked provider and routes to security settings', () => {
-    const result = presentNotification(make('idp_linked', { idp_id: 4, idp_name: 'Authentik' }))
+    const result = presentNotification(
+      make('idp_linked', { idp_id: '00000000-0000-4000-8000-000000000004', idp_name: 'Authentik' }),
+    )
 
     expect(result.icon).toBe(KeyRound)
     expect(result.titleKey).toBe('notifications.types.idpLinked.title')
@@ -138,7 +140,9 @@ describe('presentNotification', () => {
   })
 
   it('falls back to the generic body when the linked provider has no name', () => {
-    const result = presentNotification(make('idp_linked', { idp_id: 4, idp_name: null }))
+    const result = presentNotification(
+      make('idp_linked', { idp_id: '00000000-0000-4000-8000-000000000004', idp_name: null }),
+    )
 
     expect(result.bodyKey).toBe('notifications.types.idpLinked.bodyGeneric')
   })
@@ -184,7 +188,7 @@ describe('presentNotification', () => {
     const result = presentNotification(
       make('account_security_changed', {
         change: 'identity_provider_unlinked',
-        idp_id: 4,
+        idp_id: '00000000-0000-4000-8000-000000000004',
         idp_name: 'Authentik',
       }),
     )
@@ -202,7 +206,7 @@ describe('presentNotification', () => {
     const result = presentNotification(
       make('account_security_changed', {
         change: 'identity_provider_unlinked',
-        idp_id: 4,
+        idp_id: '00000000-0000-4000-8000-000000000004',
         idp_name: null,
       }),
     )

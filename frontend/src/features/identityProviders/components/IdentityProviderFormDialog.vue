@@ -200,7 +200,7 @@ function onStepUpConfirm(input: StepUpInput): void {
  * @param values - The validated form values.
  * @returns Whether the uploaded image is now as chosen.
  */
-async function syncUploadedIcon(id: number, values: ProviderFormValues): Promise<boolean> {
+async function syncUploadedIcon(id: string, values: ProviderFormValues): Promise<boolean> {
   try {
     if (values.icon === UPLOADED_ICON) {
       if (iconFile.value) {

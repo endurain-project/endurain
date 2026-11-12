@@ -92,7 +92,7 @@ export function useUpdateIdentityProviderMutation() {
   return useMutation<
     IdentityProvider,
     Error,
-    { id: number; input: IdentityProviderInput; version: number; stepUp: StepUpInput }
+    { id: string; input: IdentityProviderInput; version: number; stepUp: StepUpInput }
   >({
     mutationKey: queryKeys.identityProviders.all(),
     mutationFn: ({ id, input, version, stepUp }) =>
@@ -109,7 +109,7 @@ export function useUpdateIdentityProviderMutation() {
 export function useDeleteIdentityProviderMutation() {
   const client = useQueryClient()
 
-  return useMutation<void, Error, { id: number; version: number; stepUp: StepUpInput }>({
+  return useMutation<void, Error, { id: string; version: number; stepUp: StepUpInput }>({
     mutationKey: queryKeys.identityProviders.all(),
     mutationFn: ({ id, version, stepUp }) => deleteIdentityProvider(id, version, stepUp),
     onSettled: () => invalidateIdentityProviders(client),
@@ -125,7 +125,7 @@ export function useDeleteIdentityProviderMutation() {
 export function useUploadIdentityProviderIconMutation() {
   const client = useQueryClient()
 
-  return useMutation<void, Error, { id: number; file: File }>({
+  return useMutation<void, Error, { id: string; file: File }>({
     mutationKey: queryKeys.identityProviders.all(),
     mutationFn: ({ id, file }) => uploadIdentityProviderIcon(id, file),
     onSettled: () => invalidateIdentityProviders(client),
@@ -140,7 +140,7 @@ export function useUploadIdentityProviderIconMutation() {
 export function useDeleteIdentityProviderIconMutation() {
   const client = useQueryClient()
 
-  return useMutation<void, Error, number>({
+  return useMutation<void, Error, string>({
     mutationKey: queryKeys.identityProviders.all(),
     mutationFn: (id) => deleteIdentityProviderIcon(id),
     onSettled: () => invalidateIdentityProviders(client),

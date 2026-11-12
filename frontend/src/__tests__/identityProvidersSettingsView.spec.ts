@@ -57,7 +57,7 @@ const plugins = (): (Plugin | [Plugin, ...unknown[]])[] => [
 ]
 
 const provider: IdentityProvider = {
-  id: 3,
+  id: '00000000-0000-4000-8000-000000000003',
   version: 4,
   name: 'Authentik',
   slug: 'authentik',
@@ -80,7 +80,13 @@ const provider: IdentityProvider = {
 function storeReturn(action: string, pending: Record<string, unknown>): void {
   sessionStorage.setItem(
     'idp_step_up',
-    JSON.stringify({ action, verifier: 'v1', idpId: 9, pending, createdAt: Date.now() }),
+    JSON.stringify({
+      action,
+      verifier: 'v1',
+      idpId: '00000000-0000-4000-8000-000000000009',
+      pending,
+      createdAt: Date.now(),
+    }),
   )
   history.replaceState(null, '', '/settings/identity-providers#step_up_ticket=t1')
 }
@@ -111,7 +117,11 @@ describe('IdentityProvidersSettingsView step-up', () => {
   })
 
   it('selects the provider an edit return was started for', async () => {
-    storeReturn('admin_idp_edit', { variant: 'form', idpId: 3, draft: {} })
+    storeReturn('admin_idp_edit', {
+      variant: 'form',
+      idpId: '00000000-0000-4000-8000-000000000003',
+      draft: {},
+    })
     const wrapper = mountView()
     await flushPromises()
 
@@ -119,7 +129,11 @@ describe('IdentityProvidersSettingsView step-up', () => {
   })
 
   it('reports a return that was not fresh and passes no resume down', async () => {
-    storeReturn('admin_idp_edit', { variant: 'form', idpId: 3, draft: {} })
+    storeReturn('admin_idp_edit', {
+      variant: 'form',
+      idpId: '00000000-0000-4000-8000-000000000003',
+      draft: {},
+    })
     history.replaceState(null, '', '/settings/identity-providers#step_up_error=not_fresh')
     const wrapper = mountView()
     await flushPromises()
@@ -141,7 +155,7 @@ describe('IdentityProvidersSettingsView step-up', () => {
 
     expect(mocks.updateMutate).toHaveBeenCalledWith(
       {
-        id: 3,
+        id: '00000000-0000-4000-8000-000000000003',
         input: expect.objectContaining({ enabled: false, clientSecret: null }),
         version: 4,
         stepUp: { currentPassword: 'admin-pw', mfaCode: null, idpReauth: null },
@@ -151,7 +165,11 @@ describe('IdentityProvidersSettingsView step-up', () => {
   })
 
   it('reopens the toggle step-up with the sign-in proof after a return', async () => {
-    storeReturn('admin_idp_edit', { variant: 'toggle', idpId: 3, enabled: false })
+    storeReturn('admin_idp_edit', {
+      variant: 'toggle',
+      idpId: '00000000-0000-4000-8000-000000000003',
+      enabled: false,
+    })
     const wrapper = mountView()
     await flushPromises()
 

@@ -3,13 +3,38 @@ import { ref } from 'vue'
 import { mount } from '@vue/test-utils'
 
 import i18n from '@/i18n'
+import type { IdentityProviderPublic } from '@/types'
 import LoginView from '@/features/auth/views/LoginView.vue'
 
-const providers = ref([
-  { id: 1, name: 'Tinyauth', slug: 'tinyauth', icon: 'https://cdn.example.com/logo.svg' },
-  { id: 2, name: 'Keycloak', slug: 'keycloak', icon: 'keycloak' },
-  { id: 3, name: 'Plain', slug: 'plain', icon: null },
-  { id: 4, name: 'Uploaded', slug: 'uploaded', icon: null, icon_uploaded: true },
+const providers = ref<IdentityProviderPublic[]>([
+  {
+    id: '00000000-0000-4000-8000-000000000001',
+    name: 'Tinyauth',
+    slug: 'tinyauth',
+    icon: 'https://cdn.example.com/logo.svg',
+    icon_uploaded: false,
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000002',
+    name: 'Keycloak',
+    slug: 'keycloak',
+    icon: 'keycloak',
+    icon_uploaded: false,
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000003',
+    name: 'Plain',
+    slug: 'plain',
+    icon: null,
+    icon_uploaded: false,
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000004',
+    name: 'Uploaded',
+    slug: 'uploaded',
+    icon: null,
+    icon_uploaded: true,
+  },
 ])
 
 vi.mock('@/features/config/composables/usePublicServerSettings', () => ({

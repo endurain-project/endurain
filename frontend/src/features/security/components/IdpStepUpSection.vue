@@ -37,7 +37,7 @@ const starting = ref(false)
 const providers = computed(() => linkedQuery.data.value ?? [])
 
 /** Sends the browser to the chosen provider to sign in again. */
-async function onContinue(idpId: number): Promise<void> {
+async function onContinue(idpId: string): Promise<void> {
   starting.value = true
   try {
     await start(idpId, props.action, props.pendingContext)

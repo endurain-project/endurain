@@ -46,7 +46,7 @@ export function useUnlinkUserIdentityProviderMutation() {
       stepUp,
     }: {
       userId: number
-      idpId: number
+      idpId: string
       stepUp: StepUpInput
     }) => unlinkUserIdentityProvider(userId, idpId, stepUp),
     onSuccess: (_data, { userId }) => {

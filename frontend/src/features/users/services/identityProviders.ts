@@ -58,7 +58,7 @@ export async function fetchUserIdentityProviders(
  */
 export async function unlinkUserIdentityProvider(
   userId: number,
-  idpId: number,
+  idpId: string,
   stepUp: StepUpInput,
 ): Promise<void> {
   await apiFetch<void>(`/users/${userId}/identity-providers/${idpId}/unlink`, {

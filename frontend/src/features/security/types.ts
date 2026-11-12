@@ -213,7 +213,7 @@ export type AvailableProvider = Schemas['IdentityProviderPublicRead']
  */
 export interface LinkedProvider {
   id: string
-  idpId: number
+  idpId: string
   name: string | null
   slug: string | null
   icon: string | null

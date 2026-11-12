@@ -67,7 +67,7 @@ const available = computed(() =>
 
 // One step-up dialog drives both link and unlink; the pending action decides
 // which mutation runs on confirm.
-type PendingAction = { type: 'link' | 'unlink'; idpId: number; name: string }
+type PendingAction = { type: 'link' | 'unlink'; idpId: string; name: string }
 const pendingAction = ref<PendingAction | null>(null)
 const isStepUpOpen = ref(false)
 const idpReauth = ref<IdpReauth | null>(null)
@@ -115,7 +115,7 @@ function openUnlink(item: LinkedProvider): void {
 }
 
 /** Begins the OAuth link: starts it on the backend, then navigates to the provider. */
-function confirmLink(idpId: number, input: StepUpInput): void {
+function confirmLink(idpId: string, input: StepUpInput): void {
   startLinkMutation.mutate(
     { idpId, input, revokeOtherSessions: revokeOtherSessions.value },
     {
@@ -143,7 +143,7 @@ function confirmLink(idpId: number, input: StepUpInput): void {
 }
 
 /** Unlinks the pending provider after step-up. */
-function confirmUnlink(idpId: number, input: StepUpInput): void {
+function confirmUnlink(idpId: string, input: StepUpInput): void {
   unlinkMutation.mutate(
     { idpId, input },
     {
@@ -191,7 +191,7 @@ function restoreStepUp(): void {
     !resume ||
     (resume.action !== 'idp_link' && resume.action !== 'idp_unlink') ||
     (type !== 'link' && type !== 'unlink') ||
-    typeof idpId !== 'number' ||
+    typeof idpId !== 'string' ||
     typeof name !== 'string'
   ) {
     return

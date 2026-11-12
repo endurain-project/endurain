@@ -57,7 +57,7 @@ export function useAvailableProvidersQuery() {
 export function useUnlinkProviderMutation() {
   const client = useQueryClient()
 
-  return useMutation<void, Error, { idpId: number; input: StepUpInput }>({
+  return useMutation<void, Error, { idpId: string; input: StepUpInput }>({
     mutationKey: queryKeys.security.all(),
     mutationFn: ({ idpId, input }) => unlinkProvider(idpId, input),
     onSuccess: () => {
@@ -78,7 +78,7 @@ export function useStartProviderLinkMutation() {
   return useMutation<
     string,
     Error,
-    { idpId: number; input: StepUpInput; revokeOtherSessions: boolean }
+    { idpId: string; input: StepUpInput; revokeOtherSessions: boolean }
   >({
     mutationKey: queryKeys.security.all(),
     mutationFn: ({ idpId, input, revokeOtherSessions }) =>

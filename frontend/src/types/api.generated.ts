@@ -4525,7 +4525,7 @@ export interface components {
              * Idp Id
              * @description ID of the identity provider concerned
              */
-            idp_id?: number | null;
+            idp_id?: string | null;
             /**
              * Idp Name
              * @description Name of the provider, when it still exists
@@ -9226,9 +9226,10 @@ export interface components {
             idp_icon_uploaded: boolean;
             /**
              * Idp Id
+             * Format: uuid
              * @description Identity Provider ID
              */
-            idp_id: number;
+            idp_id: string;
             /**
              * Idp Name
              * @description Identity provider name
@@ -9295,7 +9296,7 @@ export interface components {
          * @description Represents the public-facing information of an identity provider.
          *
          *     Attributes:
-         *         id (int): Unique identifier of the identity provider.
+         *         id (uuid.UUID): Unique identifier of the identity provider.
          *         name (str): Display name of the identity provider.
          *         slug (str): URL-friendly unique identifier for the provider.
          *         icon (str | None): URL or path to the provider's icon image.
@@ -9312,8 +9313,11 @@ export interface components {
              * @default false
              */
             icon_uploaded: boolean;
-            /** Id */
-            readonly id: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            readonly id: string;
             /** Name */
             name: string;
             /** Slug */
@@ -9327,7 +9331,7 @@ export interface components {
          *         IdentityProviderBase
          *
          *     Attributes:
-         *         id (int): Unique identifier of the identity provider.
+         *         id (uuid.UUID): Unique identifier of the identity provider.
          *         icon_uploaded (bool): Whether an uploaded icon is shown instead of ``icon``.
          *         created_at (datetime): Timestamp when the identity provider was created.
          *         updated_at (datetime): Timestamp when the identity provider was last updated.
@@ -9379,8 +9383,11 @@ export interface components {
              * @default false
              */
             icon_uploaded: boolean;
-            /** Id */
-            readonly id: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            readonly id: string;
             /**
              * Issuer Url
              * @description OIDC issuer/discovery URL
@@ -9620,9 +9627,10 @@ export interface components {
         IdpLinkedNotificationOptions: {
             /**
              * Idp Id
+             * Format: uuid
              * @description ID of the linked identity provider
              */
-            idp_id: number;
+            idp_id: string;
             /**
              * Idp Name
              * @description Name of the provider, when it still exists
@@ -24741,7 +24749,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                idp_id: number;
+                idp_id: string;
             };
             cookie?: never;
         };
@@ -24844,7 +24852,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                idp_id: number;
+                idp_id: string;
             };
             cookie?: never;
         };
@@ -24996,7 +25004,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                idp_id: number;
+                idp_id: string;
             };
             cookie?: never;
         };
@@ -25143,7 +25151,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                idp_id: number;
+                idp_id: string;
             };
             cookie?: never;
         };
@@ -25283,7 +25291,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                idp_id: number;
+                idp_id: string;
             };
             cookie?: never;
         };
@@ -29403,7 +29411,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                idp_id: number;
+                idp_id: string;
             };
             cookie?: never;
         };
@@ -29525,7 +29533,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                idp_id: number;
+                idp_id: string;
             };
             cookie?: never;
         };
@@ -29647,7 +29655,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                idp_id: number;
+                idp_id: string;
             };
             cookie?: never;
         };
@@ -37183,7 +37191,7 @@ export interface operations {
             };
             path: {
                 user_id: number;
-                idp_id: number;
+                idp_id: string;
             };
             cookie?: never;
         };

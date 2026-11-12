@@ -28,7 +28,7 @@ function store(overrides: Record<string, unknown> = {}): void {
     JSON.stringify({
       action: 'api_key_create',
       verifier: 'verifier-1',
-      idpId: 3,
+      idpId: '00000000-0000-4000-8000-000000000003',
       pending: { name: 'ci' },
       createdAt: Date.now(),
       ...overrides,
@@ -111,7 +111,10 @@ describe('useIdpStepUp.start', () => {
     vi.stubGlobal('location', { ...window.location, assign })
     mocks.startIdpStepUp.mockResolvedValue('https://idp.test/authorize')
 
-    await useIdpStepUp().start(7, 'idp_unlink', { type: 'unlink', idpId: 7 })
+    await useIdpStepUp().start('00000000-0000-4000-8000-000000000007', 'idp_unlink', {
+      type: 'unlink',
+      idpId: '00000000-0000-4000-8000-000000000007',
+    })
 
     const [idpId, action, challenge, redirect] = mocks.startIdpStepUp.mock.calls[0] as [
       number,
@@ -119,13 +122,17 @@ describe('useIdpStepUp.start', () => {
       string,
       string,
     ]
-    expect([idpId, action, redirect]).toEqual([7, 'idp_unlink', '/settings/security'])
+    expect([idpId, action, redirect]).toEqual([
+      '00000000-0000-4000-8000-000000000007',
+      'idp_unlink',
+      '/settings/security',
+    ])
     expect(challenge).toMatch(/^[A-Za-z0-9_-]{43}$/)
     const stored = JSON.parse(sessionStorage.getItem(KEY) ?? '{}') as Record<string, unknown>
     expect(stored).toMatchObject({
       action: 'idp_unlink',
-      idpId: 7,
-      pending: { type: 'unlink', idpId: 7 },
+      idpId: '00000000-0000-4000-8000-000000000007',
+      pending: { type: 'unlink', idpId: '00000000-0000-4000-8000-000000000007' },
     })
     expect(typeof stored.verifier).toBe('string')
     expect(assign).toHaveBeenCalledWith('https://idp.test/authorize')
@@ -137,7 +144,9 @@ describe('useIdpStepUp.start', () => {
     vi.stubGlobal('location', { ...window.location, assign })
     mocks.startIdpStepUp.mockRejectedValue(new HttpError(404, 'Not Found'))
 
-    await expect(useIdpStepUp().start(7, 'idp_link', {})).rejects.toBeInstanceOf(HttpError)
+    await expect(
+      useIdpStepUp().start('00000000-0000-4000-8000-000000000007', 'idp_link', {}),
+    ).rejects.toBeInstanceOf(HttpError)
     expect(sessionStorage.getItem(KEY)).toBeNull()
     expect(assign).not.toHaveBeenCalled()
     vi.unstubAllGlobals()

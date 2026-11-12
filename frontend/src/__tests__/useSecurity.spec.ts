@@ -184,7 +184,10 @@ describe('useUnlinkProviderMutation', () => {
     vi.mocked(unlinkProvider).mockResolvedValue()
     const mutation = mountMutation(queryClient, useUnlinkProviderMutation)
 
-    await mutation.mutateAsync({ idpId: 2, input: { currentPassword: 'secret', mfaCode: null } })
+    await mutation.mutateAsync({
+      idpId: '00000000-0000-4000-8000-000000000002',
+      input: { currentPassword: 'secret', mfaCode: null },
+    })
     await flushPromises()
 
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.security.devices() })

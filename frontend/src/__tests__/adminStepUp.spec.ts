@@ -187,7 +187,7 @@ describe('UserDeleteDialog', () => {
 describe('UserIdentityProvidersList unlink', () => {
   const provider: UserIdentityProvider = {
     id: '00000000-0000-4000-8000-000000000003',
-    idpId: 11,
+    idpId: '00000000-0000-4000-8000-000000000011',
     name: 'Authelia',
     slug: 'authelia',
     providerType: 'oidc',
@@ -209,7 +209,7 @@ describe('UserIdentityProvidersList unlink', () => {
     expect(mocks.unlinkMutate).toHaveBeenCalledWith(
       {
         userId: 7,
-        idpId: 11,
+        idpId: '00000000-0000-4000-8000-000000000011',
         stepUp: { currentPassword: 'admin-pw', mfaCode: null, idpReauth: null },
       },
       expect.any(Object),
@@ -237,7 +237,13 @@ describe('UserIdentityProvidersList unlink', () => {
   it('reopens the unlink dialog for the provider the return was started for', async () => {
     mocks.providers = [provider]
     const wrapper = mount(UserIdentityProvidersList, {
-      props: { userId: 7, resume: resumeFor('admin_idp_unlink', { userId: 7, idpId: 11 }) },
+      props: {
+        userId: 7,
+        resume: resumeFor('admin_idp_unlink', {
+          userId: 7,
+          idpId: '00000000-0000-4000-8000-000000000011',
+        }),
+      },
       global: { plugins: plugins(), stubs },
     })
     await flushPromises()
@@ -348,7 +354,13 @@ describe('UserDetailView identity-provider return', () => {
   function storeReturn(action: string, pending: Record<string, unknown>): void {
     sessionStorage.setItem(
       'idp_step_up',
-      JSON.stringify({ action, verifier: 'v1', idpId: 3, pending, createdAt: Date.now() }),
+      JSON.stringify({
+        action,
+        verifier: 'v1',
+        idpId: '00000000-0000-4000-8000-000000000003',
+        pending,
+        createdAt: Date.now(),
+      }),
     )
     history.replaceState(null, '', '/settings/users/7#step_up_ticket=t1')
   }

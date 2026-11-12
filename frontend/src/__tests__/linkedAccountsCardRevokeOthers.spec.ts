@@ -30,7 +30,7 @@ vi.mock('@/features/security/composables/useLinkedAccounts', () => ({
     data: computed(() => [
       {
         id: '00000000-0000-4000-8000-000000000001',
-        idpId: 11,
+        idpId: '00000000-0000-4000-8000-000000000011',
         name: 'Keycloak',
         slug: 'kc',
         icon: null,
@@ -43,7 +43,9 @@ vi.mock('@/features/security/composables/useLinkedAccounts', () => ({
     isError: computed(() => false),
   }),
   useAvailableProvidersQuery: () => ({
-    data: computed(() => [{ id: 12, name: 'Authentik', slug: 'ak', icon: null }]),
+    data: computed(() => [
+      { id: '00000000-0000-4000-8000-000000000012', name: 'Authentik', slug: 'ak', icon: null },
+    ]),
   }),
   useUnlinkProviderMutation: () => ({
     mutate: mocks.unlink,
@@ -97,7 +99,7 @@ describe('LinkedAccountsCard sign out other devices', () => {
     await dialog.get('form').trigger('submit')
 
     expect(mocks.startLink.mock.calls[0]![0]).toMatchObject({
-      idpId: 12,
+      idpId: '00000000-0000-4000-8000-000000000012',
       revokeOtherSessions: true,
     })
   })
@@ -109,7 +111,7 @@ describe('LinkedAccountsCard sign out other devices', () => {
     await dialog.get('form').trigger('submit')
 
     expect(mocks.startLink.mock.calls[0]![0]).toMatchObject({
-      idpId: 12,
+      idpId: '00000000-0000-4000-8000-000000000012',
       revokeOtherSessions: false,
     })
   })

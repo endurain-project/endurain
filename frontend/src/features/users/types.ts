@@ -254,7 +254,7 @@ export type UserIdentityProviderDto = Schemas['IdentityProviderLinkRead']
  */
 export interface UserIdentityProvider {
   id: string
-  idpId: number
+  idpId: string
   name: string | null
   slug: string | null
   providerType: string | null

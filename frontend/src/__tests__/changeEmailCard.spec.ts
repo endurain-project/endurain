@@ -28,7 +28,15 @@ vi.mock('@/features/security/composables/useSecurity', () => ({
 }))
 vi.mock('@/features/security/composables/useLinkedAccounts', () => ({
   useLinkedProvidersQuery: () => ({
-    data: computed(() => [{ id: 1, idpId: 11, name: 'Keycloak', slug: 'kc', icon: null }]),
+    data: computed(() => [
+      {
+        id: 1,
+        idpId: '00000000-0000-4000-8000-000000000011',
+        name: 'Keycloak',
+        slug: 'kc',
+        icon: null,
+      },
+    ]),
     isPending: computed(() => false),
     isError: computed(() => false),
   }),
@@ -72,7 +80,9 @@ describe('ChangeEmailCard', () => {
     await wrapper.find('[role="switch"]').setValue(true)
     const button = wrapper.findAll('button').find((b) => b.text() === 'Continue with Keycloak')
     await button!.trigger('click')
-    expect(start).toHaveBeenCalledWith(11, 'email_change', { revokeOtherSessions: true })
+    expect(start).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000011', 'email_change', {
+      revokeOtherSessions: true,
+    })
   })
 
   it('signs the other sessions out by default', () => {

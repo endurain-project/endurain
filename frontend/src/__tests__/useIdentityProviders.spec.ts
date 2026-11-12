@@ -71,7 +71,14 @@ describe('useUpdateIdentityProviderMutation', () => {
     vi.mocked(updateIdentityProvider).mockRejectedValue(stale)
     const mutation = mountMutation(queryClient)
 
-    await expect(mutation.mutateAsync({ id: 3, input, version: 1, stepUp })).rejects.toBe(stale)
+    await expect(
+      mutation.mutateAsync({
+        id: '00000000-0000-4000-8000-000000000003',
+        input,
+        version: 1,
+        stepUp,
+      }),
+    ).rejects.toBe(stale)
     await flushPromises()
 
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.identityProviders.all() })

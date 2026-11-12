@@ -45,7 +45,7 @@ export type IdpStepUpReturn = IdpStepUpResume | { error: IdpStepUpFailure }
 interface StoredStepUp {
   action: StepUpAction
   verifier: string
-  idpId: number
+  idpId: string
   pending: StepUpPending
   createdAt: number
 }
@@ -96,6 +96,7 @@ function takeStoredStepUp(now: number): StoredStepUp | null {
       typeof parsed.action !== 'string' ||
       typeof parsed.verifier !== 'string' ||
       parsed.verifier.length === 0 ||
+      typeof parsed.idpId !== 'string' ||
       typeof parsed.createdAt !== 'number' ||
       now - parsed.createdAt > STORED_TTL_MS
     ) {
@@ -104,7 +105,7 @@ function takeStoredStepUp(now: number): StoredStepUp | null {
     return {
       action: parsed.action,
       verifier: parsed.verifier,
-      idpId: typeof parsed.idpId === 'number' ? parsed.idpId : 0,
+      idpId: parsed.idpId,
       pending: parsed.pending ?? {},
       createdAt: parsed.createdAt,
     }
@@ -180,7 +181,7 @@ export function useIdpStepUp() {
    * @param pending - What the UI needs to reopen the right dialog on return; no secrets.
    * @throws {HttpError} When the start request fails.
    */
-  async function start(idpId: number, action: StepUpAction, pending: StepUpPending): Promise<void> {
+  async function start(idpId: string, action: StepUpAction, pending: StepUpPending): Promise<void> {
     const verifier = generateCodeVerifier()
     const challenge = await generateCodeChallenge(verifier)
     const url = await startIdpStepUp(idpId, action, challenge, route.path)

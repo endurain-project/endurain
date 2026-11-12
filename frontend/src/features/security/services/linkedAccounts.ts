@@ -68,7 +68,7 @@ export async function fetchLinkedProviders(signal?: AbortSignal): Promise<Linked
  * @throws {HttpError} When the request fails (403 step-up, 409 already linked).
  */
 export async function startProviderLink(
-  idpId: number,
+  idpId: string,
   input: StepUpInput,
   revokeOtherSessions: boolean,
   returnPath = '/settings/security',
@@ -94,7 +94,7 @@ export async function startProviderLink(
  * @param input - The step-up credentials.
  * @throws {HttpError} When the request fails (403 step-up, 409 last method).
  */
-export async function unlinkProvider(idpId: number, input: StepUpInput): Promise<void> {
+export async function unlinkProvider(idpId: string, input: StepUpInput): Promise<void> {
   await apiFetch(`/profile/identity-providers/${idpId}/unlink`, {
     method: 'POST',
     body: JSON.stringify({ step_up: toStepUpWire(input) } satisfies StepUpRequestDto),
