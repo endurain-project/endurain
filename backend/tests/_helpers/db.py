@@ -126,6 +126,24 @@ def postgres_test_url() -> str | None:
     return os.environ.get(POSTGRES_TEST_URL_ENV) or None
 
 
+def disposable_postgres_url() -> str:
+    """Return ``TEST_DATABASE_URL`` after checking that it names a disposable database.
+
+    Raises:
+        RuntimeError: If the variable is unset or the database name does not contain ``test``.
+    """
+    url = postgres_test_url()
+    if url is None:
+        raise RuntimeError(f"{POSTGRES_TEST_URL_ENV} is not set")
+    database = make_url(url).database or ""
+    if "test" not in database:
+        raise RuntimeError(
+            f"Refusing to recreate the schema of '{database}': {POSTGRES_TEST_URL_ENV} must name a "
+            "disposable database whose name contains 'test'."
+        )
+    return url
+
+
 def create_postgres_session_factory() -> sessionmaker[Session]:
     """Create a sessionmaker over a real PostgreSQL test database.
 
@@ -142,15 +160,7 @@ def create_postgres_session_factory() -> sessionmaker[Session]:
     """
     from core.database import Base
 
-    url = postgres_test_url()
-    if url is None:
-        raise RuntimeError(f"{POSTGRES_TEST_URL_ENV} is not set")
-    database = make_url(url).database or ""
-    if "test" not in database:
-        raise RuntimeError(
-            f"Refusing to recreate the schema of '{database}': {POSTGRES_TEST_URL_ENV} must name a "
-            "disposable database whose name contains 'test'."
-        )
+    url = disposable_postgres_url()
 
     _import_all_models()
     engine = create_engine(url)

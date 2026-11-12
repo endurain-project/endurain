@@ -1,12 +1,12 @@
+from contextlib import nullcontext
 from logging.config import fileConfig
-
-import jasil.orm as jasil_orm
 
 from alembic import context
 
 # import Base and engine from database file
 import model_registry as orm_model_registry
 from core.database import Base, engine
+from migrations.schema_scope import include_object
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -27,32 +27,6 @@ orm_model_registry.import_all_models()
 # add your model's MetaData object here
 # for 'autogenerate' support
 target_metadata = Base.metadata
-
-
-def include_object(obj, name, type_, reflected, compare_to) -> bool:
-    """Keep this history off the tables JASIL owns and migration bookkeeping tables.
-
-    ``jasil.orm.map_models`` maps ``event_log``, ``event_outbox`` and
-    ``processing_jobs`` into the same registry as the application's own models,
-    so autogenerate would otherwise diff them here as well — and propose
-    dropping them the day the substrate moves one. They are migrated by
-    ``jasil.migrations`` against its own version table instead.
-
-    Args:
-        obj: The schema object being considered.
-        name: Its name.
-        type_: The kind of object (``table``, ``column``, ``index``, ...).
-        reflected: Whether it came from the database rather than the metadata.
-        compare_to: The object it is being compared against, if any.
-
-    Returns:
-        False for a JASIL-owned or migration bookkeeping table, True otherwise.
-    """
-    if type_ == "table":
-        # Migration 66 keeps cadence_spm_migration_rows for its downgrade(); it
-        # has no ORM model, so autogenerate would otherwise propose dropping it.
-        return name not in jasil_orm.jasil_table_names() and name != "cadence_spm_migration_rows"
-    return True
 
 
 # other values from the config, defined by the needs of env.py,
@@ -94,11 +68,10 @@ def run_migrations_online() -> None:
 
     """
 
-    # Here, instead of creating a new engine, we use the existing engine
-    # from database configuration.
-    connectable = engine
-
-    with connectable.connect() as connection:
+    # A caller that owns the connection (the upgrade tests) passes it in and keeps it open afterwards; Alembic
+    # still owns the transaction. Otherwise use the existing engine from database configuration.
+    given = config.attributes.get("connection")
+    with nullcontext(given) if given is not None else engine.connect() as connection:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,

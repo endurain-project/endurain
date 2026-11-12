@@ -1,5 +1,6 @@
 """Shared validation dependencies for FastAPI routers."""
 
+import uuid
 from typing import Annotated
 
 import jasil.providers as platform_providers
@@ -15,6 +16,10 @@ import core.types as core_types
 #: A path-parameter id that must be positive and fit an ``integer`` column. Declared on the parameter's type, so
 #: FastAPI rejects a bad value with the standard validation problem document and publishes the bounds in OpenAPI.
 PositiveId = Annotated[int, Path(gt=0, le=core_types.INT32_MAX)]
+
+#: A path-parameter id that is a UUID. FastAPI answers 422 with the validation problem for a malformed value,
+#: and OpenAPI shows ``string``/``uuid``.
+UuidId = Annotated[uuid.UUID, Path()]
 
 #: The route's database session. Rolled back on an unhandled error and closed by ``get_db`` as soon as the route
 #: function returns, before the response is sent, so a slow client or a streamed body never pins a pooled connection.

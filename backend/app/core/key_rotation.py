@@ -35,21 +35,21 @@ class RotationCounts:
 
 
 @dataclass(frozen=True)
-class BatchResult:
+class BatchResult[K]:
     """One staged batch: the last id it read (None when no row followed the cursor) and its counts."""
 
-    last_id: int | None
+    last_id: K | None
     counts: RotationCounts = RotationCounts()
 
 
-def stage_reencrypt_batch(
+def stage_reencrypt_batch[K](
     model: type[core_database.Base],
-    id_column: InstrumentedAttribute[int],
+    id_column: InstrumentedAttribute[K],
     columns: Sequence[InstrumentedAttribute[str | None]],
-    after_id: int,
+    after_id: K | None,
     limit: int,
     db: Session,
-) -> BatchResult:
+) -> BatchResult[K]:
     """Stage the re-encryption of up to ``limit`` rows after ``after_id``, ordered by id (flushed, not committed).
 
     A value is rewritten only while it still holds the ciphertext that was read, so a write that lands between
@@ -57,16 +57,19 @@ def stage_reencrypt_batch(
 
     Args:
         model: The ORM model that owns the columns.
-        id_column: The model's integer primary key.
+        id_column: The model's primary key.
         columns: The model's encrypted string columns.
-        after_id: Keyset cursor; only rows with a greater id are read.
+        after_id: Keyset cursor; only rows with a greater id are read, and None reads from the first row.
         limit: Maximum number of rows to read.
         db: SQLAlchemy database session.
 
     Returns:
         The last id read and the values rewritten or left undecryptable.
     """
-    rows = db.execute(select(id_column, *columns).where(id_column > after_id).order_by(id_column).limit(limit)).all()
+    query = select(id_column, *columns)
+    if after_id is not None:
+        query = query.where(id_column > after_id)
+    rows = db.execute(query.order_by(id_column).limit(limit)).all()
     rotated = undecryptable = 0
     for row_id, *values in rows:
         for column, old in zip(columns, values, strict=True):
@@ -84,14 +87,16 @@ def stage_reencrypt_batch(
     return BatchResult(rows[-1][0] if rows else None, RotationCounts(rotated, undecryptable))
 
 
-def reencrypt_in_batches(label: str, stage_batch: Callable[[int, int], BatchResult], db: Session) -> RotationCounts:
+def reencrypt_in_batches[K](
+    label: str, stage_batch: Callable[[K | None, int], BatchResult[K]], db: Session
+) -> RotationCounts:
     """Re-encrypt a module's stored secrets one bounded batch per transaction.
 
     Does nothing while only one key is configured. Logs the counts, never a value.
 
     Args:
         label: What the batches belong to, for the log line.
-        stage_batch: Stages the batch after the given id with the given limit.
+        stage_batch: Stages the batch after the given id (None for the first batch) with the given limit.
         db: The session the batches run and commit in.
 
     Returns:
@@ -100,7 +105,7 @@ def reencrypt_in_batches(label: str, stage_batch: Callable[[int, int], BatchResu
     total = RotationCounts()
     if not core_cryptography.has_older_keys():
         return total
-    after_id = 0
+    after_id: K | None = None
     while True:
         batch = stage_batch(after_id, BATCH_SIZE)
         db.commit()

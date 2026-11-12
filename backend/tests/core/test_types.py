@@ -1,5 +1,6 @@
 """Shared request-body types."""
 
+import uuid
 from datetime import UTC, date, datetime, timedelta, timezone
 
 import pytest
@@ -12,6 +13,15 @@ _INT32_MAX = 2**31 - 1
 
 def test_int32_max_is_the_largest_value_of_an_integer_column():
     assert core_types.INT32_MAX == _INT32_MAX
+
+
+def test_uuid_sentinels_bound_every_uuid():
+    ids = [uuid.uuid4() for _ in range(50)]
+
+    assert uuid.UUID("00000000-0000-0000-0000-000000000000") == core_types.NIL_UUID
+    assert uuid.UUID("ffffffff-ffff-ffff-ffff-ffffffffffff") == core_types.MAX_UUID
+    assert min(ids) > core_types.NIL_UUID
+    assert max(ids) < core_types.MAX_UUID
 
 
 class TestRecordId:

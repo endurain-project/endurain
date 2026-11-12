@@ -6,6 +6,7 @@ duplicate at the page boundary and never sees the row that was displaced. These
 tests pin the properties that stop that.
 """
 
+import uuid
 from datetime import UTC, datetime
 
 import pytest
@@ -77,3 +78,20 @@ class TestCursorPage:
     def test_carries_no_total(self):
         """A COUNT per request is the cost keyset paging exists to avoid."""
         assert "total" not in core_pagination.CursorPage[int].model_fields
+
+    def test_a_uuid_id_round_trips(self):
+        moment = datetime(2026, 7, 29, 12, 30, tzinfo=UTC)
+        row_id = uuid.uuid4()
+
+        assert core_pagination.decode_uuid_cursor(core_pagination.encode_cursor(moment, row_id)) == (moment, row_id)
+
+    def test_an_integer_cursor_is_not_a_uuid_cursor(self):
+        cursor = core_pagination.encode_cursor(datetime(2026, 7, 29, tzinfo=UTC), 42)
+
+        with pytest.raises(core_exceptions.InvalidInputError):
+            core_pagination.decode_uuid_cursor(cursor)
+
+    @pytest.mark.parametrize("bad", ["", "YWJj"], ids=["empty", "not-issued-by-the-server"])
+    def test_a_uuid_cursor_this_server_did_not_issue_is_refused(self, bad):
+        with pytest.raises(core_exceptions.InvalidInputError):
+            core_pagination.decode_uuid_cursor(bad)

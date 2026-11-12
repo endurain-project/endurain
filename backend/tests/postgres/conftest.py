@@ -16,6 +16,7 @@ import pytest
 
 import module_registry
 import modules.users.contributor_registry as users_contributor_registry
+from tests._helpers import alembic_chain
 from tests._helpers.db import (
     POSTGRES_TEST_URL_ENV,
     create_postgres_session_factory,
@@ -53,3 +54,24 @@ def pg_factory():
         yield factory
     finally:
         drop_postgres_schema(factory)
+
+
+@pytest.fixture
+def upgrade_db():
+    """Yield an engine on an empty database, for the tests that run the real Alembic chain.
+
+    It drops the whole ``public`` schema before the test and again after it, so it must never run beside other
+    Postgres tests: the suite runs serially, and the reset in teardown leaves an empty schema for the ``pg_factory``
+    tests that follow.
+    """
+    if postgres_test_url() is None:
+        pytest.skip(f"{POSTGRES_TEST_URL_ENV} is not set")
+    engine = alembic_chain.upgrade_engine()
+    try:
+        alembic_chain.reset_public_schema(engine)
+        yield engine
+    finally:
+        try:
+            alembic_chain.reset_public_schema(engine)
+        finally:
+            engine.dispose()

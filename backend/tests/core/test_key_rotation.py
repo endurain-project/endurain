@@ -120,6 +120,18 @@ class TestWalker:
         for value in db.execute(select(mfa_models.MFAFactor.credential)).scalars():
             Fernet(NEW_KEY.encode()).decrypt(value.encode())
 
+    def test_the_first_batch_reads_from_the_first_row(self, db, rotating_keys):
+        db.execute(
+            insert(mfa_models.MFAFactor).values(id=1, user_id=1, type="totp", credential=_token(OLD_KEY, "first"))
+        )
+        db.commit()
+
+        batch = mfa_crud.stage_reencrypt_batch_mfa(None, 100, db)
+
+        assert batch.last_id == 1
+        assert batch.counts.rotated == 1
+        assert mfa_crud.stage_reencrypt_batch_mfa(1, 100, db).last_id is None
+
     def test_concurrent_change_is_not_overwritten(self, db, rotating_keys, monkeypatch):
         _add_mfa(db, _token(OLD_KEY, "stale"))
         concurrent = _token(NEW_KEY, "written-meanwhile")

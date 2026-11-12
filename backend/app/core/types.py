@@ -1,5 +1,6 @@
 """Annotated types for values a client sends, shared by the request schemas and routes."""
 
+import uuid
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Annotated
@@ -12,6 +13,11 @@ INT32_MAX = 2**31 - 1
 #: An id a request body references. Strict, positive and inside the column's range, so a value
 #: the database cannot store is a validation failure rather than a 500.
 RecordId = Annotated[StrictInt, Field(ge=1, le=INT32_MAX)]
+
+#: Keyset sentinels below and above every id. PostgreSQL compares ``uuid`` bytewise and SQLAlchemy's ``Uuid`` on SQLite
+#: stores 32 hex characters, so both orders equal the integer order.
+NIL_UUID = uuid.UUID(int=0)
+MAX_UUID = uuid.UUID(int=(1 << 128) - 1)
 
 #: The earliest date a record may carry.
 _EARLIEST = datetime(1900, 1, 1)

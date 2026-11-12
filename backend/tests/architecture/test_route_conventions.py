@@ -143,9 +143,10 @@ class TestRouteConventions:
         )
 
     def test_path_parameters_are_typed_by_alias(self):
-        """A path parameter's constraint is its type: ``PositiveId``/``ActivityId``, not a bare ``int``.
+        """A path parameter's constraint is its type: ``PositiveId``/``UuidId``, not a bare ``int`` or ``UUID``.
 
-        A bare ``int`` accepts ``0`` and negative ids, and publishes no constraint in OpenAPI.
+        A bare ``int`` accepts ``0`` and negative ids, and publishes no constraint in OpenAPI. A bare ``UUID``
+        skips the one alias every UUID path id goes through.
         """
         offenders: list[str] = []
         for path, function in router_functions():
@@ -159,14 +160,16 @@ class TestRouteConventions:
                 }
                 for argument in function.args.args:
                     annotation = argument.annotation
-                    if (
-                        argument.arg in route_params
-                        and isinstance(annotation, ast.Name)
-                        and annotation.id in {"int", "str"}
+                    if argument.arg in route_params and (
+                        (isinstance(annotation, ast.Name) and annotation.id in {"int", "str", "UUID"})
+                        or (isinstance(annotation, ast.Attribute) and annotation.attr == "UUID")
                     ):
                         offenders.append(f"{path.relative_to(_ROOT).as_posix()}::{function.name}({argument.arg})")
 
-        assert offenders == [], "Type the path parameter with an alias from dependencies:\n  " + "\n  ".join(offenders)
+        assert offenders == [], (
+            "Type the path parameter with an alias from dependencies (PositiveId, UuidId or a module alias):\n  "
+            + "\n  ".join(offenders)
+        )
 
     def test_shared_dependencies_are_injected_through_their_alias(self):
         """A parameter uses ``DbSession``/``CurrentUserId``/``Storage``/``PlatformState``, not an inline ``Depends``.

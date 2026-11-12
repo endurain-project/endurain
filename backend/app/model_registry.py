@@ -13,6 +13,7 @@ import modules.users.model_registry as users_model_registry
 
 _CONVERTED_MODEL_MODULES = frozenset(
     (
+        "migrations.models",
         *activities_model_registry.MODEL_MODULES,
         *auth_model_registry.MODEL_MODULES,
         *follower_models.MODEL_MODULES,
