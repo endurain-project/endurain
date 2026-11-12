@@ -173,7 +173,7 @@ export type DefaultGearUpdateDto = Schemas['UserDefaultGearUpdate']
  * @property userId - Owning user id.
  */
 export interface DefaultGear {
-  id: number
+  id: string
   userId: number
   /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
   version: number

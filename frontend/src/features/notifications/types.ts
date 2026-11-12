@@ -21,7 +21,7 @@ export type NotificationType = NotificationDto['type']
 /** What every notification carries, whatever its type. */
 interface NotificationBase {
   /** Stable unique identifier. */
-  id: number
+  id: string
   /** Whether the notification has been read. */
   read: boolean
   /** ISO creation timestamp. */

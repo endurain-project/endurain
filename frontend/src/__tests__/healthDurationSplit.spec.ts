@@ -25,7 +25,7 @@ const ALMOST_EIGHT_HOURS = 7 * 3600 + 59 * 60 + 45
 const passthrough = { template: '<div><slot /></div>' }
 
 const targets: HealthTargets = {
-  id: 1,
+  id: '00000000-0000-4000-8000-000000000001',
   userId: 1,
   version: 3,
   sleepSeconds: ALMOST_EIGHT_HOURS,
@@ -69,7 +69,7 @@ describe('hours and minutes seeded from a duration', () => {
 
   it('seeds the sleep form total as 8 h 0 m', async () => {
     const entry = {
-      id: 1,
+      id: '00000000-0000-4000-8000-000000000001',
       userId: 1,
       version: 1,
       date: '2026-10-30',
@@ -83,7 +83,7 @@ describe('hours and minutes seeded from a duration', () => {
       hasSleepStages: false,
     } as unknown as SleepListEntry
     vi.mocked(apiFetch).mockResolvedValue({
-      id: 1,
+      id: '00000000-0000-4000-8000-000000000001',
       user_id: 1,
       version: 1,
       date: '2026-10-30',
@@ -99,7 +99,7 @@ describe('hours and minutes seeded from a duration', () => {
 
   it('shows a duration goal as 8h 0m', () => {
     const goal = {
-      id: 1,
+      id: '00000000-0000-4000-8000-000000000001',
       userId: 1,
       version: 1,
       interval: 'weekly',

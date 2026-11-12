@@ -19,7 +19,7 @@ vi.mock('@/services/http', () => ({
 /** Builds a full default-gear wire payload, overridable per case. */
 function makeDefaultGearDto(overrides: Partial<DefaultGearDto> = {}): DefaultGearDto {
   return {
-    id: 1,
+    id: '00000000-0000-4000-8000-000000000001',
     user_id: 5,
     version: 3,
     run_gear_id: 10,
@@ -45,7 +45,7 @@ describe('mapDefaultGear', () => {
   it('maps the wire shape to the clean camel-cased model', () => {
     const gear = mapDefaultGear(makeDefaultGearDto())
     expect(gear).toMatchObject({
-      id: 1,
+      id: '00000000-0000-4000-8000-000000000001',
       userId: 5,
       runGearId: 10,
       rideGearId: 20,

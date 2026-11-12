@@ -195,7 +195,7 @@ describe('HealthSleepFormDialog hours/minutes names', () => {
 
 describe('HealthSleepFormDialog edit', () => {
   const row: SleepListEntry = {
-    id: 5,
+    id: '00000000-0000-4000-8000-000000000005',
     userId: 9,
     version: 1,
     date: '2026-06-25',
@@ -205,7 +205,7 @@ describe('HealthSleepFormDialog edit', () => {
 
   /** The full record the single read returns: a newer version than the list row, with one stage. */
   const fullDto = {
-    id: 5,
+    id: '00000000-0000-4000-8000-000000000005',
     user_id: 9,
     version: 4,
     date: '2026-06-25',
@@ -256,7 +256,10 @@ describe('HealthSleepFormDialog edit', () => {
 
     const wrapper = await openEdit()
 
-    expect(apiFetch).toHaveBeenCalledWith('/health/sleep/5', expect.anything())
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/health/sleep/00000000-0000-4000-8000-000000000005',
+      expect.anything(),
+    )
     expect(wrapper.text()).toContain(i18n.global.t('health.sleep.form.loading'))
     expect(wrapper.find('input').exists()).toBe(false)
 
@@ -281,7 +284,7 @@ describe('HealthSleepFormDialog edit', () => {
     await submit(wrapper)
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/health/sleep/5',
+      '/health/sleep/00000000-0000-4000-8000-000000000005',
       expect.objectContaining({ method: 'PATCH', headers: { 'If-Match': '"4"' } }),
     )
   })

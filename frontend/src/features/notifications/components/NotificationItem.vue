@@ -19,9 +19,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   /** Request to mark this notification read. */
-  markRead: [id: number]
+  markRead: [id: string]
   /** Request to delete this notification. */
-  dismiss: [id: number]
+  dismiss: [id: string]
 }>()
 
 const { t, locale } = useI18n()

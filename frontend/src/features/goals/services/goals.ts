@@ -157,7 +157,7 @@ export async function createGoal(input: GoalInput): Promise<Goal> {
  * @returns The updated goal, mapped to the clean model.
  * @throws {HttpError} When the request fails, including 412 when stale.
  */
-export async function updateGoal(id: number, input: GoalInput, version: number): Promise<Goal> {
+export async function updateGoal(id: string, input: GoalInput, version: number): Promise<Goal> {
   const payload: GoalUpdateDto = toWire(input)
   const dto = await apiFetch<GoalDto>(`/profile/goals/${id}`, {
     method: 'PUT',
@@ -174,7 +174,7 @@ export async function updateGoal(id: number, input: GoalInput, version: number):
  * @param version - The goal version the list item was read at, for `If-Match`.
  * @throws {HttpError} When the request fails (`412` when the goal changed since it was read).
  */
-export async function deleteGoal(id: number, version: number): Promise<void> {
+export async function deleteGoal(id: string, version: number): Promise<void> {
   await apiFetch(`/profile/goals/${id}`, {
     method: 'DELETE',
     headers: ifMatchHeaders(version),

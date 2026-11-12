@@ -10,7 +10,7 @@ import HealthFastingView from '@/features/health/views/HealthFastingView.vue'
 import HealthFastingActiveCard from '@/features/health/components/HealthFastingActiveCard.vue'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
-const active = { id: 5, version: 2 } as FastingEntry
+const active = { id: '00000000-0000-4000-8000-000000000005', version: 2 } as FastingEntry
 const mutate = vi.fn<(...args: unknown[]) => void>()
 
 function query<T>(data: T) {
@@ -61,7 +61,11 @@ describe('HealthFastingView ending a fast early', () => {
 
     endDialog(wrapper).vm.$emit('confirm')
     expect(mutate).toHaveBeenCalledTimes(1)
-    expect(mutate.mock.calls[0]![0]).toMatchObject({ id: 5, status, version: 2 })
+    expect(mutate.mock.calls[0]![0]).toMatchObject({
+      id: '00000000-0000-4000-8000-000000000005',
+      status,
+      version: 2,
+    })
   })
 
   it('completes a reached target without asking', async () => {

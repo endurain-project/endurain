@@ -17,7 +17,7 @@ vi.mock('@/services/http', async (importOriginal) => ({
 const passthrough = { template: '<div><slot /></div>' }
 
 const entry: StepsEntry = {
-  id: 7,
+  id: '00000000-0000-4000-8000-000000000007',
   userId: 1,
   version: 2,
   date: '2026-10-30',

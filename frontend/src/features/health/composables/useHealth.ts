@@ -128,7 +128,7 @@ interface HealthEntriesParams<Interval extends string> {
 /** Variables for delete-entry mutations shared by CRUD health metrics. */
 interface DeleteEntryVariables {
   /** Record id to delete. */
-  id: number
+  id: string
   /** The row version the list item was read at, for `If-Match`. */
   version: number
 }
@@ -136,7 +136,7 @@ interface DeleteEntryVariables {
 /** Variables for update-entry mutations shared by CRUD health metrics. */
 interface UpdateEntryVariables<Input> {
   /** Record id to update. */
-  id: number
+  id: string
   /** Clean metric input. */
   input: Input
   /** The row version the form was loaded at, for `If-Match`. */
@@ -215,7 +215,7 @@ function useCreateHealthEntryMutation<Entry, Input>(
 /** Standard update-entry mutation wrapper for health CRUD zones. */
 function useUpdateHealthEntryMutation<Entry, Input>(
   mutationKey: readonly unknown[],
-  updateEntry: (id: number, input: Input, version: number) => Promise<Entry>,
+  updateEntry: (id: string, input: Input, version: number) => Promise<Entry>,
 ) {
   return useInvalidatingMutation<Entry, UpdateEntryVariables<Input>>({
     mutationKey,
@@ -227,7 +227,7 @@ function useUpdateHealthEntryMutation<Entry, Input>(
 /** Standard delete-entry mutation wrapper for health CRUD zones. */
 function useDeleteHealthEntryMutation(
   mutationKey: readonly unknown[],
-  deleteEntry: (id: number, version: number) => Promise<void>,
+  deleteEntry: (id: string, version: number) => Promise<void>,
 ) {
   return useInvalidatingMutation<void, DeleteEntryVariables>({
     mutationKey,
@@ -623,7 +623,7 @@ export function useUpdateFastingEntryMutation() {
 export function useCompleteFastingEntryMutation() {
   return useInvalidatingMutation<
     FastingEntry,
-    { id: number; fastEndTime: string; status: FastingStatus; version: number }
+    { id: string; fastEndTime: string; status: FastingStatus; version: number }
   >({
     mutationKey: queryKeys.health.fastingLists(),
     mutationFn: ({ id, fastEndTime, status, version }) =>
@@ -681,14 +681,14 @@ export function useSleepEntriesQuery(
  * @returns The TanStack Query result for the sleep record.
  */
 export function useSleepEntryQuery(
-  id: MaybeRefOrGetter<number | null>,
+  id: MaybeRefOrGetter<string | null>,
   enabled: MaybeRefOrGetter<boolean> = true,
 ) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
 
   return useQuery({
-    queryKey: computed(() => queryKeys.health.sleepItem(toValue(id) ?? 0)),
-    queryFn: ({ signal }) => fetchSleepEntry(toValue(id) as number, signal),
+    queryKey: computed(() => queryKeys.health.sleepItem(toValue(id) as string)),
+    queryFn: ({ signal }) => fetchSleepEntry(toValue(id) as string, signal),
     staleTime: HEALTH_QUERY_STALE_TIME_MS,
     enabled: computed(() => isAuthenticated.value && toValue(id) !== null && toValue(enabled)),
   })

@@ -25,7 +25,7 @@ const passthrough = { template: '<div><slot /></div>' }
 const ERROR = 'Enter a value greater than 0, or leave it empty to remove the target.'
 
 const targets: HealthTargets = {
-  id: 1,
+  id: '00000000-0000-4000-8000-000000000001',
   userId: 1,
   version: 3,
   sleepSeconds: 28800,

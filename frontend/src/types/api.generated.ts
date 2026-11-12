@@ -4472,9 +4472,10 @@ export interface components {
             readonly created_at: string;
             /**
              * Id
+             * Format: uuid
              * @description Unique notification ID
              */
-            readonly id: number;
+            readonly id: string;
             options: components["schemas"]["NoNotificationOptions"];
             /**
              * Read
@@ -4544,9 +4545,10 @@ export interface components {
             readonly created_at: string;
             /**
              * Id
+             * Format: uuid
              * @description Unique notification ID
              */
-            readonly id: number;
+            readonly id: string;
             options: components["schemas"]["AccountSecurityChangedNotificationOptions"];
             /**
              * Read
@@ -5105,9 +5107,10 @@ export interface components {
             readonly created_at: string;
             /**
              * Id
+             * Format: uuid
              * @description Unique notification ID
              */
-            readonly id: number;
+            readonly id: string;
             options: components["schemas"]["ActivityNotificationOptions"];
             /**
              * Read
@@ -7085,9 +7088,10 @@ export interface components {
             changed_at: string;
             /**
              * Id
+             * Format: uuid
              * @description The record's id
              */
-            readonly id: number;
+            readonly id: string;
             /** @description The record; null when it was deleted */
             record?: components["schemas"]["HealthFastingRead"] | null;
             /**
@@ -7186,9 +7190,10 @@ export interface components {
             fast_start_time: string;
             /**
              * Id
+             * Format: uuid
              * @description Unique identifier for the fasting record
              */
-            readonly id: number;
+            readonly id: string;
             /**
              * Status
              * @description Current status of the fasting session
@@ -7226,9 +7231,10 @@ export interface components {
             fasting_type?: components["schemas"]["FastingType"] | null;
             /**
              * Id
+             * Format: uuid
              * @description Unique identifier for the fasting record
              */
-            readonly id: number;
+            readonly id: string;
             /**
              * Notes
              * @description Optional notes about the fasting session
@@ -7354,9 +7360,10 @@ export interface components {
             changed_at: string;
             /**
              * Id
+             * Format: uuid
              * @description The record's id
              */
-            readonly id: number;
+            readonly id: string;
             /** @description The record; null when it was deleted */
             record?: components["schemas"]["HealthPoopRead"] | null;
             /**
@@ -7424,9 +7431,10 @@ export interface components {
             date_time: string;
             /**
              * Id
+             * Format: uuid
              * @description Unique identifier for the poop record
              */
-            readonly id: number;
+            readonly id: string;
             /**
              * Notes
              * @description Optional notes about the bowel movement
@@ -7519,9 +7527,10 @@ export interface components {
             changed_at: string;
             /**
              * Id
+             * Format: uuid
              * @description The record's id
              */
-            readonly id: number;
+            readonly id: string;
             /** @description The record; null when it was deleted */
             record?: components["schemas"]["HealthSleepRead"] | null;
             /**
@@ -7820,9 +7829,10 @@ export interface components {
             hrv_status?: components["schemas"]["HRVStatus"] | null;
             /**
              * Id
+             * Format: uuid
              * @description Unique identifier for the sleep record to update
              */
-            readonly id: number;
+            readonly id: string;
             /** @description Light sleep percentage score */
             light_percentage_score?: components["schemas"]["SleepScore"] | null;
             /**
@@ -8014,9 +8024,10 @@ export interface components {
             hrv_status?: components["schemas"]["HRVStatus"] | null;
             /**
              * Id
+             * Format: uuid
              * @description Unique identifier for the sleep record to update
              */
-            readonly id: number;
+            readonly id: string;
             /** @description Light sleep percentage score */
             light_percentage_score?: components["schemas"]["SleepScore"] | null;
             /**
@@ -8373,9 +8384,10 @@ export interface components {
             changed_at: string;
             /**
              * Id
+             * Format: uuid
              * @description The record's id
              */
-            readonly id: number;
+            readonly id: string;
             /** @description The record; null when it was deleted */
             record?: components["schemas"]["HealthStepsRead"] | null;
             /**
@@ -8425,7 +8437,7 @@ export interface components {
          *
          *     Attributes:
          *         source (Source | None): Source of the steps data (e.g., device, API, manual entry). Optional field.
-         *         id (StrictInt): Unique identifier for the steps record to update. Required field.
+         *         id (uuid.UUID): Unique identifier for the steps record to update. Required field.
          *         user_id (StrictInt): Foreign key reference to the user. Required field.
          */
         HealthStepsRead: {
@@ -8436,9 +8448,10 @@ export interface components {
             date?: string | null;
             /**
              * Id
+             * Format: uuid
              * @description Unique identifier for the steps record to update
              */
-            readonly id: number;
+            readonly id: string;
             /**
              * @description Source of the steps data
              * @default manual
@@ -8499,9 +8512,10 @@ export interface components {
             changed_at: string;
             /**
              * Id
+             * Format: uuid
              * @description The record's id
              */
-            readonly id: number;
+            readonly id: string;
             /** @description The record; null when it was deleted */
             record?: components["schemas"]["HealthTargetsRead"] | null;
             /**
@@ -8527,9 +8541,10 @@ export interface components {
             fasting_seconds?: number | null;
             /**
              * Id
+             * Format: uuid
              * @description Unique identifier for the health target
              */
-            readonly id: number;
+            readonly id: string;
             /**
              * Poop Count
              * @description Target daily bowel movement count
@@ -8625,9 +8640,10 @@ export interface components {
             changed_at: string;
             /**
              * Id
+             * Format: uuid
              * @description The record's id
              */
-            readonly id: number;
+            readonly id: string;
             /** @description The record; null when it was deleted */
             record?: components["schemas"]["HealthWaterRead"] | null;
             /**
@@ -8690,9 +8706,10 @@ export interface components {
             date?: string | null;
             /**
              * Id
+             * Format: uuid
              * @description Unique identifier for the water intake record
              */
-            readonly id: number;
+            readonly id: string;
             /**
              * @description Source of the water intake data
              * @default manual
@@ -8748,9 +8765,10 @@ export interface components {
             changed_at: string;
             /**
              * Id
+             * Format: uuid
              * @description The record's id
              */
-            readonly id: number;
+            readonly id: string;
             /** @description The record; null when it was deleted */
             record?: components["schemas"]["HealthWeightRead"] | null;
             /**
@@ -8846,7 +8864,7 @@ export interface components {
          *
          *     Attributes:
          *         source (Source | None): The source or device from which the weight data was obtained.
-         *         id (StrictInt): Unique identifier for the weight record to update.
+         *         id (uuid.UUID): Unique identifier for the weight record to update.
          *         user_id (StrictInt): Foreign key reference to the user.
          */
         HealthWeightRead: {
@@ -8877,9 +8895,10 @@ export interface components {
             date?: string | null;
             /**
              * Id
+             * Format: uuid
              * @description Unique identifier for the weight record to update
              */
-            readonly id: number;
+            readonly id: string;
             /**
              * Metabolic Age
              * @description Metabolic age in years
@@ -9190,9 +9209,10 @@ export interface components {
         IdentityProviderLinkRead: {
             /**
              * Id
+             * Format: uuid
              * @description Link ID
              */
-            readonly id: number;
+            readonly id: string;
             /**
              * Idp Icon
              * @description Identity provider icon
@@ -9622,9 +9642,10 @@ export interface components {
             readonly created_at: string;
             /**
              * Id
+             * Format: uuid
              * @description Unique notification ID
              */
-            readonly id: number;
+            readonly id: string;
             options: components["schemas"]["IdpLinkedNotificationOptions"];
             /**
              * Read
@@ -9781,9 +9802,10 @@ export interface components {
             device_type?: string | null;
             /**
              * Id
+             * Format: uuid
              * @description Device ID
              */
-            readonly id: number;
+            readonly id: string;
             /**
              * Last Seen At
              * Format: date-time
@@ -10461,9 +10483,10 @@ export interface components {
             readonly created_at: string;
             /**
              * Id
+             * Format: uuid
              * @description Unique notification ID
              */
-            readonly id: number;
+            readonly id: string;
             options: components["schemas"]["NewDeviceSignInNotificationOptions"];
             /**
              * Read
@@ -10527,7 +10550,7 @@ export interface components {
              * Ids
              * @description IDs of the notifications to mark as read
              */
-            ids: number[];
+            ids: string[];
         };
         /**
          * OnboardingCreate
@@ -12165,9 +12188,10 @@ export interface components {
             readonly created_at: string;
             /**
              * Id
+             * Format: uuid
              * @description Unique notification ID
              */
-            readonly id: number;
+            readonly id: string;
             options: components["schemas"]["StravaTokenExpiredNotificationOptions"];
             /**
              * Read
@@ -12834,9 +12858,10 @@ export interface components {
             hike_gear_id?: number | null;
             /**
              * Id
+             * Format: uuid
              * @description Unique identifier
              */
-            readonly id: number;
+            readonly id: string;
             /**
              * Mtb Ride Gear Id
              * @description Default gear for MTB ride activities
@@ -13152,9 +13177,10 @@ export interface components {
             goal_elevation?: number | null;
             /**
              * Goal Id
+             * Format: uuid
              * @description Goal identifier
              */
-            goal_id: number;
+            goal_id: string;
             goal_type: components["schemas"]["GoalType"];
             /** @description Goal time interval */
             interval: components["schemas"]["Interval-Output"];
@@ -13235,9 +13261,10 @@ export interface components {
             goal_type: components["schemas"]["GoalType"];
             /**
              * Id
+             * Format: uuid
              * @description Unique identifier for the goal
              */
-            readonly id: number;
+            readonly id: string;
             /** @description Goal time interval */
             interval: components["schemas"]["Interval-Output"];
             /**
@@ -13666,9 +13693,10 @@ export interface components {
             hide_activity_workout_sets_steps: boolean | null;
             /**
              * Id
+             * Format: uuid
              * @description Unique identifier for privacy settings
              */
-            readonly id: number;
+            readonly id: string;
             /**
              * User Id
              * @description Foreign key reference to the user
@@ -14022,9 +14050,10 @@ export interface components {
             readonly created_at: string;
             /**
              * Id
+             * Format: uuid
              * @description Unique notification ID
              */
-            readonly id: number;
+            readonly id: string;
             options: components["schemas"]["UserReferenceNotificationOptions"];
             /**
              * Read
@@ -20098,7 +20127,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                health_fasting_id: number;
+                health_fasting_id: string;
             };
             cookie?: never;
         };
@@ -20201,7 +20230,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                health_fasting_id: number;
+                health_fasting_id: string;
             };
             cookie?: never;
         };
@@ -20336,7 +20365,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                health_fasting_id: number;
+                health_fasting_id: string;
             };
             cookie?: never;
         };
@@ -20488,7 +20517,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                health_fasting_id: number;
+                health_fasting_id: string;
             };
             cookie?: never;
         };
@@ -20933,7 +20962,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                health_poop_id: number;
+                health_poop_id: string;
             };
             cookie?: never;
         };
@@ -21036,7 +21065,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                health_poop_id: number;
+                health_poop_id: string;
             };
             cookie?: never;
         };
@@ -21171,7 +21200,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                health_poop_id: number;
+                health_poop_id: string;
             };
             cookie?: never;
         };
@@ -21709,7 +21738,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                health_sleep_id: number;
+                health_sleep_id: string;
             };
             cookie?: never;
         };
@@ -21812,7 +21841,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                health_sleep_id: number;
+                health_sleep_id: string;
             };
             cookie?: never;
         };
@@ -21947,7 +21976,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                health_sleep_id: number;
+                health_sleep_id: string;
             };
             cookie?: never;
         };
@@ -22467,7 +22496,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                health_steps_id: number;
+                health_steps_id: string;
             };
             cookie?: never;
         };
@@ -22570,7 +22599,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                health_steps_id: number;
+                health_steps_id: string;
             };
             cookie?: never;
         };
@@ -22705,7 +22734,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                health_steps_id: number;
+                health_steps_id: string;
             };
             cookie?: never;
         };
@@ -23368,7 +23397,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                health_water_id: number;
+                health_water_id: string;
             };
             cookie?: never;
         };
@@ -23471,7 +23500,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                health_water_id: number;
+                health_water_id: string;
             };
             cookie?: never;
         };
@@ -23606,7 +23635,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                health_water_id: number;
+                health_water_id: string;
             };
             cookie?: never;
         };
@@ -24051,7 +24080,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                health_weight_id: number;
+                health_weight_id: string;
             };
             cookie?: never;
         };
@@ -24154,7 +24183,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                health_weight_id: number;
+                health_weight_id: string;
             };
             cookie?: never;
         };
@@ -24289,7 +24318,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                health_weight_id: number;
+                health_weight_id: string;
             };
             cookie?: never;
         };
@@ -25814,7 +25843,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                notification_id: number;
+                notification_id: string;
             };
             cookie?: never;
         };
@@ -25914,7 +25943,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                notification_id: number;
+                notification_id: string;
             };
             cookie?: never;
         };
@@ -26021,7 +26050,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                notification_id: number;
+                notification_id: string;
             };
             cookie?: never;
         };
@@ -27704,7 +27733,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                device_id: number;
+                device_id: string;
             };
             cookie?: never;
         };
@@ -28898,7 +28927,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                goal_id: number;
+                goal_id: string;
             };
             cookie?: never;
         };
@@ -29001,7 +29030,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                goal_id: number;
+                goal_id: string;
             };
             cookie?: never;
         };
@@ -29153,7 +29182,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                goal_id: number;
+                goal_id: string;
             };
             cookie?: never;
         };

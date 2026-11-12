@@ -16,7 +16,7 @@ vi.mock('@/services/http', () => ({
 }))
 
 const linkedDto: LinkedProviderDto = {
-  id: 3,
+  id: '00000000-0000-4000-8000-000000000003',
   user_id: 7,
   idp_id: 2,
   idp_subject: 'sub-abc',
@@ -30,7 +30,7 @@ const linkedDto: LinkedProviderDto = {
 }
 
 const mappedLinked = {
-  id: 3,
+  id: '00000000-0000-4000-8000-000000000003',
   idpId: 2,
   name: 'Keycloak',
   slug: 'keycloak',
@@ -52,7 +52,7 @@ describe('mapLinkedProvider', () => {
   it('collapses absent enriched fields to null', () => {
     expect(
       mapLinkedProvider({
-        id: 1,
+        id: '00000000-0000-4000-8000-000000000001',
         user_id: 1,
         idp_id: 9,
         idp_icon_uploaded: false,
@@ -60,7 +60,7 @@ describe('mapLinkedProvider', () => {
         linked_at: '2026-01-01',
       }),
     ).toEqual({
-      id: 1,
+      id: '00000000-0000-4000-8000-000000000001',
       idpId: 9,
       name: null,
       slug: null,

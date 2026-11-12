@@ -54,7 +54,7 @@ describe('a stale versioned write', () => {
     const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
     vi.mocked(apiFetch).mockRejectedValue(stale)
     const goal: Goal = {
-      id: 4,
+      id: '00000000-0000-4000-8000-000000000004',
       userId: 1,
       version: 2,
       interval: 'weekly',

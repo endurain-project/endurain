@@ -253,7 +253,7 @@ export type UserIdentityProviderDto = Schemas['IdentityProviderLinkRead']
  * @property lastLogin - Last login using this provider (ISO string), if any.
  */
 export interface UserIdentityProvider {
-  id: number
+  id: string
   idpId: number
   name: string | null
   slug: string | null

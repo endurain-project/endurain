@@ -55,7 +55,7 @@ const otherDevicesCount = computed(() => devices.value.filter((device) => !devic
 
 const isStepUpOpen = ref(false)
 const idpReauth = ref<IdpReauth | null>(null)
-const deviceIdToForget = ref<number | null>(null)
+const deviceIdToForget = ref<string | null>(null)
 const isForgetOthersOpen = ref(false)
 const forgetOthersReauth = ref<IdpReauth | null>(null)
 const isForgetAllOpen = ref(false)
@@ -80,7 +80,7 @@ function openForget(device: KnownDevice): void {
 onMounted(() => {
   const { resume } = props
   const id = resume?.pending.deviceId
-  if (resume?.action === 'profile_device_forget' && typeof id === 'number') {
+  if (resume?.action === 'profile_device_forget' && typeof id === 'string') {
     deviceIdToForget.value = id
     idpReauth.value = resume.reauth
     isStepUpOpen.value = true

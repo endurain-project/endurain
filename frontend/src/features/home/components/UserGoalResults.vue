@@ -44,7 +44,7 @@ const GOAL_ACTIVITY_TYPE: Record<GoalActivityType, ActivityType> = {
 
 /** A goal prepared for display: localized labels, formatted values, and an icon. */
 interface GoalRow {
-  goalId: number
+  goalId: string
   icon: LucideIcon
   label: string
   metricLabel: string

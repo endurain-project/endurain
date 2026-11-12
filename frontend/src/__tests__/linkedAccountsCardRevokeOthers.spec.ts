@@ -29,7 +29,7 @@ vi.mock('@/features/security/composables/useLinkedAccounts', () => ({
   useLinkedProvidersQuery: () => ({
     data: computed(() => [
       {
-        id: 1,
+        id: '00000000-0000-4000-8000-000000000001',
         idpId: 11,
         name: 'Keycloak',
         slug: 'kc',

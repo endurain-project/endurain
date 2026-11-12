@@ -452,13 +452,13 @@ describe('known devices', () => {
   it('maps a known device, collapsing missing descriptions to null', () => {
     expect(
       mapKnownDevice({
-        id: 4,
+        id: '00000000-0000-4000-8000-000000000004',
         created_at: '2026-01-01T00:00:00Z',
         last_seen_at: '2026-01-02T00:00:00Z',
         current: false,
       }),
     ).toEqual({
-      id: 4,
+      id: '00000000-0000-4000-8000-000000000004',
       browser: null,
       operatingSystem: null,
       deviceType: null,
@@ -472,7 +472,7 @@ describe('known devices', () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({
       items: [
         {
-          id: 4,
+          id: '00000000-0000-4000-8000-000000000004',
           browser: 'Firefox',
           operating_system: 'Linux',
           device_type: 'PC',
@@ -487,19 +487,31 @@ describe('known devices', () => {
     const devices = await fetchKnownDevices()
 
     expect(String(vi.mocked(apiFetch).mock.calls[0]?.[0])).toContain('/profile/devices')
-    expect(devices).toEqual([expect.objectContaining({ id: 4, browser: 'Firefox', current: true })])
+    expect(devices).toEqual([
+      expect.objectContaining({
+        id: '00000000-0000-4000-8000-000000000004',
+        browser: 'Firefox',
+        current: true,
+      }),
+    ])
   })
 
   it('forgetKnownDevice POSTs the step-up body to the delete route', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await forgetKnownDevice(4, { currentPassword: 'pw', mfaCode: null })
-
-    expect(apiFetch).toHaveBeenCalledWith('/profile/devices/4/delete', {
-      method: 'POST',
-      body: JSON.stringify({ step_up: { current_password: 'pw', mfa_code: null } }),
-      responseType: 'void',
+    await forgetKnownDevice('00000000-0000-4000-8000-000000000004', {
+      currentPassword: 'pw',
+      mfaCode: null,
     })
+
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/profile/devices/00000000-0000-4000-8000-000000000004/delete',
+      {
+        method: 'POST',
+        body: JSON.stringify({ step_up: { current_password: 'pw', mfa_code: null } }),
+        responseType: 'void',
+      },
+    )
   })
 
   it('forgetOtherKnownDevices POSTs the step-up body to the bulk revoke route', async () => {

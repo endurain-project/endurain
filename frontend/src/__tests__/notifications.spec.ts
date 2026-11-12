@@ -23,8 +23,13 @@ vi.mock('@/services/http', () => ({
   apiFetch: vi.fn<typeof apiFetch>(),
 }))
 
+/** Builds a stable UUID from a small number so ids stay readable in assertions. */
+function uuidOf(n: number): string {
+  return `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
+}
+
 const dto: NotificationDto = {
-  id: 7,
+  id: uuidOf(7),
   type: 'new_activity',
   read: false,
   options: { activity_id: 42 },
@@ -32,9 +37,9 @@ const dto: NotificationDto = {
   user_id: 1,
 }
 
-function notification(overrides: { id?: number; read?: boolean } = {}): Notification {
+function notification(overrides: { id?: string; read?: boolean } = {}): Notification {
   return {
-    id: 7,
+    id: uuidOf(7),
     type: 'new_activity',
     read: false,
     options: { activity_id: 42 },
@@ -98,9 +103,9 @@ describe('notification service requests', () => {
   it('marks a notification read via a void POST', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await markNotificationRead(7)
+    await markNotificationRead(uuidOf(7))
 
-    expect(apiFetch).toHaveBeenCalledWith('/notifications/7/read', {
+    expect(apiFetch).toHaveBeenCalledWith(`/notifications/${uuidOf(7)}/read`, {
       method: 'POST',
       responseType: 'void',
     })
@@ -132,17 +137,17 @@ describe('optimistic read cache helpers', () => {
   it('flips read to true across every cached list and snapshots the prior state', () => {
     const listKey = queryKeys.notifications.list({ numRecords: 6 })
     const otherKey = queryKeys.notifications.list({ page: 2, numRecords: 25 })
-    client.setQueryData(listKey, [notification({ id: 7 }), notification({ id: 8 })])
-    client.setQueryData(otherKey, [notification({ id: 7 })])
+    client.setQueryData(listKey, [notification({ id: uuidOf(7) }), notification({ id: uuidOf(8) })])
+    client.setQueryData(otherKey, [notification({ id: uuidOf(7) })])
 
-    const snapshot = applyOptimisticRead(client, 7)
+    const snapshot = applyOptimisticRead(client, uuidOf(7))
 
     expect(client.getQueryData<Notification[]>(listKey)).toEqual([
-      notification({ id: 7, read: true }),
-      notification({ id: 8 }),
+      notification({ id: uuidOf(7), read: true }),
+      notification({ id: uuidOf(8) }),
     ])
     expect(client.getQueryData<Notification[]>(otherKey)).toEqual([
-      notification({ id: 7, read: true }),
+      notification({ id: uuidOf(7), read: true }),
     ])
     // The snapshot captured the lists before the optimistic flip.
     expect(snapshot).toHaveLength(2)
@@ -150,10 +155,10 @@ describe('optimistic read cache helpers', () => {
 
   it('restores the exact prior state on rollback', () => {
     const listKey = queryKeys.notifications.list({ numRecords: 6 })
-    const original = [notification({ id: 7 }), notification({ id: 8 })]
+    const original = [notification({ id: uuidOf(7) }), notification({ id: uuidOf(8) })]
     client.setQueryData(listKey, original)
 
-    const snapshot = applyOptimisticRead(client, 7)
+    const snapshot = applyOptimisticRead(client, uuidOf(7))
     restoreNotifications(client, snapshot)
 
     expect(client.getQueryData<Notification[]>(listKey)).toEqual(original)
@@ -163,18 +168,24 @@ describe('optimistic read cache helpers', () => {
     const infiniteKey = queryKeys.notifications.list({ numRecords: 25 })
     client.setQueryData<InfiniteData<NotificationsSlice>>(infiniteKey, {
       pages: [
-        { items: [notification({ id: 7 }), notification({ id: 8 })], nextCursor: 'c1' },
-        { items: [notification({ id: 9 })], nextCursor: null },
+        {
+          items: [notification({ id: uuidOf(7) }), notification({ id: uuidOf(8) })],
+          nextCursor: 'c1',
+        },
+        { items: [notification({ id: uuidOf(9) })], nextCursor: null },
       ],
       pageParams: [null, 'c1'],
     })
 
-    applyOptimisticRead(client, 8)
+    applyOptimisticRead(client, uuidOf(8))
 
     expect(client.getQueryData<InfiniteData<NotificationsSlice>>(infiniteKey)).toEqual({
       pages: [
-        { items: [notification({ id: 7 }), notification({ id: 8, read: true })], nextCursor: 'c1' },
-        { items: [notification({ id: 9 })], nextCursor: null },
+        {
+          items: [notification({ id: uuidOf(7) }), notification({ id: uuidOf(8), read: true })],
+          nextCursor: 'c1',
+        },
+        { items: [notification({ id: uuidOf(9) })], nextCursor: null },
       ],
       pageParams: [null, 'c1'],
     })
@@ -183,12 +194,12 @@ describe('optimistic read cache helpers', () => {
   it('restores an infinite-query snapshot on rollback', () => {
     const infiniteKey = queryKeys.notifications.list({ numRecords: 25 })
     const original: InfiniteData<NotificationsSlice> = {
-      pages: [{ items: [notification({ id: 7 })], nextCursor: null }],
+      pages: [{ items: [notification({ id: uuidOf(7) })], nextCursor: null }],
       pageParams: [null],
     }
     client.setQueryData(infiniteKey, original)
 
-    const snapshot = applyOptimisticRead(client, 7)
+    const snapshot = applyOptimisticRead(client, uuidOf(7))
     restoreNotifications(client, snapshot)
 
     expect(client.getQueryData<InfiniteData<NotificationsSlice>>(infiniteKey)).toEqual(original)
@@ -197,11 +208,14 @@ describe('optimistic read cache helpers', () => {
   it('flips every row read across all cached lists when marking all read', () => {
     const listKey = queryKeys.notifications.list({ numRecords: 6 })
     const infiniteKey = queryKeys.notifications.list({ numRecords: 25 })
-    client.setQueryData(listKey, [notification({ id: 7 }), notification({ id: 8, read: true })])
+    client.setQueryData(listKey, [
+      notification({ id: uuidOf(7) }),
+      notification({ id: uuidOf(8), read: true }),
+    ])
     client.setQueryData<InfiniteData<NotificationsSlice>>(infiniteKey, {
       pages: [
-        { items: [notification({ id: 9 })], nextCursor: 'c1' },
-        { items: [notification({ id: 10 })], nextCursor: null },
+        { items: [notification({ id: uuidOf(9) })], nextCursor: 'c1' },
+        { items: [notification({ id: uuidOf(10) })], nextCursor: null },
       ],
       pageParams: [null, 'c1'],
     })
@@ -209,13 +223,13 @@ describe('optimistic read cache helpers', () => {
     const snapshot = applyOptimisticReadAll(client)
 
     expect(client.getQueryData<Notification[]>(listKey)).toEqual([
-      notification({ id: 7, read: true }),
-      notification({ id: 8, read: true }),
+      notification({ id: uuidOf(7), read: true }),
+      notification({ id: uuidOf(8), read: true }),
     ])
     expect(client.getQueryData<InfiniteData<NotificationsSlice>>(infiniteKey)).toEqual({
       pages: [
-        { items: [notification({ id: 9, read: true })], nextCursor: 'c1' },
-        { items: [notification({ id: 10, read: true })], nextCursor: null },
+        { items: [notification({ id: uuidOf(9), read: true })], nextCursor: 'c1' },
+        { items: [notification({ id: uuidOf(10), read: true })], nextCursor: null },
       ],
       pageParams: [null, 'c1'],
     })

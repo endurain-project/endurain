@@ -68,7 +68,7 @@ const editOtherField = (selector: string, value: string) => async (wrapper: VueW
 describe('an untouched imperial field keeps the stored metric value', () => {
   it('weight, bone mass and muscle mass', async () => {
     const entry: WeightEntry = {
-      id: 3,
+      id: '00000000-0000-4000-8000-000000000003',
       userId: 1,
       version: 4,
       date: '2026-10-30',
@@ -92,7 +92,7 @@ describe('an untouched imperial field keeps the stored metric value', () => {
 
   it('water', async () => {
     const entry: WaterEntry = {
-      id: 9,
+      id: '00000000-0000-4000-8000-000000000009',
       userId: 1,
       version: 2,
       date: '2026-10-30',
@@ -174,7 +174,7 @@ describe('an untouched imperial field keeps the stored metric value', () => {
     ['duration', { goalType: 'duration', durationSeconds: 3661 }, { goal_duration: 3661 }],
   ])('goal %s', async (_name, target, expected) => {
     const goal: Goal = {
-      id: 4,
+      id: '00000000-0000-4000-8000-000000000004',
       userId: 1,
       version: 2,
       interval: 'weekly',
@@ -198,7 +198,7 @@ describe('an untouched imperial field keeps the stored metric value', () => {
 describe('an edited imperial value is still converted', () => {
   it('water', async () => {
     const entry: WaterEntry = {
-      id: 9,
+      id: '00000000-0000-4000-8000-000000000009',
       userId: 1,
       version: 2,
       date: '2026-10-30',
@@ -219,7 +219,7 @@ describe('an edited imperial value is still converted', () => {
 
   it('weight', async () => {
     const entry = {
-      id: 3,
+      id: '00000000-0000-4000-8000-000000000003',
       userId: 1,
       version: 4,
       date: '2026-10-30',

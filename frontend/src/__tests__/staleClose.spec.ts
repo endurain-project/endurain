@@ -90,7 +90,7 @@ vi.mock('@/features/profile/composables/useDefaultGear', async (importOriginal) 
 })
 
 const waterEntry: WaterEntry = {
-  id: 9,
+  id: '00000000-0000-4000-8000-000000000009',
   userId: 1,
   version: 2,
   date: '2026-10-30',
@@ -147,7 +147,7 @@ const dialogStubs = {
 }
 
 const targets: HealthTargets = {
-  id: 1,
+  id: '00000000-0000-4000-8000-000000000001',
   userId: 1,
   version: 3,
   sleepSeconds: 28800,

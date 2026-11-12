@@ -48,7 +48,7 @@ export function useCreateGoalMutation() {
  * @returns The TanStack Query mutation for updating a goal.
  */
 export function useUpdateGoalMutation() {
-  return useInvalidatingMutation<Goal, { id: number; input: GoalInput; version: number }>({
+  return useInvalidatingMutation<Goal, { id: string; input: GoalInput; version: number }>({
     mutationKey: queryKeys.goals.all(),
     mutationFn: ({ id, input, version }) => updateGoal(id, input, version),
   })
@@ -60,7 +60,7 @@ export function useUpdateGoalMutation() {
  * @returns The TanStack Query mutation for deleting a goal.
  */
 export function useDeleteGoalMutation() {
-  return useInvalidatingMutation<void, { id: number; version: number }>({
+  return useInvalidatingMutation<void, { id: string; version: number }>({
     mutationKey: queryKeys.goals.all(),
     mutationFn: ({ id, version }) => deleteGoal(id, version),
   })

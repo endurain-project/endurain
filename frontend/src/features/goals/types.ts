@@ -39,7 +39,7 @@ export type GoalMetric = Schemas['UserGoalCreate']['goal_type']
  * @property durationSeconds - Target duration in seconds when `goalType` is `duration`, else `null`.
  */
 export interface Goal {
-  id: number
+  id: string
   userId: number
   /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
   version: number
@@ -95,7 +95,7 @@ export interface GoalFilters {
  * @property target - Target value in the metric's base unit, `null` when unset.
  */
 export interface GoalProgress {
-  goalId: number
+  goalId: string
   interval: GoalInterval
   activityType: GoalActivityType
   goalType: GoalMetric

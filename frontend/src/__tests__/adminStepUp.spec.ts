@@ -186,7 +186,7 @@ describe('UserDeleteDialog', () => {
 
 describe('UserIdentityProvidersList unlink', () => {
   const provider: UserIdentityProvider = {
-    id: 3,
+    id: '00000000-0000-4000-8000-000000000003',
     idpId: 11,
     name: 'Authelia',
     slug: 'authelia',

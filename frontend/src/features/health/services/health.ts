@@ -234,7 +234,7 @@ async function createHealthResource<Dto, Entry, Payload extends object>(
 /** Changes the given fields of a health resource record and maps the returned record. */
 async function updateHealthResource<Dto, Entry, Payload extends object>(
   resource: string,
-  id: number,
+  id: string,
   payload: Payload,
   version: number,
   mapEntry: (dto: Dto) => Entry,
@@ -248,7 +248,7 @@ async function updateHealthResource<Dto, Entry, Payload extends object>(
 }
 
 /** Deletes a single health-history record, conditional on the version the caller read. */
-async function deleteHealthResource(resource: string, id: number, version: number): Promise<void> {
+async function deleteHealthResource(resource: string, id: string, version: number): Promise<void> {
   await apiFetch<void>(`/health/${resource}/${id}`, {
     method: 'DELETE',
     headers: ifMatchHeaders(version),
@@ -276,9 +276,9 @@ interface HealthCrudService<Entry, Input> {
   /** Creates a record, which is refused when the day already has one, and maps the response. */
   create: (input: Input) => Promise<Entry>
   /** Changes an existing record, conditional on the version the caller read, and maps the response. */
-  update: (id: number, input: Input, version: number) => Promise<Entry>
+  update: (id: string, input: Input, version: number) => Promise<Entry>
   /** Deletes a record, conditional on the version the caller read. */
-  remove: (id: number, version: number) => Promise<void>
+  remove: (id: string, version: number) => Promise<void>
 }
 
 /**
@@ -623,7 +623,7 @@ export async function createFastingEntry(input: FastingEntryInput): Promise<Fast
  * @throws {HttpError} When the request fails.
  */
 export async function updateFastingEntry(
-  id: number,
+  id: string,
   input: FastingEntryInput,
   version: number,
 ): Promise<FastingEntry> {
@@ -651,7 +651,7 @@ export async function updateFastingEntry(
  * @throws {HttpError} When the request fails, including 412 when the session changed meanwhile.
  */
 export async function completeFastingEntry(
-  id: number,
+  id: string,
   fastEndTime: string,
   status: FastingStatus,
   version: number,
@@ -672,7 +672,7 @@ export async function completeFastingEntry(
  * @param version - The row version the session was read at, for `If-Match`.
  * @throws {HttpError} When the request fails (`412` when the session changed since it was read).
  */
-export async function deleteFastingEntry(id: number, version: number): Promise<void> {
+export async function deleteFastingEntry(id: string, version: number): Promise<void> {
   await deleteHealthResource('fasting', id, version)
 }
 
@@ -815,7 +815,7 @@ export function fetchSleepEntries(
  * @returns The full sleep entry.
  * @throws {HttpError} When the request fails.
  */
-export async function fetchSleepEntry(id: number, signal?: AbortSignal): Promise<SleepEntry> {
+export async function fetchSleepEntry(id: string, signal?: AbortSignal): Promise<SleepEntry> {
   const dto = await apiFetch<HealthSleepDto>(`/health/sleep/${id}`, { signal })
   return mapSleepEntry(dto)
 }

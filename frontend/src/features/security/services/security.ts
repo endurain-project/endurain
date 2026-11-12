@@ -373,7 +373,7 @@ export async function fetchKnownDevices(signal?: AbortSignal): Promise<KnownDevi
  * @param input - The step-up credentials.
  * @throws {HttpError} When the request fails (403 step-up, 404 no such device).
  */
-export async function forgetKnownDevice(deviceId: number, input: StepUpInput): Promise<void> {
+export async function forgetKnownDevice(deviceId: string, input: StepUpInput): Promise<void> {
   await apiFetch(`/profile/devices/${deviceId}/delete`, {
     method: 'POST',
     body: JSON.stringify({ step_up: toStepUpWire(input) } satisfies StepUpRequestDto),

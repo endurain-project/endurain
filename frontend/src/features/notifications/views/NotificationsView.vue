@@ -50,12 +50,12 @@ function refetchList(): void {
 }
 
 /** Optimistically marks a notification read through the shared mutation. */
-function onMarkRead(id: number): void {
+function onMarkRead(id: string): void {
   markReadMutation.mutate(id)
 }
 
 /** Deletes one notification; a failure rolls the row back and shows an error toast. */
-function onDismiss(id: number): void {
+function onDismiss(id: string): void {
   deleteMutation.mutate(id, { onError: () => toasts.error(t('notifications.dismissError')) })
 }
 

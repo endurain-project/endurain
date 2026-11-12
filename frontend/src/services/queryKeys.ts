@@ -118,7 +118,7 @@ export const queryKeys = {
      * @param id - The sleep record id.
      * @returns The key of one sleep record read with its stage timeline.
      */
-    sleepItem: (id: number) => ['health', 'sleep', 'item', id] as const,
+    sleepItem: (id: string) => ['health', 'sleep', 'item', id] as const,
   },
 
   /** Reference domain factory — copy this shape for activities, gears, etc. */
@@ -143,7 +143,7 @@ export const queryKeys = {
      * @param id - Notification identifier.
      * @returns A detail query key for a single notification.
      */
-    detail: (id: number) => ['notifications', 'detail', id] as const,
+    detail: (id: string) => ['notifications', 'detail', id] as const,
   },
 
   /**

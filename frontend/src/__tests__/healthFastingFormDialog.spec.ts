@@ -16,7 +16,7 @@ vi.mock('@/services/http', async (importOriginal) => ({
 }))
 
 const entry: FastingEntry = {
-  id: 5,
+  id: '00000000-0000-4000-8000-000000000005',
   userId: 1,
   version: 2,
   fastStartTime: '2026-06-25T08:00:00.000Z',

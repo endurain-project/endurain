@@ -136,7 +136,7 @@ type CachedNotifications = Notification[] | InfiniteData<NotificationsSlice>
  */
 function markNotificationReadInCache(
   data: CachedNotifications | undefined,
-  id: number,
+  id: string,
 ): CachedNotifications | undefined {
   if (!data) {
     return data
@@ -187,7 +187,7 @@ export type NotificationsSnapshot = [readonly unknown[], CachedNotifications | u
  * @param id - The notification id being marked read.
  * @returns A snapshot of the lists as they were before the update.
  */
-export function applyOptimisticRead(client: QueryClient, id: number): NotificationsSnapshot {
+export function applyOptimisticRead(client: QueryClient, id: string): NotificationsSnapshot {
   const snapshot = client.getQueriesData<CachedNotifications>({
     queryKey: queryKeys.notifications.lists(),
   })
@@ -249,7 +249,7 @@ export function restoreNotifications(client: QueryClient, snapshot: Notification
 export function useMarkNotificationReadMutation() {
   const client = useQueryClient()
 
-  return useMutation<void, Error, number, NotificationsSnapshot>({
+  return useMutation<void, Error, string, NotificationsSnapshot>({
     mutationKey: queryKeys.notifications.all(),
     mutationFn: (id) => markNotificationRead(id),
     onMutate: async (id) => {
@@ -308,7 +308,7 @@ export function useMarkAllNotificationsReadMutation() {
  */
 function removeNotificationFromCache(
   data: CachedNotifications | undefined,
-  id: number,
+  id: string,
 ): CachedNotifications | undefined {
   if (!data) {
     return data
@@ -335,7 +335,7 @@ function removeNotificationFromCache(
 export function useDeleteNotificationMutation() {
   const client = useQueryClient()
 
-  return useMutation<void, Error, number, NotificationsSnapshot>({
+  return useMutation<void, Error, string, NotificationsSnapshot>({
     mutationKey: queryKeys.notifications.all(),
     mutationFn: async (id) => {
       try {

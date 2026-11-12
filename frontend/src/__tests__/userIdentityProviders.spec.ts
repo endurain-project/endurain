@@ -16,7 +16,7 @@ vi.mock('@/services/http', () => ({
 /** Builds a full `IdentityProviderLinkRead` wire payload, overridable per case. */
 function makeIdpDto(overrides: Partial<UserIdentityProviderDto> = {}): UserIdentityProviderDto {
   return {
-    id: 3,
+    id: '00000000-0000-4000-8000-000000000003',
     user_id: 7,
     idp_id: 11,
     idp_name: 'Authelia',
@@ -38,7 +38,7 @@ describe('user identity providers service', () => {
 
   it('mapUserIdentityProvider camel-cases the wire shape', () => {
     expect(mapUserIdentityProvider(makeIdpDto())).toEqual({
-      id: 3,
+      id: '00000000-0000-4000-8000-000000000003',
       idpId: 11,
       name: 'Authelia',
       slug: 'authelia',

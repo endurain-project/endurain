@@ -77,7 +77,7 @@ export async function fetchUnreadNotificationsCount(signal?: AbortSignal): Promi
  * @param id - The notification id to mark as read.
  * @throws {HttpError} When the request fails.
  */
-export async function markNotificationRead(id: number): Promise<void> {
+export async function markNotificationRead(id: string): Promise<void> {
   await apiFetch<void>(`/notifications/${id}/read`, {
     method: 'POST',
     responseType: 'void',
@@ -104,7 +104,7 @@ export async function markAllNotificationsRead(): Promise<void> {
  * @param id - The notification id to delete.
  * @throws {HttpError} When the request fails; a `404` means it was already gone.
  */
-export async function deleteNotification(id: number): Promise<void> {
+export async function deleteNotification(id: string): Promise<void> {
   await apiFetch<void>(`/notifications/${id}`, {
     method: 'DELETE',
     responseType: 'void',

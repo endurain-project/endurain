@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   forgetAllMutate: vi.fn<(...args: unknown[]) => void>(),
 }))
 
-const device = (id: number, current: boolean) => ({
+const device = (id: string, current: boolean) => ({
   id,
   browser: 'Firefox',
   operatingSystem: 'Linux',
@@ -53,7 +53,10 @@ function mountCard() {
 
 describe('KnownDevicesCard forget one device', () => {
   it('disables the forget button of the current device only', () => {
-    mocks.devices = [device(1, true), device(2, false)]
+    mocks.devices = [
+      device('00000000-0000-4000-8000-000000000001', true),
+      device('00000000-0000-4000-8000-000000000002', false),
+    ]
     const rows = mountCard().findAll('li')
 
     expect(rows[0]!.find('button').attributes('disabled')).toBeDefined()
@@ -61,7 +64,10 @@ describe('KnownDevicesCard forget one device', () => {
   })
 
   it('opens the forget dialog for another device', async () => {
-    mocks.devices = [device(1, true), device(2, false)]
+    mocks.devices = [
+      device('00000000-0000-4000-8000-000000000001', true),
+      device('00000000-0000-4000-8000-000000000002', false),
+    ]
     const wrapper = mountCard()
     await wrapper.findAll('li')[1]!.find('button').trigger('click')
     const dialog = wrapper
@@ -79,13 +85,16 @@ describe('KnownDevicesCard forget other devices', () => {
   const forgetOthers = i18n.global.t('settings.security.devices.forgetOthers')
 
   it('hides the button when no other device is known', () => {
-    mocks.devices = [device(1, true)]
+    mocks.devices = [device('00000000-0000-4000-8000-000000000001', true)]
 
     expect(mountCard().text()).not.toContain(forgetOthers)
   })
 
   it('opens the confirmation and forgets the other devices with the step-up', async () => {
-    mocks.devices = [device(1, true), device(2, false)]
+    mocks.devices = [
+      device('00000000-0000-4000-8000-000000000001', true),
+      device('00000000-0000-4000-8000-000000000002', false),
+    ]
     const wrapper = mountCard()
     const button = wrapper.findAll('button').find((b) => b.text() === forgetOthers)!
     await button.trigger('click')
@@ -106,13 +115,13 @@ describe('KnownDevicesCard forget all devices', () => {
   const forgetAll = i18n.global.t('settings.security.devices.forgetAll')
 
   it('shows the button even when the current device is the only one', () => {
-    mocks.devices = [device(1, true)]
+    mocks.devices = [device('00000000-0000-4000-8000-000000000001', true)]
 
     expect(mountCard().text()).toContain(forgetAll)
   })
 
   it('opens the confirmation and forgets every device with the step-up', async () => {
-    mocks.devices = [device(1, true)]
+    mocks.devices = [device('00000000-0000-4000-8000-000000000001', true)]
     const wrapper = mountCard()
     const button = wrapper.findAll('button').find((b) => b.text() === forgetAll)!
     await button.trigger('click')

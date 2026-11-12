@@ -179,7 +179,7 @@ export type KnownDeviceDto = Schemas['KnownDeviceRead']
  * @property current - Whether this request comes from the device.
  */
 export interface KnownDevice {
-  id: number
+  id: string
   browser: string | null
   operatingSystem: string | null
   deviceType: string | null
@@ -212,7 +212,7 @@ export type AvailableProvider = Schemas['IdentityProviderPublicRead']
  * @property lastLogin - Last login via this provider (ISO), or `null`.
  */
 export interface LinkedProvider {
-  id: number
+  id: string
   idpId: number
   name: string | null
   slug: string | null

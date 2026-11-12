@@ -19,7 +19,7 @@ export type PoopColor = Schemas['Color']
 /** The user's configured health goals; `null` means "no target set". */
 export interface HealthTargets {
   /** The targets record id (needed to PUT updates in later phases). */
-  id: number
+  id: string
   /** The owning user's id. */
   userId: number
   /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
@@ -109,7 +109,7 @@ export interface HealthChartSeries {
  */
 export interface WeightEntry {
   /** The record id (needed to edit/delete). */
-  id: number
+  id: string
   /** The owning user's id (echoed back on edit). */
   userId: number
   /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
@@ -162,7 +162,7 @@ export interface WeightPage {
 /** A single daily step-count measurement. */
 export interface StepsEntry {
   /** The record id (needed to edit/delete). */
-  id: number
+  id: string
   /** The owning user's id (echoed back on edit). */
   userId: number
   /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
@@ -194,7 +194,7 @@ export interface StepsPage {
 /** A single daily water-intake measurement (stored in millilitres). */
 export interface WaterEntry {
   /** The record id (needed to edit/delete). */
-  id: number
+  id: string
   /** The owning user's id (echoed back on edit). */
   userId: number
   /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
@@ -231,7 +231,7 @@ export interface WaterPage {
  */
 export interface PoopEntry {
   /** The record id (needed to edit/delete). */
-  id: number
+  id: string
   /** The owning user's id (echoed back on edit). */
   userId: number
   /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
@@ -273,7 +273,7 @@ export interface PoopPage {
  */
 export interface RestingHeartRateEntry {
   /** The underlying sleep record id (used as the list key). */
-  id: number
+  id: string
   /** Measurement date as a `yyyy-mm-dd` string, or `null`. */
   date: string | null
   /** Resting heart rate in beats per minute, or `null`. */
@@ -303,7 +303,7 @@ export type FastingStatus = Schemas['FastingStatus']
  */
 export interface FastingEntry {
   /** The record id (needed to edit/delete/complete). */
-  id: number
+  id: string
   /** The owning user's id (echoed back on edit). */
   userId: number
   /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
@@ -393,7 +393,7 @@ export interface SleepStage {
  */
 export interface SleepListEntry {
   /** The record id (needed to edit/delete). */
-  id: number
+  id: string
   /** The owning user's id (echoed back on edit). */
   userId: number
   /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */

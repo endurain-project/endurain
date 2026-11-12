@@ -115,7 +115,7 @@ export function useKnownDevicesQuery() {
 export function useForgetKnownDeviceMutation() {
   const client = useQueryClient()
 
-  return useMutation<void, Error, { deviceId: number; input: StepUpInput }>({
+  return useMutation<void, Error, { deviceId: string; input: StepUpInput }>({
     mutationKey: queryKeys.security.all(),
     mutationFn: ({ deviceId, input }) => forgetKnownDevice(deviceId, input),
     onSettled: () => {

@@ -48,7 +48,12 @@ vi.mock('vue-router', () => ({
   },
 }))
 
-function notification(id: number, read = false): Notification {
+/** Builds a stable UUID from a small number so ids stay readable in assertions. */
+function uuidOf(n: number): string {
+  return `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
+}
+
+function notification(id: string, read = false): Notification {
   return {
     id,
     type: 'new_activity',
@@ -65,9 +70,9 @@ describe('deleteNotification', () => {
   it('sends a void DELETE to the notification', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await deleteNotification(7)
+    await deleteNotification(uuidOf(7))
 
-    expect(apiFetch).toHaveBeenCalledWith('/notifications/7', {
+    expect(apiFetch).toHaveBeenCalledWith(`/notifications/${uuidOf(7)}`, {
       method: 'DELETE',
       responseType: 'void',
     })
@@ -102,18 +107,18 @@ describe('useDeleteNotificationMutation', () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
     const listKey = queryKeys.notifications.list({ numRecords: 25 })
     client.setQueryData<InfiniteData<NotificationsSlice>>(listKey, {
-      pages: [{ items: [notification(7), notification(8)], nextCursor: null }],
+      pages: [{ items: [notification(uuidOf(7)), notification(uuidOf(8))], nextCursor: null }],
       pageParams: [null],
     })
     client.setQueryData(queryKeys.notifications.unreadCount(), 2)
     const invalidate = vi.spyOn(client, 'invalidateQueries')
 
     const mutation = mountMutation()
-    mutation.mutate(7)
+    mutation.mutate(uuidOf(7))
     await flushPromises()
 
     expect(client.getQueryData<InfiniteData<NotificationsSlice>>(listKey)?.pages[0]?.items).toEqual(
-      [notification(8)],
+      [notification(uuidOf(8))],
     )
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.notifications.all() })
     expect(client.getQueryState(queryKeys.notifications.unreadCount())?.isInvalidated).toBe(true)
@@ -126,7 +131,7 @@ describe('useDeleteNotificationMutation', () => {
     const invalidate = vi.spyOn(client, 'invalidateQueries')
 
     const mutation = mountMutation()
-    mutation.mutate(7)
+    mutation.mutate(uuidOf(7))
     await flushPromises()
 
     expect(mutation.isError.value).toBe(false)
@@ -139,13 +144,13 @@ describe('useDeleteNotificationMutation', () => {
     )
     const listKey = queryKeys.notifications.list({ numRecords: 25 })
     const original: InfiniteData<NotificationsSlice> = {
-      pages: [{ items: [notification(7)], nextCursor: null }],
+      pages: [{ items: [notification(uuidOf(7))], nextCursor: null }],
       pageParams: [null],
     }
     client.setQueryData(listKey, original)
 
     const mutation = mountMutation()
-    mutation.mutate(7)
+    mutation.mutate(uuidOf(7))
     await flushPromises()
 
     expect(mutation.isError.value).toBe(true)
@@ -156,20 +161,20 @@ describe('useDeleteNotificationMutation', () => {
 describe('NotificationItem dismiss button', () => {
   it('emits dismiss with the id and does not mark read or navigate', async () => {
     const wrapper = mount(NotificationItem, {
-      props: { notification: notification(7) },
+      props: { notification: notification(uuidOf(7)) },
       global: { plugins: [i18n] },
     })
 
     await wrapper.get('button[data-testid="notification-dismiss"]').trigger('click')
 
-    expect(wrapper.emitted('dismiss')).toEqual([[7]])
+    expect(wrapper.emitted('dismiss')).toEqual([[uuidOf(7)]])
     expect(wrapper.emitted('markRead')).toBeUndefined()
     expect(push).not.toHaveBeenCalled()
   })
 
   it('labels the button for assistive technology', () => {
     const wrapper = mount(NotificationItem, {
-      props: { notification: notification(7, true) },
+      props: { notification: notification(uuidOf(7), true) },
       global: { plugins: [i18n] },
     })
 

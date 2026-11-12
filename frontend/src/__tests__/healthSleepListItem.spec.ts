@@ -20,7 +20,7 @@ vi.mock('@/features/auth/composables/useCurrentUser', () => ({
 /** A list row: the record's metrics and the flag, with no stage rows. */
 function makeRow(overrides: Partial<SleepListEntry> = {}): SleepListEntry {
   return {
-    id: 5,
+    id: '00000000-0000-4000-8000-000000000005',
     userId: 9,
     version: 1,
     date: '2026-06-25',
@@ -59,7 +59,7 @@ function makeRow(overrides: Partial<SleepListEntry> = {}): SleepListEntry {
 }
 
 const fullDto = {
-  id: 5,
+  id: '00000000-0000-4000-8000-000000000005',
   user_id: 9,
   version: 1,
   date: '2026-06-25',
@@ -112,7 +112,10 @@ describe('HealthSleepListItem stage timeline', () => {
 
     await toggle(wrapper).trigger('click')
 
-    expect(apiFetch).toHaveBeenCalledWith('/health/sleep/5', expect.anything())
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/health/sleep/00000000-0000-4000-8000-000000000005',
+      expect.anything(),
+    )
     expect(wrapper.text()).toContain(i18n.global.t('health.sleep.detail.stagesLoading'))
     expect(wrapper.findComponent(HealthSleepHypnogram).exists()).toBe(false)
 

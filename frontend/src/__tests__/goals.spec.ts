@@ -25,7 +25,7 @@ vi.mock('@/services/http', () => ({
 }))
 
 const goalDto: GoalDto = {
-  id: 3,
+  id: '00000000-0000-4000-8000-000000000003',
   user_id: 7,
   version: 4,
   interval: 'weekly',
@@ -35,7 +35,7 @@ const goalDto: GoalDto = {
 }
 
 const mappedGoal = {
-  id: 3,
+  id: '00000000-0000-4000-8000-000000000003',
   userId: 7,
   version: 4,
   interval: 'weekly',
@@ -78,7 +78,7 @@ describe('mapGoal', () => {
   it('collapses absent optional targets to null', () => {
     expect(
       mapGoal({
-        id: 1,
+        id: '00000000-0000-4000-8000-000000000001',
         user_id: 2,
         version: 1,
         interval: 'daily',
@@ -87,7 +87,7 @@ describe('mapGoal', () => {
         goal_duration: 3600,
       }),
     ).toEqual({
-      id: 1,
+      id: '00000000-0000-4000-8000-000000000001',
       userId: 2,
       version: 1,
       interval: 'daily',
@@ -163,7 +163,7 @@ describe('goal service requests', () => {
 
   it('reads every page of the goal results and maps them', async () => {
     const progressDto: GoalProgressDto = {
-      goal_id: 1,
+      goal_id: '00000000-0000-4000-8000-000000000001',
       interval: 'weekly',
       activity_type: 'run',
       goal_type: 'calories',
@@ -175,7 +175,10 @@ describe('goal service requests', () => {
     }
     vi.mocked(apiFetch)
       .mockResolvedValueOnce({ items: [progressDto], next: 2 })
-      .mockResolvedValueOnce({ items: [{ ...progressDto, goal_id: 2 }], next: null })
+      .mockResolvedValueOnce({
+        items: [{ ...progressDto, goal_id: '00000000-0000-4000-8000-000000000002' }],
+        next: null,
+      })
 
     const result = await fetchGoalResults()
 
@@ -189,7 +192,10 @@ describe('goal service requests', () => {
       '/profile/goals/results?num_records=200&page_number=2',
       expect.anything(),
     )
-    expect(result.map((progress) => progress.goalId)).toEqual([1, 2])
+    expect(result.map((progress) => progress.goalId)).toEqual([
+      '00000000-0000-4000-8000-000000000001',
+      '00000000-0000-4000-8000-000000000002',
+    ])
     expect(result[0]).toMatchObject({ total: 250, target: 500, percentageCompleted: 50 })
   })
 
@@ -207,9 +213,9 @@ describe('goal service requests', () => {
   it('replaces a goal via a PUT to its path, guarded by If-Match, without the id', async () => {
     vi.mocked(apiFetch).mockResolvedValue(goalDto)
 
-    await updateGoal(3, goalInput, 4)
+    await updateGoal('00000000-0000-4000-8000-000000000003', goalInput, 4)
 
-    expect(apiFetch).toHaveBeenCalledWith('/profile/goals/3', {
+    expect(apiFetch).toHaveBeenCalledWith('/profile/goals/00000000-0000-4000-8000-000000000003', {
       method: 'PUT',
       headers: { 'If-Match': '"4"' },
       body: JSON.stringify(expectedWirePayload),
@@ -219,9 +225,9 @@ describe('goal service requests', () => {
   it('deletes a goal via a void DELETE', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await deleteGoal(3, 6)
+    await deleteGoal('00000000-0000-4000-8000-000000000003', 6)
 
-    expect(apiFetch).toHaveBeenCalledWith('/profile/goals/3', {
+    expect(apiFetch).toHaveBeenCalledWith('/profile/goals/00000000-0000-4000-8000-000000000003', {
       method: 'DELETE',
       headers: { 'If-Match': '"6"' },
       responseType: 'void',
