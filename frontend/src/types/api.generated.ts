@@ -4700,7 +4700,7 @@ export interface components {
             /** Description */
             description?: string | null;
             /** Gear Id */
-            gear_id?: number | null;
+            gear_id?: string | null;
             /** Hide Cadence */
             hide_cadence?: boolean | null;
             /** Hide Elevation */
@@ -5192,7 +5192,7 @@ export interface components {
             /** Garminconnect Gear Id */
             garminconnect_gear_id?: string | null;
             /** Gear Id */
-            gear_id?: number | null;
+            gear_id?: string | null;
             /** Hide Cadence */
             hide_cadence?: boolean | null;
             /** Hide Elevation */
@@ -5536,7 +5536,7 @@ export interface components {
             /** Garminconnect Gear Id */
             garminconnect_gear_id?: string | null;
             /** Gear Id */
-            gear_id?: number | null;
+            gear_id?: string | null;
             /** Hide Cadence */
             hide_cadence?: boolean | null;
             /** Hide Elevation */
@@ -6328,9 +6328,10 @@ export interface components {
             changed_at: string;
             /**
              * Id
+             * Format: uuid
              * @description The record's id
              */
-            readonly id: number;
+            readonly id: string;
             /** @description The record; null when it was deleted */
             record?: components["schemas"]["GearDetailRead"] | null;
             /**
@@ -6352,9 +6353,10 @@ export interface components {
             changed_at: string;
             /**
              * Id
+             * Format: uuid
              * @description The record's id
              */
-            readonly id: number;
+            readonly id: string;
             /** @description The record; null when it was deleted */
             record?: components["schemas"]["GearComponentRead"] | null;
             /**
@@ -6388,9 +6390,10 @@ export interface components {
             expected_usage?: number | null;
             /**
              * Gear Id
+             * Format: uuid
              * @description Foreign key to gear
              */
-            gear_id: number;
+            gear_id: string;
             /**
              * Model
              * @description Gear component model
@@ -6445,14 +6448,16 @@ export interface components {
             expected_usage?: number | null;
             /**
              * Gear Id
+             * Format: uuid
              * @description Foreign key to gear
              */
-            gear_id: number;
+            gear_id: string;
             /**
              * Id
+             * Format: uuid
              * @description Unique identifier
              */
-            readonly id: number;
+            readonly id: string;
             /**
              * Model
              * @description Gear component model
@@ -6614,14 +6619,16 @@ export interface components {
             expected_usage?: number | null;
             /**
              * Gear Id
+             * Format: uuid
              * @description Foreign key to gear
              */
-            gear_id: number;
+            gear_id: string;
             /**
              * Id
+             * Format: uuid
              * @description Unique identifier
              */
-            readonly id: number;
+            readonly id: string;
             /**
              * Model
              * @description Gear component model
@@ -6745,9 +6752,10 @@ export interface components {
             gear_type: components["schemas"]["GearType"];
             /**
              * Id
+             * Format: uuid
              * @description Unique identifier
              */
-            readonly id: number;
+            readonly id: string;
             /**
              * Initial Distance
              * @description Distance the gear had before it was tracked, in meters, the unit of total_distance
@@ -6844,9 +6852,10 @@ export interface components {
             gear_type: components["schemas"]["GearType"];
             /**
              * Id
+             * Format: uuid
              * @description Unique identifier
              */
-            readonly id: number;
+            readonly id: string;
             /**
              * Initial Distance
              * @description Distance the gear had before it was tracked, in meters, the unit of total_distance
@@ -12853,17 +12862,17 @@ export interface components {
              * Alpine Ski Gear Id
              * @description Default gear for alpine ski activities
              */
-            alpine_ski_gear_id?: number | null;
+            alpine_ski_gear_id?: string | null;
             /**
              * Gravel Ride Gear Id
              * @description Default gear for gravel ride activities
              */
-            gravel_ride_gear_id?: number | null;
+            gravel_ride_gear_id?: string | null;
             /**
              * Hike Gear Id
              * @description Default gear for hike activities
              */
-            hike_gear_id?: number | null;
+            hike_gear_id?: string | null;
             /**
              * Id
              * Format: uuid
@@ -12874,42 +12883,42 @@ export interface components {
              * Mtb Ride Gear Id
              * @description Default gear for MTB ride activities
              */
-            mtb_ride_gear_id?: number | null;
+            mtb_ride_gear_id?: string | null;
             /**
              * Nordic Ski Gear Id
              * @description Default gear for nordic ski activities
              */
-            nordic_ski_gear_id?: number | null;
+            nordic_ski_gear_id?: string | null;
             /**
              * Ows Gear Id
              * @description Default gear for OWS activities
              */
-            ows_gear_id?: number | null;
+            ows_gear_id?: string | null;
             /**
              * Ride Gear Id
              * @description Default gear for ride activities
              */
-            ride_gear_id?: number | null;
+            ride_gear_id?: string | null;
             /**
              * Run Gear Id
              * @description Default gear for run activities
              */
-            run_gear_id?: number | null;
+            run_gear_id?: string | null;
             /**
              * Snowboard Gear Id
              * @description Default gear for snowboard activities
              */
-            snowboard_gear_id?: number | null;
+            snowboard_gear_id?: string | null;
             /**
              * Tennis Gear Id
              * @description Default gear for tennis activities
              */
-            tennis_gear_id?: number | null;
+            tennis_gear_id?: string | null;
             /**
              * Trail Run Gear Id
              * @description Default gear for trail run activities
              */
-            trail_run_gear_id?: number | null;
+            trail_run_gear_id?: string | null;
             /**
              * User Id
              * @description User ID
@@ -12925,22 +12934,22 @@ export interface components {
              * Virtual Ride Gear Id
              * @description Default gear for virtual ride activities
              */
-            virtual_ride_gear_id?: number | null;
+            virtual_ride_gear_id?: string | null;
             /**
              * Virtual Run Gear Id
              * @description Default gear for virtual run activities
              */
-            virtual_run_gear_id?: number | null;
+            virtual_run_gear_id?: string | null;
             /**
              * Walk Gear Id
              * @description Default gear for walk activities
              */
-            walk_gear_id?: number | null;
+            walk_gear_id?: string | null;
             /**
              * Windsurf Gear Id
              * @description Default gear for windsurf activities
              */
-            windsurf_gear_id?: number | null;
+            windsurf_gear_id?: string | null;
         };
         /**
          * UserDefaultGearUpdate
@@ -12954,77 +12963,77 @@ export interface components {
              * Alpine Ski Gear Id
              * @description Default gear for alpine ski activities
              */
-            alpine_ski_gear_id?: number | null;
+            alpine_ski_gear_id?: string | null;
             /**
              * Gravel Ride Gear Id
              * @description Default gear for gravel ride activities
              */
-            gravel_ride_gear_id?: number | null;
+            gravel_ride_gear_id?: string | null;
             /**
              * Hike Gear Id
              * @description Default gear for hike activities
              */
-            hike_gear_id?: number | null;
+            hike_gear_id?: string | null;
             /**
              * Mtb Ride Gear Id
              * @description Default gear for MTB ride activities
              */
-            mtb_ride_gear_id?: number | null;
+            mtb_ride_gear_id?: string | null;
             /**
              * Nordic Ski Gear Id
              * @description Default gear for nordic ski activities
              */
-            nordic_ski_gear_id?: number | null;
+            nordic_ski_gear_id?: string | null;
             /**
              * Ows Gear Id
              * @description Default gear for OWS activities
              */
-            ows_gear_id?: number | null;
+            ows_gear_id?: string | null;
             /**
              * Ride Gear Id
              * @description Default gear for ride activities
              */
-            ride_gear_id?: number | null;
+            ride_gear_id?: string | null;
             /**
              * Run Gear Id
              * @description Default gear for run activities
              */
-            run_gear_id?: number | null;
+            run_gear_id?: string | null;
             /**
              * Snowboard Gear Id
              * @description Default gear for snowboard activities
              */
-            snowboard_gear_id?: number | null;
+            snowboard_gear_id?: string | null;
             /**
              * Tennis Gear Id
              * @description Default gear for tennis activities
              */
-            tennis_gear_id?: number | null;
+            tennis_gear_id?: string | null;
             /**
              * Trail Run Gear Id
              * @description Default gear for trail run activities
              */
-            trail_run_gear_id?: number | null;
+            trail_run_gear_id?: string | null;
             /**
              * Virtual Ride Gear Id
              * @description Default gear for virtual ride activities
              */
-            virtual_ride_gear_id?: number | null;
+            virtual_ride_gear_id?: string | null;
             /**
              * Virtual Run Gear Id
              * @description Default gear for virtual run activities
              */
-            virtual_run_gear_id?: number | null;
+            virtual_run_gear_id?: string | null;
             /**
              * Walk Gear Id
              * @description Default gear for walk activities
              */
-            walk_gear_id?: number | null;
+            walk_gear_id?: string | null;
             /**
              * Windsurf Gear Id
              * @description Default gear for windsurf activities
              */
-            windsurf_gear_id?: number | null;
+            windsurf_gear_id?: string | null;
         };
         /**
          * UserDeletionStatus
@@ -14586,7 +14595,7 @@ export interface operations {
                 sort_by?: components["schemas"]["ActivitySortField"] | null;
                 sort_order?: components["schemas"]["ActivitySortOrder"] | null;
                 /** @description Keep only the activities recorded with this gear */
-                gear_id?: number | null;
+                gear_id?: string | null;
                 page_number?: number | null;
                 num_records?: number | null;
                 /** @description First day to include (inclusive, `YYYY-MM-DD`). */
@@ -18645,7 +18654,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                gear_component_id: number;
+                gear_component_id: string;
             };
             cookie?: never;
         };
@@ -18748,7 +18757,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                gear_component_id: number;
+                gear_component_id: string;
             };
             cookie?: never;
         };
@@ -18883,7 +18892,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                gear_component_id: number;
+                gear_component_id: string;
             };
             cookie?: never;
         };
@@ -19237,7 +19246,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                gear_id: number;
+                gear_id: string;
             };
             cookie?: never;
         };
@@ -19340,7 +19349,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                gear_id: number;
+                gear_id: string;
             };
             cookie?: never;
         };
@@ -19475,7 +19484,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                gear_id: number;
+                gear_id: string;
             };
             cookie?: never;
         };
@@ -19625,7 +19634,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                gear_id: number;
+                gear_id: string;
             };
             cookie?: never;
         };

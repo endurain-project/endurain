@@ -161,7 +161,7 @@ export async function searchGearsByNickname(
  * @returns The gear detail, or `null` when not found.
  * @throws {HttpError} When the request fails.
  */
-export async function fetchGearById(id: number, signal?: AbortSignal): Promise<GearDetail | null> {
+export async function fetchGearById(id: string, signal?: AbortSignal): Promise<GearDetail | null> {
   try {
     const dto = await apiFetch<GearDetailDto | null>(`/gears/${id}`, { signal })
     return dto ? mapGearDetail(dto) : null
@@ -212,7 +212,7 @@ export async function createGear(input: GearInput): Promise<Gear> {
  * @returns The updated gear, mapped to the clean model.
  * @throws {HttpError} When the request fails, including 412 when the copy is stale.
  */
-export async function updateGear(id: number, input: GearInput, version: number): Promise<Gear> {
+export async function updateGear(id: string, input: GearInput, version: number): Promise<Gear> {
   const { acquired_on, initial_distance, ...fields } = toGearWireFields(input)
   const payload: Schemas['GearUpdate'] = {
     ...fields,
@@ -235,7 +235,7 @@ export async function updateGear(id: number, input: GearInput, version: number):
  * @param version - The row version the caller read, for `If-Match`.
  * @throws {HttpError} When the request fails (`412` when the gear changed since it was read).
  */
-export async function deleteGear(id: number, version: number): Promise<void> {
+export async function deleteGear(id: string, version: number): Promise<void> {
   await apiFetch<void>(`/gears/${id}`, {
     method: 'DELETE',
     headers: ifMatchHeaders(version),

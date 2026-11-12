@@ -30,9 +30,9 @@ vi.mock('@/services/http', () => ({
 }))
 
 const componentDto: GearComponentDto = {
-  id: 7,
+  id: '00000000-0000-4000-8000-0000000000c7',
   user_id: 1,
-  gear_id: 5,
+  gear_id: '00000000-0000-4000-8000-000000000005',
   type: 'chain',
   brand: 'Shimano',
   model: 'XT',
@@ -48,9 +48,9 @@ const componentDto: GearComponentDto = {
 }
 
 const mappedComponent: GearComponent = {
-  id: 7,
+  id: '00000000-0000-4000-8000-0000000000c7',
   userId: 1,
-  gearId: 5,
+  gearId: '00000000-0000-4000-8000-000000000005',
   type: 'chain',
   brand: 'Shimano',
   model: 'XT',
@@ -65,7 +65,7 @@ const mappedComponent: GearComponent = {
 }
 
 const componentInput: GearComponentInput = {
-  gearId: 5,
+  gearId: '00000000-0000-4000-8000-000000000005',
   type: 'chain',
   brand: 'Shimano',
   model: 'XT',
@@ -77,7 +77,7 @@ const componentInput: GearComponentInput = {
 }
 
 const expectedComponentWire = {
-  gear_id: 5,
+  gear_id: '00000000-0000-4000-8000-000000000005',
   type: 'chain',
   brand: 'Shimano',
   model: 'XT',
@@ -96,9 +96,9 @@ describe('mapGearComponent', () => {
   it('defaults active to true, absent optionals to null, and usage to zero', () => {
     expect(
       mapGearComponent({
-        id: 9,
+        id: '00000000-0000-4000-8000-0000000000c9',
         user_id: 2,
-        gear_id: 3,
+        gear_id: '00000000-0000-4000-8000-000000000003',
         type: 'cleats',
         brand: 'Look',
         model: 'Keo',
@@ -106,9 +106,9 @@ describe('mapGearComponent', () => {
         updated_at: componentDto.updated_at,
       }),
     ).toEqual({
-      id: 9,
+      id: '00000000-0000-4000-8000-0000000000c9',
       userId: 2,
-      gearId: 3,
+      gearId: '00000000-0000-4000-8000-000000000003',
       type: 'cleats',
       brand: 'Look',
       model: 'Keo',
@@ -146,10 +146,10 @@ describe('gear-component service requests', () => {
       next: null,
     })
 
-    const result = await fetchGearComponents(5)
+    const result = await fetchGearComponents('00000000-0000-4000-8000-000000000005')
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/gears/5/components',
+      '/gears/00000000-0000-4000-8000-000000000005/components',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toEqual([mappedComponent])
@@ -157,7 +157,7 @@ describe('gear-component service requests', () => {
 
   it('returns an empty list for an empty page', async () => {
     vi.mocked(apiFetch).mockResolvedValue({ items: [], total: 0, page: 1, num_records: 200 })
-    await expect(fetchGearComponents(5)).resolves.toEqual([])
+    await expect(fetchGearComponents('00000000-0000-4000-8000-000000000005')).resolves.toEqual([])
   })
 
   it('requests the component-type catalogues', async () => {
@@ -192,10 +192,10 @@ describe('gear-component service requests', () => {
   it('updates a component via a PATCH guarded by If-Match, without the gear id', async () => {
     vi.mocked(apiFetch).mockResolvedValue(componentDto)
 
-    await updateGearComponent(7, componentInput, 2)
+    await updateGearComponent('00000000-0000-4000-8000-0000000000c7', componentInput, 2)
 
     const [path, init] = vi.mocked(apiFetch).mock.calls[0]!
-    expect(path).toBe('/gear-components/7')
+    expect(path).toBe('/gear-components/00000000-0000-4000-8000-0000000000c7')
     expect(init).toMatchObject({ method: 'PATCH', headers: { 'If-Match': '"2"' } })
     const { gear_id: _gearId, ...expected } = expectedComponentWire
     expect(JSON.parse(init!.body as string)).toEqual(expected)
@@ -204,9 +204,9 @@ describe('gear-component service requests', () => {
   it('deletes a component via a void DELETE', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await deleteGearComponent(7, 2)
+    await deleteGearComponent('00000000-0000-4000-8000-0000000000c7', 2)
 
-    expect(apiFetch).toHaveBeenCalledWith('/gear-components/7', {
+    expect(apiFetch).toHaveBeenCalledWith('/gear-components/00000000-0000-4000-8000-0000000000c7', {
       method: 'DELETE',
       headers: { 'If-Match': '"2"' },
       responseType: 'void',

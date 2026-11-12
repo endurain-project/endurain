@@ -70,12 +70,15 @@ describe('fetchGearActivities', () => {
       next: null,
     })
 
-    const result = await fetchGearActivities(5, { page: 1, numRecords: 25 })
+    const result = await fetchGearActivities('00000000-0000-4000-8000-000000000005', {
+      page: 1,
+      numRecords: 25,
+    })
 
     // One request: the total arrives with the page.
     expect(apiFetch).toHaveBeenCalledTimes(1)
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities?gear_id=5&page_number=1&num_records=25',
+      '/activities?gear_id=00000000-0000-4000-8000-000000000005&page_number=1&num_records=25',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toEqual({ records: [mappedActivity], total: 1 })
@@ -89,7 +92,9 @@ describe('fetchGearActivities', () => {
       num_records: 25,
       next: null,
     })
-    await expect(fetchGearActivities(5, { page: 1, numRecords: 25 })).resolves.toEqual({
+    await expect(
+      fetchGearActivities('00000000-0000-4000-8000-000000000005', { page: 1, numRecords: 25 }),
+    ).resolves.toEqual({
       records: [],
       total: 0,
     })

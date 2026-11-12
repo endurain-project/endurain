@@ -35,7 +35,7 @@ export type GearType = Schemas['GearType']
  *   edit built from a stale copy is refused instead of overwriting a newer one.
  */
 export interface Gear {
-  id: number
+  id: string
   userId: number
   gearType: GearType
   nickname: string
@@ -118,9 +118,9 @@ export type GearComponentTypeLists = Schemas['GearComponentTypesRead']
  * @property version - Row version behind the `ETag`, echoed as `If-Match` on save.
  */
 export interface GearComponent {
-  id: number
+  id: string
   userId: number
-  gearId: number
+  gearId: string
   type: string
   brand: string
   model: string
@@ -140,7 +140,7 @@ export interface GearComponent {
  * or seconds (racquet) regardless of the user's display units.
  */
 export interface GearComponentInput {
-  gearId: number
+  gearId: string
   type: string
   brand: string
   model: string

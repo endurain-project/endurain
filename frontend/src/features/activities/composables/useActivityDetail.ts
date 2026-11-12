@@ -319,7 +319,7 @@ function refetchActivity(client: QueryClient, id: number): void {
 export function useSetActivityGearMutation() {
   const client = useQueryClient()
 
-  return useMutation<Activity, Error, { activity: Activity; gearId: number | null }>({
+  return useMutation<Activity, Error, { activity: Activity; gearId: string | null }>({
     mutationFn: ({ activity, gearId }) => setActivityGear(activity, gearId),
     onSuccess: (updated) => {
       client.setQueryData(queryKeys.activities.detail(updated.id), updated)

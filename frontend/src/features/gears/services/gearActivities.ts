@@ -44,12 +44,12 @@ export function mapGearActivity(dto: GearActivityDto): GearActivity {
  * @throws {HttpError} When the request fails.
  */
 export async function fetchGearActivities(
-  gearId: number,
+  gearId: string,
   { page, numRecords }: GearActivitiesListParams,
   signal?: AbortSignal,
 ): Promise<GearActivitiesPage> {
   const params = new URLSearchParams({
-    gear_id: String(gearId),
+    gear_id: gearId,
     page_number: String(page),
     num_records: String(numRecords),
   })

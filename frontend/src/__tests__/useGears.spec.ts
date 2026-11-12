@@ -17,7 +17,7 @@ import { queryKeys } from '@/services/queryKeys'
 vi.mock('@/features/gears/services/gears', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/gears/services/gears')>()),
   createGear: vi.fn<(input: GearInput) => Promise<Gear>>(),
-  deleteGear: vi.fn<(id: number, version: number) => Promise<void>>(),
+  deleteGear: vi.fn<(id: string, version: number) => Promise<void>>(),
   fetchGears: vi.fn<() => Promise<GearsPage>>(),
   updateGear: vi.fn<(id: number, input: GearInput, version: number) => Promise<Gear>>(),
 }))
@@ -29,7 +29,7 @@ vi.mock('pinia', async (importOriginal) => ({
 
 vi.mock('@/features/auth/stores/auth', () => ({ useAuthStore: () => ({}) }))
 
-const GEAR_ID = 3
+const GEAR_ID = '00000000-0000-4000-8000-000000000003'
 
 /** What a write to a gear itself changes: where the gear is listed, searched and picked. */
 const GEAR_KEYS = {

@@ -44,7 +44,7 @@ const isSaving = computed(() => setGearMutation.isPending.value)
 
 const isPickerOpen = ref(false)
 const isRemoveOpen = ref(false)
-const selectedGearId = ref<number | null>(props.activity.gearId)
+const selectedGearId = ref<string | null>(props.activity.gearId)
 
 // Whether the card has anything to show: the activity supports gear, or one is
 // already set (e.g. after the activity type changed). Otherwise it is hidden.
@@ -117,7 +117,7 @@ async function removeGear(): Promise<void> {
 
     <RouterLink
       v-if="activity.gearId"
-      :to="{ name: 'gear', params: { id: String(activity.gearId) } }"
+      :to="{ name: 'gear', params: { id: activity.gearId } }"
       class="self-start text-body text-brand hover:underline"
     >
       {{ currentGear?.nickname ?? t('activities.gear.loading') }}

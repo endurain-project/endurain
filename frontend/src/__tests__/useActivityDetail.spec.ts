@@ -28,7 +28,7 @@ vi.mock('@/features/activities/services/activities', async (importOriginal) => (
 }))
 
 const ACTIVITY_ID = 5
-const GEAR_ID = 3
+const GEAR_ID = '00000000-0000-4000-8000-000000000003'
 
 const editInput: ActivityEditInput = {
   name: 'Evening run',

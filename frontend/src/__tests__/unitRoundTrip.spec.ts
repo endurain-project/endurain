@@ -111,7 +111,7 @@ describe('an untouched imperial field keeps the stored metric value', () => {
 
   it('gear initial distance', async () => {
     const gear: Gear = {
-      id: 2,
+      id: '00000000-0000-4000-8000-000000000002',
       userId: 1,
       gearType: GEAR_TYPE.BICYCLE,
       nickname: 'Road',
@@ -137,9 +137,9 @@ describe('an untouched imperial field keeps the stored metric value', () => {
 
   it('gear component expected distance', async () => {
     const component: GearComponent = {
-      id: 7,
+      id: '00000000-0000-4000-8000-000000000007',
       userId: 1,
-      gearId: 5,
+      gearId: '00000000-0000-4000-8000-000000000005',
       type: 'chain',
       brand: 'Shimano',
       model: 'XT',
@@ -158,7 +158,7 @@ describe('an untouched imperial field keeps the stored metric value', () => {
         GearComponentFormDialog,
         {
           component,
-          gearId: 5,
+          gearId: '00000000-0000-4000-8000-000000000005',
           gearType: GEAR_TYPE.BICYCLE,
           availableTypes: ['chain'],
           units: 'imperial',

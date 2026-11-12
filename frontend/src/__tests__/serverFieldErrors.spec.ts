@@ -189,7 +189,7 @@ const profile: ProfileDetails = {
 }
 
 const gear: Gear = {
-  id: 2,
+  id: '00000000-0000-4000-8000-000000000002',
   userId: 1,
   gearType: 'bike',
   nickname: 'Road',

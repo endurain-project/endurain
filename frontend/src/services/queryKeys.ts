@@ -282,14 +282,14 @@ export const queryKeys = {
      * @param id - Gear identifier.
      * @returns A detail query key for a single gear.
      */
-    detail: (id: number) => ['gears', 'detail', id] as const,
+    detail: (id: string) => ['gears', 'detail', id] as const,
     /** Broad prefix for every gear-components query (all gears). */
     componentsLists: () => ['gears', 'components'] as const,
     /**
      * @param gearId - Parent gear identifier.
      * @returns A query key for one gear's component list.
      */
-    components: (gearId: number) => ['gears', 'components', gearId] as const,
+    components: (gearId: string) => ['gears', 'components', gearId] as const,
     /** The static component-type catalogues (cached for the session). */
     componentTypes: () => ['gears', 'component-types'] as const,
     /** Gears grouped by type for the default-gear selectors (under the gears prefix so gear writes refresh it). */
@@ -303,7 +303,7 @@ export const queryKeys = {
      * @param filters - Serializable list filters (paging).
      * @returns A query key for one gear's paginated activities list.
      */
-    activities: (gearId: number, filters: Record<string, unknown> = {}) =>
+    activities: (gearId: string, filters: Record<string, unknown> = {}) =>
       ['gears', 'activities', gearId, filters] as const,
   },
 

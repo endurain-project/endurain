@@ -29,7 +29,7 @@ vi.mock('@/services/http', async (importOriginal) => ({
 }))
 
 const gearDto: GearDto = {
-  id: 5,
+  id: '00000000-0000-4000-8000-000000000005',
   user_id: 1,
   gear_type: 'bike',
   nickname: 'Road Bike',
@@ -46,7 +46,7 @@ const gearDto: GearDto = {
 }
 
 const mappedGear = {
-  id: 5,
+  id: '00000000-0000-4000-8000-000000000005',
   userId: 1,
   gearType: 'bike',
   nickname: 'Road Bike',
@@ -91,7 +91,7 @@ describe('mapGear', () => {
   it('defaults active to true and absent optionals to null', () => {
     expect(
       mapGear({
-        id: 9,
+        id: '00000000-0000-4000-8000-000000000009',
         user_id: 2,
         gear_type: 'shoes',
         nickname: 'Shoes',
@@ -99,7 +99,7 @@ describe('mapGear', () => {
         updated_at: gearDto.updated_at,
       }),
     ).toEqual({
-      id: 9,
+      id: '00000000-0000-4000-8000-000000000009',
       userId: 2,
       gearType: 'shoes',
       nickname: 'Shoes',
@@ -210,13 +210,16 @@ describe('gear service requests', () => {
     vi.mocked(apiFetch).mockRejectedValue(
       new HttpError(404, 'Not Found', null, 'urn:endurain:error:not-found'),
     )
-    await expect(fetchGearById(5)).resolves.toBeNull()
+    await expect(fetchGearById('00000000-0000-4000-8000-000000000005')).resolves.toBeNull()
   })
 
   it('maps a single gear detail and returns null when absent', async () => {
     vi.mocked(apiFetch).mockResolvedValue(null)
-    await expect(fetchGearById(5)).resolves.toBeNull()
-    expect(apiFetch).toHaveBeenCalledWith('/gears/5', expect.objectContaining({}))
+    await expect(fetchGearById('00000000-0000-4000-8000-000000000005')).resolves.toBeNull()
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/gears/00000000-0000-4000-8000-000000000005',
+      expect.objectContaining({}),
+    )
   })
 
   it('creates a gear via a POST with the snake-cased payload', async () => {
@@ -233,10 +236,10 @@ describe('gear service requests', () => {
   it('updates a gear via a PATCH guarded by If-Match', async () => {
     vi.mocked(apiFetch).mockResolvedValue(gearDto)
 
-    await updateGear(5, gearInput, 3)
+    await updateGear('00000000-0000-4000-8000-000000000005', gearInput, 3)
 
     const [path, init] = vi.mocked(apiFetch).mock.calls[0]!
-    expect(path).toBe('/gears/5')
+    expect(path).toBe('/gears/00000000-0000-4000-8000-000000000005')
     expect(init).toMatchObject({ method: 'PATCH', headers: { 'If-Match': '"3"' } })
     expect(JSON.parse(init!.body as string)).toEqual(expectedWirePayload)
   })
@@ -244,7 +247,11 @@ describe('gear service requests', () => {
   it('leaves the fields the backend cannot clear out of a partial update', async () => {
     vi.mocked(apiFetch).mockResolvedValue(gearDto)
 
-    await updateGear(5, { ...gearInput, acquiredOn: null, initialKms: null }, 3)
+    await updateGear(
+      '00000000-0000-4000-8000-000000000005',
+      { ...gearInput, acquiredOn: null, initialKms: null },
+      3,
+    )
 
     const body = JSON.parse(vi.mocked(apiFetch).mock.calls[0]![1]!.body as string)
     expect(body).not.toHaveProperty('acquired_on')
@@ -254,9 +261,9 @@ describe('gear service requests', () => {
   it('deletes a gear via a void DELETE', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await deleteGear(5, 4)
+    await deleteGear('00000000-0000-4000-8000-000000000005', 4)
 
-    expect(apiFetch).toHaveBeenCalledWith('/gears/5', {
+    expect(apiFetch).toHaveBeenCalledWith('/gears/00000000-0000-4000-8000-000000000005', {
       method: 'DELETE',
       headers: { 'If-Match': '"4"' },
       responseType: 'void',

@@ -25,9 +25,9 @@ vi.mock('@/services/http', () => {
 })
 
 const createdDto: GearComponentDto = {
-  id: 7,
+  id: '00000000-0000-4000-8000-0000000000c7',
   user_id: 1,
-  gear_id: 5,
+  gear_id: '00000000-0000-4000-8000-000000000005',
   type: 'chain',
   brand: 'Shimano',
   model: 'XT',
@@ -48,7 +48,7 @@ function mountDialog() {
   return mount(GearComponentFormDialog, {
     props: {
       open: true,
-      gearId: 5,
+      gearId: '00000000-0000-4000-8000-000000000005',
       gearType: GEAR_TYPE.BICYCLE,
       availableTypes: ['chain'],
       units: 'metric' as const,
@@ -95,7 +95,7 @@ describe('GearComponentFormDialog submit', () => {
     expect(apiFetch).toHaveBeenCalledWith('/gear-components', {
       method: 'POST',
       body: JSON.stringify({
-        gear_id: 5,
+        gear_id: '00000000-0000-4000-8000-000000000005',
         type: 'chain',
         brand: 'Shimano',
         model: 'XT',

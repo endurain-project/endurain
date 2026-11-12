@@ -9,7 +9,7 @@ import GearBadges from '@/features/gears/components/GearBadges.vue'
 /** Builds a minimal active gear with no integration link, overridable per case. */
 function makeGear(overrides: Partial<Gear> = {}): Gear {
   return {
-    id: 1,
+    id: '00000000-0000-4000-8000-000000000001',
     userId: 1,
     gearType: 'bike',
     nickname: 'Road bike',

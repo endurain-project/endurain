@@ -69,7 +69,7 @@ function toComponentWireFields(input: GearComponentInput) {
  * @throws {HttpError} When the request fails.
  */
 export async function fetchGearComponents(
-  gearId: number,
+  gearId: string,
   signal?: AbortSignal,
 ): Promise<GearComponent[]> {
   const response = await apiFetch<Schemas['Page_GearComponentUsageRead_']>(
@@ -122,7 +122,7 @@ export async function createGearComponent(input: GearComponentInput): Promise<Ge
  * @throws {HttpError} When the request fails, including 412 when the copy is stale.
  */
 export async function updateGearComponent(
-  id: number,
+  id: string,
   input: GearComponentInput,
   version: number,
 ): Promise<GearComponent> {
@@ -148,7 +148,7 @@ export async function updateGearComponent(
  * @param version - The row version the caller read, for `If-Match`.
  * @throws {HttpError} When the request fails (`412` when the component changed since it was read).
  */
-export async function deleteGearComponent(id: number, version: number): Promise<void> {
+export async function deleteGearComponent(id: string, version: number): Promise<void> {
   await apiFetch<void>(`/gear-components/${id}`, {
     method: 'DELETE',
     headers: ifMatchHeaders(version),

@@ -19,6 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useToasts } from '@/composables/useToasts'
 import { isStaleWrite } from '@/services/ifMatch'
+import { isUuid } from '@/utils/validation'
 import { presentGearType } from '@/features/gears/utils/gearType'
 import { useGearComponentsQuery } from '@/features/gears/composables/useGearComponents'
 import { useDeleteGearMutation, useGearQuery } from '@/features/gears/composables/useGears'
@@ -33,11 +34,12 @@ const units = computed(() => currentUser.value?.units ?? 'metric')
 const currency = computed(() => currentUser.value?.currency ?? 'euro')
 
 const gearId = computed(() => {
-  const raw = Number(route.params.id)
-  return Number.isFinite(raw) && raw > 0 ? raw : null
+  const raw = route.params.id
+  return typeof raw === 'string' && isUuid(raw) ? raw : null
 })
 
-const { data: gear, isPending, isError, refetch } = useGearQuery(gearId)
+// `isLoading` (not `isPending`) so a malformed id, whose query never runs, shows not-found instead of the skeleton.
+const { data: gear, isLoading, isError, refetch } = useGearQuery(gearId)
 // The components panel loads the same query, so this reuses its cached result.
 const componentsQuery = useGearComponentsQuery(gearId)
 
@@ -107,7 +109,7 @@ function confirmDelete(): void {
 
     <!-- Loading: mirror the page header + the three-column layout (gear info,
          components list, activities list) so the placeholder matches the load. -->
-    <template v-if="isPending">
+    <template v-if="isLoading">
       <header class="flex flex-col gap-1" aria-busy="true">
         <Skeleton class="h-7 w-48" />
         <Skeleton class="h-4 w-24" />

@@ -220,7 +220,7 @@ export interface ActivitySummary {
   activityType: ActivityType
   visibility: ActivityVisibility
   isHidden: boolean
-  gearId: number | null
+  gearId: string | null
 
   /**
    * Row version behind the `ETag`. Sent back as `If-Match` on save so an edit

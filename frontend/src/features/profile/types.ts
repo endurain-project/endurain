@@ -177,21 +177,21 @@ export interface DefaultGear {
   userId: number
   /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
   version: number
-  runGearId: number | null
-  trailRunGearId: number | null
-  virtualRunGearId: number | null
-  walkGearId: number | null
-  hikeGearId: number | null
-  rideGearId: number | null
-  mtbRideGearId: number | null
-  gravelRideGearId: number | null
-  virtualRideGearId: number | null
-  owsGearId: number | null
-  tennisGearId: number | null
-  alpineSkiGearId: number | null
-  nordicSkiGearId: number | null
-  snowboardGearId: number | null
-  windsurfGearId: number | null
+  runGearId: string | null
+  trailRunGearId: string | null
+  virtualRunGearId: string | null
+  walkGearId: string | null
+  hikeGearId: string | null
+  rideGearId: string | null
+  mtbRideGearId: string | null
+  gravelRideGearId: string | null
+  virtualRideGearId: string | null
+  owsGearId: string | null
+  tennisGearId: string | null
+  alpineSkiGearId: string | null
+  nordicSkiGearId: string | null
+  snowboardGearId: string | null
+  windsurfGearId: string | null
 }
 
 /**

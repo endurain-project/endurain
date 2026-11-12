@@ -84,17 +84,15 @@ export function useGearSearchQuery(term: MaybeRefOrGetter<string>) {
  * @param id - The reactive gear id, or `null` when none is selected.
  * @returns The TanStack Query result for the gear detail.
  */
-export function useGearQuery(id: MaybeRefOrGetter<number | null>) {
+export function useGearQuery(id: MaybeRefOrGetter<string | null>) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
   const gearId = computed(() => toValue(id))
 
   return useQuery<GearDetail | null>({
-    queryKey: computed(() => queryKeys.gears.detail(gearId.value ?? -1)),
-    queryFn: ({ signal }) => fetchGearById(gearId.value as number, signal),
+    queryKey: computed(() => queryKeys.gears.detail(gearId.value ?? '')),
+    queryFn: ({ signal }) => fetchGearById(gearId.value as string, signal),
     staleTime: GEAR_QUERY_STALE_TIME_MS,
-    enabled: computed(
-      () => isAuthenticated.value && gearId.value !== null && Number.isFinite(gearId.value),
-    ),
+    enabled: computed(() => isAuthenticated.value && gearId.value !== null),
   })
 }
 
@@ -130,7 +128,7 @@ export function useCreateGearMutation() {
  * @returns The TanStack Query mutation for updating a gear.
  */
 export function useUpdateGearMutation() {
-  return useInvalidatingMutation<Gear, { id: number; input: GearInput; version: number }>({
+  return useInvalidatingMutation<Gear, { id: string; input: GearInput; version: number }>({
     mutationKey: queryKeys.gears.all(),
     excludeKeys: GEAR_WRITE_UNAFFECTED_KEYS,
     mutationFn: ({ id, input, version }) => updateGear(id, input, version),
@@ -144,7 +142,7 @@ export function useUpdateGearMutation() {
  * @returns The TanStack Query mutation for deleting a gear.
  */
 export function useDeleteGearMutation() {
-  return useInvalidatingMutation<void, { id: number; version: number }>({
+  return useInvalidatingMutation<void, { id: string; version: number }>({
     mutationKey: queryKeys.gears.all(),
     excludeKeys: GEAR_WRITE_UNAFFECTED_KEYS,
     alsoInvalidate: [queryKeys.profile.defaultGear(), queryKeys.activities.all()],

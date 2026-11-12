@@ -464,16 +464,19 @@ describe('fetchActivityLaps', () => {
 describe('setActivityGear', () => {
   it('sends the required edit fields plus the gear id and maps the result', async () => {
     const activity = mapActivity(activityDto)
-    vi.mocked(apiFetch).mockResolvedValueOnce({ ...activityDto, gear_id: 42 })
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      ...activityDto,
+      gear_id: '00000000-0000-4000-8000-000000000042',
+    })
 
-    const updated = await setActivityGear(activity, 42)
+    const updated = await setActivityGear(activity, '00000000-0000-4000-8000-000000000042')
 
     expect(apiFetch).toHaveBeenCalledWith('/activities/5', {
       method: 'PATCH',
-      body: JSON.stringify({ gear_id: 42 }),
+      body: JSON.stringify({ gear_id: '00000000-0000-4000-8000-000000000042' }),
       headers: { 'If-Match': '"3"' },
     })
-    expect(updated.gearId).toBe(42)
+    expect(updated.gearId).toBe('00000000-0000-4000-8000-000000000042')
   })
 
   it('clears the association when the gear id is null', async () => {
@@ -493,7 +496,7 @@ describe('setActivityGear', () => {
     const activity = mapActivity({ ...activityDto, version: null })
     vi.mocked(apiFetch).mockResolvedValueOnce(activityDto)
 
-    await setActivityGear(activity, 42)
+    await setActivityGear(activity, '00000000-0000-4000-8000-000000000042')
 
     expect(vi.mocked(apiFetch).mock.lastCall?.[1]?.headers).toEqual({ 'If-Match': '"0"' })
   })

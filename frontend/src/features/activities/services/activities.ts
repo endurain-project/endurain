@@ -702,7 +702,7 @@ export async function fetchActivityExerciseTitles(
  */
 export async function setActivityGear(
   activity: Activity,
-  gearId: number | null,
+  gearId: string | null,
 ): Promise<Activity> {
   const body: ActivityEditDto = { gear_id: gearId }
   const dto = await apiFetch<ActivityDto>(`/activities/${activity.id}`, {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  isUuid,
   isValidEmail,
   isValidPassword,
   PASSWORD_MAX_LENGTH,
@@ -59,5 +60,20 @@ describe('resolvePasswordMinLength', () => {
   it('picks the regular length for any other access type', () => {
     expect(resolvePasswordMinLength(8, 12, 'regular')).toBe(8)
     expect(resolvePasswordMinLength(8, 12, '')).toBe(8)
+  })
+})
+
+describe('isUuid', () => {
+  it('accepts a canonical UUID in either case', () => {
+    expect(isUuid('00000000-0000-4000-8000-000000000005')).toBe(true)
+    expect(isUuid('5F1C9A2E-7B3D-4E8A-9C1F-0A2B3C4D5E6F')).toBe(true)
+  })
+
+  it('rejects malformed ids', () => {
+    expect(isUuid('')).toBe(false)
+    expect(isUuid('5')).toBe(false)
+    expect(isUuid('00000000000040008000000000000005')).toBe(false)
+    expect(isUuid('00000000-0000-4000-8000-00000000000g')).toBe(false)
+    expect(isUuid(' 00000000-0000-4000-8000-000000000005')).toBe(false)
   })
 })

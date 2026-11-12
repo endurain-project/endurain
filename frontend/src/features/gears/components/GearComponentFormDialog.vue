@@ -34,7 +34,7 @@ const props = withDefaults(
     /** The component being edited, or `null`/absent when adding a new one. */
     component?: GearComponent | null
     /** The parent gear id (used when creating a component). */
-    gearId: number
+    gearId: string
     /** The parent gear's numeric type, selecting distance- vs time-based wear. */
     gearType: GearType
     /** The component-type ids valid for the parent gear family. */

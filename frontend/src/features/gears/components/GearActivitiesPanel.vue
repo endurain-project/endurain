@@ -20,7 +20,7 @@ import { formatZonedDateTime } from '@/utils/datetime'
  */
 const props = defineProps<{
   /** The parent gear id whose activities are listed. */
-  gearId: number
+  gearId: string
 }>()
 
 const { t, locale } = useI18n()

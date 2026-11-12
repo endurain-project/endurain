@@ -178,7 +178,7 @@ const profile = {
 } as unknown as ProfileDetails
 
 const gear: Gear = {
-  id: 2,
+  id: '00000000-0000-4000-8000-000000000002',
   userId: 1,
   gearType: 'bike',
   nickname: 'Road',
@@ -297,7 +297,11 @@ describe('ActivityGearCard', () => {
   })
 
   function mountCard() {
-    const activity: Activity = makeActivity({ id: 5, gearId: 2, activityType: 'run' })
+    const activity: Activity = makeActivity({
+      id: 5,
+      gearId: '00000000-0000-4000-8000-000000000002',
+      activityType: 'run',
+    })
     return mount(ActivityGearCard, {
       props: { activity },
       global: {
