@@ -1,5 +1,7 @@
 """Tests for activity schema validators."""
 
+import uuid
+
 import pytest
 from pydantic import ValidationError
 
@@ -73,19 +75,21 @@ class TestActivityEditNotNullColumns:
         assert activity_schema.ActivityEdit(visibility="followers").model_fields_set == {"visibility"}
 
 
-class TestBodyIdsFitIntegerColumns:
-    """A client-supplied id above the int4 range would reach PostgreSQL and answer 500."""
+class TestGearIdIsAUuid:
+    """A gear id is a UUID, so an integer or a malformed text never reaches the database."""
 
-    def test_edit_rejects_an_id_above_int32(self):
+    def test_edit_rejects_a_non_uuid_gear_id(self):
         with pytest.raises(ValidationError):
-            activity_schema.ActivityEdit(gear_id=2**31)
+            activity_schema.ActivityEdit(gear_id="1")
 
-    def test_edit_accepts_the_largest_gear_id(self):
-        assert activity_schema.ActivityEdit(gear_id=2**31 - 1).gear_id == 2**31 - 1
+    def test_edit_accepts_a_uuid_gear_id(self):
+        gear_id = uuid.uuid4()
 
-    def test_base_rejects_a_gear_id_above_int32(self):
+        assert activity_schema.ActivityEdit(gear_id=str(gear_id)).gear_id == gear_id
+
+    def test_base_rejects_a_malformed_gear_id(self):
         with pytest.raises(ValidationError):
-            activity_schema.ActivityBase(distance=0, name="Run", activity_type=1, gear_id=2**31)
+            activity_schema.ActivityBase(distance=0, name="Run", activity_type=1, gear_id="not-a-uuid")
 
 
 class TestActivityTypeVocabulary:

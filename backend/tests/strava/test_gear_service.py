@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -12,6 +13,8 @@ import core.exceptions as core_exceptions
 import modules.gears.gear.schema as gears_schema
 import modules.strava.gear_service as gear_utils
 
+_GEAR_A = uuid.uuid4()
+_GEAR_B = uuid.uuid4()
 BIKE = gears_schema.GearType.BIKE
 SHOES = gears_schema.GearType.SHOES
 
@@ -120,16 +123,16 @@ class TestMatchGear:
         assert gear_utils.match_gear_for_activity(SimpleNamespace(strava_gear_id=None), []) is None
 
     def test_the_gear_with_the_same_strava_id_is_matched(self):
-        gears = [SimpleNamespace(id=1, strava_gear_id="a"), SimpleNamespace(id=2, strava_gear_id="b")]
+        gears = [SimpleNamespace(id=_GEAR_A, strava_gear_id="a"), SimpleNamespace(id=_GEAR_B, strava_gear_id="b")]
 
-        assert gear_utils.match_gear_for_activity(SimpleNamespace(strava_gear_id="b"), gears) == 2
+        assert gear_utils.match_gear_for_activity(SimpleNamespace(strava_gear_id="b"), gears) == _GEAR_B
 
 
 class TestSetActivitiesGear:
     def test_activities_are_assigned_and_the_caller_commits(self):
         db = MagicMock()
         activities = [SimpleNamespace(id=10, strava_gear_id="a"), SimpleNamespace(id=11, strava_gear_id=None)]
-        gears = [SimpleNamespace(id=5, strava_gear_id="a")]
+        gears = [SimpleNamespace(id=_GEAR_A, strava_gear_id="a")]
         with (
             patch.object(gear_utils.activity_integration, "list_user_activities_page", side_effect=[activities, []]),
             patch.object(gear_utils.gears_integration, "get_gear_user", return_value=gears),
@@ -138,14 +141,14 @@ class TestSetActivitiesGear:
             assigned = gear_utils.set_activities_gear(7, db)
 
         assert assigned == 1
-        bulk.assert_called_once_with(7, {10: 5}, db)
+        bulk.assert_called_once_with(7, {10: _GEAR_A}, db)
         db.commit.assert_not_called()
 
     def test_a_long_history_is_read_a_page_at_a_time_and_every_page_is_matched(self):
         size = gear_utils._ACTIVITY_PAGE_SIZE
         first = [SimpleNamespace(id=i, strava_gear_id="a") for i in range(size)]
         second = [SimpleNamespace(id=size, strava_gear_id="a")]
-        gears = [SimpleNamespace(id=5, strava_gear_id="a")]
+        gears = [SimpleNamespace(id=_GEAR_A, strava_gear_id="a")]
         with (
             patch.object(
                 gear_utils.activity_integration, "list_user_activities_page", side_effect=[first, second]
@@ -172,7 +175,7 @@ class TestSetActivitiesGear:
         bulk.assert_not_called()
 
     def test_no_matching_activity_writes_nothing(self):
-        gears = [SimpleNamespace(id=5, strava_gear_id="a")]
+        gears = [SimpleNamespace(id=_GEAR_A, strava_gear_id="a")]
         with (
             patch.object(
                 gear_utils.activity_integration,

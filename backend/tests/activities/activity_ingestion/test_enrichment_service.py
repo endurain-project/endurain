@@ -1,5 +1,6 @@
 """Tests for the activity_ingestion enrichment seam (privacy / gear / Garmin resolution)."""
 
+import uuid
 from types import SimpleNamespace
 from unittest.mock import ANY, MagicMock, patch
 
@@ -41,12 +42,16 @@ class TestBuildActivityPrivacyKwargs:
         assert len(kwargs) == 13
 
 
+_DEFAULT_GEAR = uuid.uuid4()
+_SOURCE_GEAR = uuid.uuid4()
+
+
 class TestResolveGearId:
     @patch("modules.activities.activity_ingestion.enrichment_service.users_default_gear_integration")
     def test_default_gear_when_the_source_resolved_none(self, mock_users):
-        mock_users.get_default_gear_for_activity_type.return_value = 42
+        mock_users.get_default_gear_for_activity_type.return_value = _DEFAULT_GEAR
 
-        assert enrichment.resolve_gear_id(1, user_id=7, db=MagicMock()) == 42
+        assert enrichment.resolve_gear_id(1, user_id=7, db=MagicMock()) == _DEFAULT_GEAR
         mock_users.get_default_gear_for_activity_type.assert_called_once_with(7, 1, ANY)
 
     @patch("modules.activities.activity_ingestion.enrichment_service.users_default_gear_integration")
@@ -58,14 +63,14 @@ class TestResolveGearId:
     def test_the_sources_gear_wins(self, mock_users):
         # The provider resolved its own synced gear; ingestion does not re-derive
         # it, which is what keeps this seam free of any provider import.
-        assert enrichment.resolve_gear_id(1, user_id=7, db=MagicMock(), provider_gear_id=99) == 99
+        assert enrichment.resolve_gear_id(1, user_id=7, db=MagicMock(), provider_gear_id=_SOURCE_GEAR) == _SOURCE_GEAR
         mock_users.get_default_gear_for_activity_type.assert_not_called()
 
     @patch("modules.activities.activity_ingestion.enrichment_service.users_default_gear_integration")
     def test_falls_back_to_default_when_the_source_resolved_nothing(self, mock_users):
-        mock_users.get_default_gear_for_activity_type.return_value = 5
+        mock_users.get_default_gear_for_activity_type.return_value = _DEFAULT_GEAR
 
-        assert enrichment.resolve_gear_id(1, user_id=7, db=MagicMock(), provider_gear_id=None) == 5
+        assert enrichment.resolve_gear_id(1, user_id=7, db=MagicMock(), provider_gear_id=None) == _DEFAULT_GEAR
 
 
 class TestEnrichParsedActivity:
@@ -73,7 +78,7 @@ class TestEnrichParsedActivity:
     @patch("modules.activities.activity_ingestion.enrichment_service.users_default_gear_integration")
     def test_sets_privacy_and_gear_non_garmin(self, mock_users, mock_privacy):
         mock_privacy.resolve_visibility.return_value = ActivityVisibility.FOLLOWERS
-        mock_users.get_default_gear_for_activity_type.return_value = 12
+        mock_users.get_default_gear_for_activity_type.return_value = _DEFAULT_GEAR
         activity = SimpleNamespace(activity_type=ActivityType.RIDE)
 
         enrichment.enrich_parsed_activity(
@@ -82,7 +87,7 @@ class TestEnrichParsedActivity:
 
         assert activity.visibility is ActivityVisibility.FOLLOWERS
         assert activity.hide_location is True
-        assert activity.gear_id == 12
+        assert activity.gear_id == _DEFAULT_GEAR
         # Non-Garmin import leaves the provider ids untouched.
         assert not hasattr(activity, "garminconnect_activity_id")
 

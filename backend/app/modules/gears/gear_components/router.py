@@ -46,7 +46,7 @@ def read_gear_components(
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:read"])],
 )
 def read_gear_component_by_id(
-    gear_component_id: core_dependencies.PositiveId,
+    gear_component_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     response: Response,
@@ -86,7 +86,7 @@ def create_gear_component(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_gear_component(
     request: Request,
-    gear_component_id: core_dependencies.PositiveId,
+    gear_component_id: core_dependencies.UuidId,
     gear_component: gear_components_schema.GearComponentUpdate,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
@@ -124,7 +124,7 @@ def edit_gear_component(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_component_gear(
     request: Request,
-    gear_component_id: core_dependencies.PositiveId,
+    gear_component_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     if_match: core_dependencies.IfMatch,
     db: core_dependencies.DbSession,

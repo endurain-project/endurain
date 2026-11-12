@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import patch
 
@@ -27,11 +28,13 @@ def client(mock_db):
 
 
 _UPDATED_AT = datetime(2025, 1, 1, tzinfo=UTC)
+_GEAR_ID = uuid.uuid4()
+_PATH = f"/gears/{_GEAR_ID}"
 
 
 def _read(**overrides) -> schema.GearRead:
     return schema.GearRead(
-        **{"id": 1, "user_id": 1, "nickname": "Bike", "gear_type": 1, "updated_at": _UPDATED_AT, **overrides}
+        **{"id": _GEAR_ID, "user_id": 1, "nickname": "Bike", "gear_type": 1, "updated_at": _UPDATED_AT, **overrides}
     )
 
 
@@ -88,16 +91,17 @@ class TestReadById:
     def test_the_version_is_sent_as_the_etag(self, mock_detail, client):
         mock_detail.return_value = schema.GearDetailRead(**_read(version=7).model_dump())
 
-        assert client.get("/gears/1", headers=_HEADERS).headers["ETag"] == '"7"'
+        assert client.get(_PATH, headers=_HEADERS).headers["ETag"] == '"7"'
 
     @patch("modules.gears.gear.service.read_gear_detail")
     def test_unknown_gear_is_not_found(self, mock_detail, client):
         mock_detail.side_effect = core_exceptions.NotFoundError("Gear not found")
 
-        assert client.get("/gears/999", headers=_HEADERS).status_code == 404
+        assert client.get(f"/gears/{uuid.uuid4()}", headers=_HEADERS).status_code == 404
 
-    def test_a_non_positive_id_is_rejected(self, client):
-        assert client.get("/gears/0", headers=_HEADERS).status_code == 422
+    @pytest.mark.parametrize("gear_id", ["not-a-uuid", "0", "1"])
+    def test_a_malformed_id_is_rejected(self, client, gear_id):
+        assert client.get(f"/gears/{gear_id}", headers=_HEADERS).status_code == 422
 
 
 class TestWrites:
@@ -123,7 +127,7 @@ class TestWrites:
     def test_edit_is_partial_and_returns_the_etag(self, mock_edit, client, mock_db):
         mock_edit.return_value = _read(nickname="Updated", version=4)
 
-        response = client.patch("/gears/1", json={"nickname": "Updated"}, headers={**_HEADERS, "If-Match": '"3"'})
+        response = client.patch(_PATH, json={"nickname": "Updated"}, headers={**_HEADERS, "If-Match": '"3"'})
 
         assert response.status_code == 200
         assert response.json()["nickname"] == "Updated"
@@ -132,54 +136,51 @@ class TestWrites:
 
     @patch("modules.gears.gear.service.edit_gear")
     def test_an_edit_without_if_match_is_428(self, mock_edit, client):
-        assert client.patch("/gears/1", json={"brand": "x"}, headers=_HEADERS).status_code == 428
+        assert client.patch(_PATH, json={"brand": "x"}, headers=_HEADERS).status_code == 428
         mock_edit.assert_not_called()
 
     @patch("modules.gears.gear.service.edit_gear")
     def test_a_stale_edit_is_412(self, mock_edit, client):
         mock_edit.side_effect = core_exceptions.PreconditionFailedError("stale")
 
-        assert client.patch("/gears/1", json={"brand": "x"}, headers={**_HEADERS, "If-Match": '"1"'}).status_code == 412
+        assert client.patch(_PATH, json={"brand": "x"}, headers={**_HEADERS, "If-Match": '"1"'}).status_code == 412
 
     @patch("modules.gears.gear.service.edit_gear")
     def test_a_type_change_blocked_by_components_is_a_typed_409(self, mock_edit, client):
         mock_edit.side_effect = core_exceptions.ComponentsOutsideGearTypeError()
 
-        response = client.patch("/gears/1", json={"gear_type": "shoes"}, headers={**_HEADERS, "If-Match": '"1"'})
+        response = client.patch(_PATH, json={"gear_type": "shoes"}, headers={**_HEADERS, "If-Match": '"1"'})
 
         assert response.status_code == 409
         assert response.json()["type"] == "urn:endurain:error:components-outside-gear-type"
 
     def test_an_edit_cannot_clear_a_required_field_or_set_a_provider_id(self, client):
+        assert client.patch(_PATH, json={"nickname": None}, headers={**_HEADERS, "If-Match": '"1"'}).status_code == 422
         assert (
-            client.patch("/gears/1", json={"nickname": None}, headers={**_HEADERS, "If-Match": '"1"'}).status_code
-            == 422
-        )
-        assert (
-            client.patch("/gears/1", json={"strava_gear_id": "b1"}, headers={**_HEADERS, "If-Match": '"1"'}).status_code
+            client.patch(_PATH, json={"strava_gear_id": "b1"}, headers={**_HEADERS, "If-Match": '"1"'}).status_code
             == 422
         )
 
     @patch("modules.gears.gear.service.delete_gear")
     def test_delete(self, mock_delete, client, mock_db):
-        response = client.delete("/gears/1", headers={**_HEADERS, "If-Match": '"3"'})
+        response = client.delete(_PATH, headers={**_HEADERS, "If-Match": '"3"'})
 
         assert response.status_code == 204
-        mock_delete.assert_called_once_with(1, 1, mock_db, if_match='"3"')
+        mock_delete.assert_called_once_with(_GEAR_ID, 1, mock_db, if_match='"3"')
 
     @patch("modules.gears.gear.service.delete_gear")
     def test_delete_without_if_match_is_428(self, mock_delete, client):
-        assert client.delete("/gears/1", headers=_HEADERS).status_code == 428
+        assert client.delete(_PATH, headers=_HEADERS).status_code == 428
         mock_delete.assert_not_called()
 
     @patch("modules.gears.gear.service.delete_gear")
     def test_a_stale_delete_is_412(self, mock_delete, client):
         mock_delete.side_effect = core_exceptions.PreconditionFailedError("stale")
 
-        assert client.delete("/gears/1", headers={**_HEADERS, "If-Match": '"1"'}).status_code == 412
+        assert client.delete(_PATH, headers={**_HEADERS, "If-Match": '"1"'}).status_code == 412
 
     @patch("modules.gears.gear.service.delete_gear")
     def test_delete_of_a_missing_gear_is_404(self, mock_delete, client):
         mock_delete.side_effect = core_exceptions.NotFoundError("Gear not found")
 
-        assert client.delete("/gears/1", headers={**_HEADERS, "If-Match": '"1"'}).status_code == 404
+        assert client.delete(_PATH, headers={**_HEADERS, "If-Match": '"1"'}).status_code == 404

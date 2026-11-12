@@ -76,7 +76,7 @@ class TestActivity:
 class TestGear:
     def test_a_stored_row_reads_as_the_key(self):
         row = {
-            "id": 1,
+            "id": uuid.UUID(int=1),
             "user_id": 1,
             "nickname": "Bike",
             "gear_type": 8,

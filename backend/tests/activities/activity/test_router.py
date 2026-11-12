@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -71,7 +72,7 @@ def _valid_activity(**kw):
         description="desc",
         private_notes="secret",
         import_info={"imported": True},
-        gear_id=1,
+        gear_id=uuid.uuid4(),
         id=1,
         user_id=1,
     )
@@ -321,6 +322,9 @@ class TestFeed:
         assert resp.status_code == 404
 
 
+_GEAR_ID = uuid.uuid4()
+
+
 class TestGearFilter:
     def test_gear_id_filters_the_callers_own_list(self, mock_db):
         with (
@@ -328,11 +332,13 @@ class TestGearFilter:
             patch("modules.activities.activity.service.activity_crud.count_user_activities", return_value=0) as count,
         ):
             page.return_value = []
-            resp = TestClient(_build_app(mock_db)).get("/activities?gear_id=5", headers={"Authorization": "Bearer x"})
+            resp = TestClient(_build_app(mock_db)).get(
+                f"/activities?gear_id={_GEAR_ID}", headers={"Authorization": "Bearer x"}
+            )
 
         assert resp.status_code == 200
-        assert page.call_args.kwargs["gear_id"] == 5
-        assert count.call_args.kwargs["gear_id"] == 5
+        assert page.call_args.kwargs["gear_id"] == _GEAR_ID
+        assert count.call_args.kwargs["gear_id"] == _GEAR_ID
 
     def test_no_gear_id_leaves_the_list_unfiltered(self, mock_db):
         with (
@@ -344,8 +350,10 @@ class TestGearFilter:
 
         assert page.call_args.kwargs["gear_id"] is None
 
-    def test_a_non_positive_gear_id_is_rejected(self, mock_db):
-        resp = TestClient(_build_app(mock_db)).get("/activities?gear_id=0", headers={"Authorization": "Bearer x"})
+    def test_a_malformed_gear_id_is_rejected(self, mock_db):
+        resp = TestClient(_build_app(mock_db)).get(
+            "/activities?gear_id=not-a-uuid", headers={"Authorization": "Bearer x"}
+        )
         assert resp.status_code == 422
 
     def test_another_users_list_has_no_gear_filter(self, mock_db):
@@ -356,7 +364,9 @@ class TestGearFilter:
             patch("modules.activities.activity.service._require_visible_owner"),
         ):
             page.return_value = []
-            TestClient(_build_app(mock_db)).get("/users/2/activities?gear_id=5", headers={"Authorization": "Bearer x"})
+            TestClient(_build_app(mock_db)).get(
+                f"/users/2/activities?gear_id={_GEAR_ID}", headers={"Authorization": "Bearer x"}
+            )
 
         assert page.call_args.kwargs["gear_id"] is None
 

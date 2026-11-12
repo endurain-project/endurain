@@ -50,7 +50,7 @@ def list_gears(
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:read"])],
 )
 def read_gear_id(
-    gear_id: core_dependencies.PositiveId,
+    gear_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     response: Response,
@@ -91,7 +91,7 @@ def create_gear(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_gear(
     request: Request,
-    gear_id: core_dependencies.PositiveId,
+    gear_id: core_dependencies.UuidId,
     gear: gears_schema.GearUpdate,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
@@ -121,7 +121,7 @@ def edit_gear(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_gear(
     request: Request,
-    gear_id: core_dependencies.PositiveId,
+    gear_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     if_match: core_dependencies.IfMatch,
     db: core_dependencies.DbSession,

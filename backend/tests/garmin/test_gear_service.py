@@ -1,5 +1,6 @@
 """Tests for the Garmin Connect gear sync."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import garminconnect
@@ -104,12 +105,16 @@ def test_only_gear_not_stored_yet_is_counted():
     assert create.call_args.args[0] == [new_gear]
 
 
+_GEAR_A = uuid.uuid4()
+_GEAR_B = uuid.uuid4()
+
+
 def _ref(activity_id, gear_id):
     return garmin_gear_service.activity_contracts.ActivityGarminGearRef(id=activity_id, garminconnect_gear_id=gear_id)
 
 
 def test_activities_are_matched_page_by_page_and_each_page_is_committed():
-    gears = [MagicMock(id=10, garminconnect_gear_id="g1"), MagicMock(id=11, garminconnect_gear_id="g2")]
+    gears = [MagicMock(id=_GEAR_A, garminconnect_gear_id="g1"), MagicMock(id=_GEAR_B, garminconnect_gear_id="g2")]
     pages = [[_ref(1, "g1"), _ref(2, "other")], [_ref(3, "g2")], []]
     db = MagicMock()
 
@@ -124,7 +129,7 @@ def test_activities_are_matched_page_by_page_and_each_page_is_committed():
 
     assert assigned == 2
     assert [call.kwargs["after_id"] for call in list_refs.call_args_list] == [0, 2, 3]
-    assert [call.args[1] for call in bulk_set.call_args_list] == [{1: 10}, {3: 11}]
+    assert [call.args[1] for call in bulk_set.call_args_list] == [{1: _GEAR_A}, {3: _GEAR_B}]
     assert db.commit.call_count == 2
 
 

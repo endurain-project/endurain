@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from unittest.mock import Mock, patch
 
 import pytest
@@ -53,8 +54,13 @@ class TestDoesActivityStartTimeMatchTheCsv:
         )
 
 
+_GEAR_1 = uuid.uuid4()
+_GEAR_2 = uuid.uuid4()
+_GEAR_3 = uuid.uuid4()
+
+
 class _MockGear:
-    def __init__(self, gear_id: int, brand: str | None, model: str | None, nickname: str):
+    def __init__(self, gear_id: uuid.UUID, brand: str | None, model: str | None, nickname: str):
         self.id = gear_id
         self.brand = brand
         self.model = model
@@ -232,26 +238,26 @@ def _gear(monkeypatch, items):
 
 def test_gear_dictionary_normal(monkeypatch):
     """Smoosh key is built correctly with clean values."""
-    _gear(monkeypatch, [_MockGear(gear_id=1, brand="Nike", model="Pegasus", nickname="Fast Shoes")])
+    _gear(monkeypatch, [_MockGear(gear_id=_GEAR_1, brand="Nike", model="Pegasus", nickname="Fast Shoes")])
 
     result = bulk_import_utils.create_gear_dictionary_for_bulk_import(42, Mock())
 
-    assert result["Fast Shoes"] == [1]
-    assert result["Nike Pegasus Fast Shoes"] == [1]
+    assert result["Fast Shoes"] == [_GEAR_1]
+    assert result["Nike Pegasus Fast Shoes"] == [_GEAR_1]
 
 
 def test_gear_dictionary_strips_surrounding_whitespace(monkeypatch):
-    _gear(monkeypatch, [_MockGear(gear_id=2, brand="Nike ", model=" Pegasus ", nickname="Fast Shoes ")])
+    _gear(monkeypatch, [_MockGear(gear_id=_GEAR_2, brand="Nike ", model=" Pegasus ", nickname="Fast Shoes ")])
 
     result = bulk_import_utils.create_gear_dictionary_for_bulk_import(42, Mock())
 
-    assert result["Nike Pegasus Fast Shoes"] == [2]
+    assert result["Nike Pegasus Fast Shoes"] == [_GEAR_2]
 
 
 def test_gear_dictionary_handles_missing_brand_and_model(monkeypatch):
-    _gear(monkeypatch, [_MockGear(gear_id=3, brand=None, model=None, nickname="Unbranded")])
+    _gear(monkeypatch, [_MockGear(gear_id=_GEAR_3, brand=None, model=None, nickname="Unbranded")])
 
-    assert bulk_import_utils.create_gear_dictionary_for_bulk_import(42, Mock())["Unbranded"] == [3]
+    assert bulk_import_utils.create_gear_dictionary_for_bulk_import(42, Mock())["Unbranded"] == [_GEAR_3]
 
 
 def test_a_user_with_no_gear_gets_an_empty_map_not_an_aborted_import(monkeypatch):

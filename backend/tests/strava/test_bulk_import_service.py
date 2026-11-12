@@ -6,6 +6,7 @@ point. They are asserted here, against the subclass, because that is where the
 knowledge belongs.
 """
 
+import uuid
 from unittest.mock import MagicMock
 
 import pytest
@@ -13,6 +14,8 @@ import pytest
 import core.exceptions as core_exceptions
 import modules.activities.activity.contracts as activity_contracts
 import modules.strava.bulk_import_service as strava_bulk_import_source
+
+_GEAR = uuid.uuid4()
 
 
 @pytest.fixture
@@ -59,12 +62,12 @@ class TestMetadataFor:
         source = _source(
             import_initiated_time="2026-07-21T00:00:00",
             strava_activities={"f.fit": {}},
-            gear_nickname_to_id={"Bike": 3},
+            gear_nickname_to_id={"Bike": [_GEAR]},
         )
 
         assert source.metadata_for("f.fit") == {"name": "Morning Ride"}
         mock_utils.build_metadata_dict.assert_called_once_with(
-            "f.fit", {"f.fit": {}}, "2026-07-21T00:00:00", {"Bike": 3}
+            "f.fit", {"f.fit": {}}, "2026-07-21T00:00:00", {"Bike": [_GEAR]}
         )
 
     def test_falls_back_to_the_plain_import_record_without_a_csv(self):
@@ -102,9 +105,9 @@ class TestApplyMetadata:
     def test_it_reuses_the_shared_applier(self):
         activity = _activity()
 
-        _source().apply_metadata(activity, {"name": "Morning Ride", "gear_id": 4})
+        _source().apply_metadata(activity, {"name": "Morning Ride", "gear_id": _GEAR})
 
-        assert (activity.name, activity.gear_id) == ("Morning Ride", 4)
+        assert (activity.name, activity.gear_id) == ("Morning Ride", _GEAR)
 
 
 class TestImportSideArtifacts:
@@ -163,14 +166,14 @@ class TestBuildSource:
         monkeypatch.setattr(
             strava_bulk_import_source,
             "create_gear_dictionary_for_bulk_import",
-            lambda user_id, db: {"Bike": [3]},
+            lambda user_id, db: {"Bike": [_GEAR]},
         )
         monkeypatch.setattr(strava_bulk_import_source.core_database, "SessionLocal", MagicMock())
 
         source = strava_bulk_import_source._build_source(7, "2026-10-15T00:00:00", read)
 
         assert source.strava_activities == {"1.fit": {"Activity Name": "Ride"}}
-        assert source.gear_nickname_to_id == {"Bike": [3]}
+        assert source.gear_nickname_to_id == {"Bike": [_GEAR]}
         assert (source.user_id, source.import_initiated_time) == (7, "2026-10-15T00:00:00")
         assert source.read_member is read
 

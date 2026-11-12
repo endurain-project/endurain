@@ -1,8 +1,11 @@
+import uuid
+
 import pytest
 
 import core.exceptions as core_exceptions
 import modules.gears.gear.crud as crud
 import modules.gears.gear.integration_service as integration
+import modules.users.users_profile.contracts as users_profile_contracts
 from tests._helpers.gears import gear_create, install_readers
 
 
@@ -26,13 +29,16 @@ def test_provider_lookups_resolve_the_users_import(db):
 
 
 def test_restoring_gears_stages_them_and_publishes_the_ids(db, commit_spy):
-    ids: dict[str, dict[int, int]] = {}
+    archived_id = uuid.uuid4()
+    ids: users_profile_contracts.ProfileIdMaps = {}
 
-    restored = integration.restore_profile_gears([{"id": 5, "nickname": "Garmin", "gear_type": 1}], 1, ids, db)
+    restored = integration.restore_profile_gears(
+        [{"id": str(archived_id), "nickname": "Garmin", "gear_type": 1}], 1, ids, db
+    )
 
     commit_spy.assert_not_called()
     assert restored == 1
-    assert ids == {"gears": {5: integration.get_gear_user(1, db)[0].id}}
+    assert ids == {"gears": {str(archived_id): integration.get_gear_user(1, db)[0].id}}
 
 
 def test_require_owned_gears_refuses_a_foreign_gear(db):

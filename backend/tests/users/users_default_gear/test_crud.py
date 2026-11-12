@@ -1,5 +1,6 @@
 """Tests for users.users_default_gear.crud module."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -9,6 +10,8 @@ import core.exceptions as core_exceptions
 import modules.users.users_default_gear.crud as user_default_gear_crud
 import modules.users.users_default_gear.models as user_default_gear_models
 import modules.users.users_default_gear.schema as user_default_gear_schema
+
+_GEAR = uuid.uuid4()
 
 
 @pytest.fixture(autouse=True)
@@ -64,18 +67,18 @@ class TestEditUserDefaultGear:
     def test_applies_the_set_fields_and_stages(self, mock_db):
         row = MagicMock(spec=user_default_gear_models.UsersDefaultGear)
         _found(mock_db, row)
-        update = user_default_gear_schema.UserDefaultGearUpdate(run_gear_id=10)
+        update = user_default_gear_schema.UserDefaultGearUpdate(run_gear_id=_GEAR)
 
         result = user_default_gear_crud.edit_user_default_gear(update, 1, mock_db, if_match="*")
 
         assert result == row
-        assert row.run_gear_id == 10
+        assert row.run_gear_id == _GEAR
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
 
     def test_missing_settings_are_not_found(self, mock_db):
         _found(mock_db, None)
-        update = user_default_gear_schema.UserDefaultGearUpdate(run_gear_id=10)
+        update = user_default_gear_schema.UserDefaultGearUpdate(run_gear_id=_GEAR)
 
         with pytest.raises(core_exceptions.NotFoundError):
             user_default_gear_crud.edit_user_default_gear(update, 1, mock_db, if_match="*")
@@ -83,7 +86,7 @@ class TestEditUserDefaultGear:
 
 class TestClearGears:
     def test_stages_one_update_that_bumps_the_version(self, mock_db):
-        user_default_gear_crud.clear_gears([3], 1, mock_db)
+        user_default_gear_crud.clear_gears([_GEAR], 1, mock_db)
 
         stmt = mock_db.execute.call_args.args[0]
         compiled = str(stmt.compile())

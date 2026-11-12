@@ -18,7 +18,7 @@ import modules.gears.gear_components.serializers as gear_components_serializers
 
 
 def _find_gear_component_model(
-    gear_component_id: int, user_id: int, db: Session
+    gear_component_id: uuid.UUID, user_id: int, db: Session
 ) -> gear_components_models.GearComponents | None:
     """Load a user's component row.
 
@@ -38,7 +38,7 @@ def _find_gear_component_model(
 
 
 def _get_gear_component_model_or_404(
-    gear_component_id: int, user_id: int, db: Session
+    gear_component_id: uuid.UUID, user_id: int, db: Session
 ) -> gear_components_models.GearComponents:
     """Load a user's component row for a write.
 
@@ -60,7 +60,7 @@ def _get_gear_component_model_or_404(
 
 
 def get_gear_component_user_by_id(
-    user_id: int, gear_component_id: int, db: Session
+    user_id: int, gear_component_id: uuid.UUID, db: Session
 ) -> gear_components_schema.GearComponentRead | None:
     """Retrieve a user's component by ID.
 
@@ -95,7 +95,7 @@ def get_gear_components_number(user_id: int, db: Session) -> int:
 def get_gear_components_user(
     user_id: int, db: Session, *, limit: int | None = None, offset: int = 0
 ) -> list[gear_components_schema.GearComponentRead]:
-    """Retrieve a user's gear components, ordered by ID.
+    """Retrieve a user's gear components, ordered by creation time, then ID.
 
     Args:
         user_id: Owner user ID.
@@ -109,7 +109,7 @@ def get_gear_components_user(
     stmt = (
         select(gear_components_models.GearComponents)
         .where(gear_components_models.GearComponents.user_id == user_id)
-        .order_by(gear_components_models.GearComponents.id)
+        .order_by(gear_components_models.GearComponents.created_at, gear_components_models.GearComponents.id)
         .offset(offset)
         .limit(limit)
     )
@@ -117,7 +117,7 @@ def get_gear_components_user(
 
 
 def _filter_gear_components[RowT: tuple[object, ...]](
-    stmt: Select[RowT], user_id: int, gear_id: int, *, active: bool | None
+    stmt: Select[RowT], user_id: int, gear_id: uuid.UUID, *, active: bool | None
 ) -> Select[RowT]:
     """Scope a component statement to one of a user's gears and the active filter.
 
@@ -140,7 +140,7 @@ def _filter_gear_components[RowT: tuple[object, ...]](
 
 
 def get_gear_components_number_by_gear_id(
-    user_id: int, gear_id: int, db: Session, *, active: bool | None = None
+    user_id: int, gear_id: uuid.UUID, db: Session, *, active: bool | None = None
 ) -> int:
     """Count a user's components for one gear.
 
@@ -161,14 +161,14 @@ def get_gear_components_number_by_gear_id(
 
 def get_gear_components_user_by_gear_id(
     user_id: int,
-    gear_id: int,
+    gear_id: uuid.UUID,
     db: Session,
     *,
     active: bool | None = None,
     page_number: int = 1,
     num_records: int = core_pagination.MAX_NUM_RECORDS,
 ) -> list[gear_components_schema.GearComponentRead]:
-    """Retrieve one page of a user's components for one gear, ordered by ID.
+    """Retrieve one page of a user's components for one gear, ordered by creation time, then ID.
 
     Args:
         user_id: Owner user ID.
@@ -182,12 +182,12 @@ def get_gear_components_user_by_gear_id(
         The matching components on the page (empty list if none).
     """
     stmt = _filter_gear_components(select(gear_components_models.GearComponents), user_id, gear_id, active=active)
-    stmt = stmt.order_by(gear_components_models.GearComponents.id)
+    stmt = stmt.order_by(gear_components_models.GearComponents.created_at, gear_components_models.GearComponents.id)
     stmt = stmt.offset((page_number - 1) * num_records).limit(num_records)
     return [gear_components_serializers.to_read_schema(row) for row in db.execute(stmt).scalars().all()]
 
 
-def get_gear_components_total_cost(gear_id: int, user_id: int, db: Session) -> float:
+def get_gear_components_total_cost(gear_id: uuid.UUID, user_id: int, db: Session) -> float:
     """Sum the purchase value of a gear's components.
 
     Args:
@@ -205,7 +205,9 @@ def get_gear_components_total_cost(gear_id: int, user_id: int, db: Session) -> f
     return float(db.execute(stmt).scalar_one() or 0)
 
 
-def count_gear_components_outside_types(gear_id: int, user_id: int, valid_types: Collection[str], db: Session) -> int:
+def count_gear_components_outside_types(
+    gear_id: uuid.UUID, user_id: int, valid_types: Collection[str], db: Session
+) -> int:
     """Count a gear's components whose type is not among the given types.
 
     Args:
@@ -229,6 +231,8 @@ def create_gear_component(
     gear_component: gear_components_schema.GearComponentCreate,
     user_id: int,
     db: Session,
+    *,
+    created_at: datetime | None = None,
 ) -> gear_components_schema.GearComponentRead:
     """Stage a new gear component.
 
@@ -236,6 +240,7 @@ def create_gear_component(
         gear_component: Component payload to create.
         user_id: Owner user ID.
         db: Database session.
+        created_at: Creation time to store; the transaction time when omitted.
 
     Returns:
         The staged component with its generated ID.
@@ -244,6 +249,8 @@ def create_gear_component(
         NotFoundError: If the gear was deleted before the component could be stored.
     """
     new_gear_component = gear_components_serializers.to_orm(gear_component, user_id)
+    if created_at is not None:
+        new_gear_component.created_at = created_at
     try:
         db.add(new_gear_component)
         db.flush()
@@ -255,7 +262,7 @@ def create_gear_component(
 
 
 def edit_gear_component(
-    gear_component_id: int,
+    gear_component_id: uuid.UUID,
     gear_component: gear_components_schema.GearComponentUpdate,
     user_id: int,
     db: Session,
@@ -298,7 +305,7 @@ def edit_gear_component(
     return gear_components_serializers.to_read_schema(db_gear_component)
 
 
-def delete_gear_component(user_id: int, gear_component_id: int, db: Session, *, if_match: str) -> None:
+def delete_gear_component(user_id: int, gear_component_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Stage the deletion of a user's component.
 
     Args:
@@ -318,7 +325,7 @@ def delete_gear_component(user_id: int, gear_component_id: int, db: Session, *, 
     db.flush()
 
 
-def record_gear_component_deletions(gear_ids: Collection[int], user_id: int, db: Session) -> None:
+def record_gear_component_deletions(gear_ids: Collection[uuid.UUID], user_id: int, db: Session) -> None:
     """Stage a tombstone for every component of the given gears, which deleting the gears cascades away.
 
     Args:
@@ -336,7 +343,7 @@ def record_gear_component_deletions(gear_ids: Collection[int], user_id: int, db:
 
 
 def list_changed_gear_components(
-    user_id: int, after: core_sync.Position[int] | None, until: datetime, limit: int, db: Session
+    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[gear_components_schema.GearComponentRead]:
     """Retrieve a page of a user's components changed after a position, oldest change first.
 
@@ -365,7 +372,7 @@ def list_changed_gear_components(
 
 def list_gear_component_deletions(
     user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
-) -> list[core_sync.Deletion[int]]:
+) -> list[core_sync.Deletion[uuid.UUID]]:
     """Retrieve a page of a user's deleted components after a position, oldest deletion first.
 
     Args:

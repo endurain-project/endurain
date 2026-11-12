@@ -1,5 +1,6 @@
 """Strava activity sync: fetch a window, parse each activity with its streams and laps, and store it."""
 
+import uuid
 from datetime import datetime, timedelta
 from typing import TypedDict
 
@@ -415,7 +416,7 @@ def parse_activity(
         (detailed_activity.start_latlng is not None, activity_streams_constants.STREAM_TYPE_MAP, lat_lon_waypoints),
     ]
 
-    gear_id = None
+    gear_id: uuid.UUID | None = None
 
     if user_integrations.strava_sync_gear and detailed_activity.gear_id is not None:
         # set the gear id for the activity

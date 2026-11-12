@@ -1,5 +1,6 @@
 """Gear components schema definitions."""
 
+import uuid
 from datetime import date, datetime
 
 from pydantic import (
@@ -119,7 +120,7 @@ class GearComponentCreate(GearComponentBase):
         max_length=250,
         description="Gear component model",
     )
-    gear_id: core_types.RecordId = Field(
+    gear_id: uuid.UUID = Field(
         ...,
         description="Foreign key to gear",
     )
@@ -140,7 +141,7 @@ class GearComponentRead(GearComponentCreate):
         ge=1,
         description="Optimistic-concurrency counter",
     )
-    id: StrictInt = Field(
+    id: uuid.UUID = Field(
         ...,
         description="Unique identifier",
     )

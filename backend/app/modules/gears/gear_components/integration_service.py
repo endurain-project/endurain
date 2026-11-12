@@ -16,6 +16,7 @@ import modules.gears.gear.schema as gears_schema
 import modules.gears.gear_components.crud as gear_components_crud
 import modules.gears.gear_components.schema as gear_components_schema
 import modules.gears.gear_components.service as gear_components_service
+import modules.users.users_profile.contracts as users_profile_contracts
 
 
 def get_gear_components_user(user_id: int, db: Session) -> list[gear_components_schema.GearComponentRead]:
@@ -32,7 +33,7 @@ def get_gear_components_user(user_id: int, db: Session) -> list[gear_components_
 
 
 def restore_profile_gear_components(
-    records: list[dict[str, Any]], user_id: int, ids: dict[str, dict[int, int]], db: Session
+    records: list[dict[str, Any]], user_id: int, ids: users_profile_contracts.ProfileIdMaps, db: Session
 ) -> int:
     """Stage the gear components of a profile archive; the caller commits.
 
@@ -48,7 +49,7 @@ def restore_profile_gear_components(
     return gear_components_service.restore_profile_gear_components(records, user_id, ids, db)
 
 
-def get_gear_components_total_cost(gear_id: int, user_id: int, db: Session) -> float:
+def get_gear_components_total_cost(gear_id: uuid.UUID, user_id: int, db: Session) -> float:
     """Return the summed purchase value of a gear's components.
 
     Args:
@@ -63,7 +64,7 @@ def get_gear_components_total_cost(gear_id: int, user_id: int, db: Session) -> f
 
 
 def count_components_outside_gear_type(
-    gear_id: int, user_id: int, gear_type: gears_schema.GearType, db: Session
+    gear_id: uuid.UUID, user_id: int, gear_type: gears_schema.GearType, db: Session
 ) -> int:
     """Return how many of a gear's components are not valid for a gear type.
 
@@ -79,7 +80,7 @@ def count_components_outside_gear_type(
     return gear_components_service.count_components_outside_gear_type(gear_id, user_id, gear_type, db)
 
 
-def record_gear_component_deletions(gear_ids: Collection[int], user_id: int, db: Session) -> None:
+def record_gear_component_deletions(gear_ids: Collection[uuid.UUID], user_id: int, db: Session) -> None:
     """Stage a deletion record for every component of the given gears; the caller commits.
 
     Call it before deleting the gears, whose delete cascades the components away.
@@ -93,7 +94,7 @@ def record_gear_component_deletions(gear_ids: Collection[int], user_id: int, db:
 
 
 def list_changed_gear_components(
-    user_id: int, after: core_sync.Position[int] | None, until: datetime, limit: int, db: Session
+    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[gear_components_schema.GearComponentRead]:
     """Return a page of a user's components changed after a position, oldest change first.
 
@@ -112,7 +113,7 @@ def list_changed_gear_components(
 
 def list_gear_component_deletions(
     user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
-) -> list[core_sync.Deletion[int]]:
+) -> list[core_sync.Deletion[uuid.UUID]]:
     """Return a page of a user's deleted components after a position, oldest deletion first.
 
     Args:

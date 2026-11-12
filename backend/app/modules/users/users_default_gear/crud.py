@@ -1,5 +1,6 @@
 """CRUD operations for user default gear."""
 
+import uuid
 from collections.abc import Collection
 
 from sqlalchemy import case, or_, select
@@ -114,7 +115,7 @@ def edit_user_default_gear(
     return users_default_gear_serializers.to_read_schema(db_default_gear)
 
 
-def clear_gears(gear_ids: Collection[int], user_id: int, db: Session) -> None:
+def clear_gears(gear_ids: Collection[uuid.UUID], user_id: int, db: Session) -> None:
     """Stage unassigning gears from every default-gear column of a user that names them.
 
     The gear foreign keys null a column when the gear is deleted, but they do not touch

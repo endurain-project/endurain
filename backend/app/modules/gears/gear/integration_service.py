@@ -16,6 +16,7 @@ import core.sync as core_sync
 import modules.gears.gear.crud as gears_crud
 import modules.gears.gear.schema as gears_schema
 import modules.gears.gear.service as gears_service
+import modules.users.users_profile.contracts as users_profile_contracts
 
 
 def get_gear_user(user_id: int, db: Session) -> list[gears_schema.GearRead]:
@@ -31,7 +32,7 @@ def get_gear_user(user_id: int, db: Session) -> list[gears_schema.GearRead]:
     return gears_crud.get_gear_user(user_id, db)
 
 
-def get_gear_user_by_id(user_id: int, gear_id: int, db: Session) -> gears_schema.GearRead | None:
+def get_gear_user_by_id(user_id: int, gear_id: uuid.UUID, db: Session) -> gears_schema.GearRead | None:
     """Return a user's gear by ID.
 
     Args:
@@ -45,7 +46,7 @@ def get_gear_user_by_id(user_id: int, gear_id: int, db: Session) -> gears_schema
     return gears_crud.get_gear_user_by_id(user_id, gear_id, db)
 
 
-def lock_gear(gear_id: int, user_id: int, db: Session) -> None:
+def lock_gear(gear_id: uuid.UUID, user_id: int, db: Session) -> None:
     """Lock a user's gear row until the transaction ends.
 
     Args:
@@ -88,7 +89,7 @@ def get_gear_by_garminconnect_id(garminconnect_gear_id: str, user_id: int, db: S
 
 
 def restore_profile_gears(
-    records: list[dict[str, Any]], user_id: int, ids: dict[str, dict[int, int]], db: Session
+    records: list[dict[str, Any]], user_id: int, ids: users_profile_contracts.ProfileIdMaps, db: Session
 ) -> int:
     """Stage the gears of a profile archive; the caller commits.
 
@@ -130,7 +131,7 @@ def delete_all_strava_gear_for_user(user_id: int, db: Session) -> None:
     gears_service.delete_all_strava_gear_for_user(user_id, db)
 
 
-def require_owned_gears(user_id: int, gear_ids: Iterable[int | None], db: Session) -> None:
+def require_owned_gears(user_id: int, gear_ids: Iterable[uuid.UUID | None], db: Session) -> None:
     """Require every given gear to belong to the user.
 
     Args:
@@ -145,7 +146,7 @@ def require_owned_gears(user_id: int, gear_ids: Iterable[int | None], db: Sessio
 
 
 def list_changed_gears(
-    user_id: int, after: core_sync.Position[int] | None, until: datetime, limit: int, db: Session
+    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[gears_schema.GearDetailRead]:
     """Return a page of a user's gears changed after a position, oldest change first.
 
@@ -168,7 +169,7 @@ def list_changed_gears(
 
 def list_gear_deletions(
     user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
-) -> list[core_sync.Deletion[int]]:
+) -> list[core_sync.Deletion[uuid.UUID]]:
     """Return a page of a user's deleted gears after a position, oldest deletion first.
 
     Args:

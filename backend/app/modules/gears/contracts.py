@@ -1,5 +1,6 @@
 """Usage figures exchanged between the gears namespace and the module that records activities."""
 
+import uuid
 from dataclasses import dataclass
 from datetime import date
 
@@ -34,6 +35,6 @@ class UsageWindow:
         end_date: Inclusive last local day, or ``None`` while still in use.
     """
 
-    key: int
+    key: uuid.UUID
     start_date: date
     end_date: date | None = None

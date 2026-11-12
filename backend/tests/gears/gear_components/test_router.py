@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import patch
 
@@ -14,7 +15,9 @@ import modules.gears.gear_components.router as router
 import modules.gears.gear_components.schema as schema
 
 _HEADERS = {"Authorization": "Bearer x"}
-_BODY = {"gear_id": 1, "type": "chain", "brand": "Shimano", "model": "XT"}
+GEAR_ID = uuid.uuid4()
+COMPONENT_ID = uuid.uuid4()
+_BODY = {"gear_id": str(GEAR_ID), "type": "chain", "brand": "Shimano", "model": "XT"}
 
 
 @pytest.fixture
@@ -31,7 +34,7 @@ def client(mock_db):
 
 def _read(**overrides) -> schema.GearComponentRead:
     return schema.GearComponentRead(
-        **{"id": 1, "user_id": 1, "updated_at": datetime(2025, 1, 1, tzinfo=UTC), **_BODY, **overrides}
+        **{"id": COMPONENT_ID, "user_id": 1, "updated_at": datetime(2025, 1, 1, tzinfo=UTC), **_BODY, **overrides}
     )
 
 
@@ -48,7 +51,7 @@ def test_list(mock_list, client):
 
     item = client.get("/gear_components", headers=_HEADERS).json()["items"][0]
 
-    assert item["id"] == 1
+    assert item["id"] == str(COMPONENT_ID)
     assert "current_distance" not in item
     assert "current_time" not in item
 
@@ -68,14 +71,21 @@ def test_list_for_gear_passes_the_active_filter(mock_list, client, mock_db):
     usage = schema.GearComponentUsageRead(**_read().model_dump(), current_distance=3.0)
     mock_list.return_value = core_pagination.Page.build([usage], 1, 1, 200)
 
-    response = client.get("/gears/1/components?active=true", headers=_HEADERS)
+    response = client.get(f"/gears/{GEAR_ID}/components?active=true", headers=_HEADERS)
 
     assert response.json()["items"][0]["current_distance"] == 3.0
-    mock_list.assert_called_once_with(1, 1, mock_db, active=True, page_number=1, num_records=200)
+    mock_list.assert_called_once_with(GEAR_ID, 1, mock_db, active=True, page_number=1, num_records=200)
 
 
-def test_a_non_positive_gear_id_is_rejected(client):
-    assert client.get("/gears/0/components", headers=_HEADERS).status_code == 422
+def test_a_malformed_gear_id_is_rejected(client):
+    assert client.get("/gears/1/components", headers=_HEADERS).status_code == 422
+
+
+@pytest.mark.parametrize("method", ["get", "patch", "delete"])
+def test_a_malformed_gear_component_id_is_rejected(method, client):
+    response = getattr(client, method)("/gear_components/1", headers={**_HEADERS, "If-Match": '"1"'})
+
+    assert response.status_code == 422
 
 
 @patch("modules.gears.gear_components.service.create_gear_component")
@@ -85,7 +95,7 @@ def test_create(mock_create, client):
     response = client.post("/gear_components", json=_BODY, headers=_HEADERS)
 
     assert response.status_code == 201
-    assert response.headers["Location"] == "/gear_components/1"
+    assert response.headers["Location"] == f"/gear_components/{COMPONENT_ID}"
     assert response.headers["ETag"] == '"1"'
 
 
@@ -112,18 +122,18 @@ def test_create_refuses_the_old_expected_kms_name(mock_create, client):
 def test_read_returns_the_component_with_its_etag(mock_get, client, mock_db):
     mock_get.return_value = _read(version=3)
 
-    response = client.get("/gear_components/1", headers=_HEADERS)
+    response = client.get(f"/gear_components/{COMPONENT_ID}", headers=_HEADERS)
 
     assert response.status_code == 200
     assert response.headers["ETag"] == '"3"'
-    mock_get.assert_called_once_with(1, 1, mock_db)
+    mock_get.assert_called_once_with(1, COMPONENT_ID, mock_db)
 
 
 @patch("modules.gears.gear_components.service.get_gear_component")
 def test_read_of_a_component_the_user_does_not_have_is_404(mock_get, client):
     mock_get.side_effect = core_exceptions.NotFoundError("Gear component not found")
 
-    assert client.get("/gear_components/99", headers=_HEADERS).status_code == 404
+    assert client.get(f"/gear_components/{uuid.uuid4()}", headers=_HEADERS).status_code == 404
 
 
 @pytest.mark.parametrize(
@@ -141,7 +151,9 @@ def test_create_maps_domain_errors(mock_create, error, status_code, client):
 def test_edit_is_partial_and_returns_the_etag(mock_edit, client, mock_db):
     mock_edit.return_value = _read(brand="SRAM", version=3)
 
-    response = client.patch("/gear_components/1", json={"brand": "SRAM"}, headers={**_HEADERS, "If-Match": '"2"'})
+    response = client.patch(
+        f"/gear_components/{COMPONENT_ID}", json={"brand": "SRAM"}, headers={**_HEADERS, "If-Match": '"2"'}
+    )
 
     assert response.json()["brand"] == "SRAM"
     assert response.headers["ETag"] == '"3"'
@@ -150,7 +162,7 @@ def test_edit_is_partial_and_returns_the_etag(mock_edit, client, mock_db):
 
 @patch("modules.gears.gear_components.service.edit_gear_component")
 def test_an_edit_without_if_match_is_428(mock_edit, client):
-    response = client.patch("/gear_components/1", json={"brand": "SRAM"}, headers=_HEADERS)
+    response = client.patch(f"/gear_components/{COMPONENT_ID}", json={"brand": "SRAM"}, headers=_HEADERS)
 
     assert response.status_code == 428
     mock_edit.assert_not_called()
@@ -158,7 +170,9 @@ def test_an_edit_without_if_match_is_428(mock_edit, client):
 
 @patch("modules.gears.gear_components.service.edit_gear_component")
 def test_edit_clearing_the_purchase_date_is_rejected(mock_edit, client):
-    response = client.patch("/gear_components/1", json={"purchase_date": None}, headers={**_HEADERS, "If-Match": '"1"'})
+    response = client.patch(
+        f"/gear_components/{COMPONENT_ID}", json={"purchase_date": None}, headers={**_HEADERS, "If-Match": '"1"'}
+    )
 
     assert response.status_code == 422
     mock_edit.assert_not_called()
@@ -166,15 +180,15 @@ def test_edit_clearing_the_purchase_date_is_rejected(mock_edit, client):
 
 @patch("modules.gears.gear_components.service.delete_gear_component")
 def test_delete(mock_delete, client, mock_db):
-    response = client.delete("/gear_components/4", headers={**_HEADERS, "If-Match": '"3"'})
+    response = client.delete(f"/gear_components/{COMPONENT_ID}", headers={**_HEADERS, "If-Match": '"3"'})
 
     assert response.status_code == 204
-    mock_delete.assert_called_once_with(1, 4, mock_db, if_match='"3"')
+    mock_delete.assert_called_once_with(1, COMPONENT_ID, mock_db, if_match='"3"')
 
 
 @patch("modules.gears.gear_components.service.delete_gear_component")
 def test_delete_without_if_match_is_428(mock_delete, client):
-    assert client.delete("/gear_components/4", headers=_HEADERS).status_code == 428
+    assert client.delete(f"/gear_components/{COMPONENT_ID}", headers=_HEADERS).status_code == 428
     mock_delete.assert_not_called()
 
 
@@ -182,4 +196,4 @@ def test_delete_without_if_match_is_428(mock_delete, client):
 def test_a_stale_delete_is_412(mock_delete, client):
     mock_delete.side_effect = core_exceptions.PreconditionFailedError("stale")
 
-    assert client.delete("/gear_components/4", headers={**_HEADERS, "If-Match": '"1"'}).status_code == 412
+    assert client.delete(f"/gear_components/{COMPONENT_ID}", headers={**_HEADERS, "If-Match": '"1"'}).status_code == 412

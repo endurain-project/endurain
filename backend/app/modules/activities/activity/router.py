@@ -8,6 +8,7 @@ Literal paths are declared before ``/{activity_id}`` so FastAPI matches them
 first.
 """
 
+import uuid
 from typing import Annotated
 
 from fastapi import (
@@ -26,7 +27,6 @@ import core.exceptions as core_exceptions
 import core.location as core_location
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
-import core.types as core_types
 import modules.activities.activity.bulk_edit_constants as bulk_edit_constants
 import modules.activities.activity.bulk_edit_job_service as activity_bulk_edit_job_service
 import modules.activities.activity.constants as activity_constants
@@ -57,8 +57,8 @@ def list_own_activities(
     sort_by: activity_dependencies.SortBy = None,
     sort_order: activity_dependencies.SortOrder = None,
     gear_id: Annotated[
-        int | None,
-        Query(gt=0, le=core_types.INT32_MAX, description="Keep only the activities recorded with this gear"),
+        uuid.UUID | None,
+        Query(description="Keep only the activities recorded with this gear"),
     ] = None,
 ) -> activity_schema.ActivityPage:
     """List the authenticated user's activities, with the matching total.

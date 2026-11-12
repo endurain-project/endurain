@@ -1,5 +1,6 @@
 """Activity database models."""
 
+import uuid
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
@@ -56,7 +57,7 @@ class Activity(UpdatedAtMixin, Base):
         workout_rpe: Workout RPE (10-100).
         calories: Calories consumed (kcal).
         visibility: 0 - public, 1 - followers, 2 - private.
-        gear_id: Associated gear ID.
+        gear_id: Associated gear ID, a UUID.
         strava_gear_id: Strava gear ID.
         strava_activity_id: Strava activity ID.
         garminconnect_activity_id: Garmin Connect activity ID.
@@ -262,7 +263,7 @@ class Activity(UpdatedAtMixin, Base):
         default=0,
         comment="0 - public, 1 - followers, 2 - private",
     )
-    gear_id: Mapped[int | None] = mapped_column(
+    gear_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("gear.id", ondelete="SET NULL"),
         nullable=True,
         index=True,

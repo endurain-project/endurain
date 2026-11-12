@@ -11,6 +11,7 @@ dependency runs one way, from provider to activities, and adding a second export
 format means adding a subclass rather than another branch in here.
 """
 
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -118,7 +119,7 @@ class GarminSource:
         activity_name: Optional override for the parsed activity's name.
     """
 
-    gear_id: int | None = None
+    gear_id: uuid.UUID | None = None
     provider_gear_id: str | None = None
     activity_name: str | None = None
 

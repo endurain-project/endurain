@@ -46,91 +46,91 @@ class UsersDefaultGear(Base):
         index=True,
         comment="User ID that the default gear belongs",
     )
-    run_gear_id: Mapped[int | None] = mapped_column(
+    run_gear_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("gear.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
         comment=("Gear ID that the default run activity type belongs"),
     )
-    trail_run_gear_id: Mapped[int | None] = mapped_column(
+    trail_run_gear_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("gear.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
         comment=("Gear ID that the default trail run activity type belongs"),
     )
-    virtual_run_gear_id: Mapped[int | None] = mapped_column(
+    virtual_run_gear_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("gear.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
         comment=("Gear ID that the default virtual run activity type belongs"),
     )
-    ride_gear_id: Mapped[int | None] = mapped_column(
+    ride_gear_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("gear.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
         comment=("Gear ID that the default ride activity type belongs"),
     )
-    gravel_ride_gear_id: Mapped[int | None] = mapped_column(
+    gravel_ride_gear_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("gear.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
         comment=("Gear ID that the default gravel ride activity type belongs"),
     )
-    mtb_ride_gear_id: Mapped[int | None] = mapped_column(
+    mtb_ride_gear_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("gear.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
         comment=("Gear ID that the default MTB ride activity type belongs"),
     )
-    virtual_ride_gear_id: Mapped[int | None] = mapped_column(
+    virtual_ride_gear_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("gear.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
         comment=("Gear ID that the default virtual ride activity type belongs"),
     )
-    ows_gear_id: Mapped[int | None] = mapped_column(
+    ows_gear_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("gear.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
         comment=("Gear ID that the default OWS activity type belongs"),
     )
-    walk_gear_id: Mapped[int | None] = mapped_column(
+    walk_gear_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("gear.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
         comment=("Gear ID that the default walk activity type belongs"),
     )
-    hike_gear_id: Mapped[int | None] = mapped_column(
+    hike_gear_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("gear.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
         comment=("Gear ID that the default hike activity type belongs"),
     )
-    tennis_gear_id: Mapped[int | None] = mapped_column(
+    tennis_gear_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("gear.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
         comment=("Gear ID that the default tennis activity type belongs"),
     )
-    alpine_ski_gear_id: Mapped[int | None] = mapped_column(
+    alpine_ski_gear_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("gear.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
         comment=("Gear ID that the default alpine ski activity type belongs"),
     )
-    nordic_ski_gear_id: Mapped[int | None] = mapped_column(
+    nordic_ski_gear_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("gear.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
         comment=("Gear ID that the default nordic ski activity type belongs"),
     )
-    snowboard_gear_id: Mapped[int | None] = mapped_column(
+    snowboard_gear_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("gear.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
         comment=("Gear ID that the default snowboard activity type belongs"),
     )
-    windsurf_gear_id: Mapped[int | None] = mapped_column(
+    windsurf_gear_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("gear.id", ondelete="SET NULL"),
         nullable=True,
         index=True,

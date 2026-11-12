@@ -18,6 +18,7 @@ drops them, and how to build the source that answers those three questions.
 import csv
 import os
 import tempfile
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -119,7 +120,7 @@ def parse_activities_manifest(manifest_path: str) -> StravaActivitiesManifest | 
         return None
 
 
-def create_gear_dictionary_for_bulk_import(user_id: int, db: Session) -> dict[str, list[int]]:
+def create_gear_dictionary_for_bulk_import(user_id: int, db: Session) -> dict[str, list[uuid.UUID]]:
     """Creates a dictionary that links gear nicknames in Endurain to their Endurain gear IDs.
 
     The dictionary includes both base Endurain gear nickname and the gear name smoosh
@@ -133,7 +134,7 @@ def create_gear_dictionary_for_bulk_import(user_id: int, db: Session) -> dict[st
         Dictionary that uses the gear name as a key to look up the gear ID; empty
         when the user has no gear, which only means no activity is linked to one.
     """
-    gear_by_name: dict[str, list[int]] = {}
+    gear_by_name: dict[str, list[uuid.UUID]] = {}
     for item in gears_integration.get_gear_user(user_id, db) or []:
         gear_by_name[item.nickname] = [item.id]
         # Strava apparently exports shoe names as a smoosh of "{brand} {model} {name}", so adding that as a
@@ -155,7 +156,7 @@ def build_metadata_dict(
     file_base_name: str,
     strava_activities: StravaActivitiesManifest | None,
     import_initiated_time: str,
-    users_existing_gear_nickname_to_id: dict[str, list[int]] | None = None,
+    users_existing_gear_nickname_to_id: dict[str, list[uuid.UUID]] | None = None,
 ) -> dict[str, Any]:
     """Creates a dictionary with metadata information pulled from a Strava activities file.
 
@@ -391,7 +392,7 @@ class StravaBulkImportSource(activity_ingestion_integration.BulkImportSource):
     """
 
     strava_activities: StravaActivitiesManifest | None = None
-    gear_nickname_to_id: dict[str, list[int]] | None = None
+    gear_nickname_to_id: dict[str, list[uuid.UUID]] | None = None
     read_member: activity_ingestion_integration.ArchiveMemberReader | None = None
 
     def metadata_for(self, file_base_name: str) -> dict[str, Any]:

@@ -1,9 +1,10 @@
 """Gear database models."""
 
+import uuid
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import Date, ForeignKey, Index, Integer, Numeric, String, UniqueConstraint
+from sqlalchemy import Date, ForeignKey, Index, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -15,7 +16,7 @@ class Gear(core_sync.UpdatedAtMixin, Base):
     """Gear data model.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         brand: Gear brand name.
         model: Gear model name.
         nickname: Gear nickname.
@@ -33,10 +34,7 @@ class Gear(core_sync.UpdatedAtMixin, Base):
 
     __tablename__ = "gear"
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     brand: Mapped[str | None] = mapped_column(
         String(250),
         nullable=True,
@@ -127,7 +125,7 @@ class GearDeletion(core_sync.TombstoneMixin, Base):
     """Tombstone of a deleted gear, read by incremental sync.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         user_id: Owner of the deleted gear.
         record_id: The id the gear had.
         deleted_at: When the gear was deleted.
@@ -137,4 +135,4 @@ class GearDeletion(core_sync.TombstoneMixin, Base):
 
     __table_args__ = (Index("ix_gear_deletions_user_id_deleted_at_id", "user_id", "deleted_at", "id"),)
 
-    record_id: Mapped[int] = mapped_column(Integer, nullable=False, comment="The id the deleted record had")
+    record_id: Mapped[uuid.UUID] = mapped_column(nullable=False, comment="The id the deleted record had")

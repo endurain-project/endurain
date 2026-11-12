@@ -6,6 +6,7 @@ committed, because their storage keys name the restored activity ids.
 """
 
 import os
+import uuid
 from typing import Any
 
 import core.exceptions as core_exceptions
@@ -108,7 +109,7 @@ def _restore_activity_components(
 
 
 def _restore_activities(
-    ctx: users_profile_contracts.ProfileImportContext, gears_id_mapping: dict[int, int]
+    ctx: users_profile_contracts.ProfileImportContext, gears_id_mapping: dict[str, uuid.UUID]
 ) -> dict[int, int]:
     """Restore the archived activities in batches to manage memory.
 
@@ -181,10 +182,8 @@ def _restore_activities(
                 )
 
         for activity_data in activities_batch:
-            activity_data["gear_id"] = (
-                gears_id_mapping.get(activity_data["gear_id"])
-                if activity_data.get("gear_id") in gears_id_mapping
-                else None
+            activity_data["gear_id"] = gears_id_mapping.get(
+                users_profile_contracts.archived_id(activity_data.get("gear_id")) or ""
             )
 
             original_activity_id = activity_data.get("id")

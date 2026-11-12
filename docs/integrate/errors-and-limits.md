@@ -72,15 +72,15 @@ sequenceDiagram
     participant A as Client A
     participant API
     participant B as Client B
-    A->>API: GET /gears/5
+    A->>API: GET /gears/7c9e6679-7425-40de-944b-e07fc1f90ae7
     API-->>A: 200, version 3, ETag "3"
-    B->>API: GET /gears/5
+    B->>API: GET /gears/7c9e6679-7425-40de-944b-e07fc1f90ae7
     API-->>B: 200, version 3, ETag "3"
-    A->>API: PATCH /gears/5, If-Match "3"
+    A->>API: PATCH /gears/7c9e6679-7425-40de-944b-e07fc1f90ae7, If-Match "3"
     API-->>A: 200, ETag "4"
-    B->>API: PATCH /gears/5, If-Match "3"
+    B->>API: PATCH /gears/7c9e6679-7425-40de-944b-e07fc1f90ae7, If-Match "3"
     API-->>B: 412 precondition-failed
-    B->>API: GET /gears/5, then retry with If-Match "4"
+    B->>API: GET /gears/7c9e6679-7425-40de-944b-e07fc1f90ae7, then retry with If-Match "4"
 ```
 
 ### Where to read the version
@@ -97,7 +97,7 @@ Use whichever is convenient. They always agree.
 Add the header to the write:
 
 ```http
-PATCH /api/v1/gears/5
+PATCH /api/v1/gears/7c9e6679-7425-40de-944b-e07fc1f90ae7
 If-Match: "3"
 ```
 

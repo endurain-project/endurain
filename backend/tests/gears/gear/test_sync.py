@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import select, update
@@ -20,7 +21,7 @@ def _install_component_recorder() -> None:
     install_readers(record_component_deletions=components_integration.record_gear_component_deletions)
 
 
-def _stamp(db, gear_id: int, stamp: datetime) -> None:
+def _stamp(db, gear_id: uuid.UUID, stamp: datetime) -> None:
     db.execute(update(models.Gear).where(models.Gear.id == gear_id).values(updated_at=stamp))
     db.flush()
 
@@ -94,8 +95,7 @@ class TestDeletionRecords:
 
 class TestChangedGears:
     def test_pages_in_stamp_then_id_order_with_ties(self, db):
-        a = crud.create_gear(gear_create("A"), 1, db)
-        b = crud.create_gear(gear_create("B"), 1, db)
+        a, b = sorted((crud.create_gear(gear_create(name), 1, db) for name in ("A", "B")), key=lambda gear: gear.id)
         c = crud.create_gear(gear_create("C"), 1, db)
         tie = datetime(2024, 1, 1)
         _stamp(db, c.id, datetime(2023, 1, 1))

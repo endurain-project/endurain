@@ -216,10 +216,21 @@ def test_a_cursor_without_the_current_format_is_expired(db):
         _sync(db, old)
 
 
+def test_a_cursor_of_the_previous_format_is_expired(db):
+    previous = _encrypted(f=sync_service._CURSOR_FORMAT - 1, s=T1.isoformat(), r=0, i=5)
+
+    with pytest.raises(core_exceptions.SyncExpiredError):
+        _sync(db, previous)
+
+
+_GEAR_RANK = 2 * [source.sync_type for source in sync_service._TYPES].index(sync_schema.SyncType.GEAR)
+
+
 @pytest.mark.parametrize(
     "raw",
     [
         {"f": sync_service._CURSOR_FORMAT, "s": T1.isoformat(), "r": 2, "i": "not-a-uuid"},
+        {"f": sync_service._CURSOR_FORMAT, "s": T1.isoformat(), "r": _GEAR_RANK, "i": "5"},
         {"f": sync_service._CURSOR_FORMAT, "s": T1.isoformat(), "r": 0, "i": "not-an-int"},
         {"f": sync_service._CURSOR_FORMAT, "s": T1.isoformat(), "r": 999, "i": "1"},
     ],

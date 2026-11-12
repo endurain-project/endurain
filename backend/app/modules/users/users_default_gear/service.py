@@ -5,6 +5,7 @@ commit for the user's own requests. What other modules may consume lives in
 :mod:`modules.users.users_default_gear.integration_service`.
 """
 
+import uuid
 from typing import Any
 
 from pydantic import ValidationError
@@ -63,7 +64,7 @@ def stage_default_gear_edit(
 
 
 def restore_profile_default_gear(
-    record: dict[str, Any], ids: dict[str, dict[int, int]], user_id: int, db: Session
+    record: dict[str, Any], ids: dict[str, dict[str, uuid.UUID]], user_id: int, db: Session
 ) -> bool:
     """Stage the default gear of a profile archive, moved onto the restored gears; the caller commits.
 
@@ -84,8 +85,8 @@ def restore_profile_default_gear(
     settings = {key: value for key, value in record.items() if key not in ("id", "user_id", "version")}
     gears_id_mapping = ids.get(gears_constants.PROFILE_ARCHIVE_KEY, {})
     for field in set(users_default_gear_constants.ACTIVITY_TYPE_TO_GEAR_ATTR.values()):
-        old_gear_id = settings.get(field)
-        settings[field] = gears_id_mapping.get(old_gear_id) if old_gear_id is not None else None
+        archived = settings.get(field)
+        settings[field] = gears_id_mapping.get(str(archived)) if archived is not None else None
 
     try:
         update = users_default_gear_schema.UserDefaultGearUpdate(**settings)

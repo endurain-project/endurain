@@ -98,13 +98,13 @@ class HealthTargetsChange(SyncChange[health_targets_schema.HealthTargetsRead, uu
     type: Literal["health_targets"] = "health_targets"
 
 
-class GearChange(SyncChange[gear_schema.GearDetailRead, int]):
+class GearChange(SyncChange[gear_schema.GearDetailRead, uuid.UUID]):
     """A changed or deleted gear, with its totals; the totals follow activities without stamping the gear."""
 
     type: Literal["gear"] = "gear"
 
 
-class GearComponentChange(SyncChange[gear_components_schema.GearComponentRead, int]):
+class GearComponentChange(SyncChange[gear_components_schema.GearComponentRead, uuid.UUID]):
     """A changed or deleted gear component."""
 
     type: Literal["gear_component"] = "gear_component"

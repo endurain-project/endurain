@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 from pydantic import ValidationError
 
@@ -17,6 +19,17 @@ def test_an_update_may_omit_required_fields_or_clear_the_retired_date():
     assert update.retired_date is None
 
 
-def test_a_create_rejects_a_gear_id_above_int32():
+def test_a_create_rejects_a_gear_id_that_is_not_a_uuid():
     with pytest.raises(ValidationError):
-        component_create(2**31)
+        component_create("not-a-uuid")
+
+
+def test_a_create_rejects_an_integer_gear_id():
+    with pytest.raises(ValidationError):
+        component_create(1)
+
+
+def test_a_create_accepts_a_uuid_gear_id():
+    gear_id = uuid.uuid4()
+
+    assert component_create(gear_id).gear_id == gear_id

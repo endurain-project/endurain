@@ -5,6 +5,7 @@ CRUD function with the arguments unchanged, so a miswiring is caught even though
 the provider modules that call this in production (Strava/Garmin) mock it out.
 """
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 from jasil.backends.state_memory import MemoryState
@@ -59,7 +60,7 @@ class TestIntegrationService:
         from modules.activities.activity import integration_service
 
         db = MagicMock()
-        assignments = {1: 10, 2: None}
+        assignments = {1: uuid.uuid4(), 2: None}
         mock_service.bulk_set_activities_gear.return_value = 2
 
         result = integration_service.bulk_set_activities_gear(3, assignments, db)

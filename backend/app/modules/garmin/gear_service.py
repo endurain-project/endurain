@@ -1,5 +1,6 @@
 """Garmin Connect gear sync: store the user's gear and assign it to their activities."""
 
+import uuid
 from typing import Any
 
 import garminconnect
@@ -99,7 +100,7 @@ def process_gear(gear: dict[str, Any], user_id: int, db: Session) -> gears_schem
 def match_gear_for_activity(
     activity: activity_contracts.ActivityGarminGearRef,
     gears: list[gears_schema.GearRead],
-) -> int | None:
+) -> uuid.UUID | None:
     """Return the local gear ID matching this activity's Garmin gear, else None."""
     if activity.garminconnect_gear_id is None:
         return None
@@ -113,7 +114,9 @@ def match_gear_for_activity(
     return None
 
 
-def resolve_synced_gear_id(user_id: int, garminconnect_gear: list[dict[str, Any]] | None, db: Session) -> int | None:
+def resolve_synced_gear_id(
+    user_id: int, garminconnect_gear: list[dict[str, Any]] | None, db: Session
+) -> uuid.UUID | None:
     """Resolve a downloaded activity's Garmin gear to a local gear ID.
 
     Resolved here, before the file reaches ingestion, so the ingestion seam never

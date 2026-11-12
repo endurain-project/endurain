@@ -1,5 +1,6 @@
 """Tests for ``activities.activity.serializers`` (ORM→schema + visibility masking)."""
 
+import uuid
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -99,7 +100,7 @@ class TestApplyVisibilityMask:
         schema.town = "Town"
         schema.country = "Country"
         schema.hide_gear = True
-        schema.gear_id = 1
+        schema.gear_id = uuid.uuid4()
         schema.strava_gear_id = "g1"
         schema.garminconnect_gear_id = "g2"
         schema.hide_hr = False
@@ -123,14 +124,15 @@ class TestApplyVisibilityMask:
         schema.start_time = "2024-01-15T08:00:00"
         schema.hide_location = False
         schema.city = "City"
+        gear_id = uuid.uuid4()
         schema.hide_gear = False
-        schema.gear_id = 1
+        schema.gear_id = gear_id
 
         result = apply_visibility_mask(schema, is_owner=False)
 
         assert result.start_time == "2024-01-15T08:00:00"
         assert result.city == "City"
-        assert result.gear_id == 1
+        assert result.gear_id == gear_id
 
     def test_mask_private_notes_false_allows_notes(self):
         from modules.activities.activity.serializers import apply_visibility_mask

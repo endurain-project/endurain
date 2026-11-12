@@ -1,6 +1,7 @@
 """Tests for the activities' section of the profile data import."""
 
 import json
+import uuid
 import zipfile
 from io import BytesIO
 from unittest.mock import MagicMock, patch
@@ -26,6 +27,10 @@ def _zip(files: dict[str, object]) -> zipfile.ZipFile:
         for name, data in files.items():
             z.writestr(name, data if isinstance(data, bytes) else json.dumps(data))
     return zipfile.ZipFile(BytesIO(buf.getvalue()))
+
+
+_OLD_GEAR = str(uuid.uuid4())
+_NEW_GEAR = uuid.uuid4()
 
 
 def _ctx(
@@ -143,7 +148,7 @@ class TestRestoreProfile:
         assert ctx.ids == {}
 
     def test_the_gear_ids_published_by_the_gear_section_are_read(self) -> None:
-        ctx = _ctx({"data/activities.json": []}, ids={"gears": {5: 20}})
+        ctx = _ctx({"data/activities.json": []}, ids={"gears": {_OLD_GEAR: _NEW_GEAR}})
         activity_patch, global_patch = _no_contributors()
         with (
             activity_patch,
@@ -152,7 +157,7 @@ class TestRestoreProfile:
         ):
             import_service.restore_profile(ctx)
 
-        restore.assert_called_once_with(ctx, {5: 20})
+        restore.assert_called_once_with(ctx, {_OLD_GEAR: _NEW_GEAR})
 
 
 class TestRestoreActivities:
@@ -195,7 +200,7 @@ class TestRestoreActivities:
                 "data/activities.json": [
                     {
                         "id": 1,
-                        "gear_id": 5,
+                        "gear_id": _OLD_GEAR,
                         "distance": 1000,
                         "name": "Morning Run",
                         "activity_type": 1,
@@ -216,11 +221,11 @@ class TestRestoreActivities:
             patch.object(import_service.activity_integration, "restore_activity", return_value=restored) as restore,
             patch.object(import_service, "_restore_activity_components") as components,
         ):
-            mapping = import_service._restore_activities(ctx, {5: 20})
+            mapping = import_service._restore_activities(ctx, {_OLD_GEAR: _NEW_GEAR})
 
         assert mapping == {1: 10}
         assert ctx.counts["activities"] == 1
-        assert restore.call_args.args[0].gear_id == 20
+        assert restore.call_args.args[0].gear_id == _NEW_GEAR
         components.assert_called_once()
         # The restore functions only stage; the import commits once at the end.
         ctx.db.commit.assert_not_called()
@@ -264,7 +269,7 @@ class TestRestoreActivities:
                         "distance": 1000,
                         "name": "Test",
                         "activity_type": 1,
-                        "gear_id": 5,
+                        "gear_id": _OLD_GEAR,
                         "start_time": "2024-01-01T08:00:00",
                         "end_time": "2024-01-01T09:00:00",
                     }
@@ -281,7 +286,7 @@ class TestRestoreActivities:
             patch.object(import_service.activity_integration, "restore_activity", return_value=restored),
             patch.object(import_service, "_restore_activity_components") as components,
         ):
-            mapping = import_service._restore_activities(ctx, {5: 20})
+            mapping = import_service._restore_activities(ctx, {_OLD_GEAR: _NEW_GEAR})
 
         assert mapping == {}
         assert ctx.counts["activities"] == 1

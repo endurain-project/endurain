@@ -1,13 +1,15 @@
 """Gear components database models."""
 
+import uuid
 from datetime import date as date_type
+from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import (
     Date,
+    DateTime,
     ForeignKey,
     Index,
-    Integer,
     Numeric,
     String,
 )
@@ -25,7 +27,7 @@ class GearComponents(core_sync.UpdatedAtMixin, Base):
     """Gear component data model.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         user_id: Foreign key to users table.
         gear_id: Foreign key to gear table.
         type: Type of gear component.
@@ -37,21 +39,19 @@ class GearComponents(core_sync.UpdatedAtMixin, Base):
         expected_usage: Wear threshold in meters for a distance-tracked gear and in seconds for a time-tracked one.
         purchase_value: Purchase value.
         version: Optimistic-concurrency counter.
+        created_at: When the component was created.
         updated_at: When the component last changed.
     """
 
     __tablename__ = "gear_components"
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         comment=("User ID that the gear component belongs to"),
     )
-    gear_id: Mapped[int] = mapped_column(
+    gear_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("gear.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -105,6 +105,12 @@ class GearComponents(core_sync.UpdatedAtMixin, Base):
         default=1,
         comment="Optimistic-concurrency counter, surfaced to clients as the ETag",
     )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+        comment="When the component was created",
+    )
 
     # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's
     # WHERE clause, raising StaleDataError when the row moved underneath.
@@ -117,7 +123,7 @@ class GearComponentDeletion(core_sync.TombstoneMixin, Base):
     """Tombstone of a deleted gear component, read by incremental sync.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         user_id: Owner of the deleted component.
         record_id: The id the component had.
         deleted_at: When the component was deleted.
@@ -127,4 +133,4 @@ class GearComponentDeletion(core_sync.TombstoneMixin, Base):
 
     __table_args__ = (Index("ix_gear_component_deletions_user_id_deleted_at_id", "user_id", "deleted_at", "id"),)
 
-    record_id: Mapped[int] = mapped_column(Integer, nullable=False, comment="The id the deleted record had")
+    record_id: Mapped[uuid.UUID] = mapped_column(nullable=False, comment="The id the deleted record had")

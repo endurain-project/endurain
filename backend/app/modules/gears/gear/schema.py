@@ -1,5 +1,6 @@
 """Gear schema definitions."""
 
+import uuid
 from datetime import date, datetime
 from typing import Annotated
 
@@ -217,7 +218,7 @@ class GearRead(GearCreate):
         updated_at: When the gear last changed; set by the server.
     """
 
-    id: StrictInt = Field(
+    id: uuid.UUID = Field(
         ...,
         description="Unique identifier",
     )

@@ -15,6 +15,7 @@ one owner.
 """
 
 import calendar
+import uuid
 from collections.abc import Mapping
 from datetime import UTC, date, datetime, time, timedelta
 
@@ -455,7 +456,7 @@ def list_user_activities_paginated(
     name_search: str | None = None,
     sort_by: str | None = None,
     sort_order: str | None = None,
-    gear_id: int | None = None,
+    gear_id: uuid.UUID | None = None,
 ) -> list[activity_schema.ActivityRead]:
     """List a user's activities (filtered, paginated) scoped to the requester.
 
@@ -529,7 +530,7 @@ def page_user_activities(
     name_search: str | None = None,
     sort_by: str | None = None,
     sort_order: str | None = None,
-    gear_id: int | None = None,
+    gear_id: uuid.UUID | None = None,
 ) -> activity_schema.ActivityPage:
     """Return one page of a user's activities together with the matching total.
 
@@ -867,7 +868,7 @@ def delete_activity(activity_id: int, user_id: int, db: Session, *, if_match: st
 
 def bulk_set_activities_gear(
     user_id: int,
-    gear_assignments: Mapping[int, int | None],
+    gear_assignments: Mapping[int, uuid.UUID | None],
     db: Session,
     *,
     source: str,
@@ -903,7 +904,7 @@ def bulk_set_activities_gear(
     return len(updated_ids)
 
 
-def clear_activities_gear(gear_id: int, user_id: int, db: Session, *, source: str) -> int:
+def clear_activities_gear(gear_id: uuid.UUID, user_id: int, db: Session, *, source: str) -> int:
     """Unassign a gear from every activity of a user that carries it.
 
     Used when the gear is deleted: the foreign key would null the column silently, so

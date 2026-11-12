@@ -4,7 +4,8 @@ Owns the transaction for every write the router makes. What other modules may co
 lives in :mod:`modules.gears.gear_components.integration_service`.
 """
 
-from datetime import date, datetime
+import uuid
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from pydantic import ValidationError
@@ -59,7 +60,7 @@ def _require_type_for_gear(gear: gears_schema.GearRead, component_type: str) -> 
 
 
 def count_components_outside_gear_type(
-    gear_id: int, user_id: int, gear_type: gears_schema.GearType, db: Session
+    gear_id: uuid.UUID, user_id: int, gear_type: gears_schema.GearType, db: Session
 ) -> int:
     """Count a gear's components whose type is not valid for a gear type.
 
@@ -118,7 +119,7 @@ def list_gear_components(
 
 
 def list_components_for_gear(
-    gear_id: int,
+    gear_id: uuid.UUID,
     user_id: int,
     db: Session,
     *,
@@ -203,11 +204,11 @@ def create_gear_component(
 
 
 def restore_profile_gear_components(
-    records: list[dict[str, Any]], user_id: int, ids: dict[str, dict[int, int]], db: Session
+    records: list[dict[str, Any]], user_id: int, ids: users_profile_contracts.ProfileIdMaps, db: Session
 ) -> int:
     """Stage the gear components of a profile archive; the caller commits.
 
-    Each component moves onto the stored gear its archived gear was restored as; one whose gear is not
+    Each component moves onto the stored gear its archived gear (an integer or UUID id) was restored as; one whose gear is not
     in ``ids["gears"]`` is skipped. An archive exported before the rename carries ``expected_kms``, read as
     ``expected_usage``.
 
@@ -222,9 +223,10 @@ def restore_profile_gear_components(
     """
     gears_id_mapping = ids.get(gears_constants.PROFILE_ARCHIVE_KEY, {})
     restored = 0
+    imported_at = datetime.now(UTC)
     for record in records:
-        archived_gear_id = record.get("gear_id")
-        new_gear_id = gears_id_mapping.get(archived_gear_id) if isinstance(archived_gear_id, int) else None
+        archived_gear_id = users_profile_contracts.archived_id(record.get("gear_id"))
+        new_gear_id = gears_id_mapping.get(archived_gear_id) if archived_gear_id is not None else None
         if new_gear_id is None:
             logger.warning("Skipped a gear component whose gear is not in the archive")
             continue
@@ -250,14 +252,19 @@ def restore_profile_gear_components(
         ):
             logger.warning("Skipped a gear component retired on or before its purchase date")
             continue
-        gear_components_crud.create_gear_component(gear_component, user_id, db)
+        # Rising timestamps keep the archive order, as every component would otherwise share the transaction time.
+        gear_components_crud.create_gear_component(
+            gear_component, user_id, db, created_at=imported_at + timedelta(microseconds=restored)
+        )
         restored += 1
 
     logger.debug("Imported gear components", extra=core_logger.context(count=restored))
     return restored
 
 
-def get_gear_component(user_id: int, gear_component_id: int, db: Session) -> gear_components_schema.GearComponentRead:
+def get_gear_component(
+    user_id: int, gear_component_id: uuid.UUID, db: Session
+) -> gear_components_schema.GearComponentRead:
     """Return one of the user's components.
 
     Args:
@@ -278,7 +285,7 @@ def get_gear_component(user_id: int, gear_component_id: int, db: Session) -> gea
 
 
 def edit_gear_component(
-    gear_component_id: int,
+    gear_component_id: uuid.UUID,
     gear_component: gear_components_schema.GearComponentUpdate,
     user_id: int,
     db: Session,
@@ -334,7 +341,7 @@ def edit_gear_component(
     return updated
 
 
-def delete_gear_component(user_id: int, gear_component_id: int, db: Session, *, if_match: str) -> None:
+def delete_gear_component(user_id: int, gear_component_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Delete one of the user's components.
 
     Args:

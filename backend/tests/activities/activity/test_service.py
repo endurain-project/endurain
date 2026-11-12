@@ -1,5 +1,6 @@
 """Tests for the activities read/stats/feed service orchestration."""
 
+import uuid
 from datetime import UTC, date, datetime
 from types import SimpleNamespace
 from unittest.mock import ANY, MagicMock, patch
@@ -36,6 +37,9 @@ def stub_requester_user():
         return_value=SimpleNamespace(first_day_of_week="monday", timezone="UTC"),
     ) as mock:
         yield mock
+
+
+_GEAR_ID = uuid.uuid4()
 
 
 class TestSumActivitiesInTimeframe:
@@ -303,9 +307,9 @@ class TestEditPublishesUpdated:
         db = MagicMock()
 
         with pytest.raises(core_exceptions.NotFoundError):
-            service.edit_activity(5, 1, activity_schema.ActivityEdit(gear_id=9), db, if_match="*")
+            service.edit_activity(5, 1, activity_schema.ActivityEdit(gear_id=_GEAR_ID), db, if_match="*")
 
-        mock_gears.require_owned_gears.assert_called_once_with(1, [9], db)
+        mock_gears.require_owned_gears.assert_called_once_with(1, [_GEAR_ID], db)
         mock_crud.edit_activity.assert_not_called()
         mock_publishers.publish_activity_updated.assert_not_called()
 
@@ -370,12 +374,12 @@ class TestCrossModuleWrites:
         db = MagicMock()
         mock_crud.bulk_set_activities_gear_id.return_value = [7, 8]
 
-        updated = service.bulk_set_activities_gear(3, {7: 10, 8: 10}, db, source="api:test")
+        updated = service.bulk_set_activities_gear(3, {7: _GEAR_ID, 8: _GEAR_ID}, db, source="api:test")
 
         assert updated == 2
         db.commit.assert_not_called()
         # Only staged: the caller commits the updates and their events together.
-        mock_crud.bulk_set_activities_gear_id.assert_called_once_with(3, {7: 10, 8: 10}, db)
+        mock_crud.bulk_set_activities_gear_id.assert_called_once_with(3, {7: _GEAR_ID, 8: _GEAR_ID}, db)
         mock_publishers.publish_activities_updated.assert_called_once_with(
             [7, 8], 3, db, changed_fields=["gear_id"], source="api:test"
         )

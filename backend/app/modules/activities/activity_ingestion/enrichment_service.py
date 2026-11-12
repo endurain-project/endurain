@@ -15,6 +15,8 @@ it resolves its own gear and hands ingestion the id. This seam only answers
 "and if not, what is the default?".
 """
 
+import uuid
+
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
@@ -62,8 +64,8 @@ def resolve_gear_id(
     user_id: int,
     db: Session,
     *,
-    provider_gear_id: int | None = None,
-) -> int | None:
+    provider_gear_id: uuid.UUID | None = None,
+) -> uuid.UUID | None:
     """Resolve the gear id to associate with a parsed activity.
 
     Prefers the gear the source already resolved (a provider sync matching its
@@ -101,7 +103,7 @@ def enrich_parsed_activity(
     user_privacy_settings: users_privacy_settings_schema.UserPrivacySettingsRead,
     db: Session,
     from_garmin: bool = False,
-    provider_gear_id: int | None = None,
+    provider_gear_id: uuid.UUID | None = None,
     garminconnect_gear_id: str | None = None,
     garmin_connect_activity_id: int | None = None,
 ) -> None:

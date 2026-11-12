@@ -12,6 +12,7 @@ import io
 import json
 import re
 import struct
+import uuid
 import zipfile
 import zlib
 from datetime import UTC, date, datetime
@@ -189,7 +190,7 @@ def _create_account(factory: sessionmaker[Session]) -> int:
         return created.id
 
 
-def _activity(user_id: int, index: int, gear_id: int | None) -> activity_contracts.ActivityCore:
+def _activity(user_id: int, index: int, gear_id: uuid.UUID | None) -> activity_contracts.ActivityCore:
     return activity_contracts.ActivityCore(
         user_id=user_id,
         name=f"Ride {index}",
@@ -209,7 +210,7 @@ def _activity(user_id: int, index: int, gear_id: int | None) -> activity_contrac
     )
 
 
-def _seed_gears(db: Session, user_id: int) -> list[int]:
+def _seed_gears(db: Session, user_id: int) -> list[uuid.UUID]:
     road = gear_crud.create_gear(
         gear_schema.GearCreate(
             nickname="Road Bike",
@@ -247,7 +248,7 @@ def _seed_gears(db: Session, user_id: int) -> list[int]:
     return [road.id, shoes.id]
 
 
-def _seed_activities(db: Session, user_id: int, gear_ids: list[int], storage: platform_providers.StorageProvider):
+def _seed_activities(db: Session, user_id: int, gear_ids: list[uuid.UUID], storage: platform_providers.StorageProvider):
     """Add three activities with every kind of per-activity child, an activity file and a media blob."""
     titles_crud.create_activity_exercise_titles(
         [

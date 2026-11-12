@@ -17,7 +17,7 @@ router = APIRouter()
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:read"])],
 )
 def read_gear_components_gear_id(
-    gear_id: core_dependencies.PositiveId,
+    gear_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     page: core_pagination.ChildPage,

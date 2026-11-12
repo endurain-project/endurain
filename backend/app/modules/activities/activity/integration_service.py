@@ -90,7 +90,7 @@ def list_garminconnect_gear_activity_refs(
 
 def bulk_set_activities_gear(
     user_id: int,
-    gear_assignments: Mapping[int, int | None],
+    gear_assignments: Mapping[int, uuid.UUID | None],
     db: Session,
 ) -> int:
     """Assign gear to many of a user's activities at once.
@@ -113,7 +113,7 @@ def bulk_set_activities_gear(
     )
 
 
-def clear_activities_gear(gear_id: int, user_id: int, db: Session) -> int:
+def clear_activities_gear(gear_id: uuid.UUID, user_id: int, db: Session) -> int:
     """Unassign a gear from every activity of a user that carries it; the caller commits.
 
     Args:
@@ -127,7 +127,7 @@ def clear_activities_gear(gear_id: int, user_id: int, db: Session) -> int:
     return activity_service.clear_activities_gear(gear_id, user_id, db, source="api:delete_gear")
 
 
-def get_gear_usage_totals(gear_id: int, user_id: int, db: Session) -> gears_contracts.UsageTotals:
+def get_gear_usage_totals(gear_id: uuid.UUID, user_id: int, db: Session) -> gears_contracts.UsageTotals:
     """Return the total distance and moving time a user recorded against a gear.
 
     Args:
@@ -142,11 +142,11 @@ def get_gear_usage_totals(gear_id: int, user_id: int, db: Session) -> gears_cont
 
 
 def get_gear_usage_totals_by_window(
-    gear_id: int,
+    gear_id: uuid.UUID,
     user_id: int,
     windows: Sequence[gears_contracts.UsageWindow],
     db: Session,
-) -> dict[int, gears_contracts.UsageTotals]:
+) -> dict[uuid.UUID, gears_contracts.UsageTotals]:
     """Return per-window usage totals for one gear, in a single query.
 
     Used to attribute a gear's activities to whichever component was fitted at

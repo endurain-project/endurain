@@ -1,9 +1,12 @@
 """Strava bulk import: gear names with a plus resolve, and an unreadable date does not drop the activity."""
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import Mock
 
 import modules.strava.bulk_import_service as strava_bulk
+
+_GEAR = uuid.uuid4()
 
 
 def _row(**overrides):
@@ -23,13 +26,13 @@ def _metadata(row, gear=None):
 
 
 def test_a_gear_name_with_a_plus_resolves_to_the_users_gear():
-    metadata = _metadata(_row(**{"Activity Gear": "Nike+Pegasus"}), {"Nike Pegasus": [4]})
+    metadata = _metadata(_row(**{"Activity Gear": "Nike+Pegasus"}), {"Nike Pegasus": [_GEAR]})
 
-    assert metadata["gear_id"] == 4
+    assert metadata["gear_id"] == _GEAR
 
 
 def test_gear_the_user_does_not_have_leaves_the_activity_without_gear():
-    assert _metadata(_row(**{"Activity Gear": "Unknown"}), {"Nike Pegasus": [4]})["gear_id"] is None
+    assert _metadata(_row(**{"Activity Gear": "Unknown"}), {"Nike Pegasus": [_GEAR]})["gear_id"] is None
 
 
 def test_a_user_without_gear_does_not_crash_the_import():
@@ -37,7 +40,7 @@ def test_a_user_without_gear_does_not_crash_the_import():
 
 
 def test_an_activity_without_gear_resolves_to_none():
-    assert _metadata(_row(), {"Nike": [1]})["gear_id"] is None
+    assert _metadata(_row(), {"Nike": [_GEAR]})["gear_id"] is None
 
 
 def test_an_unreadable_start_date_imports_the_activity_rather_than_dropping_it():

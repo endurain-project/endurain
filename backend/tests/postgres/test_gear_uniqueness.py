@@ -7,6 +7,7 @@ provider sync on another replica, create the same nickname at once.
 
 import importlib.util
 import threading
+import uuid
 from pathlib import Path
 from unittest.mock import patch
 
@@ -62,13 +63,16 @@ def test_concurrent_creates_of_one_nickname_leave_one_gear(factory):
 def test_the_migration_renames_duplicates_before_enforcing_the_index(factory):
     with factory() as db:
         db.execute(text("DROP INDEX uq_gear_user_nickname"))
-        for user_id, nickname in ((1, "Bike"), (1, " bike "), (1, "BIKE"), (2, "bike"), (1, "Shoes")):
+        gear_ids = [uuid.UUID(int=position) for position in range(1, 6)]
+        for gear_id, (user_id, nickname) in zip(
+            gear_ids, ((1, "Bike"), (1, " bike "), (1, "BIKE"), (2, "bike"), (1, "Shoes")), strict=True
+        ):
             db.execute(
                 text(
-                    "INSERT INTO gear (nickname, gear_type, user_id, active, initial_distance, acquired_on) "
-                    "VALUES (:n, 1, :u, true, 0, current_date)"
+                    "INSERT INTO gear (id, nickname, gear_type, user_id, active, initial_distance, acquired_on) "
+                    "VALUES (:id, :n, 1, :u, true, 0, current_date)"
                 ),
-                {"n": nickname, "u": user_id},
+                {"id": gear_id, "n": nickname, "u": user_id},
             )
         db.commit()
 
@@ -84,11 +88,10 @@ def test_the_migration_renames_duplicates_before_enforcing_the_index(factory):
 
         rows = db.execute(text("SELECT id, user_id, nickname FROM gear ORDER BY id")).all()
 
-    first_id = rows[0].id
     assert [(row.user_id, row.nickname) for row in rows] == [
         (1, "Bike"),
-        (1, f"bike ({first_id + 1})"),
-        (1, f"BIKE ({first_id + 2})"),
+        (1, f"bike ({gear_ids[1]})"),
+        (1, f"BIKE ({gear_ids[2]})"),
         (2, "bike"),
         (1, "Shoes"),
     ]

@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
@@ -398,21 +399,24 @@ class TestDistinctTypes:
         assert r == [ActivityType.RUN, ActivityType.TRAIL_RUN]
 
 
+_GEAR_ID = uuid.uuid4()
+
+
 class TestGearFilter:
     """``gear_id`` narrows the page and its total alike, so the two cannot disagree."""
 
     def test_the_page_filters_on_the_gear(self, mock_db):
-        sql = _listed_page_sql(mock_db, owner=True, gear_id=5)
+        sql = _listed_page_sql(mock_db, owner=True, gear_id=_GEAR_ID)
 
-        assert "activities.gear_id = 5" in _where_of(sql)
+        assert f"activities.gear_id = '{_GEAR_ID.hex}'" in _where_of(sql)
 
     def test_the_total_filters_on_the_gear(self, mock_db):
         import modules.activities.activity.crud as crud
 
         mock_db.execute.return_value.scalar.return_value = 0
-        crud.count_user_activities(1, mock_db, gear_id=5, user_is_owner=True)
+        crud.count_user_activities(1, mock_db, gear_id=_GEAR_ID, user_is_owner=True)
 
-        assert "activities.gear_id = 5" in _where_of(_compiled(mock_db.execute.call_args.args[0]))
+        assert f"activities.gear_id = '{_GEAR_ID.hex}'" in _where_of(_compiled(mock_db.execute.call_args.args[0]))
 
     def test_no_gear_means_no_gear_condition(self, mock_db):
         assert "gear_id" not in _where_of(_listed_page_sql(mock_db, owner=True))
@@ -439,7 +443,7 @@ class TestBulkSetGear:
         r = MagicMock()
         r.all.return_value = [(1,), (2,)]
         mock_db.execute.return_value = r
-        assert crud.bulk_set_activities_gear_id(user_id=1, gear_assignments={1: 5}, db=mock_db) == [1, 2]
+        assert crud.bulk_set_activities_gear_id(user_id=1, gear_assignments={1: _GEAR_ID}, db=mock_db) == [1, 2]
 
     def test_empty(self, mock_db):
         import modules.activities.activity.crud as crud
@@ -453,7 +457,7 @@ class TestBulkSetGear:
         r = MagicMock()
         r.all.return_value = [(1,)]
         mock_db.execute.return_value = r
-        crud.bulk_set_activities_gear_id(user_id=1, gear_assignments={1: 5}, db=mock_db)
+        crud.bulk_set_activities_gear_id(user_id=1, gear_assignments={1: _GEAR_ID}, db=mock_db)
         mock_db.commit.assert_not_called()
 
 
@@ -468,7 +472,7 @@ class TestBulkUpdatesLockInIdOrder:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.return_value.all.return_value = [(1,)]
-        crud.bulk_set_activities_gear_id(user_id=1, gear_assignments={2: 5, 1: 5}, db=mock_db)
+        crud.bulk_set_activities_gear_id(user_id=1, gear_assignments={2: _GEAR_ID, 1: _GEAR_ID}, db=mock_db)
 
         first = self._first_statement(mock_db)
         assert first.startswith("SELECT")
@@ -1366,7 +1370,7 @@ class TestSumGearUsageByWindow:
         db.get_bind.return_value.dialect.name = "postgresql"
         db.execute.return_value.one.return_value = [0] * (2 * len(windows))
 
-        crud.sum_gear_usage_by_window(1, 1, windows, db)
+        crud.sum_gear_usage_by_window(uuid.uuid4(), 1, windows, db)
 
         from sqlalchemy.dialects import postgresql
 
@@ -1381,7 +1385,7 @@ class TestSumGearUsageByWindow:
     def _window(self, **overrides):
         import modules.gears.contracts as gears_contracts
 
-        return gears_contracts.UsageWindow(**{"key": 1, "start_date": date(2024, 5, 1), **overrides})
+        return gears_contracts.UsageWindow(**{"key": uuid.uuid4(), "start_date": date(2024, 5, 1), **overrides})
 
     def test_window_compares_the_activitys_local_date(self):
         sql = self._emitted_sql([self._window(end_date=date(2024, 6, 1))])
@@ -1409,7 +1413,7 @@ class TestSumGearUsageByWindow:
         import modules.activities.activity.crud as crud
 
         db = MagicMock()
-        assert crud.sum_gear_usage_by_window(1, 1, [], db) == {}
+        assert crud.sum_gear_usage_by_window(uuid.uuid4(), 1, [], db) == {}
         db.execute.assert_not_called()
 
     def test_every_requested_key_is_returned(self):
@@ -1419,12 +1423,14 @@ class TestSumGearUsageByWindow:
         db.get_bind.return_value.dialect.name = "sqlite"
         db.execute.return_value.one.return_value = [10.0, 60.0, 0, 0]
 
-        result = crud.sum_gear_usage_by_window(1, 1, [self._window(key=1), self._window(key=2)], db)
+        first, second = uuid.uuid4(), uuid.uuid4()
 
-        assert result[1].distance == 10.0
-        assert result[1].time == 60.0
+        result = crud.sum_gear_usage_by_window(uuid.uuid4(), 1, [self._window(key=first), self._window(key=second)], db)
+
+        assert result[first].distance == 10.0
+        assert result[first].time == 60.0
         # A window that matched nothing still reports zeroes rather than going missing.
-        assert result[2].distance == 0.0
+        assert result[second].distance == 0.0
 
 
 class TestClearGearFromActivities:
@@ -1434,7 +1440,7 @@ class TestClearGearFromActivities:
         db = MagicMock()
         db.execute.return_value.all.return_value = []
 
-        assert crud.clear_gear_from_activities(5, 1, db) == []
+        assert crud.clear_gear_from_activities(_GEAR_ID, 1, db) == []
         assert db.execute.call_count == 1
 
     def test_one_update_scoped_to_the_owner_bumps_the_version(self):
@@ -1443,7 +1449,7 @@ class TestClearGearFromActivities:
         db = MagicMock()
         db.execute.return_value.all.return_value = [(4,), (3,)]
 
-        assert crud.clear_gear_from_activities(5, 1, db) == [3, 4]
+        assert crud.clear_gear_from_activities(_GEAR_ID, 1, db) == [3, 4]
         (update,) = (call.args[0] for call in db.execute.call_args_list)
         compiled = str(update.compile(dialect=postgresql.dialect()))
         assert "version" in compiled

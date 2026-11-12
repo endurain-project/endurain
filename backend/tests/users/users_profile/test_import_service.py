@@ -268,13 +268,14 @@ class TestImportServiceUserData:
     def test_import_user_default_gear_counts_a_staged_record(self) -> None:
         mock_db = MagicMock(spec=Session)
         service = profile_import_service.ImportService(user_id=1, storage=MagicMock(), db=mock_db)
-        ids = {"gears": {5: 10}}
+        archived = str(uuid.uuid4())
+        ids = {"gears": {archived: uuid.uuid4()}}
         with patch(
             "modules.users.users_profile.import_service.users_default_gear_integration.restore_profile_default_gear",
             return_value=True,
         ) as restore:
-            service.import_user_default_gear([{"run_gear_id": 5}], ids)
-        restore.assert_called_once_with({"run_gear_id": 5}, ids, 1, mock_db)
+            service.import_user_default_gear([{"run_gear_id": archived}], ids)
+        restore.assert_called_once_with({"run_gear_id": archived}, ids, 1, mock_db)
         assert service.counts["user_default_gear"] == 1
 
     def test_import_user_default_gear_does_not_count_a_skipped_record(self) -> None:

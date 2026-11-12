@@ -6,6 +6,7 @@ archive only through the writer and reader protocols and the contexts below, so 
 the profile package itself.
 """
 
+import uuid
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -14,11 +15,25 @@ import jasil.providers as platform_providers
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-#: Archived id to stored id, per section, keyed by the key of the section that published the ids.
-type ProfileIdMaps = dict[str, dict[int, int]]
+#: Archived id as text to stored id, per section, keyed by the key of the section that published the ids.
+type ProfileIdMaps = dict[str, dict[str, uuid.UUID]]
 
 #: What an archive carries of a row's identity: the exporting account's id, owner and version, none of which an import writes.
 ARCHIVE_ROW_IDENTITY = frozenset({"id", "user_id", "version", "updated_at"})
+
+
+def archived_id(value: object) -> str | None:
+    """Return the text an archived id is keyed by in :data:`ProfileIdMaps`.
+
+    Args:
+        value: An id as an archive carries it.
+
+    Returns:
+        ``str(value)`` for an integer (not a boolean) or a string, otherwise ``None``.
+    """
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
+        return None
+    return str(value)
 
 
 def without_row_identity(row: dict[str, Any]) -> dict[str, Any]:

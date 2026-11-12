@@ -11,7 +11,7 @@ def test_restoring_a_component_stages_it_and_leaves_the_commit_to_the_caller(db,
     restored = integration.restore_profile_gear_components(
         [{"gear_id": 5, "type": "chain", "brand": "Shimano", "model": "XT", "purchase_value": "12.00"}],
         1,
-        {"gears": {5: gear.id}},
+        {"gears": {"5": gear.id}},
         db,
     )
 

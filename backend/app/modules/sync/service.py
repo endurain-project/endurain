@@ -174,7 +174,7 @@ _TYPES: tuple[_TypeSources, ...] = (
         gear_integration.list_changed_gears,
         gear_integration.list_gear_deletions,
         sync_schema.GearChange,
-        _INT_ID,
+        _UUID_ID,
     ),
     _TypeSources(
         _Type.GEAR_COMPONENT,
@@ -182,12 +182,12 @@ _TYPES: tuple[_TypeSources, ...] = (
         gear_components_integration.list_changed_gear_components,
         gear_components_integration.list_gear_component_deletions,
         sync_schema.GearComponentChange,
-        _INT_ID,
+        _UUID_ID,
     ),
 )
 
 #: The cursor format: the version of what a cursor encodes, so a cursor of an older shape is refused.
-_CURSOR_FORMAT = 2
+_CURSOR_FORMAT = 3
 
 #: The place of a change in the walk: ``(stamp, rank, id)``.
 _Order = tuple[datetime, int, int | uuid.UUID]

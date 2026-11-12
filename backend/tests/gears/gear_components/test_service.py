@@ -1,19 +1,37 @@
-from datetime import date
+import uuid
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import MagicMock
 
 import pytest
+from sqlalchemy import update
 
 import core.exceptions as core_exceptions
 import modules.gears.contracts as gears_contracts
 import modules.gears.gear.crud as gear_crud
 import modules.gears.gear.schema as gear_schema
 import modules.gears.gear_components.crud as crud
+import modules.gears.gear_components.models as models
 import modules.gears.gear_components.service as service
 from tests._helpers.gears import component_create, component_update, gear_create, install_readers
 
 
-def _gear(db, gear_type=gear_schema.GearType.BIKE, user_id=1) -> int:
+def _gear(db, gear_type=gear_schema.GearType.BIKE, user_id=1) -> uuid.UUID:
     return gear_crud.create_gear(gear_create("G", gear_type=gear_type), user_id, db).id
+
+
+GEAR = uuid.uuid4()
+
+
+def _component(db, index: int, gear_id: uuid.UUID = GEAR):
+    """Create a component whose creation time is ``index`` seconds after a fixed instant."""
+    created = crud.create_gear_component(component_create(gear_id), 1, db)
+    db.execute(
+        update(models.GearComponents)
+        .where(models.GearComponents.id == created.id)
+        .values(created_at=datetime(2024, 1, 1, tzinfo=UTC) + timedelta(seconds=index))
+    )
+    db.flush()
+    return created
 
 
 class TestCreate:
@@ -97,7 +115,7 @@ class TestEditAndDelete:
 
     def test_editing_a_missing_component_is_not_found(self, db):
         with pytest.raises(core_exceptions.NotFoundError):
-            service.edit_gear_component(1, component_update(brand="x"), 1, db, if_match="*")
+            service.edit_gear_component(uuid.uuid4(), component_update(brand="x"), 1, db, if_match="*")
 
     def test_a_stale_edit_is_a_precondition_failure(self, db, commit_spy):
         gear_id = _gear(db)
@@ -118,7 +136,7 @@ class TestEditAndDelete:
         assert updated.brand == "SRAM"
 
     def test_delete_commits(self, db, commit_spy):
-        created = crud.create_gear_component(component_create(), 1, db)
+        created = crud.create_gear_component(component_create(GEAR), 1, db)
 
         service.delete_gear_component(1, created.id, db, if_match=f'"{created.version}"')
 
@@ -126,7 +144,7 @@ class TestEditAndDelete:
         assert crud.get_gear_components_user(1, db) == []
 
     def test_a_stale_delete_is_a_precondition_failure_and_not_committed(self, db, commit_spy):
-        created = crud.create_gear_component(component_create(), 1, db)
+        created = crud.create_gear_component(component_create(GEAR), 1, db)
 
         with pytest.raises(core_exceptions.PreconditionFailedError):
             service.delete_gear_component(1, created.id, db, if_match='"99"')
@@ -137,8 +155,8 @@ class TestEditAndDelete:
 
 class TestListForGear:
     def test_each_component_gets_the_usage_of_its_own_window(self, db):
-        first = crud.create_gear_component(component_create(), 1, db)
-        second = crud.create_gear_component(component_create(), 1, db)
+        first = _component(db, 0)
+        second = _component(db, 1)
         reader = MagicMock(
             return_value={
                 first.id: gears_contracts.UsageTotals(distance=100.0, time=10.0),
@@ -147,36 +165,36 @@ class TestListForGear:
         )
         install_readers(usage_by_window=reader)
 
-        result = service.list_components_for_gear(1, 1, db)
+        result = service.list_components_for_gear(GEAR, 1, db)
 
         assert {c.id: (c.current_distance, c.current_time) for c in result.items} == {
             first.id: (100.0, 10.0),
             second.id: (5.0, 1.0),
         }
-        assert sorted(w.key for w in reader.call_args.args[2]) == [first.id, second.id]
+        assert sorted(w.key for w in reader.call_args.args[2]) == sorted([first.id, second.id])
 
     def test_a_component_missing_from_the_totals_reports_zero(self, db):
-        crud.create_gear_component(component_create(), 1, db)
+        crud.create_gear_component(component_create(GEAR), 1, db)
         install_readers()
 
-        assert service.list_components_for_gear(1, 1, db).items[0].current_distance == 0
+        assert service.list_components_for_gear(GEAR, 1, db).items[0].current_distance == 0
 
     def test_no_components_means_no_usage_query(self, db):
         reader = MagicMock()
         install_readers(usage_by_window=reader)
 
-        result = service.list_components_for_gear(1, 1, db)
+        result = service.list_components_for_gear(GEAR, 1, db)
 
         assert (result.items, result.total) == ([], 0)
         reader.assert_not_called()
 
     def test_the_windows_cover_only_the_page(self, db):
-        crud.create_gear_component(component_create(), 1, db)
-        second = crud.create_gear_component(component_create(), 1, db)
+        _component(db, 0)
+        second = _component(db, 1)
         reader = MagicMock(return_value={})
         install_readers(usage_by_window=reader)
 
-        result = service.list_components_for_gear(1, 1, db, page_number=2, num_records=1)
+        result = service.list_components_for_gear(GEAR, 1, db, page_number=2, num_records=1)
 
         assert [c.id for c in result.items] == [second.id]
         assert result.total == 2
@@ -185,7 +203,7 @@ class TestListForGear:
 
 def test_the_user_list_is_paged_with_the_total(db):
     for _ in range(3):
-        crud.create_gear_component(component_create(), 1, db)
+        crud.create_gear_component(component_create(GEAR), 1, db)
 
     page = service.list_gear_components(1, db, page_number=1, num_records=2)
 

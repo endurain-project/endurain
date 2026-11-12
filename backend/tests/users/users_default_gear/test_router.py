@@ -43,11 +43,13 @@ class TestEditUserDefaultGear:
         from modules.users.users_default_gear.schema import UserDefaultGearRead
 
         client = TestClient(_build_app(mock_db))
-        mock_edit.return_value = UserDefaultGearRead(id=uuid.uuid4(), user_id=1, run_gear_id=2, ride_gear_id=1)
+        mock_edit.return_value = UserDefaultGearRead(
+            id=uuid.uuid4(), user_id=1, run_gear_id=uuid.uuid4(), ride_gear_id=uuid.uuid4()
+        )
 
         response = client.patch(
             "/user_default_gear",
-            json={"run_gear_id": 2},
+            json={"run_gear_id": str(uuid.uuid4())},
             headers={**{"Authorization": "Bearer x"}, "If-Match": '"1"'},
         )
         assert response.status_code == 200

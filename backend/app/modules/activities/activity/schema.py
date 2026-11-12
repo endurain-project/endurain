@@ -7,6 +7,7 @@ stays exactly what the API serializes.
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
@@ -157,7 +158,7 @@ class ActivitySummaryBase(BaseModel):
     )
     calories: int | None = Field(default=None, ge=0, description="Estimated energy burned in kilocalories")
     visibility: StoredActivityVisibility | None = None
-    gear_id: core_types.RecordId | None = None
+    gear_id: uuid.UUID | None = None
     strava_gear_id: str | None = Field(default=None, max_length=45)
     strava_activity_id: int | None = None
     garminconnect_activity_id: int | None = None
@@ -464,7 +465,7 @@ class ActivityEdit(core_partial_update.NotClearable, BaseModel):
     activity_type: activity_constants.ActivityType | None = None
     visibility: activity_constants.ActivityVisibility | None = None
     is_hidden: StrictBool | None = None
-    gear_id: core_types.RecordId | None = None
+    gear_id: uuid.UUID | None = None
     hide_start_time: StrictBool | None = None
     hide_location: StrictBool | None = None
     hide_map: StrictBool | None = None

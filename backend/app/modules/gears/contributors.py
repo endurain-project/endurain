@@ -4,6 +4,7 @@ Gears sits below the activities module, so it states the questions it needs answ
 and ``app/module_registry.py`` installs the answers.
 """
 
+import uuid
 from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass
 
@@ -13,29 +14,29 @@ import modules.gears.contracts as gears_contracts
 import modules.gears.gear.schema as gears_schema
 
 #: ``(gear_id, user_id, db)`` -> the usage a user recorded against a gear.
-GearUsageReader = Callable[[int, int, Session], gears_contracts.UsageTotals]
+GearUsageReader = Callable[[uuid.UUID, int, Session], gears_contracts.UsageTotals]
 
 #: ``(gear_id, user_id, windows, db)`` -> the usage per window key, every key present.
 GearUsageByWindowReader = Callable[
-    [int, int, Sequence[gears_contracts.UsageWindow], Session], dict[int, gears_contracts.UsageTotals]
+    [uuid.UUID, int, Sequence[gears_contracts.UsageWindow], Session], dict[uuid.UUID, gears_contracts.UsageTotals]
 ]
 
 #: ``(gear_id, user_id, db)`` -> the summed purchase value of a gear's components.
-ComponentsCostReader = Callable[[int, int, Session], float]
+ComponentsCostReader = Callable[[uuid.UUID, int, Session], float]
 
 #: ``(gear_id, user_id, gear_type, db)`` -> how many of a gear's components are not valid for a gear type.
-ComponentsOutsideTypeCounter = Callable[[int, int, gears_schema.GearType, Session], int]
+ComponentsOutsideTypeCounter = Callable[[uuid.UUID, int, gears_schema.GearType, Session], int]
 
 #: ``(gear_id, user_id, db)`` -> stages unassigning the gear from the user's activities and
 #: returns how many it touched.
-ActivitiesGearClearer = Callable[[int, int, Session], int]
+ActivitiesGearClearer = Callable[[uuid.UUID, int, Session], int]
 
 #: ``(gear_ids, user_id, db)`` -> stages unassigning the gears from the user's default gear settings.
-DefaultGearClearer = Callable[[Collection[int], int, Session], None]
+DefaultGearClearer = Callable[[Collection[uuid.UUID], int, Session], None]
 
 #: ``(gear_ids, user_id, db)`` -> stages a deletion record for every component of the gears, which deleting the
 #: gears cascades away.
-ComponentDeletionsRecorder = Callable[[Collection[int], int, Session], None]
+ComponentDeletionsRecorder = Callable[[Collection[uuid.UUID], int, Session], None]
 
 
 @dataclass(frozen=True, kw_only=True)

@@ -1,3 +1,4 @@
+import uuid
 from unittest.mock import patch
 
 from fastapi import FastAPI
@@ -43,7 +44,7 @@ def _valid_activity(**kw):
         town="Town",
         country="Country",
         description="desc",
-        gear_id=1,
+        gear_id=uuid.uuid4(),
         id=1,
         user_id=1,
     )

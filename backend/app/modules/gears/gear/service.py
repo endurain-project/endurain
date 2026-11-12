@@ -5,6 +5,7 @@ other modules compose into their own unit of work. What other modules may consum
 lives in :mod:`modules.gears.gear.integration_service`.
 """
 
+import uuid
 from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Any
@@ -66,7 +67,7 @@ def list_gears(
     return core_pagination.Page.build(records, total, page_number, num_records)
 
 
-def read_gear_detail(gear_id: int, user_id: int, db: Session) -> gears_schema.GearDetailRead:
+def read_gear_detail(gear_id: uuid.UUID, user_id: int, db: Session) -> gears_schema.GearDetailRead:
     """Return a user's gear with its recorded usage and component cost.
 
     Args:
@@ -109,7 +110,7 @@ def _with_totals(gear: gears_schema.GearRead, user_id: int, db: Session) -> gear
 
 
 def list_changed_gears(
-    user_id: int, after: core_sync.Position[int] | None, until: datetime, limit: int, db: Session
+    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[gears_schema.GearDetailRead]:
     """Return a page of a user's gears changed after a position, each with its totals.
 
@@ -186,13 +187,14 @@ def stage_gears(gears: Iterable[gears_schema.GearCreate | None], user_id: int, d
 
 
 def restore_profile_gears(
-    records: list[dict[str, Any]], user_id: int, ids: dict[str, dict[int, int]], db: Session
+    records: list[dict[str, Any]], user_id: int, ids: users_profile_contracts.ProfileIdMaps, db: Session
 ) -> int:
     """Stage the gears of a profile archive; the caller commits.
 
     A gear whose nickname the user already has maps onto that gear. A provider gear ID the user already
-    holds on another gear is dropped, so the archive cannot make the import fail. The archived-to-stored
-    ids are published under ``ids["gears"]``, even when the archive lists none.
+    holds on another gear is dropped, so the archive cannot make the import fail. The archived ids, an
+    integer from an earlier release or a UUID, are keyed by their text and mapped to the stored UUIDs,
+    which are published under ``ids["gears"]``, even when the archive lists none.
 
     Args:
         records: The archived gears.
@@ -203,11 +205,11 @@ def restore_profile_gears(
     Returns:
         How many gears were restored or matched.
     """
-    mapping: dict[int, int] = {}
+    mapping: dict[str, uuid.UUID] = {}
     ids[gears_constants.PROFILE_ARCHIVE_KEY] = mapping
     restored = 0
     for record in records:
-        original_id = record.get("id")
+        original_id = users_profile_contracts.archived_id(record.get("id"))
         fields: dict[str, Any] = {**users_profile_contracts.without_row_identity(record), "user_id": user_id}
         _read_legacy_creation_timestamp(fields)
         _read_legacy_units(fields)
@@ -219,7 +221,7 @@ def restore_profile_gears(
             continue
         new_id = _restore_gear(gear, user_id, db)
         # Only an archived id can be named by the archive's components and default gear.
-        if isinstance(original_id, int):
+        if original_id is not None:
             mapping[original_id] = new_id
         restored += 1
 
@@ -259,7 +261,7 @@ def _read_legacy_creation_timestamp(record: dict[str, Any]) -> None:
     record["acquired_on"] = (moment.astimezone(UTC) if moment.tzinfo else moment).date()
 
 
-def _restore_gear(gear: gears_schema.GearCreate, user_id: int, db: Session) -> int:
+def _restore_gear(gear: gears_schema.GearCreate, user_id: int, db: Session) -> uuid.UUID:
     """Stage one archived gear, tolerating what the user already has.
 
     Args:
@@ -287,7 +289,7 @@ def _restore_gear(gear: gears_schema.GearCreate, user_id: int, db: Session) -> i
 
 
 def _require_components_fit_type_change(
-    gear_id: int, new_type: gears_schema.GearType, user_id: int, db: Session, *, if_match: str
+    gear_id: uuid.UUID, new_type: gears_schema.GearType, user_id: int, db: Session, *, if_match: str
 ) -> None:
     """Refuse a gear type change that leaves components the new type does not allow.
 
@@ -320,7 +322,7 @@ def _require_components_fit_type_change(
 
 
 def edit_gear(
-    gear_id: int,
+    gear_id: uuid.UUID,
     gear: gears_schema.GearUpdate,
     user_id: int,
     db: Session,
@@ -363,7 +365,7 @@ def edit_gear(
     return updated
 
 
-def delete_gear(gear_id: int, user_id: int, db: Session, *, if_match: str) -> None:
+def delete_gear(gear_id: uuid.UUID, user_id: int, db: Session, *, if_match: str) -> None:
     """Delete a user's gear, unassigning it from their activities first.
 
     Args:
@@ -407,7 +409,7 @@ def delete_all_strava_gear_for_user(user_id: int, db: Session) -> None:
     gears_crud.delete_all_strava_gear_for_user(user_id, db)
 
 
-def require_owned_gears(user_id: int, gear_ids: Iterable[int | None], db: Session) -> None:
+def require_owned_gears(user_id: int, gear_ids: Iterable[uuid.UUID | None], db: Session) -> None:
     """Require every given gear to belong to the user.
 
     Gear ids arrive from the client on several write paths, and they are small

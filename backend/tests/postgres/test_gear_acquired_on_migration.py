@@ -1,6 +1,7 @@
 """The gear ``created_at`` timestamp becomes the ``acquired_on`` date, against real PostgreSQL."""
 
 import importlib.util
+import uuid
 from datetime import date
 from pathlib import Path
 from unittest.mock import patch
@@ -40,10 +41,10 @@ def test_upgrade_keeps_each_rows_utc_calendar_day_and_downgrade_restores_a_times
         for nickname, moment in (("late", "2024-03-05 23:30:00-02"), ("early", "2024-03-05 00:30:00+05")):
             db.execute(
                 text(
-                    "INSERT INTO gear (nickname, gear_type, user_id, active, initial_distance, created_at, version) "
-                    "VALUES (:n, 1, 1, true, 0, :m, 1)"
+                    "INSERT INTO gear (id, nickname, gear_type, user_id, active, initial_distance, created_at, version) "
+                    "VALUES (:id, :n, 1, 1, true, 0, :m, 1)"
                 ),
-                {"n": nickname, "m": moment},
+                {"id": uuid.uuid4(), "n": nickname, "m": moment},
             )
         db.commit()
         migration = _migration()
@@ -52,8 +53,10 @@ def test_upgrade_keeps_each_rows_utc_calendar_day_and_downgrade_restores_a_times
         upgraded = dict(db.execute(text("SELECT nickname, acquired_on FROM gear")).all())
         db.execute(
             text(
-                "INSERT INTO gear (nickname, gear_type, user_id, active, initial_distance, version) VALUES ('d', 1, 1, true, 0, 1)"
-            )
+                "INSERT INTO gear (id, nickname, gear_type, user_id, active, initial_distance, version) "
+                "VALUES (:id, 'd', 1, 1, true, 0, 1)"
+            ),
+            {"id": uuid.uuid4()},
         )
         defaulted = db.scalar(text("SELECT acquired_on FROM gear WHERE nickname = 'd'"))
         db.execute(text("DELETE FROM gear WHERE nickname = 'd'"))

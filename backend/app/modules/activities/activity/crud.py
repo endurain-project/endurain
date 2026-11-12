@@ -198,7 +198,7 @@ def _apply_user_activity_filters[RowT: tuple[object, ...]](
     name_search: str | None,
     user_is_owner: bool,
     followee_ids: Sequence[int] | None,
-    gear_id: int | None = None,
+    gear_id: uuid.UUID | None = None,
 ) -> Select[RowT]:
     """Apply the filters shared by the activity list, page and count queries.
 
@@ -294,7 +294,7 @@ def count_user_activities(
     end_date: date | None = None,
     name_search: str | None = None,
     user_is_owner: bool,
-    gear_id: int | None = None,
+    gear_id: uuid.UUID | None = None,
     followee_ids: Sequence[int] | None = None,
 ) -> int:
     """Count activities owned by a user (with optional filters).
@@ -383,7 +383,7 @@ def get_user_activities_with_pagination(
     sort_by: str | None = None,
     sort_order: str | None = None,
     user_is_owner: bool,
-    gear_id: int | None = None,
+    gear_id: uuid.UUID | None = None,
     followee_ids: Sequence[int] | None = None,
 ) -> list[activity_schema.ActivityRead]:
     """Get a page of user activities with filters and sorting.
@@ -727,7 +727,7 @@ def get_own_feed_after(
     return _feed_slice([activity_models.Activity.user_id == user_id], after, num_records, db, requester_user_id=user_id)
 
 
-def sum_gear_usage(gear_id: int, user_id: int, db: Session) -> gears_contracts.UsageTotals:
+def sum_gear_usage(gear_id: uuid.UUID, user_id: int, db: Session) -> gears_contracts.UsageTotals:
     """Total distance and moving time a user recorded against a gear.
 
     Lives here rather than in the gears module so the activities table is only
@@ -751,11 +751,11 @@ def sum_gear_usage(gear_id: int, user_id: int, db: Session) -> gears_contracts.U
 
 
 def sum_gear_usage_by_window(
-    gear_id: int,
+    gear_id: uuid.UUID,
     user_id: int,
     windows: Sequence[gears_contracts.UsageWindow],
     db: Session,
-) -> dict[int, gears_contracts.UsageTotals]:
+) -> dict[uuid.UUID, gears_contracts.UsageTotals]:
     """Total distance and moving time per date window for one gear.
 
     Answers "how far has each component of this gear been ridden?" in a single
@@ -1487,7 +1487,7 @@ def edit_user_activities_visibility_batch(user_id: int, visibility: int, limit: 
 
 def bulk_set_activities_gear_id(
     user_id: int,
-    gear_assignments: Mapping[int, int | None],
+    gear_assignments: Mapping[int, uuid.UUID | None],
     db: Session,
 ) -> list[int]:
     """Stage a bulk ``gear_id`` update for many activities owned by a user.
@@ -1511,7 +1511,7 @@ def bulk_set_activities_gear_id(
     if not gear_assignments:
         return []
     _lock_user_activities(user_id, db, list(gear_assignments))
-    by_gear: dict[int | None, list[int]] = defaultdict(list)
+    by_gear: dict[uuid.UUID | None, list[int]] = defaultdict(list)
     for activity_id, gear_id in gear_assignments.items():
         by_gear[gear_id].append(activity_id)
 
@@ -1530,7 +1530,7 @@ def bulk_set_activities_gear_id(
     return updated_ids
 
 
-def clear_gear_from_activities(gear_id: int, user_id: int, db: Session) -> list[int]:
+def clear_gear_from_activities(gear_id: uuid.UUID, user_id: int, db: Session) -> list[int]:
     """Stage unassigning a gear from every activity of a user that carries it.
 
     Args:

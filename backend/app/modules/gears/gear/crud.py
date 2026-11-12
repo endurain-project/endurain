@@ -50,7 +50,7 @@ def _conflict(err: IntegrityError) -> core_exceptions.ConflictError:
     return core_exceptions.ConflictError(_DUPLICATE_EXTERNAL_ID)
 
 
-def _find_gear_model(gear_id: int, user_id: int, db: Session) -> gears_models.Gear | None:
+def _find_gear_model(gear_id: uuid.UUID, user_id: int, db: Session) -> gears_models.Gear | None:
     """Load a user's gear row.
 
     Args:
@@ -68,7 +68,7 @@ def _find_gear_model(gear_id: int, user_id: int, db: Session) -> gears_models.Ge
     return db.execute(stmt).scalar_one_or_none()
 
 
-def _get_gear_model_or_404(gear_id: int, user_id: int, db: Session) -> gears_models.Gear:
+def _get_gear_model_or_404(gear_id: uuid.UUID, user_id: int, db: Session) -> gears_models.Gear:
     """Load a user's gear row for a write.
 
     Args:
@@ -88,7 +88,7 @@ def _get_gear_model_or_404(gear_id: int, user_id: int, db: Session) -> gears_mod
     return db_gear
 
 
-def lock_gear(gear_id: int, user_id: int, db: Session) -> None:
+def lock_gear(gear_id: uuid.UUID, user_id: int, db: Session) -> None:
     """Lock a user's gear row until the transaction ends.
 
     Activities assigned to the gear take a shared lock on it, so this waits for in-flight
@@ -111,7 +111,7 @@ def lock_gear(gear_id: int, user_id: int, db: Session) -> None:
         raise core_exceptions.NotFoundError("Gear not found")
 
 
-def get_gear_user_by_id(user_id: int, gear_id: int, db: Session) -> gears_schema.GearRead | None:
+def get_gear_user_by_id(user_id: int, gear_id: uuid.UUID, db: Session) -> gears_schema.GearRead | None:
     """Retrieve a gear by ID for a specific user.
 
     Args:
@@ -232,9 +232,13 @@ def get_gear_user(user_id: int, db: Session) -> list[gears_schema.GearRead]:
         db: Database session.
 
     Returns:
-        The user's gears (empty list if none).
+        The user's gears ordered by nickname (empty list if none).
     """
-    stmt = select(gears_models.Gear).where(gears_models.Gear.user_id == user_id)
+    stmt = (
+        select(gears_models.Gear)
+        .where(gears_models.Gear.user_id == user_id)
+        .order_by(gears_models.Gear.nickname, gears_models.Gear.id)
+    )
     return [gears_serializers.to_read_schema(gear) for gear in db.execute(stmt).scalars().all()]
 
 
@@ -375,7 +379,7 @@ def create_gear(
 
 
 def edit_gear(
-    gear_id: int,
+    gear_id: uuid.UUID,
     gear: gears_schema.GearUpdate,
     user_id: int,
     db: Session,
@@ -413,7 +417,7 @@ def edit_gear(
     return gears_serializers.to_read_schema(db_gear)
 
 
-def delete_gear(gear_id: int, user_id: int, db: Session, *, if_match: str) -> None:
+def delete_gear(gear_id: uuid.UUID, user_id: int, db: Session, *, if_match: str) -> None:
     """Stage the deletion of a user's gear.
 
     Args:
@@ -433,7 +437,7 @@ def delete_gear(gear_id: int, user_id: int, db: Session, *, if_match: str) -> No
     db.flush()
 
 
-def get_strava_gear_ids_for_user(user_id: int, db: Session) -> list[int]:
+def get_strava_gear_ids_for_user(user_id: int, db: Session) -> list[uuid.UUID]:
     """Return the IDs of every Strava-linked gear a user has.
 
     Args:
@@ -468,7 +472,7 @@ def delete_all_strava_gear_for_user(user_id: int, db: Session) -> None:
 
 
 def list_changed_gears(
-    user_id: int, after: core_sync.Position[int] | None, until: datetime, limit: int, db: Session
+    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[gears_schema.GearRead]:
     """Retrieve a page of a user's gears changed after a position, oldest change first.
 
@@ -490,7 +494,7 @@ def list_changed_gears(
 
 def list_gear_deletions(
     user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
-) -> list[core_sync.Deletion[int]]:
+) -> list[core_sync.Deletion[uuid.UUID]]:
     """Retrieve a page of a user's deleted gears after a position, oldest deletion first.
 
     Args:
