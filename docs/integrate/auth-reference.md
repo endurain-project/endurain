@@ -14,6 +14,8 @@ The following environment variables control authentication behavior:
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Deprecated in v0.21: set in Settings > Server > Sessions, removed in v0.22. Access token lifetime in minutes | `15` | No |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | Deprecated in v0.21: set in Settings > Server > Sessions, removed in v0.22. Refresh token lifetime in days | `7` | No |
 
+The `sub` claim of access and refresh tokens is the user's UUID. Tokens issued before v0.21.0 are refused (`401`) and every web and mobile session ended at the upgrade; API keys keep working. Third-party clients and older mobile app versions must update.
+
 #### Session Configuration
 
 | Variable | Description | Default | Required |
@@ -69,8 +71,6 @@ A scope name is `resource:action` in lowercase kebab-case (`health-targets:read`
 <!-- generated:scopes -->
 
 ### Scope Usage
-The `sub` claim of access and refresh tokens is the user's UUID. Tokens issued before v0.21.0 are refused (`401`) and every web and mobile session ended at the upgrade; API keys keep working. Third-party clients and older mobile app versions must update.
-
 Scopes are assigned from the user's role and embedded in the `scope` claim of the JWT access token, a space-separated string. An endpoint checks its required scopes against the scopes the token carries, limited to the scopes the user's role holds when the request arrives: a token cannot name a scope its role lacks, and a demotion takes effect on the next request. A missing scope is `403` with `WWW-Authenticate: Bearer error="insufficient_scope"`. Tokens issued by a login carry every scope of the role. `account` covers the account's own data; `account:export` covers profile export and import, `account:security` covers the password, email, MFA, API keys, sessions, identity provider links and account deletion, and `account:integrations` covers linking and unlinking Garmin Connect and Strava (`POST` and `DELETE /garmin/link`, `POST /garmin/mfa`, `POST` and `DELETE /strava/link`, `POST /strava/state`, `PUT /strava/client`). Every user holds all four.
 
 ## Error responses
@@ -107,7 +107,7 @@ All errors, including authentication and authorization failures, use one problem
 ### For Security
 
 1. **Never expose `SECRET_KEY`** in client code or version control
-2. **Use strong, randomly generated secrets** (minimum 32 characters)
+2. **Use strong, randomly generated secrets** (minimum 32 characters and at least 10 distinct characters)
 3. **Always use HTTPS** in production environments
 4. **Enable MFA** for enhanced account security
 5. **Monitor for token reuse** - Indicates potential token theft

@@ -40,7 +40,7 @@
 - `response_model` on every JSON route (bytes routes declare `responses=` with the media type).
 - Routers validate and delegate; domain rules live in `service`.
 - Authorization through `dependencies=[Security(auth_dependencies.check_scopes, scopes=[...])]` on the route decorator; the caller's id through `auth_dependencies.CurrentUserId`.
-- Path ids use the shared aliases (`core_dependencies.PositiveId`, `auth_dependencies.AuthSessionId` and the module's own in its `dependencies.py`), never a local `Annotated[..., Path()]`.
+- Path ids use the shared aliases (`core_dependencies.PositiveId` for an integer id, `core_dependencies.UuidId` for a UUID id, `auth_dependencies.AuthSessionId` and the module's own in its `dependencies.py`), never a local `Annotated[..., Path()]`.
 - Blob routes addressed by a signed capability token answer 404, not 403, for a bad token, and log a WARNING.
 
 ## Versioned writes and long work

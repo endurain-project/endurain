@@ -15,7 +15,7 @@ Endurain's web and mobile apps sign in through an authentication system that inc
 - **CSRF Protection (Web Only):** State-changing protected web requests (`POST`, `PUT`, `DELETE`, `PATCH`) must include an `X-CSRF-Token` header; a web request without it is `403` before authentication. The exceptions are `/auth/login`, `/auth/mfa/verify`, `/auth/password-change`, `/auth/refresh`, everything under `/auth/sessions/` and everything under `/public/`, where no session exists yet. `POST /auth/logout` is not exempt, so a web logout sends `X-CSRF-Token`. The server checks only that the header is present, and only for requests that send `X-Client-Type: web`, so it is a defence in depth rather than the CSRF defence. A custom header makes a cross-origin browser request preflighted, so CORS decides whether it is sent. The protection that matters is that protected routes read the access token from the `Authorization` header, which a browser never sends on its own, and that the refresh cookie is `SameSite=Strict`. `/auth/refresh` supports a bootstrap refresh without this header after page reload; if the header is provided and the session has a stored CSRF binding, the token value must be valid.
 
 !!! note "API Key Authentication"
-    Certain endpoints support API key authentication as an alternative to Bearer + `X-Client-Type` headers. API key requests do not require the `X-Client-Type` header or a CSRF token. See [API Key Authentication](api-keys.md) for details.
+    Certain endpoints support API key authentication as an alternative to a Bearer token (and the CSRF header for web). API key requests do not require the `X-Client-Type` header or a CSRF token. See [API Key Authentication](api-keys.md) for details.
 
 ## Token Handling
 
@@ -186,7 +186,8 @@ Cookie: __Host-endurain_refresh_token={refresh_token}
   "refresh_token": "eyJ...",
   "token_type": "bearer",
   "expires_in": 900,
-  "refresh_token_expires_in": 604800
+  "refresh_token_expires_in": 604800,
+  "device_id": null
 }
 ```
 
@@ -284,6 +285,8 @@ The reverse also holds: signing out at a provider that supports back-channel log
 | **List User API Keys (admin)** | `/users/{user_id}/api-keys` | Header: `Authorization: Bearer <Access Token>`; requires `api-keys:read` scope. Same paging and page envelope as the sessions list; each item is the key's metadata (name, prefix, scopes, dates, active flag), never its secret. `404` when the user does not exist |
 | **Revoke User API Key (admin)** | `/users/{user_id}/api-keys/{api_key_id}/revoke` (`POST`) | Same headers; requires `api-keys:write` scope; web clients must also include `X-CSRF-Token`. Body: the administrator's [step-up](account-security.md#step-up-request-body); answers `204`. The key stops authenticating at once; `404` when it does not belong to the user. Writes an `auth.api_key.revoke` audit row and sends the owner a security notice |
 | **Revoke All User API Keys (admin)** | `/users/{user_id}/api-keys/revoke` (`POST`) | Same headers, scope and body; revokes every active key of the user and answers `204`, also when there were none. Writes an `auth.api_keys.revoke` audit row with the number of keys revoked, and sends the owner a security notice when at least one was |
+
+A `session_id`, `api_key_id` or device id that is not a UUID is `422`; an unknown one is `404`.
 
 ### API Key Management Endpoints
 

@@ -114,7 +114,7 @@ username=username&password=userpassword&code_challenge={challenge}&code_challeng
 
 | Field | Required | Description |
 | ----- | -------- | ----------- |
-| `username` | Yes | The account username (case-insensitive). An email address is not accepted: it is refused like a wrong password and counts toward the failed-login lockout |
+| `username` | Yes | The account username (case-insensitive). An email address is not accepted: it is refused like an unknown username and counts only against that string and the client network, never against an account |
 | `password` | Yes | User's password |
 | `code_challenge` | Yes (mobile) | Base64url-encoded SHA256 hash of code_verifier, 43 to 128 characters of `A-Z a-z 0-9 - _` |
 | `code_challenge_method` | Yes (mobile) | Must be `S256` |
@@ -377,6 +377,7 @@ A web client gets the web token body instead (`csrf_token`, no `refresh_token`, 
 | ------ | ----- | ----------- |
 | 400 | `invalid-input` (Invalid code_verifier) | Verifier doesn't match the challenge, or `X-Client-Type` differs from the value stored on the PKCE/OAuth state (the same answer for both) |
 | 404 | Session not found | Unknown session_id, not a PKCE flow, or the tokens were already exchanged |
+| 422 | `session_id` is not a UUID | A malformed id is refused before the lookup |
 | 422 | Missing or unknown `X-Client-Type` | The header is required |
 | 403 | `mfa-required` | The account has MFA enabled and the request had no `mfa_code`; see below |
 | 400 | `invalid-mfa-code` | The `mfa_code` was wrong, expired or an already used backup code |

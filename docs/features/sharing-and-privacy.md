@@ -24,7 +24,7 @@ An activity can also be hidden from everyone with **Hide this activity from ever
 
 ## Finding people
 
-Signed-in users find each other by username in **Search**. A search needs at least 3 characters, and there is no way to list every user without one. It shows one page of matches, sized by the server's records-per-page setting. Switch off **Let others find me in search** in your privacy settings to stay out of the results; it is on by default. Your profile can still be opened from a direct link, and the activities you made visible still follow the table above. Inactive accounts and accounts awaiting approval are never listed or shown.
+Signed-in users find each other by username in **Search**. A search by part of a username needs at least 3 characters, a lookup of one exact username has no minimum length, and there is no way to list every user without one of the two. It shows one page of matches, sized by the server's records-per-page setting. Switch off **Let others find me in search** in your privacy settings to stay out of the results; it is on by default. Your profile can still be opened from a direct link, and the activities you made visible still follow the table above. Inactive accounts and accounts awaiting approval are never listed or shown.
 
 ## Public links
 

@@ -18,13 +18,13 @@ sequenceDiagram
     API-->>C: Connection accepted
     API-->>C: {"message": "NEW_ACTIVITY_NOTIFICATION", "notification_id": "0b8e5c1a-7d34-4f6e-9a21-3c5d8e1f2b47"}
     C->>API: GET /api/v1/notifications
-    API-->>C: The first slice, including notification 42
+    API-->>C: The first slice, including that notification
 ```
 
 1. **Get a ticket.** `POST /api/v1/ws/ticket` with the usual authenticated headers (`Authorization`, and `X-CSRF-Token` for web). It needs the `notifications:read` scope and is rate limited like other writes. The response is `{"ticket": "<opaque string>"}` and is sent with `Cache-Control: no-store`.
 2. **Open the socket** with the ticket in the query string: `ws(s)://<host>/api/v1/ws?ticket=<ticket>`. Use `wss` when the site is served over HTTPS.
 
-A ticket is single use, bound to your user (it names the user's UUID) and to the session of the access token that asked for it, and valid for 30 seconds. Fetch a new one for every connection attempt, including every reconnect.
+A ticket is single use, bound to your user and to the session of the access token that asked for it, and valid for 30 seconds. Fetch a new one for every connection attempt, including every reconnect.
 
 ### Origin check
 
