@@ -1150,7 +1150,7 @@
     "subtitle": "Manage your account details and privacy",
     "notSet": "Not set",
     "emailManagedIn": "Your email is changed in Security settings.",
-    "emailManagedLink": "Open Security settings",
+    "securitySettingsLink": "Open Security settings",
     "usernameManagedIn": "Your username is changed in Security settings.",
     "error": {
       "title": "Couldn't load your profile",
@@ -1162,7 +1162,6 @@
       "title": "Edit profile",
       "description": "Update your account details",
       "success": "Profile updated",
-      "conflict": "These changes conflict with your saved profile. Reload and try again.",
       "error": "Couldn't update your profile. Please try again."
     },
     "photo": {

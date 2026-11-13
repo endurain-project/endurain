@@ -1150,7 +1150,7 @@
     "subtitle": "Verwalte deine Kontodaten und Datenschutz",
     "notSet": "Nicht festgelegt",
     "emailManagedIn": "Deine E-Mail änderst du in den Sicherheitseinstellungen.",
-    "emailManagedLink": "Sicherheitseinstellungen öffnen",
+    "securitySettingsLink": "Sicherheitseinstellungen öffnen",
     "usernameManagedIn": "Deinen Benutzernamen änderst du in den Sicherheitseinstellungen.",
     "error": {
       "title": "Dein Profil konnte nicht geladen werden",
@@ -1162,7 +1162,6 @@
       "title": "Profil bearbeiten",
       "description": "Deine Kontodaten aktualisieren",
       "success": "Profil aktualisiert",
-      "conflict": "Diese Änderungen stehen im Konflikt mit deinem gespeicherten Profil. Lade neu und versuche es erneut.",
       "error": "Dein Profil konnte nicht aktualisiert werden. Bitte versuche es erneut."
     },
     "photo": {

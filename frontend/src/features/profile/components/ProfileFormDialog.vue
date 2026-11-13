@@ -13,7 +13,6 @@ import { Input } from '@/components/ui/input'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { Select } from '@/components/ui/select'
 import { useForm } from '@/composables/useForm'
-import { isProblem } from '@/services/problems'
 import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
@@ -92,10 +91,20 @@ function detectBrowserTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 }
 
+/** The read-only identity fields, each with the hint that points to where it is changed. */
+const managedFields = computed(() => [
+  {
+    name: 'username',
+    value: props.profile.username,
+    hintKey: 'settings.profile.usernameManagedIn',
+  },
+  { name: 'email', value: props.profile.email, hintKey: 'settings.profile.emailManagedIn' },
+])
+
 /**
  * Persists the profile, emitting the outcome to the parent and closing on
- * success. A conflict (`409`) is surfaced specifically; other
- * failures fall back to a generic message so the dialog stays open.
+ * success. A stale write closes the dialog; other failures show a generic
+ * message and keep it open.
  *
  * @param values - The validated form values.
  */
@@ -136,8 +145,6 @@ async function submitForm(values: ProfileFormValues): Promise<void> {
     if (isStaleWrite(error)) {
       open.value = false
       emit('error', t('app.staleError'))
-    } else if (isProblem(error, 'conflict')) {
-      emit('error', t('settings.profile.edit.conflict'))
     } else {
       emit('error', t('settings.profile.edit.error'))
     }
@@ -292,31 +299,23 @@ watch(open, (isOpen) => {
         </template>
       </FormField>
 
-      <FormField :label="t('settings.users.form.username')">
-        <template #default="{ fieldId }">
-          <Input :id="fieldId" :model-value="props.profile.username" name="username" disabled />
-          <p class="text-hint">
-            {{ t('settings.profile.usernameManagedIn') }}
-            <RouterLink :to="{ name: 'settings-security' }" class="underline" @click="open = false">
-              {{ t('settings.profile.emailManagedLink') }}
-            </RouterLink>
-          </p>
-        </template>
-      </FormField>
-
-      <FormField :label="t('settings.users.form.email')">
+      <FormField
+        v-for="field in managedFields"
+        :key="field.name"
+        :label="t(`settings.users.form.${field.name}`)"
+      >
         <template #default="{ fieldId }">
           <Input
             :id="fieldId"
-            :model-value="props.profile.email"
-            name="email"
-            type="email"
+            :model-value="field.value"
+            :name="field.name"
+            :type="field.name === 'email' ? 'email' : 'text'"
             disabled
           />
           <p class="text-hint">
-            {{ t('settings.profile.emailManagedIn') }}
+            {{ t(field.hintKey) }}
             <RouterLink :to="{ name: 'settings-security' }" class="underline" @click="open = false">
-              {{ t('settings.profile.emailManagedLink') }}
+              {{ t('settings.profile.securitySettingsLink') }}
             </RouterLink>
           </p>
         </template>

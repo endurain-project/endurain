@@ -1150,7 +1150,7 @@
     "subtitle": "Administrér dine kontooplysninger og privatliv",
     "notSet": "Ikke angivet",
     "emailManagedIn": "Din e-mail ændres i sikkerhedsindstillingerne.",
-    "emailManagedLink": "Åbn sikkerhedsindstillinger",
+    "securitySettingsLink": "Åbn sikkerhedsindstillinger",
     "usernameManagedIn": "Dit brugernavn ændres i sikkerhedsindstillingerne.",
     "error": {
       "title": "Kunne ikke indlæse din profil",
@@ -1162,7 +1162,6 @@
       "title": "Redigér profil",
       "description": "Opdatér dine kontooplysninger",
       "success": "Profil opdateret",
-      "conflict": "Disse ændringer er i konflikt med din gemte profil. Genindlæs og prøv igen.",
       "error": "Kunne ikke opdatere din profil. Prøv venligst igen."
     },
     "photo": {

@@ -1150,7 +1150,7 @@
     "subtitle": "Tvarkykite savo paskyros detales ir privatumą",
     "notSet": "Nenustatyta",
     "emailManagedIn": "Jūsų el. paštas keičiamas saugumo nustatymuose.",
-    "emailManagedLink": "Atidaryti saugumo nustatymus",
+    "securitySettingsLink": "Atidaryti saugumo nustatymus",
     "usernameManagedIn": "Jūsų naudotojo vardas keičiamas saugumo nustatymuose.",
     "error": {
       "title": "Nepavyko įkelti jūsų profilio",
@@ -1162,7 +1162,6 @@
       "title": "Redaguoti profilį",
       "description": "Atnaujinkite savo paskyros detales",
       "success": "Profilis atnaujintas",
-      "conflict": "Šie pakeitimai nesuderinami su išsaugotu profiliu. Įkelkite iš naujo ir bandykite dar kartą.",
       "error": "Nepavyko atnaujinti jūsų profilio. Bandykite dar kartą."
     },
     "photo": {

@@ -1150,7 +1150,7 @@
     "subtitle": "Zarządzaj danymi konta i prywatnością",
     "notSet": "Nie ustawiono",
     "emailManagedIn": "Twój e-mail zmieniasz w ustawieniach zabezpieczeń.",
-    "emailManagedLink": "Otwórz ustawienia zabezpieczeń",
+    "securitySettingsLink": "Otwórz ustawienia zabezpieczeń",
     "usernameManagedIn": "Swoją nazwę użytkownika zmieniasz w ustawieniach zabezpieczeń.",
     "error": {
       "title": "Nie udało się wczytać Twojego profilu",
@@ -1162,7 +1162,6 @@
       "title": "Edytuj profil",
       "description": "Zaktualizuj dane swojego konta",
       "success": "Zaktualizowano profil",
-      "conflict": "Te zmiany są sprzeczne z zapisanym profilem. Odśwież stronę i spróbuj ponownie.",
       "error": "Nie udało się zaktualizować profilu. Spróbuj ponownie."
     },
     "photo": {

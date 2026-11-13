@@ -126,7 +126,7 @@ export function presentNotification(
         to:
           currentUserId == null
             ? null
-            : { name: 'user', params: { id: String(currentUserId) }, query: { tab: 'followers' } },
+            : { name: 'user', params: { id: currentUserId }, query: { tab: 'followers' } },
       }
     }
     case 'new_follower_request_accepted': {

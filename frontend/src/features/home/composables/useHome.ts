@@ -1,4 +1,5 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
+import { resolveUserId } from '@/utils/userId'
 import { storeToRefs } from 'pinia'
 import {
   type QueryClient,
@@ -32,11 +33,6 @@ import type { ActivityIngestionJob } from '@/features/upload/types'
 
 /** Default number of activities fetched per feed page (matches v1's fallback). */
 export const DEFAULT_FEED_PAGE_SIZE = 25
-
-/** Resolves a reactive user id to its string, or `''` when unavailable. */
-function resolveUserId(userId: MaybeRefOrGetter<string | null>): string {
-  return toValue(userId) ?? ''
-}
 
 /**
  * Seeds each activity's media query with the photos its list response embedded, so

@@ -374,7 +374,7 @@ export async function fetchKnownDevices(signal?: AbortSignal): Promise<KnownDevi
  * @throws {HttpError} When the request fails (403 step-up, 404 no such device).
  */
 export async function forgetKnownDevice(deviceId: string, input: StepUpInput): Promise<void> {
-  await apiFetch(`/profile/devices/${deviceId}/delete`, {
+  await apiFetch(`/profile/devices/${encodeURIComponent(deviceId)}/delete`, {
     method: 'POST',
     body: JSON.stringify({ step_up: toStepUpWire(input) } satisfies StepUpRequestDto),
     responseType: 'void',

@@ -1,4 +1,5 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
+import { resolveUserId } from '@/utils/userId'
 import { storeToRefs } from 'pinia'
 import { useQuery } from '@tanstack/vue-query'
 
@@ -13,11 +14,6 @@ import {
 } from '@/features/users/services/publicUsers'
 import { fetchUserProfileOverview } from '@/features/users/services/profileOverview'
 import { todayIsoDate } from '@/utils/datetime'
-
-/** Resolves a reactive user id to its string, or `''` when unavailable. */
-function resolveUserId(userId: MaybeRefOrGetter<string | null>): string {
-  return toValue(userId) ?? ''
-}
 
 /**
  * A user's public-facing profile, backing the `/user/:id` page header and every

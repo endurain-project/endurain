@@ -1150,7 +1150,7 @@
     "subtitle": "Beheer je accountgegevens en privacy",
     "notSet": "Niet ingesteld",
     "emailManagedIn": "Je e-mailadres wijzig je in de beveiligingsinstellingen.",
-    "emailManagedLink": "Beveiligingsinstellingen openen",
+    "securitySettingsLink": "Beveiligingsinstellingen openen",
     "usernameManagedIn": "Je gebruikersnaam wijzig je in de beveiligingsinstellingen.",
     "error": {
       "title": "Profiel kon niet worden geladen",
@@ -1162,7 +1162,6 @@
       "title": "Profiel bewerken",
       "description": "Accountgegevens bijwerken",
       "success": "Profiel bijgewerkt",
-      "conflict": "Deze wijzigingen conflicteren met je opgeslagen profiel. Laad opnieuw en probeer het nog eens.",
       "error": "Profiel kon niet worden bijgewerkt. Probeer het opnieuw."
     },
     "photo": {

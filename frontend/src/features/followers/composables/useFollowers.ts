@@ -1,4 +1,5 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
+import { resolveUserId } from '@/utils/userId'
 import { storeToRefs } from 'pinia'
 import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
@@ -23,11 +24,6 @@ import {
 
 /** Freshness window for follow graph reads; relationship writes invalidate the domain. */
 const FOLLOWER_QUERY_STALE_TIME_MS = 60_000
-
-/** Resolves a reactive user id to its string, or `''` when unavailable. */
-function resolveUserId(userId: MaybeRefOrGetter<string | null>): string {
-  return toValue(userId) ?? ''
-}
 
 /**
  * Writes the profiles a follow list carried into the public-profile cache its rows read, so

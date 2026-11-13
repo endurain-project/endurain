@@ -1150,7 +1150,7 @@
     "subtitle": "Pārvaldiet sava konta detaļas un privātumu",
     "notSet": "Nav iestatīts",
     "emailManagedIn": "Jūsu e-pasts tiek mainīts drošības iestatījumos.",
-    "emailManagedLink": "Atvērt drošības iestatījumus",
+    "securitySettingsLink": "Atvērt drošības iestatījumus",
     "usernameManagedIn": "Jūsu lietotājvārds tiek mainīts drošības iestatījumos.",
     "error": {
       "title": "Neizdevās ielādēt jūsu profilu",
@@ -1162,7 +1162,6 @@
       "title": "Rediģēt profilu",
       "description": "Atjauniniet sava konta detaļas",
       "success": "Profils atjaunināts",
-      "conflict": "Šīs izmaiņas ir pretrunā ar saglabāto profilu. Pārlādējiet un mēģiniet vēlreiz.",
       "error": "Neizdevās atjaunināt jūsu profilu. Lūdzu, mēģiniet vēlreiz."
     },
     "photo": {

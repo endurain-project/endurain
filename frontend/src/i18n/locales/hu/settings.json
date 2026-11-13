@@ -1150,7 +1150,7 @@
     "subtitle": "Kezeld a fiókod adatait és adatvédelmét",
     "notSet": "Nincs beállítva",
     "emailManagedIn": "Az e-mail-címedet a Biztonság beállításokban módosíthatod.",
-    "emailManagedLink": "Biztonsági beállítások megnyitása",
+    "securitySettingsLink": "Biztonsági beállítások megnyitása",
     "usernameManagedIn": "A felhasználónevedet a Biztonság beállításokban módosíthatod.",
     "error": {
       "title": "Nem sikerült betölteni a profilodat",
@@ -1162,7 +1162,6 @@
       "title": "Profil szerkesztése",
       "description": "Frissítsd a fiókod adatait",
       "success": "Profil frissítve",
-      "conflict": "Ezek a módosítások ütköznek a mentett profilloddal. Töltsd újra az oldalt, és próbáld meg újra.",
       "error": "Nem sikerült frissíteni a profilodat. Kérjük, próbáld újra."
     },
     "photo": {

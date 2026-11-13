@@ -1150,7 +1150,7 @@
     "subtitle": "Gérez les détails de votre compte et votre confidentialité",
     "notSet": "Non défini",
     "emailManagedIn": "Votre e-mail se modifie dans les paramètres de sécurité.",
-    "emailManagedLink": "Ouvrir les paramètres de sécurité",
+    "securitySettingsLink": "Ouvrir les paramètres de sécurité",
     "usernameManagedIn": "Votre nom d'utilisateur se modifie dans les paramètres de sécurité.",
     "error": {
       "title": "Impossible de charger votre profil",
@@ -1162,7 +1162,6 @@
       "title": "Modifier le profil",
       "description": "Mettez à jour les détails de votre compte",
       "success": "Profil mis à jour",
-      "conflict": "Ces modifications entrent en conflit avec votre profil enregistré. Rechargez et réessayez.",
       "error": "Impossible de mettre à jour votre profil. Veuillez réessayer."
     },
     "photo": {

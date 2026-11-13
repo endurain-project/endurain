@@ -1150,7 +1150,7 @@
     "subtitle": "Hesap ayrıntılarınızı ve gizliliğinizi yönetin",
     "notSet": "Ayarlanmadı",
     "emailManagedIn": "E-postanız Güvenlik ayarlarından değiştirilir.",
-    "emailManagedLink": "Güvenlik ayarlarını aç",
+    "securitySettingsLink": "Güvenlik ayarlarını aç",
     "usernameManagedIn": "Kullanıcı adınız Güvenlik ayarlarından değiştirilir.",
     "error": {
       "title": "Profiliniz yüklenemedi",
@@ -1162,7 +1162,6 @@
       "title": "Profili düzenle",
       "description": "Hesap ayrıntılarınızı güncelleyin",
       "success": "Profil güncellendi",
-      "conflict": "Bu değişiklikler kayıtlı profilinizle çakışıyor. Sayfayı yenileyip tekrar deneyin.",
       "error": "Profiliniz güncellenemedi. Lütfen tekrar deneyin."
     },
     "photo": {

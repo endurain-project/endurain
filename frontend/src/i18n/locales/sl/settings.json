@@ -1150,7 +1150,7 @@
     "subtitle": "Upravljaj podatke računa in zasebnost",
     "notSet": "Ni nastavljeno",
     "emailManagedIn": "Tvoja e-pošta se spreminja v varnostnih nastavitvah.",
-    "emailManagedLink": "Odpri varnostne nastavitve",
+    "securitySettingsLink": "Odpri varnostne nastavitve",
     "usernameManagedIn": "Tvoje uporabniško ime se spreminja v varnostnih nastavitvah.",
     "error": {
       "title": "Tvojega profila ni bilo mogoče naložiti",
@@ -1162,7 +1162,6 @@
       "title": "Uredi profil",
       "description": "Posodobi podatke računa",
       "success": "Profil posodobljen",
-      "conflict": "Te spremembe so v nasprotju s shranjenim profilom. Znova naloži stran in poskusi znova.",
       "error": "Tvojega profila ni bilo mogoče posodobiti. Prosim, poskusi znova."
     },
     "photo": {

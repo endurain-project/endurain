@@ -1,4 +1,5 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
+import { resolveUserId } from '@/utils/userId'
 import { storeToRefs } from 'pinia'
 import { keepPreviousData, useQuery } from '@tanstack/vue-query'
 
@@ -11,11 +12,6 @@ import {
   fetchUserActivitiesPage,
   fetchUserActivityTypes,
 } from '@/features/activities/services/activities'
-
-/** Resolves a reactive user id to its string, or `''` when unavailable. */
-function resolveUserId(userId: MaybeRefOrGetter<string | null>): string {
-  return toValue(userId) ?? ''
-}
 
 /**
  * One filtered, sorted page of the authenticated user's own activities, backing

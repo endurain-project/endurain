@@ -638,7 +638,7 @@ watch(
           <p v-if="isSelf" class="text-hint">
             {{ t('settings.profile.emailManagedIn') }}
             <RouterLink :to="{ name: 'settings-security' }" class="underline" @click="open = false">
-              {{ t('settings.profile.emailManagedLink') }}
+              {{ t('settings.profile.securitySettingsLink') }}
             </RouterLink>
           </p>
           <p v-else-if="emailChanged" class="text-hint">

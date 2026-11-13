@@ -3123,10 +3123,11 @@ export interface paths {
          * Cancel Email Change
          * @description Report an email change as not made by its owner, with the link emailed to the account's address.
          *
-         *     The link works once, for seven days after the change was requested. A later change of the account does not end the
-         *     link: using it voids every later change still inside its window. A pending change is cancelled; after a
-         *     confirmed one the address the link was mailed to is put back unless another account holds it now. Every session
-         *     of the account ends and its API keys are revoked either way. The answer says whether any change of the run had
+         *     The link works once, for seven days after the change was requested, whether the change was confirmed, is still
+         *     pending, was replaced by a later request or expired unconfirmed. Using it reverts the change and every later change
+         *     of the account still inside its window, and voids any pending one. When one of them was confirmed, the address the
+         *     link was mailed to is put back unless another account holds it now. Every session of the account ends, and its API
+         *     keys and unused password-reset links are revoked, either way. The answer says whether any change of the run had
          *     been confirmed and whether the previous address was restored.
          */
         post: operations["cancel_email_change"];
@@ -3866,7 +3867,7 @@ export interface paths {
          *     With `users:read-all` the page holds full records and every filter is available. With only `users:read` it
          *     holds public projections of active users who are discoverable (those who switched off "Let others find me
          *     in search" are left out; their profile stays reachable by id), a state filter is refused with 403, and a request
-         *     without `username` or `username_contains` of at least 3 characters is refused with 422.
+         *     with neither `username` nor `username_contains` (at least 3 characters) is refused with 422.
          *     `num_records` defaults to the server's page size and may not exceed it; a larger value is refused with 422.
          */
         get: operations["read_users"];
@@ -6109,15 +6110,15 @@ export interface components {
          * @description Response schema for the "this wasn't me" link of an email change.
          *
          *     Attributes:
-         *         change_applied: Whether the change, or a later change of the account voided by the link, had been confirmed
+         *         change_applied: Whether the change, or a later change of the account reverted by the link, had been confirmed
          *             when the link was used.
-         *         email_restored: Whether the account's previous address was put back; false when the change was still pending,
-         *             or when another account holds the previous address now.
+         *         email_restored: Whether the account's previous address was put back; false when none of those changes had been
+         *             confirmed, or when another account holds the previous address now.
          */
         EmailChangeCancelRead: {
             /**
              * Change Applied
-             * @description Whether the change, or a later change voided by the link, had been confirmed
+             * @description Whether the change, or a later change reverted by the link, had been confirmed
              */
             change_applied: boolean;
             /**
@@ -12763,7 +12764,10 @@ export interface components {
             /** City */
             city?: string | null;
             currency?: components["schemas"]["Currency"] | null;
-            /** Email */
+            /**
+             * Email
+             * @description User's email address
+             */
             email?: string | null;
             /**
              * Email Verified
@@ -12784,7 +12788,10 @@ export interface components {
             /** Timezone */
             timezone?: string | null;
             units?: components["schemas"]["Units"] | null;
-            /** Username */
+            /**
+             * Username
+             * @description Unique username (alphanumeric, dots, hyphen, underscore)
+             */
             username?: string | null;
             weight_units?: components["schemas"]["Units"] | null;
         };
@@ -32200,7 +32207,7 @@ export interface operations {
                     "application/json": components["schemas"]["EmailChangeCancelRead"];
                 };
             };
-            /** @description The token is malformed, expired, already used, or names a change that was already reverted or replaced before it was confirmed. */
+            /** @description The token is malformed, more than seven days old, or names a change that was already reverted. */
             400: {
                 headers: {
                     [name: string]: unknown;

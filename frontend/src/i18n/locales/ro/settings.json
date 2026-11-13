@@ -1150,7 +1150,7 @@
     "subtitle": "Gestionează-ți detaliile contului și confidențialitatea",
     "notSet": "Nesetat",
     "emailManagedIn": "E-mailul se schimbă din setările de Securitate.",
-    "emailManagedLink": "Deschide setările de Securitate",
+    "securitySettingsLink": "Deschide setările de Securitate",
     "usernameManagedIn": "Numele de utilizator se schimbă din setările de Securitate.",
     "error": {
       "title": "Nu am putut încărca profilul tău",
@@ -1162,7 +1162,6 @@
       "title": "Editează profilul",
       "description": "Actualizează-ți detaliile contului",
       "success": "Profil actualizat",
-      "conflict": "Aceste modificări sunt în conflict cu profilul salvat. Reîncarcă și încearcă din nou.",
       "error": "Nu am putut actualiza profilul tău. Te rugăm să încerci din nou."
     },
     "photo": {

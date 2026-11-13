@@ -1150,7 +1150,7 @@
     "subtitle": "Gestisci i dettagli del tuo account e la privacy",
     "notSet": "Non impostato",
     "emailManagedIn": "La tua e-mail si cambia nelle impostazioni di sicurezza.",
-    "emailManagedLink": "Apri le impostazioni di sicurezza",
+    "securitySettingsLink": "Apri le impostazioni di sicurezza",
     "usernameManagedIn": "Il tuo nome utente si cambia nelle impostazioni di sicurezza.",
     "error": {
       "title": "Impossibile caricare il profilo",
@@ -1162,7 +1162,6 @@
       "title": "Modifica profilo",
       "description": "Aggiorna i dettagli del tuo account",
       "success": "Profilo aggiornato",
-      "conflict": "Queste modifiche sono in conflitto con il profilo salvato. Ricarica e riprova.",
       "error": "Impossibile aggiornare il profilo. Riprova."
     },
     "photo": {

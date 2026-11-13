@@ -1150,7 +1150,7 @@
     "subtitle": "Spravujte podrobnosti svého účtu a soukromí",
     "notSet": "Nenastaveno",
     "emailManagedIn": "Váš e-mail se mění v nastavení zabezpečení.",
-    "emailManagedLink": "Otevřít nastavení zabezpečení",
+    "securitySettingsLink": "Otevřít nastavení zabezpečení",
     "usernameManagedIn": "Vaše uživatelské jméno se mění v nastavení zabezpečení.",
     "error": {
       "title": "Nepodařilo se načíst váš profil",
@@ -1162,7 +1162,6 @@
       "title": "Upravit profil",
       "description": "Aktualizujte podrobnosti svého účtu",
       "success": "Profil aktualizován",
-      "conflict": "Tyto změny jsou v konfliktu s uloženým profilem. Načtěte stránku znovu a zkuste to znovu.",
       "error": "Nepodařilo se aktualizovat váš profil. Zkuste to prosím znovu."
     },
     "photo": {

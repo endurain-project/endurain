@@ -1150,7 +1150,7 @@
     "subtitle": "Hallitse tilisi tietoja ja yksityisyyttä",
     "notSet": "Ei asetettu",
     "emailManagedIn": "Sähköpostisi vaihdetaan turvallisuusasetuksissa.",
-    "emailManagedLink": "Avaa turvallisuusasetukset",
+    "securitySettingsLink": "Avaa turvallisuusasetukset",
     "usernameManagedIn": "Käyttäjänimesi vaihdetaan turvallisuusasetuksissa.",
     "error": {
       "title": "Profiiliasi ei voitu ladata",
@@ -1162,7 +1162,6 @@
       "title": "Muokkaa profiilia",
       "description": "Päivitä tilisi tiedot",
       "success": "Profiili päivitetty",
-      "conflict": "Nämä muutokset ovat ristiriidassa tallennetun profiilisi kanssa. Lataa sivu uudelleen ja yritä uudelleen.",
       "error": "Profiiliasi ei voitu päivittää. Yritä uudelleen."
     },
     "photo": {

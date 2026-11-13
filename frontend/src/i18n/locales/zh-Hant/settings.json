@@ -1150,7 +1150,7 @@
     "subtitle": "管理您的帳戶詳細資訊和隱私設定",
     "notSet": "未設定",
     "emailManagedIn": "您的電子郵件需在安全性設定中變更。",
-    "emailManagedLink": "開啟安全性設定",
+    "securitySettingsLink": "開啟安全性設定",
     "usernameManagedIn": "您的使用者名稱需在安全性設定中變更。",
     "error": {
       "title": "無法載入您的個人資料",
@@ -1162,7 +1162,6 @@
       "title": "編輯個人資料",
       "description": "更新您的帳戶詳細資訊",
       "success": "個人資料已更新",
-      "conflict": "這些變更與已儲存的資料衝突。請重新載入後再試。",
       "error": "無法更新您的個人資料，請再試一次。"
     },
     "photo": {

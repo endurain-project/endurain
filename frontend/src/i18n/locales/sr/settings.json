@@ -1150,7 +1150,7 @@
     "subtitle": "Upravljajte detaljima svog naloga i privatnošću",
     "notSet": "Nije podešeno",
     "emailManagedIn": "Vaša e-pošta se menja u bezbednosnim podešavanjima.",
-    "emailManagedLink": "Otvori bezbednosna podešavanja",
+    "securitySettingsLink": "Otvori bezbednosna podešavanja",
     "usernameManagedIn": "Vaše korisničko ime se menja u bezbednosnim podešavanjima.",
     "error": {
       "title": "Nije moguće učitati vaš profil",
@@ -1162,7 +1162,6 @@
       "title": "Izmeni profil",
       "description": "Ažurirajte detalje svog naloga",
       "success": "Profil je ažuriran",
-      "conflict": "Ove promene su u sukobu sa sačuvanim profilom. Osvežite stranicu i pokušajte ponovo.",
       "error": "Nije moguće ažurirati vaš profil. Pokušajte ponovo."
     },
     "photo": {

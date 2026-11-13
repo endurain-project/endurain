@@ -62,7 +62,7 @@ async function mountDialog(edited: ProfileDetails = profile) {
         DialogTitle: passthrough,
         DialogDescription: passthrough,
         DialogFooter: passthrough,
-        RouterLink: { props: ['to'], template: '<a><slot /></a>' },
+        RouterLink: { name: 'RouterLink', props: ['to'], template: '<a><slot /></a>' },
       },
     },
   })
@@ -132,6 +132,10 @@ describe('ProfileFormDialog username', () => {
     expect((username.element as HTMLInputElement).value).toBe('tester')
     expect(username.attributes('disabled')).toBeDefined()
     expect(wrapper.text()).toContain(i18n.global.t('settings.profile.usernameManagedIn'))
+    const link = wrapper
+      .findAllComponents({ name: 'RouterLink' })
+      .find((l) => l.text() === i18n.global.t('settings.profile.securitySettingsLink'))
+    expect(link?.props('to')).toEqual({ name: 'settings-security' })
     expect(await saveBody(wrapper)).not.toHaveProperty('username')
   })
 })

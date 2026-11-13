@@ -1150,7 +1150,7 @@
     "subtitle": "Upravljajte detaljima i privatnošću svog računa",
     "notSet": "Nije postavljeno",
     "emailManagedIn": "Vaša se e-pošta mijenja u sigurnosnim postavkama.",
-    "emailManagedLink": "Otvori sigurnosne postavke",
+    "securitySettingsLink": "Otvori sigurnosne postavke",
     "usernameManagedIn": "Vaše se korisničko ime mijenja u sigurnosnim postavkama.",
     "error": {
       "title": "Vaš se profil nije mogao učitati",
@@ -1162,7 +1162,6 @@
       "title": "Uredi profil",
       "description": "Ažurirajte detalje svog računa",
       "success": "Profil je ažuriran",
-      "conflict": "Ove promjene su u sukobu sa sačuvanim profilom. Osvježite stranicu i pokušajte ponovno.",
       "error": "Nije moguće ažurirati vaš profil. Pokušajte ponovno."
     },
     "photo": {

@@ -1150,7 +1150,7 @@
     "subtitle": "Administrer kontodetaljene og personvernet ditt",
     "notSet": "Ikke satt",
     "emailManagedIn": "E-posten din endres i sikkerhetsinnstillingene.",
-    "emailManagedLink": "Åpne sikkerhetsinnstillingene",
+    "securitySettingsLink": "Åpne sikkerhetsinnstillingene",
     "usernameManagedIn": "Brukernavnet ditt endres i sikkerhetsinnstillingene.",
     "error": {
       "title": "Kunne ikke laste profilen din",
@@ -1162,7 +1162,6 @@
       "title": "Rediger profil",
       "description": "Oppdater kontodetaljene dine",
       "success": "Profil oppdatert",
-      "conflict": "Disse endringene er i konflikt med den lagrede profilen din. Last inn på nytt og prøv igjen.",
       "error": "Kunne ikke oppdatere profilen din. Vennligst prøv igjen."
     },
     "photo": {

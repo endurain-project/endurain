@@ -1150,7 +1150,7 @@
     "subtitle": "管理您的账户详情和隐私",
     "notSet": "未设置",
     "emailManagedIn": "您的电子邮件需在安全设置中更改。",
-    "emailManagedLink": "打开安全设置",
+    "securitySettingsLink": "打开安全设置",
     "usernameManagedIn": "您的用户名需在安全设置中更改。",
     "error": {
       "title": "无法加载您的个人资料",
@@ -1162,7 +1162,6 @@
       "title": "编辑个人资料",
       "description": "更新您的账户详情",
       "success": "个人资料已更新",
-      "conflict": "这些更改与已保存的资料冲突。请刷新后重试。",
       "error": "无法更新您的个人资料，请重试。"
     },
     "photo": {

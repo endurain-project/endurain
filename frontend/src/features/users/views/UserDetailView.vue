@@ -65,11 +65,11 @@ onMounted(() => {
   }
 })
 
-// A non-numeric or non-positive `:id` resolves to `null`, which keeps the query
-// disabled and surfaces the not-found state below.
+// An `:id` that is not a UUID resolves to `null`, which keeps the query disabled and
+// surfaces the not-found state below. A valid one is lower-cased to the server's canonical form.
 const userId = computed(() => {
   const raw = route.params.id
-  return typeof raw === 'string' && isUuid(raw) ? raw : null
+  return typeof raw === 'string' && isUuid(raw) ? raw.toLowerCase() : null
 })
 
 const { data: user, isPending, isError, refetch } = useUserQuery(userId)

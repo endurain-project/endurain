@@ -1150,7 +1150,7 @@
     "subtitle": "Gestiona els detalls del teu compte i la privadesa",
     "notSet": "No definit",
     "emailManagedIn": "El teu correu es canvia a la configuració de Seguretat.",
-    "emailManagedLink": "Obre la configuració de Seguretat",
+    "securitySettingsLink": "Obre la configuració de Seguretat",
     "usernameManagedIn": "El teu nom d'usuari es canvia a la configuració de Seguretat.",
     "error": {
       "title": "No s'ha pogut carregar el teu perfil",
@@ -1162,7 +1162,6 @@
       "title": "Edita el perfil",
       "description": "Actualitza els detalls del teu compte",
       "success": "Perfil actualitzat",
-      "conflict": "Aquests canvis entren en conflicte amb el teu perfil desat. Torna a carregar i prova-ho de nou.",
       "error": "No s'ha pogut actualitzar el teu perfil. Torna-ho a intentar."
     },
     "photo": {

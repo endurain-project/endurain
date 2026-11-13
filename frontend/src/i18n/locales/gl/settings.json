@@ -1150,7 +1150,7 @@
     "subtitle": "Xestiona os detalles da túa conta e privacidade",
     "notSet": "Non establecido",
     "emailManagedIn": "O teu correo electrónico cámbiase na configuración de Seguridade.",
-    "emailManagedLink": "Abrir configuración de Seguridade",
+    "securitySettingsLink": "Abrir configuración de Seguridade",
     "usernameManagedIn": "O teu nome de usuario cámbiase na configuración de Seguridade.",
     "error": {
       "title": "Non se puido cargar o teu perfil",
@@ -1162,7 +1162,6 @@
       "title": "Editar perfil",
       "description": "Actualiza os detalles da túa conta",
       "success": "Perfil actualizado",
-      "conflict": "Estes cambios entran en conflito co teu perfil gardado. Recarga e téntao de novo.",
       "error": "Non se puido actualizar o teu perfil. Por favor, téntao de novo."
     },
     "photo": {

@@ -1150,7 +1150,7 @@
     "subtitle": "Hantera dina kontouppgifter och sekretess",
     "notSet": "Inte angivet",
     "emailManagedIn": "Din e-post ändras i säkerhetsinställningarna.",
-    "emailManagedLink": "Öppna säkerhetsinställningar",
+    "securitySettingsLink": "Öppna säkerhetsinställningar",
     "usernameManagedIn": "Ditt användarnamn ändras i säkerhetsinställningarna.",
     "error": {
       "title": "Kunde inte ladda din profil",
@@ -1162,7 +1162,6 @@
       "title": "Redigera profil",
       "description": "Uppdatera dina kontouppgifter",
       "success": "Profil uppdaterad",
-      "conflict": "Ändringarna står i konflikt med din sparade profil. Ladda om och försök igen.",
       "error": "Kunde inte uppdatera din profil. Försök igen."
     },
     "photo": {

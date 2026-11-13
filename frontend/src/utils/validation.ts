@@ -57,14 +57,14 @@ export function resolvePasswordMinLength(
 }
 
 /** Canonical textual form of a UUID, any version, case-insensitive. */
-export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
  * Returns whether the given value is a UUID in its canonical hyphenated form.
  * Use it to reject a malformed id taken from a route before requesting it.
  *
  * @param value - Raw id, such as a route parameter.
- * @returns `true` when the value matches {@link UUID_PATTERN}.
+ * @returns `true` when the value matches the UUID pattern.
  */
 export function isUuid(value: string): boolean {
   return UUID_PATTERN.test(value)

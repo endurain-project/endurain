@@ -35,7 +35,7 @@ const currency = computed(() => currentUser.value?.currency ?? 'euro')
 
 const gearId = computed(() => {
   const raw = route.params.id
-  return typeof raw === 'string' && isUuid(raw) ? raw : null
+  return typeof raw === 'string' && isUuid(raw) ? raw.toLowerCase() : null
 })
 
 // `isLoading` (not `isPending`) so a malformed id, whose query never runs, shows not-found instead of the skeleton.

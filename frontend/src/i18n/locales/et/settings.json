@@ -1150,7 +1150,7 @@
     "subtitle": "Halda oma konto üksikasju ja privaatsust",
     "notSet": "Määramata",
     "emailManagedIn": "Sinu e-posti muudetakse turvaseadetes.",
-    "emailManagedLink": "Ava turvaseaded",
+    "securitySettingsLink": "Ava turvaseaded",
     "usernameManagedIn": "Sinu kasutajanime muudetakse turvaseadetes.",
     "error": {
       "title": "Sinu profiili ei õnnestunud laadida",
@@ -1162,7 +1162,6 @@
       "title": "Muuda profiili",
       "description": "Uuenda oma konto üksikasju",
       "success": "Profiil uuendatud",
-      "conflict": "Need muudatused on vastuolus sinu salvestatud profiiliga. Laadi uuesti ja proovi uuesti.",
       "error": "Sinu profiili ei õnnestunud uuendada. Palun proovi uuesti."
     },
     "photo": {

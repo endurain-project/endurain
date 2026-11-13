@@ -93,6 +93,13 @@ describe('consumeIdpStepUpReturn', () => {
     expect(consumeIdpStepUpReturn()).toEqual({ error: 'failed' })
   })
 
+  it('fails when the stored entry carries a numeric identity-provider id', () => {
+    store({ idpId: 3 })
+    setUrl('#step_up_ticket=abc')
+    expect(consumeIdpStepUpReturn()).toEqual({ error: 'failed' })
+    expect(sessionStorage.getItem(KEY)).toBeNull()
+  })
+
   it('fails when the stored entry is malformed', () => {
     sessionStorage.setItem(KEY, '{not json')
     setUrl('#step_up_ticket=abc')
@@ -117,7 +124,7 @@ describe('useIdpStepUp.start', () => {
     })
 
     const [idpId, action, challenge, redirect] = mocks.startIdpStepUp.mock.calls[0] as [
-      number,
+      string,
       string,
       string,
       string,

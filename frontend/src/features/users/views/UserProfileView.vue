@@ -39,10 +39,10 @@ const units = useDisplayUnits()
 const currentUserId = computed(() => currentUser.value?.id ?? null)
 const firstDayOfWeek = computed(() => currentUser.value?.firstDayOfWeek ?? 'monday')
 
-/** The profile owner's id from the route, or `null` when the param is invalid. */
+/** The profile owner's id from the route in lower case, or `null` when the param is invalid. */
 const profileId = computed(() => {
   const raw = route.params.id
-  return typeof raw === 'string' && isUuid(raw) ? raw : null
+  return typeof raw === 'string' && isUuid(raw) ? raw.toLowerCase() : null
 })
 
 /** Whether the viewer is looking at their own profile. */

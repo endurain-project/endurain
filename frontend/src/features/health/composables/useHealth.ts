@@ -685,10 +685,11 @@ export function useSleepEntryQuery(
   enabled: MaybeRefOrGetter<boolean> = true,
 ) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
+  const entryId = computed(() => toValue(id) ?? '')
 
   return useQuery({
-    queryKey: computed(() => queryKeys.health.sleepItem(toValue(id) as string)),
-    queryFn: ({ signal }) => fetchSleepEntry(toValue(id) as string, signal),
+    queryKey: computed(() => queryKeys.health.sleepItem(entryId.value)),
+    queryFn: ({ signal }) => fetchSleepEntry(entryId.value, signal),
     staleTime: HEALTH_QUERY_STALE_TIME_MS,
     enabled: computed(() => isAuthenticated.value && toValue(id) !== null && toValue(enabled)),
   })

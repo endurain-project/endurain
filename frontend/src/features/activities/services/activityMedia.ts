@@ -26,7 +26,7 @@ export function mapActivityMedia(dto: ActivityMediaDto): ActivityMedia {
  *
  * @param activityId - Activity identifier.
  * @param signal - Optional abort signal (e.g. TanStack Query cancellation).
- * @returns The activity's media, newest first as returned by the backend.
+ * @returns The activity's media, oldest first, in the order the backend returns them.
  */
 export async function fetchActivityMedia(
   activityId: string,
