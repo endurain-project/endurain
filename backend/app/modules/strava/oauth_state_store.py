@@ -12,6 +12,7 @@ Interface::
 """
 
 import hmac
+import uuid
 
 import jasil.providers as platform_providers
 
@@ -43,10 +44,10 @@ class StravaOAuthStateStore:
         self._ttl_seconds = ttl_seconds
 
     @staticmethod
-    def _key(user_id: int) -> str:
+    def _key(user_id: uuid.UUID) -> str:
         return core_attempt_state.key("strava", "oauth_state", str(user_id))
 
-    def begin(self, user_id: int, state: str) -> None:
+    def begin(self, user_id: uuid.UUID, state: str) -> None:
         """Store the state a user is about to round-trip through Strava.
 
         Args:
@@ -61,7 +62,7 @@ class StravaOAuthStateStore:
         except platform_providers.StateBackendUnavailableError as err:
             core_attempt_state.raise_unavailable("begin strava:oauth_state", err)
 
-    def consume(self, user_id: int, state: str) -> bool:
+    def consume(self, user_id: uuid.UUID, state: str) -> bool:
         """Check a returned state against the stored one and use it up.
 
         The stored state is deleted whether or not it matches, so a wrong guess cannot be retried.

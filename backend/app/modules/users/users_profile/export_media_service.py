@@ -5,6 +5,7 @@ so an export is complete whichever storage backend is configured.
 """
 
 import os
+import uuid
 import zipfile
 
 import jasil.providers as platform_providers
@@ -19,7 +20,7 @@ logger = core_logger.get_logger(__name__)
 
 def add_user_images_to_zip(
     zipf: zipfile.ZipFile,
-    user_id: int,
+    user_id: uuid.UUID,
     storage: platform_providers.StorageProvider,
     counts: dict[str, int],
     performance_config: users_profile_utils.BasePerformanceConfig,

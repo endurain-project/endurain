@@ -1,5 +1,6 @@
 """Publish the Garmin Connect domain events through the platform publish facade."""
 
+import uuid
 from collections.abc import Callable
 from datetime import date
 
@@ -12,7 +13,7 @@ import modules.garmin.events as garmin_events
 
 
 def publish_sync_requested(
-    user_id: int,
+    user_id: uuid.UUID,
     kind: garmin_constants.SyncKind,
     start_date: date | None,
     end_date: date | None,
@@ -42,6 +43,6 @@ def publish_sync_requested(
         source=source,
         db=db,
         commit=commit,
-        metadata={core_event_metadata.META_USER_ID: user_id},
+        metadata={core_event_metadata.META_USER_ID: str(user_id)},
         schema_version=payload.SCHEMA_VERSION,
     )

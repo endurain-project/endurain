@@ -32,12 +32,14 @@ import modules.users.users.models as users_models
 from tests._helpers.auth import pending_login
 from tests._helpers.db import create_sqlite_session
 
+_USER_ID = uuid.UUID(int=5)
+
 IDP_ID = uuid.uuid4()
 
 _SERVICE = "modules.auth.authentication.service"
 _CLAIMED_EXPIRY = datetime(2999, 1, 1, tzinfo=UTC)
 _RECORD = f"{_SERVICE}.known_devices_integration.record_sign_in"
-_USER = SimpleNamespace(id=5, username="alice", active=True, access_type="regular")
+_USER = SimpleNamespace(id=_USER_ID, username="alice", active=True, access_type="regular")
 _TOKENS = ("sid", datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
 _DEVICE_ID = "d" * 43
 _ISSUED = "n" * 43
@@ -103,7 +105,7 @@ class TestPasswordSignIn:
             )
             outcome = _login(mock_db)
 
-        record.assert_called_once_with(5, _DEVICE_ID, "203.0.113.7", "agent", _PASSWORD, mock_db)
+        record.assert_called_once_with(_USER_ID, _DEVICE_ID, "203.0.113.7", "agent", _PASSWORD, mock_db)
         assert steps == [("record", False), "commit"]
         assert audit.matching(_LOGIN)
         assert outcome.device_id == _ISSUED
@@ -146,7 +148,7 @@ class TestPasswordSignIn:
             outcome = _login(mock_db, client_type="mobile", device_id=None)
 
         pkce.assert_called_once()
-        record.assert_called_once_with(5, None, "203.0.113.7", "agent", _PASSWORD, mock_db)
+        record.assert_called_once_with(_USER_ID, None, "203.0.113.7", "agent", _PASSWORD, mock_db)
         assert outcome.body.device_id == _ISSUED
         assert outcome.device_id is None
 
@@ -160,7 +162,7 @@ class TestPasswordSignIn:
         ):
             outcome = _login(mock_db, client_type="mobile")
 
-        record.assert_called_once_with(5, _DEVICE_ID, "203.0.113.7", "agent", _PASSWORD, mock_db)
+        record.assert_called_once_with(_USER_ID, _DEVICE_ID, "203.0.113.7", "agent", _PASSWORD, mock_db)
         assert isinstance(outcome.body, auth_schema.MobileSessionRead)
         assert outcome.body.device_id == _DEVICE_ID
         assert outcome.device_id is None
@@ -212,8 +214,8 @@ class TestPasswordSignIn:
 
     def test_a_completed_mfa_sign_in_records_the_device(self, mock_db):
         store = MagicMock()
-        store.get_pending_login.return_value = pending_login(5, client_network="203.0.113.7")
-        store.claim_pending_login.return_value = pending_login(5, client_network="203.0.113.7")
+        store.get_pending_login.return_value = pending_login(_USER_ID, client_network="203.0.113.7")
+        store.claim_pending_login.return_value = pending_login(_USER_ID, client_network="203.0.113.7")
         store.is_locked_out.return_value = False
         with (
             patch(f"{_SERVICE}.users_integration.get_user", return_value=_USER),
@@ -242,7 +244,7 @@ class TestPasswordSignIn:
                 device_id=None,
             )
 
-        record.assert_called_once_with(5, None, "203.0.113.7", "agent", _PASSWORD, mock_db)
+        record.assert_called_once_with(_USER_ID, None, "203.0.113.7", "agent", _PASSWORD, mock_db)
         assert outcome.device_id == _ISSUED
         assert create.call_args.kwargs["device_hash"] == core_hashing.sha256_hex(_ISSUED)
 
@@ -259,7 +261,7 @@ class TestSsoSignIn:
             security_generation=0,
         )
         session = SimpleNamespace(
-            user_id=5,
+            user_id=_USER_ID,
             tokens_exchanged=False,
             expires_at=datetime(2027, 1, 1, tzinfo=UTC),
             client_type=client_type,
@@ -310,7 +312,7 @@ class TestSsoSignIn:
                 ),
             )
 
-        record.assert_called_once_with(5, _DEVICE_ID, "203.0.113.7", "agent", _IDENTITY_PROVIDER, mock_db)
+        record.assert_called_once_with(_USER_ID, _DEVICE_ID, "203.0.113.7", "agent", _IDENTITY_PROVIDER, mock_db)
         assert steps == [("record", False), "commit"]
         assert audit.matching(_LOGIN)
         assert outcome.device_id == _ISSUED
@@ -362,7 +364,7 @@ def sqlite_db():
 def _account(db, age):
     db.add(
         users_models.Users(
-            id=5,
+            id=_USER_ID,
             name="Alice",
             username="alice",
             email="alice@example.com",

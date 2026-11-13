@@ -1,5 +1,6 @@
 """User session schemas."""
 
+import uuid
 from datetime import datetime
 
 from pydantic import (
@@ -58,7 +59,7 @@ class UserSessionsRead(UserSessionsBase):
     like refresh_token and csrf_token_hash.
     """
 
-    user_id: StrictInt = Field(..., ge=1, description="User ID that owns this session")
+    user_id: uuid.UUID = Field(..., description="User ID that owns this session")
 
 
 #: One page of a user's sessions.
@@ -91,7 +92,7 @@ class UserSessionsInternal(UserSessionsBase):
         device_hash: SHA-256 hex digest of the known-device id the session signed in from, or null.
     """
 
-    user_id: StrictInt = Field(..., ge=1, description="User ID that owns this session")
+    user_id: uuid.UUID = Field(..., description="User ID that owns this session")
     refresh_token: StrictStr | None = Field(None, description="Hashed session refresh token")
     oauth_state_id: StrictStr | None = Field(
         None,

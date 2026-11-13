@@ -1,5 +1,7 @@
 """Publish the sessions domain events through the platform publish facade."""
 
+import uuid
+
 import jasil.publisher as platform_publisher
 from sqlalchemy.orm import Session
 
@@ -8,7 +10,7 @@ import modules.auth.sessions.events as sessions_events
 
 
 def publish_sessions_revoked(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     session_id: str | None = None,

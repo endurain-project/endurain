@@ -1,6 +1,7 @@
 """Tests for users_profile.service module."""
 
 import io
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -11,6 +12,7 @@ import modules.users.users_profile.exceptions as profile_exceptions
 import modules.users.users_profile.service as profile_service
 
 _MODULE = "modules.users.users_profile.service"
+_USER_ID = uuid.UUID(int=1)
 
 
 class TestEdits:
@@ -21,11 +23,11 @@ class TestEdits:
         mock_users.edit_profile.return_value = MagicMock(version=4)
 
         with patch(f"{_MODULE}.get_profile", return_value=MagicMock(version=4)) as mock_get:
-            updated = profile_service.edit_profile(1, profile, mock_db, if_match="*")
+            updated = profile_service.edit_profile(_USER_ID, profile, mock_db, if_match="*")
 
-        mock_users.edit_profile.assert_called_once_with(1, profile, mock_db, if_match="*")
+        mock_users.edit_profile.assert_called_once_with(_USER_ID, profile, mock_db, if_match="*")
         mock_db.commit.assert_called_once()
-        mock_get.assert_called_once_with(1, mock_db)
+        mock_get.assert_called_once_with(_USER_ID, mock_db)
         assert updated.version == 4
 
     @patch(f"{_MODULE}.users_privacy_settings_integration")
@@ -34,9 +36,9 @@ class TestEdits:
 
         mock_privacy.edit_privacy_settings.return_value = MagicMock(version=6)
 
-        updated = profile_service.edit_privacy_settings(1, settings, mock_db, if_match="*")
+        updated = profile_service.edit_privacy_settings(_USER_ID, settings, mock_db, if_match="*")
 
-        mock_privacy.edit_privacy_settings.assert_called_once_with(1, settings, mock_db, if_match="*")
+        mock_privacy.edit_privacy_settings.assert_called_once_with(_USER_ID, settings, mock_db, if_match="*")
         mock_db.commit.assert_called_once()
         assert updated.version == 6
 
@@ -45,7 +47,7 @@ class TestEdits:
         mock_users.edit_profile.side_effect = core_exceptions.ConflictError("taken")
 
         with pytest.raises(core_exceptions.ConflictError):
-            profile_service.edit_profile(1, MagicMock(), mock_db, if_match="*")
+            profile_service.edit_profile(_USER_ID, MagicMock(), mock_db, if_match="*")
 
         mock_db.commit.assert_not_called()
 
@@ -73,7 +75,7 @@ class TestChangeEmail:
             ),
             patch(f"{_MODULE}.get_profile"),
         ):
-            profile_service.change_email(1, change, "sid-1", store, state or MagicMock(), mock_db)
+            profile_service.change_email(_USER_ID, change, "sid-1", store, state or MagicMock(), mock_db)
 
     @staticmethod
     def _users(mock_users, *, current="user1@example.com"):
@@ -97,13 +99,13 @@ class TestChangeEmail:
             self._change(identity, store, mock_db)
 
         assert [call[0] for call in order.mock_calls] == ["step_up", "request", "revoke", "commit"]
-        identity.delete_other_user_sessions.assert_called_once_with(1, "sid-1")
+        identity.delete_other_user_sessions.assert_called_once_with(_USER_ID, "sid-1")
         verification = identity.verify_step_up.call_args.args
         assert (verification[0].current_password, verification[0].mfa_code) == ("pw", "123456")
-        assert verification[1:] == (1, "sid-1", identity_providers_constants.StepUpAction.EMAIL_CHANGE, store)
+        assert verification[1:] == (_USER_ID, "sid-1", identity_providers_constants.StepUpAction.EMAIL_CHANGE, store)
         sign_up.request_self_service_email_change.assert_called_once()
         assert sign_up.request_self_service_email_change.call_args.args[:3] == (
-            1,
+            _USER_ID,
             "new@example.com",
             "user1@example.com",
         )
@@ -128,7 +130,7 @@ class TestChangeEmail:
         with patch(f"{_MODULE}.sign_up_tokens_integration", MagicMock()):
             self._change(identity, MagicMock(), mock_db)
 
-        identity.delete_other_user_sessions.assert_called_once_with(1, "sid-1")
+        identity.delete_other_user_sessions.assert_called_once_with(_USER_ID, "sid-1")
 
     @patch(f"{_MODULE}.users_integration")
     def test_other_sessions_stay_signed_in_when_the_client_sends_false(self, mock_users, mock_db):
@@ -152,7 +154,7 @@ class TestChangeEmail:
         with patch(f"{_MODULE}.sign_up_tokens_integration", sign_up):
             self._change(identity, MagicMock(), mock_db)
 
-        sign_up.revoke_pending_tokens.assert_called_once_with(1, mock_db)
+        sign_up.revoke_pending_tokens.assert_called_once_with(_USER_ID, mock_db)
         sign_up.request_self_service_email_change.assert_not_called()
         mock_db.commit.assert_called_once()
         identity.delete_other_user_sessions.assert_not_called()
@@ -166,7 +168,7 @@ class TestChangeEmail:
         with patch(f"{_MODULE}.sign_up_tokens_integration", sign_up):
             self._change(MagicMock(), MagicMock(), mock_db)
 
-        mock_users.stage_email_change.assert_called_once_with(1, "new@example.com", mock_db)
+        mock_users.stage_email_change.assert_called_once_with(_USER_ID, "new@example.com", mock_db)
         mock_db.commit.assert_called_once()
 
 
@@ -176,18 +178,18 @@ class TestResendAndCancelEmailChange:
         state = MagicMock()
 
         with patch(f"{_MODULE}.sign_up_tokens_integration", sign_up):
-            profile_service.resend_email_change(1, state, mock_db)
+            profile_service.resend_email_change(_USER_ID, state, mock_db)
 
-        sign_up.request_email_change_resend.assert_called_once_with(1, state, mock_db)
+        sign_up.request_email_change_resend.assert_called_once_with(_USER_ID, state, mock_db)
         mock_db.commit.assert_called_once()
 
     def test_cancel_revokes_the_pending_tokens_then_commits(self, mock_db):
         sign_up = MagicMock()
 
         with patch(f"{_MODULE}.sign_up_tokens_integration", sign_up):
-            profile_service.cancel_email_change(1, mock_db)
+            profile_service.cancel_email_change(_USER_ID, mock_db)
 
-        sign_up.revoke_pending_tokens.assert_called_once_with(1, mock_db)
+        sign_up.revoke_pending_tokens.assert_called_once_with(_USER_ID, mock_db)
         mock_db.commit.assert_called_once()
 
 
@@ -211,14 +213,14 @@ class TestStageExport:
         mock_export.ExportService.return_value.build_export_archive.return_value = io.BytesIO(b"12345")
         storage.save_stream.return_value = 5
 
-        size = profile_service.stage_export(1, storage, mock_db)
+        size = profile_service.stage_export(_USER_ID, storage, mock_db)
 
-        mock_export.ExportService.assert_called_once_with(1, storage, mock_db)
+        mock_export.ExportService.assert_called_once_with(_USER_ID, storage, mock_db)
         exported = mock_export.ExportService.return_value.build_export_archive.call_args.args[0]
         assert exported == {"name": "Test", "weight_units": "imperial"}
         assert size == 5
         area, key, archive = storage.save_stream.call_args.args
-        assert (area, key) == ("profile_export_staging", "1.zip")
+        assert (area, key) == ("profile_export_staging", f"{_USER_ID}.zip")
         assert archive.closed
 
     @patch(f"{_MODULE}.profile_export_service")
@@ -232,7 +234,7 @@ class TestStageExport:
 
         storage = MagicMock()
         with pytest.raises(core_exceptions.DomainError):
-            profile_service.stage_export(1, storage, mock_db)
+            profile_service.stage_export(_USER_ID, storage, mock_db)
 
         storage.save_stream.assert_not_called()
 
@@ -241,7 +243,7 @@ class TestStageExport:
         mock_users.require_user.side_effect = core_exceptions.NotFoundError("User not found")
 
         with pytest.raises(core_exceptions.NotFoundError):
-            profile_service.stage_export(1, MagicMock(), mock_db)
+            profile_service.stage_export(_USER_ID, MagicMock(), mock_db)
 
 
 class TestDeleteAccount:
@@ -263,13 +265,13 @@ class TestDeleteAccount:
                 value, user_id, session_id, action, step_up_store
             ),
         ):
-            result = profile_service.delete_account(1, "sid-1", step_up, store, state, storage, mail, mock_db)
+            result = profile_service.delete_account(_USER_ID, "sid-1", step_up, store, state, storage, mail, mock_db)
 
         assert [call[0] for call in order.mock_calls] == ["step_up", "delete"]
         identity.verify_step_up.assert_called_once_with(
-            step_up, 1, "sid-1", identity_providers_constants.StepUpAction.ACCOUNT_DELETE, store
+            step_up, _USER_ID, "sid-1", identity_providers_constants.StepUpAction.ACCOUNT_DELETE, store
         )
-        mock_users.request_user_deletion.assert_called_once_with(1, state, storage, mail, mock_db)
+        mock_users.request_user_deletion.assert_called_once_with(_USER_ID, state, storage, mail, mock_db)
         assert result is mock_users.request_user_deletion.return_value
 
     @patch(f"{_MODULE}.users_integration")
@@ -287,7 +289,7 @@ class TestDeleteAccount:
             ),
         ):
             profile_service.delete_account(
-                1, "sid-1", MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock(), mock_db
+                _USER_ID, "sid-1", MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock(), mock_db
             )
 
         mock_users.request_user_deletion.assert_not_called()
@@ -300,13 +302,13 @@ class TestStateChangesAreLoggedAtInfo:
             patch(f"{_MODULE}.get_profile", return_value=MagicMock(version=4)),
             caplog.at_level("DEBUG", logger=profile_service.logger.name),
         ):
-            profile_service.edit_profile(1, MagicMock(), mock_db, if_match="*")
+            profile_service.edit_profile(_USER_ID, MagicMock(), mock_db, if_match="*")
 
         assert [record.levelname for record in caplog.records] == ["INFO"]
 
     @patch(f"{_MODULE}.users_privacy_settings_integration")
     def test_a_privacy_edit_logs_at_info(self, mock_privacy, mock_db, caplog):
         with caplog.at_level("DEBUG", logger=profile_service.logger.name):
-            profile_service.edit_privacy_settings(1, MagicMock(), mock_db, if_match="*")
+            profile_service.edit_privacy_settings(_USER_ID, MagicMock(), mock_db, if_match="*")
 
         assert [record.levelname for record in caplog.records] == ["INFO"]

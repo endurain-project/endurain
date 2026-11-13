@@ -9,6 +9,7 @@ import sqlalchemy.exc
 import core.exceptions as core_exceptions
 import modules.garmin.service as garmin_service
 from tests._helpers import garmin as garmin_helpers
+from tests._helpers.auth import MOCK_USER_ID
 
 
 class TestFetchUserIntegrationsAndValidateToken:
@@ -17,17 +18,17 @@ class TestFetchUserIntegrationsAndValidateToken:
             patch.object(garmin_service.user_integrations_integration, "get_user_integrations", return_value=None),
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            garmin_service.get_linked_user_integrations(1, MagicMock())
+            garmin_service.get_linked_user_integrations(MOCK_USER_ID, MagicMock())
 
     def test_an_unlinked_user_has_no_integrations_to_use(self):
         unlinked = MagicMock(garminconnect_token=None)
         with patch.object(garmin_service.user_integrations_integration, "get_user_integrations", return_value=unlinked):
-            assert garmin_service.get_linked_user_integrations(1, MagicMock()) is None
+            assert garmin_service.get_linked_user_integrations(MOCK_USER_ID, MagicMock()) is None
 
     def test_a_linked_user_is_returned(self):
         linked = MagicMock(garminconnect_token={"di_token": "enc"})
         with patch.object(garmin_service.user_integrations_integration, "get_user_integrations", return_value=linked):
-            assert garmin_service.get_linked_user_integrations(1, MagicMock()) is linked
+            assert garmin_service.get_linked_user_integrations(MOCK_USER_ID, MagicMock()) is linked
 
 
 class TestUnlinkExpiredAccount:
@@ -44,11 +45,11 @@ class TestUnlinkExpiredAccount:
             ),
             patch.object(garmin_service.notifications_integration, "push_notification") as push,
         ):
-            garmin_service.unlink_expired_account(1, {"di_token": "old"}, db)
+            garmin_service.unlink_expired_account(MOCK_USER_ID, {"di_token": "old"}, db)
 
-        unlink.assert_called_once_with(1, {"di_token": "old"}, db)
+        unlink.assert_called_once_with(MOCK_USER_ID, {"di_token": "old"}, db)
         db.commit.assert_called_once()
-        push.assert_called_once_with(1, "n", "ws")
+        push.assert_called_once_with(MOCK_USER_ID, "n", "ws")
 
     def test_a_token_linked_since_is_left_alone_and_nobody_is_notified(self):
         db = MagicMock()
@@ -61,7 +62,7 @@ class TestUnlinkExpiredAccount:
             patch.object(garmin_service.notifications_integration, "create_garmin_token_expired_notification") as note,
             patch.object(garmin_service.notifications_integration, "push_notification") as push,
         ):
-            garmin_service.unlink_expired_account(1, {"di_token": "old"}, db)
+            garmin_service.unlink_expired_account(MOCK_USER_ID, {"di_token": "old"}, db)
 
         db.commit.assert_not_called()
         note.assert_not_called()
@@ -81,10 +82,10 @@ class TestSaveRefreshedToken:
                 garmin_service.user_integrations_integration, "replace_garminconnect_token_if_token", return_value=True
             ) as replace,
         ):
-            garmin_service.save_refreshed_token(1, session)
+            garmin_service.save_refreshed_token(MOCK_USER_ID, session)
 
         db = session_local.return_value.__enter__.return_value
-        replace.assert_called_once_with(1, {"di_token": "enc"}, {"di_token": "new"}, db)
+        replace.assert_called_once_with(MOCK_USER_ID, {"di_token": "enc"}, {"di_token": "new"}, db)
         db.commit.assert_called_once()
 
     def test_an_unchanged_token_writes_nothing(self):
@@ -92,7 +93,7 @@ class TestSaveRefreshedToken:
             patch.object(garmin_service.garmin_token_utils, "refreshed_token", return_value=None),
             patch.object(garmin_service.core_database, "SessionLocal") as session_local,
         ):
-            garmin_service.save_refreshed_token(1, self._session())
+            garmin_service.save_refreshed_token(MOCK_USER_ID, self._session())
 
         session_local.assert_not_called()
 
@@ -104,7 +105,7 @@ class TestSaveRefreshedToken:
                 garmin_service.user_integrations_integration, "replace_garminconnect_token_if_token", return_value=False
             ),
         ):
-            garmin_service.save_refreshed_token(1, self._session())
+            garmin_service.save_refreshed_token(MOCK_USER_ID, self._session())
 
         session_local.return_value.__enter__.return_value.commit.assert_not_called()
 
@@ -119,7 +120,7 @@ class TestSaveRefreshedTokenFailures:
                 garmin_service.user_integrations_integration, "replace_garminconnect_token_if_token", side_effect=error
             ),
         ):
-            garmin_service.save_refreshed_token(1, session)
+            garmin_service.save_refreshed_token(MOCK_USER_ID, session)
 
     @pytest.mark.parametrize(
         "error", [sqlalchemy.exc.OperationalError("s", {}, Exception("db")), core_exceptions.CryptographyError()]
@@ -138,9 +139,11 @@ def test_a_rejected_token_unlinks_the_account_it_was_stored_as():
         patch.object(garmin_service.core_database, "SessionLocal") as session_local,
         patch.object(garmin_service, "unlink_expired_account") as unlink,
     ):
-        garmin_service.handle_rejected_token(1, session, garminconnect.GarminConnectAuthenticationError("401"))
+        garmin_service.handle_rejected_token(
+            MOCK_USER_ID, session, garminconnect.GarminConnectAuthenticationError("401")
+        )
 
-    unlink.assert_called_once_with(1, {"di_token": "enc"}, session_local.return_value.__enter__.return_value)
+    unlink.assert_called_once_with(MOCK_USER_ID, {"di_token": "enc"}, session_local.return_value.__enter__.return_value)
 
 
 class TestUndecryptableToken:
@@ -161,7 +164,7 @@ class TestUndecryptableToken:
             ),
             pytest.raises(core_exceptions.UndecryptableError),
         ):
-            garmin_service.get_user_garminconnect_session(1, MagicMock())
+            garmin_service.get_user_garminconnect_session(MOCK_USER_ID, MagicMock())
 
         unlink.assert_not_called()
 
@@ -173,7 +176,7 @@ class TestUndecryptableToken:
             ),
             caplog.at_level("DEBUG", logger=garmin_service.logger.name),
         ):
-            assert garmin_service.get_user_garminconnect_session(1, MagicMock()) is None
+            assert garmin_service.get_user_garminconnect_session(MOCK_USER_ID, MagicMock()) is None
 
         assert {record.levelname for record in caplog.records} == {"DEBUG"}
 
@@ -184,7 +187,7 @@ class TestLinkedSession:
             patch.object(garmin_service.core_database, "SessionLocal"),
             patch.object(garmin_service, "get_user_garminconnect_session", return_value=None),
             patch.object(garmin_service, "save_refreshed_token") as save,
-            garmin_service.linked_session(1, garmin_helpers.rate_limits()) as session,
+            garmin_service.linked_session(MOCK_USER_ID, garmin_helpers.rate_limits()) as session,
         ):
             assert session is None
 
@@ -196,11 +199,11 @@ class TestLinkedSession:
             patch.object(garmin_service.core_database, "SessionLocal"),
             patch.object(garmin_service, "get_user_garminconnect_session", return_value=linked),
             patch.object(garmin_service, "save_refreshed_token") as save,
-            garmin_service.linked_session(1, garmin_helpers.rate_limits()) as session,
+            garmin_service.linked_session(MOCK_USER_ID, garmin_helpers.rate_limits()) as session,
         ):
             assert session is linked
 
-        save.assert_called_once_with(1, linked)
+        save.assert_called_once_with(MOCK_USER_ID, linked)
 
     def test_the_refreshed_token_is_stored_when_the_body_fails(self):
         linked = garmin_service.GarminSession(MagicMock(), {"di_token": "enc"})
@@ -209,11 +212,11 @@ class TestLinkedSession:
             patch.object(garmin_service, "get_user_garminconnect_session", return_value=linked),
             patch.object(garmin_service, "save_refreshed_token") as save,
             pytest.raises(RuntimeError),
-            garmin_service.linked_session(1, garmin_helpers.rate_limits()),
+            garmin_service.linked_session(MOCK_USER_ID, garmin_helpers.rate_limits()),
         ):
             raise RuntimeError("boom")
 
-        save.assert_called_once_with(1, linked)
+        save.assert_called_once_with(MOCK_USER_ID, linked)
 
     def test_no_database_session_is_open_while_the_body_runs(self):
         linked = garmin_service.GarminSession(MagicMock(), {"di_token": "enc"})
@@ -221,7 +224,7 @@ class TestLinkedSession:
             patch.object(garmin_service.core_database, "SessionLocal") as session_local,
             patch.object(garmin_service, "get_user_garminconnect_session", return_value=linked),
             patch.object(garmin_service, "save_refreshed_token"),
-            garmin_service.linked_session(1, garmin_helpers.rate_limits()),
+            garmin_service.linked_session(MOCK_USER_ID, garmin_helpers.rate_limits()),
         ):
             session_local.return_value.__exit__.assert_called_once()
 
@@ -232,31 +235,31 @@ class TestRateLimit:
     def test_a_rate_limit_is_recorded_and_its_clearing_time_returned(self):
         rate_limits = garmin_helpers.rate_limits()
 
-        error = garmin_service.rate_limit_error(RuntimeError("429"), 1, rate_limits)
+        error = garmin_service.rate_limit_error(RuntimeError("429"), MOCK_USER_ID, rate_limits)
 
         assert isinstance(error, core_exceptions.TooManyRequestsError)
-        assert error.retry_at == rate_limits.rate_limited_until(1)
+        assert error.retry_at == rate_limits.rate_limited_until(MOCK_USER_ID)
 
     def test_a_call_is_refused_while_the_account_is_limited(self):
         rate_limits = garmin_helpers.rate_limits()
-        until = rate_limits.mark_rate_limited(1)
+        until = rate_limits.mark_rate_limited(MOCK_USER_ID)
 
         with pytest.raises(core_exceptions.TooManyRequestsError) as raised:
-            garmin_service.raise_if_rate_limited(1, rate_limits)
+            garmin_service.raise_if_rate_limited(MOCK_USER_ID, rate_limits)
 
         assert raised.value.retry_at == until
 
     def test_a_call_is_allowed_when_nothing_is_limited(self):
-        garmin_service.raise_if_rate_limited(1, garmin_helpers.rate_limits())
+        garmin_service.raise_if_rate_limited(MOCK_USER_ID, garmin_helpers.rate_limits())
 
     def test_a_limited_account_gets_no_session_and_no_token_is_restored(self):
         rate_limits = garmin_helpers.rate_limits()
-        rate_limits.mark_rate_limited(1)
+        rate_limits.mark_rate_limited(MOCK_USER_ID)
 
         with (
             patch.object(garmin_service, "get_user_garminconnect_session") as restore,
             pytest.raises(core_exceptions.TooManyRequestsError),
-            garmin_service.linked_session(1, rate_limits),
+            garmin_service.linked_session(MOCK_USER_ID, rate_limits),
         ):
             pass
 

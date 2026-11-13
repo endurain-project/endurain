@@ -12,6 +12,7 @@ persistence with::
 So these exercise the actual schema objects and a real session.
 """
 
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -20,6 +21,8 @@ from tests._helpers.db import create_sqlite_session
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.schema as activity_schema
+
+_USER_1 = uuid.UUID(int=1)
 
 
 @pytest.fixture
@@ -56,7 +59,7 @@ def _core(**overrides) -> activity_contracts.ActivityCore:
     present by the time CRUD sees the activity.
     """
     data = {
-        "user_id": 1,
+        "user_id": _USER_1,
         "name": "Garmin ride",
         "distance": 42000,
         "activity_type": 1,

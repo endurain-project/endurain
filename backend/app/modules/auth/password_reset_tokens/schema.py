@@ -1,8 +1,9 @@
 """Pydantic schemas for password reset token operations."""
 
+import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, StrictBool, StrictStr
 
 import modules.auth.credentials.contracts as credentials_contracts
 
@@ -24,7 +25,7 @@ class PasswordResetToken(BaseModel):
         description="Unique identifier for the token",
         max_length=64,
     )
-    user_id: StrictInt = Field(
+    user_id: uuid.UUID = Field(
         ...,
         description="ID of the user who requested the reset",
     )

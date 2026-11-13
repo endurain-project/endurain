@@ -1,5 +1,6 @@
 """The fasting rules, checked against a real session: times, overlap, derived duration and statistics."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
@@ -15,6 +16,8 @@ import modules.health.health_fasting.schema as fasting_schema
 import modules.health.health_fasting.service as fasting_service
 import modules.users.users.integration_service as users_integration
 
+_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
+_OTHER_USER_ID = uuid.UUID("22222222-2222-4222-8222-222222222222")
 _T0 = datetime(2024, 1, 15, 8, 0, tzinfo=UTC)
 
 
@@ -25,7 +28,7 @@ def _hours(n: float) -> datetime:
 @pytest.fixture
 def db():
     session = create_sqlite_session()
-    ensure_user(sessionmaker(bind=session.get_bind()), 1)
+    ensure_user(sessionmaker(bind=session.get_bind()), _USER_ID)
     # SQLite ignores the index's PostgreSQL-only predicate and would allow one fast per user; the
     # one-running-fast rule is covered against PostgreSQL in tests/postgres.
     session.execute(text("DROP INDEX uq_health_fasting_one_in_progress_per_user"))
@@ -35,7 +38,7 @@ def db():
 
 def _fast(db, start, end=None, status="completed"):
     return fasting_service.create_health_fasting(
-        1, fasting_schema.HealthFastingCreate(fast_start_time=start, fast_end_time=end, status=status), db
+        _USER_ID, fasting_schema.HealthFastingCreate(fast_start_time=start, fast_end_time=end, status=status), db
     )
 
 
@@ -110,9 +113,9 @@ class TestCreateOverlap:
         _fast(db, _hours(10), None, "in_progress")
 
     def test_another_users_fast_is_not_an_overlap(self, db):
-        ensure_user(sessionmaker(bind=db.get_bind()), 2)
+        ensure_user(sessionmaker(bind=db.get_bind()), _OTHER_USER_ID)
         fasting_service.create_health_fasting(
-            2,
+            _OTHER_USER_ID,
             fasting_schema.HealthFastingCreate(fast_start_time=_hours(0), fast_end_time=_hours(10), status="completed"),
             db,
         )
@@ -123,7 +126,7 @@ class TestCreateOverlap:
 class TestEdit:
     def _edit(self, db, record, **changes):
         return fasting_service.edit_health_fasting(
-            1, record.id, fasting_schema.HealthFastingUpdate(**changes), db, if_match=str(record.version)
+            _USER_ID, record.id, fasting_schema.HealthFastingUpdate(**changes), db, if_match=str(record.version)
         )
 
     def test_the_end_is_checked_against_the_stored_start(self, db):
@@ -199,9 +202,9 @@ class TestEdit:
             # The streak query buckets days with PostgreSQL's AT TIME ZONE, which SQLite lacks.
             patch.object(fasting_crud, "get_completed_fasting_dates_by_user_id", return_value=[]),
         ):
-            before = fasting_service.get_fasting_stats(1, db)
+            before = fasting_service.get_fasting_stats(_USER_ID, db)
             self._edit(db, record, fast_end_time=_hours(12))
-            after = fasting_service.get_fasting_stats(1, db)
+            after = fasting_service.get_fasting_stats(_USER_ID, db)
 
         assert before.total_fasting_seconds == 18 * 3600
         assert after.total_fasting_seconds == 24 * 3600
@@ -213,7 +216,7 @@ class TestComplete:
         record = _fast(db, _hours(0), None, "in_progress")
 
         ended = fasting_service.complete_health_fasting(
-            1,
+            _USER_ID,
             record.id,
             fasting_schema.HealthFastingComplete(fast_end_time=_hours(16)),
             db,
@@ -226,7 +229,7 @@ class TestComplete:
 class TestImport:
     def _import(self, db, start, end, status="completed"):
         return fasting_service.stage_import_health_fasting(
-            1,
+            _USER_ID,
             fasting_schema.HealthFastingCreate(fast_start_time=start, fast_end_time=end, status=status),
             db,
         )
@@ -234,21 +237,21 @@ class TestImport:
     def test_a_session_is_staged_with_its_derived_duration(self, db):
         assert self._import(db, _hours(0), _hours(4)) is True
 
-        stored = fasting_crud.get_health_fasting_by_user_id(1, db)
+        stored = fasting_crud.get_health_fasting_by_user_id(_USER_ID, db)
         assert [fast.actual_duration_seconds for fast in stored] == [4 * 3600]
 
     def test_an_overlapping_session_is_skipped(self, db):
         _fast(db, _hours(0), _hours(10))
 
         assert self._import(db, _hours(5), _hours(15)) is False
-        assert len(fasting_crud.get_health_fasting_by_user_id(1, db)) == 1
+        assert len(fasting_crud.get_health_fasting_by_user_id(_USER_ID, db)) == 1
 
     def test_a_session_ending_before_it_starts_is_skipped(self, db):
         assert self._import(db, _hours(10), _hours(2)) is False
 
     def test_an_in_progress_session_with_an_end_is_skipped(self, db):
         assert self._import(db, _hours(0), _hours(4), "in_progress") is False
-        assert fasting_crud.get_health_fasting_by_user_id(1, db) == []
+        assert fasting_crud.get_health_fasting_by_user_id(_USER_ID, db) == []
 
     def test_a_completed_session_without_an_end_is_skipped(self, db):
         assert self._import(db, _hours(0), None) is False

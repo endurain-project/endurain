@@ -213,7 +213,7 @@ def _already_running(running_id: str | None) -> core_exceptions.ConflictError:
     return core_exceptions.JobAlreadyRunningError(detail, job_id=running_id)
 
 
-def _ensure_none_running(user_id: int, db: Session) -> None:
+def _ensure_none_running(user_id: uuid.UUID, db: Session) -> None:
     """Refuse a second bulk import while the user has one running.
 
     Args:
@@ -230,7 +230,7 @@ def _ensure_none_running(user_id: int, db: Session) -> None:
 
 def _stage_import_request(
     job_id: str,
-    user_id: int,
+    user_id: uuid.UUID,
     source: activity_ingestion_audit_actions.ImportSource,
     file_count: int | None,
     db: Session,
@@ -271,7 +271,7 @@ def _request_fingerprint(archive_path: str, source: str) -> str:
 
 
 def accept_archive(
-    user_id: int,
+    user_id: uuid.UUID,
     filename: str | None,
     save_upload: activity_ingestion_upload_entry_service.UploadSaver,
     source: str,
@@ -406,7 +406,7 @@ def accept_archive(
 
 
 def start_from_directory(
-    user_id: int,
+    user_id: uuid.UUID,
     source: str,
     storage: platform_providers.StorageProvider,
     db: Session,
@@ -491,7 +491,7 @@ def _folder_has_importable_file(directory: str, bulk_format: activity_ingestion_
 
 def feed_archive_from_directory(
     job_id: str,
-    user_id: int,
+    user_id: uuid.UUID,
     source: str,
     directory: str,
     storage: platform_providers.StorageProvider,
@@ -613,7 +613,7 @@ def _pack_directory(
     return importable
 
 
-def _job_view(job_id: str, user_id: int, db: Session) -> activity_ingestion_schema.ActivityIngestionJobRead:
+def _job_view(job_id: str, user_id: uuid.UUID, db: Session) -> activity_ingestion_schema.ActivityIngestionJobRead:
     """Read an accepted job back for the response.
 
     Args:
@@ -828,7 +828,7 @@ def _log_bulk_failure(message: str, err: Exception, **fields: object) -> None:
 def _import_member(
     archive: zipfile.ZipFile,
     member_name: str,
-    user_id: int,
+    user_id: uuid.UUID,
     source: activity_ingestion_contracts.BulkImportSource,
     job_id: str,
     storage: platform_providers.StorageProvider,
@@ -881,7 +881,7 @@ def _import_member(
 def _keep_failed_member(
     archive: zipfile.ZipFile,
     member_name: str,
-    user_id: int,
+    user_id: uuid.UUID,
     job_id: str,
     storage: platform_providers.StorageProvider,
 ) -> None:
@@ -901,7 +901,7 @@ def _keep_failed_member(
             with open(path, "rb") as handle:
                 storage.save_stream(
                     activity_ingestion_constants.BULK_IMPORT_ERROR_STORAGE_AREA,
-                    f"{int(user_id)}/{job_id}/{os.path.basename(member_name)}",
+                    f"{activity_ingestion_constants.bulk_import_error_prefix(user_id)}{job_id}/{os.path.basename(member_name)}",
                     handle,
                 )
     except (

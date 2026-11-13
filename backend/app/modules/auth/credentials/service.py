@@ -1,5 +1,7 @@
 """Credential policy and lifecycle operations."""
 
+import uuid
+
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
@@ -34,29 +36,29 @@ def allows_password_sign_in(server_settings: server_settings_schema.ServerSettin
     return server_settings.local_login_enabled or access_type == "admin"
 
 
-def get_credential(user_id: int, db: Session) -> credentials_contracts.CredentialRead | None:
+def get_credential(user_id: uuid.UUID, db: Session) -> credentials_contracts.CredentialRead | None:
     """Return a user's local credential, if present."""
     return credentials_crud.get_credential(user_id, db)
 
 
-def is_password_change_required(user_id: int, db: Session) -> bool:
+def is_password_change_required(user_id: uuid.UUID, db: Session) -> bool:
     """Return whether the user's password was set by an administrator and its owner must replace it."""
     credential = get_credential(user_id, db)
     return credential is not None and credential.password_change_required
 
 
-def has_local_password(user_id: int, db: Session) -> bool:
+def has_local_password(user_id: uuid.UUID, db: Session) -> bool:
     """Return whether the user has a local password."""
     return get_credential(user_id, db) is not None
 
 
-def get_password_hash(user_id: int, db: Session) -> str | None:
+def get_password_hash(user_id: uuid.UUID, db: Session) -> str | None:
     """Return the stored password hash for step-up verification."""
     credential = get_credential(user_id, db)
     return credential.password_hash if credential else None
 
 
-def set_local_password_hash(user_id: int, password_hash: str, db: Session, *, change_required: bool) -> None:
+def set_local_password_hash(user_id: uuid.UUID, password_hash: str, db: Session, *, change_required: bool) -> None:
     """Stage a user's local password hash.
 
     Every write of the hash says whether the owner must replace the password at the next sign-in: true when an
@@ -71,7 +73,7 @@ def set_local_password_hash(user_id: int, password_hash: str, db: Session, *, ch
     credentials_crud.upsert_password_hash(user_id, password_hash, change_required, db)
 
 
-def require_password_change(user_id: int, db: Session) -> None:
+def require_password_change(user_id: uuid.UUID, db: Session) -> None:
     """Stage the requirement that a user choose a new password at their next password sign-in.
 
     Args:
@@ -86,7 +88,7 @@ def require_password_change(user_id: int, db: Session) -> None:
     credentials_crud.set_password_change_required(user_id, db)
 
 
-def clear_local_password(user_id: int, db: Session) -> None:
+def clear_local_password(user_id: uuid.UUID, db: Session) -> None:
     """Stage removal of a user's local password."""
     credentials_crud.delete_credential(user_id, db)
 
@@ -194,7 +196,7 @@ def reject_breached_password(
         raise credentials_contracts.PasswordBreachedError()
 
 
-def ensure_password_differs_from_current(user_id: int, new_password: str, db: Session) -> None:
+def ensure_password_differs_from_current(user_id: uuid.UUID, new_password: str, db: Session) -> None:
     """Refuse a new password that is the account's current one, compared in the form passwords are stored in.
 
     Args:

@@ -84,7 +84,7 @@ class AuthorizationService:
 
     def stage_browser_link(
         self,
-        user_id: int,
+        user_id: uuid.UUID,
         idp_id: uuid.UUID,
         redirect: str | None,
         client_ip: str | None,
@@ -143,7 +143,7 @@ class AuthorizationService:
 
     def stage_step_up(
         self,
-        user_id: int,
+        user_id: uuid.UUID,
         session_id: str,
         idp_id: uuid.UUID,
         action: idp_constants.StepUpAction,
@@ -407,7 +407,7 @@ def _stage_bound_flow(
     idp: identity_provider_contracts.IdentityProviderState,
     purpose: oauth_state_constants.OAuthStatePurpose,
     *,
-    user_id: int,
+    user_id: uuid.UUID,
     client_type: str,
     client_ip: str | None,
     redirect: str | None,

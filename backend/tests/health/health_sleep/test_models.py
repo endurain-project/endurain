@@ -82,7 +82,7 @@ class TestHealthSleepModel:
         """
         # Assert
         assert health_sleep_models.HealthSleep.id.type.python_type is uuid.UUID
-        assert health_sleep_models.HealthSleep.user_id.type.python_type is int
+        assert health_sleep_models.HealthSleep.user_id.type.python_type is uuid.UUID
         assert health_sleep_models.HealthSleep.date.type.python_type is datetime_date
         assert health_sleep_models.HealthSleep.total_sleep_seconds.type.python_type is int
         assert health_sleep_models.HealthSleep.min_heart_rate.type.python_type is int

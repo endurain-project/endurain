@@ -7,6 +7,9 @@ import modules.health.health_targets.models as health_targets_models
 _ID = uuid.uuid4()
 
 
+_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
+
+
 class TestReadHealthTargetsAll:
     """
     Test suite for read_health_targets_all endpoint.
@@ -20,7 +23,7 @@ class TestReadHealthTargetsAll:
         # Arrange
         mock_targets = MagicMock(spec=health_targets_models.HealthTargets)
         mock_targets.id = _ID
-        mock_targets.user_id = 1
+        mock_targets.user_id = _USER_ID
         mock_targets.version = 1
         mock_targets.weight_kg = 75.5
         mock_targets.steps = 10000
@@ -70,7 +73,7 @@ class TestReadHealthTargetsAll:
         # Arrange
         mock_targets = MagicMock(spec=health_targets_models.HealthTargets)
         mock_targets.id = _ID
-        mock_targets.user_id = 1
+        mock_targets.user_id = _USER_ID
         mock_targets.version = 1
         mock_targets.weight_kg = 75.5
         mock_targets.steps = None
@@ -119,7 +122,7 @@ class TestUpdateHealthTargets:
         # Arrange
         mock_updated_targets = MagicMock(spec=health_targets_models.HealthTargets)
         mock_updated_targets.id = _ID
-        mock_updated_targets.user_id = 1
+        mock_updated_targets.user_id = _USER_ID
         mock_updated_targets.version = 1
         mock_updated_targets.weight_kg = 80.0
         mock_updated_targets.steps = 12000
@@ -156,7 +159,7 @@ class TestUpdateHealthTargets:
         # Arrange
         mock_updated_targets = MagicMock(spec=health_targets_models.HealthTargets)
         mock_updated_targets.id = _ID
-        mock_updated_targets.user_id = 1
+        mock_updated_targets.user_id = _USER_ID
         mock_updated_targets.version = 1
         mock_updated_targets.weight_kg = 75.0
         mock_updated_targets.steps = 10000
@@ -189,7 +192,7 @@ class TestUpdateHealthTargets:
         # Arrange
         mock_updated_targets = MagicMock(spec=health_targets_models.HealthTargets)
         mock_updated_targets.id = _ID
-        mock_updated_targets.user_id = 1
+        mock_updated_targets.user_id = _USER_ID
         mock_updated_targets.version = 1
         mock_updated_targets.weight_kg = None
         mock_updated_targets.steps = None
@@ -246,7 +249,7 @@ class TestUpdateHealthTargets:
         # Arrange
         mock_updated_targets = MagicMock(spec=health_targets_models.HealthTargets)
         mock_updated_targets.id = _ID
-        mock_updated_targets.user_id = 1
+        mock_updated_targets.user_id = _USER_ID
         mock_updated_targets.version = 1
         mock_updated_targets.weight_kg = 85.5
         mock_updated_targets.steps = 15000
@@ -281,7 +284,7 @@ class TestReadSendsTheETag:
     def test_the_targets_carry_their_version(self, mock_get_targets, fast_api_client):
         mock_targets = MagicMock(spec=health_targets_models.HealthTargets)
         mock_targets.id = _ID
-        mock_targets.user_id = 1
+        mock_targets.user_id = _USER_ID
         mock_targets.version = 4
         for field in ("weight_kg", "steps", "sleep_seconds", "fasting_seconds", "water_ml", "poop_count"):
             setattr(mock_targets, field, None)
@@ -308,7 +311,7 @@ class TestTargetsScopes:
         core_exceptions.register_exception_handlers(app)
         app.include_router(targets_router.router, prefix="/health/targets")
         app.dependency_overrides[core_db.get_db] = lambda: mock_db
-        principal = MagicMock(user_id=1, scopes=frozenset(scopes), mfa_enrolment_required=False)
+        principal = MagicMock(user_id=_USER_ID, scopes=frozenset(scopes), mfa_enrolment_required=False)
         return (
             TestClient(app, headers={"Authorization": "Bearer token"}),
             patch.object(auth_deps.authentication_integration, "resolve_from_access_token", return_value=principal),
@@ -347,7 +350,7 @@ class TestTargetsScopes:
         import modules.health.health_targets.schema as health_targets_schema
 
         mock_update.return_value = health_targets_schema.HealthTargetsRead(
-            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, version=2, steps=1
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, version=2, steps=1
         )
         client, principal = self._client(mock_db, {"health-targets:write"})
 

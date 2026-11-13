@@ -1,5 +1,6 @@
 """Persistence operations for sign-up tokens."""
 
+import uuid
 from collections.abc import Collection
 from datetime import UTC, datetime
 
@@ -65,7 +66,7 @@ def claim_sign_up_token(token_hash: str, db: Session) -> sign_up_contracts.SignU
 
 
 def get_pending_email_change_tokens(
-    user_ids: Collection[int], now: datetime, db: Session
+    user_ids: Collection[uuid.UUID], now: datetime, db: Session
 ) -> list[sign_up_contracts.SignUpTokenState]:
     """Return the unused, unexpired email-change tokens of the given users.
 
@@ -104,7 +105,9 @@ def get_email_change_tokens(change_id: str, now: datetime, db: Session) -> list[
     return [sign_up_serializers.to_state(row) for row in db.execute(stmt).scalars().all()]
 
 
-def get_later_email_change_ids(user_id: int, change_id: str, since: datetime, now: datetime, db: Session) -> list[str]:
+def get_later_email_change_ids(
+    user_id: uuid.UUID, change_id: str, since: datetime, now: datetime, db: Session
+) -> list[str]:
     """Return the other email changes of the user that began after ``since`` and can still be reverted.
 
     Args:
@@ -153,7 +156,7 @@ def mark_email_changes_reverted(change_ids: Collection[str], db: Session) -> int
     return matched
 
 
-def get_email_reserver_id(email: str, except_user_id: int | None, now: datetime, db: Session) -> int | None:
+def get_email_reserver_id(email: str, except_user_id: uuid.UUID | None, now: datetime, db: Session) -> uuid.UUID | None:
     """Return the user whose confirmed email change left ``email`` behind and can still be reverted.
 
     Args:
@@ -219,7 +222,7 @@ def create_sign_up_token(
     return sign_up_serializers.to_state(row)
 
 
-def mark_user_sign_up_tokens_used(user_id: int, db: Session) -> int:
+def mark_user_sign_up_tokens_used(user_id: uuid.UUID, db: Session) -> int:
     """Stage invalidation of all unused sign-up tokens for a user."""
     stmt = (
         sa_update(sign_up_models.SignUpToken)
@@ -248,7 +251,7 @@ def delete_expired_sign_up_tokens(now: datetime, limit: int, db: Session) -> int
     return matched
 
 
-def select_users_with_live_token_ids(now: datetime) -> Select[tuple[int]]:
+def select_users_with_live_token_ids(now: datetime) -> Select[tuple[uuid.UUID]]:
     """Return a query for the ids of the users who hold a token that is unused and unexpired at ``now``.
 
     Args:

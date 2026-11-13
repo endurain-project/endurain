@@ -1,6 +1,7 @@
 """A token the caller got wrong is a refusal to log quietly, not a server fault with a traceback."""
 
 import logging
+import uuid
 from datetime import timedelta
 
 import pytest
@@ -8,6 +9,8 @@ import pytest
 import core.exceptions as core_exceptions
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 from modules.auth.constants import ClientType
+
+_USER_ID = uuid.UUID(int=1)
 
 
 @pytest.mark.parametrize("token", ["garbage", "a.b.c", ""])
@@ -106,7 +109,7 @@ class TestFailedLoginIsLogged:
     def test_each_refusal_logs_one_warning_without_the_raw_username(self, caplog, user, credential):
         from types import SimpleNamespace
 
-        user_obj = SimpleNamespace(id=1) if user else None
+        user_obj = SimpleNamespace(id=_USER_ID) if user else None
         credential_obj = SimpleNamespace(password_hash="hash") if credential else None
 
         self._authenticate("alice-the-user", user_obj, credential_obj, caplog)

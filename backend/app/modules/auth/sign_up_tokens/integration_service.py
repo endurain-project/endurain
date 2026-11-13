@@ -1,5 +1,6 @@
 """Behavior published by the sign-up-token module to other packages."""
 
+import uuid
 from collections.abc import Collection
 
 from jasil.providers import StateProvider
@@ -9,12 +10,12 @@ import modules.auth.sign_up_tokens.contracts as sign_up_contracts
 import modules.auth.sign_up_tokens.service as sign_up_service
 
 
-def revoke_pending_tokens(user_id: int, db: Session) -> None:
+def revoke_pending_tokens(user_id: uuid.UUID, db: Session) -> None:
     """Stage invalidation of a user's unused verification tokens with the caller's pending user update."""
     sign_up_service.revoke_user_tokens(user_id, db)
 
 
-def stage_email_changed_notice(user_id: int, email: str, previous_email: str, db: Session) -> None:
+def stage_email_changed_notice(user_id: uuid.UUID, email: str, previous_email: str, db: Session) -> None:
     """Stage the notice to the previous address that an applied email change took effect, with the caller's transaction.
 
     Args:
@@ -26,7 +27,7 @@ def stage_email_changed_notice(user_id: int, email: str, previous_email: str, db
     sign_up_service.stage_email_changed_notice(user_id, email, previous_email, db)
 
 
-def request_email_change(user_id: int, email: str, previous_email: str, db: Session) -> bool:
+def request_email_change(user_id: uuid.UUID, email: str, previous_email: str, db: Session) -> bool:
     """Stage a pending email change and its confirmation event with the caller's transaction.
 
     Args:
@@ -42,7 +43,7 @@ def request_email_change(user_id: int, email: str, previous_email: str, db: Sess
 
 
 def request_self_service_email_change(
-    user_id: int, email: str, previous_email: str, state: StateProvider, db: Session
+    user_id: uuid.UUID, email: str, previous_email: str, state: StateProvider, db: Session
 ) -> bool:
     """Stage a user's own pending email change with the caller's transaction.
 
@@ -62,7 +63,7 @@ def request_self_service_email_change(
     return sign_up_service.request_self_service_email_change(user_id, email, previous_email, state, db)
 
 
-def get_email_reserver_id(email: str, except_user_id: int | None, db: Session) -> int | None:
+def get_email_reserver_id(email: str, except_user_id: uuid.UUID | None, db: Session) -> uuid.UUID | None:
     """Return the user an address is reserved for while their confirmed email change can still be reverted.
 
     Args:
@@ -77,18 +78,18 @@ def get_email_reserver_id(email: str, except_user_id: int | None, db: Session) -
 
 
 def get_pending_email_changes(
-    user_ids: Collection[int], db: Session
-) -> dict[int, sign_up_contracts.PendingEmailChange]:
+    user_ids: Collection[uuid.UUID], db: Session
+) -> dict[uuid.UUID, sign_up_contracts.PendingEmailChange]:
     """Return the unconfirmed email change of each given user that has one, keyed by user id."""
     return sign_up_service.get_pending_email_changes(user_ids, db)
 
 
-def request_email_change_resend(user_id: int, state: StateProvider, db: Session) -> None:
+def request_email_change_resend(user_id: uuid.UUID, state: StateProvider, db: Session) -> None:
     """Stage a new confirmation email for a user's pending change, at most once per cooldown; the caller commits."""
     sign_up_service.request_email_change_resend(user_id, state, db)
 
 
-def request_admin_invitation_email(user_id: int, db: Session) -> None:
+def request_admin_invitation_email(user_id: uuid.UUID, db: Session) -> None:
     """Stage the invitation email of an account an administrator created without a password; the caller commits.
 
     Args:
@@ -101,7 +102,7 @@ def request_admin_invitation_email(user_id: int, db: Session) -> None:
     sign_up_service.request_admin_invitation_email(user_id, db)
 
 
-def request_sign_up_admin_approval(user_id: int, db: Session) -> bool:
+def request_sign_up_admin_approval(user_id: uuid.UUID, db: Session) -> bool:
     """Stage the administrators' approval requests for a new account with the caller's transaction.
 
     Args:
@@ -114,6 +115,6 @@ def request_sign_up_admin_approval(user_id: int, db: Session) -> bool:
     return sign_up_service.request_sign_up_admin_approval(user_id, db)
 
 
-def request_sign_up_approved_email(user_id: int, db: Session) -> bool:
+def request_sign_up_approved_email(user_id: uuid.UUID, db: Session) -> bool:
     """Stage an approval notice event with the caller's pending user update."""
     return sign_up_service.request_sign_up_approved_email(user_id, db)

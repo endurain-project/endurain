@@ -25,7 +25,7 @@ Endurain checks every imported activity, whatever the source (upload, bulk impor
 
 Choose "Import" in the settings menu, then either upload a ZIP of activity files, or place them in your folder first:
 
-- Folder: `data/activity_files/bulk_import/<your user id>/`
+- Folder: `data/activity_files/bulk_import/<your user id>/`, where `<your user id>` is your account's UUID, shown in the address of your profile page (`/user/<id>`). The Import page shows no folder path
 
 The folder is chosen by the account that starts the import, so each user only ever imports the files in their own folder. Files placed in another user's folder are never read.
 

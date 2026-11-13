@@ -18,6 +18,7 @@ import modules.auth.sign_up_tokens.service as sign_up_service
 import modules.users.users.schema as users_schema
 import modules.users.users.service as users_service
 import modules.users.users_profile.service as users_profile_service
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
 _PASSWORD = "a-password-that-leaked-somewhere"
 
@@ -89,7 +90,7 @@ def _admin_create(settings, db):
         patch.object(users_service.server_settings_integration, "get_server_settings", return_value=settings),
         patch.object(users_service.account_security_integration, "verify_step_up", side_effect=_ReachedError),
     ):
-        users_service.create_user(user, None, 9, "sid-9", MagicMock(), db)
+        users_service.create_user(user, None, OTHER_USER_ID, "sid-9", MagicMock(), db)
 
 
 def _admin_set_password(settings, db):
@@ -98,7 +99,7 @@ def _admin_set_password(settings, db):
         patch.object(users_service.server_settings_integration, "get_server_settings", return_value=settings),
         patch.object(users_service.account_security_integration, "verify_step_up", side_effect=_ReachedError),
     ):
-        users_service.change_user_password(4, attributes, 9, "sid-9", MagicMock(), db)
+        users_service.change_user_password(MOCK_USER_ID, attributes, OTHER_USER_ID, "sid-9", MagicMock(), db)
 
 
 def _own_change(settings, db):
@@ -109,15 +110,15 @@ def _own_change(settings, db):
             users_profile_service.account_security_integration, "change_own_password", side_effect=_ReachedError
         ),
     ):
-        users_profile_service.change_password(7, change, "sid", MagicMock(), db)
+        users_profile_service.change_password(MOCK_USER_ID, change, "sid", MagicMock(), db)
 
 
 def _required_change(settings, db):
     store = MagicMock()
-    store.get.return_value = MagicMock(user_id=7, client_type="web", security_generation=0)
+    store.get.return_value = MagicMock(user_id=MOCK_USER_ID, client_type="web", security_generation=0)
     request = authentication_schema.PasswordChangeLoginRequest(password_change_challenge="c" * 43, password=_PASSWORD)
     with (
-        patch.object(account_security_service.users_integration, "get_user", return_value=MagicMock(id=7)),
+        patch.object(account_security_service.users_integration, "get_user", return_value=MagicMock(id=MOCK_USER_ID)),
         patch.object(account_security_service.users_integration, "require_active_user"),
         patch.object(
             account_security_service.credentials_integration, "is_password_change_required", return_value=True

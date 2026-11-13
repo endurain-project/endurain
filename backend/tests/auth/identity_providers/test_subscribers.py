@@ -1,5 +1,6 @@
 """Tests for the identity-provider token refresh and revocation events."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import jasil.publisher as platform_publisher
@@ -12,27 +13,28 @@ import modules.auth.identity_providers.scheduled_jobs as idp_scheduled_jobs
 import modules.auth.identity_providers.subscriber_registry as idp_subscriber_registry
 import modules.auth.identity_providers.subscribers as idp_subscribers
 import modules.auth.sessions.events as sessions_events
+from tests._helpers.auth import MOCK_USER_ID
 
 _MODULE = "modules.auth.identity_providers.subscribers"
 
 
-def _event(user_id: int = 7, session_id: str | None = "session-1") -> Event:
+def _event(user_id: uuid.UUID = MOCK_USER_ID, session_id: str | None = "session-1") -> Event:
     return new_event(
         idp_events.IDP_TOKEN_REFRESH_REQUESTED, {"user_id": user_id, "session_id": session_id}, source="test"
     )
 
 
-def _revoked_event(user_id: int = 7) -> Event:
+def _revoked_event(user_id: uuid.UUID = MOCK_USER_ID) -> Event:
     return new_event(sessions_events.SESSIONS_REVOKED, {"user_id": user_id, "session_id": "session-1"}, source="test")
 
 
 class TestPublisher:
     def test_the_event_is_staged_in_the_callers_transaction_with_the_ids_only(self, mock_db):
         with patch.object(platform_publisher, "publish_on_commit") as publish:
-            idp_event_publishers.publish_idp_token_refresh_requested(7, "session-1", mock_db)
+            idp_event_publishers.publish_idp_token_refresh_requested(MOCK_USER_ID, "session-1", mock_db)
 
         assert publish.call_args.args[0] == idp_events.IDP_TOKEN_REFRESH_REQUESTED
-        assert publish.call_args.args[1] == {"user_id": 7, "session_id": "session-1"}
+        assert publish.call_args.args[1] == {"user_id": str(MOCK_USER_ID), "session_id": "session-1"}
         assert publish.call_args.kwargs["db"] is mock_db
 
 
@@ -45,10 +47,10 @@ class TestSubscriber:
             patch(f"{_MODULE}.platform_runtime.get_state") as get_state,
             patch(f"{_MODULE}.idp_refresh_claim_store.IdpRefreshClaimStore") as claim_store,
         ):
-            idp_subscribers.refresh_idp_tokens_for_event(_event(7))
+            idp_subscribers.refresh_idp_tokens_for_event(_event(MOCK_USER_ID))
 
         claim_store.assert_called_once_with(get_state.return_value)
-        service.refresh_idp_tokens.assert_called_once_with(7, "session-1", claim_store.return_value)
+        service.refresh_idp_tokens.assert_called_once_with(MOCK_USER_ID, "session-1", claim_store.return_value)
 
     def test_an_event_queued_before_tokens_were_per_session_is_dropped(self):
         with (
@@ -104,10 +106,10 @@ class TestRevocationSubscriber:
             patch(f"{_MODULE}.idp_oidc_client.OidcClientService") as oidc,
             patch(f"{_MODULE}.platform_runtime.get_state"),
         ):
-            idp_subscribers.revoke_session_tokens_for_event(_revoked_event(7))
+            idp_subscribers.revoke_session_tokens_for_event(_revoked_event(MOCK_USER_ID))
 
         service.assert_called_once_with(oidc.return_value)
-        service.return_value.revoke_ended_sessions.assert_called_once_with(user_id=7)
+        service.return_value.revoke_ended_sessions.assert_called_once_with(user_id=MOCK_USER_ID)
 
     def test_a_failure_reaches_the_durable_runner_but_not_the_bus(self):
         with (

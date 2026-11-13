@@ -1,5 +1,6 @@
 """Garmin Connect health sync: body composition, daily steps and sleep."""
 
+import uuid
 from collections.abc import Callable, Iterator
 from datetime import UTC, date, datetime, timedelta
 from enum import Enum
@@ -64,12 +65,12 @@ class _SourcedRecord(Protocol):
 
 
 def _store[RecordT: BaseModel](
-    user_id: int,
+    user_id: uuid.UUID,
     record: RecordT,
     *,
     label: str,
-    upsert: Callable[[int, RecordT, Session], object],
-    keep_existing: Callable[[int, str, Session], bool] | None = None,
+    upsert: Callable[[uuid.UUID, RecordT, Session], object],
+    keep_existing: Callable[[uuid.UUID, str, Session], bool] | None = None,
 ) -> bool:
     """Store a health record in a short session of its own: create the day's record, or update it.
 
@@ -101,8 +102,8 @@ def _store[RecordT: BaseModel](
 
 
 def _keep_other_source(
-    get_by_date: Callable[[int, str, Session], _SourcedRecord | None], garmin_source: Enum
-) -> Callable[[int, str, Session], bool]:
+    get_by_date: Callable[[uuid.UUID, str, Session], _SourcedRecord | None], garmin_source: Enum
+) -> Callable[[uuid.UUID, str, Session], bool]:
     """Build the check that leaves a day's record alone unless Garmin Connect wrote it.
 
     A record the user entered, or another source wrote, is theirs: a sync neither replaces it nor
@@ -116,7 +117,7 @@ def _keep_other_source(
         A ``keep_existing`` callable for :func:`_store`.
     """
 
-    def keep(user_id: int, date: str, db: Session) -> bool:
+    def keep(user_id: uuid.UUID, date: str, db: Session) -> bool:
         """Tell whether the owner's record for a date came from another source.
 
         Args:
@@ -137,7 +138,7 @@ def fetch_and_process_bc_by_dates(
     garminconnect_client: garminconnect.Garmin,
     start_date: datetime,
     end_date: datetime,
-    user_id: int,
+    user_id: uuid.UUID,
 ) -> int:
     """Fetch and store body composition from Garmin Connect.
 
@@ -200,7 +201,7 @@ def fetch_and_process_ds_by_dates(
     garminconnect_client: garminconnect.Garmin,
     start_date: datetime,
     end_date: datetime,
-    user_id: int,
+    user_id: uuid.UUID,
 ) -> int:
     """Fetch and store daily steps from Garmin Connect.
 
@@ -356,7 +357,7 @@ def _build_sleep(garmin_sleep: dict[str, Any], sleep_dto: dict[str, Any]) -> hea
     )
 
 
-def _is_other_source_sleep(user_id: int, date: str, db: Session) -> bool:
+def _is_other_source_sleep(user_id: uuid.UUID, date: str, db: Session) -> bool:
     """Tell whether the stored sleep record of a date came from another source than Garmin Connect.
 
     Rows created before ``source`` was stored are recognised by their Garmin sleep id.
@@ -373,7 +374,7 @@ def fetch_and_process_sleep_by_dates(
     garminconnect_client: garminconnect.Garmin,
     start_date: datetime,
     end_date: datetime,
-    user_id: int,
+    user_id: uuid.UUID,
 ) -> int:
     """Fetch and process sleep data from Garmin Connect.
 
@@ -416,7 +417,7 @@ def fetch_and_process_sleep_by_dates(
 def get_user_garminconnect_health_by_dates(
     start_date: datetime,
     end_date: datetime,
-    user_id: int,
+    user_id: uuid.UUID,
     rate_limits: garmin_rate_limit_store.GarminRateLimitStore,
 ) -> bool:
     """Fetch and store one user's Garmin Connect health data for a window.
@@ -466,7 +467,7 @@ def get_user_garminconnect_health_by_dates(
 
 
 def sync_health_for_dates(
-    start_date: date, end_date: date, user_id: int, rate_limits: garmin_rate_limit_store.GarminRateLimitStore
+    start_date: date, end_date: date, user_id: uuid.UUID, rate_limits: garmin_rate_limit_store.GarminRateLimitStore
 ) -> bool:
     """Fetch and store one user's Garmin Connect health data for whole days.
 

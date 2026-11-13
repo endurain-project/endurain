@@ -8,6 +8,9 @@ import modules.health.health_targets.schema as health_targets_schema
 _ID = uuid.uuid4()
 
 
+_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
+
+
 class TestHealthTargetsSchema:
     """
     Test suite for HealthTargets Pydantic schema.
@@ -21,7 +24,7 @@ class TestHealthTargetsSchema:
         health_targets = health_targets_schema.HealthTargetsRead(
             updated_at="2024-01-01T00:00:00Z",
             id=_ID,
-            user_id=1,
+            user_id=_USER_ID,
             weight_kg=75.5,
             steps=10000,
             sleep_seconds=28800,
@@ -29,7 +32,7 @@ class TestHealthTargetsSchema:
 
         # Assert
         assert health_targets.id == _ID
-        assert health_targets.user_id == 1
+        assert health_targets.user_id == _USER_ID
         assert health_targets.weight_kg == 75.5
         assert health_targets.steps == 10000
         assert health_targets.sleep_seconds == 28800
@@ -54,7 +57,7 @@ class TestHealthTargetsSchema:
         health_targets = health_targets_schema.HealthTargetsRead(
             updated_at="2024-01-01T00:00:00Z",
             id=_ID,
-            user_id=1,
+            user_id=_USER_ID,
             weight_kg=None,
             steps=None,
             sleep_seconds=None,
@@ -62,7 +65,7 @@ class TestHealthTargetsSchema:
 
         # Assert
         assert health_targets.id == _ID
-        assert health_targets.user_id == 1
+        assert health_targets.user_id == _USER_ID
         assert health_targets.weight_kg is None
         assert health_targets.steps is None
         assert health_targets.sleep_seconds is None
@@ -129,7 +132,7 @@ class TestHealthTargetsSchema:
             """Mock ORM model for testing."""
 
             id = _ID
-            user_id = 1
+            user_id = _USER_ID
             updated_at = "2024-01-01T00:00:00Z"
             weight_kg = 75.5
             steps = 10000
@@ -198,13 +201,13 @@ class TestHealthTargetsSchema:
         health_targets = health_targets_schema.HealthTargetsRead(
             updated_at="2024-01-01T00:00:00Z",
             id=_ID,
-            user_id=1,
+            user_id=_USER_ID,
             steps=10000,
         )
 
         # Assert
         assert health_targets.id == _ID
-        assert health_targets.user_id == 1
+        assert health_targets.user_id == _USER_ID
         assert health_targets.steps == 10000
         assert health_targets.weight_kg is None
         assert health_targets.sleep_seconds is None

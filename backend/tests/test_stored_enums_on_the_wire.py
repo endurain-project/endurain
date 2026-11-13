@@ -23,6 +23,7 @@ import modules.notifications.constants as notifications_constants
 import modules.notifications.serializers as notifications_serializers
 from core.stored_enum import StoredStrEnum, to_stored
 from modules.activities.activity_streams.constants import ActivityStreamType
+from tests._helpers.auth import MOCK_USER_ID
 
 _ENUMS = [
     activity_constants.ActivityType,
@@ -77,7 +78,7 @@ class TestGear:
     def test_a_stored_row_reads_as_the_key(self):
         row = {
             "id": uuid.UUID(int=1),
-            "user_id": 1,
+            "user_id": MOCK_USER_ID,
             "nickname": "Bike",
             "gear_type": 8,
             "updated_at": datetime(2026, 1, 1, tzinfo=UTC),
@@ -90,7 +91,9 @@ class TestGear:
             gear_schema.GearCreateRequest(nickname="Bike", gear_type=1)
 
     def test_a_create_writes_the_integer(self):
-        orm = gear_serializers.to_orm(gear_schema.GearCreateRequest(nickname="Bike", gear_type="shoes"), user_id=1)
+        orm = gear_serializers.to_orm(
+            gear_schema.GearCreateRequest(nickname="Bike", gear_type="shoes"), user_id=MOCK_USER_ID
+        )
 
         assert orm.gear_type == 2
 
@@ -109,7 +112,7 @@ class TestNotification:
         return SimpleNamespace(
             id=uuid.UUID(int=1),
             type=stored_type,
-            user_id=1,
+            user_id=MOCK_USER_ID,
             read=False,
             created_at=datetime(2026, 1, 1, tzinfo=UTC),
             options={"browser": "Firefox", "operating_system": "Linux", "ip_address": "10.0.0.1"},

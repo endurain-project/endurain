@@ -1,5 +1,7 @@
 """Principal and sign-in lockout operations exposed to the authentication peers."""
 
+import uuid
+
 from fastapi import Request
 from sqlalchemy.orm import Session
 
@@ -31,7 +33,7 @@ def resolve_from_api_key(raw_key: str, request: Request, db: Session) -> auth_co
     return principal_service.resolve_from_api_key(raw_key, request.url.path, core_network.get_ip_address(request), db)
 
 
-def clear_account_login_lockout(user_id: int) -> None:
+def clear_account_login_lockout(user_id: uuid.UUID) -> None:
     """Lift the account-wide sign-in lock and failure count of an account after its password was replaced.
 
     A credential change that follows an outage of the shared state still succeeds; the lock then ends on its own or at

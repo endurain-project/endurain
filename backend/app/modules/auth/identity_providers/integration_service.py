@@ -38,7 +38,7 @@ def get_identity_provider(idp_id: uuid.UUID, db: Session) -> identity_providers_
 
 def enrich_user_identity_providers(
     idp_links: list[identity_links_contracts.IdentityLinkRead],
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
 ) -> list[identity_links_schema.IdentityProviderLinkRead]:
     """Add identity-provider display fields to a user's links."""
@@ -54,7 +54,7 @@ def validate_redirect(redirect: str | None) -> None:
 
 
 def stage_browser_link(
-    user_id: int,
+    user_id: uuid.UUID,
     idp_id: uuid.UUID,
     redirect: str | None,
     client_ip: str | None,
@@ -84,7 +84,7 @@ def stage_browser_link(
 
 
 def stage_step_up(
-    user_id: int,
+    user_id: uuid.UUID,
     session_id: str,
     idp_id: uuid.UUID,
     action: identity_providers_constants.StepUpAction,
@@ -127,7 +127,7 @@ def redeem_step_up_ticket(state: StateProvider, ticket: str) -> identity_provide
     return identity_providers_step_up_tickets.StepUpTicketStore(state).redeem(ticket)
 
 
-def request_idp_token_refresh(user_id: int, session_id: str, db: Session) -> None:
+def request_idp_token_refresh(user_id: uuid.UUID, session_id: str, db: Session) -> None:
     """Clear the session's retired IdP token now and queue its refresh if it is expiring, with the caller's commit."""
     identity_providers_tokens.IdpTokenService(_oidc_client()).request_idp_token_refresh(user_id, session_id, db)
 

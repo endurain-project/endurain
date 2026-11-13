@@ -1,5 +1,6 @@
 """A manual sleep record whose stages or total contradict each other is refused; a provider's is stored."""
 
+import uuid
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
@@ -11,6 +12,7 @@ import modules.health.health_sleep.integration_service as sleep_integration
 import modules.health.health_sleep.schema as sleep_schema
 import modules.health.health_sleep.service as sleep_service
 
+_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
 _BED = datetime(2026, 1, 1, 22, 0, tzinfo=UTC)
 _DAY = date(2026, 1, 2)
 
@@ -30,18 +32,18 @@ _GARMIN_NIGHT = {
 @pytest.fixture
 def db():
     session = create_sqlite_session()
-    ensure_user(sessionmaker(bind=session.get_bind()), 1)
+    ensure_user(sessionmaker(bind=session.get_bind()), _USER_ID)
     yield session
     session.close()
 
 
 def _create(db, **fields):
-    return sleep_service.create_health_sleep(1, sleep_schema.HealthSleepCreate(date=_DAY, **fields), db)
+    return sleep_service.create_health_sleep(_USER_ID, sleep_schema.HealthSleepCreate(date=_DAY, **fields), db)
 
 
 def _edit(db, record, **changes):
     return sleep_service.edit_health_sleep(
-        1, record.id, sleep_schema.HealthSleepUpdate(**changes), db, if_match=str(record.version)
+        _USER_ID, record.id, sleep_schema.HealthSleepUpdate(**changes), db, if_match=str(record.version)
     )
 
 
@@ -83,7 +85,7 @@ class TestCreate:
         with pytest.raises(core_exceptions.InvalidInputError):
             _create(db, total_sleep_seconds=60, deep_sleep_seconds=7200)
 
-        assert sleep_service.list_health_sleep(1, db).total == 0
+        assert sleep_service.list_health_sleep(_USER_ID, db).total == 0
 
 
 class TestReadingRanges:
@@ -138,4 +140,4 @@ class TestProviderUpsert:
     def test_a_provider_record_is_stored_as_given(self, db):
         record = sleep_schema.HealthSleepImport(date=_DAY, **_GARMIN_NIGHT, source="garmin")
 
-        assert sleep_integration.upsert_health_sleep(1, record, db).total_sleep_seconds == 27000
+        assert sleep_integration.upsert_health_sleep(_USER_ID, record, db).total_sleep_seconds == 27000

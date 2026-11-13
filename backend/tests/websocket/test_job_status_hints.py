@@ -4,6 +4,7 @@ The hint is sent from the state store that records the final status, so no path 
 body, a request that never started it, the dead-letter close) can skip it.
 """
 
+import uuid
 from unittest.mock import patch
 
 import pytest
@@ -20,7 +21,7 @@ import modules.users.users_profile.export_state_store as export_state_store
 import modules.users.users_profile.import_state_store as import_state_store
 import modules.websocket.integration_service as websocket_integration
 
-_USER = 7
+_USER = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
 
 
 @pytest.fixture

@@ -5,6 +5,8 @@ are built on. The follow graph itself stays behind ``service``, which privacy-ch
 every read.
 """
 
+import uuid
+
 from sqlalchemy.orm import Session
 
 import modules.followers.contracts as followers_contracts
@@ -12,7 +14,7 @@ import modules.followers.crud as followers_crud
 import modules.followers.service as followers_service
 
 
-def list_accepted_followee_ids(user_id: int, db: Session) -> list[int]:
+def list_accepted_followee_ids(user_id: uuid.UUID, db: Session) -> list[uuid.UUID]:
     """List the ids of users the given user follows (accepted only).
 
     The read the activities feed and the non-owner visibility filter are built
@@ -34,8 +36,8 @@ def list_accepted_followee_ids(user_id: int, db: Session) -> list[int]:
 
 
 def get_profile_follow_counts(
-    target_user_id: int,
-    requester_user_id: int,
+    target_user_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     db: Session,
 ) -> followers_contracts.ProfileFollowCounts | None:
     """Return accepted relationship counts when the viewer may see the network.

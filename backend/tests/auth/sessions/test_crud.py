@@ -14,12 +14,13 @@ import modules.auth.sessions.crud as sessions_crud
 import modules.auth.sessions.models as sessions_models
 import modules.auth.sessions.schema as sessions_schema
 from modules.auth.constants import ClientType
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
 
 def _row(**updates):
     values = {
         "id": "session-id",
-        "user_id": 7,
+        "user_id": MOCK_USER_ID,
         "refresh_token": "hashed-refresh",
         "ip_address": "127.0.0.1",
         "device_type": "PC",
@@ -54,7 +55,7 @@ def _result(value=None, *, rowcount=1):
 
 def test_get_user_sessions_page_pushes_the_window_into_the_query(mock_db):
     mock_db.execute.return_value.scalars.return_value = [_row(id="one")]
-    result = sessions_crud.get_user_sessions_page(7, mock_db, limit=5, offset=10)
+    result = sessions_crud.get_user_sessions_page(MOCK_USER_ID, mock_db, limit=5, offset=10)
     assert [row.id for row in result] == ["one"]
     compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
     assert "ORDER BY users_sessions.created_at DESC, users_sessions.id" in compiled
@@ -63,7 +64,7 @@ def test_get_user_sessions_page_pushes_the_window_into_the_query(mock_db):
 
 def test_count_user_sessions_counts_the_users_rows(mock_db):
     mock_db.execute.return_value.scalar_one.return_value = 4
-    assert sessions_crud.count_user_sessions(7, mock_db) == 4
+    assert sessions_crud.count_user_sessions(MOCK_USER_ID, mock_db) == 4
     assert "count" in str(mock_db.execute.call_args.args[0]).lower()
 
 
@@ -153,7 +154,7 @@ def test_token_exchange_claim_is_conditional_and_staged(mock_db):
 def test_delete_session_stages_owned_session_deletion(mock_db):
     row = _row()
     mock_db.execute.return_value = _result(row)
-    result = sessions_crud.delete_session("session-id", 7, mock_db)
+    result = sessions_crud.delete_session("session-id", MOCK_USER_ID, mock_db)
     assert result.id == "session-id"
     mock_db.delete.assert_called_once_with(row)
     mock_db.flush.assert_called_once()
@@ -163,14 +164,14 @@ def test_delete_session_stages_owned_session_deletion(mock_db):
 def test_delete_session_hides_missing_or_unowned_row(mock_db):
     mock_db.execute.return_value = _result()
     with pytest.raises(core_exceptions.NotFoundError):
-        sessions_crud.delete_session("session-id", 8, mock_db)
+        sessions_crud.delete_session("session-id", OTHER_USER_ID, mock_db)
 
 
 @pytest.mark.parametrize(
     "operation,args",
     [
         (sessions_crud.delete_sessions_by_family, ("family-id",)),
-        (sessions_crud.delete_sessions_by_user, (7,)),
+        (sessions_crud.delete_sessions_by_user, (MOCK_USER_ID,)),
     ],
 )
 def test_bulk_deletes_stage_and_return_count(operation, args, mock_db):
@@ -181,9 +182,9 @@ def test_bulk_deletes_stage_and_return_count(operation, args, mock_db):
 
 @pytest.mark.parametrize("purge", [sessions_crud.delete_idle_sessions, sessions_crud.delete_expired_sessions])
 def test_a_purge_stages_the_delete_and_names_the_ended_sessions(purge, mock_db):
-    mock_db.execute.return_value.all.return_value = [(7, "a"), (8, "b")]
+    mock_db.execute.return_value.all.return_value = [(MOCK_USER_ID, "a"), (OTHER_USER_ID, "b")]
 
-    assert purge(datetime.now(UTC), 100, mock_db) == [(7, "a"), (8, "b")]
+    assert purge(datetime.now(UTC), 100, mock_db) == [(MOCK_USER_ID, "a"), (OTHER_USER_ID, "b")]
     assert "RETURNING" in str(mock_db.execute.call_args.args[0].compile(dialect=postgresql.dialect()))
     mock_db.commit.assert_not_called()
 
@@ -206,7 +207,7 @@ def test_existing_session_ids_names_only_the_sessions_that_still_exist():
         db.add(
             sessions_models.UsersSessions(
                 id=session_id,
-                user_id=7,
+                user_id=MOCK_USER_ID,
                 refresh_token="hash",
                 ip_address="127.0.0.1",
                 device_type="PC",
@@ -287,10 +288,10 @@ class TestUnexchangedSessions:
         self._add(db, "exchanged", tokens_exchanged=True)
         self._add(db, "pending", tokens_exchanged=False, created_offset=5)
 
-        page = sessions_crud.get_user_sessions_page(7, db, limit=10, offset=0)
+        page = sessions_crud.get_user_sessions_page(MOCK_USER_ID, db, limit=10, offset=0)
 
         assert [session.id for session in page] == ["exchanged"]
-        assert sessions_crud.count_user_sessions(7, db) == 1
+        assert sessions_crud.count_user_sessions(MOCK_USER_ID, db) == 1
 
     def test_the_purge_removes_an_expired_unexchanged_session_and_keeps_a_live_one(self, db):
         self._add(db, "expired-pending", tokens_exchanged=False, expires_in=timedelta(minutes=-1))
@@ -298,7 +299,7 @@ class TestUnexchangedSessions:
 
         removed = sessions_crud.delete_expired_sessions(datetime.now(UTC), 100, db)
 
-        assert removed == [(7, "expired-pending")]
+        assert removed == [(MOCK_USER_ID, "expired-pending")]
         assert sessions_crud.get_session_by_id("expired-pending", db) is None
         assert sessions_crud.get_session_by_id("live-pending", db) is not None
 
@@ -322,7 +323,7 @@ class TestDeviceHash:
     """A session is tied to the device it signed in from, and a device's sessions are deleted together."""
 
     @staticmethod
-    def _add(db, session_id, *, user_id=7, device_hash=None):
+    def _add(db, session_id, *, user_id=MOCK_USER_ID, device_hash=None):
         now = datetime.now(UTC)
         values = vars(_row(id=session_id, user_id=user_id))
         values.update(
@@ -347,9 +348,9 @@ class TestDeviceHash:
         self._add(db, "same-device-2", device_hash="a" * 64)
         self._add(db, "other-device", device_hash="b" * 64)
         self._add(db, "no-device")
-        self._add(db, "other-user", user_id=8, device_hash="a" * 64)
+        self._add(db, "other-user", user_id=OTHER_USER_ID, device_hash="a" * 64)
 
-        deleted = sessions_crud.delete_sessions_by_device(7, "a" * 64, db)
+        deleted = sessions_crud.delete_sessions_by_device(MOCK_USER_ID, "a" * 64, db)
 
         assert sorted(session.id for session in deleted) == ["same-device-1", "same-device-2"]
         for kept in ("other-device", "no-device", "other-user"):

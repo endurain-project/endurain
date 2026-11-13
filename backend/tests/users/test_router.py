@@ -1,5 +1,6 @@
 """Tests for user management router functions."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import modules.auth.account_security.integration_service as account_security_integration
@@ -17,7 +18,7 @@ class TestEditUserPassword:
         """
         Test admin password resets delete existing target sessions.
         """
-        user_id = 42
+        user_id = uuid.UUID(int=42)
         new_password = "new-secure-password"
         user_attributes = users_schema.UserAdminEditPassword(
             password=new_password, step_up={"current_password": "admin-password"}
@@ -34,7 +35,7 @@ class TestEditUserPassword:
                 request=MagicMock(),
                 user_id=user_id,
                 user_attributes=user_attributes,
-                token_user_id=7,
+                token_user_id=uuid.UUID(int=7),
                 token_session_id="sid-7",
                 step_up_store=MagicMock(),
                 db=db,

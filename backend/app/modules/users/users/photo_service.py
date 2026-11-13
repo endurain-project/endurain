@@ -4,6 +4,7 @@ The photo itself lives in the platform ``StorageProvider``; the user row holds o
 """
 
 import os
+import uuid
 
 import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
@@ -22,7 +23,7 @@ import modules.users.users.signing as users_signing
 logger = core_logger.get_logger(__name__)
 
 
-def delete_photo_files(user_id: int, storage: platform_providers.StorageProvider) -> None:
+def delete_photo_files(user_id: uuid.UUID, storage: platform_providers.StorageProvider) -> None:
     """Delete every stored photo blob of a user.
 
     Part of erasing an account, so a storage failure is raised: the deletion is retried rather than
@@ -75,7 +76,7 @@ def _referenced_photo_keys(keys: list[str], db: Session) -> set[str]:
     return {key for key, owner in owners.items() if owner is None or _file_name(named.get(owner)) == key}
 
 
-def _owner_of(key: str) -> int | None:
+def _owner_of(key: str) -> uuid.UUID | None:
     """Return the user a photo key belongs to, or None for a key that names no user.
 
     Args:
@@ -85,7 +86,11 @@ def _owner_of(key: str) -> int | None:
         The user id, or None.
     """
     stem = os.path.splitext(key)[0]
-    return int(stem) if stem.isascii() and stem.isdecimal() else None
+    try:
+        owner = uuid.UUID(stem)
+    except ValueError:
+        return None
+    return owner if str(owner) == stem else None
 
 
 def _file_name(photo: str | None) -> str | None:
@@ -101,7 +106,7 @@ def _file_name(photo: str | None) -> str | None:
 
 
 def _delete_replaced_blob(
-    user_id: int, replaced: str | None, keep: str | None, storage: platform_providers.StorageProvider
+    user_id: uuid.UUID, replaced: str | None, keep: str | None, storage: platform_providers.StorageProvider
 ) -> None:
     """Delete the blob a committed change replaced, as housekeeping.
 
@@ -127,7 +132,7 @@ def _delete_replaced_blob(
         )
 
 
-def _stage_photo_audit(user_id: int, db: Session) -> None:
+def _stage_photo_audit(user_id: uuid.UUID, db: Session) -> None:
     """Stage ``users.user.update`` for an administrator's photo change, in the transaction that commits it.
 
     Args:
@@ -145,7 +150,7 @@ def _stage_photo_audit(user_id: int, db: Session) -> None:
 
 
 def delete_photo(
-    user_id: int, storage: platform_providers.StorageProvider, db: Session, *, audit: bool = False
+    user_id: uuid.UUID, storage: platform_providers.StorageProvider, db: Session, *, audit: bool = False
 ) -> None:
     """Clear a user's photo reference, commit, then delete the stored blob.
 
@@ -172,7 +177,7 @@ def delete_photo(
 
 
 def store_photo(
-    user_id: int,
+    user_id: uuid.UUID,
     extension: str,
     data: bytes,
     storage: platform_providers.StorageProvider,
@@ -197,7 +202,7 @@ def store_photo(
 
 
 def _store_photo(
-    user_id: int,
+    user_id: uuid.UUID,
     extension: str,
     data: bytes,
     storage: platform_providers.StorageProvider,
@@ -237,7 +242,7 @@ def _store_photo(
     db.commit()
 
     data = core_file_uploads.strip_image_metadata(data, max_dimension=users_constants.USER_IMAGE_MAX_DIMENSION)
-    key = f"{user_id}{extension}"
+    key = users_constants.photo_key(user_id, extension)
     storage.save(users_constants.USER_IMAGE_STORAGE_AREA, key, data, core_file_uploads.IMAGE_CONTENT_TYPES[extension])
 
     replaced = users_crud.replace_photo_key(user_id, key, db)
@@ -251,7 +256,7 @@ def _store_photo(
 
 
 def upload_photo(
-    user_id: int,
+    user_id: uuid.UUID,
     file: UploadFile,
     storage: platform_providers.StorageProvider,
     db: Session,
@@ -292,7 +297,9 @@ def upload_photo(
     return _store_photo(user_id, file_extension, data, storage, db, audit=audit)[1]
 
 
-def read_photo(user_id: int, token: str, storage: platform_providers.StorageProvider, db: Session) -> tuple[bytes, str]:
+def read_photo(
+    user_id: uuid.UUID, token: str, storage: platform_providers.StorageProvider, db: Session
+) -> tuple[bytes, str]:
     """Read a user's stored photo when the signed token is valid.
 
     The row names the photo, so a blob left under another extension is never served. The read

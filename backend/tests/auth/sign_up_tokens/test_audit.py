@@ -8,6 +8,7 @@ import pytest
 import core.exceptions as core_exceptions
 import modules.auth.sign_up_tokens.audit_actions as sign_up_audit_actions
 import modules.auth.sign_up_tokens.service as sign_up_service
+from tests._helpers.auth import MOCK_USER_ID
 
 _MODULE = "modules.auth.sign_up_tokens.service"
 _ACTION = sign_up_audit_actions.SIGN_UP_CONFIRM.id
@@ -18,7 +19,7 @@ def _settings(*, approval=False):
 
 
 def _claim(*, previous_email=None):
-    return MagicMock(id="t1", user_id=7, email="u@example.com", previous_email=previous_email)
+    return MagicMock(id="t1", user_id=MOCK_USER_ID, email="u@example.com", previous_email=previous_email)
 
 
 @pytest.fixture
@@ -32,7 +33,9 @@ def deps(request):
         patch.multiple(_MODULE, **mocks),
         patch(f"{_MODULE}.sign_up_event_publishers"),
     ):
-        mocks["users_integration"].get_user.return_value = MagicMock(id=7, active=False, access_type="regular")
+        mocks["users_integration"].get_user.return_value = MagicMock(
+            id=MOCK_USER_ID, active=False, access_type="regular"
+        )
         mocks["users_integration"].is_deactivated.return_value = False
         mocks["credentials_integration"].validate_and_hash_password_for_user.return_value = "hashed"
         yield mocks | {"verify_token": verify_token}
@@ -42,7 +45,9 @@ def test_a_sign_up_confirmation_is_audited_with_the_password_flag(deps, mock_db)
     with jasil_testing.capture_audit() as audit:
         sign_up_service.confirm_sign_up("tok", "ChosenPass1!", mock_db)
 
-    entry = audit.assert_audited(_ACTION, target_type="user", target_id="7", target_owner_id="7")
+    entry = audit.assert_audited(
+        _ACTION, target_type="user", target_id=str(MOCK_USER_ID), target_owner_id=str(MOCK_USER_ID)
+    )
     assert entry.details == {"password_set": True, "reason": None}
     assert "ChosenPass1!" not in repr(entry)
 
@@ -70,7 +75,7 @@ def test_an_approval_sign_up_with_mail_is_audited_once(deps, mock_db):
 
 
 def test_an_account_that_already_has_a_password_takes_none_and_is_not_audited(deps, mock_db):
-    deps["users_integration"].get_user.return_value = MagicMock(id=7, active=True, access_type="regular")
+    deps["users_integration"].get_user.return_value = MagicMock(id=MOCK_USER_ID, active=True, access_type="regular")
     deps["credentials_integration"].has_local_password.return_value = True
 
     with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.InvalidInputError):
@@ -81,7 +86,7 @@ def test_an_account_that_already_has_a_password_takes_none_and_is_not_audited(de
 
 def test_an_email_change_confirmation_is_not_audited_here(deps, mock_db):
     deps["verify_token"].return_value = _claim(previous_email="old@example.com")
-    deps["users_integration"].get_user.return_value = MagicMock(id=7, active=True, access_type="regular")
+    deps["users_integration"].get_user.return_value = MagicMock(id=MOCK_USER_ID, active=True, access_type="regular")
 
     with jasil_testing.capture_audit() as audit:
         sign_up_service.confirm_email_change("tok", mock_db)
@@ -106,7 +111,7 @@ def test_an_invalid_token_is_recorded_as_a_failure_without_a_target(mock_db):
 
 
 def test_a_token_of_the_other_kind_is_recorded_as_the_same_failure(mock_db):
-    usable = MagicMock(id="t1", user_id=7, email="u@example.com", previous_email=None)
+    usable = MagicMock(id="t1", user_id=MOCK_USER_ID, email="u@example.com", previous_email=None)
     with (
         patch(f"{_MODULE}.server_settings_integration.get_server_settings", return_value=_settings()),
         patch(f"{_MODULE}.sign_up_crud.get_usable_sign_up_token", return_value=usable),

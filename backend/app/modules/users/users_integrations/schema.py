@@ -90,7 +90,7 @@ class UserIntegrationsRead(UserIntegrationsBase):
     """
 
     id: uuid.UUID = Field(..., description="Unique identifier for integrations")
-    user_id: StrictInt = Field(..., ge=1, description="Foreign key reference to the user")
+    user_id: uuid.UUID = Field(..., description="Foreign key reference to the user")
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
     strava_revoked_at: datetime | None = Field(
         default=None, description="When Strava refused the refresh token; Strava data is deleted after a grace period"

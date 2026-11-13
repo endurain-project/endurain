@@ -1,6 +1,8 @@
 """Pydantic schemas for follower relationships."""
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt
+import uuid
+
+from pydantic import BaseModel, ConfigDict, Field
 
 import core.pagination as core_pagination
 import modules.followers.constants as followers_constants
@@ -18,8 +20,8 @@ class FollowRelationshipRead(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
-    follower_id: StrictInt
-    followee_id: StrictInt
+    follower_id: uuid.UUID
+    followee_id: uuid.UUID
     status: followers_constants.FollowStatus
 
 
@@ -49,7 +51,7 @@ class FollowRelationshipPage(core_pagination.Page[FollowRelationshipRead]):
             no lookup per row. A user who is inactive or awaiting approval has no entry.
     """
 
-    users: dict[int, users_schema.UserPublicRead] = Field(
+    users: dict[uuid.UUID, users_schema.UserPublicRead] = Field(
         default_factory=dict,
         description="Public profile of the user on the other side of each row, keyed by user ID",
     )

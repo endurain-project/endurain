@@ -1,5 +1,6 @@
 """Tests for session transaction and lifecycle orchestration."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -13,7 +14,9 @@ import modules.auth.schema as auth_schema
 import modules.auth.sessions.contracts as sessions_contracts
 import modules.auth.sessions.service as sessions_service
 from modules.auth.constants import ClientType
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
+_THIRD_USER_ID = uuid.UUID("00000000-0000-4000-8000-000000000003")
 _STEP_UP = auth_schema.StepUpVerification(current_password="admin-password")
 _FIREFOX_UA = "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0"
 
@@ -21,7 +24,7 @@ _FIREFOX_UA = "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/
 def _session(**updates):
     data = {
         "id": "session-id",
-        "user_id": 7,
+        "user_id": MOCK_USER_ID,
         "refresh_token": "hashed-refresh",
         "ip_address": "127.0.0.1",
         "device_type": "PC",
@@ -47,7 +50,7 @@ def _session(**updates):
 
 
 def test_create_session_hashes_secrets_and_stages(mock_db):
-    user = SimpleNamespace(id=7)
+    user = SimpleNamespace(id=MOCK_USER_ID)
     hasher = MagicMock()
     hasher.hash_password.return_value = "hashed-refresh"
     with (
@@ -86,7 +89,7 @@ def test_create_session_records_the_device_hash(mock_db):
     ):
         sessions_service.create_session(
             "session-id",
-            SimpleNamespace(id=7),
+            SimpleNamespace(id=MOCK_USER_ID),
             ClientType.WEB,
             "127.0.0.1",
             _FIREFOX_UA,
@@ -111,9 +114,9 @@ def test_deleting_the_sessions_of_a_device_cleans_up_each_one(mock_db):
         patch("modules.auth.sessions.service.rotated_refresh_tokens_integration") as rotated,
         patch("modules.auth.sessions.service.sessions_event_publishers") as publishers,
     ):
-        assert sessions_service.delete_sessions_by_device(7, "a" * 64, mock_db) == 2
+        assert sessions_service.delete_sessions_by_device(MOCK_USER_ID, "a" * 64, mock_db) == 2
 
-    delete.assert_called_once_with(7, "a" * 64, mock_db)
+    delete.assert_called_once_with(MOCK_USER_ID, "a" * 64, mock_db)
     oauth_state.delete_oauth_state.assert_called_once_with("state-one", mock_db)
     assert [call.args for call in rotated.delete_by_family.call_args_list] == [
         ("family-one", mock_db),
@@ -129,7 +132,7 @@ def test_create_session_records_the_app_redirect_uri(mock_db):
     ):
         sessions_service.create_session(
             "session-id",
-            SimpleNamespace(id=7),
+            SimpleNamespace(id=MOCK_USER_ID),
             ClientType.MOBILE,
             "127.0.0.1",
             _FIREFOX_UA,
@@ -299,7 +302,7 @@ def test_a_session_created_with_a_refresh_token_needs_no_exchange(refresh_token,
     ):
         sessions_service.create_session(
             "session-id",
-            SimpleNamespace(id=7),
+            SimpleNamespace(id=MOCK_USER_ID),
             ClientType.WEB,
             "127.0.0.1",
             "agent",
@@ -320,7 +323,7 @@ def test_delete_session_cleans_linked_records_and_commits(mock_db):
         patch("modules.auth.sessions.service.oauth_state_integration.delete_oauth_state") as delete_state,
         patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family") as delete_family,
     ):
-        sessions_service.delete_session("session-id", 7, _STEP_UP, MagicMock(), mock_db)
+        sessions_service.delete_session("session-id", MOCK_USER_ID, _STEP_UP, MagicMock(), mock_db)
     delete_state.assert_called_once_with("state-id", mock_db)
     delete_family.assert_called_once_with("family-id", mock_db)
     mock_db.commit.assert_called_once()
@@ -362,7 +365,7 @@ def test_stage_delete_session_cleans_linked_records_without_committing(mock_db):
         patch("modules.auth.sessions.service.oauth_state_integration.delete_oauth_state") as delete_state,
         patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family") as delete_family,
     ):
-        sessions_service.stage_delete_session("session-id", 7, mock_db)
+        sessions_service.stage_delete_session("session-id", MOCK_USER_ID, mock_db)
     delete_state.assert_called_once_with("state-id", mock_db)
     delete_family.assert_called_once_with("family-id", mock_db)
     mock_db.commit.assert_not_called()
@@ -370,13 +373,13 @@ def test_stage_delete_session_cleans_linked_records_without_committing(mock_db):
 
 def test_delete_user_sessions_stages_without_committing(mock_db):
     with patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=3):
-        assert sessions_service.delete_sessions_by_user(7, mock_db, "current") == 3
+        assert sessions_service.delete_sessions_by_user(MOCK_USER_ID, mock_db, "current") == 3
     mock_db.commit.assert_not_called()
 
 
 def test_delete_user_sessions_standalone_commits(mock_db):
     with patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=3):
-        assert sessions_service.delete_sessions_by_user_and_commit(7, _STEP_UP, MagicMock(), mock_db) == 3
+        assert sessions_service.delete_sessions_by_user_and_commit(MOCK_USER_ID, _STEP_UP, MagicMock(), mock_db) == 3
     mock_db.commit.assert_called_once()
 
 
@@ -388,7 +391,7 @@ def test_missing_session_deletion_propagates_domain_not_found(mock_db):
         ),
         pytest.raises(core_exceptions.NotFoundError),
     ):
-        sessions_service.delete_session("missing", 7, _STEP_UP, MagicMock(), mock_db)
+        sessions_service.delete_session("missing", MOCK_USER_ID, _STEP_UP, MagicMock(), mock_db)
     mock_db.commit.assert_not_called()
 
 
@@ -400,9 +403,9 @@ def test_list_user_sessions_builds_a_page_from_the_window_and_count(mock_db):
         patch("modules.auth.sessions.service.sessions_crud.count_user_sessions", return_value=3) as count,
     ):
         settings.ENVIRONMENT = "production"
-        result = sessions_service.list_user_sessions(7, page, mock_db)
-    rows.assert_called_once_with(7, mock_db, limit=1, offset=1)
-    count.assert_called_once_with(7, mock_db)
+        result = sessions_service.list_user_sessions(MOCK_USER_ID, page, mock_db)
+    rows.assert_called_once_with(MOCK_USER_ID, mock_db, limit=1, offset=1)
+    count.assert_called_once_with(MOCK_USER_ID, mock_db)
     assert [item.id for item in result.items] == ["session-id"]
     assert (result.total, result.page, result.next) == (3, 2, 3)
     assert not hasattr(result.items[0], "refresh_token")
@@ -414,7 +417,7 @@ def test_list_user_sessions_is_empty_in_demo(mock_db):
         patch("modules.auth.sessions.service.sessions_crud.get_user_sessions_page") as rows,
     ):
         settings.ENVIRONMENT = "demo"
-        result = sessions_service.list_user_sessions(7, core_pagination.PageParams(1, 25), mock_db)
+        result = sessions_service.list_user_sessions(MOCK_USER_ID, core_pagination.PageParams(1, 25), mock_db)
     rows.assert_not_called()
     assert result.items == [] and result.total == 0
 
@@ -425,7 +428,7 @@ def test_session_logs_carry_a_fingerprint_not_the_session_id(mock_db, caplog):
         patch("modules.auth.sessions.service.sessions_crud.delete_session", return_value=_session()),
         patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family"),
     ):
-        sessions_service.delete_session("secret-session-id", 7, _STEP_UP, MagicMock(), mock_db)
+        sessions_service.delete_session("secret-session-id", MOCK_USER_ID, _STEP_UP, MagicMock(), mock_db)
     assert "secret-session-id" not in caplog.text
     assert "secret-session-id" not in str([record.__dict__ for record in caplog.records])
 
@@ -453,7 +456,7 @@ def test_create_session_caps_expiry_at_the_absolute_timeout(mock_db):
     ):
         sessions_service.create_session(
             "session-id",
-            SimpleNamespace(id=7),
+            SimpleNamespace(id=MOCK_USER_ID),
             ClientType.WEB,
             "127.0.0.1",
             _FIREFOX_UA,
@@ -476,7 +479,7 @@ def test_create_session_keeps_an_earlier_expiry(mock_db):
     ):
         sessions_service.create_session(
             "session-id",
-            SimpleNamespace(id=7),
+            SimpleNamespace(id=MOCK_USER_ID),
             ClientType.WEB,
             "127.0.0.1",
             _FIREFOX_UA,
@@ -520,9 +523,9 @@ def test_stage_delete_session_announces_the_revoked_session(mock_db):
         patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family"),
         patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked") as publish,
     ):
-        sessions_service.stage_delete_session("sid", 7, mock_db)
+        sessions_service.stage_delete_session("sid", MOCK_USER_ID, mock_db)
 
-    publish.assert_called_once_with(7, mock_db, session_id="sid")
+    publish.assert_called_once_with(MOCK_USER_ID, mock_db, session_id="sid")
 
 
 def test_deleting_all_sessions_announces_a_user_wide_revocation(mock_db):
@@ -530,9 +533,9 @@ def test_deleting_all_sessions_announces_a_user_wide_revocation(mock_db):
         patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=2),
         patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked") as publish,
     ):
-        sessions_service.delete_sessions_by_user(7, mock_db)
+        sessions_service.delete_sessions_by_user(MOCK_USER_ID, mock_db)
 
-    publish.assert_called_once_with(7, mock_db, except_session_id=None)
+    publish.assert_called_once_with(MOCK_USER_ID, mock_db, except_session_id=None)
 
 
 def test_deleting_the_other_sessions_names_the_one_kept(mock_db):
@@ -541,22 +544,25 @@ def test_deleting_the_other_sessions_names_the_one_kept(mock_db):
         patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked") as publish,
     ):
         sessions_service.delete_sessions_by_user_and_commit(
-            7, _STEP_UP, MagicMock(), mock_db, exclude_session_id="keep"
+            MOCK_USER_ID, _STEP_UP, MagicMock(), mock_db, exclude_session_id="keep"
         )
 
-    publish.assert_called_once_with(7, mock_db, except_session_id="keep")
+    publish.assert_called_once_with(MOCK_USER_ID, mock_db, except_session_id="keep")
 
 
 def test_family_invalidation_announces_each_revoked_session(mock_db):
     with (
-        patch("modules.auth.sessions.service.sessions_crud.list_session_owners_by_family", return_value=[(7, "fam")]),
+        patch(
+            "modules.auth.sessions.service.sessions_crud.list_session_owners_by_family",
+            return_value=[(MOCK_USER_ID, "fam")],
+        ),
         patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_family", return_value=1),
         patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family", return_value=0),
         patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked") as publish,
     ):
         sessions_service.invalidate_token_family("fam", mock_db)
 
-    publish.assert_called_once_with(7, mock_db, session_id="fam")
+    publish.assert_called_once_with(MOCK_USER_ID, mock_db, session_id="fam")
 
 
 def test_deleting_no_sessions_announces_nothing(mock_db):
@@ -564,7 +570,7 @@ def test_deleting_no_sessions_announces_nothing(mock_db):
         patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=0),
         patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked") as publish,
     ):
-        sessions_service.delete_sessions_by_user(7, mock_db)
+        sessions_service.delete_sessions_by_user(MOCK_USER_ID, mock_db)
 
     publish.assert_not_called()
 
@@ -618,7 +624,7 @@ def test_deleting_one_session_verifies_the_revoke_step_up_before_deleting(mock_d
     with patch("modules.auth.sessions.service.sessions_crud.delete_session", return_value=_session()) as delete:
         order.attach_mock(delete, "delete")
         with patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family"):
-            sessions_service.delete_session("session-id", 7, _STEP_UP, verifier, mock_db)
+            sessions_service.delete_session("session-id", MOCK_USER_ID, _STEP_UP, verifier, mock_db)
 
     assert [call[0] for call in order.mock_calls][:2] == ["step_up", "delete"]
     verifier.assert_called_once_with(_STEP_UP)
@@ -629,7 +635,7 @@ def test_a_refused_step_up_deletes_no_session(mock_db):
         patch("modules.auth.sessions.service.sessions_crud.delete_session") as delete,
         pytest.raises(core_exceptions.StepUpFailedError),
     ):
-        sessions_service.delete_session("session-id", 7, _STEP_UP, _refusing(), mock_db)
+        sessions_service.delete_session("session-id", MOCK_USER_ID, _STEP_UP, _refusing(), mock_db)
 
     delete.assert_not_called()
     mock_db.commit.assert_not_called()
@@ -638,7 +644,7 @@ def test_a_refused_step_up_deletes_no_session(mock_db):
 def test_deleting_all_sessions_verifies_the_revoke_step_up_before_deleting(mock_db):
     verifier = MagicMock()
     with patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=0):
-        sessions_service.delete_sessions_by_user_and_commit(7, _STEP_UP, verifier, mock_db)
+        sessions_service.delete_sessions_by_user_and_commit(MOCK_USER_ID, _STEP_UP, verifier, mock_db)
 
     verifier.assert_called_once_with(_STEP_UP)
 
@@ -648,7 +654,7 @@ def test_a_refused_step_up_deletes_no_sessions(mock_db):
         patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user") as delete,
         pytest.raises(core_exceptions.StepUpFailedError),
     ):
-        sessions_service.delete_sessions_by_user_and_commit(7, _STEP_UP, _refusing(), mock_db)
+        sessions_service.delete_sessions_by_user_and_commit(MOCK_USER_ID, _STEP_UP, _refusing(), mock_db)
 
     delete.assert_not_called()
     mock_db.commit.assert_not_called()
@@ -664,9 +670,9 @@ def test_an_administrator_revoking_all_sessions_bumps_before_the_commit(mock_db)
     ):
         order.attach_mock(bump, "bump")
         order.attach_mock(delete, "delete_sessions")
-        sessions_service.delete_sessions_by_user_and_commit(7, _STEP_UP, MagicMock(), mock_db)
+        sessions_service.delete_sessions_by_user_and_commit(MOCK_USER_ID, _STEP_UP, MagicMock(), mock_db)
 
-    bump.assert_called_once_with(7, mock_db)
+    bump.assert_called_once_with(MOCK_USER_ID, mock_db)
     assert [call[0] for call in order.mock_calls] == ["bump", "delete_sessions", "commit"]
 
 
@@ -675,9 +681,9 @@ def test_an_administrator_revoking_all_sessions_bumps_when_none_were_open(mock_d
         patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=0),
         patch("modules.auth.sessions.service.security_generation_integration.stage_bump") as bump,
     ):
-        sessions_service.delete_sessions_by_user_and_commit(7, _STEP_UP, MagicMock(), mock_db)
+        sessions_service.delete_sessions_by_user_and_commit(MOCK_USER_ID, _STEP_UP, MagicMock(), mock_db)
 
-    bump.assert_called_once_with(7, mock_db)
+    bump.assert_called_once_with(MOCK_USER_ID, mock_db)
 
 
 def test_revoking_all_but_one_session_does_not_bump(mock_db):
@@ -687,7 +693,7 @@ def test_revoking_all_but_one_session_does_not_bump(mock_db):
         patch("modules.auth.sessions.service.security_generation_integration.stage_bump") as bump,
     ):
         sessions_service.delete_sessions_by_user_and_commit(
-            7, _STEP_UP, MagicMock(), mock_db, exclude_session_id="keep"
+            MOCK_USER_ID, _STEP_UP, MagicMock(), mock_db, exclude_session_id="keep"
         )
 
     bump.assert_not_called()
@@ -698,7 +704,7 @@ def test_a_refused_step_up_does_not_bump(mock_db):
         patch("modules.auth.sessions.service.security_generation_integration.stage_bump") as bump,
         pytest.raises(core_exceptions.StepUpFailedError),
     ):
-        sessions_service.delete_sessions_by_user_and_commit(7, _STEP_UP, _refusing(), mock_db)
+        sessions_service.delete_sessions_by_user_and_commit(MOCK_USER_ID, _STEP_UP, _refusing(), mock_db)
 
     bump.assert_not_called()
 
@@ -710,7 +716,7 @@ def test_revoking_one_session_does_not_bump(mock_db):
         patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked"),
         patch("modules.auth.sessions.service.security_generation_integration.stage_bump") as bump,
     ):
-        sessions_service.stage_delete_session("sid", 7, mock_db)
+        sessions_service.stage_delete_session("sid", MOCK_USER_ID, mock_db)
 
     bump.assert_not_called()
 
@@ -726,9 +732,9 @@ class TestBulkDeleteRemovesOAuthStates:
 
         now = datetime.now(UTC)
         for user_id, session_id, state_id in (
-            (7, "s-kept", "st-kept"),
-            (7, "s-gone", "st-gone"),
-            (8, "s-other", "st-other"),
+            (MOCK_USER_ID, "s-kept", "st-kept"),
+            (MOCK_USER_ID, "s-gone", "st-gone"),
+            (OTHER_USER_ID, "s-other", "st-other"),
         ):
             db.add(
                 oauth_state_models.OAuthState(
@@ -776,7 +782,7 @@ class TestBulkDeleteRemovesOAuthStates:
         db = create_sqlite_session()
         self._seed(db)
         with patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked"):
-            assert sessions_service.delete_sessions_by_user(7, db) == 2
+            assert sessions_service.delete_sessions_by_user(MOCK_USER_ID, db) == 2
         db.commit()
 
         assert self._state_ids(db) == {"st-other"}
@@ -788,7 +794,7 @@ class TestBulkDeleteRemovesOAuthStates:
         db = create_sqlite_session()
         self._seed(db)
         with patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked"):
-            assert sessions_service.delete_sessions_by_user(7, db, "s-kept") == 1
+            assert sessions_service.delete_sessions_by_user(MOCK_USER_ID, db, "s-kept") == 1
         db.commit()
 
         assert self._state_ids(db) == {"st-kept", "st-other"}
@@ -802,7 +808,10 @@ class TestStaleSessionPurge:
 
     def test_the_expired_purge_announces_each_ended_session_and_commits_each_batch(self):
         db = MagicMock()
-        batches = [[(7, f"s{i}") for i in range(sessions_service.core_database.PURGE_BATCH_SIZE)], [(8, "last")]]
+        batches = [
+            [(MOCK_USER_ID, f"s{i}") for i in range(sessions_service.core_database.PURGE_BATCH_SIZE)],
+            [(OTHER_USER_ID, "last")],
+        ]
         with (
             patch("modules.auth.sessions.service.sessions_crud.delete_expired_sessions", side_effect=batches) as crud,
             patch(self._PUBLISH) as publish,
@@ -813,7 +822,7 @@ class TestStaleSessionPurge:
         assert crud.call_count == 2
         assert db.commit.call_count == 2
         assert publish.call_count == total
-        assert publish.call_args_list[-1].args == (8, db)
+        assert publish.call_args_list[-1].args == (OTHER_USER_ID, db)
         assert publish.call_args_list[-1].kwargs == {"session_id": "last"}
 
     def test_the_idle_purge_announces_each_ended_session(self):
@@ -822,13 +831,17 @@ class TestStaleSessionPurge:
         with (
             patch("modules.auth.sessions.service.server_settings_integration.get_session_policy", return_value=policy),
             patch(
-                "modules.auth.sessions.service.sessions_crud.delete_idle_sessions", return_value=[(7, "a"), (9, "b")]
+                "modules.auth.sessions.service.sessions_crud.delete_idle_sessions",
+                return_value=[(MOCK_USER_ID, "a"), (_THIRD_USER_ID, "b")],
             ),
             patch(self._PUBLISH) as publish,
         ):
             assert sessions_service.delete_idle_sessions(db) == 2
 
-        assert [(c.args[0], c.kwargs["session_id"]) for c in publish.call_args_list] == [(7, "a"), (9, "b")]
+        assert [(c.args[0], c.kwargs["session_id"]) for c in publish.call_args_list] == [
+            (MOCK_USER_ID, "a"),
+            (_THIRD_USER_ID, "b"),
+        ]
 
     def test_no_idle_timeout_ends_nothing_and_announces_nothing(self):
         policy = MagicMock(idle_timeout=None)

@@ -10,6 +10,7 @@ import core.pagination as core_pagination
 from modules.health.health_poop.schema import HealthPoopRead
 
 # A stored record always has its start time.
+_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
 _STARTED = datetime(2026, 1, 1, 7, 0, tzinfo=UTC)
 
 _SERVICE = "modules.health.health_poop.router.health_poop_service"
@@ -32,7 +33,7 @@ def _build_app(mock_db):
         return None
 
     def _uid():
-        return 1
+        return _USER_ID
 
     app.dependency_overrides[auth_deps.check_scopes] = _mock
     app.dependency_overrides[auth_deps.get_current_user_id] = _uid
@@ -44,7 +45,7 @@ class TestReadHealthPoopAllPagination:
     @patch(f"{_SERVICE}.list_health_poop")
     def test_list_success(self, mock_list, mock_db):
         mock_list.return_value = core_pagination.Page(
-            items=[HealthPoopRead(updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, date_time=_STARTED)],
+            items=[HealthPoopRead(updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, date_time=_STARTED)],
             total=1,
             page=1,
             num_records=25,
@@ -73,7 +74,7 @@ class TestReadHealthPoopAllPagination:
         )
 
         args = mock_list.call_args
-        assert args.args[0] == 1
+        assert args.args[0] == _USER_ID
         assert (args.kwargs["page_number"], args.kwargs["num_records"]) == (2, 10)
         assert args.kwargs["interval"].value == "last_30_days"
 
@@ -81,12 +82,14 @@ class TestReadHealthPoopAllPagination:
 class TestReadHealthPoopById:
     @patch(f"{_SERVICE}.get_health_poop")
     def test_success(self, mock_get, mock_db):
-        mock_get.return_value = HealthPoopRead(updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, date_time=_STARTED)
+        mock_get.return_value = HealthPoopRead(
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, date_time=_STARTED
+        )
 
         response = TestClient(_build_app(mock_db)).get(f"/health_poop/{_ID}", headers=_HEADERS)
 
         assert response.status_code == 200
-        assert mock_get.call_args.args[:2] == (1, _ID)
+        assert mock_get.call_args.args[:2] == (_USER_ID, _ID)
 
     @patch(f"{_SERVICE}.get_health_poop")
     def test_not_found(self, mock_get, mock_db):
@@ -101,7 +104,7 @@ class TestCreateHealthPoop:
     @patch(f"{_SERVICE}.create_health_poop")
     def test_create_success(self, mock_create, mock_db):
         mock_create.return_value = HealthPoopRead(
-            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, date_time=_STARTED
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, date_time=_STARTED
         )
 
         response = TestClient(_build_app(mock_db)).post(
@@ -117,7 +120,7 @@ class TestEditHealthPoop:
     @patch(f"{_SERVICE}.edit_health_poop")
     def test_edit_success(self, mock_edit, mock_db):
         mock_edit.return_value = HealthPoopRead(
-            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, date_time=_STARTED
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, date_time=_STARTED
         )
 
         response = TestClient(_build_app(mock_db)).patch(
@@ -133,7 +136,7 @@ class TestDeleteHealthPoop:
         response = TestClient(_build_app(mock_db)).delete(f"/health_poop/{_ID}", headers=_IF_MATCH_HEADERS)
 
         assert response.status_code == 204
-        assert mock_delete.call_args.args[:2] == (1, _ID)
+        assert mock_delete.call_args.args[:2] == (_USER_ID, _ID)
         assert mock_delete.call_args.kwargs == {"if_match": '"1"'}
 
 
@@ -141,7 +144,7 @@ class TestReadSendsTheETag:
     @patch(f"{_SERVICE}.get_health_poop")
     def test_a_record_read_by_id_carries_its_version(self, mock_get, mock_db):
         mock_get.return_value = HealthPoopRead(
-            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, date_time=_STARTED, version=5
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, date_time=_STARTED, version=5
         )
 
         response = TestClient(_build_app(mock_db)).get(f"/health_poop/{_ID}", headers=_HEADERS)

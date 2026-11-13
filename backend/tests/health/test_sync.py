@@ -34,33 +34,33 @@ import modules.health.scheduled_jobs as health_scheduled_jobs
 FAR_FUTURE = datetime(2100, 1, 1, tzinfo=UTC)
 OLD = datetime(2020, 1, 1)
 MIDDLE = datetime(2021, 1, 1)
-USER = 1
-OTHER_USER = 2
+USER = uuid.uuid4()
+OTHER_USER = uuid.uuid4()
 
 
-def _weight(day: int, user_id: int = USER):
+def _weight(day: int, user_id: uuid.UUID = USER):
     return weight_models.HealthWeight(user_id=user_id, date=date(2024, 1, day), weight_kg=Decimal("70.5"))
 
 
-def _steps(day: int, user_id: int = USER):
+def _steps(day: int, user_id: uuid.UUID = USER):
     return steps_models.HealthSteps(user_id=user_id, date=date(2024, 1, day), steps=100)
 
 
-def _sleep(day: int, user_id: int = USER):
+def _sleep(day: int, user_id: uuid.UUID = USER):
     return sleep_models.HealthSleep(
         user_id=user_id, date=date(2024, 1, day), sleep_stages=[{"stage_type": "deep", "duration_seconds": 60}]
     )
 
 
-def _water(day: int, user_id: int = USER):
+def _water(day: int, user_id: uuid.UUID = USER):
     return water_models.HealthWater(user_id=user_id, date=date(2024, 1, day), amount_ml=Decimal("250"))
 
 
-def _poop(day: int, user_id: int = USER):
+def _poop(day: int, user_id: uuid.UUID = USER):
     return poop_models.HealthPoop(user_id=user_id, date_time=datetime(2024, 1, day, tzinfo=UTC))
 
 
-def _fasting(day: int, user_id: int = USER):
+def _fasting(day: int, user_id: uuid.UUID = USER):
     return fasting_models.HealthFasting(
         user_id=user_id, fast_start_time=datetime(2024, 1, day, tzinfo=UTC), status="completed"
     )

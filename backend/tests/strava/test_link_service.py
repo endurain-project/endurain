@@ -13,6 +13,7 @@ import modules.strava.link_service as strava_link_service
 import modules.strava.oauth_state_store as strava_oauth_state_store
 import modules.strava.schema as strava_schema
 import modules.strava.sync_state_store as strava_sync_state_store
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
 Status = strava_constants.SyncStatus
 LINK = strava_constants.SyncKind.LINK
@@ -41,10 +42,17 @@ _GRANTED = "read,profile:read_all,activity:read_all"
 
 
 def _start(
-    oauth_states, states, *, user_id=1, stored_state=_STATE, sent_state=_STATE, has_credentials=True, scope=_GRANTED
+    oauth_states,
+    states,
+    *,
+    user_id=MOCK_USER_ID,
+    stored_state=_STATE,
+    sent_state=_STATE,
+    has_credentials=True,
+    scope=_GRANTED,
 ):
     if stored_state is not None:
-        oauth_states.begin(1, stored_state)
+        oauth_states.begin(MOCK_USER_ID, stored_state)
     integrations = SimpleNamespace(
         strava_client_id="id" if has_credentials else None,
         strava_client_secret="stored" if has_credentials else None,
@@ -75,8 +83,8 @@ class TestStartLink:
 
         assert error is None
         assert (result.kind, result.status) == ("strava_link", Status.QUEUED)
-        assert states.get(1, LINK).status == Status.QUEUED
-        pool.submit.assert_called_once_with(strava_link_service.run_link, 1, "c", states)
+        assert states.get(MOCK_USER_ID, LINK).status == Status.QUEUED
+        pool.submit.assert_called_once_with(strava_link_service.run_link, MOCK_USER_ID, "c", states)
 
     @pytest.mark.parametrize(
         "scope",
@@ -96,8 +104,8 @@ class TestStartLink:
         assert isinstance(error, core_exceptions.ProviderScopeInsufficientError)
         assert error.status_code == 400
         pool.submit.assert_not_called()
-        assert states.get(1, LINK) is None
-        assert oauth_states.consume(1, _STATE) is True
+        assert states.get(MOCK_USER_ID, LINK) is None
+        assert oauth_states.consume(MOCK_USER_ID, _STATE) is True
 
     def test_a_grant_with_extra_scopes_is_accepted(self, oauth_states, states, pool):
         _result, error = _start(oauth_states, states, scope="read,read_all,profile:read_all,activity:read_all,x")
@@ -107,7 +115,7 @@ class TestStartLink:
 
     def test_a_state_is_good_for_one_link_only(self, oauth_states, states, pool):
         _start(oauth_states, states)
-        states.set_status(1, LINK, Status.SUCCEEDED)
+        states.set_status(MOCK_USER_ID, LINK, Status.SUCCEEDED)
         pool.reset_mock()
 
         _result, error = _start(oauth_states, states, stored_state=None)
@@ -117,7 +125,7 @@ class TestStartLink:
 
     def test_another_users_stored_state_is_never_consulted(self, oauth_states, states, pool):
         """The state is held per user, so user 2 cannot redeem the one user 1 stored."""
-        _result, error = _start(oauth_states, states, user_id=2)
+        _result, error = _start(oauth_states, states, user_id=OTHER_USER_ID)
 
         assert isinstance(error, core_exceptions.InvalidInputError)
         pool.submit.assert_not_called()
@@ -127,14 +135,14 @@ class TestStartLink:
 
         assert isinstance(error, core_exceptions.InvalidInputError)
         pool.submit.assert_not_called()
-        assert oauth_states.consume(1, _STATE) is False
+        assert oauth_states.consume(MOCK_USER_ID, _STATE) is False
 
     def test_a_user_without_client_credentials_is_refused_and_no_link_is_recorded(self, oauth_states, states, pool):
         _result, error = _start(oauth_states, states, has_credentials=False)
 
         assert isinstance(error, core_exceptions.InvalidInputError)
         pool.submit.assert_not_called()
-        assert states.get(1, LINK) is None
+        assert states.get(MOCK_USER_ID, LINK) is None
 
     def test_a_link_already_running_is_a_conflict(self, oauth_states, states, pool):
         first, _error = _start(oauth_states, states)
@@ -151,8 +159,8 @@ class TestStartLink:
         _result, error = _start(oauth_states, states)
 
         assert isinstance(error, core_local_pool.PoolFullError)
-        assert oauth_states.consume(1, _STATE) is True
-        assert states.get(1, LINK) is None
+        assert oauth_states.consume(MOCK_USER_ID, _STATE) is True
+        assert states.get(MOCK_USER_ID, LINK) is None
 
     def test_a_link_that_cannot_start_frees_the_claim(self, oauth_states, states, pool):
         pool.submit.side_effect = core_local_pool.PoolFullError("full")
@@ -160,12 +168,12 @@ class TestStartLink:
         _result, error = _start(oauth_states, states)
 
         assert isinstance(error, core_local_pool.PoolFullError)
-        assert states.get(1, LINK).status == Status.FAILED
-        states.begin(1, LINK, conflict="busy")
+        assert states.get(MOCK_USER_ID, LINK).status == Status.FAILED
+        states.begin(MOCK_USER_ID, LINK, conflict="busy")
 
 
 def _run(states, *, exchange_error=None):
-    states.begin(1, LINK, conflict="busy")
+    states.begin(MOCK_USER_ID, LINK, conflict="busy")
     integrations = SimpleNamespace(strava_client_id="123", strava_client_secret="stored")
     client = MagicMock()
     client.exchange_code_for_token.return_value = {"access_token": "t"}
@@ -185,7 +193,7 @@ def _run(states, *, exchange_error=None):
             strava_link_service.strava_client_service.core_cryptography, "decrypt_token_fernet", side_effect=str
         ),
     ):
-        strava_link_service.run_link(1, "c", states)
+        strava_link_service.run_link(MOCK_USER_ID, "c", states)
     return link, db
 
 
@@ -195,21 +203,21 @@ class TestRunLinkTellsTheBrowser:
         with patch.object(strava_sync_state_store.websocket_integration, "push_job_changed") as push:
             _run(states, exchange_error=exchange_error)
 
-        push.assert_called_once_with(1, ANY, "strava_link")
+        push.assert_called_once_with(MOCK_USER_ID, ANY, "strava_link")
 
 
 class TestRunLink:
     def test_a_successful_exchange_stores_the_tokens_and_completes(self, states):
         link, db = _run(states)
 
-        link.assert_called_once_with(1, {"access_token": "t"}, db)
+        link.assert_called_once_with(MOCK_USER_ID, {"access_token": "t"}, db)
         db.commit.assert_called_once()
-        assert states.get(1, LINK).status == Status.SUCCEEDED
+        assert states.get(MOCK_USER_ID, LINK).status == Status.SUCCEEDED
 
     def test_a_failed_exchange_is_recorded_without_storing_anything_and_frees_the_claim(self, states):
         link, db = _run(states, exchange_error=RuntimeError("secret-token-123 rejected"))
 
         link.assert_not_called()
         db.commit.assert_not_called()
-        assert states.get(1, LINK).status == Status.FAILED
-        states.begin(1, LINK, conflict="busy")
+        assert states.get(MOCK_USER_ID, LINK).status == Status.FAILED
+        states.begin(MOCK_USER_ID, LINK, conflict="busy")

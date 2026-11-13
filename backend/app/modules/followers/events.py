@@ -7,6 +7,7 @@ and subscriber cannot drift on the string. Convention: ``<domain>.<fact>``, past
 tense.
 """
 
+import uuid
 from typing import ClassVar
 
 from jasil.event_versioning import VersionedPayload
@@ -42,8 +43,8 @@ class FollowerRequestedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    requester_user_id: int
-    target_user_id: int
+    requester_user_id: uuid.UUID
+    target_user_id: uuid.UUID
 
 
 class FollowerAcceptedPayload(VersionedPayload):
@@ -58,8 +59,8 @@ class FollowerAcceptedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    accepter_user_id: int
-    requester_user_id: int
+    accepter_user_id: uuid.UUID
+    requester_user_id: uuid.UUID
 
 
 class FollowerRequestRemovedPayload(VersionedPayload):
@@ -74,5 +75,5 @@ class FollowerRequestRemovedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    requester_user_id: int
-    target_user_id: int
+    requester_user_id: uuid.UUID
+    target_user_id: uuid.UUID

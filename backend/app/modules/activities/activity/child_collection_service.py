@@ -103,7 +103,7 @@ class ChildCollection[ItemT: BaseModel, PageT]:
     def _page(
         self,
         activity: activity_schema.ActivityRead,
-        requester_user_id: int | None,
+        requester_user_id: uuid.UUID | None,
         page_number: int,
         num_records: int,
         db: Session,
@@ -128,7 +128,7 @@ class ChildCollection[ItemT: BaseModel, PageT]:
     def list_for_requester(
         self,
         activity_id: uuid.UUID,
-        requester_user_id: int,
+        requester_user_id: uuid.UUID,
         db: Session,
         *,
         page_number: int,
@@ -162,7 +162,7 @@ class ChildCollection[ItemT: BaseModel, PageT]:
     def list_for_activity(
         self,
         activity: activity_schema.ActivityRead,
-        requester_user_id: int | None,
+        requester_user_id: uuid.UUID | None,
         db: Session,
         *,
         page_number: int,

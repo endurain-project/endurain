@@ -83,6 +83,12 @@ class ImportAccountMismatchError(ProfileImportError):
     pass
 
 
+class ImportArchiveFromOlderVersionError(ProfileImportError):
+    """Raised when the archive was exported by an Endurain version that used integer ids."""
+
+    pass
+
+
 class FileFormatError(ProfileImportError):
     """Raised when imported file format is invalid or corrupted."""
 

@@ -10,11 +10,13 @@ import jasil.testing as jasil_testing
 import core.exceptions as core_exceptions
 import modules.auth.authentication.sso_exchange_service as sso_exchange_service
 
+_USER_ID = uuid.UUID(int=5)
+
 IDP_ID = uuid.uuid4()
 
 _SERVICE = "modules.auth.authentication.sso_exchange_service"
 _LOGIN = "auth.session.login"
-_USER = SimpleNamespace(id=5, username="alice", active=True, access_type="regular")
+_USER = SimpleNamespace(id=_USER_ID, username="alice", active=True, access_type="regular")
 
 
 def _exchange(db, *, pkce_error=None, inactive=False, claimed=True, header="web", stamp=0, between=None):
@@ -28,7 +30,7 @@ def _exchange(db, *, pkce_error=None, inactive=False, claimed=True, header="web"
         security_generation=stamp,
     )
     session = SimpleNamespace(
-        user_id=5,
+        user_id=_USER_ID,
         tokens_exchanged=False,
         expires_at=datetime(2027, 1, 1, tzinfo=UTC),
         client_type="web",
@@ -79,7 +81,9 @@ def _exchange(db, *, pkce_error=None, inactive=False, claimed=True, header="web"
 
 
 def _assert_refusal(audit, *, outcome, reason):
-    entry = audit.assert_audited(_LOGIN, outcome=outcome, target_type="user", target_id="5", target_owner_id="5")
+    entry = audit.assert_audited(
+        _LOGIN, outcome=outcome, target_type="user", target_id=str(_USER_ID), target_owner_id=str(_USER_ID)
+    )
     assert entry.details == {"method": "identity_provider", "mfa": False, "reason": reason, "new_device": False}
 
 
@@ -126,7 +130,7 @@ def test_a_successful_exchange_writes_only_its_success_row(mock_db):
 def test_a_security_change_since_the_session_was_created_refuses_the_exchange_and_issues_nothing(
     mock_db, security_generations
 ):
-    audit, raised = _exchange(mock_db, between=lambda: security_generations.stage_bump(5, mock_db))
+    audit, raised = _exchange(mock_db, between=lambda: security_generations.stage_bump(_USER_ID, mock_db))
 
     assert isinstance(raised, core_exceptions.NotFoundError)
     assert raised.detail == "Session not found or not eligible for token exchange"
@@ -141,7 +145,7 @@ def test_a_session_whose_state_has_no_stamp_is_refused(mock_db):
 
 
 def test_a_session_under_the_current_generation_still_exchanges(mock_db, security_generations):
-    security_generations.generations[5] = 3
+    security_generations.generations[_USER_ID] = 3
 
     audit, raised = _exchange(mock_db, stamp=3)
 

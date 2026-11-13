@@ -9,15 +9,16 @@ import modules.gears.gear.schema as schema
 import modules.gears.gear.service as service
 import modules.gears.gear_components.crud as gear_components_crud
 import modules.gears.gear_components.integration_service as gear_components_integration
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 from tests._helpers.gears import component_create, gear_create, install_readers
 
 
 class TestListGears:
     def test_the_total_ignores_the_page(self, db):
         for name in ("A", "B", "C"):
-            crud.create_gear(gear_create(name), 1, db)
+            crud.create_gear(gear_create(name), MOCK_USER_ID, db)
 
-        result = service.list_gears(1, db, page_number=1, num_records=2)
+        result = service.list_gears(MOCK_USER_ID, db, page_number=1, num_records=2)
 
         assert (result.total, result.num_records, result.page, result.next) == (3, 2, 1, 2)
         assert [g.nickname for g in result.items] == ["A", "B"]
@@ -25,31 +26,31 @@ class TestListGears:
 
 class TestReadGearDetail:
     def test_totals_add_the_initial_distance_to_recorded_usage(self, db):
-        created = crud.create_gear(gear_create(initial_distance=10_000.0), 1, db)
+        created = crud.create_gear(gear_create(initial_distance=10_000.0), MOCK_USER_ID, db)
         install_readers(
             usage=lambda gear_id, user_id, _db: gears_contracts.UsageTotals(distance=500.0, time=60.0),
             components_cost=lambda gear_id, user_id, _db: 99.5,
         )
 
-        detail = service.read_gear_detail(created.id, 1, db)
+        detail = service.read_gear_detail(created.id, MOCK_USER_ID, db)
 
         assert (detail.total_distance, detail.total_time, detail.total_components_cost) == (10_500.0, 60.0, "99.50")
 
     def test_an_unknown_gear_is_not_found_without_asking_for_usage(self, db):
         with pytest.raises(core_exceptions.NotFoundError):
-            service.read_gear_detail(1, 1, db)
+            service.read_gear_detail(MOCK_USER_ID, MOCK_USER_ID, db)
 
     def test_missing_readers_fail_loudly_rather_than_report_zero(self, db):
-        created = crud.create_gear(gear_create(), 1, db)
+        created = crud.create_gear(gear_create(), MOCK_USER_ID, db)
 
         with pytest.raises(RuntimeError, match="configure_gear_contributors"):
-            service.read_gear_detail(created.id, 1, db)
+            service.read_gear_detail(created.id, MOCK_USER_ID, db)
 
 
 class TestCreateGear:
     def test_create_commits_and_returns_the_gear(self, db, commit_spy, caplog):
         with caplog.at_level("DEBUG", logger=service.logger.name):
-            created = service.create_gear(gear_create(), 1, db)
+            created = service.create_gear(gear_create(), MOCK_USER_ID, db)
 
         commit_spy.assert_called_once_with()
         assert created.nickname == "Road Bike"
@@ -57,17 +58,17 @@ class TestCreateGear:
         assert [record.levelname for record in caplog.records] == ["INFO"]
 
     def test_a_repeated_nickname_is_a_conflict_and_nothing_is_committed(self, db, commit_spy):
-        crud.create_gear(gear_create("Road Bike"), 1, db)
+        crud.create_gear(gear_create("Road Bike"), MOCK_USER_ID, db)
 
         with pytest.raises(core_exceptions.ConflictError):
-            service.create_gear(gear_create(" road bike "), 1, db)
+            service.create_gear(gear_create(" road bike "), MOCK_USER_ID, db)
 
         commit_spy.assert_not_called()
 
 
 class TestStageGears:
     def test_only_new_unique_named_gears_are_staged(self, db, commit_spy):
-        crud.create_gear(gear_create("Existing"), 1, db)
+        crud.create_gear(gear_create("Existing"), MOCK_USER_ID, db)
 
         service.stage_gears(
             [
@@ -78,19 +79,19 @@ class TestStageGears:
                 gear_create("EXISTING"),
                 gear_create("Another"),
             ],
-            1,
+            MOCK_USER_ID,
             db,
         )
 
         commit_spy.assert_not_called()
-        assert sorted(g.nickname for g in crud.get_gear_user(1, db)) == ["Another", "Existing", "New"]
+        assert sorted(g.nickname for g in crud.get_gear_user(MOCK_USER_ID, db)) == ["Another", "Existing", "New"]
 
     def test_nothing_is_written_when_nothing_is_new(self, db):
-        crud.create_gear(gear_create("Existing"), 1, db)
+        crud.create_gear(gear_create("Existing"), MOCK_USER_ID, db)
 
-        service.stage_gears([gear_create("existing")], 1, db)
+        service.stage_gears([gear_create("existing")], MOCK_USER_ID, db)
 
-        assert crud.get_gears_number(1, db) == 1
+        assert crud.get_gears_number(MOCK_USER_ID, db) == 1
 
 
 class TestEditGearType:
@@ -99,62 +100,70 @@ class TestEditGearType:
         install_readers(count_components_outside_type=gear_components_integration.count_components_outside_gear_type)
 
     def test_a_type_change_with_a_component_of_the_old_type_is_a_conflict_and_changes_nothing(self, db, commit_spy):
-        created = crud.create_gear(gear_create(), 1, db)
-        gear_components_crud.create_gear_component(component_create(created.id, type="chain"), 1, db)
+        created = crud.create_gear(gear_create(), MOCK_USER_ID, db)
+        gear_components_crud.create_gear_component(component_create(created.id, type="chain"), MOCK_USER_ID, db)
         self._install_real_counter()
 
         with pytest.raises(core_exceptions.ComponentsOutsideGearTypeError, match="Remove the components"):
-            service.edit_gear(created.id, schema.GearUpdate(gear_type=schema.GearType.SHOES), 1, db, if_match="*")
+            service.edit_gear(
+                created.id, schema.GearUpdate(gear_type=schema.GearType.SHOES), MOCK_USER_ID, db, if_match="*"
+            )
 
         commit_spy.assert_not_called()
-        assert crud.get_gear_user_by_id(1, created.id, db).gear_type == schema.GearType.BIKE
+        assert crud.get_gear_user_by_id(MOCK_USER_ID, created.id, db).gear_type == schema.GearType.BIKE
 
     def test_a_type_change_without_components_is_applied(self, db):
-        created = crud.create_gear(gear_create(), 1, db)
+        created = crud.create_gear(gear_create(), MOCK_USER_ID, db)
         self._install_real_counter()
 
-        updated = service.edit_gear(created.id, schema.GearUpdate(gear_type=schema.GearType.SHOES), 1, db, if_match="*")
+        updated = service.edit_gear(
+            created.id, schema.GearUpdate(gear_type=schema.GearType.SHOES), MOCK_USER_ID, db, if_match="*"
+        )
 
         assert updated.gear_type == schema.GearType.SHOES
 
     def test_a_type_change_to_a_type_that_accepts_every_component_is_applied(self, db):
-        created = crud.create_gear(gear_create(), 1, db)
-        gear_components_crud.create_gear_component(component_create(created.id, type="chain"), 1, db)
+        created = crud.create_gear(gear_create(), MOCK_USER_ID, db)
+        gear_components_crud.create_gear_component(component_create(created.id, type="chain"), MOCK_USER_ID, db)
         self._install_real_counter()
 
         updated = service.edit_gear(
-            created.id, schema.GearUpdate(gear_type=schema.GearType.WETSUIT), 1, db, if_match="*"
+            created.id, schema.GearUpdate(gear_type=schema.GearType.WETSUIT), MOCK_USER_ID, db, if_match="*"
         )
 
         assert updated.gear_type == schema.GearType.WETSUIT
 
     def test_an_edit_that_keeps_the_type_does_not_ask_for_components(self, db):
-        created = crud.create_gear(gear_create(), 1, db)
+        created = crud.create_gear(gear_create(), MOCK_USER_ID, db)
         counter = MagicMock(return_value=1)
         install_readers(count_components_outside_type=counter)
 
-        service.edit_gear(created.id, schema.GearUpdate(nickname="Gravel"), 1, db, if_match="*")
-        service.edit_gear(created.id, schema.GearUpdate(gear_type=schema.GearType.BIKE), 1, db, if_match="*")
+        service.edit_gear(created.id, schema.GearUpdate(nickname="Gravel"), MOCK_USER_ID, db, if_match="*")
+        service.edit_gear(created.id, schema.GearUpdate(gear_type=schema.GearType.BIKE), MOCK_USER_ID, db, if_match="*")
 
         counter.assert_not_called()
 
     def test_the_gear_is_locked_before_the_components_are_counted(self, db):
-        created = crud.create_gear(gear_create(), 1, db)
+        created = crud.create_gear(gear_create(), MOCK_USER_ID, db)
         calls: list[str] = []
         install_readers(count_components_outside_type=lambda *_: calls.append("count") or 0)
 
         with patch.object(crud, "lock_gear", side_effect=lambda *_: calls.append("lock")):
-            service.edit_gear(created.id, schema.GearUpdate(gear_type=schema.GearType.SHOES), 1, db, if_match="*")
+            service.edit_gear(
+                created.id, schema.GearUpdate(gear_type=schema.GearType.SHOES), MOCK_USER_ID, db, if_match="*"
+            )
 
         assert calls == ["lock", "count"]
 
     def test_a_stale_type_change_is_a_precondition_failure_before_the_components_are_counted(self, db, commit_spy):
-        created = crud.create_gear(gear_create(), 1, db)
+        created = crud.create_gear(gear_create(), MOCK_USER_ID, db)
         counter = MagicMock(return_value=1)
         install_readers(count_components_outside_type=counter)
 
         with pytest.raises(core_exceptions.PreconditionFailedError):
-            service.edit_gear(created.id, schema.GearUpdate(gear_type=schema.GearType.SHOES), 1, db, if_match='"99"')
+            service.edit_gear(
+                created.id, schema.GearUpdate(gear_type=schema.GearType.SHOES), MOCK_USER_ID, db, if_match='"99"'
+            )
 
         counter.assert_not_called()
         commit_spy.assert_not_called()
@@ -162,107 +171,107 @@ class TestEditGearType:
 
 class TestEditAndDelete:
     def test_edit_commits_the_change(self, db, commit_spy):
-        created = crud.create_gear(gear_create(), 1, db)
+        created = crud.create_gear(gear_create(), MOCK_USER_ID, db)
 
-        updated = service.edit_gear(created.id, schema.GearUpdate(nickname="Gravel"), 1, db, if_match="*")
+        updated = service.edit_gear(created.id, schema.GearUpdate(nickname="Gravel"), MOCK_USER_ID, db, if_match="*")
 
         commit_spy.assert_called_once_with()
         assert updated.nickname == "Gravel"
 
     def test_a_stale_edit_is_a_precondition_failure_and_not_committed(self, db, commit_spy):
-        created = crud.create_gear(gear_create(), 1, db)
+        created = crud.create_gear(gear_create(), MOCK_USER_ID, db)
 
         with pytest.raises(core_exceptions.PreconditionFailedError):
-            service.edit_gear(created.id, schema.GearUpdate(brand="x"), 1, db, if_match='"99"')
+            service.edit_gear(created.id, schema.GearUpdate(brand="x"), MOCK_USER_ID, db, if_match='"99"')
 
         commit_spy.assert_not_called()
 
     def test_delete_commits_after_staging(self, db, commit_spy):
-        created = crud.create_gear(gear_create(), 1, db)
+        created = crud.create_gear(gear_create(), MOCK_USER_ID, db)
 
         install_readers()
 
-        service.delete_gear(created.id, 1, db, if_match=f'"{created.version}"')
+        service.delete_gear(created.id, MOCK_USER_ID, db, if_match=f'"{created.version}"')
 
         commit_spy.assert_called_once_with()
-        assert crud.get_gear_user_by_id(1, created.id, db) is None
+        assert crud.get_gear_user_by_id(MOCK_USER_ID, created.id, db) is None
 
     def test_a_stale_delete_is_a_precondition_failure_and_not_committed(self, db, commit_spy):
-        created = crud.create_gear(gear_create(), 1, db)
+        created = crud.create_gear(gear_create(), MOCK_USER_ID, db)
         install_readers()
 
         with pytest.raises(core_exceptions.PreconditionFailedError):
-            service.delete_gear(created.id, 1, db, if_match='"99"')
+            service.delete_gear(created.id, MOCK_USER_ID, db, if_match='"99"')
 
         commit_spy.assert_not_called()
-        assert crud.get_gear_user_by_id(1, created.id, db) is not None
+        assert crud.get_gear_user_by_id(MOCK_USER_ID, created.id, db) is not None
 
     def test_delete_unassigns_the_activities_before_removing_the_gear(self, db):
-        created = crud.create_gear(gear_create(), 1, db)
+        created = crud.create_gear(gear_create(), MOCK_USER_ID, db)
         clear = MagicMock(return_value=2)
         install_readers(clear_activities_gear=clear)
 
-        service.delete_gear(created.id, 1, db, if_match="*")
+        service.delete_gear(created.id, MOCK_USER_ID, db, if_match="*")
 
-        clear.assert_called_once_with(created.id, 1, db)
+        clear.assert_called_once_with(created.id, MOCK_USER_ID, db)
 
     def test_delete_unassigns_the_default_gear_before_removing_the_gear(self, db):
-        created = crud.create_gear(gear_create(), 1, db)
+        created = crud.create_gear(gear_create(), MOCK_USER_ID, db)
         clear = MagicMock()
         install_readers(clear_default_gear=clear)
 
-        service.delete_gear(created.id, 1, db, if_match="*")
+        service.delete_gear(created.id, MOCK_USER_ID, db, if_match="*")
 
-        clear.assert_called_once_with([created.id], 1, db)
+        clear.assert_called_once_with([created.id], MOCK_USER_ID, db)
 
     def test_delete_of_a_foreign_gear_is_not_found_and_not_committed(self, db, commit_spy):
-        created = crud.create_gear(gear_create(), 8, db)
+        created = crud.create_gear(gear_create(), MOCK_USER_ID, db)
         install_readers()
 
         with pytest.raises(core_exceptions.NotFoundError):
-            service.delete_gear(created.id, 2, db, if_match="*")
+            service.delete_gear(created.id, OTHER_USER_ID, db, if_match="*")
 
         commit_spy.assert_not_called()
 
 
 class TestDeleteAllStravaGearForUser:
     def test_unassigns_the_default_gear_of_the_strava_gears_only(self, db):
-        strava = crud.create_gear(gear_create("S", strava_gear_id="b1"), 1, db)
-        crud.create_gear(gear_create("G", garminconnect_gear_id="g1"), 1, db)
+        strava = crud.create_gear(gear_create("S", strava_gear_id="b1"), MOCK_USER_ID, db)
+        crud.create_gear(gear_create("G", garminconnect_gear_id="g1"), MOCK_USER_ID, db)
         clear = MagicMock()
         install_readers(clear_default_gear=clear)
 
-        service.delete_all_strava_gear_for_user(1, db)
+        service.delete_all_strava_gear_for_user(MOCK_USER_ID, db)
 
-        clear.assert_called_once_with([strava.id], 1, db)
-        assert [g.nickname for g in crud.get_gear_user(1, db)] == ["G"]
+        clear.assert_called_once_with([strava.id], MOCK_USER_ID, db)
+        assert [g.nickname for g in crud.get_gear_user(MOCK_USER_ID, db)] == ["G"]
 
 
 class TestRequireOwnedGears:
     def test_owned_gears_pass(self, db):
-        a = crud.create_gear(gear_create("A"), 7, db)
-        b = crud.create_gear(gear_create("B"), 7, db)
+        a = crud.create_gear(gear_create("A"), OTHER_USER_ID, db)
+        b = crud.create_gear(gear_create("B"), OTHER_USER_ID, db)
 
-        service.require_owned_gears(7, [a.id, b.id, a.id], db)
+        service.require_owned_gears(OTHER_USER_ID, [a.id, b.id, a.id], db)
 
     def test_a_foreign_gear_is_not_found(self, db):
-        foreign = crud.create_gear(gear_create(), 8, db)
+        foreign = crud.create_gear(gear_create(), MOCK_USER_ID, db)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            service.require_owned_gears(7, [foreign.id], db)
+            service.require_owned_gears(OTHER_USER_ID, [foreign.id], db)
 
     def test_clearing_a_gear_needs_no_lookup(self):
         db = MagicMock()
 
-        service.require_owned_gears(7, [None], db)
+        service.require_owned_gears(OTHER_USER_ID, [None], db)
 
         db.execute.assert_not_called()
 
 
 class TestConcurrentStaging:
     def test_a_nickname_taken_between_check_and_insert_is_left_out(self, db):
-        crud.create_gear(gear_create("Taken"), 1, db)
+        crud.create_gear(gear_create("Taken"), MOCK_USER_ID, db)
         with patch("modules.gears.gear.crud.get_existing_nicknames", return_value=set()):
-            service.stage_gears([gear_create("taken"), gear_create("Fresh")], 1, db)
+            service.stage_gears([gear_create("taken"), gear_create("Fresh")], MOCK_USER_ID, db)
 
-        assert sorted(g.nickname for g in crud.get_gear_user(1, db)) == ["Fresh", "Taken"]
+        assert sorted(g.nickname for g in crud.get_gear_user(MOCK_USER_ID, db)) == ["Fresh", "Taken"]

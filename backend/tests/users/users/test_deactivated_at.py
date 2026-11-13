@@ -1,5 +1,6 @@
 """Tests for the marker that tells an administrator-deactivated account from a sign-up awaiting verification."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import jasil.audit as jasil_audit
@@ -15,6 +16,8 @@ import modules.users.users.models as users_models
 import modules.users.users.schema as users_schema
 import modules.users.users.service as users_service
 
+_U1, _U7, _U9 = (uuid.UUID(int=n) for n in (1, 7, 9))
+
 _SERVICE = "modules.users.users.service"
 
 
@@ -22,22 +25,22 @@ _SERVICE = "modules.users.users.service"
 def db():
     session = create_sqlite_session()
     factory = sessionmaker(bind=session.get_bind())
-    ensure_user(factory, 7)
+    ensure_user(factory, _U7)
     session.query(users_models.Users).update({"preferred_language": "en"})
     session.commit()
     yield session
     session.close()
 
 
-def _user(db, user_id=7):
+def _user(db, user_id=_U7):
     db.expire_all()
     return db.get(users_models.Users, user_id)
 
 
 def _edit(db, **changes):
-    edit = users_schema.UserEdit.from_read(users_service.require_user(7, db)).model_copy(update=changes)
+    edit = users_schema.UserEdit.from_read(users_service.require_user(_U7, db)).model_copy(update=changes)
     with patch(f"{_SERVICE}.sign_up_tokens_integration"):
-        users_service.stage_user_edit(7, edit, db, if_match="*")
+        users_service.stage_user_edit(_U7, edit, db, if_match="*")
     db.commit()
 
 
@@ -75,7 +78,7 @@ class TestApprovalAndVerification:
             patch(f"{_SERVICE}.server_settings_integration.get_server_settings", return_value=MagicMock()) as settings,
         ):
             settings.return_value.signup_require_email_verification = False
-            users_service.approve_user(7, db)
+            users_service.approve_user(_U7, db)
 
         assert _user(db).active is True
         assert _user(db).deactivated_at is None
@@ -85,7 +88,7 @@ class TestApprovalAndVerification:
         if state == "deactivated":
             _edit(db, active=False)
         elif state == "deletion_queued":
-            users_crud.stage_deletion_request(7, db)
+            users_crud.stage_deletion_request(_U7, db)
             db.commit()
         before = (_user(db).active, _user(db).deactivated_at, _user(db).deletion_requested_at, _user(db).version)
         with (
@@ -95,11 +98,13 @@ class TestApprovalAndVerification:
         ):
             settings.return_value.signup_require_email_verification = False
             with pytest.raises(core_exceptions.ConflictError, match="not awaiting approval"):
-                users_service.approve_user(7, db)
+                users_service.approve_user(_U7, db)
 
         sign_up.request_sign_up_approved_email.assert_not_called()
         assert len(audit.matching(users_audit_actions.USER_APPROVE.id)) == 1
-        audit.assert_audited(users_audit_actions.USER_APPROVE.id, outcome=jasil_audit.Outcome.DENIED, target_id="7")
+        audit.assert_audited(
+            users_audit_actions.USER_APPROVE.id, outcome=jasil_audit.Outcome.DENIED, target_id=str(_U7)
+        )
         db.rollback()
         assert (
             _user(db).active,
@@ -118,7 +123,7 @@ class TestStageEmailVerification:
     def test_a_deactivated_account_is_verified_but_never_activated(self, db, approval):
         _edit(db, active=False)
 
-        users_service.stage_email_verification(7, self._settings(approval=approval), db)
+        users_service.stage_email_verification(_U7, self._settings(approval=approval), db)
 
         user = _user(db)
         assert user.email_verified is True
@@ -130,19 +135,19 @@ class TestStageEmailVerification:
         user.active, user.email_verified = False, False
         db.commit()
 
-        users_service.stage_email_verification(7, self._settings(approval=False), db)
+        users_service.stage_email_verification(_U7, self._settings(approval=False), db)
 
         assert (_user(db).active, _user(db).email_verified) == (True, True)
 
     def test_is_deactivated_reports_the_marker(self, db):
-        assert users_service.is_deactivated(7, db) is False
+        assert users_service.is_deactivated(_U7, db) is False
         _edit(db, active=False)
-        assert users_service.is_deactivated(7, db) is True
+        assert users_service.is_deactivated(_U7, db) is True
 
 
 class TestDeletionRequest:
     def test_a_deletion_request_deactivates_and_records_it(self, db):
-        users_crud.stage_deletion_request(7, db)
+        users_crud.stage_deletion_request(_U7, db)
         db.commit()
 
         assert _user(db).active is False
@@ -170,8 +175,8 @@ class TestCreation:
             patch(f"{_SERVICE}._stage_default_data"),
         ):
             credentials.validate_and_hash_password_for_user.return_value = "hash"
-            crud.create_user.return_value = MagicMock(id=1)
-            users_service.create_user(user, None, 9, "sid-9", MagicMock(), MagicMock())
+            crud.create_user.return_value = MagicMock(id=_U1)
+            users_service.create_user(user, None, _U9, "sid-9", MagicMock(), MagicMock())
         return crud.create_user.call_args.args[0]
 
     @pytest.mark.usefixtures("email_available")
@@ -195,7 +200,7 @@ class TestCreation:
             patch(f"{_SERVICE}._stage_default_data"),
         ):
             credentials.validate_and_hash_password_for_user.return_value = "hash"
-            crud.create_user.return_value = MagicMock(id=1)
+            crud.create_user.return_value = MagicMock(id=_U1)
             users_service.stage_signup_user(signup, settings, MagicMock())
 
         fields = crud.create_user.call_args.args[0]

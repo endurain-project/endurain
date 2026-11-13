@@ -60,7 +60,7 @@ class AccountSecurityChangedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    user_id: int
+    user_id: uuid.UUID
     change: AccountSecurityChange
     idp_id: uuid.UUID | None = None
     access_type: str | None = None
@@ -77,7 +77,7 @@ class StepUpSessionEndedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    user_id: int
+    user_id: uuid.UUID
 
 
 class StepUpLockedPayload(VersionedPayload):
@@ -91,4 +91,4 @@ class StepUpLockedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    user_id: int
+    user_id: uuid.UUID

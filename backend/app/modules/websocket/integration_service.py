@@ -10,6 +10,8 @@ best-effort and at-most-once: a hint can be lost, so nothing may depend on one a
 That is why this never raises over a push that could not be sent.
 """
 
+import uuid
+
 import jasil.runtime as platform_runtime
 
 import core.job_status as core_job_status
@@ -20,7 +22,7 @@ import modules.websocket.keys as websocket_keys
 logger = core_logger.get_logger(__name__)
 
 
-def push_to_user(user_id: int, message: dict[str, str | int]) -> None:
+def push_to_user(user_id: uuid.UUID, message: dict[str, str | int]) -> None:
     """Publish a hint for one user to every process, from any thread.
 
     Safe from a process that holds no sockets, such as the job worker. A transport
@@ -45,7 +47,7 @@ def push_to_user(user_id: int, message: dict[str, str | int]) -> None:
         )
 
 
-def push_job_changed(user_id: int, job_id: str, kind: str) -> None:
+def push_job_changed(user_id: uuid.UUID, job_id: str, kind: str) -> None:
     """Tell a user's browser that a background job it may be waiting on changed state.
 
     The client reads the job at ``GET /jobs/{job_id}``; the hint only saves it waiting for its next poll.

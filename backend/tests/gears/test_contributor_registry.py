@@ -1,3 +1,4 @@
+import uuid
 from unittest.mock import MagicMock
 
 import pytest
@@ -7,6 +8,7 @@ import modules.activities.activity.integration_service as activity_integration
 import modules.gears.contributor_registry as registry
 import modules.gears.gear_components.integration_service as gear_components_integration
 import modules.users.users_default_gear.integration_service as users_default_gear_integration
+from tests._helpers.auth import MOCK_USER_ID
 from tests._helpers.gears import install_readers
 
 
@@ -17,11 +19,12 @@ def test_nothing_is_answered_until_composition_installs_the_readers():
 
 def test_register_replaces_and_clear_removes_the_readers():
     cost = MagicMock(return_value=5.0)
+    gear_id = uuid.uuid4()
     install_readers()
     install_readers(components_cost=cost)
 
-    assert registry.readers().components_cost(1, 2, "db") == 5.0
-    cost.assert_called_once_with(1, 2, "db")
+    assert registry.readers().components_cost(gear_id, MOCK_USER_ID, "db") == 5.0
+    cost.assert_called_once_with(gear_id, MOCK_USER_ID, "db")
 
     registry.clear()
     with pytest.raises(RuntimeError):

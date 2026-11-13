@@ -3,6 +3,7 @@
 Payloads describe the sign-in only: events are persisted, so neither the device id nor its hash is put in one.
 """
 
+import uuid
 from datetime import datetime
 from enum import StrEnum
 from typing import ClassVar
@@ -38,7 +39,7 @@ class NewDeviceSignInPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    user_id: int
+    user_id: uuid.UUID
     browser: str
     operating_system: str
     device_type: str

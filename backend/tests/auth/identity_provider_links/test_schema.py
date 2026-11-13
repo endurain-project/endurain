@@ -12,6 +12,7 @@ from modules.auth.identity_provider_links.schema import (
     UserIdentityProviderCreate,
     UserIdentityProviderRead,
 )
+from tests._helpers.auth import MOCK_USER_ID
 
 IDP_ID = uuid.uuid4()
 
@@ -28,7 +29,7 @@ class TestUserIdentityProviderBase:
         """
         # Arrange
         data = {
-            "user_id": 1,
+            "user_id": MOCK_USER_ID,
             "idp_id": IDP_ID,
             "idp_subject": "user123@example.com",
         }
@@ -37,7 +38,7 @@ class TestUserIdentityProviderBase:
         obj = UserIdentityProviderBase(**data)
 
         # Assert
-        assert obj.user_id == 1
+        assert obj.user_id == MOCK_USER_ID
         assert obj.idp_id == IDP_ID
         assert obj.idp_subject == "user123@example.com"
 
@@ -67,7 +68,7 @@ class TestUserIdentityProviderBase:
         """
         # Arrange
         data = {
-            "user_id": 1,
+            "user_id": MOCK_USER_ID,
             "idp_id": IDP_ID,
             "idp_subject": "user123@example.com",
             "extra_field": "should_fail",
@@ -87,7 +88,7 @@ class TestUserIdentityProviderBase:
         """
         # Arrange
         data = {
-            "user_id": 1,
+            "user_id": MOCK_USER_ID,
             "idp_id": IDP_ID,
             "idp_subject": "",
         }
@@ -106,7 +107,7 @@ class TestUserIdentityProviderBase:
         """
         # Arrange
         data = {
-            "user_id": 1,
+            "user_id": MOCK_USER_ID,
             "idp_id": IDP_ID,
             "idp_subject": "x" * 501,
         }
@@ -118,14 +119,14 @@ class TestUserIdentityProviderBase:
         assert "idp_subject" in str(exc_info.value)
 
     def test_user_identity_provider_base_invalid_user_id_type(self):
-        """Test strict int validation for user_id.
+        """Test UUID validation for user_id.
 
         Asserts:
-            - ValidationError is raised for non-integer user_id
+            - ValidationError is raised for non-UUID user_id
         """
         # Arrange
         data = {
-            "user_id": "not-an-int",
+            "user_id": "not-a-uuid",
             "idp_id": IDP_ID,
             "idp_subject": "user123@example.com",
         }
@@ -145,7 +146,7 @@ class TestUserIdentityProviderBase:
         """
         # Arrange
         data = {
-            "user_id": 1,
+            "user_id": MOCK_USER_ID,
             "idp_id": bad_idp_id,
             "idp_subject": "user123@example.com",
         }
@@ -169,7 +170,7 @@ class TestUserIdentityProviderCreate:
         """
         # Arrange
         data = {
-            "user_id": 1,
+            "user_id": MOCK_USER_ID,
             "idp_id": IDP_ID,
             "idp_subject": "user123@example.com",
         }
@@ -178,7 +179,7 @@ class TestUserIdentityProviderCreate:
         obj = UserIdentityProviderCreate(**data)
 
         # Assert
-        assert obj.user_id == 1
+        assert obj.user_id == MOCK_USER_ID
         assert obj.idp_id == IDP_ID
         assert obj.idp_subject == "user123@example.com"
 
@@ -196,7 +197,7 @@ class TestUserIdentityProviderRead:
         # Arrange
         data = {
             "id": uuid.UUID(int=1),
-            "user_id": 1,
+            "user_id": MOCK_USER_ID,
             "idp_id": IDP_ID,
             "idp_subject": "user123@example.com",
             "linked_at": datetime.now(UTC),
@@ -221,7 +222,7 @@ class TestUserIdentityProviderRead:
         now = datetime.now(UTC)
         data = {
             "id": uuid.UUID(int=1),
-            "user_id": 1,
+            "user_id": MOCK_USER_ID,
             "idp_id": IDP_ID,
             "idp_subject": "user123@example.com",
             "linked_at": now,
@@ -244,7 +245,7 @@ class TestUserIdentityProviderRead:
         # Arrange
         data = {
             "id": uuid.UUID(int=1),
-            "user_id": 1,
+            "user_id": MOCK_USER_ID,
             "idp_id": IDP_ID,
             "idp_subject": "user123@example.com",
         }
@@ -270,7 +271,7 @@ class TestUserIdentityProviderResponse:
         now = datetime.now(UTC)
         data = {
             "id": uuid.UUID(int=1),
-            "user_id": 1,
+            "user_id": MOCK_USER_ID,
             "idp_id": IDP_ID,
             "idp_subject": "user123@example.com",
             "linked_at": now,
@@ -295,7 +296,7 @@ class TestUserIdentityProviderResponse:
         now = datetime.now(UTC)
         data = {
             "id": uuid.UUID(int=1),
-            "user_id": 1,
+            "user_id": MOCK_USER_ID,
             "idp_id": IDP_ID,
             "idp_subject": "user123@example.com",
             "linked_at": now,
@@ -324,7 +325,7 @@ class TestUserIdentityProviderResponse:
         # Arrange
         class MockORM:
             id = uuid.UUID(int=1)
-            user_id = 1
+            user_id = MOCK_USER_ID
             idp_id = IDP_ID
             idp_subject = "user123@example.com"
             linked_at = datetime.now(UTC)

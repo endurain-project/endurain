@@ -143,7 +143,7 @@ class TestRouteConventions:
         )
 
     def test_path_parameters_are_typed_by_alias(self):
-        """A path parameter's constraint is its type: ``PositiveId``/``UuidId``, not a bare ``int`` or ``UUID``.
+        """A path parameter's constraint is its type: ``UuidId``, not a bare ``int`` or ``UUID``.
 
         A bare ``int`` accepts ``0`` and negative ids, and publishes no constraint in OpenAPI. A bare ``UUID``
         skips the one alias every UUID path id goes through.
@@ -167,7 +167,7 @@ class TestRouteConventions:
                         offenders.append(f"{path.relative_to(_ROOT).as_posix()}::{function.name}({argument.arg})")
 
         assert offenders == [], (
-            "Type the path parameter with an alias from dependencies (PositiveId, UuidId or a module alias):\n  "
+            "Type the path parameter with an alias from dependencies (UuidId or a module alias):\n  "
             + "\n  ".join(offenders)
         )
 

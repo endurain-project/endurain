@@ -11,6 +11,7 @@ import core.event_metadata as core_event_metadata
 import modules.auth.password_reset_tokens.event_publishers as password_reset_publishers
 import modules.auth.password_reset_tokens.events as password_reset_events
 import modules.auth.password_reset_tokens.subscribers as password_reset_subscribers
+from tests._helpers.auth import MOCK_USER_ID
 
 _CLIENT = {"ip_address": "203.0.113.7", "user_agent": "agent/1.0"}
 
@@ -18,7 +19,7 @@ _CLIENT = {"ip_address": "203.0.113.7", "user_agent": "agent/1.0"}
 def _event() -> platform_events.Event:
     return platform_events.new_event(
         password_reset_events.PASSWORD_RESET_REQUESTED,
-        {"user_id": 4, **_CLIENT},
+        {"user_id": str(MOCK_USER_ID), **_CLIENT},
         source="test",
         schema_version=password_reset_events.PasswordResetRequestedPayload.SCHEMA_VERSION,
     )
@@ -43,7 +44,7 @@ class TestHandler:
         password_reset_subscribers.send_password_reset_email_for_event(event)
 
         (payload, event_id, host, state, session) = prepare.call_args.args
-        assert payload.user_id == 4
+        assert payload.user_id == MOCK_USER_ID
         assert (payload.ip_address, payload.user_agent) == (_CLIENT["ip_address"], _CLIENT["user_agent"])
         assert (event_id, host, state, session) == (event.event_id, "https://example.test", get_state.return_value, db)
         session_local.return_value.__exit__.assert_called_once()
@@ -89,12 +90,15 @@ class TestHandler:
 class TestPayloadVersioning:
     def test_a_queued_v1_event_is_upgraded_with_no_client_data(self):
         event = platform_events.new_event(
-            password_reset_events.PASSWORD_RESET_REQUESTED, {"user_id": 4}, source="test", schema_version=1
+            password_reset_events.PASSWORD_RESET_REQUESTED,
+            {"user_id": str(MOCK_USER_ID)},
+            source="test",
+            schema_version=1,
         )
 
         payload = platform_event_versioning.parse_payload(password_reset_events.PasswordResetRequestedPayload, event)
 
-        assert (payload.user_id, payload.ip_address, payload.user_agent) == (4, None, None)
+        assert (payload.user_id, payload.ip_address, payload.user_agent) == (MOCK_USER_ID, None, None)
 
     def test_the_current_version_is_two(self):
         assert password_reset_events.PasswordResetRequestedPayload.SCHEMA_VERSION == 2
@@ -105,12 +109,16 @@ class TestPublisher:
     def test_payload_carries_user_id_and_client_only(self, mock_publish):
         db = MagicMock()
 
-        password_reset_publishers.publish_password_reset_requested(4, "203.0.113.7", "agent/1.0", db)
+        password_reset_publishers.publish_password_reset_requested(MOCK_USER_ID, "203.0.113.7", "agent/1.0", db)
 
-        assert mock_publish.call_args.args[1] == {"user_id": 4, "ip_address": "203.0.113.7", "user_agent": "agent/1.0"}
+        assert mock_publish.call_args.args[1] == {
+            "user_id": str(MOCK_USER_ID),
+            "ip_address": "203.0.113.7",
+            "user_agent": "agent/1.0",
+        }
         assert mock_publish.call_args.kwargs["db"] is db
         assert mock_publish.call_args.kwargs["schema_version"] == 2
-        assert mock_publish.call_args.kwargs["metadata"] == {core_event_metadata.META_USER_ID: 4}
+        assert mock_publish.call_args.kwargs["metadata"] == {core_event_metadata.META_USER_ID: MOCK_USER_ID}
 
     @patch("modules.auth.password_reset_tokens.event_publishers.platform_publisher.publish_on_commit")
     def test_an_unknown_address_has_no_user_id_and_no_user_metadata(self, mock_publish):
@@ -124,7 +132,7 @@ class TestPublisher:
     def test_stages_in_the_callers_transaction_without_committing(self, mock_staged, mock_bare):
         db = MagicMock()
 
-        password_reset_publishers.publish_password_reset_requested(4, None, None, db)
+        password_reset_publishers.publish_password_reset_requested(MOCK_USER_ID, None, None, db)
 
         mock_bare.assert_not_called()
         mock_staged.assert_called_once()
@@ -136,9 +144,9 @@ class TestCompletedPublisher:
     def test_stages_the_completed_event_with_the_user_id_only(self, mock_publish):
         db = MagicMock()
 
-        password_reset_publishers.publish_password_reset_completed(4, db)
+        password_reset_publishers.publish_password_reset_completed(MOCK_USER_ID, db)
 
         assert mock_publish.call_args.args[0] == "auth.password_reset_completed"
-        assert mock_publish.call_args.args[1] == {"user_id": 4}
+        assert mock_publish.call_args.args[1] == {"user_id": str(MOCK_USER_ID)}
         assert mock_publish.call_args.kwargs["db"] is db
         db.commit.assert_not_called()

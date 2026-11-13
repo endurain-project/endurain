@@ -55,8 +55,7 @@ class OAuthState(Base):
         comment="Identity provider ID (may be null if mobile logic)",
     )
 
-    user_id: Mapped[int | None] = mapped_column(
-        Integer,
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=True,
         index=True,

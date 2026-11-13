@@ -1,5 +1,6 @@
 """``X-Client-Type`` is strictly ``web`` or ``mobile`` on every route, and an MFA user always gets the challenge."""
 
+import uuid
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -18,8 +19,10 @@ import modules.auth.credentials.password_hasher as auth_password_hasher
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.mfa.dependencies as mfa_dependencies
 
+_USER_ID = uuid.UUID(int=5)
+
 _SERVICE = "modules.auth.authentication.service"
-_USER = SimpleNamespace(id=5, username="alice", active=True, access_type="regular")
+_USER = SimpleNamespace(id=_USER_ID, username="alice", active=True, access_type="regular")
 
 
 def _app(mock_db) -> FastAPI:

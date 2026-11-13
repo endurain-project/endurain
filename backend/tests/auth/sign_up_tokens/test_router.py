@@ -1,5 +1,6 @@
 """Integration tests for sign_up_tokens router endpoints."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -14,6 +15,16 @@ import core.exceptions as core_exceptions
 import modules.auth.credentials.password_hasher as auth_password_hasher
 import modules.auth.sign_up_tokens.public_router as sign_up_tokens_router
 import modules.auth.sign_up_tokens.schema as sign_up_schema
+from tests._helpers.auth import MOCK_USER_ID
+
+_USER_1 = uuid.UUID("00000000-0000-4000-8000-000000000001")
+_USER_2 = uuid.UUID("00000000-0000-4000-8000-000000000002")
+_USER_4 = uuid.UUID("00000000-0000-4000-8000-000000000004")
+_USER_5 = uuid.UUID("00000000-0000-4000-8000-000000000005")
+_USER_10 = uuid.UUID("00000000-0000-4000-8000-000000000010")
+_USER_11 = uuid.UUID("00000000-0000-4000-8000-000000000011")
+_USER_20 = uuid.UUID("00000000-0000-4000-8000-000000000020")
+_USER_99 = uuid.UUID("00000000-0000-4000-8000-000000000099")
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -122,7 +133,7 @@ class TestSignupEndpoint:
             signup_require_email_verification=False,
             signup_require_admin_approval=False,
         )
-        mock_create_user.return_value = MagicMock(id=1, pending_admin_approval=False)
+        mock_create_user.return_value = MagicMock(id=_USER_1, pending_admin_approval=False)
 
         response = signup_client.post(
             "/sign-up/sign-up/request",
@@ -158,7 +169,7 @@ class TestSignupEndpoint:
             signup_require_email_verification=True,
             signup_require_admin_approval=False,
         )
-        mock_create_user.return_value = MagicMock(id=2)
+        mock_create_user.return_value = MagicMock(id=_USER_2)
         mock_send_email.return_value = True
 
         response = signup_client.post(
@@ -299,7 +310,7 @@ class TestSignupEndpoint:
             signup_require_email_verification=False,
             signup_require_admin_approval=True,
         )
-        mock_create_user.return_value = MagicMock(id=4, pending_admin_approval=True)
+        mock_create_user.return_value = MagicMock(id=_USER_4, pending_admin_approval=True)
 
         response = signup_client.post(
             "/sign-up/sign-up/request",
@@ -316,7 +327,7 @@ class TestSignupEndpoint:
         data = response.json()
         assert data == {"next_step": "await_approval"}
         mock_request_approval.assert_called_once()
-        assert mock_request_approval.call_args.args[0] == 4
+        assert mock_request_approval.call_args.args[0] == _USER_4
 
     @patch("modules.auth.sign_up_tokens.service.request_sign_up_verification_email")
     @patch("modules.auth.sign_up_tokens.service.users_integration.stage_signup_user")
@@ -338,7 +349,7 @@ class TestSignupEndpoint:
             signup_require_email_verification=True,
             signup_require_admin_approval=False,
         )
-        mock_create_user.return_value = MagicMock(id=5)
+        mock_create_user.return_value = MagicMock(id=_USER_5)
         mock_send_email.side_effect = HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Email service is not configured",
@@ -404,9 +415,9 @@ class TestConfirmSignUpEndpoint:
             signup_require_email_verification=True,
             signup_require_admin_approval=False,
         )
-        mock_use_token.return_value = MagicMock(user_id=10, previous_email=None)
+        mock_use_token.return_value = MagicMock(user_id=_USER_10, previous_email=None)
         mock_verify_email.return_value = None
-        mock_get_user.return_value = MagicMock(id=10, active=False)
+        mock_get_user.return_value = MagicMock(id=_USER_10, active=False)
         mock_send_admin_email.return_value = None
         mock_email_service.return_value = True
 
@@ -463,8 +474,8 @@ class TestConfirmSignUpEndpoint:
         mock_settings.return_value = MagicMock(
             signup_require_email_verification=False,
         )
-        mock_use_token.return_value = MagicMock(user_id=10, previous_email=None)
-        mock_get_user.return_value = MagicMock(id=10, active=False)
+        mock_use_token.return_value = MagicMock(user_id=_USER_10, previous_email=None)
+        mock_get_user.return_value = MagicMock(id=_USER_10, active=False)
 
         response = signup_client.post(
             "/sign-up/sign-up/confirm",
@@ -517,9 +528,9 @@ class TestConfirmSignUpEndpoint:
             signup_require_email_verification=True,
             signup_require_admin_approval=True,
         )
-        mock_use_token.return_value = MagicMock(user_id=11, previous_email=None)
+        mock_use_token.return_value = MagicMock(user_id=_USER_11, previous_email=None)
         mock_verify_email.return_value = None
-        mock_get_user.return_value = MagicMock(id=11, active=False)
+        mock_get_user.return_value = MagicMock(id=_USER_11, active=False)
         mock_send_admin_email.return_value = None
         mock_email_service.return_value = True
 
@@ -557,9 +568,9 @@ class TestConfirmSignUpEndpoint:
             signup_require_email_verification=True,
             signup_require_admin_approval=False,
         )
-        mock_use_token.return_value = MagicMock(user_id=20, previous_email=None)
+        mock_use_token.return_value = MagicMock(user_id=_USER_20, previous_email=None)
         mock_verify_email.return_value = None
-        mock_get_user.return_value = MagicMock(id=20, active=False)
+        mock_get_user.return_value = MagicMock(id=_USER_20, active=False)
         mock_email_service.return_value = False
 
         response = signup_client.post(
@@ -594,7 +605,7 @@ class TestConfirmSignUpEndpoint:
             signup_require_email_verification=True,
             signup_require_admin_approval=False,
         )
-        mock_use_token.return_value = MagicMock(user_id=99, previous_email=None)
+        mock_use_token.return_value = MagicMock(user_id=_USER_99, previous_email=None)
         mock_verify_email.return_value = None
         mock_get_user.return_value = None
         mock_email_service.return_value = True
@@ -650,9 +661,9 @@ class TestConfirmEmailChangeEndpoint:
             signup_require_email_verification=False, signup_require_admin_approval=True
         )
         mock_use_token.return_value = MagicMock(
-            id="t", user_id=10, email="new@example.com", previous_email="old@example.com"
+            id="t", user_id=_USER_10, email="new@example.com", previous_email="old@example.com"
         )
-        mock_users.get_user.return_value = MagicMock(id=10, active=True)
+        mock_users.get_user.return_value = MagicMock(id=_USER_10, active=True)
 
         response = signup_client.post("/sign-up/email-change/confirm", json={"token": "valid-token"})
 
@@ -734,8 +745,8 @@ class TestSignUpOffEndpoints:
     def test_a_pending_sign_up_confirmation_is_refused_alike(
         self, claim, mock_users, _credentials, signup_client
     ) -> None:
-        claim.return_value = MagicMock(user_id=10)
-        mock_users.get_user.return_value = MagicMock(id=10, active=False)
+        claim.return_value = MagicMock(user_id=_USER_10)
+        mock_users.get_user.return_value = MagicMock(id=_USER_10, active=False)
         mock_users.is_deactivated.return_value = False
 
         response = signup_client.post("/sign-up/sign-up/confirm", json={"token": "tok", "password": "ChosenPass1!"})
@@ -749,9 +760,9 @@ class TestSignUpOffEndpoints:
     @patch("modules.auth.sign_up_tokens.service.verify_sign_up_token")
     def test_an_email_change_is_still_confirmed(self, mock_use_token, mock_users, _publishers, signup_client) -> None:
         mock_use_token.return_value = MagicMock(
-            id="t", user_id=10, email="new@example.com", previous_email="old@example.com"
+            id="t", user_id=_USER_10, email="new@example.com", previous_email="old@example.com"
         )
-        mock_users.get_user.return_value = MagicMock(id=10, active=True)
+        mock_users.get_user.return_value = MagicMock(id=_USER_10, active=True)
 
         response = signup_client.post("/sign-up/email-change/confirm", json={"token": "valid-token"})
 
@@ -779,6 +790,6 @@ class TestCancelEmailChangeEndpoint:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_an_extra_field_is_refused(self, signup_client) -> None:
-        response = signup_client.post("/sign-up/email-change/cancel", json={"token": "x", "user_id": 7})
+        response = signup_client.post("/sign-up/email-change/cancel", json={"token": "x", "user_id": str(MOCK_USER_ID)})
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT

@@ -1,5 +1,6 @@
 """API-key lifecycle operations owned by account security."""
 
+import uuid
 from datetime import datetime
 
 import jasil.audit as jasil_audit
@@ -27,7 +28,7 @@ logger = core_logger.get_logger(__name__)
 def _stage_key_audit(
     action: jasil_audit.AuditAction,
     api_key_id: str,
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     details: VersionedPayload | None = None,
@@ -46,13 +47,15 @@ def _stage_key_audit(
     )
 
 
-def list_user_api_keys(user_id: int, page: core_pagination.PageParams, db: Session) -> api_keys_schema.UserApiKeyPage:
+def list_user_api_keys(
+    user_id: uuid.UUID, page: core_pagination.PageParams, db: Session
+) -> api_keys_schema.UserApiKeyPage:
     """Return one page of the user's API keys."""
     return api_keys_integration.list_user_api_keys(user_id, page, db)
 
 
 def create_user_api_key(
-    user_id: int,
+    user_id: uuid.UUID,
     session_id: str,
     data: api_keys_schema.UserApiKeyCreate,
     expires_at: datetime,
@@ -97,7 +100,7 @@ def create_user_api_key(
     return api_keys_schema.UserApiKeyCreatedRead(**api_key.model_dump(), key=raw_key)
 
 
-def revoke_user_api_key(api_key_id: str, user_id: int, db: Session) -> None:
+def revoke_user_api_key(api_key_id: str, user_id: uuid.UUID, db: Session) -> None:
     """Revoke an API key owned by the user."""
     api_keys_integration.revoke_api_key(api_key_id, user_id, db)
     _stage_key_audit(account_security_audit_actions.API_KEY_REVOKE, api_key_id, user_id, db)
@@ -105,7 +108,7 @@ def revoke_user_api_key(api_key_id: str, user_id: int, db: Session) -> None:
     logger.info("API key revoked", extra=core_logger.context(api_key_id=api_key_id, user_id=user_id))
 
 
-def delete_user_api_key(api_key_id: str, user_id: int, db: Session) -> None:
+def delete_user_api_key(api_key_id: str, user_id: uuid.UUID, db: Session) -> None:
     """Delete an API key owned by the user."""
     api_keys_integration.delete_api_key(api_key_id, user_id, db)
     _stage_key_audit(account_security_audit_actions.API_KEY_DELETE, api_key_id, user_id, db)
@@ -114,7 +117,7 @@ def delete_user_api_key(api_key_id: str, user_id: int, db: Session) -> None:
 
 
 def list_api_keys_of_user(
-    user_id: int, page: core_pagination.PageParams, db: Session
+    user_id: uuid.UUID, page: core_pagination.PageParams, db: Session
 ) -> api_keys_schema.UserApiKeyPage:
     """Return one page of another user's API keys, which the user must have.
 
@@ -126,7 +129,7 @@ def list_api_keys_of_user(
 
 
 def _verify_admin_step_up(
-    admin_id: int,
+    admin_id: uuid.UUID,
     session_id: str,
     step_up: auth_schema.StepUpVerification,
     step_up_store: step_up_store_module.StepUpStore,
@@ -147,8 +150,8 @@ def _verify_admin_step_up(
 
 def revoke_api_key_of_user(
     api_key_id: str,
-    user_id: int,
-    admin_id: int,
+    user_id: uuid.UUID,
+    admin_id: uuid.UUID,
     session_id: str,
     step_up: auth_schema.StepUpVerification,
     step_up_store: step_up_store_module.StepUpStore,
@@ -181,8 +184,8 @@ def revoke_api_key_of_user(
 
 
 def revoke_api_keys_of_user(
-    user_id: int,
-    admin_id: int,
+    user_id: uuid.UUID,
+    admin_id: uuid.UUID,
     session_id: str,
     step_up: auth_schema.StepUpVerification,
     step_up_store: step_up_store_module.StepUpStore,

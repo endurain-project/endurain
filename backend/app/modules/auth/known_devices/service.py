@@ -33,7 +33,7 @@ def _describe(user_agent: str) -> known_devices_contracts.DeviceDescription:
 
 
 def _publish_new_device_sign_in(
-    user_id: int,
+    user_id: uuid.UUID,
     description: known_devices_contracts.DeviceDescription,
     ip_address: str,
     method: known_devices_events.SignInMethod,
@@ -53,7 +53,7 @@ def _publish_new_device_sign_in(
     )
 
 
-def is_known_device(user_id: int, device_id: str | None, db: Session) -> bool:
+def is_known_device(user_id: uuid.UUID, device_id: str | None, db: Session) -> bool:
     """Return whether a device id names a device the user signed in from since their last security change.
 
     Args:
@@ -72,7 +72,7 @@ def is_known_device(user_id: int, device_id: str | None, db: Session) -> bool:
 
 
 def record_sign_in(
-    user_id: int,
+    user_id: uuid.UUID,
     device_id: str | None,
     ip_address: str,
     user_agent: str,
@@ -125,7 +125,7 @@ def record_sign_in(
 
 
 def list_devices(
-    user_id: int, device_id: str | None, page: core_pagination.PageParams, db: Session
+    user_id: uuid.UUID, device_id: str | None, page: core_pagination.PageParams, db: Session
 ) -> known_devices_schema.KnownDevicePage:
     """Return one page of the devices the user is known to sign in from, marking the one the request comes from.
 
@@ -156,7 +156,7 @@ def list_devices(
     )
 
 
-def forget_device(device_id: uuid.UUID, user_id: int, current_device_id: str | None, db: Session) -> int:
+def forget_device(device_id: uuid.UUID, user_id: uuid.UUID, current_device_id: str | None, db: Session) -> int:
     """Stage the deletion of a known device and of the sessions that signed in from it; the caller commits.
 
     A session created before sessions recorded their device has no hash and is not ended.
@@ -184,7 +184,7 @@ def forget_device(device_id: uuid.UUID, user_id: int, current_device_id: str | N
     return sessions_integration.delete_sessions_by_device(user_id, device_hash, db)
 
 
-def forget_other_devices(user_id: int, device_id: str | None, db: Session) -> int:
+def forget_other_devices(user_id: uuid.UUID, device_id: str | None, db: Session) -> int:
     """Stage the deletion of the user's known devices but the request's own, and of their sessions; the caller commits.
 
     A session created before sessions recorded their device has no hash and is not ended.

@@ -6,6 +6,7 @@ Store behaviour (login/MFA/step-up lockout) is covered in
 tests and the router-level error-path tests.
 """
 
+import uuid
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -17,6 +18,8 @@ import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as auth_service
 import modules.auth.mfa.pending_login_store as pending_login_store
 from tests._helpers.auth import pending_login
+
+_USER_ID = uuid.UUID(int=123)
 
 
 class TestMFALoginRequest:
@@ -94,11 +97,11 @@ class TestAuthRouterErrors:
 
             def get_pending_login(self, username):
                 """Return a pending login."""
-                return pending_login(123)
+                return pending_login(_USER_ID)
 
             def claim_pending_login(self, username):
                 """Return a claimed pending login."""
-                return pending_login(123)
+                return pending_login(_USER_ID)
 
             def record_failed_attempt(self, username, ip_address, *, user_id):
                 """Return a count that must stay server-side only."""
@@ -125,7 +128,7 @@ class TestAuthRouterErrors:
         monkeypatch.setattr(
             auth_service.users_integration,
             "get_user",
-            lambda *args, **kwargs: SimpleNamespace(id=123, username=raw_username),
+            lambda *args, **kwargs: SimpleNamespace(id=_USER_ID, username=raw_username),
         )
 
         with pytest.raises(core_exceptions.DomainError) as exc_info:
@@ -168,7 +171,7 @@ class TestAuthRouterErrors:
 
             def get_pending_login(self, username):
                 """Return a pending login."""
-                return pending_login(123)
+                return pending_login(_USER_ID)
 
             def claim_pending_login(self, username):
                 """Simulate another request already claiming the login."""
@@ -182,7 +185,7 @@ class TestAuthRouterErrors:
         monkeypatch.setattr(
             auth_service.users_integration,
             "get_user",
-            lambda *args, **kwargs: SimpleNamespace(id=123, username="testuser"),
+            lambda *args, **kwargs: SimpleNamespace(id=_USER_ID, username="testuser"),
         )
 
         with pytest.raises(core_exceptions.DomainError) as exc_info:

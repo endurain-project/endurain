@@ -47,7 +47,7 @@ def _ctx(batch_size: int = 10, storage=None, db=None, check_memory=None, check_t
     counts: dict[str, int] = {}
     archive = _FakeArchive(counts)
     ctx = users_profile_contracts.ProfileExportContext(
-        user_id=1,
+        user_id=uuid.UUID("00000000-0000-4000-8000-000000000001"),
         db=db or MagicMock(spec=Session),
         storage=storage or MagicMock(),
         archive=archive,

@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from pydantic import ValidationError
 
 # A stored record always has its start time.
+_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
 _ID = uuid.uuid4()
 
 
@@ -48,9 +49,9 @@ class TestHealthPoopReadSchema:
     def test_valid(self):
         from modules.health.health_poop.schema import HealthPoopRead
 
-        data = HealthPoopRead(updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, date_time=_STARTED)
+        data = HealthPoopRead(updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, date_time=_STARTED)
         assert data.id == _ID
-        assert data.user_id == 1
+        assert data.user_id == _USER_ID
 
 
 class TestEnums:

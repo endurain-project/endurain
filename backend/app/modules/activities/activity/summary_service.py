@@ -8,6 +8,7 @@ than deciding HTTP statuses.
 
 """
 
+import uuid
 from datetime import UTC, date, datetime
 
 from sqlalchemy.orm import Session
@@ -65,7 +66,7 @@ def _resolve_year(target_year: int | None, today: date) -> int:
 
 
 def build_summary(
-    user_id: int,
+    user_id: uuid.UUID,
     period: activity_constants.SummaryPeriod,
     db: Session,
     *,

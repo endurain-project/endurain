@@ -1,5 +1,7 @@
 """Publish the password reset domain events through the platform publish facade."""
 
+import uuid
+
 import jasil.publisher as platform_publisher
 from sqlalchemy.orm import Session
 
@@ -8,7 +10,7 @@ import modules.auth.password_reset_tokens.events as password_reset_tokens_events
 
 
 def publish_password_reset_requested(
-    user_id: int | None, ip_address: str | None, user_agent: str | None, db: Session
+    user_id: uuid.UUID | None, ip_address: str | None, user_agent: str | None, db: Session
 ) -> None:
     """Stage ``auth.password_reset_requested`` in the caller's transaction.
 
@@ -31,7 +33,7 @@ def publish_password_reset_requested(
     )
 
 
-def publish_password_reset_completed(user_id: int, db: Session) -> None:
+def publish_password_reset_completed(user_id: uuid.UUID, db: Session) -> None:
     """Stage ``auth.password_reset_completed`` in the caller's transaction.
 
     Args:

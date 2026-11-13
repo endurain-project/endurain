@@ -1,5 +1,6 @@
 """Domain constants for users."""
 
+import uuid
 from enum import StrEnum
 
 import core.job_status as core_job_status
@@ -8,6 +9,20 @@ import core.job_status as core_job_status
 #: ``{DATA_DIR}/user_images`` — the directory the photos already live in — so an existing
 #: install needs no data migration; for S3 it is the object key prefix.
 USER_IMAGE_STORAGE_AREA = "user_images"
+
+
+def photo_key(user_id: uuid.UUID, extension: str) -> str:
+    """Return the storage key of a user's profile photo.
+
+    Args:
+        user_id: The user the photo belongs to.
+        extension: The image file extension, with its leading dot.
+
+    Returns:
+        The key in the photo area.
+    """
+    return f"{user_id}{extension}"
+
 
 #: Fields a user may change on their own account through the self-service profile endpoint.
 #: Any field not in this set is dropped before persistence, so a payload cannot escalate

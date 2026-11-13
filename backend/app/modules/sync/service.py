@@ -57,11 +57,11 @@ class _Changed(Protocol):
 
 
 #: Reads a type's changed records after a position: ``(user_id, after, until, limit, db)``.
-_ChangedReader = Callable[[int, core_sync.Position[uuid.UUID] | None, datetime, int, Session], Sequence[_Changed]]
+_ChangedReader = Callable[[uuid.UUID, core_sync.Position[uuid.UUID] | None, datetime, int, Session], Sequence[_Changed]]
 
 #: Reads a type's tombstones after a position: ``(user_id, after, until, limit, db)``.
 _DeletedReader = Callable[
-    [int, core_sync.Position[uuid.UUID] | None, datetime, int, Session], Sequence[core_sync.Deletion[uuid.UUID]]
+    [uuid.UUID, core_sync.Position[uuid.UUID] | None, datetime, int, Session], Sequence[core_sync.Deletion[uuid.UUID]]
 ]
 
 
@@ -267,7 +267,7 @@ def _deletion_entries(
 
 
 def sync(
-    user_id: int,
+    user_id: uuid.UUID,
     scopes: Collection[str],
     db: Session,
     *,

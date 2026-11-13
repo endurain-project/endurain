@@ -1,6 +1,7 @@
 """Tests for the admin log viewer service."""
 
 import json
+import uuid
 from unittest.mock import patch
 
 import jasil.testing as jasil_testing
@@ -10,6 +11,8 @@ import core.exceptions as core_exceptions
 import modules.server_settings.audit_actions as server_settings_audit_actions
 import modules.server_settings.logs_schema as logs_schema
 import modules.server_settings.logs_service as logs_service
+
+ADMIN = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
 
 
 def _json_line(level: str, message: str, **extra) -> str:
@@ -143,7 +146,7 @@ class TestClearLogs:
         (logs_dir / "app.log.2").write_text("oldest")
         (logs_dir / "other.log").write_text("keep")
 
-        logs_service.clear_logs(7)
+        logs_service.clear_logs(ADMIN)
 
         assert (logs_dir / logs_service.LOG_FILE_NAME).read_text() == ""
         assert not (logs_dir / "app.log.1").exists()
@@ -152,15 +155,15 @@ class TestClearLogs:
 
     def test_records_who_cleared_the_logs(self, logs_dir):
         with patch.object(logs_service.logger, "warning") as warning:
-            logs_service.clear_logs(7)
-        assert warning.call_args.kwargs["extra"] == {"admin_id": 7}
+            logs_service.clear_logs(ADMIN)
+        assert warning.call_args.kwargs["extra"] == {"admin_id": ADMIN}
 
     def test_missing_file_is_not_an_error(self, logs_dir):
-        logs_service.clear_logs(7)
+        logs_service.clear_logs(ADMIN)
 
     def test_disabled_viewer_is_not_found(self, tmp_path):
         with patch("core.config.Settings.logs_viewer_enabled", False), pytest.raises(core_exceptions.NotFoundError):
-            logs_service.clear_logs(7)
+            logs_service.clear_logs(ADMIN)
 
 
 class TestLogsRouteScopes:
@@ -184,7 +187,7 @@ class TestLogsAudit:
     def test_clearing_the_logs_is_audited(self, logs_dir):
         _write(logs_dir, [_json_line("INFO", "hello")])
         with jasil_testing.capture_audit() as audit:
-            logs_service.clear_logs(7)
+            logs_service.clear_logs(ADMIN)
 
         entry = audit.assert_audited(server_settings_audit_actions.LOGS_CLEAR.id)
         assert entry.details is None
@@ -196,7 +199,7 @@ class TestLogsAudit:
             jasil_testing.capture_audit() as audit,
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            logs_service.clear_logs(7)
+            logs_service.clear_logs(ADMIN)
 
         audit.assert_not_audited(server_settings_audit_actions.LOGS_CLEAR.id)
 

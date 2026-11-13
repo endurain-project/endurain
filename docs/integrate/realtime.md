@@ -24,7 +24,7 @@ sequenceDiagram
 1. **Get a ticket.** `POST /api/v1/ws/ticket` with the usual authenticated headers (`Authorization`, and `X-CSRF-Token` for web). It needs the `notifications:read` scope and is rate limited like other writes. The response is `{"ticket": "<opaque string>"}` and is sent with `Cache-Control: no-store`.
 2. **Open the socket** with the ticket in the query string: `ws(s)://<host>/api/v1/ws?ticket=<ticket>`. Use `wss` when the site is served over HTTPS.
 
-A ticket is single use, bound to your user and to the session of the access token that asked for it, and valid for 30 seconds. Fetch a new one for every connection attempt, including every reconnect.
+A ticket is single use, bound to your user (it names the user's UUID) and to the session of the access token that asked for it, and valid for 30 seconds. Fetch a new one for every connection attempt, including every reconnect.
 
 ### Origin check
 
@@ -104,7 +104,7 @@ flowchart LR
 ```
 
 - **Local:** no Redis is involved. The hint goes straight to the sockets of the same process.
-- **Session ends:** a revoked session publishes `auth.sessions_revoked` after its transaction commits, and the websocket module turns it into a control message on the same channel (under a separate `control:<user id>` key, never forwarded to clients). Every replica closes the matching sockets it holds with `4401`.
+- **Session ends:** a revoked session publishes `auth.sessions_revoked` after its transaction commits, and the websocket module turns it into a control message on the same channel (under a separate `control:<user UUID>` key, never forwarded to clients). Every replica closes the matching sockets it holds with `4401`.
 - **Distributed or several workers:** the process that notices the change, whether an API replica or a job worker, publishes the hint on the Redis channel `endurain:realtime`. Every API replica receives it, and the one that holds the user's socket forwards it. The others drop it.
 - The channel carries the same Redis connection as the event bus, so it needs `EVENTS_URI` or `REDIS_URL`. Two deployments must not share a Redis server, or they would see each other's hints.
 - The limit of 5 sockets per user is per process, so behind a load balancer with several replicas a user can hold up to 5 on each.

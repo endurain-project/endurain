@@ -14,10 +14,12 @@ import modules.notifications.service as notifications_service
 import modules.notifications.subscriber_registry as notification_subscriber_registry
 import modules.notifications.subscribers as notification_subscribers
 
+_ID_1 = uuid.uuid4()
+
 
 def _event():
     payload = {
-        "user_id": 1,
+        "user_id": str(_ID_1),
         "browser": "Firefox",
         "operating_system": "Linux",
         "device_type": "PC",
@@ -30,14 +32,14 @@ def _event():
 
 def _create(mock_db, created=True):
     with (
-        patch("modules.notifications.service.users_integration.get_user", return_value=MagicMock(id=1)),
+        patch("modules.notifications.service.users_integration.get_user", return_value=MagicMock(id=_ID_1)),
         patch(
             "modules.notifications.service.notifications_crud.create_notification_once",
             return_value=(MagicMock(id=uuid.UUID(int=3)), created),
         ) as create_once,
     ):
         result = notifications_service.create_new_device_sign_in_notification(
-            1, "Firefox", "Linux", "203.0.113.7", "event-1", mock_db
+            _ID_1, "Firefox", "Linux", "203.0.113.7", "event-1", mock_db
         )
     return result, create_once
 
@@ -50,7 +52,7 @@ class TestCreateNewDeviceSignInNotification:
         (_, ws_message, created), create_once = _create(mock_db)
 
         data = create_once.call_args.args[0]
-        assert data.user_id == 1
+        assert data.user_id == _ID_1
         assert data.type == notifications_constants.NotificationType.NEW_DEVICE_SIGN_IN
         assert data.source_event_id == "event-1"
         assert data.options == {"browser": "Firefox", "operating_system": "Linux", "ip_address": "203.0.113.7"}
@@ -64,7 +66,7 @@ class TestCreateNewDeviceSignInNotification:
             patch("modules.notifications.service.notifications_crud.create_notification_once") as create_once,
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            notifications_service.create_new_device_sign_in_notification(1, "Firefox", "Linux", "ip", "e", mock_db)
+            notifications_service.create_new_device_sign_in_notification(_ID_1, "Firefox", "Linux", "ip", "e", mock_db)
         create_once.assert_not_called()
 
     def test_a_redelivered_event_reports_not_created(self, mock_db):
@@ -84,7 +86,7 @@ class TestNotifyNewDeviceSignInForEvent:
         notification_subscribers.notify_new_device_sign_in_for_event(event)
 
         assert mock_notif.create_new_device_sign_in_notification.call_args.args[:5] == (
-            1,
+            _ID_1,
             "Firefox",
             "Linux",
             "203.0.113.7",

@@ -7,6 +7,7 @@ import pytest
 from pydantic import ValidationError
 
 import modules.users.users_goals.schema as user_goals_schema
+from tests._helpers.auth import MOCK_USER_ID
 
 GOAL_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
 
@@ -272,7 +273,7 @@ class TestUserGoalReadSchema:
         # Act
         goal = user_goals_schema.UserGoalRead(
             id=GOAL_ID,
-            user_id=1,
+            user_id=MOCK_USER_ID,
             interval=user_goals_schema.Interval.WEEKLY,
             activity_type=user_goals_schema.GoalActivityType.RUN,
             goal_type=user_goals_schema.GoalType.CALORIES,
@@ -285,7 +286,7 @@ class TestUserGoalReadSchema:
 
         # Assert
         assert goal.id == GOAL_ID
-        assert goal.user_id == 1
+        assert goal.user_id == MOCK_USER_ID
 
 
 class TestUserGoalProgressSchema:
@@ -386,7 +387,12 @@ class TestTargetsAndProgressDates:
 
     def test_a_stored_goal_with_a_zero_target_can_still_be_read(self):
         read = user_goals_schema.UserGoalRead(
-            id=GOAL_ID, user_id=1, interval="weekly", activity_type="run", goal_type="distance", goal_distance=0
+            id=GOAL_ID,
+            user_id=MOCK_USER_ID,
+            interval="weekly",
+            activity_type="run",
+            goal_type="distance",
+            goal_distance=0,
         )
 
         assert read.goal_distance == 0

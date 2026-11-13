@@ -1,5 +1,6 @@
 """The per-type stats sums run in the database, so they run against a real session."""
 
+import uuid
 from datetime import UTC, datetime
 
 import pytest
@@ -7,6 +8,9 @@ from tests._helpers.db import create_sqlite_session
 
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.crud as activity_crud
+
+_USER_1 = uuid.UUID(int=1)
+_USER_2 = uuid.UUID(int=2)
 
 _PRIVACY_FLAGS = (
     "hide_start_time",
@@ -40,7 +44,7 @@ def db():
 
 def _add(db, **overrides):
     data = {
-        "user_id": 1,
+        "user_id": _USER_1,
         "name": "Activity",
         "distance": 1000,
         "activity_type": 1,
@@ -59,7 +63,7 @@ def _add(db, **overrides):
 
 def _sum(db, **overrides):
     kwargs = {"user_is_owner": True, **overrides}
-    totals = activity_crud.sum_user_activities_per_timeframe_by_type(1, START, END, db, **kwargs)
+    totals = activity_crud.sum_user_activities_per_timeframe_by_type(_USER_1, START, END, db, **kwargs)
     return {total.activity_type: total for total in totals}
 
 
@@ -83,7 +87,7 @@ class TestSumPerType:
 
     def test_only_the_users_own_activities_in_the_window_count(self, db):
         _add(db)
-        _add(db, user_id=2)
+        _add(db, user_id=_USER_2)
         _add(db, start_time="2026-06-01T09:00:00", end_time="2026-06-01T10:00:00")
         _add(db, start_time="2026-08-03T09:00:00", end_time="2026-08-03T10:00:00")
 
@@ -95,7 +99,9 @@ class TestSumPerType:
         assert _sum(db)[1].distance == 1000.0
 
     def test_no_activities_give_no_rows(self, db):
-        assert activity_crud.sum_user_activities_per_timeframe_by_type(1, START, END, db, user_is_owner=True) == []
+        assert (
+            activity_crud.sum_user_activities_per_timeframe_by_type(_USER_1, START, END, db, user_is_owner=True) == []
+        )
 
 
 class TestVisibility:
@@ -113,7 +119,7 @@ class TestVisibility:
         assert _sum(db, user_is_owner=False, followee_ids=[])[1].distance == 1000.0
 
     def test_a_follower_also_counts_followers_only_activities(self, db):
-        assert _sum(db, user_is_owner=False, followee_ids=[1])[1].distance == 3000.0
+        assert _sum(db, user_is_owner=False, followee_ids=[_USER_1])[1].distance == 3000.0
 
     def test_an_anonymous_reader_counts_only_public_activities(self, db):
         assert _sum(db, user_is_owner=False, followee_ids=None)[1].distance == 1000.0

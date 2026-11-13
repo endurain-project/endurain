@@ -1,12 +1,16 @@
 """Request schemas bound a height to a realistic range; a stored height still reads and re-applies."""
 
+import uuid
+
 import pytest
 from pydantic import ValidationError
 
 import modules.users.users.schema as users_schema
 
+_USER_ID = uuid.UUID(int=1)
+
 _ADMIN = {"name": "Ana", "username": "newuser", "email": "new@example.com", "access_type": "regular", "active": True}
-_STORED = {"id": 1, "username": "olduser", "email": "old@example.com", "access_type": "regular", "active": True}
+_STORED = {"id": _USER_ID, "username": "olduser", "email": "old@example.com", "access_type": "regular", "active": True}
 
 
 def _shapes():

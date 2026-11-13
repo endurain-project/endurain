@@ -5,6 +5,7 @@ Owns the dedicated login threads. Unlinking and the sessions a linked account's 
 """
 
 import time
+import uuid
 
 import garminconnect
 import jasil.audit as jasil_audit
@@ -44,7 +45,7 @@ def shutdown_link_pool(*, wait: bool = False) -> None:
 
 
 def wait_for_mfa_code(
-    user_id: int,
+    user_id: uuid.UUID,
     mfa_codes: garmin_mfa_code_store.GarminMFACodeStore,
     link_states: garmin_link_state_store.GarminLinkStateStore,
 ) -> str:
@@ -79,7 +80,7 @@ def wait_for_mfa_code(
 
 
 def start_link(
-    user_id: int,
+    user_id: uuid.UUID,
     login: garmin_schema.GarminLogin,
     mfa_codes: garmin_mfa_code_store.GarminMFACodeStore,
     link_states: garmin_link_state_store.GarminLinkStateStore,
@@ -121,7 +122,7 @@ def start_link(
 
 
 def link_garminconnect(
-    user_id: int,
+    user_id: uuid.UUID,
     email: str,
     password: str,
     mfa_codes: garmin_mfa_code_store.GarminMFACodeStore,
@@ -229,7 +230,7 @@ def link_garminconnect(
         mfa_codes.delete_code(user_id)
 
 
-def _record_refused_link(user_id: int, reason: garmin_audit_actions.LinkFailureReason) -> None:
+def _record_refused_link(user_id: uuid.UUID, reason: garmin_audit_actions.LinkFailureReason) -> None:
     """Record that Garmin Connect refused the link.
 
     Args:
@@ -247,7 +248,7 @@ def _record_refused_link(user_id: int, reason: garmin_audit_actions.LinkFailureR
 
 
 def submit_mfa_code(
-    user_id: int,
+    user_id: uuid.UUID,
     mfa_code: str,
     mfa_codes: garmin_mfa_code_store.GarminMFACodeStore,
     link_states: garmin_link_state_store.GarminLinkStateStore,

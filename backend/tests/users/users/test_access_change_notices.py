@@ -1,6 +1,7 @@
 """An administrator's role change, deactivation or promotion and an account deletion request stage the notice events
 in the transaction that commits the change."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -17,17 +18,19 @@ import modules.users.users.events as users_events
 import modules.users.users.schema as users_schema
 import modules.users.users.service as users_service
 
+_U1, _U2, _U3, _U4, _U5, _U7, _U8, _U9 = (uuid.UUID(int=n) for n in (1, 2, 3, 4, 5, 7, 8, 9))
+
 _SERVICE = "modules.users.users.service"
 _JOBS = "modules.users.users.deletion_job_service"
 _Change = account_security_events.AccountSecurityChange
 
 
-def _user(user_id=1, **overrides) -> users_schema.UserRead:
+def _user(user_id=_U1, **overrides) -> users_schema.UserRead:
     fields = {
         "id": user_id,
         "name": "User",
-        "username": f"user{user_id}",
-        "email": f"user{user_id}@example.com",
+        "username": f"user{user_id.int}",
+        "email": f"user{user_id.int}@example.com",
         "active": True,
         "access_type": "regular",
     }
@@ -55,7 +58,7 @@ def staged():
         links.get_identity_link_counts_for_users.return_value = {}
         notice.side_effect = lambda *a, **k: calls.append(("notice", a[1], k))
         promoted.side_effect = lambda *a, **k: calls.append(("promoted", a[0], a[1]))
-        crud.lock_active_admin_ids.return_value = [1, 2, 3]
+        crud.lock_active_admin_ids.return_value = [_U1, _U2, _U3]
         yield SimpleCalls(calls, crud)
 
 
@@ -64,7 +67,7 @@ class SimpleCalls:
         self.calls = calls
         self.crud = crud
 
-    def edit(self, mock_db, before, after, *, actor_id=9, admins=()):
+    def edit(self, mock_db, before, after, *, actor_id=_U9, admins=()):
         self.crud.get_user_by_id.return_value = before
         self.crud.update_user.return_value = after
         self.crud.get_users_admin.return_value = list(admins)
@@ -84,7 +87,7 @@ class SimpleCalls:
 
 class TestRoleChange:
     def test_the_user_is_told_their_new_role_before_the_commit(self, mock_db, staged):
-        calls = staged.edit(mock_db, _user(1), _user(1, access_type="admin"))
+        calls = staged.edit(mock_db, _user(_U1), _user(_U1, access_type="admin"))
 
         assert ("notice", _Change.ROLE_CHANGED_BY_ADMIN, {"access_type": "admin"}) in calls
         assert calls.index(("notice", _Change.ROLE_CHANGED_BY_ADMIN, {"access_type": "admin"})) < calls.index(
@@ -92,23 +95,25 @@ class TestRoleChange:
         )
 
     def test_a_demotion_tells_the_user_and_no_administrator(self, mock_db, staged):
-        calls = staged.edit(mock_db, _user(1, access_type="admin"), _user(1, access_type="regular"), admins=[_user(2)])
+        calls = staged.edit(
+            mock_db, _user(_U1, access_type="admin"), _user(_U1, access_type="regular"), admins=[_user(_U2)]
+        )
 
         assert ("notice", _Change.ROLE_CHANGED_BY_ADMIN, {"access_type": "regular"}) in calls
         assert not [call for call in calls if call[0] == "promoted"]
 
     def test_an_edit_that_keeps_the_role_tells_nobody(self, mock_db, staged):
-        calls = staged.edit(mock_db, _user(1), _user(1, name="Renamed"))
+        calls = staged.edit(mock_db, _user(_U1), _user(_U1, name="Renamed"))
 
         assert calls == [("commit",)]
 
     def test_an_administrator_editing_their_own_role_is_not_told(self, mock_db, staged):
-        calls = staged.edit(mock_db, _user(9, access_type="admin"), _user(9, access_type="regular"), actor_id=9)
+        calls = staged.edit(mock_db, _user(_U9, access_type="admin"), _user(_U9, access_type="regular"), actor_id=_U9)
 
         assert calls == [("commit",)]
 
     def test_a_user_the_edit_also_deactivates_is_told_of_the_deactivation_only(self, mock_db, staged):
-        calls = staged.edit(mock_db, _user(1), _user(1, access_type="admin", active=False))
+        calls = staged.edit(mock_db, _user(_U1), _user(_U1, access_type="admin", active=False))
 
         assert [call for call in calls if call[0] == "notice"] == [("notice", _Change.ACCOUNT_DEACTIVATED_BY_ADMIN, {})]
 
@@ -116,25 +121,25 @@ class TestRoleChange:
 class TestPromotion:
     def test_each_other_active_administrator_is_told_and_nobody_else(self, mock_db, staged):
         admins = [
-            _user(1, access_type="admin"),
-            _user(2, access_type="admin"),
-            _user(3, access_type="admin", active=False),
-            _user(4, access_type="admin"),
+            _user(_U1, access_type="admin"),
+            _user(_U2, access_type="admin"),
+            _user(_U3, access_type="admin", active=False),
+            _user(_U4, access_type="admin"),
         ]
 
-        calls = staged.edit(mock_db, _user(1), _user(1, access_type="admin"), admins=admins)
+        calls = staged.edit(mock_db, _user(_U1), _user(_U1, access_type="admin"), admins=admins)
 
-        assert [call for call in calls if call[0] == "promoted"] == [("promoted", 1, 2), ("promoted", 1, 4)]
+        assert [call for call in calls if call[0] == "promoted"] == [("promoted", _U1, _U2), ("promoted", _U1, _U4)]
 
     def test_a_promotion_is_staged_before_the_commit(self, mock_db, staged):
         calls = staged.edit(
             mock_db,
-            _user(1),
-            _user(1, access_type="admin"),
-            admins=[_user(1, access_type="admin"), _user(2, access_type="admin")],
+            _user(_U1),
+            _user(_U1, access_type="admin"),
+            admins=[_user(_U1, access_type="admin"), _user(_U2, access_type="admin")],
         )
 
-        assert calls.index(("promoted", 1, 2)) < calls.index(("commit",))
+        assert calls.index(("promoted", _U1, _U2)) < calls.index(("commit",))
 
 
 class TestCreation:
@@ -157,7 +162,7 @@ class TestCreation:
                         active=True,
                     ),
                     None,
-                    9,
+                    _U9,
                     "sid",
                     MagicMock(),
                     mock_db,
@@ -168,40 +173,40 @@ class TestCreation:
 
     def test_each_other_active_administrator_is_told_of_a_new_administrator(self, create):
         admins = [
-            _user(2, access_type="admin"),
-            _user(3, access_type="admin", active=False),
-            _user(5, access_type="admin"),
-            _user(7, access_type="admin"),
+            _user(_U2, access_type="admin"),
+            _user(_U3, access_type="admin", active=False),
+            _user(_U5, access_type="admin"),
+            _user(_U7, access_type="admin"),
         ]
 
-        calls = create(_user(7, access_type="admin"), admins)
+        calls = create(_user(_U7, access_type="admin"), admins)
 
-        assert [call for call in calls if call[0] == "promoted"] == [("promoted", 7, 2), ("promoted", 7, 5)]
+        assert [call for call in calls if call[0] == "promoted"] == [("promoted", _U7, _U2), ("promoted", _U7, _U5)]
 
     def test_the_notice_is_staged_before_the_commit(self, create):
-        calls = create(_user(7, access_type="admin"), [_user(2, access_type="admin")])
+        calls = create(_user(_U7, access_type="admin"), [_user(_U2, access_type="admin")])
 
-        assert calls.index(("promoted", 7, 2)) < calls.index(("commit",))
+        assert calls.index(("promoted", _U7, _U2)) < calls.index(("commit",))
 
     def test_a_new_regular_user_tells_no_administrator(self, create):
-        calls = create(_user(7), [_user(2, access_type="admin")])
+        calls = create(_user(_U7), [_user(_U2, access_type="admin")])
 
         assert not [call for call in calls if call[0] == "promoted"]
 
 
 class TestDeactivation:
     def test_the_user_is_told_before_the_commit(self, mock_db, staged):
-        calls = staged.edit(mock_db, _user(1), _user(1, active=False))
+        calls = staged.edit(mock_db, _user(_U1), _user(_U1, active=False))
 
         assert calls == [("notice", _Change.ACCOUNT_DEACTIVATED_BY_ADMIN, {}), ("commit",)]
 
     def test_a_reactivation_tells_nobody(self, mock_db, staged):
-        calls = staged.edit(mock_db, _user(1, active=False), _user(1))
+        calls = staged.edit(mock_db, _user(_U1, active=False), _user(_U1))
 
         assert calls == [("commit",)]
 
     def test_an_administrator_deactivating_themselves_is_not_told(self, mock_db, staged):
-        calls = staged.edit(mock_db, _user(9), _user(9, active=False), actor_id=9)
+        calls = staged.edit(mock_db, _user(_U9), _user(_U9, active=False), actor_id=_U9)
 
         assert calls == [("commit",)]
 
@@ -218,7 +223,7 @@ class TestDeletionRequest:
             patch(f"{_JOBS}.security_generation_integration"),
             patch(f"{_JOBS}._deletion_pool"),
         ):
-            job_service.request_deletion(4, 4, states, MagicMock(), MagicMock(), mock_db, if_match="*")
+            job_service.request_deletion(_U4, _U4, states, MagicMock(), MagicMock(), mock_db, if_match="*")
 
         account_security.stage_account_change_notice.assert_not_called()
 
@@ -227,26 +232,31 @@ class TestStagingTheNotice:
     def test_the_integration_stages_a_security_change_event_with_the_access_type(self, mock_db):
         with patch.object(account_security_event_publishers, "publish_account_security_changed") as publish:
             account_security_integration.stage_account_change_notice(
-                4, _Change.ROLE_CHANGED_BY_ADMIN, mock_db, access_type="admin"
+                _U4, _Change.ROLE_CHANGED_BY_ADMIN, mock_db, access_type="admin"
             )
 
-        publish.assert_called_once_with(4, _Change.ROLE_CHANGED_BY_ADMIN, mock_db, access_type="admin")
+        publish.assert_called_once_with(_U4, _Change.ROLE_CHANGED_BY_ADMIN, mock_db, access_type="admin")
 
     def test_the_event_carries_the_access_type_and_no_secret(self, mock_db):
         with patch("modules.auth.account_security.event_publishers.platform_publisher.publish_on_commit") as publish:
             account_security_event_publishers.publish_account_security_changed(
-                4, _Change.ROLE_CHANGED_BY_ADMIN, mock_db, access_type="admin"
+                _U4, _Change.ROLE_CHANGED_BY_ADMIN, mock_db, access_type="admin"
             )
 
         _, payload = publish.call_args.args
-        assert payload == {"user_id": 4, "change": "role_changed_by_admin", "idp_id": None, "access_type": "admin"}
+        assert payload == {
+            "user_id": str(_U4),
+            "change": "role_changed_by_admin",
+            "idp_id": None,
+            "access_type": "admin",
+        }
 
     def test_the_promotion_event_names_the_user_and_the_recipient_only(self, mock_db):
         with patch("modules.users.users.event_publishers.platform_publisher.publish_on_commit") as publish:
-            users_event_publishers.publish_admin_promoted(3, 8, mock_db)
+            users_event_publishers.publish_admin_promoted(_U3, _U8, mock_db)
 
         event_type, payload = publish.call_args.args
         assert event_type == users_events.USERS_ADMIN_PROMOTED
-        assert payload == {"user_id": 3, "admin_user_id": 8}
+        assert payload == {"user_id": str(_U3), "admin_user_id": str(_U8)}
         assert publish.call_args.kwargs["db"] is mock_db
         assert account_security_service  # the service module the integration delegates to is importable

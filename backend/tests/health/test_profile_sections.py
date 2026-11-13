@@ -1,5 +1,6 @@
 """The health packages' sections of a profile export and import."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -31,6 +32,9 @@ _SECTIONS = [
 ]
 
 
+_USER_ID = uuid.uuid4()
+
+
 @pytest.mark.parametrize(("key", "integration", "service"), _SECTIONS, ids=[s[0] for s in _SECTIONS])
 def test_the_section_is_keyed_by_its_archive_entry_and_restores_through_its_service(key, integration, service):
     section = integration.profile_section()
@@ -57,10 +61,10 @@ def test_the_section_exports_the_users_records(key, integration, crud_name):
 
     with patch(f"{integration.__name__}.{crud_name}", return_value=records) as read:
         section = integration.profile_section()
-        exported = section.export(1, db)
+        exported = section.export(_USER_ID, db)
 
     assert exported == records
-    read.assert_called_once_with(1, db)
+    read.assert_called_once_with(_USER_ID, db)
 
 
 class TestTargetsSection:
@@ -69,8 +73,8 @@ class TestTargetsSection:
     def test_exports_the_targets_as_a_one_record_list(self):
         targets = MagicMock()
         with patch(self._READ, return_value=targets):
-            assert targets_integration.profile_section().export(1, MagicMock()) == [targets]
+            assert targets_integration.profile_section().export(_USER_ID, MagicMock()) == [targets]
 
     def test_exports_an_empty_list_when_the_user_has_none(self):
         with patch(self._READ, return_value=None):
-            assert targets_integration.profile_section().export(1, MagicMock()) == []
+            assert targets_integration.profile_section().export(_USER_ID, MagicMock()) == []

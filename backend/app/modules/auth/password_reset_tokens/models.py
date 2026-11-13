@@ -1,5 +1,6 @@
 """Password reset token database models."""
 
+import uuid
 from datetime import datetime as datetime_type
 
 from sqlalchemy import DateTime, ForeignKey, String
@@ -23,7 +24,7 @@ class PasswordResetToken(Base):
     __tablename__ = "password_reset_tokens"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    user_id: Mapped[int] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

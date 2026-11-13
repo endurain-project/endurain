@@ -1,5 +1,6 @@
 """A sign-in stack over SQLite: the real routes, the stores on the test platform and one user with a password."""
 
+import uuid
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -19,8 +20,8 @@ import modules.auth.mfa.crud as mfa_crud
 import modules.auth.mfa_backup_codes.crud as backup_codes_crud
 from tests._helpers.db import create_sqlite_session_factory, ensure_user
 
-USER_ID = 7
-USERNAME = "user7"
+USER_ID = uuid.UUID(int=7)
+USERNAME = f"user{USER_ID.hex}"
 PASSWORD = "correct horse battery staple"
 NEW_PASSWORD = "a brand new passphrase 42"
 BACKUP_CODE = "ABCD-EFGH"

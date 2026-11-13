@@ -183,7 +183,7 @@ class HealthFastingRead(HealthFastingBase):
         ...,
         description="Start time of fast",
     )
-    user_id: StrictInt = Field(
+    user_id: uuid.UUID = Field(
         ...,
         description="Foreign key reference to the user",
     )

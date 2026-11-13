@@ -1,5 +1,6 @@
 """Request-parameter types for the followers routes."""
 
+import uuid
 from typing import Annotated
 
 from fastapi import Depends
@@ -9,7 +10,7 @@ import core.dependencies as core_dependencies
 import modules.auth.dependencies as auth_dependencies
 
 
-def get_other_user_id(user_id: core_dependencies.PositiveId, token_user_id: auth_dependencies.CurrentUserId) -> int:
+def get_other_user_id(user_id: core_dependencies.UuidId, token_user_id: auth_dependencies.CurrentUserId) -> uuid.UUID:
     """Return the ``{user_id}`` path parameter, which must name someone other than the caller.
 
     Args:
@@ -36,4 +37,4 @@ def get_other_user_id(user_id: core_dependencies.PositiveId, token_user_id: auth
     return user_id
 
 
-OtherUserId = Annotated[int, Depends(get_other_user_id)]
+OtherUserId = Annotated[uuid.UUID, Depends(get_other_user_id)]

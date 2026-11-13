@@ -46,7 +46,7 @@ def list_follow_requests(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def accept_follow_request(
     request: Request,
-    follower_id: core_dependencies.PositiveId,
+    follower_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
 ) -> followers_schema.FollowRelationshipRead:
@@ -70,7 +70,7 @@ def accept_follow_request(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def reject_follow_request(
     request: Request,
-    follower_id: core_dependencies.PositiveId,
+    follower_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
 ) -> None:

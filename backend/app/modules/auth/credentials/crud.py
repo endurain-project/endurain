@@ -1,5 +1,7 @@
 """Persistence operations for local credentials."""
 
+import uuid
+
 from sqlalchemy import Select, delete, select, update
 from sqlalchemy.orm import Session
 
@@ -8,7 +10,7 @@ import modules.auth.credentials.models as credentials_models
 import modules.auth.credentials.serializers as credentials_serializers
 
 
-def get_credential(user_id: int, db: Session) -> credentials_contracts.CredentialRead | None:
+def get_credential(user_id: uuid.UUID, db: Session) -> credentials_contracts.CredentialRead | None:
     """Return the user's stored local credential, if any."""
     row = db.execute(
         select(credentials_models.LocalCredential).where(credentials_models.LocalCredential.user_id == user_id)
@@ -16,7 +18,7 @@ def get_credential(user_id: int, db: Session) -> credentials_contracts.Credentia
     return credentials_serializers.to_read_schema(row) if row is not None else None
 
 
-def upsert_password_hash(user_id: int, password_hash: str, change_required: bool, db: Session) -> None:
+def upsert_password_hash(user_id: uuid.UUID, password_hash: str, change_required: bool, db: Session) -> None:
     """Stage a local password hash insert or update, with whether its owner must replace the password."""
     row = db.execute(
         select(credentials_models.LocalCredential).where(credentials_models.LocalCredential.user_id == user_id)
@@ -33,7 +35,7 @@ def upsert_password_hash(user_id: int, password_hash: str, change_required: bool
     db.flush()
 
 
-def set_password_change_required(user_id: int, db: Session) -> None:
+def set_password_change_required(user_id: uuid.UUID, db: Session) -> None:
     """Stage the requirement that a user replace their password at the next sign-in, leaving the hash as it is."""
     db.execute(
         update(credentials_models.LocalCredential)
@@ -43,13 +45,13 @@ def set_password_change_required(user_id: int, db: Session) -> None:
     db.flush()
 
 
-def delete_credential(user_id: int, db: Session) -> None:
+def delete_credential(user_id: uuid.UUID, db: Session) -> None:
     """Stage deletion of a user's local credential."""
     db.execute(delete(credentials_models.LocalCredential).where(credentials_models.LocalCredential.user_id == user_id))
     db.flush()
 
 
-def select_credentialed_user_ids() -> Select[tuple[int]]:
+def select_credentialed_user_ids() -> Select[tuple[uuid.UUID]]:
     """Return a query for the ids of the users who have a local credential.
 
     Returns:

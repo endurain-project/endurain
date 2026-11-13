@@ -2,6 +2,7 @@
 
 import os
 import time
+import uuid
 from unittest.mock import MagicMock, patch
 
 import jasil.providers as platform_providers
@@ -22,6 +23,8 @@ _MODULE = "modules.users.users_profile.import_job_service"
 _Status = profile_constants.ImportStatus
 _Failure = profile_constants.ImportFailure
 _AREA = profile_constants.IMPORT_STAGING_AREA
+_USER_ID = uuid.UUID(int=1)
+_OTHER_USER_ID = uuid.UUID(int=2)
 
 
 @pytest.fixture
@@ -56,11 +59,11 @@ def _validation_error() -> ValidationError:
     raise AssertionError
 
 
-def _payload(user_id: int = 1, key: str | None = None) -> profile_events.ProfileImportRequestedPayload:
+def _payload(user_id: uuid.UUID = _USER_ID, key: str | None = None) -> profile_events.ProfileImportRequestedPayload:
     return profile_events.ProfileImportRequestedPayload(user_id=user_id, staged_key=key or f"{user_id}/abc.zip")
 
 
-def _queued(states, user_id: int = 1) -> None:
+def _queued(states, user_id: uuid.UUID = _USER_ID) -> None:
     states.begin(user_id, conflict="held")
 
 
@@ -80,10 +83,10 @@ class TestRequestImport:
         ):
             pool.require_capacity.side_effect = core_exceptions.ServiceUnavailableError("full")
             with pytest.raises(core_exceptions.ServiceUnavailableError):
-                job_service.request_import(7, _saver(), states, storage, mock_db)
+                job_service.request_import(_USER_ID, _saver(), states, storage, mock_db)
 
         storage.save_stream.assert_not_called()
-        assert states.get(7) is None
+        assert states.get(_USER_ID) is None
 
     def test_a_durable_deployment_does_not_look_at_the_local_pool(self, states, storage, mock_db):
         with (
@@ -91,36 +94,36 @@ class TestRequestImport:
             patch(f"{_MODULE}.profile_transfer_pool.pool") as pool,
             patch(f"{_MODULE}.profile_event_publishers.publish_import_requested"),
         ):
-            job_service.request_import(7, _saver(), states, storage, mock_db)
+            job_service.request_import(_USER_ID, _saver(), states, storage, mock_db)
 
         pool.require_capacity.assert_not_called()
 
     def test_an_import_the_pool_could_not_take_is_closed_and_its_archive_removed(self, states, storage):
-        _queued(states, 7)
+        _queued(states)
 
-        job_service.fail_unstarted_import(_payload(7), states, storage)
+        job_service.fail_unstarted_import(_payload(), states, storage)
 
-        assert states.get(7).status == _Status.FAILED
-        assert states.get(7).error_code == _Failure.PROCESSING_FAILED
-        storage.delete.assert_called_once_with(_AREA, "7/abc.zip")
+        assert states.get(_USER_ID).status == _Status.FAILED
+        assert states.get(_USER_ID).error_code == _Failure.PROCESSING_FAILED
+        storage.delete.assert_called_once_with(_AREA, f"{_USER_ID}/abc.zip")
 
     def test_stages_the_archive_under_the_users_prefix_and_queues_it(self, states, storage, mock_db):
         with patch(f"{_MODULE}.profile_event_publishers.publish_import_requested") as publish:
-            state = job_service.request_import(7, _saver(), states, storage, mock_db)
+            state = job_service.request_import(_USER_ID, _saver(), states, storage, mock_db)
 
         assert state.status == _Status.QUEUED
         area, key = storage.save_stream.call_args.args[:2]
         assert area == _AREA
-        assert key.startswith("7/") and key.endswith(".zip")
-        publish.assert_called_once_with(7, key, mock_db, commit=mock_db.commit)
-        assert states.get(7).status == _Status.QUEUED
+        assert key.startswith(f"{_USER_ID}/") and key.endswith(".zip")
+        publish.assert_called_once_with(_USER_ID, key, mock_db, commit=mock_db.commit)
+        assert states.get(_USER_ID).status == _Status.QUEUED
 
     def test_a_pending_import_refuses_a_second_and_stages_nothing(self, states, storage, mock_db):
-        states.begin(7, conflict="held")
+        states.begin(_USER_ID, conflict="held")
 
         saver = MagicMock()
         with pytest.raises(core_exceptions.JobAlreadyRunningError):
-            job_service.request_import(7, saver, states, storage, mock_db)
+            job_service.request_import(_USER_ID, saver, states, storage, mock_db)
 
         saver.assert_not_called()
         storage.save_stream.assert_not_called()
@@ -130,7 +133,7 @@ class TestRequestImport:
         storage.save_stream.side_effect = lambda area, key, source, **_: streamed.append(source.read())
 
         with patch(f"{_MODULE}.profile_event_publishers.publish_import_requested"):
-            job_service.request_import(7, _saver(b"archive-bytes"), states, storage, mock_db)
+            job_service.request_import(_USER_ID, _saver(b"archive-bytes"), states, storage, mock_db)
 
         assert streamed == [b"archive-bytes"]
 
@@ -138,23 +141,23 @@ class TestRequestImport:
         saver = MagicMock(side_effect=core_exceptions.InvalidInputError("not a zip"))
 
         with pytest.raises(core_exceptions.InvalidInputError):
-            job_service.request_import(7, saver, states, storage, mock_db)
+            job_service.request_import(_USER_ID, saver, states, storage, mock_db)
 
         storage.save_stream.assert_not_called()
         storage.delete.assert_not_called()
-        assert states.get(7) is None
-        states.begin(7, conflict="held")
+        assert states.get(_USER_ID) is None
+        states.begin(_USER_ID, conflict="held")
 
     def test_a_failure_to_queue_removes_the_archive_and_closes_the_state(self, states, storage, mock_db):
         with (
             patch(f"{_MODULE}.profile_event_publishers.publish_import_requested", side_effect=RuntimeError("down")),
             pytest.raises(RuntimeError),
         ):
-            job_service.request_import(7, _saver(), states, storage, mock_db)
+            job_service.request_import(_USER_ID, _saver(), states, storage, mock_db)
 
         storage.delete.assert_called_once()
-        assert states.get(7).status == _Status.FAILED
-        states.begin(7, conflict="held")
+        assert states.get(_USER_ID).status == _Status.FAILED
+        states.begin(_USER_ID, conflict="held")
 
 
 class TestRunImport:
@@ -163,27 +166,27 @@ class TestRunImport:
 
         _run(states, storage, {"activities": 3})
 
-        state = states.get(1)
+        state = states.get(_USER_ID)
         assert (state.status, state.imported) == (_Status.SUCCEEDED, {"activities": 3})
-        storage.delete.assert_called_once_with(_AREA, "1/abc.zip")
-        states.begin(1, conflict="held")
+        storage.delete.assert_called_once_with(_AREA, f"{_USER_ID}/abc.zip")
+        states.begin(_USER_ID, conflict="held")
 
     def test_it_reads_the_archive_the_event_names(self, states, storage):
         _queued(states)
 
         run = _run(states, storage, {})
 
-        storage.get.assert_called_once_with(_AREA, "1/abc.zip")
-        assert run.call_args.args[:2] == (1, b"zip")
+        storage.get.assert_called_once_with(_AREA, f"{_USER_ID}/abc.zip")
+        assert run.call_args.args[:2] == (_USER_ID, b"zip")
 
     def test_an_archive_outside_the_users_prefix_is_refused(self, states, storage):
         _queued(states)
 
-        run = _run(states, storage, {}, payload=_payload(1, "2/abc.zip"))
+        run = _run(states, storage, {}, payload=_payload(_USER_ID, f"{_OTHER_USER_ID}/abc.zip"))
 
         run.assert_not_called()
         storage.get.assert_not_called()
-        assert states.get(1).status == _Status.QUEUED
+        assert states.get(_USER_ID).status == _Status.QUEUED
 
     @pytest.mark.parametrize(
         ("error", "failure"),
@@ -197,6 +200,7 @@ class TestRunImport:
             (profile_exceptions.ActivityLimitError("x"), _Failure.TOO_MANY_ACTIVITIES),
             (profile_exceptions.ImportTimeoutError("x"), _Failure.TIMED_OUT),
             (profile_exceptions.ImportAccountMismatchError("x"), _Failure.WRONG_ACCOUNT),
+            (profile_exceptions.ImportArchiveFromOlderVersionError("x"), _Failure.OLDER_VERSION),
             (profile_exceptions.MemoryAllocationError("x"), _Failure.PROCESSING_FAILED),
             (RuntimeError("x"), _Failure.PROCESSING_FAILED),
         ],
@@ -206,7 +210,7 @@ class TestRunImport:
 
         _run(states, storage, error, will_retry=False)
 
-        state = states.get(1)
+        state = states.get(_USER_ID)
         assert (state.status, state.error_code) == (_Status.FAILED, failure)
         storage.delete.assert_called_once()
         assert "x" not in state.model_dump_json().replace("error_code", "")
@@ -217,7 +221,7 @@ class TestRunImport:
         with pytest.raises(OperationalError):
             _run(states, storage, OperationalError("s", {}, Exception("db down")), will_retry=True)
 
-        assert states.get(1).status == _Status.QUEUED
+        assert states.get(_USER_ID).status == _Status.QUEUED
         storage.delete.assert_not_called()
 
     def test_a_transient_failure_on_the_last_attempt_is_final(self, states, storage):
@@ -225,7 +229,7 @@ class TestRunImport:
 
         _run(states, storage, OperationalError("s", {}, Exception("db down")), will_retry=False)
 
-        assert states.get(1).status == _Status.FAILED
+        assert states.get(_USER_ID).status == _Status.FAILED
         storage.delete.assert_called_once()
 
     def test_a_rejected_archive_is_never_retried(self, states, storage):
@@ -233,7 +237,7 @@ class TestRunImport:
 
         _run(states, storage, profile_exceptions.FileFormatError("x"), will_retry=True)
 
-        assert states.get(1).error_code == _Failure.INVALID_FILE
+        assert states.get(_USER_ID).error_code == _Failure.INVALID_FILE
 
     def test_a_failure_after_the_commit_is_final_and_says_files_are_incomplete(self, states, storage):
         _queued(states)
@@ -245,7 +249,10 @@ class TestRunImport:
         with patch(f"{_MODULE}._run_importer", side_effect=commit_then_fail):
             job_service.run_import(_payload(), states, storage, will_retry=True)
 
-        assert (states.get(1).status, states.get(1).error_code) == (_Status.FAILED, _Failure.FILES_INCOMPLETE)
+        assert (states.get(_USER_ID).status, states.get(_USER_ID).error_code) == (
+            _Status.FAILED,
+            _Failure.FILES_INCOMPLETE,
+        )
 
     def test_losing_the_committed_marker_fails_the_import_instead_of_retrying_it(self, states, storage):
         _queued(states)
@@ -257,36 +264,42 @@ class TestRunImport:
         with patch(f"{_MODULE}._run_importer", side_effect=commit_with_state_down):
             job_service.run_import(_payload(), states, storage, will_retry=True)
 
-        assert (states.get(1).status, states.get(1).error_code) == (_Status.FAILED, _Failure.FILES_INCOMPLETE)
+        assert (states.get(_USER_ID).status, states.get(_USER_ID).error_code) == (
+            _Status.FAILED,
+            _Failure.FILES_INCOMPLETE,
+        )
 
     def test_a_redelivery_after_a_worker_died_in_the_database_part_runs_again(self, states, storage):
         _queued(states)
-        states.set_status(1, _Status.RUNNING)
+        states.set_status(_USER_ID, _Status.RUNNING)
 
         run = _run(states, storage, {"gears": 1})
 
         run.assert_called_once()
-        assert states.get(1).status == _Status.SUCCEEDED
+        assert states.get(_USER_ID).status == _Status.SUCCEEDED
 
     def test_a_redelivery_after_a_worker_died_writing_files_does_not_import_twice(self, states, storage):
         _queued(states)
-        states.set_status(1, _Status.WRITING_FILES)
+        states.set_status(_USER_ID, _Status.WRITING_FILES)
 
         run = _run(states, storage, {})
 
         run.assert_not_called()
-        assert (states.get(1).status, states.get(1).error_code) == (_Status.FAILED, _Failure.FILES_INCOMPLETE)
+        assert (states.get(_USER_ID).status, states.get(_USER_ID).error_code) == (
+            _Status.FAILED,
+            _Failure.FILES_INCOMPLETE,
+        )
         storage.delete.assert_called_once()
 
     @pytest.mark.parametrize("finished", [_Status.SUCCEEDED, _Status.FAILED])
     def test_a_redelivery_of_a_finished_import_does_nothing(self, states, storage, finished):
         _queued(states)
-        states.set_status(1, finished)
+        states.set_status(_USER_ID, finished)
 
         run = _run(states, storage, {})
 
         run.assert_not_called()
-        assert states.get(1).status == finished
+        assert states.get(_USER_ID).status == finished
 
     def test_a_missing_archive_fails_the_import(self, states, storage):
         _queued(states)
@@ -295,7 +308,7 @@ class TestRunImport:
         run = _run(states, storage, {})
 
         run.assert_not_called()
-        assert states.get(1).status == _Status.FAILED
+        assert states.get(_USER_ID).status == _Status.FAILED
 
 
 class TestRunImporter:
@@ -309,14 +322,16 @@ class TestRunImporter:
 
             def import_from_zip_data(self, data):
                 self.on_database_committed()
-                seen.append(states.get(1).status)
+                seen.append(states.get(_USER_ID).status)
                 return {"gears": 2}
 
         with (
             patch(f"{_MODULE}.core_database.SessionLocal"),
             patch(f"{_MODULE}.profile_import_service.ImportService", FakeImporter),
         ):
-            result = job_service._run_importer(1, b"zip", storage, lambda: states.set_status(1, _Status.WRITING_FILES))
+            result = job_service._run_importer(
+                _USER_ID, b"zip", storage, lambda: states.set_status(_USER_ID, _Status.WRITING_FILES)
+            )
 
         assert result == {"gears": 2}
         assert seen == [_Status.WRITING_FILES]
@@ -325,12 +340,14 @@ class TestRunImporter:
 class TestSweepStagedImports:
     def test_removes_only_archives_older_than_the_cutoff(self, storage):
         now = time.time()
-        storage.iter_objects.return_value = iter([("1/old.zip", now - 100_000), ("2/new.zip", now - 10)])
+        storage.iter_objects.return_value = iter(
+            [(f"{_USER_ID}/old.zip", now - 100_000), (f"{_OTHER_USER_ID}/new.zip", now - 10)]
+        )
 
         removed = job_service.sweep_staged_imports(storage, 3600)
 
         assert removed == 1
-        storage.delete.assert_called_once_with(_AREA, "1/old.zip")
+        storage.delete.assert_called_once_with(_AREA, f"{_USER_ID}/old.zip")
 
     def test_nothing_stale_removes_nothing(self, storage):
         storage.iter_objects.return_value = iter([])
@@ -342,7 +359,9 @@ class TestSweepStagedImports:
 class TestSweepSurvivesAFailedDelete:
     def test_one_failing_delete_does_not_stop_the_rest(self, storage):
         now = time.time()
-        storage.iter_objects.return_value = iter([("1/a.zip", now - 100_000), ("2/b.zip", now - 100_000)])
+        storage.iter_objects.return_value = iter(
+            [(f"{_USER_ID}/a.zip", now - 100_000), (f"{_OTHER_USER_ID}/b.zip", now - 100_000)]
+        )
         storage.delete.side_effect = [platform_providers.StorageBackendUnavailableError("busy"), None]
 
         removed = job_service.sweep_staged_imports(storage, 3600)
@@ -353,40 +372,43 @@ class TestSweepSurvivesAFailedDelete:
 
 class TestDiscardStagedImports:
     def test_removes_every_archive_of_the_user(self, storage):
-        storage.list_keys.return_value = ["7/a.zip", "7/b.zip"]
+        storage.list_keys.return_value = [f"{_USER_ID}/a.zip", f"{_USER_ID}/b.zip"]
 
-        job_service.discard_staged_imports(7, storage)
+        job_service.discard_staged_imports(_USER_ID, storage)
 
-        storage.list_keys.assert_called_once_with(_AREA, "7/")
-        assert [c.args for c in storage.delete.call_args_list] == [(_AREA, "7/a.zip"), (_AREA, "7/b.zip")]
+        storage.list_keys.assert_called_once_with(_AREA, f"{_USER_ID}/")
+        assert [c.args for c in storage.delete.call_args_list] == [
+            (_AREA, f"{_USER_ID}/a.zip"),
+            (_AREA, f"{_USER_ID}/b.zip"),
+        ]
 
     def test_a_storage_failure_is_logged_not_raised(self, storage):
         storage.list_keys.side_effect = platform_providers.StorageBackendUnavailableError("down")
 
-        job_service.discard_staged_imports(7, storage)
+        job_service.discard_staged_imports(_USER_ID, storage)
 
     def test_a_failed_delete_is_logged_not_raised(self, storage):
-        storage.list_keys.return_value = ["7/a.zip"]
+        storage.list_keys.return_value = [f"{_USER_ID}/a.zip"]
         storage.delete.side_effect = platform_providers.StorageBackendUnavailableError("down")
 
-        job_service.discard_staged_imports(7, storage)
+        job_service.discard_staged_imports(_USER_ID, storage)
 
     def test_an_unexpected_error_propagates(self, storage):
         storage.list_keys.side_effect = TypeError("bug")
 
         with pytest.raises(TypeError):
-            job_service.discard_staged_imports(7, storage)
+            job_service.discard_staged_imports(_USER_ID, storage)
 
     def test_a_failed_single_discard_is_logged_not_raised(self, storage):
         storage.delete.side_effect = platform_providers.StorageBackendUnavailableError("down")
 
-        job_service._discard_staged("7/a.zip", storage)
+        job_service._discard_staged(f"{_USER_ID}/a.zip", storage)
 
     def test_an_unexpected_error_in_a_single_discard_propagates(self, storage):
         storage.delete.side_effect = TypeError("bug")
 
         with pytest.raises(TypeError):
-            job_service._discard_staged("7/a.zip", storage)
+            job_service._discard_staged(f"{_USER_ID}/a.zip", storage)
 
 
 class TestCloseDeadLetteredImport:
@@ -399,24 +421,24 @@ class TestCloseDeadLetteredImport:
         ],
     )
     def test_a_pending_import_is_failed_with_the_reason_its_state_implies(self, states, storage, status, failure):
-        states.begin(1, conflict="held")
-        states.set_status(1, status)
+        states.begin(_USER_ID, conflict="held")
+        states.set_status(_USER_ID, status)
 
-        job_service.close_dead_lettered_import(_payload(1), states, storage)
+        job_service.close_dead_lettered_import(_payload(), states, storage)
 
-        assert states.get(1).status == _Status.FAILED
-        assert states.get(1).error_code == failure
-        states.begin(1, conflict="held")
+        assert states.get(_USER_ID).status == _Status.FAILED
+        assert states.get(_USER_ID).error_code == failure
+        states.begin(_USER_ID, conflict="held")
 
     def test_the_staged_archive_is_always_removed(self, states, storage):
-        job_service.close_dead_lettered_import(_payload(1), states, storage)
+        job_service.close_dead_lettered_import(_payload(), states, storage)
 
-        storage.delete.assert_called_once_with(_AREA, "1/abc.zip")
+        storage.delete.assert_called_once_with(_AREA, f"{_USER_ID}/abc.zip")
 
     def test_an_import_that_already_finished_keeps_its_outcome(self, states, storage):
-        states.begin(1, conflict="held")
-        states.set_status(1, _Status.SUCCEEDED)
+        states.begin(_USER_ID, conflict="held")
+        states.set_status(_USER_ID, _Status.SUCCEEDED)
 
-        job_service.close_dead_lettered_import(_payload(1), states, storage)
+        job_service.close_dead_lettered_import(_payload(), states, storage)
 
-        assert states.get(1).status == _Status.SUCCEEDED
+        assert states.get(_USER_ID).status == _Status.SUCCEEDED

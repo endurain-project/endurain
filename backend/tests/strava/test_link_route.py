@@ -8,6 +8,7 @@ from fastapi import Response
 import modules.gears.gear.schema as gears_schema
 import modules.strava.router as strava_router
 import modules.strava.schema as strava_schema
+from tests._helpers.auth import MOCK_USER_ID
 
 
 def _routes():
@@ -59,12 +60,14 @@ def test_client_and_state_answer_with_their_bodies():
         client_result = strava_router.strava_set_user_client(
             request=MagicMock(),
             client=strava_schema.StravaClientCredentials(client_id=1, client_secret="s"),
-            token_user_id=7,
+            token_user_id=MOCK_USER_ID,
             db=MagicMock(),
             response=MagicMock(headers={}),
             if_match='"1"',
         )
-        state = strava_router.strava_begin_state(request=MagicMock(), token_user_id=7, oauth_states=MagicMock())
+        state = strava_router.strava_begin_state(
+            request=MagicMock(), token_user_id=MOCK_USER_ID, oauth_states=MagicMock()
+        )
 
     assert client_result is None
     assert state.state == "s" * 43
@@ -104,7 +107,7 @@ def test_a_link_must_carry_a_state_as_long_as_the_server_issues():
 def test_a_gear_import_reports_how_many_gears_it_created(gear_type, expected):
     with patch.object(strava_router.strava_gear_service, "import_gear", return_value=4) as import_gear:
         result = strava_router.import_gear_from_strava_export(
-            request=MagicMock(), file=MagicMock(), gear_type=gear_type, token_user_id=7, db=MagicMock()
+            request=MagicMock(), file=MagicMock(), gear_type=gear_type, token_user_id=MOCK_USER_ID, db=MagicMock()
         )
 
     assert result == strava_schema.StravaGearImportResult(imported=4)
@@ -138,7 +141,7 @@ def test_only_bikes_and_shoes_can_be_imported(gear_type):
     core_exceptions.register_exception_handlers(app)
     app.include_router(strava_router.router, prefix="/strava")
     app.dependency_overrides[auth_deps.check_scopes] = lambda: None
-    app.dependency_overrides[auth_deps.get_current_user_id] = lambda: 1
+    app.dependency_overrides[auth_deps.get_current_user_id] = lambda: MOCK_USER_ID
 
     response = TestClient(app).post(f"/strava/import/gear?gear_type={gear_type}", files={"file": ("g.csv", b"x")})
 
@@ -158,7 +161,7 @@ def test_setting_the_client_requires_the_version_that_was_read():
     core_exceptions.register_exception_handlers(app)
     app.include_router(strava_router.router, prefix="/strava")
     app.dependency_overrides[auth_deps.check_scopes] = lambda: None
-    app.dependency_overrides[auth_deps.get_current_user_id] = lambda: 1
+    app.dependency_overrides[auth_deps.get_current_user_id] = lambda: MOCK_USER_ID
     app.dependency_overrides[core_db.get_db] = lambda: MagicMock()
 
     with patch.object(strava_router.strava_service, "set_client") as set_client:
@@ -183,7 +186,7 @@ def test_a_queued_sync_names_its_job_in_content_location(call, queued, kind):
         {"id": "job-1", "kind": kind, "created_at": "2026-01-01T00:00:00Z", "status": "queued"}
     )
     response = Response()
-    kwargs = {"request": MagicMock(), "response": response, "token_user_id": 7, "sync_states": MagicMock()}
+    kwargs = {"request": MagicMock(), "response": response, "token_user_id": MOCK_USER_ID, "sync_states": MagicMock()}
     if call == "strava_link":
         kwargs.update(link=MagicMock(), oauth_states=MagicMock())
         service = strava_router.strava_link_service

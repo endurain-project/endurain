@@ -1,5 +1,6 @@
 """An API key stored in the database resolves to its owner's principal."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -15,7 +16,7 @@ import modules.auth.authentication.principal_service as principal_service
 import modules.server_settings.contracts as server_settings_contracts
 from tests._helpers.db import create_sqlite_session_factory, ensure_user
 
-_USER_ID = 5
+_USER_ID = uuid.UUID(int=5)
 
 
 class _NaiveUtcDatetime(datetime):

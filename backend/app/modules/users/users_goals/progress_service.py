@@ -1,5 +1,7 @@
 """Progress calculation for user goals against the user's activities."""
 
+import uuid
+
 from sqlalchemy.orm import Session
 
 import core.calendar as core_calendar
@@ -40,7 +42,7 @@ _DEFAULT_ACTIVITY_TYPES: list[int] = [10, 19]
 
 
 def calculate_user_goals(
-    user_id: int,
+    user_id: uuid.UUID,
     date: str | None,
     first_day_of_week: core_calendar.WeekdayValue,
     page: core_pagination.PageParams,
@@ -195,7 +197,7 @@ def calculate_goal_progress_by_activity_type(
 
 
 def get_goals_progress(
-    user_id: int, page: core_pagination.PageParams, db: Session
+    user_id: uuid.UUID, page: core_pagination.PageParams, db: Session
 ) -> user_goals_schema.UserGoalProgressPage:
     """Calculate goal progress for one page of a user's goals as of their own calendar day.
 

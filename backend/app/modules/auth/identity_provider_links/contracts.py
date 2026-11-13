@@ -45,7 +45,7 @@ class IdentityLinkRead(BaseModel):
     """Persisted identity-link data."""
 
     id: uuid.UUID
-    user_id: int
+    user_id: uuid.UUID
     idp_id: uuid.UUID
     idp_subject: str
     linked_at: datetime
@@ -59,7 +59,7 @@ class IdpSessionTokenRead(BaseModel):
 
     id: uuid.UUID
     session_id: str
-    user_id: int
+    user_id: uuid.UUID
     idp_id: uuid.UUID
     refresh_token: str | None
     id_token: str | None

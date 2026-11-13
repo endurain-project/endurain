@@ -22,7 +22,7 @@ The archive does **not** include your password, MFA configuration, or other secu
 
 ## Import
 
-Choose **Import data** and select a `.zip` archive created by an export, including one made by an earlier release. The import:
+Choose **Import data** and select a `.zip` archive created by an export. An archive exported by an Endurain version before v0.21.0 is refused (`older_version`) and nothing is imported. The import:
 
 - **adds** the data to your current account. It does not replace or delete what you already have.
 - creates new gear and activities, and relinks activities to the imported gear.

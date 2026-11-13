@@ -14,7 +14,7 @@ import modules.auth.api_keys.serializers as api_keys_serializers
 
 
 def get_api_keys_page(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     limit: int,
@@ -32,14 +32,14 @@ def get_api_keys_page(
     return [api_keys_serializers.to_read_schema(row) for row in rows]
 
 
-def count_api_keys(user_id: int, db: Session) -> int:
+def count_api_keys(user_id: uuid.UUID, db: Session) -> int:
     """Return how many API keys an owner has."""
     return db.execute(
         select(func.count(api_keys_models.UsersApiKeys.id)).where(api_keys_models.UsersApiKeys.user_id == user_id)
     ).scalar_one()
 
 
-def count_active_api_keys(user_id: int, now: datetime, db: Session) -> int:
+def count_active_api_keys(user_id: uuid.UUID, now: datetime, db: Session) -> int:
     """Return how many API keys an owner has that are not revoked and expire after ``now``."""
     model = api_keys_models.UsersApiKeys
     return db.execute(
@@ -47,7 +47,7 @@ def count_active_api_keys(user_id: int, now: datetime, db: Session) -> int:
     ).scalar_one()
 
 
-def get_api_key_by_id(api_key_id: str, user_id: int, db: Session) -> api_keys_schema.UserApiKeyRead | None:
+def get_api_key_by_id(api_key_id: str, user_id: uuid.UUID, db: Session) -> api_keys_schema.UserApiKeyRead | None:
     """Return an API key by ID and owner."""
     stmt = select(api_keys_models.UsersApiKeys).where(
         api_keys_models.UsersApiKeys.id == api_key_id,
@@ -65,7 +65,7 @@ def get_api_key_by_hash(key_hash: str, db: Session) -> api_keys_schema.UserApiKe
 
 
 def create_api_key(
-    user_id: int,
+    user_id: uuid.UUID,
     data: api_keys_schema.UserApiKeyCreate,
     raw_key: str,
     key_hash: str,
@@ -100,7 +100,7 @@ def update_last_used(api_key_id: str, db: Session) -> None:
     db.flush()
 
 
-def revoke_api_key(api_key_id: str, user_id: int, db: Session) -> None:
+def revoke_api_key(api_key_id: str, user_id: uuid.UUID, db: Session) -> None:
     """Stage revocation of an API key owned by the user."""
     row = db.execute(
         select(api_keys_models.UsersApiKeys).where(
@@ -116,7 +116,7 @@ def revoke_api_key(api_key_id: str, user_id: int, db: Session) -> None:
     db.flush()
 
 
-def revoke_all_api_keys_for_user(user_id: int, db: Session) -> int:
+def revoke_all_api_keys_for_user(user_id: uuid.UUID, db: Session) -> int:
     """Stage revocation of every active API key a user owns and return how many were revoked."""
     model = api_keys_models.UsersApiKeys
     return core_database.rowcount(
@@ -136,7 +136,7 @@ def delete_stale_api_keys(cutoff: datetime, limit: int, db: Session) -> int:
     return matched
 
 
-def delete_api_key(api_key_id: str, user_id: int, db: Session) -> None:
+def delete_api_key(api_key_id: str, user_id: uuid.UUID, db: Session) -> None:
     """Stage deletion of an API key owned by the user."""
     matched = core_database.rowcount(
         db,

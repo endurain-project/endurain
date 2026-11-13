@@ -1,6 +1,7 @@
 """Tests for finding and listing background jobs across the features that own them."""
 
 import typing
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -19,6 +20,10 @@ import modules.strava.sync_state_store as strava_sync_state_store
 import modules.users.users.constants as users_constants
 import modules.users.users.deletion_state_store as deletion_state_store
 
+USER = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
+OTHER_USER = uuid.UUID("7b1c93e4-5d28-4f6a-8e03-a94d2c6f1b57")
+THIRD_USER = uuid.UUID("c3a85f19-0e72-4b4d-b6a8-3d9e17f4c250")
+
 Status = core_job_status.JobState
 _ALL = frozenset({"account", "account:integrations", "activities:upload", "users:read-all"})
 _INGESTION_READ = "modules.activities.activity_ingestion.integration_service.read_job"
@@ -30,7 +35,7 @@ def state():
     return MemoryState()
 
 
-def _strava(state, user_id=1, kind=strava_constants.SyncKind.GEAR):
+def _strava(state, user_id=USER, kind=strava_constants.SyncKind.GEAR):
     return strava_sync_state_store.StravaSyncStateStore(state).begin(user_id, kind, conflict="Busy")
 
 
@@ -48,7 +53,7 @@ class TestGetJob:
     def test_the_owner_reads_a_state_store_job_with_its_rule(self, state):
         job = _strava(state)
 
-        view = jobs_service.get_job(job.id, 1, _ALL, state, MagicMock())
+        view = jobs_service.get_job(job.id, USER, _ALL, state, MagicMock())
 
         assert view.job.id == job.id
         assert view.job.kind == "strava_gear"
@@ -60,68 +65,68 @@ class TestGetJob:
     def test_a_strava_link_or_unlink_job_is_read_with_the_integrations_scope(self, state, kind):
         job = _strava(state, kind=kind)
 
-        view = jobs_service.get_job(job.id, 1, _ALL, state, MagicMock())
+        view = jobs_service.get_job(job.id, USER, _ALL, state, MagicMock())
 
         assert view.scope == "account:integrations"
 
     def test_a_garmin_link_job_is_read_with_the_integrations_scope(self, state):
-        job = garmin_link_state_store.GarminLinkStateStore(state).begin(1, conflict="Busy")
+        job = garmin_link_state_store.GarminLinkStateStore(state).begin(USER, conflict="Busy")
 
-        view = jobs_service.get_job(job.id, 1, _ALL, state, MagicMock())
+        view = jobs_service.get_job(job.id, USER, _ALL, state, MagicMock())
 
         assert view.scope == "account:integrations"
 
     def test_another_users_job_is_not_found(self, state):
-        job = _strava(state, user_id=2)
+        job = _strava(state, user_id=OTHER_USER)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            jobs_service.get_job(job.id, 1, _ALL, state, MagicMock())
+            jobs_service.get_job(job.id, USER, _ALL, state, MagicMock())
 
     def test_a_job_its_subject_has_replaced_is_not_found(self, state):
         first = _strava(state)
         strava_sync_state_store.StravaSyncStateStore(state).set_status(
-            1, strava_constants.SyncKind.GEAR, Status.SUCCEEDED
+            USER, strava_constants.SyncKind.GEAR, Status.SUCCEEDED
         )
         _strava(state)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            jobs_service.get_job(first.id, 1, _ALL, state, MagicMock())
+            jobs_service.get_job(first.id, USER, _ALL, state, MagicMock())
 
     def test_an_id_the_index_does_not_hold_is_read_as_an_ingestion_job(self, state):
         upload = _upload("upload-1", datetime(2026, 1, 1, tzinfo=UTC))
         db = MagicMock()
         with patch(_INGESTION_READ, return_value=upload) as read:
-            view = jobs_service.get_job("upload-1", 1, _ALL, state, db)
+            view = jobs_service.get_job("upload-1", USER, _ALL, state, db)
 
-        read.assert_called_once_with("upload-1", 1, db)
+        read.assert_called_once_with("upload-1", USER, db)
         assert view.job is upload
         assert view.scope == "activities:upload"
 
     def test_an_unknown_id_is_not_found(self, state):
         with patch(_INGESTION_READ, return_value=None), pytest.raises(core_exceptions.NotFoundError):
-            jobs_service.get_job("missing", 1, _ALL, state, MagicMock())
+            jobs_service.get_job("missing", USER, _ALL, state, MagicMock())
 
     def test_an_indexed_job_of_a_kind_no_feature_reads_is_not_found(self, state):
         core_attempt_state.JobIndex(state).put(
             core_job_status.JobRef(
-                id="odd", kind="retired_kind", owner_id=1, subject="1", created_at=datetime.now(UTC)
+                id="odd", kind="retired_kind", owner_id=USER, subject=str(USER), created_at=datetime.now(UTC)
             ),
             60,
         )
 
         with pytest.raises(core_exceptions.NotFoundError):
-            jobs_service.get_job("odd", 1, _ALL, state, MagicMock())
+            jobs_service.get_job("odd", USER, _ALL, state, MagicMock())
 
     def test_any_holder_of_users_read_all_follows_an_account_deletion(self, state):
         job = deletion_state_store.UserDeletionStateStore(state).begin(
-            7, users_constants.DeletionKind.ACCOUNT, conflict="Busy", owner_id=1
+            THIRD_USER, users_constants.DeletionKind.ACCOUNT, conflict="Busy", owner_id=USER
         )
 
-        view = jobs_service.get_job(job.id, 2, {"users:read-all"}, state, MagicMock())
+        view = jobs_service.get_job(job.id, OTHER_USER, {"users:read-all"}, state, MagicMock())
 
         assert view.job.kind == "user_deletion"
         with pytest.raises(core_exceptions.NotFoundError):
-            jobs_service.get_job(job.id, 2, {"account"}, state, MagicMock())
+            jobs_service.get_job(job.id, OTHER_USER, {"account"}, state, MagicMock())
 
 
 class TestListJobs:
@@ -132,7 +137,7 @@ class TestListJobs:
         new = _upload("upload-new", link.created_at + timedelta(days=1))
         with patch(_INGESTION_LIST, return_value=[new, old]) as ingestion:
             first = jobs_service.list_jobs(
-                1, _ALL, state, MagicMock(), kind=None, status=None, cursor=None, num_records=2
+                USER, _ALL, state, MagicMock(), kind=None, status=None, cursor=None, num_records=2
             )
 
         assert [job.id for job in first.items] == ["upload-new", link.id]
@@ -142,7 +147,7 @@ class TestListJobs:
 
         with patch(_INGESTION_LIST, return_value=[old]) as ingestion:
             second = jobs_service.list_jobs(
-                1, _ALL, state, MagicMock(), kind=None, status=None, cursor=first.next_cursor, num_records=2
+                USER, _ALL, state, MagicMock(), kind=None, status=None, cursor=first.next_cursor, num_records=2
             )
 
         assert ingestion.call_args.kwargs["before"] == (link.created_at, link.id)
@@ -154,7 +159,7 @@ class TestListJobs:
 
         with patch(_INGESTION_LIST, return_value=[]):
             page = jobs_service.list_jobs(
-                1,
+                USER,
                 {"account", "activities:upload"},
                 state,
                 MagicMock(),
@@ -167,10 +172,10 @@ class TestListJobs:
         assert page.items == []
 
     def test_only_the_callers_own_jobs_are_listed(self, state):
-        _strava(state, user_id=2)
+        _strava(state, user_id=OTHER_USER)
 
         page = jobs_service.list_jobs(
-            1, {"account"}, state, MagicMock(), kind=None, status=None, cursor=None, num_records=10
+            USER, {"account"}, state, MagicMock(), kind=None, status=None, cursor=None, num_records=10
         )
 
         assert page.items == []
@@ -179,7 +184,7 @@ class TestListJobs:
         _strava(state)
         with patch(_INGESTION_LIST) as ingestion:
             page = jobs_service.list_jobs(
-                1, {"activities:read"}, state, MagicMock(), kind=None, status=None, cursor=None, num_records=10
+                USER, {"activities:read"}, state, MagicMock(), kind=None, status=None, cursor=None, num_records=10
             )
 
         assert page.items == []
@@ -189,11 +194,11 @@ class TestListJobs:
         gear = _strava(state)
         _strava(state, kind=strava_constants.SyncKind.LINK)
         strava_sync_state_store.StravaSyncStateStore(state).set_status(
-            1, strava_constants.SyncKind.LINK, Status.SUCCEEDED
+            USER, strava_constants.SyncKind.LINK, Status.SUCCEEDED
         )
         with patch(_INGESTION_LIST) as ingestion:
             by_kind = jobs_service.list_jobs(
-                1,
+                USER,
                 _ALL,
                 state,
                 MagicMock(),
@@ -203,7 +208,7 @@ class TestListJobs:
                 num_records=10,
             )
             by_status = jobs_service.list_jobs(
-                1, {"account"}, state, MagicMock(), kind=None, status=Status.QUEUED, cursor=None, num_records=10
+                USER, {"account"}, state, MagicMock(), kind=None, status=Status.QUEUED, cursor=None, num_records=10
             )
 
         assert [job.id for job in by_kind.items] == [gear.id]
@@ -214,7 +219,7 @@ class TestListJobs:
         db = MagicMock()
         with patch(_INGESTION_LIST, return_value=[]) as ingestion:
             jobs_service.list_jobs(
-                1,
+                USER,
                 _ALL,
                 state,
                 db,
@@ -224,7 +229,7 @@ class TestListJobs:
                 num_records=5,
             )
 
-        assert ingestion.call_args.args == (1, db)
+        assert ingestion.call_args.args == (USER, db)
         assert ingestion.call_args.kwargs == {
             "kinds": {jobs_schema.JobKind.ACTIVITY_REFRESH},
             "status": Status.RUNNING,

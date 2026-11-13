@@ -25,7 +25,7 @@ SPEC = health_record_crud.RecordSpec(
 
 
 def get_health_steps_number_by_user_id(
-    user_id: int, db: Session, since: date_type | None = None, until: date_type | None = None
+    user_id: uuid.UUID, db: Session, since: date_type | None = None, until: date_type | None = None
 ) -> int:
     """Count a user's steps records.
 
@@ -42,7 +42,7 @@ def get_health_steps_number_by_user_id(
 
 
 def get_health_steps_by_user_id(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     page_number: int | None = None,
     num_records: int | None = None,
@@ -76,7 +76,7 @@ def get_health_steps_by_user_id(
 
 
 def get_health_steps_by_date_and_user_id(
-    user_id: int, date: str, db: Session
+    user_id: uuid.UUID, date: str, db: Session
 ) -> health_steps_schema.HealthStepsRead | None:
     """Retrieve a user's steps record for a date.
 
@@ -92,7 +92,7 @@ def get_health_steps_by_date_and_user_id(
 
 
 def create_health_steps(
-    user_id: int, health_steps: health_steps_schema.HealthStepsCreate, db: Session
+    user_id: uuid.UUID, health_steps: health_steps_schema.HealthStepsCreate, db: Session
 ) -> health_steps_schema.HealthStepsRead:
     """Stage a new steps record for a user.
 
@@ -113,7 +113,7 @@ def create_health_steps(
 
 
 def edit_health_steps(
-    user_id: int,
+    user_id: uuid.UUID,
     health_steps_id: uuid.UUID,
     health_steps: health_steps_schema.HealthStepsUpdate,
     db: Session,
@@ -148,7 +148,7 @@ def edit_health_steps(
     )
 
 
-def delete_health_steps(user_id: int, health_steps_id: uuid.UUID, db: Session, *, if_match: str) -> None:
+def delete_health_steps(user_id: uuid.UUID, health_steps_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Stage the deletion of a user's steps record.
 
     Args:
@@ -165,7 +165,7 @@ def delete_health_steps(user_id: int, health_steps_id: uuid.UUID, db: Session, *
 
 
 def get_health_steps_chart(
-    user_id: int, since: date_type, until: date_type | None, bucket: health_constants.ChartBucket, db: Session
+    user_id: uuid.UUID, since: date_type, until: date_type | None, bucket: health_constants.ChartBucket, db: Session
 ) -> list[health_schema.HealthChartPoint]:
     """Average a user's steps per chart bucket.
 
@@ -195,7 +195,7 @@ def get_health_steps_chart(
 
 
 def list_changed(
-    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[health_steps_schema.HealthStepsRead]:
     """Retrieve a user's records changed after a position, oldest change first.
 

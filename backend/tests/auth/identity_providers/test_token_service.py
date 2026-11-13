@@ -15,6 +15,7 @@ import core.exceptions as core_exceptions
 import modules.auth.identity_providers.token_service as token_service_module
 import modules.auth.sessions.audit_actions as sessions_audit_actions
 from modules.auth.identity_providers.token_policy import TokenAction
+from tests._helpers.auth import MOCK_USER_ID
 
 IDP_ID = uuid.uuid4()
 
@@ -27,7 +28,7 @@ SESSION = "11111111-1111-1111-1111-111111111111"
 
 
 def _row(**overrides):
-    values = {"session_id": SESSION, "user_id": 7, "idp_id": IDP_ID, "refresh_token": "encrypted"}
+    values = {"session_id": SESSION, "user_id": MOCK_USER_ID, "idp_id": IDP_ID, "refresh_token": "encrypted"}
     values.update(overrides)
     return MagicMock(**values)
 
@@ -50,13 +51,13 @@ class TestRequestIdpTokenRefresh:
             patch.object(token_service_module.idp_event_publishers, "publish_idp_token_refresh_requested") as publish,
             patch.object(token_service_module.token_policy, "should_refresh_idp_token", return_value=action),
         ):
-            service.request_idp_token_refresh(7, SESSION, mock_db)
+            service.request_idp_token_refresh(MOCK_USER_ID, SESSION, mock_db)
         return service, clear, publish
 
     def test_an_expiring_token_queues_one_job_for_that_session(self, mock_db):
         service, clear, publish = self._request(mock_db, TokenAction.REFRESH)
 
-        publish.assert_called_once_with(7, SESSION, mock_db)
+        publish.assert_called_once_with(MOCK_USER_ID, SESSION, mock_db)
         clear.assert_not_called()
         service.refresh_idp_session.assert_not_called()
 
@@ -98,7 +99,7 @@ class TestRequestIdpTokenRefresh:
             patch.object(token_service_module.token_policy, "should_refresh_idp_token", return_value=TokenAction.CLEAR),
             pytest.raises(OperationalError),
         ):
-            service.request_idp_token_refresh(7, SESSION, mock_db)
+            service.request_idp_token_refresh(MOCK_USER_ID, SESSION, mock_db)
         publish.assert_not_called()
 
 
@@ -135,7 +136,7 @@ class TestRefreshIdpTokens:
             ),
             patch.object(token_service_module.token_policy, "should_refresh_idp_token", return_value=action),
         ):
-            service.refresh_idp_tokens(7, SESSION, self.claims)
+            service.refresh_idp_tokens(MOCK_USER_ID, SESSION, self.claims)
         return service, open_during_refresh
 
     claims = MagicMock()
@@ -249,7 +250,7 @@ class TestRefreshIdpSession:
         assert events == ["store", "commit"]
         # The new token is written only over the one this refresh read, for this session.
         store_args = service._store_refreshed_token.call_args.args
-        assert store_args[:5] == (SESSION, 7, IDP_ID, {"access_token": "new"}, "encrypted")
+        assert store_args[:5] == (SESSION, MOCK_USER_ID, IDP_ID, {"access_token": "new"}, "encrypted")
         client.close.assert_called_once()
         self.claims.claim.assert_called_once_with(SESSION)
         self.claims.release.assert_called_once_with(SESSION)
@@ -345,7 +346,10 @@ class TestRefreshIdpSession:
 
         assert events == ["clear", "commit", "end-session", "commit"]
         entry = audit.assert_audited(
-            sessions_audit_actions.SESSION_REVOKE.id, target_type="session", target_id=SESSION, target_owner_id="7"
+            sessions_audit_actions.SESSION_REVOKE.id,
+            target_type="session",
+            target_id=SESSION,
+            target_owner_id=str(MOCK_USER_ID),
         )
         assert entry.details == {"sessions_revoked": 1}
         assert [record.levelno for record in caplog.records if record.levelno == logging.WARNING] == [logging.WARNING]
@@ -594,7 +598,7 @@ class TestStoreSessionTokens:
             ) as create,
         ):
             before = datetime.now(UTC)
-            _service().store_session_tokens(SESSION, 7, IDP_ID, token_response, MagicMock(), idp_sid=None)
+            _service().store_session_tokens(SESSION, MOCK_USER_ID, IDP_ID, token_response, MagicMock(), idp_sid=None)
             after = datetime.now(UTC)
         return create, before, after
 
@@ -602,13 +606,13 @@ class TestStoreSessionTokens:
         create, before, after = self._store({"refresh_token": "rt", "expires_in": 60})
 
         args = create.call_args.args
-        assert args[:4] == (SESSION, 7, IDP_ID, "ciphertext")
+        assert args[:4] == (SESSION, MOCK_USER_ID, IDP_ID, "ciphertext")
         assert before + timedelta(seconds=60) <= args[4] <= after + timedelta(seconds=60)
 
     def test_a_provider_that_issues_no_refresh_token_still_records_the_sign_in(self):
         create, _, _ = self._store({"access_token": "at"})
 
-        assert create.call_args.args[:5] == (SESSION, 7, IDP_ID, None, None)
+        assert create.call_args.args[:5] == (SESSION, MOCK_USER_ID, IDP_ID, None, None)
 
     def test_a_failed_encryption_is_logged_and_the_sign_in_is_recorded_without_a_token(self, caplog):
         import logging
@@ -618,7 +622,7 @@ class TestStoreSessionTokens:
                 {"refresh_token": "rt", "expires_in": 60}, encrypt=core_exceptions.CryptographyError()
             )
 
-        assert create.call_args.args[:5] == (SESSION, 7, IDP_ID, None, None)
+        assert create.call_args.args[:5] == (SESSION, MOCK_USER_ID, IDP_ID, None, None)
         assert [record.levelno for record in caplog.records if record.levelno >= logging.WARNING] == [logging.ERROR]
 
     def test_the_id_token_is_stored_encrypted_beside_the_refresh_token(self):
@@ -631,7 +635,7 @@ class TestStoreSessionTokens:
             ) as create,
         ):
             _service().store_session_tokens(
-                SESSION, 7, IDP_ID, {"refresh_token": "rt", "id_token": "idt"}, MagicMock(), idp_sid=None
+                SESSION, MOCK_USER_ID, IDP_ID, {"refresh_token": "rt", "id_token": "idt"}, MagicMock(), idp_sid=None
             )
 
         assert create.call_args.args[3] == "enc:rt"
@@ -646,7 +650,9 @@ class TestStoreSessionTokens:
                 token_service_module.identity_provider_links_integration, "create_idp_session_token"
             ) as create,
         ):
-            _service().store_session_tokens(SESSION, 7, IDP_ID, {"id_token": "idt"}, MagicMock(), idp_sid=None)
+            _service().store_session_tokens(
+                SESSION, MOCK_USER_ID, IDP_ID, {"id_token": "idt"}, MagicMock(), idp_sid=None
+            )
 
         assert create.call_args.args[3] is None
         assert create.call_args.kwargs == {"encrypted_id_token": "enc:idt", "idp_sid": None}
@@ -655,7 +661,9 @@ class TestStoreSessionTokens:
         with patch.object(
             token_service_module.identity_provider_links_integration, "create_idp_session_token"
         ) as create:
-            _service().store_session_tokens(SESSION, 7, IDP_ID, {"access_token": "at"}, MagicMock(), idp_sid="sid-1")
+            _service().store_session_tokens(
+                SESSION, MOCK_USER_ID, IDP_ID, {"access_token": "at"}, MagicMock(), idp_sid="sid-1"
+            )
 
         assert create.call_args.kwargs["idp_sid"] == "sid-1"
 
@@ -700,7 +708,7 @@ class TestStoreSessionTokens:
             pytest.raises(ValueError),
         ):
             _service().store_session_tokens(
-                SESSION, 7, IDP_ID, {"refresh_token": "rt", "expires_in": "soon"}, MagicMock(), idp_sid=None
+                SESSION, MOCK_USER_ID, IDP_ID, {"refresh_token": "rt", "expires_in": "soon"}, MagicMock(), idp_sid=None
             )
         create.assert_not_called()
 
@@ -714,7 +722,9 @@ class TestStoreSessionTokens:
             ),
             pytest.raises(OperationalError),
         ):
-            _service().store_session_tokens(SESSION, 7, IDP_ID, {"refresh_token": "rt"}, MagicMock(), idp_sid=None)
+            _service().store_session_tokens(
+                SESSION, MOCK_USER_ID, IDP_ID, {"refresh_token": "rt"}, MagicMock(), idp_sid=None
+            )
 
 
 class TestStoreRefreshedToken:
@@ -729,7 +739,9 @@ class TestStoreRefreshedToken:
                 return_value=replaced,
             ) as replace,
         ):
-            _service()._store_refreshed_token(SESSION, 7, IDP_ID, token_response, "read-ciphertext", MagicMock())
+            _service()._store_refreshed_token(
+                SESSION, MOCK_USER_ID, IDP_ID, token_response, "read-ciphertext", MagicMock()
+            )
         return replace
 
     def test_the_new_token_replaces_the_one_that_was_read(self):
@@ -750,7 +762,12 @@ class TestStoreRefreshedToken:
             ) as replace,
         ):
             _service()._store_refreshed_token(
-                SESSION, 7, IDP_ID, {"refresh_token": "rt", "id_token": "idt"}, "read-ciphertext", MagicMock()
+                SESSION,
+                MOCK_USER_ID,
+                IDP_ID,
+                {"refresh_token": "rt", "id_token": "idt"},
+                "read-ciphertext",
+                MagicMock(),
             )
 
         assert replace.call_args.kwargs == {"encrypted_id_token": "enc:idt"}
@@ -780,4 +797,6 @@ class TestStoreRefreshedToken:
             ),
             pytest.raises(OperationalError),
         ):
-            _service()._store_refreshed_token(SESSION, 7, IDP_ID, {"refresh_token": "rt"}, "read", MagicMock())
+            _service()._store_refreshed_token(
+                SESSION, MOCK_USER_ID, IDP_ID, {"refresh_token": "rt"}, "read", MagicMock()
+            )

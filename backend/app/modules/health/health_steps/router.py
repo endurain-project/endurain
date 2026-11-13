@@ -132,7 +132,7 @@ def create_health_steps(
         request: The incoming request, read by the rate limiter.
         health_steps (health_steps_schema.HealthSteps): The health steps data to create,
             including the date and step count.
-        token_user_id (int): The ID of the authenticated user extracted from the
+        token_user_id (uuid.UUID): The ID of the authenticated user extracted from the
             access token.
         db (Session): Database session dependency for database operations.
         response: The response, whose ``Location`` names where the record is read.
@@ -172,7 +172,7 @@ def edit_health_steps(
         health_steps_id: ID of the record to change.
         health_steps (health_steps_schema.HealthSteps): The health steps data to be updated,
             containing the new values for the health steps record.
-        token_user_id (int): The user ID extracted from the JWT access token, used to identify
+        token_user_id (uuid.UUID): The user ID extracted from the JWT access token, used to identify
             the user making the request.
         db (Session): Database session dependency for performing database operations.
         response: The response, which carries the new ETag.
@@ -215,8 +215,8 @@ def delete_health_steps(
 
     Args:
         request: The incoming request, read by the rate limiter.
-        health_steps_id (int): The unique identifier of the health steps record to delete.
-        token_user_id (int): The user ID extracted from the access token.
+        health_steps_id (uuid.UUID): The unique identifier of the health steps record to delete.
+        token_user_id (uuid.UUID): The user ID extracted from the access token.
         if_match: The ``If-Match`` precondition.
         db (Session): Database session dependency for executing the delete operation.
 

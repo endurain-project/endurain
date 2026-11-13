@@ -15,6 +15,8 @@ server configuration, they could not be round-tripped, and they duplicated an
 instant that then had to be masked in two places.
 """
 
+import uuid
+
 import pydantic
 from sqlalchemy import func
 
@@ -116,7 +118,7 @@ def apply_visibility_mask(
 def serialize_and_mask(
     activities: list[activity_models.Activity],
     *,
-    requester_user_id: int | None = None,
+    requester_user_id: uuid.UUID | None = None,
     force_non_owner: bool = False,
     mask_private_notes: bool = True,
 ) -> list[activity_schema.ActivityRead]:

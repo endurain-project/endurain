@@ -25,7 +25,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def list_health_steps(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -62,7 +62,7 @@ def list_health_steps(
 
 
 def stage_edit_health_steps(
-    user_id: int,
+    user_id: uuid.UUID,
     health_steps_id: uuid.UUID,
     health_steps: health_steps_schema.HealthStepsUpdate,
     db: Session,
@@ -89,7 +89,7 @@ def stage_edit_health_steps(
 
 
 def stage_upsert_health_steps(
-    user_id: int, health_steps: health_steps_schema.HealthStepsImport, db: Session
+    user_id: uuid.UUID, health_steps: health_steps_schema.HealthStepsImport, db: Session
 ) -> health_steps_schema.HealthStepsRead:
     """Stage a steps record, or an update to the user's record for the same date.
 
@@ -119,7 +119,7 @@ def stage_upsert_health_steps(
 
 
 def create_health_steps(
-    user_id: int, health_steps: health_steps_schema.HealthStepsCreate, db: Session
+    user_id: uuid.UUID, health_steps: health_steps_schema.HealthStepsCreate, db: Session
 ) -> health_steps_schema.HealthStepsRead:
     """Create a steps record for the user's day, and commit.
 
@@ -146,7 +146,7 @@ def create_health_steps(
 
 
 def edit_health_steps(
-    user_id: int,
+    user_id: uuid.UUID,
     health_steps_id: uuid.UUID,
     health_steps: health_steps_schema.HealthStepsUpdate,
     db: Session,
@@ -182,7 +182,9 @@ def edit_health_steps(
     return updated
 
 
-def get_health_steps(user_id: int, health_steps_id: uuid.UUID, db: Session) -> health_steps_schema.HealthStepsRead:
+def get_health_steps(
+    user_id: uuid.UUID, health_steps_id: uuid.UUID, db: Session
+) -> health_steps_schema.HealthStepsRead:
     """Return one of a user's steps records.
 
     Args:
@@ -199,7 +201,7 @@ def get_health_steps(user_id: int, health_steps_id: uuid.UUID, db: Session) -> h
     return health_record_service.get_record(health_steps_crud.SPEC, health_steps_id, user_id, db)
 
 
-def delete_health_steps(user_id: int, health_steps_id: uuid.UUID, db: Session, *, if_match: str) -> None:
+def delete_health_steps(user_id: uuid.UUID, health_steps_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Delete a steps record and commit.
 
     Args:
@@ -223,7 +225,7 @@ def delete_health_steps(user_id: int, health_steps_id: uuid.UUID, db: Session, *
 
 
 def get_health_steps_chart(
-    user_id: int,
+    user_id: uuid.UUID,
     interval: health_constants.Interval,
     db: Session,
     *,
@@ -250,7 +252,7 @@ def get_health_steps_chart(
 
 
 def restore_profile_records(
-    records: list[dict[str, Any]], user_id: int, ids: users_profile_contracts.ProfileIdMaps, db: Session
+    records: list[dict[str, Any]], user_id: uuid.UUID, ids: users_profile_contracts.ProfileIdMaps, db: Session
 ) -> int:
     """Stage the steps records of a profile archive for a user.
 

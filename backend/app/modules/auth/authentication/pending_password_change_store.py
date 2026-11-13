@@ -1,6 +1,7 @@
 """Shared state for the pending password changes of sign-ins whose password an administrator set."""
 
 import secrets
+import uuid
 from typing import NoReturn, Protocol, runtime_checkable
 
 from jasil.providers import StateBackendUnavailableError, StateProvider
@@ -32,7 +33,7 @@ class PendingPasswordChange(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    user_id: StrictInt
+    user_id: uuid.UUID
     client_type: auth_constants.ClientType
     code_challenge: StrictStr | None
     code_challenge_method: StrictStr | None

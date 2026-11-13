@@ -23,7 +23,7 @@ def create_oauth_state(
     redirect_path: str | None = None,
     code_challenge: str | None = None,
     code_challenge_method: str | None = None,
-    user_id: int | None = None,
+    user_id: uuid.UUID | None = None,
     browser_binding_hash: str | None = None,
     idp_code_verifier: str | None = None,
     purpose: oauth_state_constants.OAuthStatePurpose,

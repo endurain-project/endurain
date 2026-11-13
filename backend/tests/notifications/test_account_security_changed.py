@@ -14,11 +14,13 @@ import modules.notifications.constants as notifications_constants
 import modules.notifications.service as notifications_service
 import modules.notifications.subscribers as notification_subscribers
 
+_ID_1 = uuid.uuid4()
+
 IDP_ID = uuid.UUID(int=4)
 
 
 def _event(change="mfa_enabled", idp_id=None):
-    payload = {"user_id": 1, "change": change}
+    payload = {"user_id": str(_ID_1), "change": change}
     if idp_id is not None:
         payload["idp_id"] = str(idp_id)
     return new_event(account_security_events.ACCOUNT_SECURITY_CHANGED, payload, source="test")
@@ -26,7 +28,7 @@ def _event(change="mfa_enabled", idp_id=None):
 
 def _create(mock_db, change, idp_id=None, idp=None, created=True):
     with (
-        patch("modules.notifications.service.users_integration.get_user", return_value=MagicMock(id=1)),
+        patch("modules.notifications.service.users_integration.get_user", return_value=MagicMock(id=_ID_1)),
         patch("modules.notifications.service.idp_integration.get_identity_provider", return_value=idp),
         patch(
             "modules.notifications.service.notifications_crud.create_notification_once",
@@ -34,7 +36,7 @@ def _create(mock_db, change, idp_id=None, idp=None, created=True):
         ) as create_once,
     ):
         result = notifications_service.create_account_security_changed_notification(
-            1, change, idp_id, "event-1", mock_db
+            _ID_1, change, idp_id, "event-1", mock_db
         )
     return result, create_once
 
@@ -47,7 +49,7 @@ class TestCreateAccountSecurityChangedNotification:
         (_, ws_message, created), create_once = _create(mock_db, "password_changed")
 
         data = create_once.call_args.args[0]
-        assert data.user_id == 1
+        assert data.user_id == _ID_1
         assert data.type == notifications_constants.NotificationType.ACCOUNT_SECURITY_CHANGED
         assert data.source_event_id == "event-1"
         assert data.options == {"change": "password_changed"}
@@ -82,7 +84,7 @@ class TestCreateAccountSecurityChangedNotification:
             patch("modules.notifications.service.notifications_crud.create_notification_once") as create_once,
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            notifications_service.create_account_security_changed_notification(1, "mfa_enabled", None, "e", mock_db)
+            notifications_service.create_account_security_changed_notification(_ID_1, "mfa_enabled", None, "e", mock_db)
         create_once.assert_not_called()
 
     def test_a_redelivered_event_reports_not_created(self, mock_db):
@@ -106,7 +108,7 @@ class TestNotifyAccountSecurityChangedForEvent:
         notification_subscribers.notify_account_security_changed_for_event(event)
 
         assert mock_notif.create_account_security_changed_notification.call_args.args[:4] == (
-            1,
+            _ID_1,
             account_security_events.AccountSecurityChange.IDENTITY_PROVIDER_UNLINKED,
             IDP_ID,
             event.event_id,
@@ -167,12 +169,12 @@ class TestNotifyPasswordResetCompletedForEvent:
             "WS",
             True,
         )
-        event = new_event(password_reset_events.PASSWORD_RESET_COMPLETED, {"user_id": 1}, source="test")
+        event = new_event(password_reset_events.PASSWORD_RESET_COMPLETED, {"user_id": str(_ID_1)}, source="test")
 
         notification_subscribers.notify_password_reset_completed_for_event(event)
 
         assert mock_notif.create_account_security_changed_notification.call_args.args[:4] == (
-            1,
+            _ID_1,
             "password_reset",
             None,
             event.event_id,
@@ -218,12 +220,12 @@ class TestNotifyMfaLockedForEvent:
             "WS",
             True,
         )
-        event = new_event(authentication_events.MFA_LOCKED, {"user_id": 1}, source="test")
+        event = new_event(authentication_events.MFA_LOCKED, {"user_id": str(_ID_1)}, source="test")
 
         notification_subscribers.notify_mfa_locked_for_event(event)
 
         assert mock_notif.create_account_security_changed_notification.call_args.args[:4] == (
-            1,
+            _ID_1,
             "mfa_locked",
             None,
             event.event_id,
@@ -273,12 +275,12 @@ class TestNotifyStepUpForEvent:
             "WS",
             True,
         )
-        event = new_event(channel, {"user_id": 1}, source="test")
+        event = new_event(channel, {"user_id": str(_ID_1)}, source="test")
 
         getattr(notification_subscribers, handler)(event)
 
         assert mock_notif.create_account_security_changed_notification.call_args.args[:4] == (
-            1,
+            _ID_1,
             change,
             None,
             event.event_id,
@@ -302,12 +304,12 @@ class TestNotifyAccountLockedForEvent:
             "WS",
             True,
         )
-        event = new_event(authentication_events.ACCOUNT_LOCKED, {"user_id": 1}, source="test")
+        event = new_event(authentication_events.ACCOUNT_LOCKED, {"user_id": str(_ID_1)}, source="test")
 
         notification_subscribers.notify_account_locked_for_event(event)
 
         assert mock_notif.create_account_security_changed_notification.call_args.args[:4] == (
-            1,
+            _ID_1,
             "account_locked",
             None,
             event.event_id,

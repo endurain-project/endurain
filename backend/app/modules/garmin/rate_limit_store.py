@@ -5,6 +5,7 @@ recorded for one cooldown. Every process and replica reads the same flag, so a s
 is not repeated by another replica's scheduled pull. See :class:`core.provider_rate_limit.ProviderRateLimitStore`.
 """
 
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import jasil.providers as platform_providers
@@ -28,7 +29,7 @@ class GarminRateLimitStore:
         """
         self._limits = core_provider_rate_limit.ProviderRateLimitStore(state, garmin_constants.PROVIDER_NAME)
 
-    def mark_rate_limited(self, user_id: int) -> datetime:
+    def mark_rate_limited(self, user_id: uuid.UUID) -> datetime:
         """Record that Garmin Connect rate limited a user's account, for one cooldown.
 
         Args:
@@ -41,7 +42,7 @@ class GarminRateLimitStore:
         self._limits.mark(str(user_id), expires_at)
         return expires_at
 
-    def rate_limited_until(self, user_id: int) -> datetime | None:
+    def rate_limited_until(self, user_id: uuid.UUID) -> datetime | None:
         """Return when a user's active rate limit clears.
 
         Fails open when the shared state is unreachable.

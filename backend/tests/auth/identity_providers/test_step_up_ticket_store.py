@@ -12,11 +12,12 @@ import core.hashing as core_hashing
 import modules.auth.identity_providers.constants as idp_constants
 import modules.auth.identity_providers.contracts as idp_contracts
 from modules.auth.identity_providers.step_up_ticket_store import StepUpTicketStore
+from tests._helpers.auth import MOCK_USER_ID
 
 IDP_ID = uuid.uuid4()
 
 _TICKET = idp_contracts.StepUpTicket(
-    user_id=7, session_id="s" * 36, idp_id=IDP_ID, code_challenge="c" * 43, action="api_key_create"
+    user_id=MOCK_USER_ID, session_id="s" * 36, idp_id=IDP_ID, code_challenge="c" * 43, action="api_key_create"
 )
 
 

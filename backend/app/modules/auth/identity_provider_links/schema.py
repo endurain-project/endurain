@@ -8,7 +8,6 @@ from pydantic import (
     ConfigDict,
     Field,
     StrictBool,
-    StrictInt,
     StrictStr,
 )
 
@@ -24,7 +23,7 @@ class UserIdentityProviderBase(BaseModel):
         idp_subject: Subject/ID from the identity provider.
     """
 
-    user_id: StrictInt = Field(..., ge=1, description="User ID")
+    user_id: uuid.UUID = Field(..., description="User ID")
     idp_id: uuid.UUID = Field(..., description="Identity Provider ID")
     idp_subject: StrictStr = Field(
         ...,

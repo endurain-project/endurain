@@ -10,6 +10,7 @@ import pytest
 import modules.garmin.health_service as health_utils
 import modules.health.health_sleep.schema as health_sleep_schema
 from tests._helpers import garmin as garmin_helpers
+from tests._helpers.auth import MOCK_USER_ID
 
 DAY = datetime(2026, 9, 29, tzinfo=UTC)
 
@@ -133,10 +134,10 @@ class TestExpiredToken:
             patch.object(health_utils.garmin_service, "get_user_garminconnect_session", return_value=session),
             patch.object(health_utils.garmin_service, "handle_rejected_token") as unlink,
         ):
-            health_utils.get_user_garminconnect_health_by_dates(DAY, DAY, 1, garmin_helpers.rate_limits())
+            health_utils.get_user_garminconnect_health_by_dates(DAY, DAY, MOCK_USER_ID, garmin_helpers.rate_limits())
 
         unlink.assert_called_once()
-        assert unlink.call_args.args[:2] == (1, session)
+        assert unlink.call_args.args[:2] == (MOCK_USER_ID, session)
 
     def test_an_unlinked_user_is_skipped(self):
         with (
@@ -144,7 +145,7 @@ class TestExpiredToken:
             patch.object(health_utils.garmin_service, "get_user_garminconnect_session", return_value=None),
             patch.object(health_utils, "fetch_and_process_bc_by_dates") as fetch,
         ):
-            health_utils.get_user_garminconnect_health_by_dates(DAY, DAY, 1, garmin_helpers.rate_limits())
+            health_utils.get_user_garminconnect_health_by_dates(DAY, DAY, MOCK_USER_ID, garmin_helpers.rate_limits())
 
         fetch.assert_not_called()
 
@@ -159,7 +160,7 @@ class TestFailuresPropagate:
             patch.object(health_utils.garmin_service, "save_refreshed_token") as save,
             pytest.raises(RuntimeError),
         ):
-            health_utils.get_user_garminconnect_health_by_dates(DAY, DAY, 1, garmin_helpers.rate_limits())
+            health_utils.get_user_garminconnect_health_by_dates(DAY, DAY, MOCK_USER_ID, garmin_helpers.rate_limits())
 
         save.assert_called_once()
 
@@ -172,14 +173,14 @@ class TestStore:
         upsert = MagicMock()
         with patch.object(health_utils.core_database, "SessionLocal") as session_local:
             stored = health_utils._store(
-                1,
+                MOCK_USER_ID,
                 record,
                 label="Daily steps",
                 upsert=upsert,
             )
 
         assert stored is True
-        assert upsert.call_args.args[0] == 1
+        assert upsert.call_args.args[0] == MOCK_USER_ID
         assert upsert.call_args.args[1].steps == 10
         session_local.return_value.__enter__.return_value.commit.assert_called_once()
 
@@ -190,7 +191,7 @@ class TestStore:
         upsert = MagicMock()
         with patch.object(health_utils.core_database, "SessionLocal"):
             stored = health_utils._store(
-                1,
+                MOCK_USER_ID,
                 record,
                 label="Daily steps",
                 upsert=upsert,
@@ -308,7 +309,10 @@ class TestFetchFailures:
             patch.object(health_utils.garmin_service, "save_refreshed_token"),
         ):
             assert (
-                health_utils.get_user_garminconnect_health_by_dates(DAY, DAY, 1, garmin_helpers.rate_limits()) is True
+                health_utils.get_user_garminconnect_health_by_dates(
+                    DAY, DAY, MOCK_USER_ID, garmin_helpers.rate_limits()
+                )
+                is True
             )
 
         with (
@@ -316,5 +320,8 @@ class TestFetchFailures:
             patch.object(health_utils.garmin_service, "get_user_garminconnect_session", return_value=None),
         ):
             assert (
-                health_utils.get_user_garminconnect_health_by_dates(DAY, DAY, 1, garmin_helpers.rate_limits()) is False
+                health_utils.get_user_garminconnect_health_by_dates(
+                    DAY, DAY, MOCK_USER_ID, garmin_helpers.rate_limits()
+                )
+                is False
             )

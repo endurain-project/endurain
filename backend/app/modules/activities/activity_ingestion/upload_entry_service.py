@@ -198,7 +198,7 @@ def discard_received_upload(received: ReceivedUpload) -> None:
 
 
 def process_staged_upload(
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     staged_key: str,
     storage: platform_providers.StorageProvider,
     db: Session,

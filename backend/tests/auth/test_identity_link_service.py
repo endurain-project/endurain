@@ -12,6 +12,7 @@ import modules.auth.account_security.identity_link_service as identity_link_serv
 import modules.auth.identity_provider_links.schema as auth_identity_links_schema
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.users.users.schema as users_schema
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
 IDP_ID = uuid.UUID(int=1)
 
@@ -22,7 +23,11 @@ class TestGetUserIdentityProviderLinks:
     def test_enriches_the_requested_window_and_counts_every_link(self, mock_db):
         link = MagicMock()
         enriched = auth_identity_links_schema.IdentityProviderLinkRead(
-            id=uuid.UUID(int=1), user_id=1, idp_id=IDP_ID, idp_subject="sub", linked_at=datetime(2026, 1, 1, tzinfo=UTC)
+            id=uuid.UUID(int=1),
+            user_id=MOCK_USER_ID,
+            idp_id=IDP_ID,
+            idp_subject="sub",
+            linked_at=datetime(2026, 1, 1, tzinfo=UTC),
         )
         links = identity_link_service.identity_provider_links_integration
 
@@ -36,11 +41,11 @@ class TestGetUserIdentityProviderLinks:
             ) as enrich,
         ):
             result = identity_link_service.get_user_identity_provider_links(
-                1, core_pagination.PageParams(2, 1), mock_db
+                MOCK_USER_ID, core_pagination.PageParams(2, 1), mock_db
             )
 
-        get_page.assert_called_once_with(1, mock_db, limit=1, offset=1)
-        enrich.assert_called_once_with([link], 1, mock_db)
+        get_page.assert_called_once_with(MOCK_USER_ID, mock_db, limit=1, offset=1)
+        enrich.assert_called_once_with([link], MOCK_USER_ID, mock_db)
         assert result == auth_identity_links_schema.IdentityProviderLinkPage.build([enriched], 3, 2, 1)
 
 
@@ -48,15 +53,15 @@ class TestGetIdentityLinkCountsForUsers:
     """get_identity_link_counts_for_users: delegates to CRUD batch query."""
 
     def test_delegates_to_crud(self, mock_db):
-        expected = {1: 2, 2: 1}
+        expected = {MOCK_USER_ID: 2, OTHER_USER_ID: 1}
         with patch(
             "modules.auth.account_security.identity_link_service.identity_provider_links_integration.get_identity_link_counts_for_users",
             return_value=expected,
         ) as mock_crud:
-            result = identity_link_service.get_identity_link_counts_for_users([1, 2], mock_db)
+            result = identity_link_service.get_identity_link_counts_for_users([MOCK_USER_ID, OTHER_USER_ID], mock_db)
 
         assert result == expected
-        mock_crud.assert_called_once_with([1, 2], mock_db)
+        mock_crud.assert_called_once_with([MOCK_USER_ID, OTHER_USER_ID], mock_db)
 
 
 class TestStartIdpLink:
@@ -96,19 +101,21 @@ class TestStartIdpLink:
             ) as build,
         ):
             order.attach_mock(build, "build_url")
-            flow = identity_link_service.start_idp_link(IDP_ID, link, "127.0.0.1", 10, "sid", MagicMock(), mock_db)
+            flow = identity_link_service.start_idp_link(
+                IDP_ID, link, "127.0.0.1", MOCK_USER_ID, "sid", MagicMock(), mock_db
+            )
 
         verify.assert_called_once()
         assert verify.call_args.kwargs["action"] == identity_providers_constants.StepUpAction.IDP_LINK
         stage.assert_called_once_with(
-            10, IDP_ID, "/settings/security", "127.0.0.1", "sid", True, mock_db, security_generation=0
+            MOCK_USER_ID, IDP_ID, "/settings/security", "127.0.0.1", "sid", True, mock_db, security_generation=0
         )
         assert [call[0] for call in order.mock_calls] == ["commit", "build_url"]
         assert flow.authorization_url == "https://idp.example.com/auth"
         assert flow.browser_binding == "binding"
 
     def test_the_generation_is_read_before_the_step_up_and_is_the_one_stamped(self, mock_db, security_generations):
-        security_generations.generations[10] = 3
+        security_generations.generations[MOCK_USER_ID] = 3
         order = MagicMock()
         with (
             patch(f"{self._MODULE}.step_up_service.verify_step_up_credentials") as verify,
@@ -129,8 +136,10 @@ class TestStartIdpLink:
             order.attach_mock(read, "read_generation")
             order.attach_mock(verify, "step_up")
             # A security change that commits during the step-up must not reach the stamp.
-            verify.side_effect = lambda *args, **kwargs: security_generations.stage_bump(10, mock_db)
-            identity_link_service.start_idp_link(IDP_ID, self._link(), "127.0.0.1", 10, "sid", MagicMock(), mock_db)
+            verify.side_effect = lambda *args, **kwargs: security_generations.stage_bump(MOCK_USER_ID, mock_db)
+            identity_link_service.start_idp_link(
+                IDP_ID, self._link(), "127.0.0.1", MOCK_USER_ID, "sid", MagicMock(), mock_db
+            )
 
         assert [call[0] for call in order.mock_calls][:2] == ["read_generation", "step_up"]
         assert stage.call_args.kwargs["security_generation"] == 3
@@ -155,7 +164,7 @@ class TestStartIdpLink:
             ) as stage,
             patch(f"{self._MODULE}.identity_providers_integration.authorization_url", return_value="https://idp"),
         ):
-            identity_link_service.start_idp_link(IDP_ID, link, "127.0.0.1", 10, "sid", MagicMock(), mock_db)
+            identity_link_service.start_idp_link(IDP_ID, link, "127.0.0.1", MOCK_USER_ID, "sid", MagicMock(), mock_db)
 
         assert stage.call_args.args[4:6] == ("sid", revoke)
 
@@ -166,7 +175,13 @@ class TestStartIdpLink:
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
             identity_link_service.start_idp_link(
-                IDP_ID, self._link(redirect="https://evil.example.com"), "127.0.0.1", 10, "sid", MagicMock(), mock_db
+                IDP_ID,
+                self._link(redirect="https://evil.example.com"),
+                "127.0.0.1",
+                MOCK_USER_ID,
+                "sid",
+                MagicMock(),
+                mock_db,
             )
 
         assert exc.value.status_code == 400
@@ -179,7 +194,9 @@ class TestStartIdpLink:
             patch(f"{self._MODULE}.identity_providers_integration.get_identity_provider", return_value=None),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.start_idp_link(IDP_ID, self._link(), "127.0.0.1", 10, "sid", MagicMock(), mock_db)
+            identity_link_service.start_idp_link(
+                IDP_ID, self._link(), "127.0.0.1", MOCK_USER_ID, "sid", MagicMock(), mock_db
+            )
 
         assert exc.value.status_code == 404
         verify_step_up.assert_not_called()
@@ -193,7 +210,9 @@ class TestStartIdpLink:
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.start_idp_link(IDP_ID, self._link(), "127.0.0.1", 10, "sid", MagicMock(), mock_db)
+            identity_link_service.start_idp_link(
+                IDP_ID, self._link(), "127.0.0.1", MOCK_USER_ID, "sid", MagicMock(), mock_db
+            )
 
         assert exc.value.status_code == 404
         verify_step_up.assert_not_called()
@@ -210,7 +229,9 @@ class TestStartIdpLink:
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.start_idp_link(IDP_ID, self._link(), "127.0.0.1", 10, "sid", MagicMock(), mock_db)
+            identity_link_service.start_idp_link(
+                IDP_ID, self._link(), "127.0.0.1", MOCK_USER_ID, "sid", MagicMock(), mock_db
+            )
 
         assert exc.value.status_code == 409
         verify_step_up.assert_not_called()
@@ -231,7 +252,9 @@ class TestStartIdpLink:
             patch(f"{self._MODULE}.identity_providers_integration.stage_browser_link") as stage,
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.start_idp_link(IDP_ID, self._link(), "127.0.0.1", 10, "sid", MagicMock(), mock_db)
+            identity_link_service.start_idp_link(
+                IDP_ID, self._link(), "127.0.0.1", MOCK_USER_ID, "sid", MagicMock(), mock_db
+            )
 
         assert exc.value.status_code == 403
         stage.assert_not_called()
@@ -268,7 +291,9 @@ class TestDeleteIdentityProviderLink:
                 return_value=True,
             ),
         ):
-            identity_link_service.delete_identity_provider_link(IDP_ID, step_up, 10, "sid", MagicMock(), mock_db)
+            identity_link_service.delete_identity_provider_link(
+                IDP_ID, step_up, MOCK_USER_ID, "sid", MagicMock(), mock_db
+            )
 
     def test_raises_404_when_idp_not_found(self, mock_db):
         with (
@@ -281,7 +306,9 @@ class TestDeleteIdentityProviderLink:
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.delete_identity_provider_link(IDP_ID, MagicMock(), 10, "sid", MagicMock(), mock_db)
+            identity_link_service.delete_identity_provider_link(
+                IDP_ID, MagicMock(), MOCK_USER_ID, "sid", MagicMock(), mock_db
+            )
 
         assert exc.value.status_code == 404
         verify_step_up.assert_not_called()
@@ -301,7 +328,9 @@ class TestDeleteIdentityProviderLink:
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.delete_identity_provider_link(IDP_ID, MagicMock(), 10, "sid", MagicMock(), mock_db)
+            identity_link_service.delete_identity_provider_link(
+                IDP_ID, MagicMock(), MOCK_USER_ID, "sid", MagicMock(), mock_db
+            )
 
         assert exc.value.status_code == 404
         verify_step_up.assert_not_called()
@@ -331,7 +360,9 @@ class TestDeleteIdentityProviderLink:
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.delete_identity_provider_link(IDP_ID, MagicMock(), 10, "sid", MagicMock(), mock_db)
+            identity_link_service.delete_identity_provider_link(
+                IDP_ID, MagicMock(), MOCK_USER_ID, "sid", MagicMock(), mock_db
+            )
 
         assert isinstance(exc.value, core_exceptions.LastSignInMethodError)
         assert exc.value.status_code == 409
@@ -367,9 +398,9 @@ class TestAdminDeleteIdentityProviderLink:
                 return_value=True,
             ) as mock_delete,
         ):
-            identity_link_service.admin_delete_identity_provider_link(5, IDP_ID, mock_db)
+            identity_link_service.admin_delete_identity_provider_link(MOCK_USER_ID, IDP_ID, mock_db)
 
-        mock_delete.assert_called_once_with(5, IDP_ID, mock_db)
+        mock_delete.assert_called_once_with(MOCK_USER_ID, IDP_ID, mock_db)
 
     def test_raises_404_when_idp_not_found(self, mock_db):
         with (
@@ -379,7 +410,7 @@ class TestAdminDeleteIdentityProviderLink:
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.admin_delete_identity_provider_link(5, IDP_ID, mock_db)
+            identity_link_service.admin_delete_identity_provider_link(MOCK_USER_ID, IDP_ID, mock_db)
 
         assert exc.value.status_code == 404
 
@@ -395,7 +426,7 @@ class TestAdminDeleteIdentityProviderLink:
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.admin_delete_identity_provider_link(5, IDP_ID, mock_db)
+            identity_link_service.admin_delete_identity_provider_link(MOCK_USER_ID, IDP_ID, mock_db)
 
         assert exc.value.status_code == 404
 
@@ -427,7 +458,7 @@ class TestAdminDeleteIdentityProviderLink:
             ) as mock_delete,
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.admin_delete_identity_provider_link(5, IDP_ID, mock_db)
+            identity_link_service.admin_delete_identity_provider_link(MOCK_USER_ID, IDP_ID, mock_db)
 
         assert isinstance(exc.value, core_exceptions.LastSignInMethodError)
         assert exc.value.status_code == 409
@@ -458,9 +489,9 @@ class TestAdminDeleteIdentityProviderLink:
                 return_value=True,
             ) as mock_delete,
         ):
-            identity_link_service.admin_delete_identity_provider_link(5, IDP_ID, mock_db)
+            identity_link_service.admin_delete_identity_provider_link(MOCK_USER_ID, IDP_ID, mock_db)
 
-        mock_delete.assert_called_once_with(5, IDP_ID, mock_db)
+        mock_delete.assert_called_once_with(MOCK_USER_ID, IDP_ID, mock_db)
 
     def test_raises_500_when_delete_fails(self, mock_db):
         with (
@@ -486,7 +517,7 @@ class TestAdminDeleteIdentityProviderLink:
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.admin_delete_identity_provider_link(5, IDP_ID, mock_db)
+            identity_link_service.admin_delete_identity_provider_link(MOCK_USER_ID, IDP_ID, mock_db)
 
         assert exc.value.status_code == 500
 
@@ -523,9 +554,11 @@ class TestUnlinkBumpsTheSecurityGeneration:
             has_password,
             patch(_P + "_stage_unlink") as stage_unlink,
         ):
-            identity_link_service.delete_identity_provider_link(IDP_ID, MagicMock(), 10, "sid", MagicMock(), mock_db)
+            identity_link_service.delete_identity_provider_link(
+                IDP_ID, MagicMock(), MOCK_USER_ID, "sid", MagicMock(), mock_db
+            )
 
-        stage_unlink.assert_called_once_with(10, IDP_ID, mock_db)
+        stage_unlink.assert_called_once_with(MOCK_USER_ID, IDP_ID, mock_db)
 
     def test_the_owner_unlinking_bumps_before_the_link_is_deleted(self, mock_db):
         get_idp, get_link, get_links, delete, has_password = self._unlink_patches()
@@ -542,9 +575,11 @@ class TestUnlinkBumpsTheSecurityGeneration:
         ):
             order.attach_mock(bump, "bump")
             order.attach_mock(delete_link, "delete_link")
-            identity_link_service.delete_identity_provider_link(IDP_ID, MagicMock(), 10, "sid", MagicMock(), mock_db)
+            identity_link_service.delete_identity_provider_link(
+                IDP_ID, MagicMock(), MOCK_USER_ID, "sid", MagicMock(), mock_db
+            )
 
-        bump.assert_called_once_with(10, mock_db)
+        bump.assert_called_once_with(MOCK_USER_ID, mock_db)
         assert [call[0] for call in order.mock_calls] == ["bump", "delete_link"]
 
     def test_an_administrator_unlinking_bumps_before_the_link_is_deleted(self, mock_db):
@@ -561,17 +596,17 @@ class TestUnlinkBumpsTheSecurityGeneration:
         ):
             order.attach_mock(bump, "bump")
             order.attach_mock(delete_link, "delete_link")
-            identity_link_service.admin_delete_identity_provider_link(5, IDP_ID, mock_db)
+            identity_link_service.admin_delete_identity_provider_link(MOCK_USER_ID, IDP_ID, mock_db)
 
-        bump.assert_called_once_with(5, mock_db)
+        bump.assert_called_once_with(MOCK_USER_ID, mock_db)
         assert [call[0] for call in order.mock_calls] == ["bump", "delete_link"]
 
     def test_an_administrator_unlinking_stages_through_the_shared_step(self, mock_db):
         get_idp, get_link, get_links, delete, has_password = self._unlink_patches()
         with get_idp, get_link, get_links, delete, has_password, patch(_P + "_stage_unlink") as stage_unlink:
-            identity_link_service.admin_delete_identity_provider_link(5, IDP_ID, mock_db)
+            identity_link_service.admin_delete_identity_provider_link(MOCK_USER_ID, IDP_ID, mock_db)
 
-        stage_unlink.assert_called_once_with(5, IDP_ID, mock_db)
+        stage_unlink.assert_called_once_with(MOCK_USER_ID, IDP_ID, mock_db)
 
     def test_a_refused_unlink_does_not_bump(self, mock_db):
         with (
@@ -579,6 +614,6 @@ class TestUnlinkBumpsTheSecurityGeneration:
             patch(_P + "security_generation_integration.stage_bump") as bump,
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            identity_link_service.admin_delete_identity_provider_link(5, IDP_ID, mock_db)
+            identity_link_service.admin_delete_identity_provider_link(MOCK_USER_ID, IDP_ID, mock_db)
 
         bump.assert_not_called()

@@ -23,7 +23,7 @@ router = APIRouter()
 @core_rate_limit.limiter.limit(core_rate_limit.EXPENSIVE_READ)
 def read_api_keys_user(
     request: Request,
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
 ) -> api_keys_schema.UserApiKeyPage:
@@ -40,7 +40,7 @@ def read_api_keys_user(
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def revoke_api_key_user(
     api_key_id: auth_dependencies.ApiKeyId,
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     body: auth_schema.StepUpRequest,
     request: Request,
     admin_id: auth_dependencies.CurrentUserId,
@@ -68,7 +68,7 @@ def revoke_api_key_user(
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def revoke_api_keys_user(
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     body: auth_schema.StepUpRequest,
     request: Request,
     admin_id: auth_dependencies.CurrentUserId,

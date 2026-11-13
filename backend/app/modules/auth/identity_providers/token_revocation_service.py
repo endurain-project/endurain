@@ -50,7 +50,7 @@ class IdpTokenRevocationService:
         """Initialize the service with the client that reaches the providers."""
         self._oidc = oidc
 
-    def revoke_ended_sessions(self, *, user_id: int | None = None) -> int:
+    def revoke_ended_sessions(self, *, user_id: uuid.UUID | None = None) -> int:
         """Revoke and delete the sign-ins whose Endurain session has ended. Blocking; run it on a worker.
 
         Sign-ins are read in short windows that close before any provider is called. A sign-in is deleted once

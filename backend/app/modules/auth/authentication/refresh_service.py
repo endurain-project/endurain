@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from typing import NoReturn
 
@@ -30,7 +31,7 @@ import modules.users.users.integration_service as users_integration
 logger = core_logger.get_logger(__name__)
 
 
-def _end_session_on_reuse(token_user_id: int, token_family_id: str, db: Session) -> NoReturn:
+def _end_session_on_reuse(token_user_id: uuid.UUID, token_family_id: str, db: Session) -> NoReturn:
     """End the session of a refresh token that was reused outside its rotating client or its grace window, and tell its owner.
 
     Args:
@@ -54,7 +55,7 @@ def _end_session_on_reuse(token_user_id: int, token_family_id: str, db: Session)
     db.commit()
     logger.warning(
         "Refresh token reuse detected for user <token_user_id>; token family invalidated",
-        extra=core_logger.context(token_user_id=token_user_id),
+        extra=core_logger.context(token_user_id=str(token_user_id)),
     )
     raise core_exceptions.InvalidTokenError("Refresh token reuse detected. The session was ended.")
 
@@ -65,7 +66,7 @@ def _replay_rotation(
     refresh_token_value: str,
     ip_address: str,
     user_agent: str,
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     token_manager: access_tokens_integration.TokenManager,
     policy: server_settings_contracts.SessionPolicy,
     db: Session,
@@ -102,7 +103,7 @@ def _replay_rotation(
         # standard invalid-token response.
         logger.warning(
             "Refresh token replay refused: no replacement stored for user <token_user_id>",
-            extra=core_logger.context(token_user_id=token_user_id),
+            extra=core_logger.context(token_user_id=str(token_user_id)),
         )
         authentication_refusal_audit.record_refresh_refusal(
             token_user_id,
@@ -119,7 +120,7 @@ def _replay_rotation(
     if replay_user is None:
         logger.warning(
             "User ID <token_user_id> not found during token refresh replay",
-            extra=core_logger.context(token_user_id=token_user_id),
+            extra=core_logger.context(token_user_id=str(token_user_id)),
         )
         authentication_refusal_audit.record_refresh_refusal(
             token_user_id, jasil_audit.Outcome.FAILURE, authentication_audit_actions.RefreshRefusalReason.USER_NOT_FOUND
@@ -163,7 +164,7 @@ def _replay_rotation(
 def refresh_token(
     ip_address: str,
     user_agent: str,
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     token_session_id: str,
     refresh_token_value: str,
     refresh_token_exp: datetime,
@@ -235,7 +236,7 @@ def refresh_token(
     if session.user_id != token_user_id:
         logger.warning(
             "Refresh token session owner mismatch: token sub=<token_user_id>, session user_id=<user_id>",
-            extra=core_logger.context(token_user_id=token_user_id, user_id=session.user_id),
+            extra=core_logger.context(token_user_id=str(token_user_id), user_id=str(session.user_id)),
         )
         authentication_refusal_audit.record_refresh_refusal(
             token_user_id,
@@ -296,7 +297,7 @@ def refresh_token(
         # CSRF token was provided: validate it
         logger.warning(
             "Token refresh refused: invalid CSRF token for user <token_user_id>",
-            extra=core_logger.context(token_user_id=token_user_id),
+            extra=core_logger.context(token_user_id=str(token_user_id)),
         )
         authentication_refusal_audit.record_refresh_refusal(
             token_user_id,
@@ -337,7 +338,7 @@ def refresh_token(
     if not is_valid:
         logger.warning(
             "Token refresh refused: refresh token does not match session for user <token_user_id>",
-            extra=core_logger.context(token_user_id=token_user_id),
+            extra=core_logger.context(token_user_id=str(token_user_id)),
         )
         authentication_refusal_audit.record_refresh_refusal(
             token_user_id, jasil_audit.Outcome.FAILURE, authentication_audit_actions.RefreshRefusalReason.INVALID_TOKEN
@@ -350,7 +351,7 @@ def refresh_token(
     if user is None:
         logger.warning(
             "User ID <token_user_id> not found during token refresh",
-            extra=core_logger.context(token_user_id=token_user_id),
+            extra=core_logger.context(token_user_id=str(token_user_id)),
         )
         authentication_refusal_audit.record_refresh_refusal(
             token_user_id, jasil_audit.Outcome.FAILURE, authentication_audit_actions.RefreshRefusalReason.USER_NOT_FOUND

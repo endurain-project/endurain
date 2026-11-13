@@ -1,5 +1,7 @@
 """Strava account linking: the OAuth state is checked on the request, the code exchange runs off it."""
 
+import uuid
+
 import jasil.audit as jasil_audit
 
 import core.database as core_database
@@ -33,7 +35,7 @@ def shutdown_link_pool(*, wait: bool = False) -> None:
 
 
 def start_link(
-    user_id: int,
+    user_id: uuid.UUID,
     link: strava_schema.StravaLinkRequest,
     oauth_states: strava_oauth_state_store.StravaOAuthStateStore,
     states: strava_sync_state_store.StravaSyncStateStore,
@@ -94,7 +96,7 @@ def start_link(
     )
 
 
-def _record_refused_link(user_id: int, err: Exception) -> None:
+def _record_refused_link(user_id: uuid.UUID, err: Exception) -> None:
     """Record that Strava refused the link, when ``err`` is a refusal.
 
     Any other error, such as a server error or a bug, is not Strava refusing the code and leaves no row.
@@ -114,7 +116,7 @@ def _record_refused_link(user_id: int, err: Exception) -> None:
     _audit_link_failure(user_id, reason)
 
 
-def _audit_link_failure(user_id: int, reason: strava_audit_actions.LinkFailureReason) -> None:
+def _audit_link_failure(user_id: uuid.UUID, reason: strava_audit_actions.LinkFailureReason) -> None:
     """Record a refused link.
 
     Args:
@@ -131,7 +133,7 @@ def _audit_link_failure(user_id: int, reason: strava_audit_actions.LinkFailureRe
     )
 
 
-def run_link(user_id: int, code: str, states: strava_sync_state_store.StravaSyncStateStore) -> None:
+def run_link(user_id: uuid.UUID, code: str, states: strava_sync_state_store.StravaSyncStateStore) -> None:
     """Exchange an authorization code for tokens, store them and record the outcome.
 
     Blocking; runs on the link pool, never on a request. The exchange is one bounded Strava

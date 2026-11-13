@@ -11,6 +11,7 @@ import core.exceptions as core_exceptions
 import modules.gears.gear.schema as gears_schema
 import modules.strava.constants as strava_constants
 import modules.strava.gear_service as strava_gear_service
+from tests._helpers.auth import MOCK_USER_ID
 
 
 def _upload(content: bytes) -> UploadFile:
@@ -25,11 +26,11 @@ class TestImportBikes:
     def test_creates_the_listed_bikes_for_the_caller(self):
         db = MagicMock()
         with patch.object(strava_gear_service.gears_integration, "create_multiple_gears") as create:
-            count = strava_gear_service.import_gear(_upload(BIKES), 7, gears_schema.GearType.BIKE, db)
+            count = strava_gear_service.import_gear(_upload(BIKES), MOCK_USER_ID, gears_schema.GearType.BIKE, db)
 
         gears, user_id, passed_db = create.call_args.args
         assert [g.nickname for g in gears] == ["Commuter"]
-        assert (user_id, passed_db, count) == (7, db, 1)
+        assert (user_id, passed_db, count) == (MOCK_USER_ID, db, 1)
         db.commit.assert_called_once()
 
     def test_the_temp_file_is_removed_whether_or_not_it_parses(self):
@@ -44,20 +45,22 @@ class TestImportBikes:
             patch.object(strava_gear_service, "parse_gear_csv", side_effect=spy),
             pytest.raises(core_exceptions.InvalidInputError),
         ):
-            strava_gear_service.import_gear(_upload(b"Name\nx\n"), 7, gears_schema.GearType.BIKE, MagicMock())
+            strava_gear_service.import_gear(
+                _upload(b"Name\nx\n"), MOCK_USER_ID, gears_schema.GearType.BIKE, MagicMock()
+            )
 
         assert not os.path.exists(seen[0])
 
     def test_an_oversized_upload_is_refused(self):
         big = b"Bike Name,Bike Brand,Bike Model\n" + b"x," * (strava_constants.GEAR_CSV_MAX_BYTES)
         with pytest.raises(core_exceptions.PayloadTooLargeError):
-            strava_gear_service.import_gear(_upload(big), 7, gears_schema.GearType.BIKE, MagicMock())
+            strava_gear_service.import_gear(_upload(big), MOCK_USER_ID, gears_schema.GearType.BIKE, MagicMock())
 
     def test_nothing_is_committed_when_the_file_lists_no_gear(self):
         db = MagicMock()
         with patch.object(strava_gear_service.gears_integration, "create_multiple_gears") as create:
             count = strava_gear_service.import_gear(
-                _upload(b"Bike Name,Bike Brand,Bike Model\n"), 7, gears_schema.GearType.BIKE, db
+                _upload(b"Bike Name,Bike Brand,Bike Model\n"), MOCK_USER_ID, gears_schema.GearType.BIKE, db
             )
 
         create.assert_not_called()
@@ -72,8 +75,8 @@ class TestImportShoes:
             patch.object(strava_gear_service.gears_integration, "create_multiple_gears") as create,
             patch.object(strava_gear_service.gears_integration, "get_gear_user", return_value=[]),
         ):
-            strava_gear_service.import_gear(_upload(SHOES), 7, gears_schema.GearType.SHOES, db)
+            strava_gear_service.import_gear(_upload(SHOES), MOCK_USER_ID, gears_schema.GearType.SHOES, db)
 
         gears, user_id, passed_db = create.call_args.args
         assert [g.nickname for g in gears] == ["Pegasus"]
-        assert (user_id, passed_db) == (7, db)
+        assert (user_id, passed_db) == (MOCK_USER_ID, db)

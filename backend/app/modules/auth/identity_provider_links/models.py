@@ -28,7 +28,7 @@ class IdentityLink(Base):
         UniqueConstraint("idp_id", "idp_subject", name="uq_identity_links_idp_subject"),
     )
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
-    user_id: Mapped[int] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -89,7 +89,7 @@ class IdpSessionToken(Base):
         unique=True,
         comment="Endurain session the sign-in created; no foreign key, so the token outlives the session row",
     )
-    user_id: Mapped[int] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
+from tests._helpers.auth import MOCK_USER_ID
 
 import core.config as core_config
 import core.dependencies as core_dependencies
@@ -33,7 +34,7 @@ IDP_ID = uuid.UUID(int=1)
 def _make_user_mock() -> users_schema.UserRead:
     """Return the user as ``users_integration.require_user`` serves it."""
     return users_schema.UserRead(
-        id=1,
+        id=MOCK_USER_ID,
         version=1,
         name="Test User",
         username="testuser",
@@ -99,7 +100,7 @@ def _make_session_mock(session_id: str = "session-1") -> MagicMock:
     s.created_at = datetime.now(UTC)
     s.last_activity_at = datetime.now(UTC)
     s.expires_at = datetime.now(UTC)
-    s.user_id = 1
+    s.user_id = MOCK_USER_ID
     s.app_redirect_uri = None
     return s
 
@@ -199,7 +200,7 @@ class TestReadUsersMe:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["id"] == 1
+        assert data["id"] == str(MOCK_USER_ID)
         assert data["name"] == "Test User"
         assert data["is_strava_linked"] is False
         assert data["has_local_password"] is True
@@ -283,7 +284,7 @@ class TestReadSessionsMe:
         data = response.json()
         assert [item["id"] for item in data["items"]] == ["session-1"]
         assert (data["total"], data["page"], data["num_records"], data["next"]) == (3, 2, 1, 3)
-        assert mock_auth_services.list_user_sessions.call_args.args == (1, core_pagination.PageParams(2, 1))
+        assert mock_auth_services.list_user_sessions.call_args.args == (MOCK_USER_ID, core_pagination.PageParams(2, 1))
 
     def test_rejects_an_oversized_page(self, profile_client):
         """A page size above the cap is a validation error."""
@@ -299,7 +300,7 @@ class TestReadSessionsMe:
 
         assert response.status_code == 200
         assert response.json()["items"] == []
-        assert mock_auth_services.list_user_sessions.call_args.args == (1, core_pagination.PageParams(1, 25))
+        assert mock_auth_services.list_user_sessions.call_args.args == (MOCK_USER_ID, core_pagination.PageParams(1, 25))
 
 
 # ===================================================================
@@ -316,7 +317,7 @@ class TestUploadProfileImage:
     def test_success(self, mock_save, mock_require, replaced, status_code, profile_client):
         """Happy path: 201 for a first photo, 200 for a replacement, with the servable photo URL."""
         mock_save.return_value = replaced
-        mock_require.return_value = MagicMock(photo_path="/users/1/photo?t=x")
+        mock_require.return_value = MagicMock(photo_path=f"/users/{MOCK_USER_ID}/photo?t=x")
 
         response = profile_client.put(
             PREFIX + "/photo",
@@ -324,7 +325,7 @@ class TestUploadProfileImage:
         )
 
         assert response.status_code == status_code
-        assert response.json() == {"photo_path": "/users/1/photo?t=x"}
+        assert response.json() == {"photo_path": f"/users/{MOCK_USER_ID}/photo?t=x"}
 
 
 # ===================================================================
@@ -415,7 +416,7 @@ class TestEditProfileEmail:
         assert response.json()["email"] == "test@example.com"
         assert response.headers["ETag"] == '"4"'
         mock_auth_services.verify_step_up.assert_called_once()
-        assert mock_request.call_args.args[:3] == (1, "new@example.com", "test@example.com")
+        assert mock_request.call_args.args[:3] == (MOCK_USER_ID, "new@example.com", "test@example.com")
 
     @patch("modules.users.users_profile.service.sign_up_tokens_integration.request_self_service_email_change")
     def test_step_up_fails(self, mock_request, profile_client, mock_auth_services):
@@ -450,7 +451,7 @@ class TestResendProfileEmailChange:
         response = profile_client.post(PREFIX + "/email/change/resend")
 
         assert response.status_code == 204
-        assert mock_resend.call_args.args[0] == 1
+        assert mock_resend.call_args.args[0] == MOCK_USER_ID
         local_mock_db.commit.assert_called_once()
 
 
@@ -462,7 +463,7 @@ class TestCancelProfileEmailChange:
         response = profile_client.delete(PREFIX + "/email/change")
 
         assert response.status_code == 204
-        mock_revoke.assert_called_once_with(1, local_mock_db)
+        mock_revoke.assert_called_once_with(MOCK_USER_ID, local_mock_db)
         local_mock_db.commit.assert_called_once()
 
 
@@ -473,7 +474,7 @@ class TestReadProfilePrivacySettings:
     def test_success_etag_is_the_version_patch_needs(self, mock_get, profile_client):
         """Happy path: the settings come with the ETag a following PATCH sends as If-Match."""
         mock_get.return_value = users_privacy_settings_schema.UserPrivacySettingsRead(
-            id=uuid.uuid4(), user_id=1, version=4
+            id=uuid.uuid4(), user_id=MOCK_USER_ID, version=4
         )
 
         response = profile_client.get(PREFIX + "/privacy")
@@ -486,10 +487,12 @@ class TestReadProfilePrivacySettings:
     @patch("modules.users.users_profile.service.users_privacy_settings_integration.edit_privacy_settings")
     def test_patch_with_the_read_etag_succeeds(self, mock_edit, mock_get, profile_client):
         """The ETag of the read is accepted as If-Match by PATCH."""
-        current = users_privacy_settings_schema.UserPrivacySettingsRead(id=uuid.uuid4(), user_id=1, version=4)
+        current = users_privacy_settings_schema.UserPrivacySettingsRead(
+            id=uuid.uuid4(), user_id=MOCK_USER_ID, version=4
+        )
         mock_get.return_value = current
         mock_edit.return_value = users_privacy_settings_schema.UserPrivacySettingsRead(
-            id=uuid.uuid4(), user_id=1, version=5, hide_activity_map=True
+            id=uuid.uuid4(), user_id=MOCK_USER_ID, version=5, hide_activity_map=True
         )
         etag = profile_client.get(PREFIX + "/privacy").headers["ETag"]
 
@@ -528,11 +531,11 @@ class TestEditProfilePrivacySettings:
     def test_success(self, mock_edit, mock_get, profile_client):
         """Happy path: update privacy settings, answering with the version the edit produced."""
         mock_get.return_value = users_privacy_settings_schema.UserPrivacySettingsRead(
-            id=uuid.uuid4(), user_id=1, version=4
+            id=uuid.uuid4(), user_id=MOCK_USER_ID, version=4
         )
         mock_edit.return_value = users_privacy_settings_schema.UserPrivacySettingsRead(
             id=uuid.uuid4(),
-            user_id=1,
+            user_id=MOCK_USER_ID,
             version=5,
             default_activity_visibility=activity_constants.ActivityVisibility.FOLLOWERS,
         )
@@ -646,7 +649,7 @@ class TestRevokeProfileSessions:
         response = profile_client.post(PREFIX + "/sessions/revoke")
 
         assert response.status_code == 204
-        mock_auth_services.sign_out_everywhere.assert_called_once_with(1)
+        mock_auth_services.sign_out_everywhere.assert_called_once_with(MOCK_USER_ID)
         mock_auth_services.delete_other_user_sessions.assert_not_called()
         assert "endurain_refresh_token=" in response.headers["set-cookie"]
         assert "Max-Age=0" in response.headers["set-cookie"]
@@ -655,14 +658,14 @@ class TestRevokeProfileSessions:
         response = profile_client.post(PREFIX + "/sessions/revoke?keep_current=false")
 
         assert response.status_code == 204
-        mock_auth_services.sign_out_everywhere.assert_called_once_with(1)
+        mock_auth_services.sign_out_everywhere.assert_called_once_with(MOCK_USER_ID)
         assert "Max-Age=0" in response.headers["set-cookie"]
 
     def test_keep_current_ends_the_other_sessions_and_keeps_the_cookie(self, profile_client, mock_auth_services):
         response = profile_client.post(PREFIX + "/sessions/revoke?keep_current=true")
 
         assert response.status_code == 204
-        mock_auth_services.delete_other_user_sessions.assert_called_once_with(1, "session-1")
+        mock_auth_services.delete_other_user_sessions.assert_called_once_with(MOCK_USER_ID, "session-1")
         mock_auth_services.sign_out_everywhere.assert_not_called()
         assert "set-cookie" not in response.headers
 
@@ -704,13 +707,13 @@ class TestExportProfileData:
             "size_bytes": None,
             "expires_at": None,
         }
-        assert publish.call_args.args[0] == 1
-        assert export_states.get(1).status == "queued"
+        assert publish.call_args.args[0] == MOCK_USER_ID
+        assert export_states.get(MOCK_USER_ID).status == "queued"
         step_up, user_id, session_id, action, _store = mock_auth_services.verify_step_up.call_args.args
         assert step_up.current_password == "secret-password"
         assert step_up.mfa_code == "123456"
         assert (user_id, session_id, action) == (
-            1,
+            MOCK_USER_ID,
             "session-1",
             identity_providers_constants.StepUpAction.PROFILE_EXPORT,
         )
@@ -723,7 +726,7 @@ class TestExportProfileData:
 
         assert response.status_code == 401
         publish.assert_not_called()
-        assert export_states.get(1) is None
+        assert export_states.get(MOCK_USER_ID) is None
 
     def test_an_export_without_a_body_is_refused(self, profile_client):
         with patch(self._PUBLISH) as publish:
@@ -744,8 +747,8 @@ class TestDownloadProfileExport:
     """Tests for GET /profile/export/download — download_profile_export."""
 
     def test_streams_the_finished_archive(self, profile_app, profile_client, export_states):
-        export_states.begin(1, conflict="held")
-        export_states.set_status(1, "succeeded", size_bytes=8)
+        export_states.begin(MOCK_USER_ID, conflict="held")
+        export_states.set_status(MOCK_USER_ID, "succeeded", size_bytes=8)
         storage = MagicMock()
         storage.open_stream.return_value = io.BytesIO(b"zip-data")
         profile_app.dependency_overrides[core_dependencies.get_storage] = lambda: storage
@@ -757,10 +760,10 @@ class TestDownloadProfileExport:
         assert response.headers["content-length"] == "8"
         assert response.headers["cache-control"] == "no-store"
         assert response.headers["pragma"] == "no-cache"
-        storage.open_stream.assert_called_once_with("profile_export_staging", "1.zip")
+        storage.open_stream.assert_called_once_with("profile_export_staging", f"{MOCK_USER_ID}.zip")
 
     def test_is_not_found_before_the_export_has_finished(self, profile_client, export_states):
-        export_states.begin(1, conflict="held")
+        export_states.begin(MOCK_USER_ID, conflict="held")
 
         assert profile_client.get(PREFIX + "/export/download").status_code == 404
 
@@ -804,9 +807,9 @@ class TestImportProfileData:
             "imported": None,
         }
         publish.assert_called_once()
-        assert publish.call_args.args[0] == 1
-        assert publish.call_args.args[1].startswith("1/")
-        assert import_states.get(1).status == "queued"
+        assert publish.call_args.args[0] == MOCK_USER_ID
+        assert publish.call_args.args[1].startswith(f"{MOCK_USER_ID}/")
+        assert import_states.get(MOCK_USER_ID).status == "queued"
 
     @patch("modules.users.users_profile.router.core_file_uploads.save_validated_upload_sync", side_effect=_write_upload)
     def test_a_second_import_while_one_is_pending_is_a_conflict(self, mock_validate, profile_client):
@@ -826,7 +829,7 @@ class TestImportProfileData:
         with patch(self._PUBLISH, side_effect=RuntimeError("outbox down")), pytest.raises(RuntimeError):
             profile_client.post(PREFIX + "/import", files=files)
 
-        assert import_states.get(1).status == "failed"
+        assert import_states.get(MOCK_USER_ID).status == "failed"
         with patch(self._PUBLISH):
             assert profile_client.post(PREFIX + "/import", files=files).status_code == 202
 
@@ -1154,7 +1157,7 @@ class TestGetMyIdentityProviders:
         """Happy path: returns one page of enriched IdP links for the requested window."""
         link = {
             "id": str(uuid.uuid4()),
-            "user_id": 1,
+            "user_id": str(MOCK_USER_ID),
             "idp_id": str(IDP_ID),
             "idp_subject": "sub",
             "linked_at": "2025-01-01T00:00:00",
@@ -1178,7 +1181,9 @@ class TestGetMyIdentityProviders:
         data = response.json()
         assert [item["idp_name"] for item in data["items"]] == ["TestIdP"]
         assert (data["total"], data["next"]) == (3, 3)
-        mock_auth_services.get_user_identity_provider_links.assert_called_once_with(1, core_pagination.PageParams(2, 1))
+        mock_auth_services.get_user_identity_provider_links.assert_called_once_with(
+            MOCK_USER_ID, core_pagination.PageParams(2, 1)
+        )
 
     def test_no_links(
         self,
@@ -1323,7 +1328,7 @@ class TestDeleteMyAccount:
             "error_code": None,
             "status": "queued",
         }
-        assert mock_delete.call_args.args[0] == 1
+        assert mock_delete.call_args.args[0] == MOCK_USER_ID
         assert mock_delete.call_args.args[1] == "session-1"
         assert mock_delete.call_args.args[2].current_password == "secret-password"
         mock_clear_cookies.assert_called_once()
@@ -1388,7 +1393,7 @@ class TestEditProfileUsername:
         assert response.status_code == 200
         assert response.headers["ETag"] == '"4"'
         mock_auth_services.verify_step_up.assert_called_once()
-        assert mock_stage.call_args.args[:2] == (1, "New.Name")
+        assert mock_stage.call_args.args[:2] == (MOCK_USER_ID, "New.Name")
 
     @patch("modules.users.users_profile.service.users_integration.stage_username_change")
     def test_step_up_fails(self, mock_stage, profile_client, mock_auth_services):

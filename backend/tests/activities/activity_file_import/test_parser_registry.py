@@ -3,6 +3,7 @@
 from unittest.mock import patch
 
 import pytest
+from tests._helpers.auth import MOCK_USER_ID
 
 import modules.activities.activity_file_import.parser_registry as registry
 
@@ -33,12 +34,16 @@ class TestAdapters:
         mock_adapter.parsed_info_to_parsed_activity.return_value = "parsed-gpx"
         parser = registry.get_parser(".gpx")
 
-        result = parser("/f.gpx", 7, "Name", "Asia/Tokyo", 1.609344)
+        result = parser("/f.gpx", MOCK_USER_ID, "Name", "Asia/Tokyo", 1.609344)
 
         assert result.activities == ["parsed-gpx"]
         assert result.components == {}
         mock_gpx.parse_gpx_file.assert_called_once_with(
-            "/f.gpx", 7, activity_name_input="Name", default_timezone="Asia/Tokyo", distance_per_lap_km=1.609344
+            "/f.gpx",
+            MOCK_USER_ID,
+            activity_name_input="Name",
+            default_timezone="Asia/Tokyo",
+            distance_per_lap_km=1.609344,
         )
         mock_adapter.parsed_info_to_parsed_activity.assert_called_once_with({"activity": "gpx"})
 
@@ -63,9 +68,9 @@ class TestAdapters:
         parser = registry.get_parser(".gpx")
         with pytest.raises(TypeError):
             parser("/f.gpx", 7)
-        parser("/f.gpx", 7, None, "UTC", 1.0)
+        parser("/f.gpx", MOCK_USER_ID, None, "UTC", 1.0)
         mock_gpx.parse_gpx_file.assert_called_once_with(
-            "/f.gpx", 7, activity_name_input=None, default_timezone="UTC", distance_per_lap_km=1.0
+            "/f.gpx", MOCK_USER_ID, activity_name_input=None, default_timezone="UTC", distance_per_lap_km=1.0
         )
 
     @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_adapter")

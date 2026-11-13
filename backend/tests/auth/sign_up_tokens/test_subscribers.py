@@ -1,5 +1,6 @@
 """Tests for sign-up email subscribers and event publishers."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import jasil.events as platform_events
@@ -9,6 +10,13 @@ import pytest
 import modules.auth.sign_up_tokens.event_publishers as sign_up_publishers
 import modules.auth.sign_up_tokens.events as sign_up_events
 import modules.auth.sign_up_tokens.subscribers as sign_up_subscribers
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
+
+_USER_9 = uuid.UUID("00000000-0000-4000-8000-000000000009")
+
+_USER_4 = uuid.UUID("00000000-0000-4000-8000-000000000004")
+_USER_5 = uuid.UUID("00000000-0000-4000-8000-000000000005")
+_USER_6 = uuid.UUID("00000000-0000-4000-8000-000000000006")
 
 
 def _event(event_type: str, payload: dict) -> platform_events.Event:
@@ -27,10 +35,12 @@ class TestHandlers:
         get_platform.return_value.mail = MagicMock()
         prepare.return_value = ("person@example.test", "subject", "html", "text")
 
-        event = _event(sign_up_events.SIGN_UP_VERIFICATION_REQUESTED, {"user_id": 4})
+        event = _event(sign_up_events.SIGN_UP_VERIFICATION_REQUESTED, {"user_id": str(_USER_4)})
         sign_up_subscribers.send_verification_email_for_event(event)
 
-        prepare.assert_called_once_with(4, event.event_id, sign_up_subscribers.core_config.settings.ENDURAIN_HOST, db)
+        prepare.assert_called_once_with(
+            _USER_4, event.event_id, sign_up_subscribers.core_config.settings.ENDURAIN_HOST, db
+        )
         session_local.return_value.__exit__.assert_called_once()
         send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
 
@@ -46,7 +56,9 @@ class TestHandlers:
         prepare.return_value = ("person@example.test", "subject", "html", "text")
 
         with pytest.raises(platform_providers.MailError):
-            sign_up_subscribers.send_approved_email_for_event(_event(sign_up_events.SIGN_UP_APPROVED, {"user_id": 4}))
+            sign_up_subscribers.send_approved_email_for_event(
+                _event(sign_up_events.SIGN_UP_APPROVED, {"user_id": str(_USER_4)})
+            )
 
 
 class TestEmailChangeVerificationHandler:
@@ -60,10 +72,12 @@ class TestEmailChangeVerificationHandler:
         db = session_local.return_value.__enter__.return_value
         prepare.return_value = ("new@example.test", "subject", "html", "text")
 
-        event = _event(sign_up_events.EMAIL_CHANGE_VERIFICATION_REQUESTED, {"user_id": 4})
+        event = _event(sign_up_events.EMAIL_CHANGE_VERIFICATION_REQUESTED, {"user_id": str(_USER_4)})
         sign_up_subscribers.send_email_change_verification_email_for_event(event)
 
-        prepare.assert_called_once_with(4, event.event_id, sign_up_subscribers.core_config.settings.ENDURAIN_HOST, db)
+        prepare.assert_called_once_with(
+            _USER_4, event.event_id, sign_up_subscribers.core_config.settings.ENDURAIN_HOST, db
+        )
         send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
 
     def test_both_registration_paths_route_the_event_to_its_handler(self):
@@ -96,10 +110,10 @@ class TestEmailChangedHandler:
         prepare.return_value = ("old@example.test", "subject", "html", "text")
 
         sign_up_subscribers.send_email_changed_email_for_event(
-            _event(sign_up_events.EMAIL_CHANGED, {"user_id": 4, "token_id": "t1"})
+            _event(sign_up_events.EMAIL_CHANGED, {"user_id": str(_USER_4), "token_id": "t1"})
         )
 
-        prepare.assert_called_once_with(4, "t1", sign_up_subscribers.core_config.settings.ENDURAIN_HOST, db)
+        prepare.assert_called_once_with(_USER_4, "t1", sign_up_subscribers.core_config.settings.ENDURAIN_HOST, db)
         send_email.assert_called_once_with(
             get_platform.return_value.mail, "old@example.test", "subject", "html", "text"
         )
@@ -110,7 +124,7 @@ class TestEmailChangedHandler:
     @patch("modules.auth.sign_up_tokens.subscribers.core_database.SessionLocal")
     def test_a_missing_row_is_skipped(self, _session_local, _get_platform, _prepare, send_email):
         sign_up_subscribers.send_email_changed_email_for_event(
-            _event(sign_up_events.EMAIL_CHANGED, {"user_id": 4, "token_id": "t1"})
+            _event(sign_up_events.EMAIL_CHANGED, {"user_id": str(_USER_4), "token_id": "t1"})
         )
 
         send_email.assert_not_called()
@@ -141,10 +155,10 @@ class TestExistingAccountHandler:
         prepare.return_value = ("owner@example.com", "subject", "<p>html</p>", "text")
 
         sign_up_subscribers.send_existing_account_email_for_event(
-            _event(sign_up_events.SIGN_UP_EXISTING_ACCOUNT, {"user_id": 4})
+            _event(sign_up_events.SIGN_UP_EXISTING_ACCOUNT, {"user_id": str(_USER_4)})
         )
 
-        assert prepare.call_args.args[0] == 4
+        assert prepare.call_args.args[0] == _USER_4
         send_email.assert_called_once_with(
             get_platform.return_value.mail, "owner@example.com", "subject", "<p>html</p>", "text"
         )
@@ -155,14 +169,14 @@ class TestPublishers:
     def test_payloads_carry_ids_only(self, mock_publish):
         db = MagicMock()
 
-        sign_up_publishers.publish_sign_up_verification_requested(4, db)
-        sign_up_publishers.publish_sign_up_approval_requested(4, 9, db)
-        sign_up_publishers.publish_sign_up_existing_account(5, db)
+        sign_up_publishers.publish_sign_up_verification_requested(_USER_4, db)
+        sign_up_publishers.publish_sign_up_approval_requested(_USER_4, _USER_9, db)
+        sign_up_publishers.publish_sign_up_existing_account(_USER_5, db)
 
         assert [call.args[1] for call in mock_publish.call_args_list] == [
-            {"user_id": 4},
-            {"user_id": 4, "admin_user_id": 9},
-            {"user_id": 5},
+            {"user_id": str(_USER_4)},
+            {"user_id": str(_USER_4), "admin_user_id": str(_USER_9)},
+            {"user_id": str(_USER_5)},
         ]
         assert all(call.kwargs["db"] is db for call in mock_publish.call_args_list)
 
@@ -170,12 +184,12 @@ class TestPublishers:
     def test_email_change_events_are_staged_for_the_callers_commit_with_ids_only(self, mock_publish):
         db = MagicMock()
 
-        sign_up_publishers.publish_email_change_verification_requested(6, db)
-        sign_up_publishers.publish_email_changed(6, "token-1", db)
+        sign_up_publishers.publish_email_change_verification_requested(_USER_6, db)
+        sign_up_publishers.publish_email_changed(_USER_6, "token-1", db)
 
         assert [(call.args[0], call.args[1]) for call in mock_publish.call_args_list] == [
-            (sign_up_events.EMAIL_CHANGE_VERIFICATION_REQUESTED, {"user_id": 6}),
-            (sign_up_events.EMAIL_CHANGED, {"user_id": 6, "token_id": "token-1"}),
+            (sign_up_events.EMAIL_CHANGE_VERIFICATION_REQUESTED, {"user_id": str(_USER_6)}),
+            (sign_up_events.EMAIL_CHANGED, {"user_id": str(_USER_6), "token_id": "token-1"}),
         ]
         assert all(call.kwargs["db"] is db for call in mock_publish.call_args_list)
 
@@ -183,9 +197,9 @@ class TestPublishers:
     def test_approval_is_staged_for_the_callers_commit(self, mock_publish):
         db = MagicMock()
 
-        sign_up_publishers.publish_sign_up_approved(4, db)
+        sign_up_publishers.publish_sign_up_approved(_USER_4, db)
 
-        assert mock_publish.call_args.args[1] == {"user_id": 4}
+        assert mock_publish.call_args.args[1] == {"user_id": str(_USER_4)}
         assert mock_publish.call_args.kwargs["db"] is db
         assert "commit" not in mock_publish.call_args.kwargs
 
@@ -199,10 +213,10 @@ class TestAddressTakenHandler:
         prepare.return_value = ("holder@example.com", "subject", "<p>html</p>", "text")
 
         sign_up_subscribers.send_email_change_address_taken_email_for_event(
-            _event(sign_up_events.EMAIL_CHANGE_ADDRESS_TAKEN, {"user_id": 8})
+            _event(sign_up_events.EMAIL_CHANGE_ADDRESS_TAKEN, {"user_id": str(OTHER_USER_ID)})
         )
 
-        assert prepare.call_args.args[0] == 8
+        assert prepare.call_args.args[0] == OTHER_USER_ID
         send_email.assert_called_once_with(
             get_platform.return_value.mail, "holder@example.com", "subject", "<p>html</p>", "text"
         )
@@ -213,11 +227,11 @@ class TestAddressTakenPublisher:
     def test_the_payload_carries_the_holder_id_only(self, mock_publish):
         db = MagicMock()
 
-        sign_up_publishers.publish_email_change_address_taken(8, db)
+        sign_up_publishers.publish_email_change_address_taken(OTHER_USER_ID, db)
 
         assert (mock_publish.call_args.args[0], mock_publish.call_args.args[1]) == (
             sign_up_events.EMAIL_CHANGE_ADDRESS_TAKEN,
-            {"user_id": 8},
+            {"user_id": str(OTHER_USER_ID)},
         )
         assert mock_publish.call_args.kwargs["db"] is db
 
@@ -231,10 +245,10 @@ class TestRequestedNoticeHandler:
         prepare.return_value = ("current@example.com", "subject", "<p>html</p>", "text")
 
         sign_up_subscribers.send_email_change_requested_email_for_event(
-            _event(sign_up_events.EMAIL_CHANGE_REQUESTED, {"user_id": 7})
+            _event(sign_up_events.EMAIL_CHANGE_REQUESTED, {"user_id": str(MOCK_USER_ID)})
         )
 
-        assert prepare.call_args.args[0] == 7
+        assert prepare.call_args.args[0] == MOCK_USER_ID
         send_email.assert_called_once_with(
             get_platform.return_value.mail, "current@example.com", "subject", "<p>html</p>", "text"
         )

@@ -13,6 +13,7 @@ import modules.auth.identity_providers.authorization_service as authorization_se
 import modules.auth.identity_providers.contracts as idp_contracts
 import modules.auth.oauth_state.constants as oauth_state_constants
 from modules.auth.identity_providers.constants import STEP_UP_MAX_AGE_SECONDS, StepUpAction
+from tests._helpers.auth import MOCK_USER_ID
 
 IDP_ID = uuid.uuid4()
 
@@ -53,7 +54,7 @@ def _stage(service, *, idp=None, linked=True, redirect="/settings/security", cha
         patch.object(authorization_service.oauth_state_integration, "create_oauth_state") as create,
     ):
         staged = service.stage_step_up(
-            7,
+            MOCK_USER_ID,
             SESSION_ID,
             3,
             StepUpAction.ACCOUNT_DELETE,
@@ -72,7 +73,7 @@ class TestStageStepUp:
 
         kwargs = create.call_args.kwargs
         assert kwargs["purpose"] == oauth_state_constants.OAuthStatePurpose.STEP_UP
-        assert kwargs["user_id"] == 7
+        assert kwargs["user_id"] == MOCK_USER_ID
         assert kwargs["session_id"] == SESSION_ID
         assert kwargs["action"] == StepUpAction.ACCOUNT_DELETE
         assert kwargs["code_challenge"] == CHALLENGE
@@ -135,7 +136,7 @@ class TestStageStepUp:
             pytest.raises(core_exceptions.NotFoundError),
         ):
             service.stage_step_up(
-                7,
+                MOCK_USER_ID,
                 SESSION_ID,
                 IDP_ID,
                 StepUpAction.ACCOUNT_DELETE,

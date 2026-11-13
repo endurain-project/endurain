@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import core.exceptions as core_exceptions
 import modules.auth.mfa_backup_codes.crud as backup_crud
 import modules.auth.mfa_backup_codes.service as backup_utils
+from tests._helpers.auth import MOCK_USER_ID
 
 
 class TestGenerateBackupCode:
@@ -60,7 +61,7 @@ class TestVerifyAndConsumeBackupCode:
     def test_verify_valid_code_success(self, mock_db, password_hasher):
         """Test successful verification of valid backup code."""
         # Arrange
-        user_id = 1
+        user_id = MOCK_USER_ID
         code = "A3K97BDF"
 
         mock_code_obj = MagicMock()
@@ -90,12 +91,12 @@ class TestVerifyAndConsumeBackupCode:
                 backup_crud, "mark_backup_code_as_used", side_effect=core_exceptions.NotFoundError("already used")
             ),
         ):
-            assert backup_utils.verify_and_consume_backup_code(1, code, password_hasher, mock_db) is False
+            assert backup_utils.verify_and_consume_backup_code(MOCK_USER_ID, code, password_hasher, mock_db) is False
 
     def test_verify_invalid_code_failure(self, mock_db, password_hasher):
         """Test verification fails with invalid code."""
         # Arrange
-        user_id = 1
+        user_id = MOCK_USER_ID
         correct_code = "A3K97BDF"
         wrong_code = "WRONGCOD"
 
@@ -117,7 +118,7 @@ class TestVerifyAndConsumeBackupCode:
     def test_verify_no_unused_codes(self, mock_db, password_hasher):
         """Test verification fails when no unused codes exist."""
         # Arrange
-        user_id = 1
+        user_id = MOCK_USER_ID
         code = "A3K97BDF"
 
         with (
@@ -134,7 +135,7 @@ class TestVerifyAndConsumeBackupCode:
     def test_verify_multiple_codes_finds_match(self, mock_db, password_hasher):
         """Test verification finds correct code among multiple codes."""
         # Arrange
-        user_id = 1
+        user_id = MOCK_USER_ID
         correct_code = "CORRECT9"
 
         mock_codes = []
@@ -166,7 +167,7 @@ class TestVerifyAndConsumeBackupCode:
         # Arrange: the FIRST code is the valid one. A short-circuiting
         # implementation would verify only once; the hardened version must
         # still verify all four hashes.
-        user_id = 1
+        user_id = MOCK_USER_ID
         correct_code = "CORRECT9"
         codes_in_order = [correct_code, "WRONG111", "WRONG222", "WRONG333"]
 

@@ -7,6 +7,7 @@ with the caller's commit and a staging failure propagates rather than being
 swallowed.
 """
 
+import uuid
 from collections.abc import Callable
 
 import jasil.publisher as platform_publisher
@@ -16,7 +17,7 @@ import core.event_metadata as core_event_metadata
 import modules.activities.activity_ingestion.events as activity_ingestion_events
 
 
-def publish_file_uploaded(job_id: str, user_id: int, db: Session, *, commit: Callable[[], None]) -> None:
+def publish_file_uploaded(job_id: str, user_id: uuid.UUID, db: Session, *, commit: Callable[[], None]) -> None:
     """Publish ``activity.file_uploaded`` so a durable worker imports the staged upload.
 
     Staged in the transactional outbox on ``db`` and committed with the job row,
@@ -35,12 +36,12 @@ def publish_file_uploaded(job_id: str, user_id: int, db: Session, *, commit: Cal
         source="api:upload",
         db=db,
         commit=commit,
-        metadata={core_event_metadata.META_USER_ID: user_id},
+        metadata={core_event_metadata.META_USER_ID: str(user_id)},
         schema_version=payload.SCHEMA_VERSION,
     )
 
 
-def publish_refresh_requested(job_id: str, user_id: int, db: Session, *, commit: Callable[[], None]) -> None:
+def publish_refresh_requested(job_id: str, user_id: uuid.UUID, db: Session, *, commit: Callable[[], None]) -> None:
     """Publish ``activity.refresh_requested`` so a durable worker syncs the providers.
 
     Args:
@@ -56,13 +57,13 @@ def publish_refresh_requested(job_id: str, user_id: int, db: Session, *, commit:
         source="api:refresh",
         db=db,
         commit=commit,
-        metadata={core_event_metadata.META_USER_ID: user_id},
+        metadata={core_event_metadata.META_USER_ID: str(user_id)},
         schema_version=payload.SCHEMA_VERSION,
     )
 
 
 def publish_refresh_requests(
-    jobs: list[tuple[str, int]],
+    jobs: list[tuple[str, uuid.UUID]],
     db: Session,
     *,
     commit: Callable[[], None],
@@ -86,14 +87,14 @@ def publish_refresh_requests(
             for job_id, _ in jobs
         ],
         source="scheduler:provider_refresh",
-        metadata_for=lambda payload: {core_event_metadata.META_USER_ID: owner_of[payload["job_id"]]},
+        metadata_for=lambda payload: {core_event_metadata.META_USER_ID: str(owner_of[payload["job_id"]])},
         db=db,
         commit=commit,
         schema_version=activity_ingestion_events.RefreshRequestedPayload.SCHEMA_VERSION,
     )
 
 
-def publish_bulk_import_continue(job_id: str, user_id: int, db: Session, *, commit: Callable[[], None]) -> None:
+def publish_bulk_import_continue(job_id: str, user_id: uuid.UUID, db: Session, *, commit: Callable[[], None]) -> None:
     """Publish ``activity.bulk_import_continue`` so a worker runs the next batch.
 
     Staged in the transactional outbox on ``db`` and committed with whatever the
@@ -114,6 +115,6 @@ def publish_bulk_import_continue(job_id: str, user_id: int, db: Session, *, comm
         source="api:bulk_import",
         db=db,
         commit=commit,
-        metadata={core_event_metadata.META_USER_ID: user_id},
+        metadata={core_event_metadata.META_USER_ID: str(user_id)},
         schema_version=payload.SCHEMA_VERSION,
     )

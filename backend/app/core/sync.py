@@ -55,7 +55,7 @@ class TombstoneMixin:
     """
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[int] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, comment="Owner of the deleted record"
     )
     deleted_at: Mapped[datetime] = mapped_column(
@@ -81,7 +81,7 @@ class Deletion[IdT: (int, uuid.UUID)]:
 
 
 def record_deletions[IdT: (int, uuid.UUID)](
-    db: Session, model: type[TombstoneMixin], user_id: int, record_ids: Sequence[IdT], **columns: Any
+    db: Session, model: type[TombstoneMixin], user_id: uuid.UUID, record_ids: Sequence[IdT], **columns: Any
 ) -> None:
     """Stage a tombstone for each deleted record, in the transaction that deletes them.
 
@@ -111,9 +111,9 @@ def _after[IdT: (int, uuid.UUID)](
 def changed_rows[RowT: UpdatedAtMixin, IdT: (int, uuid.UUID)](
     db: Session,
     model: type[RowT],
-    owner: InstrumentedAttribute[int],
+    owner: InstrumentedAttribute[uuid.UUID],
     row_id: InstrumentedAttribute[IdT],
-    user_id: int,
+    user_id: uuid.UUID,
     after: Position[IdT] | None,
     until: datetime,
     limit: int,
@@ -147,7 +147,7 @@ def changed_rows[RowT: UpdatedAtMixin, IdT: (int, uuid.UUID)](
 def deleted_rows[TombstoneT: TombstoneMixin](
     db: Session,
     model: type[TombstoneT],
-    user_id: int,
+    user_id: uuid.UUID,
     after: Position[uuid.UUID] | None,
     until: datetime,
     limit: int,

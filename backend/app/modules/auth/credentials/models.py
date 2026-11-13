@@ -6,6 +6,7 @@ the ``mfa_factors`` table: auth owns the secret, ``users`` owns the profile.
 Rows are written and read through ``modules.auth.credentials.crud``.
 """
 
+import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String
@@ -33,9 +34,10 @@ class LocalCredential(Base):
 
     __tablename__ = "users_local_credentials"
 
-    user_id: Mapped[int] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         primary_key=True,
+        comment="User the credentials belong to",
     )
     password_hash: Mapped[str] = mapped_column(
         String(250),

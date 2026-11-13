@@ -16,6 +16,8 @@ Interface::
     delete_code(user_id)      - remove it after consumption
 """
 
+import uuid
+
 from jasil.providers import StateBackendUnavailableError, StateProvider
 
 import core.attempt_state as core_attempt_state
@@ -59,11 +61,11 @@ class GarminMFACodeStore:
         self._state = state
         self._ttl_seconds = ttl_seconds
 
-    def _key(self, user_id: int) -> str:
+    def _key(self, user_id: uuid.UUID) -> str:
         """Build the storage key for a user's pending MFA code."""
         return core_attempt_state.key("garmin", "mfa:code", str(user_id))
 
-    def add_code(self, user_id: int, code: str) -> None:
+    def add_code(self, user_id: uuid.UUID, code: str) -> None:
         """Store a Garmin MFA code with TTL.
 
         Args:
@@ -82,7 +84,7 @@ class GarminMFACodeStore:
             extra=core_logger.context(user_id=user_id),
         )
 
-    def get_code(self, user_id: int) -> str | None:
+    def get_code(self, user_id: uuid.UUID) -> str | None:
         """Retrieve a Garmin MFA code.
 
         Args:
@@ -101,7 +103,7 @@ class GarminMFACodeStore:
             core_attempt_state.raise_unavailable("get Garmin MFA code", err)
         return core_cryptography.decrypt_token_fernet(value.decode()) if value is not None else None
 
-    def delete_code(self, user_id: int) -> None:
+    def delete_code(self, user_id: uuid.UUID) -> None:
         """Remove the Garmin MFA code for a user.
 
         Failures are swallowed because the entry expires via TTL anyway.

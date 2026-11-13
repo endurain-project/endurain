@@ -17,7 +17,7 @@ import modules.users.users_profile.contracts as users_profile_contracts
 
 
 def get_latest_health_weight(
-    user_id: int, on_or_before: date, db: Session
+    user_id: uuid.UUID, on_or_before: date, db: Session
 ) -> health_weight_schema.HealthWeightRead | None:
     """Return a user's most recent weight record dated no later than a day, or ``None``.
 
@@ -32,7 +32,9 @@ def get_latest_health_weight(
     return health_weight_crud.get_latest_weight_by_user_id(user_id, on_or_before, db)
 
 
-def get_health_weight_by_date(user_id: int, date: str, db: Session) -> health_weight_schema.HealthWeightRead | None:
+def get_health_weight_by_date(
+    user_id: uuid.UUID, date: str, db: Session
+) -> health_weight_schema.HealthWeightRead | None:
     """Return a user's weight record for a date, or ``None``.
 
     Args:
@@ -47,7 +49,7 @@ def get_health_weight_by_date(user_id: int, date: str, db: Session) -> health_we
 
 
 def upsert_health_weight(
-    user_id: int, health_weight: health_weight_schema.HealthWeightImport, db: Session
+    user_id: uuid.UUID, health_weight: health_weight_schema.HealthWeightImport, db: Session
 ) -> health_weight_schema.HealthWeightRead:
     """Stage a weight record for a user, or an update to their record for the same date.
 
@@ -65,7 +67,7 @@ def upsert_health_weight(
     return health_weight_service.stage_upsert_health_weight(user_id, health_weight, db)
 
 
-def recalculate_bmi_for_user(user_id: int, height_cm: float | None, db: Session) -> None:
+def recalculate_bmi_for_user(user_id: uuid.UUID, height_cm: float | None, db: Session) -> None:
     """Stage a BMI recalculation for a user's manually entered weight records.
 
     Provider records keep the BMI the provider reported.
@@ -92,7 +94,7 @@ def profile_section() -> users_profile_contracts.ProfileRecordsSection:
 
 
 def list_changed_health_weight(
-    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[health_weight_schema.HealthWeightRead]:
     """Return a user's weight records changed after a position, oldest change first.
 
@@ -110,7 +112,7 @@ def list_changed_health_weight(
 
 
 def list_health_weight_deletions(
-    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[core_sync.Deletion[uuid.UUID]]:
     """Return a user's deleted weight records after a position, oldest deletion first.
 

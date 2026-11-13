@@ -23,7 +23,7 @@ _UNIQUE_EVENT_CONSTRAINT = "uq_notifications_source_event_user_type"
 
 def get_user_notification_by_id(
     notification_id: uuid.UUID,
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
 ) -> notifications_schema.NotificationRead | None:
     """Retrieve a notification by ID for a user.
@@ -44,7 +44,7 @@ def get_user_notification_by_id(
     return notifications_serializers.to_read_schema(db_notification) if db_notification else None
 
 
-def count_user_unread_notifications(user_id: int, db: Session) -> int:
+def count_user_unread_notifications(user_id: uuid.UUID, db: Session) -> int:
     """Count the notifications of a user that have not been read.
 
     Args:
@@ -66,7 +66,7 @@ def count_user_unread_notifications(user_id: int, db: Session) -> int:
 
 
 def get_user_notifications_after(
-    user_id: int,
+    user_id: uuid.UUID,
     after: tuple[datetime, uuid.UUID] | None,
     num_records: int,
     db: Session,
@@ -103,7 +103,7 @@ def get_user_notifications_after(
 
 def get_notification_by_source_event(
     source_event_id: str,
-    user_id: int,
+    user_id: uuid.UUID,
     notification_type: notifications_constants.NotificationType,
     db: Session,
 ) -> notifications_schema.NotificationRead | None:
@@ -215,7 +215,7 @@ def create_notification_once(
 
 def mark_notification_as_read(
     notification_id: uuid.UUID,
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
 ) -> notifications_schema.NotificationRead | None:
     """Stage marking a notification as read for a user.
@@ -243,7 +243,7 @@ def mark_notification_as_read(
 
 def mark_notifications_as_read(
     notification_ids: list[uuid.UUID],
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
 ) -> None:
     """Stage marking some of a user's notifications as read; ids that are not the user's are skipped.
@@ -267,7 +267,7 @@ def mark_notifications_as_read(
 
 def delete_user_notification(
     notification_id: uuid.UUID,
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
 ) -> bool:
     """Stage deleting one of a user's notifications.
@@ -294,7 +294,7 @@ def delete_user_notification(
 
 
 def mark_all_notifications_as_read(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
 ) -> None:
     """Stage marking every unread notification of a user as read.
@@ -316,9 +316,9 @@ def mark_all_notifications_as_read(
 
 
 def delete_user_reference_notifications(
-    user_id: int,
+    user_id: uuid.UUID,
     notification_type: notifications_constants.NotificationType,
-    referenced_user_id: int,
+    referenced_user_id: uuid.UUID,
     db: Session,
 ) -> int:
     """Stage deleting a user's notifications of one type that name another user.
@@ -337,14 +337,14 @@ def delete_user_reference_notifications(
         delete(notifications_models.Notification).where(
             notifications_models.Notification.user_id == user_id,
             notifications_models.Notification.type == notification_type.stored,
-            notifications_models.Notification.options["user_id"].as_integer() == referenced_user_id,
+            notifications_models.Notification.options["user_id"].as_string() == str(referenced_user_id),
         ),
     )
     db.flush()
     return matched
 
 
-def delete_notifications_naming_user(referenced_user_id: int, db: Session) -> int:
+def delete_notifications_naming_user(referenced_user_id: uuid.UUID, db: Session) -> int:
     """Stage deleting every notification, whoever owns it, whose options name a user.
 
     Args:
@@ -357,7 +357,7 @@ def delete_notifications_naming_user(referenced_user_id: int, db: Session) -> in
     matched = core_database.rowcount(
         db,
         delete(notifications_models.Notification).where(
-            notifications_models.Notification.options["user_id"].as_integer() == referenced_user_id
+            notifications_models.Notification.options["user_id"].as_string() == str(referenced_user_id)
         ),
     )
     db.flush()

@@ -1,5 +1,6 @@
 """Publish the Strava domain events through the platform publish facade."""
 
+import uuid
 from collections.abc import Callable
 
 import jasil.publisher as platform_publisher
@@ -11,7 +12,7 @@ import modules.strava.events as strava_events
 
 
 def publish_sync_requested(
-    user_id: int,
+    user_id: uuid.UUID,
     kind: strava_constants.SyncKind,
     db: Session,
     *,
@@ -37,6 +38,6 @@ def publish_sync_requested(
         source=source,
         db=db,
         commit=commit,
-        metadata={core_event_metadata.META_USER_ID: user_id},
+        metadata={core_event_metadata.META_USER_ID: str(user_id)},
         schema_version=payload.SCHEMA_VERSION,
     )

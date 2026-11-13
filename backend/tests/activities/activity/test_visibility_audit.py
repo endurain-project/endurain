@@ -15,6 +15,9 @@ import modules.activities.activity.events as activity_events
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity.service as activity_service
 
+_USER_1 = uuid.UUID(int=1)
+_USER_4 = uuid.UUID(int=4)
+
 _JOBS = "modules.activities.activity.bulk_edit_job_service"
 _SERVICE = "modules.activities.activity.service"
 _ACTIVITY_ID = uuid.uuid4()
@@ -32,7 +35,7 @@ class TestBulkVisibilityRequest:
             patch(f"{_JOBS}.activity_event_publishers"),
             patch(f"{_JOBS}._pool"),
         ):
-            return job_service.request_visibility_edit(4, 2, states, db)
+            return job_service.request_visibility_edit(_USER_4, 2, states, db)
 
     @pytest.mark.parametrize("jobs_enabled", [True, False])
     def test_the_request_is_audited_with_the_visibility(self, states, mock_db, jobs_enabled):
@@ -40,12 +43,15 @@ class TestBulkVisibilityRequest:
             self._request(states, mock_db, jobs_enabled=jobs_enabled)
 
         entry = audit.assert_audited(
-            activity_audit_actions.VISIBILITY_BULK_UPDATE.id, target_type="user", target_id="4", target_owner_id="4"
+            activity_audit_actions.VISIBILITY_BULK_UPDATE.id,
+            target_type="user",
+            target_id=str(_USER_4),
+            target_owner_id=str(_USER_4),
         )
         assert entry.details == {"visibility": 2}
 
     def test_a_refused_second_request_is_not_audited(self, states, mock_db):
-        states.begin(4, _Kind, conflict="x")
+        states.begin(_USER_4, _Kind, conflict="x")
 
         with jasil_testing.capture_audit() as audit, pytest.raises(Exception, match="already in progress"):
             self._request(states, mock_db, jobs_enabled=True)
@@ -53,8 +59,8 @@ class TestBulkVisibilityRequest:
         audit.assert_not_audited(activity_audit_actions.VISIBILITY_BULK_UPDATE.id)
 
     def test_the_job_writes_no_row_per_activity(self, states):
-        states.begin(4, _Kind, conflict="x")
-        payload = activity_events.VisibilityEditRequestedPayload(user_id=4, visibility=2)
+        states.begin(_USER_4, _Kind, conflict="x")
+        payload = activity_events.VisibilityEditRequestedPayload(user_id=_USER_4, visibility=2)
 
         with (
             jasil_testing.capture_audit() as audit,
@@ -78,7 +84,7 @@ class TestSingleActivityEdit:
         ):
             crud.get_activity_by_id_from_user_id.return_value = MagicMock(**before)
             crud.edit_activity.return_value = MagicMock(**after)
-            activity_service.edit_activity(_ACTIVITY_ID, 1, edit, mock_db, if_match="*")
+            activity_service.edit_activity(_ACTIVITY_ID, _USER_1, edit, mock_db, if_match="*")
 
     def test_a_changed_visibility_and_hide_flag_are_audited_by_name(self, mock_db):
         with jasil_testing.capture_audit() as audit:
@@ -93,7 +99,7 @@ class TestSingleActivityEdit:
             activity_audit_actions.VISIBILITY_UPDATE.id,
             target_type="activity",
             target_id=str(_ACTIVITY_ID),
-            target_owner_id="1",
+            target_owner_id=str(_USER_1),
         )
         assert entry.details == {"changed_fields": ["visibility", "hide_map"]}
 

@@ -7,6 +7,7 @@ the state a client polls records where it is. The provider-specific parts (what 
 claim, the durable job and the bookkeeping live here so a fix to them is made once.
 """
 
+import uuid
 from collections.abc import Callable
 from datetime import date, timedelta
 from enum import StrEnum
@@ -89,7 +90,7 @@ def validate_range(start_date: date, end_date: date, max_days: int, today: date)
 
 def run_recorded(
     states: core_attempt_state.SyncStateStore,
-    user_id: int,
+    user_id: uuid.UUID,
     kind: StrEnum,
     work: Callable[[], bool],
     *,
@@ -166,7 +167,7 @@ def start_claimed(
 
 def queue_sync(
     states: core_attempt_state.SyncStateStore,
-    user_id: int,
+    user_id: uuid.UUID,
     kind: StrEnum,
     label: str,
     *,
@@ -198,7 +199,9 @@ def queue_sync(
     )
 
 
-def close_dead_lettered(states: core_attempt_state.SyncStateStore, user_id: int, kind: StrEnum, label: str) -> None:
+def close_dead_lettered(
+    states: core_attempt_state.SyncStateStore, user_id: uuid.UUID, kind: StrEnum, label: str
+) -> None:
     """Close a sync the runner gave up on, so the user can queue another.
 
     Runs however the last attempt ended, including a lease that expired or a worker that died. A sync that

@@ -7,6 +7,7 @@ the other writer created.
 """
 
 import threading
+import uuid
 from datetime import date
 from decimal import Decimal
 
@@ -33,9 +34,13 @@ _REVISION_BEFORE = "f4c8a2e6b7d1"
 _REVISION = "a6d2f8c41e75"
 
 
+_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
+_OTHER_USER_ID = uuid.UUID("22222222-2222-4222-8222-222222222222")
+
+
 @pytest.fixture
 def factory(pg_factory):
-    for user_id in (1, 2):
+    for user_id in (_USER_ID, _OTHER_USER_ID):
         ensure_user(pg_factory, user_id)
     return pg_factory
 
@@ -65,7 +70,7 @@ def test_concurrent_steps_creates_for_one_day_leave_one_record_and_conflict_the_
     outcomes = _run_concurrently(
         factory,
         lambda index, db: steps_service.create_health_steps(
-            1, steps_schema.HealthStepsCreate(date=_DAY, steps=1000 + index), db
+            _USER_ID, steps_schema.HealthStepsCreate(date=_DAY, steps=1000 + index), db
         ),
     )
 
@@ -80,7 +85,7 @@ def test_concurrent_steps_creates_for_one_day_leave_one_record_and_conflict_the_
 def test_concurrent_steps_upserts_for_one_day_leave_one_record(factory):
     def upsert(index, db):
         stored = steps_service.stage_upsert_health_steps(
-            1, steps_schema.HealthStepsCreate(date=_DAY, steps=1000 + index), db
+            _USER_ID, steps_schema.HealthStepsCreate(date=_DAY, steps=1000 + index), db
         )
         db.commit()
         return stored
@@ -97,7 +102,7 @@ def test_concurrent_water_creates_for_one_day_leave_one_record_and_conflict_the_
     outcomes = _run_concurrently(
         factory,
         lambda _index, db: water_service.create_health_water(
-            1, water_schema.HealthWaterCreate(date=_DAY, amount_ml=Decimal(100)), db
+            _USER_ID, water_schema.HealthWaterCreate(date=_DAY, amount_ml=Decimal(100)), db
         ),
     )
 
@@ -120,10 +125,10 @@ def test_concurrent_water_creates_for_one_day_leave_one_record_and_conflict_the_
 )
 def test_the_database_refuses_a_second_record_for_a_day(factory, model, values):
     with factory() as db:
-        db.add(model(user_id=1, date=_DAY, **values))
-        db.add(model(user_id=2, date=_DAY, **values))
+        db.add(model(user_id=_USER_ID, date=_DAY, **values))
+        db.add(model(user_id=_OTHER_USER_ID, date=_DAY, **values))
         db.commit()
-        db.add(model(user_id=1, date=_DAY, **values))
+        db.add(model(user_id=_USER_ID, date=_DAY, **values))
         with pytest.raises(IntegrityError):
             db.commit()
 

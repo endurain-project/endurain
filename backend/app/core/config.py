@@ -17,6 +17,7 @@ working unchanged.
 import ipaddress
 import os
 import stat
+import uuid
 from collections.abc import Iterable
 from pathlib import Path
 from tempfile import gettempdir
@@ -917,7 +918,7 @@ FILES_BULK_IMPORT_DIR = f"{settings.FILES_DIR}/bulk_import"
 FILES_UPLOAD_INCOMING_DIR = f"{settings.FILES_DIR}/upload_incoming"
 
 
-def bulk_import_dir_for(user_id: int) -> str:
+def bulk_import_dir_for(user_id: uuid.UUID) -> str:
     """Return the bulk-import drop directory belonging to one user.
 
     Bulk import used to scan a single shared directory, so on a multi-user
@@ -927,13 +928,12 @@ def bulk_import_dir_for(user_id: int) -> str:
     construction rather than by convention.
 
     Args:
-        user_id: The owning user's id. Coerced to ``int`` so the value can only
-            ever be a single path segment.
+        user_id: The owning user's id. The UUID type keeps the value to one path segment.
 
     Returns:
         Absolute path of that user's bulk-import directory.
     """
-    return f"{FILES_BULK_IMPORT_DIR}/{int(user_id)}"
+    return f"{FILES_BULK_IMPORT_DIR}/{user_id}"
 
 
 # Secret loading and environment validation

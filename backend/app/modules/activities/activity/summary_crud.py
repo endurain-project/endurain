@@ -10,6 +10,7 @@ executes, which is the ``crud`` role, and the enforcement rules match on the
 role.
 """
 
+import uuid
 from datetime import date, timedelta
 from typing import Any
 
@@ -42,7 +43,7 @@ def _apply_activity_type_filter(
 
 
 def _get_type_breakdown(
-    user_id: int,
+    user_id: uuid.UUID,
     start_date: date,
     end_date: date,
     db: Session,
@@ -101,7 +102,7 @@ def _get_type_breakdown(
 
 
 def get_weekly_summary(
-    user_id: int,
+    user_id: uuid.UUID,
     target_date: date,
     first_day_of_week: core_calendar.WeekdayValue,
     db: Session,
@@ -197,7 +198,7 @@ def get_weekly_summary(
 
 
 def get_monthly_summary(
-    user_id: int,
+    user_id: uuid.UUID,
     target_date: date,
     first_day_of_week: core_calendar.WeekdayValue,
     db: Session,
@@ -282,7 +283,7 @@ def get_monthly_summary(
 
 
 def get_yearly_summary(
-    user_id: int,
+    user_id: uuid.UUID,
     year: int,
     db: Session,
     *,
@@ -368,7 +369,7 @@ def get_yearly_summary(
 
 
 def get_lifetime_summary(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     activity_type: activity_constants.ActivityType | None = None,

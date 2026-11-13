@@ -4,6 +4,7 @@ Covers all public functions and async dependencies defined in the module.
 """
 
 import inspect
+import uuid
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -26,9 +27,15 @@ from modules.auth.dependencies import (
     get_sid_from_access_token,
 )
 from modules.auth.identity_providers.constants import StepUpAction
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
+
+THIRD = uuid.uuid4()
+FOURTH = uuid.uuid4()
 
 
-def _principal(credential=None, scopes: frozenset[str] = frozenset({"account"}), user_id: int = 5) -> Principal:
+def _principal(
+    credential=None, scopes: frozenset[str] = frozenset({"account"}), user_id: uuid.UUID = MOCK_USER_ID
+) -> Principal:
     return Principal(
         user_id=user_id,
         username="u",
@@ -64,11 +71,11 @@ class TestGetPrincipal:
     def test_an_access_token_resolves_via_integration_and_is_cached(self, mock_resolve):
         request = _request()
         db = MagicMock()
-        mock_resolve.return_value = _principal(user_id=7)
+        mock_resolve.return_value = _principal(user_id=OTHER_USER_ID)
 
         result = get_principal(request, db, "bearer-token", None, MagicMock())
 
-        assert result.user_id == 7
+        assert result.user_id == OTHER_USER_ID
         assert request.state.principal is result
         mock_resolve.assert_called_once_with("bearer-token", db)
 
@@ -76,11 +83,11 @@ class TestGetPrincipal:
     def test_an_api_key_header_resolves_via_integration(self, mock_resolve):
         request = _request()
         db = MagicMock()
-        mock_resolve.return_value = _principal(ApiKeyCred(api_key_id="2", key_prefix="sk"), user_id=8)
+        mock_resolve.return_value = _principal(ApiKeyCred(api_key_id="2", key_prefix="sk"), user_id=THIRD)
 
         result = get_principal(request, db, None, "sk-123", MagicMock())
 
-        assert result.user_id == 8
+        assert result.user_id == THIRD
         assert result.is_api_key()
         mock_resolve.assert_called_once_with("sk-123", request, db)
 
@@ -100,12 +107,12 @@ class TestGetPrincipal:
     def test_the_api_key_query_string_is_accepted_when_enabled(self, mock_resolve):
         request = _request({"api_key": "qk-456"})
         db = MagicMock()
-        mock_resolve.return_value = _principal(ApiKeyCred(api_key_id="3", key_prefix="qk"), user_id=9)
+        mock_resolve.return_value = _principal(ApiKeyCred(api_key_id="3", key_prefix="qk"), user_id=FOURTH)
         mock_settings = MagicMock()
         mock_settings.ALLOW_API_KEY_QUERY_PARAM = True
         with patch("modules.auth.dependencies.core_config.settings", mock_settings):
             result = get_principal(request, db, None, None, MagicMock())
-        assert result.user_id == 9
+        assert result.user_id == FOURTH
         mock_resolve.assert_called_once_with("qk-456", request, db)
 
     def test_no_credentials_raises_401(self):
@@ -121,7 +128,7 @@ class TestCallerDependencies:
         assert authenticate(_principal(ApiKeyCred(api_key_id="1", key_prefix="k"))) is None
 
     def test_get_current_user_id_returns_the_callers_id(self):
-        assert get_current_user_id(_principal(user_id=5)) == 5
+        assert get_current_user_id(_principal(user_id=MOCK_USER_ID)) == MOCK_USER_ID
 
     def test_get_current_scopes_returns_the_callers_scopes(self):
         assert get_current_scopes(_principal(scopes=frozenset({"gears:read"}))) == frozenset({"gears:read"})
@@ -177,7 +184,7 @@ class TestAuditContextFromRequest:
     @staticmethod
     def _principal(credential):
         return Principal(
-            user_id=42,
+            user_id=MOCK_USER_ID,
             username="alice",
             email="alice@example.com",
             is_active=True,
@@ -217,7 +224,7 @@ class TestAuditContextFromRequest:
         context = self._context(self._request(self._principal(AccessTokenCred(session_id="sid-1"))))
 
         assert context.actor_type is jasil_audit.ActorType.USER
-        assert context.actor_id == "42"
+        assert context.actor_id == str(MOCK_USER_ID)
         assert context.credential_type == "access_token"
         assert context.credential_id == "sid-1"
 
@@ -227,7 +234,7 @@ class TestAuditContextFromRequest:
         context = self._context(self._request(self._principal(ApiKeyCred(api_key_id=7, key_prefix="end_abc"))))
 
         assert context.actor_type is jasil_audit.ActorType.API_KEY
-        assert context.actor_id == "42"
+        assert context.actor_id == str(MOCK_USER_ID)
         assert context.credential_type == "api_key"
         assert context.credential_id == "7"
 

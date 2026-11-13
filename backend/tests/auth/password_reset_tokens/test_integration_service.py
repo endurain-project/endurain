@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker
 
 import modules.auth.password_reset_tokens.integration_service as password_reset_integration
 import modules.auth.password_reset_tokens.models as password_reset_models
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 from tests._helpers.db import create_sqlite_session, ensure_user
 
 
@@ -14,8 +15,8 @@ from tests._helpers.db import create_sqlite_session, ensure_user
 def db():
     session = create_sqlite_session()
     factory = sessionmaker(bind=session.get_bind())
-    ensure_user(factory, 7)
-    ensure_user(factory, 8)
+    ensure_user(factory, MOCK_USER_ID)
+    ensure_user(factory, OTHER_USER_ID)
     yield session
     session.close()
 
@@ -41,10 +42,10 @@ def _used(db, token_id):
 
 
 def test_revoke_unused_tokens_voids_only_that_users_tokens(db):
-    _add_token(db, "mine", 7)
-    _add_token(db, "other", 8)
+    _add_token(db, "mine", MOCK_USER_ID)
+    _add_token(db, "other", OTHER_USER_ID)
 
-    password_reset_integration.revoke_unused_tokens(7, db)
+    password_reset_integration.revoke_unused_tokens(MOCK_USER_ID, db)
     db.commit()
 
     assert _used(db, "mine") is True

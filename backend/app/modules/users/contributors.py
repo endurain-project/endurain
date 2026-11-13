@@ -5,6 +5,7 @@ must stage the data other modules keep per user. Those modules sit above users (
 users surface), so users states what it needs and ``app/module_registry.py`` installs the answers.
 """
 
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
@@ -15,23 +16,23 @@ from sqlalchemy.orm import Session
 #: ``(user_id, limit, db)`` -> stages the deletion of up to ``limit`` activities the user owns and returns
 #: how many it touched; the caller commits and repeats until it returns 0. Going through the owning module
 #: is what lets it clean up the blobs stored per activity.
-ActivitiesEraser = Callable[[int, int, Session], int]
+ActivitiesEraser = Callable[[uuid.UUID, int, Session], int]
 
 #: ``(user_id, db)`` -> stages the deletion of every notification, whoever owns it, that names the user; the
 #: caller commits.
-NotificationsEraser = Callable[[int, Session], None]
+NotificationsEraser = Callable[[uuid.UUID, Session], None]
 
 #: ``(user_id, storage)`` -> removes files other modules stored for the user. Housekeeping that
 #: runs after the deletion is committed, so it logs a failure instead of raising.
-StagedFilesEraser = Callable[[int, platform_providers.StorageProvider], None]
+StagedFilesEraser = Callable[[uuid.UUID, platform_providers.StorageProvider], None]
 
 #: ``(user_id, db)`` -> stages the per-user rows other modules keep for a newly created user and returns what
 #: it staged; never commits, so the rows land in the creating transaction.
-NewUserStager = Callable[[int, Session], object]
+NewUserStager = Callable[[uuid.UUID, Session], object]
 
 #: ``(user_id, height_cm, db)`` -> stages the recalculation of what other modules derive from the user's
 #: height (``None`` when unknown); never commits.
-HeightChangeStager = Callable[[int, float | None, Session], None]
+HeightChangeStager = Callable[[uuid.UUID, float | None, Session], None]
 
 
 class FollowCounts(Protocol):
@@ -50,7 +51,7 @@ class FollowCounts(Protocol):
 
 #: ``(target_user_id, requester_user_id, db)`` -> the target's accepted network counts, or ``None`` when the
 #: network is private to the requester.
-FollowCountsReader = Callable[[int, int, Session], FollowCounts | None]
+FollowCountsReader = Callable[[uuid.UUID, uuid.UUID, Session], FollowCounts | None]
 
 
 @dataclass(frozen=True, kw_only=True)

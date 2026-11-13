@@ -12,6 +12,7 @@ import core.pagination as core_pagination
 import modules.auth.dependencies as auth_deps
 import modules.gears.gear.router as router
 import modules.gears.gear.schema as schema
+from tests._helpers.auth import MOCK_USER_ID
 
 _HEADERS = {"Authorization": "Bearer x"}
 
@@ -22,7 +23,7 @@ def client(mock_db):
     app.include_router(router.router, prefix="/gears")
     core_exceptions.register_exception_handlers(app)
     app.dependency_overrides[auth_deps.check_scopes] = lambda: None
-    app.dependency_overrides[auth_deps.get_current_user_id] = lambda: 1
+    app.dependency_overrides[auth_deps.get_current_user_id] = lambda: MOCK_USER_ID
     app.dependency_overrides[core_db.get_db] = lambda: mock_db
     return TestClient(app)
 
@@ -34,7 +35,14 @@ _PATH = f"/gears/{_GEAR_ID}"
 
 def _read(**overrides) -> schema.GearRead:
     return schema.GearRead(
-        **{"id": _GEAR_ID, "user_id": 1, "nickname": "Bike", "gear_type": 1, "updated_at": _UPDATED_AT, **overrides}
+        **{
+            "id": _GEAR_ID,
+            "user_id": MOCK_USER_ID,
+            "nickname": "Bike",
+            "gear_type": 1,
+            "updated_at": _UPDATED_AT,
+            **overrides,
+        }
     )
 
 
@@ -51,7 +59,7 @@ class TestList:
         assert response.status_code == 200
         assert response.json()["total"] == 1
         mock_list.assert_called_once_with(
-            1,
+            MOCK_USER_ID,
             mock_db,
             page_number=2,
             num_records=5,
@@ -67,7 +75,7 @@ class TestList:
         client.get("/gears", headers=_HEADERS)
 
         mock_list.assert_called_once_with(
-            1,
+            MOCK_USER_ID,
             mock_db,
             page_number=1,
             num_records=core_pagination.DEFAULT_NUM_RECORDS,
@@ -166,7 +174,7 @@ class TestWrites:
         response = client.delete(_PATH, headers={**_HEADERS, "If-Match": '"3"'})
 
         assert response.status_code == 204
-        mock_delete.assert_called_once_with(_GEAR_ID, 1, mock_db, if_match='"3"')
+        mock_delete.assert_called_once_with(_GEAR_ID, MOCK_USER_ID, mock_db, if_match='"3"')
 
     @patch("modules.gears.gear.service.delete_gear")
     def test_delete_without_if_match_is_428(self, mock_delete, client):

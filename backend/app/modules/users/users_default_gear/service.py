@@ -22,7 +22,7 @@ import modules.users.users_default_gear.schema as users_default_gear_schema
 logger = core_logger.get_logger(__name__)
 
 
-def get_default_gear(user_id: int, db: Session) -> users_default_gear_schema.UserDefaultGearRead | None:
+def get_default_gear(user_id: uuid.UUID, db: Session) -> users_default_gear_schema.UserDefaultGearRead | None:
     """Return a user's default gear settings.
 
     Args:
@@ -37,7 +37,7 @@ def get_default_gear(user_id: int, db: Session) -> users_default_gear_schema.Use
 
 def stage_default_gear_edit(
     user_default_gear: users_default_gear_schema.UserDefaultGearUpdate,
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     if_match: str,
@@ -63,8 +63,18 @@ def stage_default_gear_edit(
     return users_default_gear_crud.edit_user_default_gear(user_default_gear, user_id, db, if_match=if_match)
 
 
+def _restored_gear_id(archived: object, gears_id_mapping: dict[uuid.UUID, uuid.UUID]) -> uuid.UUID | None:
+    """Return the stored gear an archived gear id was restored as, or None when it was not restored."""
+    if not isinstance(archived, str):
+        return None
+    try:
+        return gears_id_mapping.get(uuid.UUID(archived))
+    except ValueError:
+        return None
+
+
 def restore_profile_default_gear(
-    record: dict[str, Any], ids: dict[str, dict[str, uuid.UUID]], user_id: int, db: Session
+    record: dict[str, Any], ids: dict[str, dict[uuid.UUID, uuid.UUID]], user_id: uuid.UUID, db: Session
 ) -> bool:
     """Stage the default gear of a profile archive, moved onto the restored gears; the caller commits.
 
@@ -85,8 +95,7 @@ def restore_profile_default_gear(
     settings = {key: value for key, value in record.items() if key not in ("id", "user_id", "version")}
     gears_id_mapping = ids.get(gears_constants.PROFILE_ARCHIVE_KEY, {})
     for field in set(users_default_gear_constants.ACTIVITY_TYPE_TO_GEAR_ATTR.values()):
-        archived = settings.get(field)
-        settings[field] = gears_id_mapping.get(str(archived)) if archived is not None else None
+        settings[field] = _restored_gear_id(settings.get(field), gears_id_mapping)
 
     try:
         update = users_default_gear_schema.UserDefaultGearUpdate(**settings)
@@ -100,7 +109,7 @@ def restore_profile_default_gear(
 
 def edit_default_gear(
     user_default_gear: users_default_gear_schema.UserDefaultGearUpdate,
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     if_match: str,

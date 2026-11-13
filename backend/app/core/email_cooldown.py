@@ -6,11 +6,13 @@ anyone can aim it at one inbox. Allowing one email per account per cooldown, in 
 from being flooded across every replica.
 """
 
+import uuid
+
 from jasil.providers import StateProvider
 
 
 def claim_email(
-    state: StateProvider, kind: str, user_id: int, cooldown_seconds: int, *, claimant: str | None = None
+    state: StateProvider, kind: str, user_id: uuid.UUID, cooldown_seconds: int, *, claimant: str | None = None
 ) -> bool:
     """Record that an account is being sent an email, unless one of this kind went out within the cooldown.
 

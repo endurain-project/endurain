@@ -3,6 +3,7 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 from tests._helpers.db import create_sqlite_session_factory, ensure_user
 
 import core.job_status as core_job_status
@@ -22,7 +23,7 @@ def factory():
         session_factory.kw["bind"].dispose()
 
 
-def _add(factory, job_id, *, user_id=7, kind="upload", status="pending", age_minutes=0):
+def _add(factory, job_id, *, user_id=MOCK_USER_ID, kind="upload", status="pending", age_minutes=0):
     ensure_user(factory, user_id)
     created = _NOW - timedelta(minutes=age_minutes)
     with factory() as db:
@@ -43,21 +44,21 @@ class TestReadJob:
         _add(factory, "job-1", kind="bulk_import")
 
         with factory() as db:
-            job = ingestion_integration.read_job("job-1", 7, db)
+            job = ingestion_integration.read_job("job-1", MOCK_USER_ID, db)
 
         assert job is not None
         assert (job.id, job.kind, job.status) == ("job-1", "activity_bulk_import", _State.QUEUED)
 
     def test_a_missing_job_is_none(self, factory):
         with factory() as db:
-            assert ingestion_integration.read_job("nope", 7, db) is None
+            assert ingestion_integration.read_job("nope", MOCK_USER_ID, db) is None
 
     def test_another_users_job_is_none(self, factory):
-        _add(factory, "job-1", user_id=8)
-        ensure_user(factory, 7)
+        _add(factory, "job-1", user_id=OTHER_USER_ID)
+        ensure_user(factory, MOCK_USER_ID)
 
         with factory() as db:
-            assert ingestion_integration.read_job("job-1", 7, db) is None
+            assert ingestion_integration.read_job("job-1", MOCK_USER_ID, db) is None
 
 
 class TestListJobs:
@@ -65,7 +66,7 @@ class TestListJobs:
         args = {"kinds": {"activity_upload", "activity_refresh", "activity_bulk_import"}, "status": None}
         args |= {"before": None, "limit": 10} | overrides
         with factory() as db:
-            return ingestion_integration.list_jobs(7, db, **args)
+            return ingestion_integration.list_jobs(MOCK_USER_ID, db, **args)
 
     def test_lists_newest_first_with_the_id_as_tiebreak(self, factory):
         _add(factory, "a", age_minutes=5)
@@ -76,7 +77,7 @@ class TestListJobs:
 
     def test_only_the_callers_jobs_are_listed(self, factory):
         _add(factory, "mine")
-        _add(factory, "theirs", user_id=8)
+        _add(factory, "theirs", user_id=OTHER_USER_ID)
 
         assert _ids(self._list(factory)) == ["mine"]
 

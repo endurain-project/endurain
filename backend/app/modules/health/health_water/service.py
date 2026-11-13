@@ -25,7 +25,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def list_health_water(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -62,7 +62,7 @@ def list_health_water(
 
 
 def stage_edit_health_water(
-    user_id: int,
+    user_id: uuid.UUID,
     health_water_id: uuid.UUID,
     health_water: health_water_schema.HealthWaterUpdate,
     db: Session,
@@ -89,7 +89,7 @@ def stage_edit_health_water(
 
 
 def stage_upsert_health_water(
-    user_id: int, health_water: health_water_schema.HealthWaterImport, db: Session
+    user_id: uuid.UUID, health_water: health_water_schema.HealthWaterImport, db: Session
 ) -> health_water_schema.HealthWaterRead:
     """Stage a water record, or replace the amount of the user's record for the same date.
 
@@ -121,7 +121,7 @@ def stage_upsert_health_water(
 
 
 def create_health_water(
-    user_id: int, health_water: health_water_schema.HealthWaterCreate, db: Session
+    user_id: uuid.UUID, health_water: health_water_schema.HealthWaterCreate, db: Session
 ) -> health_water_schema.HealthWaterRead:
     """Create a water intake record for the user's day, and commit.
 
@@ -148,7 +148,7 @@ def create_health_water(
 
 
 def edit_health_water(
-    user_id: int,
+    user_id: uuid.UUID,
     health_water_id: uuid.UUID,
     health_water: health_water_schema.HealthWaterUpdate,
     db: Session,
@@ -184,7 +184,9 @@ def edit_health_water(
     return updated
 
 
-def get_health_water(user_id: int, health_water_id: uuid.UUID, db: Session) -> health_water_schema.HealthWaterRead:
+def get_health_water(
+    user_id: uuid.UUID, health_water_id: uuid.UUID, db: Session
+) -> health_water_schema.HealthWaterRead:
     """Return one of a user's water records.
 
     Args:
@@ -201,7 +203,7 @@ def get_health_water(user_id: int, health_water_id: uuid.UUID, db: Session) -> h
     return health_record_service.get_record(health_water_crud.SPEC, health_water_id, user_id, db)
 
 
-def delete_health_water(user_id: int, health_water_id: uuid.UUID, db: Session, *, if_match: str) -> None:
+def delete_health_water(user_id: uuid.UUID, health_water_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Delete a water intake record and commit.
 
     Args:
@@ -225,7 +227,7 @@ def delete_health_water(user_id: int, health_water_id: uuid.UUID, db: Session, *
 
 
 def get_health_water_chart(
-    user_id: int,
+    user_id: uuid.UUID,
     interval: health_constants.Interval,
     db: Session,
     *,
@@ -252,7 +254,7 @@ def get_health_water_chart(
 
 
 def restore_profile_records(
-    records: list[dict[str, Any]], user_id: int, ids: users_profile_contracts.ProfileIdMaps, db: Session
+    records: list[dict[str, Any]], user_id: uuid.UUID, ids: users_profile_contracts.ProfileIdMaps, db: Session
 ) -> int:
     """Stage the water records of a profile archive for a user.
 

@@ -21,7 +21,7 @@ import modules.users.users.schema as users_schema
 
 
 def get_activity_detail(
-    activity_id: uuid.UUID, requester_user_id: int, db: Session
+    activity_id: uuid.UUID, requester_user_id: uuid.UUID, db: Session
 ) -> activity_detail_schema.ActivityDetailRead:
     """Return an activity with its child collections for an authenticated viewer.
 
@@ -63,7 +63,7 @@ def get_public_activity_detail(activity_id: uuid.UUID, db: Session) -> activity_
     return _with_children(activity, _public_owner(activity.user_id, db) if activity.user_id else None, None, db)
 
 
-def _public_owner(owner_id: int, db: Session) -> users_schema.UserPublicRead | None:
+def _public_owner(owner_id: uuid.UUID, db: Session) -> users_schema.UserPublicRead | None:
     """Return the owner an anonymous viewer may see, or ``None`` when the server does not show them.
 
     Args:
@@ -83,7 +83,7 @@ def _public_owner(owner_id: int, db: Session) -> users_schema.UserPublicRead | N
 def _with_children(
     activity: activity_schema.ActivityRead,
     owner: users_schema.UserPublicRead | None,
-    requester_user_id: int | None,
+    requester_user_id: uuid.UUID | None,
     db: Session,
 ) -> activity_detail_schema.ActivityDetailRead:
     """Read each child collection for an activity the viewer may see.

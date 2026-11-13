@@ -20,7 +20,7 @@ router = APIRouter()
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["followers:read"])],
 )
 def list_user_followers(
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     page: core_pagination.ListPage,
@@ -48,7 +48,7 @@ def list_user_followers(
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["followers:read"])],
 )
 def list_user_following(
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     page: core_pagination.ListPage,
@@ -76,7 +76,7 @@ def list_user_following(
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["followers:read"])],
 )
 def read_user_relationship(
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
 ) -> followers_schema.RelationshipRead:
@@ -98,7 +98,7 @@ def read_user_relationship(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def follow_user(
     request: Request,
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
 ) -> followers_schema.FollowRelationshipRead:
@@ -119,8 +119,8 @@ def follow_user(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_follow_relationship(
     request: Request,
-    user_id: core_dependencies.PositiveId,
-    follower_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
+    follower_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
 ) -> None:

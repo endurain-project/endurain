@@ -12,6 +12,7 @@ rate limit, a rejected token), which every following activity would meet too, an
 :class:`activity_ingestion_contracts.WindowStoppedError`, for a provider that has already dealt with the cause.
 """
 
+import uuid
 from collections.abc import Callable, Iterable
 
 import core.logger as core_logger
@@ -25,7 +26,7 @@ def run_window[ItemT, ResultT](
     process: Callable[[ItemT], ResultT],
     *,
     provider: str,
-    user_id: int,
+    user_id: uuid.UUID,
     describe: Callable[[ItemT], dict[str, object]],
     propagate: tuple[type[BaseException], ...] = (),
 ) -> list[ResultT]:

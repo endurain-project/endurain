@@ -109,7 +109,7 @@ class StepUpTicket(BaseModel):
             or whose generation is no longer current, pays for nothing.
     """
 
-    user_id: int
+    user_id: uuid.UUID
     session_id: str
     idp_id: uuid.UUID
     code_challenge: str

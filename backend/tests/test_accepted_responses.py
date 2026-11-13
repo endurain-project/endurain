@@ -5,6 +5,7 @@ assertions read what a client sees: the ``Content-Location`` path, ``Retry-After
 running job. Reading a job, and its ``Retry-After`` while it runs, is tested with the job routes.
 """
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
@@ -180,7 +181,7 @@ _ACCEPTING_ROUTES = [
         id="strava-unlink",
     ),
     pytest.param(
-        ("POST", "/users/12/delete", {"json": {"step_up": {"current_password": "secret"}}}),
+        ("POST", f"/users/{uuid.uuid4()}/delete", {"json": {"step_up": {"current_password": "secret"}}}),
         (users_router.users_deletion_job_service, "request_deletion_by_administrator"),
         users_schema.UserDeletionStatus.model_validate(_envelope("user_deletion")),
         _JOB_STATUS,

@@ -4,6 +4,7 @@ The row is created lazily, so an account without one is at generation 0. Rows ar
 ``modules.auth.security_generation.crud``.
 """
 
+import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer
@@ -25,7 +26,7 @@ class AccountSecurityGeneration(Base):
 
     __tablename__ = "account_security_generations"
 
-    user_id: Mapped[int] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         primary_key=True,
         comment="User the generation belongs to",

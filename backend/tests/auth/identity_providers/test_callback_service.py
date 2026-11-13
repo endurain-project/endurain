@@ -14,6 +14,7 @@ import core.hashing as core_hashing
 import modules.auth.identity_providers.callback_service as callback_service
 import modules.auth.oauth_state.constants as oauth_state_constants
 from modules.auth.constants import ClientType
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
 _LOGIN = oauth_state_constants.OAuthStatePurpose.LOGIN
 _LINK = oauth_state_constants.OAuthStatePurpose.LINK
@@ -82,14 +83,18 @@ class TestPrepareCallback:
 
     def test_a_link_finishes_in_the_browser_that_started_it(self, service):
         idp = _idp()
-        oauth_state = _oauth_state(user_id=7, purpose=_LINK, browser_binding_hash=core_hashing.sha256_hex("binding"))
+        oauth_state = _oauth_state(
+            user_id=MOCK_USER_ID, purpose=_LINK, browser_binding_hash=core_hashing.sha256_hex("binding")
+        )
 
         assert self._prepare(service, idp=idp, oauth_state=oauth_state, browser_binding="binding") == (idp, oauth_state)
 
     @pytest.mark.parametrize("browser_binding", [None, "", "another-browser"])
     def test_a_link_from_another_browser_is_refused_before_the_state_is_claimed(self, service, browser_binding):
         """The attacker's own link URL, opened by a victim, must not bind the victim's IdP account to it."""
-        oauth_state = _oauth_state(user_id=7, purpose=_LINK, browser_binding_hash=core_hashing.sha256_hex("binding"))
+        oauth_state = _oauth_state(
+            user_id=MOCK_USER_ID, purpose=_LINK, browser_binding_hash=core_hashing.sha256_hex("binding")
+        )
 
         with pytest.raises(core_exceptions.InvalidInputError, match="Invalid or expired OAuth state"):
             self._prepare(service, idp=_idp(), oauth_state=oauth_state, browser_binding=browser_binding)
@@ -100,7 +105,7 @@ class TestPrepareCallback:
             self._prepare(
                 service,
                 idp=_idp(),
-                oauth_state=_oauth_state(user_id=7, purpose=_LINK, browser_binding_hash=None),
+                oauth_state=_oauth_state(user_id=MOCK_USER_ID, purpose=_LINK, browser_binding_hash=None),
                 browser_binding="binding",
             )
 
@@ -167,7 +172,7 @@ class TestCompleteCallback:
         url, create_session = self._complete(
             service,
             callback_service.CallbackResult(user=user, userinfo={}, mode="link"),
-            self._state(redirect_path="/settings/security", user_id=7, purpose=_LINK),
+            self._state(redirect_path="/settings/security", user_id=MOCK_USER_ID, purpose=_LINK),
         )
 
         assert url == f"{HOST}/settings/security?idp_link=success&idp_name=Test"
@@ -278,7 +283,7 @@ class TestCompleteCallback:
         url, _ = self._complete(
             service,
             None,
-            self._state(redirect_path="/settings/security", user_id=7, purpose=_LINK),
+            self._state(redirect_path="/settings/security", user_id=MOCK_USER_ID, purpose=_LINK),
             error=RuntimeError("boom"),
         )
 
@@ -339,7 +344,7 @@ class TestHandleCallback:
         token_response = {"access_token": "at"}
         oauth_client = MagicMock()
         oauth_client.fetch_token.return_value = token_response
-        user = MagicMock(id=1, username="alice")
+        user = MagicMock(id=OTHER_USER_ID, username="alice")
         userinfo = {"sub": "user-1", "email": "a@example.com"}
 
         with (
@@ -365,7 +370,7 @@ class TestHandleCallback:
         oauth_state = MagicMock(user_id=None, purpose=_LOGIN, nonce="nonce", redirect_path="/", client_type="web")
         oauth_client = MagicMock()
         oauth_client.fetch_token.return_value = {"access_token": "at", "refresh_token": "rt"}
-        user = MagicMock(id=1, username="alice", active=True)
+        user = MagicMock(id=OTHER_USER_ID, username="alice", active=True)
         db = MagicMock()
 
         with (
@@ -399,7 +404,7 @@ class TestHandleCallback:
             patch.object(
                 callback_service.user_provisioning_service,
                 "find_or_create_user",
-                return_value=MagicMock(id=1, username="alice", active=True),
+                return_value=MagicMock(id=OTHER_USER_ID, username="alice", active=True),
             ) as find_or_create,
         ):
             service.handle_callback(idp, "code", "state", oauth_state, MagicMock())
@@ -427,7 +432,7 @@ class TestHandleCallback:
         )
         idp.name = "Pocket ID"
         oauth_state = MagicMock(
-            user_id=7,
+            user_id=MOCK_USER_ID,
             purpose=_LINK,
             nonce="nonce",
             redirect_path="/",
@@ -438,7 +443,7 @@ class TestHandleCallback:
         )
         oauth_client = MagicMock()
         oauth_client.fetch_token.return_value = {"access_token": "at", "refresh_token": "rt"}
-        user = MagicMock(id=7, username="alice")
+        user = MagicMock(id=MOCK_USER_ID, username="alice")
         db = MagicMock()
 
         with (
@@ -451,7 +456,7 @@ class TestHandleCallback:
             patch.object(
                 callback_service.sessions_integration,
                 "lock_live_session",
-                return_value=MagicMock(user_id=7),
+                return_value=MagicMock(user_id=MOCK_USER_ID),
             ),
             patch.object(
                 callback_service.identity_provider_links_integration,
@@ -483,7 +488,7 @@ class TestCreateCallbackSession:
             yield stamp
 
     def test_the_state_is_stamped_with_the_generation_current_for_the_user(self, service, stamp, security_generations):
-        security_generations.generations[7] = 4
+        security_generations.generations[MOCK_USER_ID] = 4
 
         self._create(service)
 
@@ -491,14 +496,18 @@ class TestCreateCallbackSession:
         assert stamp.call_args.args[:2] == ("state-id", 4)
 
     def _create(self, service, *, active=True, token_response=None, idp_sid=None):
-        user = SimpleNamespace(id=7, username="alice", active=active, email="a@example.com", model_dump=lambda: {})
+        user = SimpleNamespace(
+            id=MOCK_USER_ID, username="alice", active=active, email="a@example.com", model_dump=lambda: {}
+        )
         db = MagicMock()
         order = MagicMock()
         order.attach_mock(db.commit, "commit")
         order.attach_mock(service._tokens.store_session_tokens, "store")
         with (
             patch.object(callback_service.users_integration, "require_active_user"),
-            patch.object(callback_service.users_schema.UserRead, "model_validate", return_value=SimpleNamespace(id=7)),
+            patch.object(
+                callback_service.users_schema.UserRead, "model_validate", return_value=SimpleNamespace(id=MOCK_USER_ID)
+            ),
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
         ):
             order.attach_mock(create_session, "create_session")
@@ -528,10 +537,12 @@ class TestCreateCallbackSession:
             client_type="mobile",
             redirect_path="gadgetbridge://auth/sso/callback",
         )
-        user = SimpleNamespace(id=7)
+        user = SimpleNamespace(id=MOCK_USER_ID)
         with (
             patch.object(callback_service.users_integration, "require_active_user"),
-            patch.object(callback_service.users_schema.UserRead, "model_validate", return_value=SimpleNamespace(id=7)),
+            patch.object(
+                callback_service.users_schema.UserRead, "model_validate", return_value=SimpleNamespace(id=MOCK_USER_ID)
+            ),
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
         ):
             service.create_callback_session(
@@ -544,10 +555,12 @@ class TestCreateCallbackSession:
         web = SimpleNamespace(
             id="state-id", expires_at=_STATE.expires_at, client_type="web", redirect_path="/activities"
         )
-        user = SimpleNamespace(id=7)
+        user = SimpleNamespace(id=MOCK_USER_ID)
         with (
             patch.object(callback_service.users_integration, "require_active_user"),
-            patch.object(callback_service.users_schema.UserRead, "model_validate", return_value=SimpleNamespace(id=7)),
+            patch.object(
+                callback_service.users_schema.UserRead, "model_validate", return_value=SimpleNamespace(id=MOCK_USER_ID)
+            ),
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
         ):
             service.create_callback_session(
@@ -560,10 +573,12 @@ class TestCreateCallbackSession:
         naive = SimpleNamespace(
             id="state-id", expires_at=datetime(2026, 11, 6, 12, 0), client_type="web", redirect_path=None
         )
-        user = SimpleNamespace(id=7)
+        user = SimpleNamespace(id=MOCK_USER_ID)
         with (
             patch.object(callback_service.users_integration, "require_active_user"),
-            patch.object(callback_service.users_schema.UserRead, "model_validate", return_value=SimpleNamespace(id=7)),
+            patch.object(
+                callback_service.users_schema.UserRead, "model_validate", return_value=SimpleNamespace(id=MOCK_USER_ID)
+            ),
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
         ):
             service.create_callback_session(
@@ -579,11 +594,21 @@ class TestCreateCallbackSession:
         )
         with (
             patch.object(callback_service.users_integration, "require_active_user"),
-            patch.object(callback_service.users_schema.UserRead, "model_validate", return_value=SimpleNamespace(id=7)),
+            patch.object(
+                callback_service.users_schema.UserRead, "model_validate", return_value=SimpleNamespace(id=MOCK_USER_ID)
+            ),
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
         ):
             service.create_callback_session(
-                SimpleNamespace(id=7), "10.0.0.1", "agent", MagicMock(), state, IDP_ID, {}, MagicMock(), idp_sid=None
+                SimpleNamespace(id=MOCK_USER_ID),
+                "10.0.0.1",
+                "agent",
+                MagicMock(),
+                state,
+                IDP_ID,
+                {},
+                MagicMock(),
+                idp_sid=None,
             )
 
         assert create_session.call_args.args[2] is client_type
@@ -593,7 +618,12 @@ class TestCreateCallbackSession:
 
         assert create_session.call_args.args[0] == session_id
         service._tokens.store_session_tokens.assert_called_once()
-        assert service._tokens.store_session_tokens.call_args.args[:4] == (session_id, 7, 3, {"refresh_token": "rt"})
+        assert service._tokens.store_session_tokens.call_args.args[:4] == (
+            session_id,
+            MOCK_USER_ID,
+            3,
+            {"refresh_token": "rt"},
+        )
         assert [call[0] for call in order.mock_calls] == ["create_session", "store", "commit"]
 
     def test_the_provider_session_id_is_stored_with_the_sign_in(self, service):
@@ -604,7 +634,12 @@ class TestCreateCallbackSession:
     def test_a_provider_that_issued_no_token_is_still_recorded(self, service):
         session_id, _, _ = self._create(service, token_response={"access_token": "at"})
 
-        assert service._tokens.store_session_tokens.call_args.args[:4] == (session_id, 7, 3, {"access_token": "at"})
+        assert service._tokens.store_session_tokens.call_args.args[:4] == (
+            session_id,
+            MOCK_USER_ID,
+            3,
+            {"access_token": "at"},
+        )
 
     @pytest.mark.parametrize(
         ("pending_approval", "deactivated", "login_error"),
@@ -620,7 +655,7 @@ class TestCreateCallbackSession:
     ):
         """The user has just proven who they are to the provider, so naming their own account's state leaks
         nothing; only an account awaiting approval is told to wait."""
-        user = SimpleNamespace(id=7, active=False, pending_admin_approval=pending_approval)
+        user = SimpleNamespace(id=MOCK_USER_ID, active=False, pending_admin_approval=pending_approval)
         with (
             patch.object(
                 callback_service.users_integration,
@@ -640,7 +675,7 @@ class TestCreateCallbackSession:
         record_refusal.assert_called_once_with(
             callback_service.jasil_audit.Outcome.DENIED,
             callback_service.login_audit_actions.LoginFailureReason.INACTIVE,
-            user_id=7,
+            user_id=MOCK_USER_ID,
         )
         create_session.assert_not_called()
         service._tokens.store_session_tokens.assert_not_called()
@@ -668,7 +703,7 @@ class TestCreateCallbackSession:
             patch.object(
                 callback_service.user_provisioning_service,
                 "find_or_create_user",
-                return_value=MagicMock(id=1, username="alice"),
+                return_value=MagicMock(id=OTHER_USER_ID, username="alice"),
             ),
         ):
             order.attach_mock(get_userinfo, "userinfo")
@@ -705,7 +740,7 @@ class TestOidcLoginFailsClosed:
             patch.object(
                 callback_service.user_provisioning_service,
                 "find_or_create_user",
-                return_value=MagicMock(id=1, username="alice"),
+                return_value=MagicMock(id=OTHER_USER_ID, username="alice"),
             ) as find_or_create,
         ):
             try:
@@ -753,7 +788,7 @@ class TestOidcLoginFailsClosed:
         )
         idp.name = "Pocket ID"
         oauth_state = MagicMock(
-            user_id=7, purpose=purpose, nonce="nonce", redirect_path="/", client_type="web", session_id=None
+            user_id=MOCK_USER_ID, purpose=purpose, nonce="nonce", redirect_path="/", client_type="web", session_id=None
         )
         oauth_client = MagicMock()
         oauth_client.fetch_token.return_value = {"access_token": "at"}
@@ -841,7 +876,7 @@ class TestOauth2WithOpenidScopeRequiresIdToken:
         )
         idp.name = "Generic"
         oauth_state = MagicMock(
-            user_id=7,
+            user_id=MOCK_USER_ID,
             purpose=purpose,
             nonce="nonce",
             redirect_path="/",
@@ -863,7 +898,7 @@ class TestOauth2WithOpenidScopeRequiresIdToken:
             patch.object(
                 callback_service.user_provisioning_service,
                 "find_or_create_user",
-                return_value=MagicMock(id=1, username="alice"),
+                return_value=MagicMock(id=OTHER_USER_ID, username="alice"),
             ),
         ):
             service.handle_callback(idp, "code", "state", oauth_state, MagicMock())
@@ -894,13 +929,13 @@ class TestOauth2WithOpenidScopeRequiresIdToken:
     def test_a_link_follows_the_same_rule(self, service):
         config = {"issuer": "https://idp.example.com", "jwks_uri": "https://idp.example.com/jwks"}
         with ExitStack() as stack:
-            linking_user = MagicMock(id=7, username="a")
+            linking_user = MagicMock(id=MOCK_USER_ID, username="a")
             stack.enter_context(patch.object(callback_service.users_integration, "get_user", return_value=linking_user))
             stack.enter_context(
                 patch.object(
                     callback_service.sessions_integration,
                     "lock_live_session",
-                    return_value=MagicMock(user_id=7),
+                    return_value=MagicMock(user_id=MOCK_USER_ID),
                 )
             )
             stack.enter_context(
@@ -936,7 +971,7 @@ class TestOauth2LoginKeepsUserinfo:
         oauth_client = MagicMock()
         oauth_client.fetch_token.return_value = {"access_token": "at"}
         oauth_client.request.return_value.json.return_value = {"sub": "user-1"}
-        user = MagicMock(id=1, username="alice")
+        user = MagicMock(id=OTHER_USER_ID, username="alice")
         with (
             patch.object(service._oidc, "decrypt_client_id", return_value=AUD),
             patch.object(service._oidc, "decrypt_client_secret", return_value="secret"),

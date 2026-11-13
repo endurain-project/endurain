@@ -1,5 +1,6 @@
 """Sign-up token database models."""
 
+import uuid
 from datetime import datetime as datetime_type
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String
@@ -33,7 +34,7 @@ class SignUpToken(Base):
     __tablename__ = "sign_up_tokens"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    user_id: Mapped[int] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

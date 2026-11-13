@@ -55,9 +55,8 @@ class NotificationCreate(NotificationBase):
         ...,
         description="Type of the notification",
     )
-    user_id: StrictInt = Field(
+    user_id: uuid.UUID = Field(
         ...,
-        ge=1,
         description="FK to user",
     )
     source_event_id: str | None = Field(
@@ -99,7 +98,7 @@ class UserReferenceNotificationOptions(NotificationOptions):
         user_username: That user's username when the notification was created.
     """
 
-    user_id: StrictInt = Field(..., description="ID of the user the notification names")
+    user_id: uuid.UUID = Field(..., description="ID of the user the notification names")
     user_name: StrictStr = Field(..., description="Name of that user when the notification was created")
     user_username: StrictStr = Field(..., description="Username of that user when the notification was created")
 
@@ -172,9 +171,8 @@ class _NotificationReadBase(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: uuid.UUID = Field(..., description="Unique notification ID")
-    user_id: StrictInt = Field(
+    user_id: uuid.UUID = Field(
         ...,
-        ge=1,
         description="FK to user",
     )
     read: StrictBool = Field(

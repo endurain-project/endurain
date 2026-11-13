@@ -25,6 +25,7 @@ import modules.strava.schema as strava_schema
 import modules.strava.service as strava_service
 import modules.strava.sync_service as strava_sync_service
 import modules.strava.sync_state_store as strava_sync_state_store
+from tests._helpers.auth import MOCK_USER_ID
 
 LINK = strava_constants.SyncKind.LINK
 UNLINK = strava_constants.SyncKind.UNLINK
@@ -55,14 +56,17 @@ class TestClientUpdate:
                 strava_service.user_integrations_integration, "get_user_integrations", return_value=MagicMock(version=3)
             ),
         ):
-            return strava_service.set_client(7, credentials, db, if_match='"2"')
+            return strava_service.set_client(MOCK_USER_ID, credentials, db, if_match='"2"')
 
     def test_storing_the_client_is_audited_without_the_id_or_secret(self):
         with jasil_testing.capture_audit() as audit:
             self._set(MagicMock())
 
         entry = audit.assert_audited(
-            strava_audit_actions.CLIENT_UPDATE.id, target_type="user", target_id="7", target_owner_id="7"
+            strava_audit_actions.CLIENT_UPDATE.id,
+            target_type="user",
+            target_id=str(MOCK_USER_ID),
+            target_owner_id=str(MOCK_USER_ID),
         )
         assert entry.details is None
 
@@ -74,7 +78,7 @@ class TestClientUpdate:
 
 
 def _run(states, *, exchange_error=None, stage_error=None):
-    states.begin(1, LINK, conflict="busy")
+    states.begin(MOCK_USER_ID, LINK, conflict="busy")
     client = MagicMock()
     client.exchange_code_for_token.return_value = {"access_token": "t"}
     if exchange_error:
@@ -93,7 +97,7 @@ def _run(states, *, exchange_error=None, stage_error=None):
             strava_link_service.strava_client_service.core_cryptography, "decrypt_token_fernet", side_effect=str
         ),
     ):
-        strava_link_service.run_link(1, "the-code", states)
+        strava_link_service.run_link(MOCK_USER_ID, "the-code", states)
 
 
 class TestAccountLink:
@@ -105,8 +109,8 @@ class TestAccountLink:
             strava_audit_actions.ACCOUNT_LINK.id,
             outcome="success",
             target_type="user",
-            target_id="1",
-            target_owner_id="1",
+            target_id=str(MOCK_USER_ID),
+            target_owner_id=str(MOCK_USER_ID),
         )
         assert entry.details == {"reason": None}
 
@@ -128,8 +132,8 @@ class TestAccountLink:
             strava_audit_actions.ACCOUNT_LINK.id,
             outcome="failure",
             target_type="user",
-            target_id="1",
-            target_owner_id="1",
+            target_id=str(MOCK_USER_ID),
+            target_owner_id=str(MOCK_USER_ID),
         )
         assert entry.details == {"reason": reason}
 
@@ -138,14 +142,14 @@ class TestAccountLink:
         link = strava_schema.StravaLinkRequest(state="s" * 43, code="c", scope="read")
 
         with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.ProviderScopeInsufficientError):
-            strava_link_service.start_link(1, link, oauth_states, states)
+            strava_link_service.start_link(MOCK_USER_ID, link, oauth_states, states)
 
         entry = audit.assert_audited(
             strava_audit_actions.ACCOUNT_LINK.id,
             outcome="failure",
             target_type="user",
-            target_id="1",
-            target_owner_id="1",
+            target_id=str(MOCK_USER_ID),
+            target_owner_id=str(MOCK_USER_ID),
         )
         assert entry.details == {"reason": "insufficient_scope"}
 
@@ -175,14 +179,14 @@ class TestAccountUnlink:
             patch.object(strava_sync_service.jasil_audit, "record_detached") as detached,
             jasil_testing.capture_audit() as audit,
         ):
-            strava_sync_service.request_unlink(7, states, rate_limits, db)
+            strava_sync_service.request_unlink(MOCK_USER_ID, states, rate_limits, db)
 
         entry = audit.assert_audited(
             strava_audit_actions.ACCOUNT_UNLINK.id,
             outcome="success",
             target_type="user",
-            target_id="7",
-            target_owner_id="7",
+            target_id=str(MOCK_USER_ID),
+            target_owner_id=str(MOCK_USER_ID),
         )
         assert entry.details is None
         assert staged_at_publish == [1]
@@ -194,40 +198,40 @@ class TestAccountUnlink:
             patch.object(strava_sync_service, "_sync_pool") as pool,
             jasil_testing.capture_audit() as audit,
         ):
-            strava_sync_service.request_unlink(7, states, rate_limits, MagicMock())
+            strava_sync_service.request_unlink(MOCK_USER_ID, states, rate_limits, MagicMock())
 
         pool.submit.assert_called_once()
         entry = audit.assert_audited(
             strava_audit_actions.ACCOUNT_UNLINK.id,
             outcome="success",
             target_type="user",
-            target_id="7",
-            target_owner_id="7",
+            target_id=str(MOCK_USER_ID),
+            target_owner_id=str(MOCK_USER_ID),
         )
         assert entry.details is None
 
     def test_with_durable_jobs_an_unlink_already_pending_never_commits_its_row(self, states, rate_limits):
-        states.begin(7, UNLINK, conflict="busy")
+        states.begin(MOCK_USER_ID, UNLINK, conflict="busy")
         db = MagicMock()
         with (
             self._settings(True),
             patch.object(strava_sync_service.strava_event_publishers, "publish_sync_requested") as publish,
             pytest.raises(core_exceptions.ConflictError),
         ):
-            strava_sync_service.request_unlink(7, states, rate_limits, db)
+            strava_sync_service.request_unlink(MOCK_USER_ID, states, rate_limits, db)
 
         publish.assert_not_called()
         db.commit.assert_not_called()
 
     def test_without_durable_jobs_an_unlink_already_pending_is_not_audited(self, states, rate_limits):
-        states.begin(7, UNLINK, conflict="busy")
+        states.begin(MOCK_USER_ID, UNLINK, conflict="busy")
         with (
             self._settings(False),
             patch.object(strava_sync_service, "_sync_pool"),
             jasil_testing.capture_audit() as audit,
             pytest.raises(core_exceptions.ConflictError),
         ):
-            strava_sync_service.request_unlink(7, states, rate_limits, MagicMock())
+            strava_sync_service.request_unlink(MOCK_USER_ID, states, rate_limits, MagicMock())
 
         audit.assert_not_audited(strava_audit_actions.ACCOUNT_UNLINK.id)
 
@@ -239,7 +243,7 @@ class TestAccountUnlink:
             pytest.raises(core_exceptions.ServiceUnavailableError),
         ):
             pool.submit.side_effect = core_exceptions.ServiceUnavailableError("full")
-            strava_sync_service.request_unlink(7, states, rate_limits, MagicMock())
+            strava_sync_service.request_unlink(MOCK_USER_ID, states, rate_limits, MagicMock())
 
         audit.assert_not_audited(strava_audit_actions.ACCOUNT_UNLINK.id)
 
@@ -249,7 +253,7 @@ class TestAccountUnlink:
             patch.object(strava_sync_service, "_sync_pool"),
             jasil_testing.capture_audit() as audit,
         ):
-            strava_sync_service.request_gear_sync(7, states, rate_limits, MagicMock())
+            strava_sync_service.request_gear_sync(MOCK_USER_ID, states, rate_limits, MagicMock())
 
         audit.assert_not_audited(strava_audit_actions.ACCOUNT_UNLINK.id)
 
@@ -261,7 +265,7 @@ class TestAccountUnlink:
             ),
             jasil_testing.capture_audit() as audit,
         ):
-            strava_service.unlink_account(7)
+            strava_service.unlink_account(MOCK_USER_ID)
 
         audit.assert_not_audited(strava_audit_actions.ACCOUNT_UNLINK.id)
 
@@ -285,14 +289,17 @@ class TestAccountRevoke:
             patch.object(strava_client_service.notifications_integration, "push_notification"),
             jasil_testing.capture_audit() as audit,
         ):
-            strava_client_service.handle_rejected_token(7, "enc-refresh", ValueError("401"))
+            strava_client_service.handle_rejected_token(MOCK_USER_ID, "enc-refresh", ValueError("401"))
         return audit
 
     def test_an_account_unlinked_because_strava_rejected_its_token_is_audited(self):
         audit = self._reject(unlinked=True)
 
         entry = audit.assert_audited(
-            strava_audit_actions.ACCOUNT_REVOKE.id, target_type="user", target_id="7", target_owner_id="7"
+            strava_audit_actions.ACCOUNT_REVOKE.id,
+            target_type="user",
+            target_id=str(MOCK_USER_ID),
+            target_owner_id=str(MOCK_USER_ID),
         )
         assert entry.details is None
 
@@ -316,10 +323,13 @@ class TestGearImport:
             patch.object(strava_gear_service.gears_integration, "create_multiple_gears"),
             jasil_testing.capture_audit() as audit,
         ):
-            strava_gear_service.import_gear(_upload(BIKES), 7, gears_schema.GearType.BIKE, MagicMock())
+            strava_gear_service.import_gear(_upload(BIKES), MOCK_USER_ID, gears_schema.GearType.BIKE, MagicMock())
 
         entry = audit.assert_audited(
-            strava_audit_actions.GEAR_IMPORT.id, target_type="user", target_id="7", target_owner_id="7"
+            strava_audit_actions.GEAR_IMPORT.id,
+            target_type="user",
+            target_id=str(MOCK_USER_ID),
+            target_owner_id=str(MOCK_USER_ID),
         )
         assert entry.details == {"gear_type": "bikes", "count": 2}
 
@@ -329,7 +339,7 @@ class TestGearImport:
             patch.object(strava_gear_service.gears_integration, "get_gear_user", return_value=[]),
             jasil_testing.capture_audit() as audit,
         ):
-            strava_gear_service.import_gear(_upload(SHOES), 7, gears_schema.GearType.SHOES, MagicMock())
+            strava_gear_service.import_gear(_upload(SHOES), MOCK_USER_ID, gears_schema.GearType.SHOES, MagicMock())
 
         entry = audit.assert_audited(strava_audit_actions.GEAR_IMPORT.id)
         assert entry.details == {"gear_type": "shoes", "count": 1}
@@ -337,13 +347,15 @@ class TestGearImport:
     def test_a_file_listing_no_gear_is_not_audited(self):
         with jasil_testing.capture_audit() as audit:
             strava_gear_service.import_gear(
-                _upload(b"Bike Name,Bike Brand,Bike Model\n"), 7, gears_schema.GearType.BIKE, MagicMock()
+                _upload(b"Bike Name,Bike Brand,Bike Model\n"), MOCK_USER_ID, gears_schema.GearType.BIKE, MagicMock()
             )
 
         audit.assert_not_audited(strava_audit_actions.GEAR_IMPORT.id)
 
     def test_a_file_that_cannot_be_parsed_is_not_audited(self):
         with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.InvalidInputError):
-            strava_gear_service.import_gear(_upload(b"Name\nx\n"), 7, gears_schema.GearType.BIKE, MagicMock())
+            strava_gear_service.import_gear(
+                _upload(b"Name\nx\n"), MOCK_USER_ID, gears_schema.GearType.BIKE, MagicMock()
+            )
 
         audit.assert_not_audited(strava_audit_actions.GEAR_IMPORT.id)

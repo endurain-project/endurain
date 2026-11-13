@@ -26,6 +26,7 @@ import modules.server_settings.service as server_settings_service
 import modules.users.users_integrations.crud as user_integrations_crud
 import modules.users.users_integrations.models as user_integrations_models
 import modules.users.users_integrations.service as user_integrations_service
+from tests._helpers.auth import MOCK_USER_ID
 from tests._helpers.db import create_sqlite_session
 
 NEW_KEY = Fernet.generate_key().decode()
@@ -57,7 +58,7 @@ def rotating_keys(monkeypatch):
 
 
 def _add_mfa(db, secret):
-    db.execute(insert(mfa_models.MFAFactor).values(user_id=1, type="totp", credential=secret))
+    db.execute(insert(mfa_models.MFAFactor).values(user_id=MOCK_USER_ID, type="totp", credential=secret))
     db.commit()
 
 
@@ -107,10 +108,10 @@ class TestWalker:
 
     def test_every_batch_is_walked(self, db, rotating_keys, monkeypatch):
         monkeypatch.setattr(core_key_rotation, "BATCH_SIZE", 2)
-        for user_id in range(1, 6):
+        for n in range(1, 6):
             db.execute(
                 insert(mfa_models.MFAFactor).values(
-                    user_id=user_id, type="totp", credential=_token(OLD_KEY, f"secret-{user_id}")
+                    user_id=uuid.UUID(int=n), type="totp", credential=_token(OLD_KEY, f"secret-{n}")
                 )
             )
         db.commit()
@@ -126,7 +127,7 @@ class TestWalker:
         factor_id = uuid.uuid4()
         db.execute(
             insert(mfa_models.MFAFactor).values(
-                id=factor_id, user_id=1, type="totp", credential=_token(OLD_KEY, "first")
+                id=factor_id, user_id=MOCK_USER_ID, type="totp", credential=_token(OLD_KEY, "first")
             )
         )
         db.commit()
@@ -226,7 +227,7 @@ class TestModuleWiring:
             insert(identity_link_models.IdpSessionToken).values(
                 id=uuid.uuid4(),
                 session_id="session-1",
-                user_id=1,
+                user_id=MOCK_USER_ID,
                 idp_id=uuid.uuid4(),
                 refresh_token=_token(OLD_KEY, "refresh"),
                 id_token=_token(OLD_KEY, "id-token"),
@@ -271,7 +272,7 @@ class TestModuleWiring:
         db.execute(
             insert(user_integrations_models.UsersIntegrations).values(
                 id=uuid.uuid4(),
-                user_id=1,
+                user_id=MOCK_USER_ID,
                 strava_client_id=_token(OLD_KEY, "client-id"),
                 strava_client_secret=_token(OLD_KEY, "client-secret"),
                 strava_token=_token(OLD_KEY, "access"),
@@ -305,7 +306,7 @@ class TestModuleWiring:
         assert garmin["is_cn"] is False
 
     def test_users_integrations_without_garmin_token_is_skipped(self, db, rotating_keys):
-        db.execute(insert(user_integrations_models.UsersIntegrations).values(id=uuid.uuid4(), user_id=1))
+        db.execute(insert(user_integrations_models.UsersIntegrations).values(id=uuid.uuid4(), user_id=MOCK_USER_ID))
         db.commit()
 
         user_integrations_service.reencrypt_stored_secrets(db)
@@ -326,7 +327,7 @@ class TestTokenSwapsSurviveRotation:
     def _strava_row(self, db, stored):
         db.execute(
             insert(user_integrations_models.UsersIntegrations).values(
-                id=uuid.uuid4(), user_id=1, strava_refresh_token=stored
+                id=uuid.uuid4(), user_id=MOCK_USER_ID, strava_refresh_token=stored
             )
         )
         db.commit()
@@ -334,7 +335,7 @@ class TestTokenSwapsSurviveRotation:
     def _link_row(self, db, stored):
         db.execute(
             insert(identity_link_models.IdpSessionToken).values(
-                id=uuid.uuid4(), session_id="session-1", user_id=1, idp_id=uuid.uuid4(), refresh_token=stored
+                id=uuid.uuid4(), session_id="session-1", user_id=MOCK_USER_ID, idp_id=uuid.uuid4(), refresh_token=stored
             )
         )
         db.commit()
@@ -348,13 +349,17 @@ class TestTokenSwapsSurviveRotation:
         read = _token(OLD_KEY, "refresh")
         self._strava_row(db, self._rotate(read))
 
-        assert user_integrations_crud.replace_strava_tokens_if_refresh_token(1, read, self._TOKENS, db) is True
+        assert (
+            user_integrations_crud.replace_strava_tokens_if_refresh_token(MOCK_USER_ID, read, self._TOKENS, db) is True
+        )
 
     def test_strava_replace_with_other_token_fails(self, db, rotating_keys):
         self._strava_row(db, _token(NEW_KEY, "refresh"))
 
         assert (
-            user_integrations_crud.replace_strava_tokens_if_refresh_token(1, _token(OLD_KEY, "other"), self._TOKENS, db)
+            user_integrations_crud.replace_strava_tokens_if_refresh_token(
+                MOCK_USER_ID, _token(OLD_KEY, "other"), self._TOKENS, db
+            )
             is False
         )
 
@@ -362,12 +367,15 @@ class TestTokenSwapsSurviveRotation:
         read = _token(OLD_KEY, "refresh")
         self._strava_row(db, self._rotate(read))
 
-        assert user_integrations_crud.unlink_strava_tokens_if_refresh_token(1, read, db) is True
+        assert user_integrations_crud.unlink_strava_tokens_if_refresh_token(MOCK_USER_ID, read, db) is True
 
     def test_strava_clear_with_other_token_fails(self, db, rotating_keys):
         self._strava_row(db, _token(NEW_KEY, "refresh"))
 
-        assert user_integrations_crud.unlink_strava_tokens_if_refresh_token(1, _token(OLD_KEY, "other"), db) is False
+        assert (
+            user_integrations_crud.unlink_strava_tokens_if_refresh_token(MOCK_USER_ID, _token(OLD_KEY, "other"), db)
+            is False
+        )
 
     def test_idp_replace_after_rotation(self, db, rotating_keys):
         read = _token(OLD_KEY, "refresh")
@@ -405,7 +413,7 @@ class TestTokenSwapsSurviveRotation:
     def _garmin_row(self, db, stored):
         db.execute(
             insert(user_integrations_models.UsersIntegrations).values(
-                id=uuid.uuid4(), user_id=1, garminconnect_token=stored
+                id=uuid.uuid4(), user_id=MOCK_USER_ID, garminconnect_token=stored
             )
         )
         db.commit()
@@ -415,17 +423,23 @@ class TestTokenSwapsSurviveRotation:
         self._garmin_row(db, read)
         user_integrations_service.reencrypt_stored_secrets(db)
 
-        assert user_integrations_crud.replace_garminconnect_token_if_token(1, read, {"di_token": "new"}, db) is True
+        assert (
+            user_integrations_crud.replace_garminconnect_token_if_token(MOCK_USER_ID, read, {"di_token": "new"}, db)
+            is True
+        )
 
     def test_garmin_unlink_after_rotation(self, db, rotating_keys):
         read = {"di_token": _token(OLD_KEY, "di"), "di_refresh_token": None, "di_client_id": "c"}
         self._garmin_row(db, read)
         user_integrations_service.reencrypt_stored_secrets(db)
 
-        assert user_integrations_crud.unlink_garminconnect_account_if_token(1, read, db) is True
+        assert user_integrations_crud.unlink_garminconnect_account_if_token(MOCK_USER_ID, read, db) is True
 
     def test_garmin_swap_with_other_token_fails(self, db, rotating_keys):
         self._garmin_row(db, {"di_token": _token(NEW_KEY, "di"), "di_client_id": "c"})
         other = {"di_token": _token(OLD_KEY, "other"), "di_client_id": "c"}
 
-        assert user_integrations_crud.replace_garminconnect_token_if_token(1, other, {"di_token": "n"}, db) is False
+        assert (
+            user_integrations_crud.replace_garminconnect_token_if_token(MOCK_USER_ID, other, {"di_token": "n"}, db)
+            is False
+        )

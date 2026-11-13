@@ -3,6 +3,7 @@
 Events may be persisted, so a payload carries ids only: never an API key, a username or a password.
 """
 
+import uuid
 from typing import ClassVar
 
 from jasil.event_versioning import VersionedPayload
@@ -44,7 +45,7 @@ class AccountLockedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    user_id: int
+    user_id: uuid.UUID
 
 
 class MfaLockedPayload(VersionedPayload):
@@ -58,7 +59,7 @@ class MfaLockedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    user_id: int
+    user_id: uuid.UUID
 
 
 class RefreshReuseDetectedPayload(VersionedPayload):
@@ -72,4 +73,4 @@ class RefreshReuseDetectedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    user_id: int
+    user_id: uuid.UUID

@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from modules.auth.mfa.models import MFAFactor
+from tests._helpers.auth import MOCK_USER_ID
 from tests._helpers.db import create_sqlite_session
 
 
@@ -34,28 +35,28 @@ class TestFactorRows:
         session.close()
 
     def test_a_user_has_at_most_one_totp_factor(self, db):
-        db.add(MFAFactor(user_id=1, type="totp", credential="a"))
+        db.add(MFAFactor(user_id=MOCK_USER_ID, type="totp", credential="a"))
         db.flush()
 
-        db.add(MFAFactor(user_id=1, type="totp", credential="b"))
+        db.add(MFAFactor(user_id=MOCK_USER_ID, type="totp", credential="b"))
         with pytest.raises(IntegrityError):
             db.flush()
 
     def test_a_row_gets_a_random_uuid_id_when_inserted(self, db):
-        factor = MFAFactor(user_id=1, type="totp", credential="a")
+        factor = MFAFactor(user_id=MOCK_USER_ID, type="totp", credential="a")
         db.add(factor)
         db.flush()
 
         assert isinstance(factor.id, uuid.UUID)
 
     def test_the_type_is_limited_to_the_known_factors(self, db):
-        db.add(MFAFactor(user_id=1, type="sms", credential="a"))
+        db.add(MFAFactor(user_id=MOCK_USER_ID, type="sms", credential="a"))
 
         with pytest.raises(IntegrityError):
             db.flush()
 
     def test_a_row_records_when_it_was_enrolled(self, db):
-        factor = MFAFactor(user_id=1, type="totp", credential="a")
+        factor = MFAFactor(user_id=MOCK_USER_ID, type="totp", credential="a")
         db.add(factor)
         db.flush()
 

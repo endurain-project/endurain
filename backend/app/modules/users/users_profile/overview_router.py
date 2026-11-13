@@ -24,7 +24,7 @@ router = APIRouter()
     ],
 )
 def read_user_profile_overview(
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     requester_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     anchor_date: Annotated[

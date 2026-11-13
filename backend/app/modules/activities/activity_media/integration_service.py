@@ -56,7 +56,7 @@ def _restore_media_records(
 
 def _restore_profile_records(
     records: list[dict[str, Any]],
-    original_activity_id: str,
+    original_activity_id: uuid.UUID,
     new_activity: activity_schema.ActivityRead,
     db: Session,
 ) -> int:
@@ -64,7 +64,7 @@ def _restore_profile_records(
 
     Args:
         records: Profile records to restore.
-        original_activity_id: The archive-local key of the activity (``archived_id`` of its ID in the archive).
+        original_activity_id: The activity id the records were exported under.
         new_activity: The activity the records are restored onto.
         db: Database session.
 

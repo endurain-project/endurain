@@ -2,6 +2,7 @@
 
 import base64
 import hashlib
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -17,7 +18,7 @@ import modules.users.users.integration_service as users_integration
 from modules.auth.constants import ClientType
 from tests._helpers.db import ensure_user
 
-_USER_ID = 7
+_USER_ID = uuid.UUID(int=7)
 _SESSION_ID = "5" * 36
 _STATE_ID = "a" * 32
 _VERIFIER = "v" * 43

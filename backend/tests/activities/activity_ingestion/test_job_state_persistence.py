@@ -13,6 +13,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
+from tests._helpers.auth import MOCK_USER_ID
 from tests._helpers.db import (
     POSTGRES_TEST_URL_ENV,
     create_postgres_session_factory,
@@ -63,7 +64,7 @@ def _add_job(factory, **overrides) -> None:
     now = datetime.now(UTC)
     values = {
         "id": "job-1",
-        "user_id": 7,
+        "user_id": MOCK_USER_ID,
         "kind": "upload",
         "status": "pending",
         "staged_key": "abc.gpx",
@@ -238,7 +239,7 @@ class TestDeferredRefresh:
         ):
             ingestion_jobs.redispatch_deferred_refreshes("storage")
 
-        assert publish.call_args.args[0] == [("job-1", 7)]
+        assert publish.call_args.args[0] == [("job-1", MOCK_USER_ID)]
         submit.assert_not_called()
 
     def test_a_job_still_waiting_is_left_alone(self, factory):
@@ -279,9 +280,9 @@ class TestDeferredRefresh:
         _add_job(factory, kind="refresh", staged_key=None, status="deferred", retry_after=_now() + timedelta(hours=1))
 
         with factory() as db:
-            busy = ingestion_jobs.activity_ingestion_crud.get_user_ids_with_active_refresh([7], db)
+            busy = ingestion_jobs.activity_ingestion_crud.get_user_ids_with_active_refresh([MOCK_USER_ID], db)
 
-        assert busy == {7}
+        assert busy == {MOCK_USER_ID}
 
 
 class TestOrphanedLocalRefreshes:
@@ -309,7 +310,7 @@ class TestOrphanedLocalRefreshes:
         assert job.status == "failed"
         assert job.error_code == activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED.value
         with factory() as db:
-            assert ingestion_jobs.activity_ingestion_crud.get_user_ids_with_active_refresh([7], db) == set()
+            assert ingestion_jobs.activity_ingestion_crud.get_user_ids_with_active_refresh([MOCK_USER_ID], db) == set()
 
     def test_local_profile_keeps_what_the_pool_does_not_own(self, factory):
         _add_job(factory, id="deferred", kind="refresh", staged_key=None, status="deferred", retry_after=_now())

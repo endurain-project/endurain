@@ -8,6 +8,7 @@ from unittest.mock import patch
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.oauth_state.crud as oauth_state_crud
 import modules.auth.oauth_state.schema as oauth_state_schema
+from tests._helpers.auth import MOCK_USER_ID
 from tests._helpers.db import create_sqlite_session
 
 
@@ -71,7 +72,7 @@ def test_a_link_state_keeps_the_digest_of_its_browser_binding():
         "web",
         None,
         db,
-        user_id=7,
+        user_id=MOCK_USER_ID,
         browser_binding_hash="d" * 64,
         idp_code_verifier="v" * 64,
         purpose=oauth_state_constants.OAuthStatePurpose.LINK,

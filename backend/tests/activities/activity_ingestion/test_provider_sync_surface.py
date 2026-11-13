@@ -3,6 +3,8 @@
 from datetime import UTC, date, datetime
 from unittest.mock import MagicMock, patch
 
+from tests._helpers.auth import MOCK_USER_ID
+
 import modules.activities.activity_ingestion.integration_service as ingestion_integration
 import modules.activities.activity_ingestion.provider_registry as provider_registry
 
@@ -17,10 +19,12 @@ class TestRequestRangeSync:
             patch.object(ingestion_integration.activity_ingestion_service, "accept_refresh") as accept,
         ):
             result = ingestion_integration.request_range_sync(
-                "strava", 7, date(2026, 1, 1), date(2026, 1, 8), "storage", db
+                "strava", MOCK_USER_ID, date(2026, 1, 1), date(2026, 1, 8), "storage", db
             )
 
-        accept.assert_called_once_with(7, "storage", db, provider="strava", window_start=start, window_end=end)
+        accept.assert_called_once_with(
+            MOCK_USER_ID, "storage", db, provider="strava", window_start=start, window_end=end
+        )
         assert result is accept.return_value
 
 

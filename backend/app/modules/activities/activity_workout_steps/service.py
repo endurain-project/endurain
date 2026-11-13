@@ -34,7 +34,7 @@ _COLLECTION: activity_integration.ChildCollection[
 
 def list_activity_workout_steps(
     activity_id: uuid.UUID,
-    requester_user_id: int,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -88,7 +88,7 @@ def list_public_activity_workout_steps(
 
 def list_for_activity(
     activity: activity_schema.ActivityRead,
-    requester_user_id: int | None,
+    requester_user_id: uuid.UUID | None,
     db: Session,
 ) -> activity_workout_steps_schema.ActivityWorkoutStepsPage:
     """Return the first page of an activity's workout steps for a viewer who may already see the activity.

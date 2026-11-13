@@ -1,5 +1,6 @@
 """Contracts for credential operations."""
 
+import uuid
 from datetime import datetime
 from typing import Protocol
 
@@ -87,7 +88,7 @@ class CredentialRead(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    user_id: int
+    user_id: uuid.UUID
     password_hash: str
     password_change_required: bool
     created_at: datetime

@@ -5,6 +5,7 @@ requester's client address and user agent: events are persisted, so neither the 
 nor the email address may be put in one.
 """
 
+import uuid
 from collections.abc import Callable
 from typing import Any, ClassVar
 
@@ -37,7 +38,7 @@ class PasswordResetRequestedPayload(VersionedPayload):
     SCHEMA_VERSION: ClassVar[int] = 2
     UPGRADERS: ClassVar[dict[int, Callable[[dict[str, Any]], dict[str, Any]]]] = {1: _add_requester_client}
 
-    user_id: int | None
+    user_id: uuid.UUID | None
     ip_address: str | None
     user_agent: str | None
 
@@ -53,4 +54,4 @@ class PasswordResetCompletedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    user_id: int
+    user_id: uuid.UUID

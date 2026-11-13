@@ -1,11 +1,15 @@
 """Tests for the activity values aggregated for a user's profile."""
 
+import uuid
 from datetime import date, datetime
 from unittest.mock import patch
 
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity.service as activity_service
+
+_USER_3 = uuid.UUID(int=3)
+_USER_7 = uuid.UUID(int=7)
 
 
 def test_profile_summary_uses_visible_month_count_and_both_period_stats(mock_db):
@@ -15,25 +19,25 @@ def test_profile_summary_uses_visible_month_count_and_both_period_stats(mock_db)
     month_end = datetime(2026, 10, 31)
     with (
         patch.object(activity_service, "_month_bounds", return_value=(month_start, month_end)),
-        patch.object(activity_service, "_followees_of", return_value=[7]) as followees,
+        patch.object(activity_service, "_followees_of", return_value=[_USER_7]) as followees,
         patch.object(activity_service, "week_stats", return_value=week_stats) as week,
         patch.object(activity_service, "month_stats", return_value=month_stats) as month,
         patch.object(activity_service.activity_crud, "count_user_activities", return_value=4) as count,
     ):
-        result = activity_service.user_profile_summary(7, 3, mock_db, anchor=date(2026, 10, 27))
+        result = activity_service.user_profile_summary(_USER_7, _USER_3, mock_db, anchor=date(2026, 10, 27))
 
     assert result == activity_contracts.UserProfileActivitySummary(week_stats, month_stats, 4)
-    followees.assert_called_once_with(3, mock_db)
+    followees.assert_called_once_with(_USER_3, mock_db)
     count.assert_called_once_with(
-        user_id=7,
+        user_id=_USER_7,
         db=mock_db,
         start_date=date(2026, 10, 1),
         end_date=date(2026, 10, 31),
         user_is_owner=False,
-        followee_ids=[7],
+        followee_ids=[_USER_7],
     )
-    week.assert_called_once_with(7, 3, mock_db, anchor=date(2026, 10, 27))
-    month.assert_called_once_with(7, 3, mock_db, anchor=date(2026, 10, 27))
+    week.assert_called_once_with(_USER_7, _USER_3, mock_db, anchor=date(2026, 10, 27))
+    month.assert_called_once_with(_USER_7, _USER_3, mock_db, anchor=date(2026, 10, 27))
 
 
 def test_profile_summary_resolves_the_requesters_today_once_when_no_anchor_is_given(mock_db):
@@ -44,8 +48,8 @@ def test_profile_summary_resolves_the_requesters_today_once_when_no_anchor_is_gi
         patch.object(activity_service, "month_stats") as month,
         patch.object(activity_service.activity_crud, "count_user_activities", return_value=0),
     ):
-        activity_service.user_profile_summary(3, 3, mock_db)
+        activity_service.user_profile_summary(_USER_3, _USER_3, mock_db)
 
-    today.assert_called_once_with(3, mock_db)
-    week.assert_called_once_with(3, 3, mock_db, anchor=date(2026, 10, 27))
-    month.assert_called_once_with(3, 3, mock_db, anchor=date(2026, 10, 27))
+    today.assert_called_once_with(_USER_3, mock_db)
+    week.assert_called_once_with(_USER_3, _USER_3, mock_db, anchor=date(2026, 10, 27))
+    month.assert_called_once_with(_USER_3, _USER_3, mock_db, anchor=date(2026, 10, 27))

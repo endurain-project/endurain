@@ -1,5 +1,6 @@
 """Password-reset request, token and email workflows."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -36,7 +37,7 @@ RESET_EMAIL_COOLDOWN_SECONDS = 300
 UNUSABLE_RESET_MESSAGE = "Invalid or expired password reset token"
 
 
-def _stage_password_reset_token(user_id: int, token_hash: str, db: Session) -> None:
+def _stage_password_reset_token(user_id: uuid.UUID, token_hash: str, db: Session) -> None:
     """Stage a new reset token for a user, replacing their unused ones; the caller commits.
 
     Args:
@@ -77,7 +78,7 @@ def _can_reset_password(user: users_schema.UserRead, db: Session) -> bool:
     return user.active and _may_reset_password(user, db)
 
 
-def _record_reset_request_denied(user_id: int) -> None:
+def _record_reset_request_denied(user_id: uuid.UUID) -> None:
     """Record a reset request for an account that may not reset its password; the requester gets no signal.
 
     Args:
@@ -92,7 +93,7 @@ def _record_reset_request_denied(user_id: int) -> None:
     )
 
 
-def _claim_reset_cooldown(user_id: int, event_id: str, state: StateProvider) -> bool:
+def _claim_reset_cooldown(user_id: uuid.UUID, event_id: str, state: StateProvider) -> bool:
     """Claim the account's reset-email cooldown for an event; False when another went out recently or the store is unreachable."""
     try:
         return core_email_cooldown.claim_email(

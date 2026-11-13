@@ -12,13 +12,14 @@ import core.exceptions as core_exceptions
 import modules.auth.mfa_backup_codes.contracts as backup_codes_contracts
 import modules.auth.mfa_backup_codes.crud as backup_codes_crud
 import modules.auth.mfa_backup_codes.models as backup_codes_models
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 from tests._helpers.db import create_sqlite_session, ensure_user
 
 
 def _row(**overrides):
     values = {
         "id": uuid.uuid4(),
-        "user_id": 7,
+        "user_id": MOCK_USER_ID,
         "code_hash": "hash",
         "created_at": datetime.now(UTC),
         "used": False,
@@ -32,7 +33,7 @@ def _row(**overrides):
 def test_get_user_backup_codes_returns_internal_dtos(mock_db):
     row = _row()
     mock_db.execute.return_value.scalars.return_value = [row]
-    assert backup_codes_crud.get_user_backup_codes(7, mock_db) == [
+    assert backup_codes_crud.get_user_backup_codes(MOCK_USER_ID, mock_db) == [
         backup_codes_contracts.BackupCodeRead.model_validate(row)
     ]
 
@@ -40,15 +41,15 @@ def test_get_user_backup_codes_returns_internal_dtos(mock_db):
 def test_get_unused_codes_returns_internal_dtos(mock_db):
     row = _row()
     mock_db.execute.return_value.scalars.return_value = [row]
-    assert backup_codes_crud.get_user_unused_backup_codes(7, mock_db)[0].id == row.id
+    assert backup_codes_crud.get_user_unused_backup_codes(MOCK_USER_ID, mock_db)[0].id == row.id
 
 
 def test_create_codes_replaces_existing_hashes_and_flushes(mock_db):
-    backup_codes_crud.create_backup_codes(7, ["hash-a", "hash-b"], mock_db)
+    backup_codes_crud.create_backup_codes(MOCK_USER_ID, ["hash-a", "hash-b"], mock_db)
     mock_db.execute.assert_called_once()
     rows = mock_db.add_all.call_args.args[0]
     assert [row.code_hash for row in rows] == ["hash-a", "hash-b"]
-    assert all(row.user_id == 7 for row in rows)
+    assert all(row.user_id == MOCK_USER_ID for row in rows)
     mock_db.flush.assert_called_once()
     mock_db.commit.assert_not_called()
 
@@ -59,13 +60,13 @@ class TestMarkBackupCodeAsUsed:
     @pytest.fixture
     def db(self):
         session = create_sqlite_session()
-        ensure_user(sessionmaker(bind=session.get_bind()), 7)
-        ensure_user(sessionmaker(bind=session.get_bind()), 8)
+        ensure_user(sessionmaker(bind=session.get_bind()), MOCK_USER_ID)
+        ensure_user(sessionmaker(bind=session.get_bind()), OTHER_USER_ID)
         yield session
         session.close()
 
     @staticmethod
-    def _add_code(db, user_id=7, **overrides):
+    def _add_code(db, user_id=MOCK_USER_ID, **overrides):
         row = backup_codes_models.MFABackupCode(
             user_id=user_id, code_hash=f"hash-{user_id}-{id(overrides)}", **overrides
         )
@@ -76,7 +77,7 @@ class TestMarkBackupCodeAsUsed:
     def test_consumes_an_unused_code(self, db):
         row = self._add_code(db)
 
-        backup_codes_crud.mark_backup_code_as_used(row.id, 7, db)
+        backup_codes_crud.mark_backup_code_as_used(row.id, MOCK_USER_ID, db)
 
         db.refresh(row)
         assert row.used is True
@@ -84,10 +85,10 @@ class TestMarkBackupCodeAsUsed:
 
     def test_a_second_use_of_the_same_code_is_refused(self, db):
         row = self._add_code(db)
-        backup_codes_crud.mark_backup_code_as_used(row.id, 7, db)
+        backup_codes_crud.mark_backup_code_as_used(row.id, MOCK_USER_ID, db)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            backup_codes_crud.mark_backup_code_as_used(row.id, 7, db)
+            backup_codes_crud.mark_backup_code_as_used(row.id, MOCK_USER_ID, db)
 
     def test_a_stale_copy_of_the_row_cannot_consume_a_used_code(self, db):
         row = self._add_code(db)
@@ -100,21 +101,21 @@ class TestMarkBackupCodeAsUsed:
         assert row.used is False
 
         with pytest.raises(core_exceptions.NotFoundError):
-            backup_codes_crud.mark_backup_code_as_used(row.id, 7, db)
+            backup_codes_crud.mark_backup_code_as_used(row.id, MOCK_USER_ID, db)
 
     def test_another_users_code_is_refused(self, db):
-        row = self._add_code(db, user_id=8)
+        row = self._add_code(db, user_id=OTHER_USER_ID)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            backup_codes_crud.mark_backup_code_as_used(row.id, 7, db)
+            backup_codes_crud.mark_backup_code_as_used(row.id, MOCK_USER_ID, db)
 
     def test_a_missing_code_is_refused(self, db):
         with pytest.raises(core_exceptions.NotFoundError):
-            backup_codes_crud.mark_backup_code_as_used(999, 7, db)
+            backup_codes_crud.mark_backup_code_as_used(uuid.uuid4(), MOCK_USER_ID, db)
 
 
 def test_delete_codes_stages_and_returns_count(mock_db):
     mock_db.execute.return_value.rowcount = 3
-    assert backup_codes_crud.delete_user_backup_codes(7, mock_db) == 3
+    assert backup_codes_crud.delete_user_backup_codes(MOCK_USER_ID, mock_db) == 3
     mock_db.flush.assert_called_once()
     mock_db.commit.assert_not_called()

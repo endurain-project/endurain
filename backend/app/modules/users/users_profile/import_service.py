@@ -13,8 +13,10 @@ Key Features:
 
 import os
 import time
+import uuid
 import zipfile
 from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from typing import Any, Self
 
@@ -45,6 +47,7 @@ from modules.users.users_profile.exceptions import (
     FileSizeError,
     FileSystemError,
     ImportAccountMismatchError,
+    ImportArchiveFromOlderVersionError,
     ImportTimeoutError,
 )
 
@@ -147,7 +150,7 @@ class ImportService:
 
     def __init__(
         self,
-        user_id: int,
+        user_id: uuid.UUID,
         storage: platform_providers.StorageProvider,
         db: Session,
         performance_config: ImportPerformanceConfig | None = None,
@@ -314,9 +317,13 @@ class ImportService:
             user_data: The archive's user records.
 
         Raises:
+            ImportArchiveFromOlderVersionError: When the archive's account row carries an integer id.
             ImportAccountMismatchError: When the archive names a username or email and neither is the account's.
         """
         archived = user_data[0] if user_data else {}
+        archived_id = archived.get("id")
+        if isinstance(archived_id, int) and not isinstance(archived_id, bool):
+            raise ImportArchiveFromOlderVersionError("This archive was exported by an older Endurain version")
         username, email = archived.get("username"), archived.get("email")
         if not username and not email:
             return
@@ -497,7 +504,8 @@ class ImportService:
             logger.debug("No user goals data to import")
             return
 
-        for goal_data in user_goals_data:
+        imported_at = datetime.now(UTC)
+        for index, goal_data in enumerate(user_goals_data):
             goal_data = users_profile_contracts.without_row_identity(goal_data)
 
             try:
@@ -507,7 +515,9 @@ class ImportService:
                 continue
             try:
                 with self.db.begin_nested():
-                    users_goals_integration.create_goal(self.user_id, goal, self.db)
+                    users_goals_integration.create_goal(
+                        self.user_id, goal, self.db, created_at=imported_at + timedelta(microseconds=index)
+                    )
             except core_exceptions.ConflictError:
                 logger.debug("Skipped a user goal the user already has")
                 continue

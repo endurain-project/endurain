@@ -20,11 +20,12 @@ import modules.auth.identity_providers.callback_service as callback_service
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.oauth_state.schema as oauth_state_schema
 from modules.auth.identity_providers.step_up_ticket_store import StepUpTicketStore
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
 IDP_ID = uuid.uuid4()
 
 HOST = "https://app.example.com"
-USER_ID = 7
+USER_ID = MOCK_USER_ID
 SESSION_ID = "11111111-2222-3333-4444-555555555555"
 NOW = datetime.now(UTC)
 
@@ -195,7 +196,7 @@ class TestStaleFlow:
 
         self._assert_refused(url, audit, "user_inactive")
 
-    @pytest.mark.parametrize("session", [None, SimpleNamespace(user_id=USER_ID + 1)], ids=["ended", "another-users"])
+    @pytest.mark.parametrize("session", [None, SimpleNamespace(user_id=OTHER_USER_ID)], ids=["ended", "another-users"])
     def test_a_session_that_ended_issues_no_ticket(self, service, session):
         with (
             patch.object(callback_service.sessions_integration, "lock_live_session", return_value=session),
@@ -245,7 +246,7 @@ class TestRefusals:
 
         assert "step_up_ticket" in _fragment(url)
 
-    @pytest.mark.parametrize("link_user_id", [None, USER_ID + 1], ids=["not-linked", "linked-to-someone-else"])
+    @pytest.mark.parametrize("link_user_id", [None, OTHER_USER_ID], ids=["not-linked", "linked-to-someone-else"])
     def test_a_provider_account_not_linked_to_the_user_is_refused(self, service, state, link_user_id):
         url, _, _ = _complete(service, link_user_id=link_user_id)
 

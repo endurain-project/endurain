@@ -5,6 +5,8 @@ worker runs the durable handler and retries a transient failure; without them th
 runs the same body on the in-process subscriber pool, where nothing retries it.
 """
 
+import uuid
+
 import jasil.event_versioning as platform_event_versioning
 import jasil.runtime as platform_runtime
 from jasil.events import Event
@@ -27,7 +29,7 @@ IMPORT_REQUESTED_SUBSCRIBER_ID = "users.profile_import_requested"
 EXPORT_REQUESTED_SUBSCRIBER_ID = "users.profile_export_requested"
 
 
-def _import(event: Event, *, will_retry: bool) -> int:
+def _import(event: Event, *, will_retry: bool) -> uuid.UUID:
     """Run the import the event names.
 
     Args:
@@ -80,7 +82,7 @@ def run_import_requested_on_bus(event: Event) -> None:
 on_import_requested = best_effort(run_import_requested_on_bus)
 
 
-def _export(event: Event, *, will_retry: bool) -> int:
+def _export(event: Event, *, will_retry: bool) -> uuid.UUID:
     """Run the export the event names.
 
     Args:

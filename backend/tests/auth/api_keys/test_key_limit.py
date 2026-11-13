@@ -9,6 +9,7 @@ import core.exceptions as core_exceptions
 import modules.auth.account_security.api_key_service as api_key_service
 import modules.auth.api_keys.constants as api_keys_constants
 import modules.auth.api_keys.schema as api_keys_schema
+from tests._helpers.auth import MOCK_USER_ID
 
 
 def _data():
@@ -31,7 +32,7 @@ def test_a_user_at_the_cap_gets_a_conflict_and_nothing_is_created(mock_db):
         patch.object(api_key_service.api_keys_integration, "create_api_key") as create,
         pytest.raises(core_exceptions.ApiKeyLimitError) as raised,
     ):
-        api_key_service.create_user_api_key(7, "sid", _data(), datetime.now(UTC), MagicMock(), mock_db)
+        api_key_service.create_user_api_key(MOCK_USER_ID, "sid", _data(), datetime.now(UTC), MagicMock(), mock_db)
 
     assert raised.value.status_code == 409
     create.assert_not_called()

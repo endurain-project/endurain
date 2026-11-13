@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import Iterable
 from typing import Annotated
 
@@ -246,7 +247,7 @@ def check_scopes(principal: CurrentPrincipal, security_scopes: SecurityScopes) -
     _require_scopes(principal.scopes, security_scopes)
 
 
-def get_current_user_id(principal: CurrentPrincipal) -> int:
+def get_current_user_id(principal: CurrentPrincipal) -> uuid.UUID:
     """Return the authenticated user's id."""
     return principal.user_id
 
@@ -310,7 +311,7 @@ def audit_context_from_request() -> jasil_audit.AuditContext:
 
 
 #: Authenticated user id, by access token or API key.
-CurrentUserId = Annotated[int, Depends(get_current_user_id)]
+CurrentUserId = Annotated[uuid.UUID, Depends(get_current_user_id)]
 #: Scopes granted to the authenticated caller.
 CurrentScopes = Annotated[frozenset[str], Depends(get_current_scopes)]
 #: Session id carried by the caller's access token; an API key is refused.

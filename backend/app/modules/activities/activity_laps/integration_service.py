@@ -93,7 +93,7 @@ def profile_contributor() -> activities_contributors.ProfileActivityContributor:
 
 def list_for_activity(
     activity: activity_schema.ActivityRead,
-    requester_user_id: int | None,
+    requester_user_id: uuid.UUID | None,
     db: Session,
 ) -> activity_laps_schema.ActivityLapsPage:
     """Return the first page of an activity's laps for a viewer who may already see the activity.

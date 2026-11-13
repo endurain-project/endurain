@@ -664,7 +664,7 @@ class CallbackService:
                     oauth_state, jasil_audit.Outcome.DENIED, login_audit_actions.StepUpFailureReason.NOT_LINKED
                 )
                 return self._failure_url(oauth_state)
-            stale = _stale_flow(users_integration.get_user(oauth_state.user_id, db), oauth_state, db)
+            stale = _stale_flow(users_integration.get_user(link.user_id, db), oauth_state, db)
             if stale is not None:
                 logger.warning(
                     "Step-up refused for user <user_id>: the account or session changed since it started",
@@ -1040,7 +1040,7 @@ def _stale_flow(
     return None
 
 
-def _stage_other_sessions_ended(user_id: int, keep_session_id: str, db: Session) -> None:
+def _stage_other_sessions_ended(user_id: uuid.UUID, keep_session_id: str, db: Session) -> None:
     """Stage the end of the user's sessions except the one that started a link, with its audit row.
 
     Args:
@@ -1061,7 +1061,7 @@ def _stage_other_sessions_ended(user_id: int, keep_session_id: str, db: Session)
 
 
 def _record_login_refusal(
-    outcome: jasil_audit.Outcome, reason: login_audit_actions.LoginFailureReason, *, user_id: int | None = None
+    outcome: jasil_audit.Outcome, reason: login_audit_actions.LoginFailureReason, *, user_id: uuid.UUID | None = None
 ) -> None:
     """Audit a refused SSO sign-in, on its own transaction because the callback answers with a redirect.
 

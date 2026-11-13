@@ -1,5 +1,6 @@
 """SQLAlchemy ORM model for user-facing activity ingestion jobs."""
 
+import uuid
 from datetime import datetime
 
 from sqlalchemy import (
@@ -101,7 +102,7 @@ class ActivityIngestionJob(Base):
         primary_key=True,
         comment="Ingestion job identifier (UUIDv4 string)",
     )
-    user_id: Mapped[int] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

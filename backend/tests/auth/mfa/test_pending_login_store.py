@@ -11,12 +11,12 @@ from jasil.providers import StateBackendUnavailableError
 import core.network as core_network
 import modules.auth.constants as auth_constants
 import modules.auth.mfa.pending_login_store as pending_mfa
-from tests._helpers.auth import pending_login
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID, pending_login
 
 
 def test_pending_login_lifecycle_and_atomic_claim():
     store = pending_mfa.PendingMFALogin(MemoryState())
-    pending = pending_login(12, auth_constants.ClientType.MOBILE, "c" * 43, "S256")
+    pending = pending_login(MOCK_USER_ID, auth_constants.ClientType.MOBILE, "c" * 43, "S256")
     challenge = store.add_pending_login(pending)
 
     assert store.get_pending_login(challenge) == pending
@@ -26,7 +26,7 @@ def test_pending_login_lifecycle_and_atomic_claim():
 
 def test_the_record_keeps_the_client_network_of_the_password_step():
     store = pending_mfa.PendingMFALogin(MemoryState())
-    challenge = store.add_pending_login(pending_login(12, client_network="2001:db8:1:2::/64"))
+    challenge = store.add_pending_login(pending_login(MOCK_USER_ID, client_network="2001:db8:1:2::/64"))
 
     record = store.get_pending_login(challenge)
 
@@ -36,7 +36,7 @@ def test_the_record_keeps_the_client_network_of_the_password_step():
 
 def test_the_record_keeps_the_client_type_and_the_pkce_values_of_the_password_step():
     store = pending_mfa.PendingMFALogin(MemoryState())
-    challenge = store.add_pending_login(pending_login(12, auth_constants.ClientType.MOBILE, "c" * 43, "S256"))
+    challenge = store.add_pending_login(pending_login(MOCK_USER_ID, auth_constants.ClientType.MOBILE, "c" * 43, "S256"))
 
     record = store.get_pending_login(challenge)
 
@@ -60,7 +60,10 @@ def test_each_login_gets_its_own_unguessable_challenge():
     """The challenge, not the username, names the login, so knowing a username grants nothing."""
     store = pending_mfa.PendingMFALogin(MemoryState())
 
-    first, second = store.add_pending_login(pending_login(12)), store.add_pending_login(pending_login(12))
+    first, second = (
+        store.add_pending_login(pending_login(MOCK_USER_ID)),
+        store.add_pending_login(pending_login(MOCK_USER_ID)),
+    )
 
     assert first != second
     assert len(first) >= 43
@@ -71,7 +74,7 @@ def test_only_a_digest_of_the_challenge_is_kept():
     state = MagicMock()
     store = pending_mfa.PendingMFALogin(state)
 
-    pending = pending_login(12)
+    pending = pending_login(MOCK_USER_ID)
     challenge = store.add_pending_login(pending)
 
     key = state.set.call_args.args[0]
@@ -84,10 +87,10 @@ def test_only_a_digest_of_the_challenge_is_kept():
 def test_the_record_keeps_the_security_generation_and_an_entry_without_one_reads_back_unstamped():
     state = MemoryState()
     store = pending_mfa.PendingMFALogin(state)
-    challenge = store.add_pending_login(pending_login(12, security_generation=5))
+    challenge = store.add_pending_login(pending_login(MOCK_USER_ID, security_generation=5))
     assert store.get_pending_login(challenge).security_generation == 5
 
-    legacy = pending_login(12).model_dump(exclude={"security_generation"})
+    legacy = pending_login(MOCK_USER_ID).model_dump(mode="json", exclude={"security_generation"})
     state.set(store._pending_key(challenge), json.dumps(legacy).encode(), ttl_seconds=60)
 
     assert store.get_pending_login(challenge).security_generation is None
@@ -97,7 +100,7 @@ class TestWrongCodes:
     def test_the_challenge_ends_on_the_last_allowed_wrong_code(self):
         state = MemoryState()
         store = pending_mfa.PendingMFALogin(state)
-        challenge = store.add_pending_login(pending_login(12))
+        challenge = store.add_pending_login(pending_login(MOCK_USER_ID))
 
         ended = [store.record_wrong_code(challenge) for _ in range(pending_mfa.MFA_CHALLENGE_MAX_ATTEMPTS)]
 
@@ -108,11 +111,11 @@ class TestWrongCodes:
 
     def test_a_challenge_below_the_cap_stays_pending(self):
         store = pending_mfa.PendingMFALogin(MemoryState())
-        challenge = store.add_pending_login(pending_login(12))
+        challenge = store.add_pending_login(pending_login(MOCK_USER_ID))
 
         store.record_wrong_code(challenge)
 
-        assert store.get_pending_login(challenge) == pending_login(12)
+        assert store.get_pending_login(challenge) == pending_login(MOCK_USER_ID)
 
     def test_the_count_is_kept_under_its_own_prefix_with_the_pending_ttl(self):
         state = MagicMock()
@@ -130,17 +133,17 @@ class TestWrongCodes:
     def test_a_claim_removes_the_count(self):
         state = MemoryState()
         store = pending_mfa.PendingMFALogin(state)
-        challenge = store.add_pending_login(pending_login(12))
+        challenge = store.add_pending_login(pending_login(MOCK_USER_ID))
         store.record_wrong_code(challenge)
 
-        assert store.claim_pending_login(challenge) == pending_login(12)
+        assert store.claim_pending_login(challenge) == pending_login(MOCK_USER_ID)
 
         assert state.get(store._attempts_key(challenge)) is None
 
     def test_clear_all_removes_the_pending_logins_and_their_counts(self):
         state = MemoryState()
         store = pending_mfa.PendingMFALogin(state)
-        challenge = store.add_pending_login(pending_login(12))
+        challenge = store.add_pending_login(pending_login(MOCK_USER_ID))
         store.record_wrong_code(challenge)
 
         store.clear_all()
@@ -167,7 +170,7 @@ def test_provider_failures_become_auth_store_errors(method, operation):
 
     with pytest.raises(pending_mfa.AuthSecurityStoreUnavailableError):
         if operation == "add":
-            store.add_pending_login(pending_login(12))
+            store.add_pending_login(pending_login(MOCK_USER_ID))
         elif operation == "get":
             store.get_pending_login("challenge")
         elif operation == "claim":
@@ -190,7 +193,7 @@ def test_dependency_builds_store_from_provided_state():
     assert store._state is state
 
 
-_UID = 5
+_UID = MOCK_USER_ID
 _IP = "203.0.113.5"
 _OTHER_IP = "198.51.100.9"
 
@@ -377,4 +380,4 @@ class TestRenamedAccount:
         store = pending_mfa.PendingMFALogin(MemoryState())
         _lock_account(store)
 
-        assert store.is_locked_out("alice", _OTHER_IP, user_id=_UID + 1) is False
+        assert store.is_locked_out("alice", _OTHER_IP, user_id=OTHER_USER_ID) is False

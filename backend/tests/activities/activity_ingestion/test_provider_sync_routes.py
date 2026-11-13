@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.exceptions import RequestValidationError
+from tests._helpers.auth import MOCK_USER_ID
 
 import core.job_status as core_job_status
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
@@ -54,7 +55,7 @@ def _call(route, **overrides):
         "response": MagicMock(),
         "start_date": date(2026, 1, 1),
         "end_date": date(2026, 1, 8),
-        "token_user_id": 7,
+        "token_user_id": MOCK_USER_ID,
         "db": MagicMock(),
         "storage": "storage",
     }
@@ -76,7 +77,7 @@ class TestRetrieveActivitiesRoutes:
         name, window_start, window_end = (
             request.call_args.kwargs[k] for k in ("provider", "window_start", "window_end")
         )
-        assert (user_id, name, storage) == (7, provider, "storage")
+        assert (user_id, name, storage) == (MOCK_USER_ID, provider, "storage")
         # The whole of both end days, in UTC.
         assert window_start == datetime(2026, 1, 1, 0, 0, tzinfo=UTC)
         assert window_end.date() == date(2026, 1, 8) and window_end.hour == 23

@@ -19,6 +19,7 @@ import modules.auth.password_reset_tokens.events as password_reset_events
 
 SERVICE = "modules.auth.account_security.account_security_service"
 SUBSCRIBERS = "modules.auth.account_security.subscribers"
+USER_ID = uuid.UUID(int=4)
 IDP_ID = uuid.UUID(int=7)
 HOST = "https://endurain.example.com"
 
@@ -39,7 +40,7 @@ class TestPrepareSecurityChangeEmail:
             patch(f"{SERVICE}.users_integration.get_user", return_value=_user()),
             patch(f"{SERVICE}.identity_providers_integration.get_identity_provider", return_value=None),
         ):
-            message = account_security_service.prepare_security_change_email(1, change, None, HOST, mock_db)
+            message = account_security_service.prepare_security_change_email(USER_ID, change, None, HOST, mock_db)
 
         assert message is not None
         recipient, subject, html_body, text_body = message
@@ -54,10 +55,10 @@ class TestPrepareSecurityChangeEmail:
             patch(f"{SERVICE}.identity_providers_integration.get_identity_provider", return_value=idp) as get_idp,
         ):
             message = account_security_service.prepare_security_change_email(
-                1, "identity_provider_unlinked", 4, HOST, mock_db
+                USER_ID, "identity_provider_unlinked", IDP_ID, HOST, mock_db
             )
 
-        get_idp.assert_called_once_with(4, mock_db)
+        get_idp.assert_called_once_with(IDP_ID, mock_db)
         assert "Authentik" in message[2]
 
     def test_a_deleted_provider_leaves_the_name_out(self, mock_db):
@@ -66,7 +67,7 @@ class TestPrepareSecurityChangeEmail:
             patch(f"{SERVICE}.identity_providers_integration.get_identity_provider", return_value=None),
         ):
             message = account_security_service.prepare_security_change_email(
-                1, "identity_provider_unlinked", 4, HOST, mock_db
+                USER_ID, "identity_provider_unlinked", IDP_ID, HOST, mock_db
             )
 
         assert message is not None
@@ -74,15 +75,21 @@ class TestPrepareSecurityChangeEmail:
 
     def test_a_missing_user_sends_nothing(self, mock_db):
         with patch(f"{SERVICE}.users_integration.get_user", return_value=None):
-            assert account_security_service.prepare_security_change_email(1, "mfa_enabled", None, HOST, mock_db) is None
+            assert (
+                account_security_service.prepare_security_change_email(USER_ID, "mfa_enabled", None, HOST, mock_db)
+                is None
+            )
 
     def test_an_inactive_user_sends_nothing(self, mock_db):
         with patch(f"{SERVICE}.users_integration.get_user", return_value=_user(active=False)):
-            assert account_security_service.prepare_security_change_email(1, "mfa_enabled", None, HOST, mock_db) is None
+            assert (
+                account_security_service.prepare_security_change_email(USER_ID, "mfa_enabled", None, HOST, mock_db)
+                is None
+            )
 
 
 def _changed_event(change, idp_id=None):
-    payload = {"user_id": 4, "change": change}
+    payload = {"user_id": str(USER_ID), "change": change}
     if idp_id is not None:
         payload["idp_id"] = str(idp_id)
     return platform_events.new_event(account_security_events.ACCOUNT_SECURITY_CHANGED, payload, source="test")
@@ -102,7 +109,7 @@ class TestSecurityChangedHandler:
         )
 
         prepare.assert_called_once_with(
-            4,
+            USER_ID,
             "identity_provider_unlinked",
             IDP_ID,
             account_security_subscribers.core_config.settings.ENDURAIN_HOST,
@@ -143,12 +150,18 @@ class TestIdpLinkedHandler:
     def test_prepares_a_link_message_and_sends_it(self, session_local, get_platform, prepare, send_email):
         db = session_local.return_value.__enter__.return_value
         prepare.return_value = ("alice@example.test", "subject", "html", "text")
-        event = platform_events.new_event(idp_events.IDP_LINKED, {"user_id": 4, "idp_id": str(IDP_ID)}, source="test")
+        event = platform_events.new_event(
+            idp_events.IDP_LINKED, {"user_id": str(USER_ID), "idp_id": str(IDP_ID)}, source="test"
+        )
 
         account_security_subscribers.send_idp_linked_email_for_event(event)
 
         prepare.assert_called_once_with(
-            4, "identity_provider_linked", IDP_ID, account_security_subscribers.core_config.settings.ENDURAIN_HOST, db
+            USER_ID,
+            "identity_provider_linked",
+            IDP_ID,
+            account_security_subscribers.core_config.settings.ENDURAIN_HOST,
+            db,
         )
         send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
 
@@ -161,12 +174,14 @@ class TestPasswordResetCompletedHandler:
     def test_sends_the_password_reset_notice(self, session_local, get_platform, prepare, send_email):
         db = session_local.return_value.__enter__.return_value
         prepare.return_value = ("alice@example.test", "subject", "html", "text")
-        event = platform_events.new_event(password_reset_events.PASSWORD_RESET_COMPLETED, {"user_id": 4}, source="test")
+        event = platform_events.new_event(
+            password_reset_events.PASSWORD_RESET_COMPLETED, {"user_id": str(USER_ID)}, source="test"
+        )
 
         account_security_subscribers.send_password_reset_completed_email_for_event(event)
 
         prepare.assert_called_once_with(
-            4, "password_reset", None, account_security_subscribers.core_config.settings.ENDURAIN_HOST, db
+            USER_ID, "password_reset", None, account_security_subscribers.core_config.settings.ENDURAIN_HOST, db
         )
         send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
 
@@ -181,7 +196,7 @@ class TestPasswordResetCompletedHandler:
 
         account_security_subscribers.send_security_changed_email_for_event(_changed_event("password_reset"))
 
-        assert prepare.call_args.args[:3] == (4, "password_reset", None)
+        assert prepare.call_args.args[:3] == (USER_ID, "password_reset", None)
 
 
 class TestAccountLockedHandler:
@@ -192,12 +207,14 @@ class TestAccountLockedHandler:
     def test_sends_the_account_locked_notice(self, session_local, get_platform, prepare, send_email):
         db = session_local.return_value.__enter__.return_value
         prepare.return_value = ("alice@example.test", "subject", "html", "text")
-        event = platform_events.new_event(authentication_events.ACCOUNT_LOCKED, {"user_id": 4}, source="test")
+        event = platform_events.new_event(
+            authentication_events.ACCOUNT_LOCKED, {"user_id": str(USER_ID)}, source="test"
+        )
 
         account_security_subscribers.send_account_locked_email_for_event(event)
 
         prepare.assert_called_once_with(
-            4, "account_locked", None, account_security_subscribers.core_config.settings.ENDURAIN_HOST, db
+            USER_ID, "account_locked", None, account_security_subscribers.core_config.settings.ENDURAIN_HOST, db
         )
         send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
 
@@ -226,12 +243,12 @@ class TestMfaLockedHandler:
     def test_sends_the_mfa_locked_notice(self, session_local, get_platform, prepare, send_email):
         db = session_local.return_value.__enter__.return_value
         prepare.return_value = ("alice@example.test", "subject", "html", "text")
-        event = platform_events.new_event(authentication_events.MFA_LOCKED, {"user_id": 4}, source="test")
+        event = platform_events.new_event(authentication_events.MFA_LOCKED, {"user_id": str(USER_ID)}, source="test")
 
         account_security_subscribers.send_mfa_locked_email_for_event(event)
 
         prepare.assert_called_once_with(
-            4, "mfa_locked", None, account_security_subscribers.core_config.settings.ENDURAIN_HOST, db
+            USER_ID, "mfa_locked", None, account_security_subscribers.core_config.settings.ENDURAIN_HOST, db
         )
         send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
 
@@ -279,12 +296,12 @@ class TestStepUpHandlers:
     ):
         db = session_local.return_value.__enter__.return_value
         prepare.return_value = ("alice@example.test", "subject", "html", "text")
-        event = platform_events.new_event(channel, {"user_id": 4}, source="test")
+        event = platform_events.new_event(channel, {"user_id": str(USER_ID)}, source="test")
 
         getattr(account_security_subscribers, handler)(event)
 
         prepare.assert_called_once_with(
-            4, change, None, account_security_subscribers.core_config.settings.ENDURAIN_HOST, db
+            USER_ID, change, None, account_security_subscribers.core_config.settings.ENDURAIN_HOST, db
         )
         send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
         events = MagicMock()
@@ -342,7 +359,7 @@ class TestPrepareNewDeviceSignInEmail:
     def _prepare(self, user, mock_db):
         with patch(f"{SERVICE}.users_integration.get_user", return_value=user):
             return account_security_service.prepare_new_device_sign_in_email(
-                4, "Firefox", "Linux", "203.0.113.7", "password", _SIGNED_IN_AT, HOST, mock_db
+                USER_ID, "Firefox", "Linux", "203.0.113.7", "password", _SIGNED_IN_AT, HOST, mock_db
             )
 
     def test_prepares_the_message_in_the_users_timezone(self, mock_db):
@@ -374,7 +391,7 @@ class TestPrepareNewDeviceSignInEmail:
 
 def _new_device_event():
     payload = {
-        "user_id": 4,
+        "user_id": str(USER_ID),
         "browser": "Firefox",
         "operating_system": "Linux",
         "device_type": "PC",
@@ -397,7 +414,7 @@ class TestNewDeviceSignInHandler:
         account_security_subscribers.send_new_device_sign_in_email_for_event(_new_device_event())
 
         prepare.assert_called_once_with(
-            4,
+            USER_ID,
             "Firefox",
             "Linux",
             "203.0.113.7",

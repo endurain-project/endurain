@@ -1,5 +1,6 @@
 """User database models."""
 
+import uuid
 from datetime import date as date_type
 from datetime import datetime
 
@@ -58,9 +59,9 @@ class Users(Base):
     __tablename__ = "users"
     __table_args__ = (CheckConstraint("access_type IN ('regular', 'admin')", name="ck_users_access_type"),)
 
-    id: Mapped[int] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True,
-        autoincrement=True,
+        default=uuid.uuid4,
     )
     name: Mapped[str] = mapped_column(
         String(250),

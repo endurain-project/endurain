@@ -93,7 +93,7 @@ def ingestion_contributor() -> activities_contributors.ActivityIngestionContribu
 
 def _restore_profile_records(
     records: list[dict[str, Any]],
-    original_activity_id: str,
+    original_activity_id: uuid.UUID,
     new_activity: activity_schema.ActivityRead,
     db: Session,
 ) -> int:
@@ -101,7 +101,7 @@ def _restore_profile_records(
 
     Args:
         records: Profile records to restore.
-        original_activity_id: The activity's archive-local key.
+        original_activity_id: The activity id the records were exported under.
         new_activity: The activity the records are restored onto.
         db: Database session.
 

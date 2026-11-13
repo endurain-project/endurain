@@ -11,7 +11,7 @@ import modules.auth.known_devices.schema as known_devices_schema
 import modules.auth.known_devices.service as known_devices_service
 
 
-def is_known_device(user_id: int, device_id: str | None, db: Session) -> bool:
+def is_known_device(user_id: uuid.UUID, device_id: str | None, db: Session) -> bool:
     """Return whether the device id names a device the user signed in from since their last security change.
 
     It changes nothing.
@@ -20,7 +20,7 @@ def is_known_device(user_id: int, device_id: str | None, db: Session) -> bool:
 
 
 def record_sign_in(
-    user_id: int,
+    user_id: uuid.UUID,
     device_id: str | None,
     ip_address: str,
     user_agent: str,
@@ -32,13 +32,13 @@ def record_sign_in(
 
 
 def list_devices(
-    user_id: int, device_id: str | None, page: core_pagination.PageParams, db: Session
+    user_id: uuid.UUID, device_id: str | None, page: core_pagination.PageParams, db: Session
 ) -> known_devices_schema.KnownDevicePage:
     """Return one page of the user's known devices, marking the one the request's device id names."""
     return known_devices_service.list_devices(user_id, device_id, page, db)
 
 
-def forget_device(device_id: uuid.UUID, user_id: int, current_device_id: str | None, db: Session) -> int:
+def forget_device(device_id: uuid.UUID, user_id: uuid.UUID, current_device_id: str | None, db: Session) -> int:
     """Stage the deletion of one of the user's known devices but the request's own and its sessions.
 
     Returns how many sessions ended.
@@ -46,6 +46,6 @@ def forget_device(device_id: uuid.UUID, user_id: int, current_device_id: str | N
     return known_devices_service.forget_device(device_id, user_id, current_device_id, db)
 
 
-def forget_other_devices(user_id: int, device_id: str | None, db: Session) -> int:
+def forget_other_devices(user_id: uuid.UUID, device_id: str | None, db: Session) -> int:
     """Stage the deletion of the user's known devices but the request's own and their sessions; returns how many ended."""
     return known_devices_service.forget_other_devices(user_id, device_id, db)

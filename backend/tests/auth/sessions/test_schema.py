@@ -4,6 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 import modules.auth.sessions.schema as users_session_schema
+from tests._helpers.auth import MOCK_USER_ID
 
 
 class TestUsersSessionsBaseSchema:
@@ -173,11 +174,11 @@ class TestUsersSessionsReadSchema:
             created_at=now,
             last_activity_at=now,
             expires_at=now,
-            user_id=1,
+            user_id=MOCK_USER_ID,
         )
 
         # Assert
-        assert session.user_id == 1
+        assert session.user_id == MOCK_USER_ID
 
     def test_read_schema_requires_user_id(self):
         """
@@ -203,9 +204,9 @@ class TestUsersSessionsReadSchema:
 
         assert "user_id" in str(exc_info.value)
 
-    def test_read_schema_user_id_positive(self):
+    def test_read_schema_user_id_must_be_a_uuid(self):
         """
-        Test UserSessionsRead schema user_id must be >= 1.
+        Test UserSessionsRead schema user_id must be a UUID.
         """
         # Arrange
         now = datetime.now(UTC)
@@ -223,7 +224,7 @@ class TestUsersSessionsReadSchema:
                 created_at=now,
                 last_activity_at=now,
                 expires_at=now,
-                user_id=0,
+                user_id=1,
             )
 
         assert "user_id" in str(exc_info.value)
@@ -263,7 +264,7 @@ class TestUsersSessionsInternalSchema:
             created_at=now,
             last_activity_at=now,
             expires_at=now,
-            user_id=1,
+            user_id=MOCK_USER_ID,
             refresh_token="hashed-token",
             oauth_state_id=None,
             tokens_exchanged=False,
@@ -304,7 +305,7 @@ class TestUsersSessionsInternalSchema:
             created_at=now,
             last_activity_at=now,
             expires_at=now,
-            user_id=1,
+            user_id=MOCK_USER_ID,
             tokens_exchanged=False,
             token_family_id="family-id",
             client_type="web",
@@ -335,7 +336,7 @@ class TestUsersSessionsInternalSchema:
             created_at=now,
             last_activity_at=now,
             expires_at=now,
-            user_id=1,
+            user_id=MOCK_USER_ID,
             refresh_token="hashed-token",
             token_family_id="family-id",
             client_type="web",
@@ -367,7 +368,7 @@ class TestUsersSessionsInternalSchema:
                 created_at=now,
                 last_activity_at=now,
                 expires_at=now,
-                user_id=1,
+                user_id=MOCK_USER_ID,
                 refresh_token="hashed-token",
                 token_family_id="family-id",
                 client_type="web",
@@ -396,7 +397,7 @@ class TestUsersSessionsInternalSchema:
                 created_at=now,
                 last_activity_at=now,
                 expires_at=now,
-                user_id=1,
+                user_id=MOCK_USER_ID,
                 token_family_id="family-id",
                 **values,
             )
@@ -424,7 +425,7 @@ class TestUsersSessionsInternalSchema:
                 created_at=now,
                 last_activity_at=now,
                 expires_at=now,
-                user_id=1,
+                user_id=MOCK_USER_ID,
                 refresh_token="hashed-token",
                 oauth_state_id=long_oauth_state,
                 token_family_id="family-id",
@@ -465,7 +466,7 @@ class TestUsersSessionsInternalSchema:
             created_at=now,
             last_activity_at=now,
             expires_at=now,
-            user_id=1,
+            user_id=MOCK_USER_ID,
             refresh_token="hashed-token",
             oauth_state_id="oauth-state-123",
             tokens_exchanged=True,

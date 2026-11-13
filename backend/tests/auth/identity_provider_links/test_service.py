@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import modules.auth.identity_providers.integration_service as identity_links_utils
 from modules.auth.identity_provider_links.schema import IdentityProviderLinkRead
+from tests._helpers.auth import MOCK_USER_ID
 
 IDP_1 = uuid.uuid4()
 
@@ -24,7 +25,7 @@ class TestEnrichUserIdentityProviders:
             - Returns empty list.
             - No db.execute called.
         """
-        result = identity_links_utils.enrich_user_identity_providers([], 1, mock_db)
+        result = identity_links_utils.enrich_user_identity_providers([], MOCK_USER_ID, mock_db)
 
         assert result == []
         mock_db.execute.assert_not_called()
@@ -44,7 +45,7 @@ class TestEnrichUserIdentityProviders:
 
         mock_link = MagicMock()
         mock_link.id = uuid.UUID(int=1)
-        mock_link.user_id = 1
+        mock_link.user_id = MOCK_USER_ID
         mock_link.idp_id = IDP_1
         mock_link.idp_subject = "sub-123"
         mock_link.linked_at = now
@@ -62,7 +63,7 @@ class TestEnrichUserIdentityProviders:
             "modules.auth.identity_providers.crud.get_identity_providers_by_ids",
             return_value=[mock_idp],
         ) as mock_get_idps:
-            result = identity_links_utils.enrich_user_identity_providers([mock_link], 1, mock_db)
+            result = identity_links_utils.enrich_user_identity_providers([mock_link], MOCK_USER_ID, mock_db)
 
         assert len(result) == 1
         assert isinstance(result[0], IdentityProviderLinkRead)
@@ -86,7 +87,7 @@ class TestEnrichUserIdentityProviders:
 
         mock_link = MagicMock()
         mock_link.id = uuid.UUID(int=1)
-        mock_link.user_id = 1
+        mock_link.user_id = MOCK_USER_ID
         mock_link.idp_id = uuid.uuid4()
         mock_link.idp_subject = "sub-xyz"
         mock_link.linked_at = now
@@ -96,7 +97,7 @@ class TestEnrichUserIdentityProviders:
             "modules.auth.identity_providers.crud.get_identity_providers_by_ids",
             return_value=[],
         ):
-            result = identity_links_utils.enrich_user_identity_providers([mock_link], 1, mock_db)
+            result = identity_links_utils.enrich_user_identity_providers([mock_link], MOCK_USER_ID, mock_db)
 
         assert result == []
 
@@ -117,7 +118,7 @@ class TestEnrichUserIdentityProviders:
         for i in range(1, 4):
             link = MagicMock()
             link.id = uuid.UUID(int=i)
-            link.user_id = 1
+            link.user_id = MOCK_USER_ID
             link.idp_id = idp_ids[i - 1]
             link.idp_subject = f"sub-{i}"
             link.linked_at = now
@@ -139,7 +140,7 @@ class TestEnrichUserIdentityProviders:
             "modules.auth.identity_providers.crud.get_identity_providers_by_ids",
             return_value=mock_idps,
         ) as mock_get_idps:
-            result = identity_links_utils.enrich_user_identity_providers(mock_links, 1, mock_db)
+            result = identity_links_utils.enrich_user_identity_providers(mock_links, MOCK_USER_ID, mock_db)
 
         assert len(result) == 3
         mock_get_idps.assert_called_once_with(idp_ids, mock_db)

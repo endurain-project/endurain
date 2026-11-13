@@ -14,6 +14,7 @@ import modules.auth.credentials.service as credentials_service
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.password_reset_tokens.events as password_reset_events
 import modules.auth.password_reset_tokens.service as password_reset_service
+from tests._helpers.auth import MOCK_USER_ID
 
 
 def _settings(local_login_enabled: bool) -> SimpleNamespace:
@@ -21,7 +22,7 @@ def _settings(local_login_enabled: bool) -> SimpleNamespace:
 
 
 def _user(access_type: str = "regular") -> SimpleNamespace:
-    return SimpleNamespace(id=7, username="alice", active=True, access_type=access_type)
+    return SimpleNamespace(id=MOCK_USER_ID, username="alice", active=True, access_type=access_type)
 
 
 class TestAllowsPasswordSignIn:
@@ -82,7 +83,7 @@ class TestPasswordLogin:
 
         assert isinstance(result, core_exceptions.UnauthenticatedError)
         assert result.detail == "Unable to authenticate with provided credentials"
-        failed_attempts.record_failed_attempt.assert_called_once_with("alice", "1.2.3.4", user_id=7)
+        failed_attempts.record_failed_attempt.assert_called_once_with("alice", "1.2.3.4", user_id=MOCK_USER_ID)
         finish.assert_not_called()
 
     def test_an_administrator_still_signs_in_while_local_sign_in_is_off(self):
@@ -157,7 +158,9 @@ class TestPasswordReset:
         policy.has_password.return_value = has_password
         policy.settings.return_value = _settings(local_login_enabled)
         with (
-            patch.object(password_reset_service.password_reset_crud, "claim_password_reset_token", return_value=7),
+            patch.object(
+                password_reset_service.password_reset_crud, "claim_password_reset_token", return_value=MOCK_USER_ID
+            ),
             patch.object(password_reset_service.users_integration, "require_user", return_value=_user()),
             patch.object(password_reset_service.credentials_integration, "set_local_password_hash") as set_hash,
             pytest.raises(core_exceptions.InvalidInputError, match="Invalid or expired password reset token"),
@@ -176,7 +179,7 @@ class TestFirstPassword:
             pytest.raises(core_exceptions.PermissionDeniedError),
         ):
             account_security_service.stage_change_own_password(
-                7,
+                MOCK_USER_ID,
                 "anything",
                 "N3w-Passw0rd!",
                 None,
@@ -195,7 +198,7 @@ class TestTokenExchange:
         "purpose", [oauth_state_constants.OAuthStatePurpose.LINK, oauth_state_constants.OAuthStatePurpose.STEP_UP]
     )
     def test_only_a_login_state_can_be_exchanged_for_tokens(self, purpose):
-        session = SimpleNamespace(tokens_exchanged=False, user_id=7)
+        session = SimpleNamespace(tokens_exchanged=False, user_id=MOCK_USER_ID)
         oauth_state = SimpleNamespace(
             id="state-id", purpose=purpose, code_challenge="c" * 43, code_challenge_method="S256"
         )

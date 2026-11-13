@@ -1,6 +1,7 @@
 """A sign-in proof is stamped with the generation read before its credential was verified, and a lookup of a deleted
 user precedes the generation lock."""
 
+import uuid
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -14,8 +15,10 @@ import modules.auth.known_devices.contracts as known_devices_contracts
 import modules.auth.login_audit.audit_actions as login_audit_actions
 from tests._helpers.auth import pending_login
 
+_USER_ID = uuid.UUID(int=5)
+
 _SERVICE = "modules.auth.authentication.service"
-_USER = SimpleNamespace(id=5, username="alice", active=True, access_type="regular")
+_USER = SimpleNamespace(id=_USER_ID, username="alice", active=True, access_type="regular")
 _NO_LOCK = failed_login_store.FailedLoginRecord(client_count=1, account_locked_now=False)
 _CHALLENGE = "a" * 43
 
@@ -53,7 +56,7 @@ class TestLoginReadsTheStampBeforeTheCredential:
     def reset_during_the_hash(self, security_generations, mock_db):
         """Order the generation read against the password check; the check moves the generation as a reset would."""
         order = MagicMock()
-        security_generations.generations[5] = 4
+        security_generations.generations[_USER_ID] = 4
 
         def read(user_id, db):
             order.read_generation()
@@ -61,7 +64,7 @@ class TestLoginReadsTheStampBeforeTheCredential:
 
         def verify(*args, **kwargs):
             order.authenticate_user()
-            security_generations.stage_bump(5, mock_db)
+            security_generations.stage_bump(_USER_ID, mock_db)
             return _USER
 
         with (
@@ -135,7 +138,7 @@ class TestWebSignInChecksTheStamp:
     def test_a_stale_or_missing_stamp_creates_no_session_and_is_refused_like_a_wrong_password(
         self, mock_db, security_generations, stamp
     ):
-        security_generations.generations[5] = 4
+        security_generations.generations[_USER_ID] = 4
         with (
             patch(f"{_SERVICE}.authentication_token_service.create_tokens") as create_tokens,
             patch(f"{_SERVICE}.sessions_integration.create_session") as create_session,
@@ -151,10 +154,10 @@ class TestWebSignInChecksTheStamp:
         mock_db.commit.assert_not_called()
         refusal.assert_called_once()
         assert refusal.call_args.args[2] == login_audit_actions.LoginFailureReason.SECURITY_CHANGED
-        assert refusal.call_args.kwargs["user_id"] == 5
+        assert refusal.call_args.kwargs["user_id"] == _USER_ID
 
     def test_the_current_stamp_creates_the_session(self, mock_db, security_generations):
-        security_generations.generations[5] = 4
+        security_generations.generations[_USER_ID] = 4
         with (
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
             patch(f"{_SERVICE}.authentication_token_service.create_tokens", return_value=tuple(range(6))),
@@ -169,10 +172,10 @@ class TestWebSignInChecksTheStamp:
     def test_a_reset_that_commits_during_the_hash_leaves_a_web_sign_in_without_a_session(
         self, mock_db, security_generations
     ):
-        security_generations.generations[5] = 4
+        security_generations.generations[_USER_ID] = 4
 
         def verify(*args, **kwargs):
-            security_generations.stage_bump(5, mock_db)
+            security_generations.stage_bump(_USER_ID, mock_db)
             return _USER
 
         with (
@@ -191,7 +194,7 @@ class TestWebSignInChecksTheStamp:
         create_session.assert_not_called()
 
     def test_the_stamp_read_before_the_password_check_reaches_the_web_session(self, mock_db, security_generations):
-        security_generations.generations[5] = 4
+        security_generations.generations[_USER_ID] = 4
         with (
             patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=_USER),
             patch(f"{_SERVICE}.authenticate_user", return_value=_USER),
@@ -206,9 +209,9 @@ class TestWebSignInChecksTheStamp:
         assert complete.call_args.kwargs["security_generation"] == 4
 
     def test_the_mfa_challenges_stamp_reaches_the_web_session(self, mock_db, security_generations):
-        security_generations.generations[5] = 9
+        security_generations.generations[_USER_ID] = 9
         store = MagicMock()
-        pending = pending_login(5, security_generation=9)
+        pending = pending_login(_USER_ID, security_generation=9)
         store.get_pending_login.return_value = pending
         store.claim_pending_login.return_value = pending
         store.is_locked_out.return_value = False
@@ -242,10 +245,10 @@ class TestMfaStepCarriesTheChallengesStamp:
 
     @staticmethod
     def _verify(db, security_generations, *, password_change_required, client_type):
-        security_generations.generations[5] = 9
+        security_generations.generations[_USER_ID] = 9
         store = MagicMock()
         challenge_type = auth_constants.ClientType(client_type)
-        pending = pending_login(5, client_type=challenge_type, security_generation=9)
+        pending = pending_login(_USER_ID, client_type=challenge_type, security_generation=9)
         pending = pending.model_copy(
             update={"code_challenge": _CHALLENGE, "code_challenge_method": "S256"} if client_type == "mobile" else {}
         )
@@ -298,7 +301,7 @@ class TestMfaStepCarriesTheChallengesStamp:
 class TestMfaStepOfADeletedUser:
     def test_a_deleted_user_is_refused_without_locking_the_generation(self, mock_db):
         store = MagicMock()
-        store.get_pending_login.return_value = pending_login(5)
+        store.get_pending_login.return_value = pending_login(_USER_ID)
         request = SimpleNamespace(mfa_challenge="challenge", mfa_code="123456")
         with (
             patch(f"{_SERVICE}.users_integration.get_user", return_value=None),

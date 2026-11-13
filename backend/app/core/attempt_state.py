@@ -80,7 +80,7 @@ class JobIndex:
         return key("jobs", "ref", job_id)
 
     @staticmethod
-    def _owner_prefix(owner_id: int) -> str:
+    def _owner_prefix(owner_id: uuid.UUID) -> str:
         return key("jobs", "owner", f"{owner_id}:")
 
     def put(self, job: core_job_status.JobRef, ttl_seconds: int) -> None:
@@ -127,7 +127,7 @@ class JobIndex:
             raise_unavailable("read job reference", err)
         return core_job_status.JobRef.model_validate_json(value) if value is not None else None
 
-    def list_owned(self, owner_id: int) -> list[core_job_status.JobRef]:
+    def list_owned(self, owner_id: uuid.UUID) -> list[core_job_status.JobRef]:
         """List the references of the jobs a user started whose records still last.
 
         Args:
@@ -241,7 +241,7 @@ class AttemptStateStore:
         return job_id if self._index.get(job_id) is not None else None
 
     def begin(
-        self, subject: str, initial: BaseModel, *, kind: str, owner_id: int, conflict: str
+        self, subject: str, initial: BaseModel, *, kind: str, owner_id: uuid.UUID, conflict: str
     ) -> core_job_status.JobRef:
         """Start an attempt as a new job unless one is still running.
 
@@ -470,11 +470,11 @@ class SyncStateStore:
         self._job_kind = job_kind
 
     @staticmethod
-    def _subject(user_id: int, kind: StrEnum) -> str:
+    def _subject(user_id: uuid.UUID, kind: StrEnum) -> str:
         return f"{user_id}:{kind.value}"
 
     def begin(
-        self, user_id: int, kind: StrEnum, *, conflict: str, owner_id: int | None = None
+        self, user_id: uuid.UUID, kind: StrEnum, *, conflict: str, owner_id: uuid.UUID | None = None
     ) -> core_job_status.JobRef:
         """Record a sync as a queued job unless one of this kind is still pending.
 
@@ -499,7 +499,7 @@ class SyncStateStore:
             conflict=conflict,
         )
 
-    def set_status(self, user_id: int, kind: StrEnum, status: core_job_status.JobState) -> None:
+    def set_status(self, user_id: uuid.UUID, kind: StrEnum, status: core_job_status.JobState) -> None:
         """Record a sync's progress or outcome; a finished sync frees the claim.
 
         Args:
@@ -509,7 +509,7 @@ class SyncStateStore:
         """
         self._attempts.record(self._subject(user_id, kind), SyncState(status=status), finished=status in _FINISHED)
 
-    def discard(self, user_id: int, kind: StrEnum) -> None:
+    def discard(self, user_id: uuid.UUID, kind: StrEnum) -> None:
         """Drop a sync's claim, state and job, for one that was called off.
 
         Unlike a finished sync, nothing is left to report.
@@ -520,7 +520,7 @@ class SyncStateStore:
         """
         self._attempts.discard(self._subject(user_id, kind))
 
-    def get(self, user_id: int, kind: StrEnum) -> SyncState | None:
+    def get(self, user_id: uuid.UUID, kind: StrEnum) -> SyncState | None:
         """Read a sync's state.
 
         Args:
@@ -551,7 +551,7 @@ class SyncStateStore:
         stored = self._attempts.read_job(job)
         return (stored.job, SyncState.model_validate_json(stored.state_json())) if stored is not None else None
 
-    def close_pending(self, user_id: int, kind: StrEnum) -> bool:
+    def close_pending(self, user_id: uuid.UUID, kind: StrEnum) -> bool:
         """Fail a sync that is still pending, so the user can queue another.
 
         For a sync the runner gave up on, however its last attempt ended. A sync that already

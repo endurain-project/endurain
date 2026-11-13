@@ -42,7 +42,7 @@ _COLLECTION: activity_integration.ChildCollection[
 
 def list_activity_sets(
     activity_id: uuid.UUID,
-    requester_user_id: int,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -96,7 +96,7 @@ def list_public_activity_sets(
 
 def list_for_activity(
     activity: activity_schema.ActivityRead,
-    requester_user_id: int | None,
+    requester_user_id: uuid.UUID | None,
     db: Session,
 ) -> activity_sets_schema.ActivitySetsPage:
     """Return the first page of an activity's sets for a viewer who may already see the activity.

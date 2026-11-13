@@ -7,6 +7,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+_USER_1 = uuid.UUID(int=1)
+
 _ACTIVITY_ID = uuid.uuid4()
 
 
@@ -20,7 +22,7 @@ def _activity_orm_stub():
     """
     return SimpleNamespace(
         id=_ACTIVITY_ID,
-        user_id=1,
+        user_id=_USER_1,
         distance=1000,
         name="Ride",
         activity_type=5,

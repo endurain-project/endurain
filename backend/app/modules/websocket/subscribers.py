@@ -1,5 +1,6 @@
 """Applies realtime hints and control messages to the sockets this process holds, and turns revocations into control messages."""
 
+import uuid
 from typing import Any
 
 import jasil.event_versioning as platform_event_versioning
@@ -45,7 +46,7 @@ def on_realtime_hint(key: str, hint: dict[str, Any]) -> None:
     core_async_bridge.dispatch(websocket_service.deliver_hint(user_id, hint, websocket_manager.get_websocket_manager()))
 
 
-def _close_revoked_sockets(user_id: int, message: dict[str, Any]) -> None:
+def _close_revoked_sockets(user_id: uuid.UUID, message: dict[str, Any]) -> None:
     """Close, on the event loop, the sockets a control message names.
 
     Args:

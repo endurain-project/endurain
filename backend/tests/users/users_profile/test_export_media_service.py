@@ -1,11 +1,14 @@
 """Tests for the user image writer of the profile data export."""
 
 import io
+import uuid
 import zipfile
 from unittest.mock import MagicMock
 
 import modules.users.users_profile.export_media_service as export_media_service
 import modules.users.users_profile.utils as profile_utils
+
+_USER_ID = uuid.UUID(int=1)
 
 _MODULE = "modules.users.users_profile.export_media_service"
 
@@ -18,7 +21,7 @@ class TestUserImages:
     """User photos are exported through the StorageProvider, not a local walk."""
 
     @staticmethod
-    def _export(user_id: int, keys: list[str], blob: bytes | None = b"image-bytes"):
+    def _export(user_id: uuid.UUID, keys: list[str], blob: bytes | None = b"image-bytes"):
         buf = io.BytesIO()
         counts = _counts()
         config = profile_utils.BasePerformanceConfig(enable_memory_monitoring=False)
@@ -31,31 +34,31 @@ class TestUserImages:
         return counts, buf, storage
 
     def test_no_stored_photo(self) -> None:
-        counts, _, _ = self._export(1, [])
+        counts, _, _ = self._export(_USER_ID, [])
 
         assert counts["user_images"] == 0
 
     def test_writes_the_blob_under_its_key(self) -> None:
-        counts, buf, storage = self._export(1, ["1.jpg"])
+        counts, buf, storage = self._export(_USER_ID, [f"{_USER_ID}.jpg"])
 
         assert counts["user_images"] == 1
-        storage.list_keys.assert_called_once_with("user_images", "1.")
+        storage.list_keys.assert_called_once_with("user_images", f"{_USER_ID}.")
         with zipfile.ZipFile(io.BytesIO(buf.getvalue())) as written:
-            assert written.read("user_images/1.jpg") == b"image-bytes"
+            assert written.read(f"user_images/{_USER_ID}.jpg") == b"image-bytes"
 
     def test_only_the_owner_prefix_is_listed(self) -> None:
-        """Listing by prefix is what stops user 1's export leaking user 12's photo."""
-        _, _, storage = self._export(1, ["1.jpg"])
+        """Listing by prefix is what stops one user's export leaking another user's photo."""
+        _, _, storage = self._export(_USER_ID, [f"{_USER_ID}.jpg"])
 
-        assert storage.list_keys.call_args.args[1] == "1."
+        assert storage.list_keys.call_args.args[1] == f"{_USER_ID}."
 
     def test_skips_a_missing_blob(self) -> None:
-        counts, _, _ = self._export(1, ["1.jpg"], blob=None)
+        counts, _, _ = self._export(_USER_ID, [f"{_USER_ID}.jpg"], blob=None)
 
         assert counts["user_images"] == 0
 
     def test_large_image_is_still_exported(self) -> None:
-        counts, _, _ = self._export(1, ["1.jpg"], blob=b"x" * (11 * 1024 * 1024))
+        counts, _, _ = self._export(_USER_ID, [f"{_USER_ID}.jpg"], blob=b"x" * (11 * 1024 * 1024))
 
         assert counts["user_images"] == 1
 
@@ -73,6 +76,6 @@ class TestUserImages:
         assert counts["user_images"] == 0
 
     def test_a_read_failure_skips_only_that_blob(self) -> None:
-        counts, _, _ = self._export(1, ["1.jpg"], blob=None)
+        counts, _, _ = self._export(_USER_ID, [f"{_USER_ID}.jpg"], blob=None)
 
         assert counts["user_images"] == 0

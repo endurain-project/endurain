@@ -10,6 +10,7 @@ import modules.health.health_steps.crud as health_steps_crud
 import modules.health.health_steps.models as health_steps_models
 import modules.health.health_steps.schema as health_steps_schema
 
+_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
 _ID = uuid.uuid4()
 _OTHER_ID = uuid.uuid4()
 
@@ -18,7 +19,7 @@ def _row(record_id: uuid.UUID = _ID, steps: int = 10000) -> MagicMock:
     row = MagicMock(spec=health_steps_models.HealthSteps)
     row.id = record_id
     row.version = 1
-    row.user_id = 1
+    row.user_id = _USER_ID
     row.date = datetime_date(2024, 1, 15)
     row.steps = steps
     row.source = "manual"
@@ -37,19 +38,19 @@ class TestReads:
     def test_number_counts(self, mock_db):
         mock_db.execute.return_value.scalar_one.return_value = 3
 
-        assert health_steps_crud.get_health_steps_number_by_user_id(1, mock_db) == 3
+        assert health_steps_crud.get_health_steps_number_by_user_id(_USER_ID, mock_db) == 3
 
     def test_number_with_a_lower_bound(self, mock_db):
         mock_db.execute.return_value.scalar_one.return_value = 1
 
-        health_steps_crud.get_health_steps_number_by_user_id(1, mock_db, datetime_date(2024, 1, 1))
+        health_steps_crud.get_health_steps_number_by_user_id(_USER_ID, mock_db, datetime_date(2024, 1, 1))
 
         assert "health_steps.date >=" in str(mock_db.execute.call_args.args[0])
 
     def test_list_paginates_and_bounds(self, mock_db):
         _returns_scalars(mock_db, [_row()])
 
-        result = health_steps_crud.get_health_steps_by_user_id(1, mock_db, 2, 10, datetime_date(2024, 1, 1))
+        result = health_steps_crud.get_health_steps_by_user_id(_USER_ID, mock_db, 2, 10, datetime_date(2024, 1, 1))
 
         assert len(result) == 1
         compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
@@ -59,17 +60,17 @@ class TestReads:
     def test_list_empty(self, mock_db):
         _returns_scalars(mock_db, [])
 
-        assert health_steps_crud.get_health_steps_by_user_id(1, mock_db) == []
+        assert health_steps_crud.get_health_steps_by_user_id(_USER_ID, mock_db) == []
 
     def test_by_date_found(self, mock_db):
         _returns_one(mock_db, _row())
 
-        assert health_steps_crud.get_health_steps_by_date_and_user_id(1, "2024-01-15", mock_db).steps == 10000
+        assert health_steps_crud.get_health_steps_by_date_and_user_id(_USER_ID, "2024-01-15", mock_db).steps == 10000
 
     def test_by_date_not_found(self, mock_db):
         _returns_one(mock_db, None)
 
-        assert health_steps_crud.get_health_steps_by_date_and_user_id(1, "2024-01-15", mock_db) is None
+        assert health_steps_crud.get_health_steps_by_date_and_user_id(_USER_ID, "2024-01-15", mock_db) is None
 
 
 class TestCreateHealthSteps:
@@ -77,9 +78,9 @@ class TestCreateHealthSteps:
         record = health_steps_schema.HealthStepsCreate(date=datetime_date(2024, 1, 15), steps=9000)
 
         with stub_model(health_steps_crud, _row()) as model:
-            health_steps_crud.create_health_steps(1, record, mock_db)
+            health_steps_crud.create_health_steps(_USER_ID, record, mock_db)
 
-        assert model.call_args.kwargs["user_id"] == 1
+        assert model.call_args.kwargs["user_id"] == _USER_ID
         assert model.call_args.kwargs["steps"] == 9000
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
@@ -92,7 +93,7 @@ class TestCreateHealthSteps:
             stub_model(health_steps_crud, _row()),
             pytest.raises(core_exceptions.ConflictError, match="Duplicate entry error"),
         ):
-            health_steps_crud.create_health_steps(1, record, mock_db)
+            health_steps_crud.create_health_steps(_USER_ID, record, mock_db)
 
 
 class TestEditHealthSteps:
@@ -101,7 +102,7 @@ class TestEditHealthSteps:
         _returns_one(mock_db, row)
         update = health_steps_schema.HealthStepsUpdate(date=datetime_date(2024, 1, 15), steps=12000)
 
-        health_steps_crud.edit_health_steps(1, _ID, update, mock_db, if_match="*")
+        health_steps_crud.edit_health_steps(_USER_ID, _ID, update, mock_db, if_match="*")
 
         assert row.steps == 12000
         mock_db.flush.assert_called_once()
@@ -112,7 +113,7 @@ class TestEditHealthSteps:
         update = health_steps_schema.HealthStepsUpdate(date=datetime_date(2024, 1, 15), steps=12000)
 
         with pytest.raises(core_exceptions.NotFoundError, match="Health steps not found"):
-            health_steps_crud.edit_health_steps(1, _OTHER_ID, update, mock_db, if_match="*")
+            health_steps_crud.edit_health_steps(_USER_ID, _OTHER_ID, update, mock_db, if_match="*")
 
 
 class TestDeleteHealthSteps:
@@ -120,7 +121,7 @@ class TestDeleteHealthSteps:
         row = _row()
         _returns_one(mock_db, row)
 
-        health_steps_crud.delete_health_steps(1, _ID, mock_db, if_match="*")
+        health_steps_crud.delete_health_steps(_USER_ID, _ID, mock_db, if_match="*")
 
         mock_db.delete.assert_called_once_with(row)
         mock_db.flush.assert_called_once()
@@ -130,5 +131,5 @@ class TestDeleteHealthSteps:
         _returns_one(mock_db, None)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            health_steps_crud.delete_health_steps(1, _OTHER_ID, mock_db, if_match="*")
+            health_steps_crud.delete_health_steps(_USER_ID, _OTHER_ID, mock_db, if_match="*")
         mock_db.delete.assert_not_called()

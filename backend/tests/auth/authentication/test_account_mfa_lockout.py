@@ -28,6 +28,8 @@ import modules.auth.mfa.schema as mfa_schema
 import modules.auth.schema as auth_schema
 from tests.auth.authentication.conftest import BACKUP_CODE, USER_ID, USERNAME, WEB
 
+_USER_ID_5 = uuid.UUID(int=5)
+
 IDP_ID = uuid.uuid4()
 
 _SERVICE = "modules.auth.authentication.service"
@@ -107,7 +109,7 @@ class TestHundredthWrongCode:
         assert USERNAME not in repr(rows[0])
         events = _mfa_locked_events(publish)
         assert len(events) == 1
-        assert events[0].args[1] == {"user_id": USER_ID}
+        assert events[0].args[1] == {"user_id": str(USER_ID)}
         assert _store().is_locked_out(USERNAME, _IP, user_id=USER_ID) is True
 
     def test_the_ninety_ninth_wrong_code_locks_nothing_and_tells_nobody(self, mfa_plain_signin):
@@ -316,11 +318,11 @@ class TestSsoExchange:
 
 def test_the_event_names_the_user_and_nothing_else(mock_db):
     with patch(_PUBLISH) as publish:
-        authentication_event_publishers.publish_mfa_locked(5, mock_db)
+        authentication_event_publishers.publish_mfa_locked(_USER_ID_5, mock_db)
 
     event_type, payload = publish.call_args.args
     assert event_type == authentication_events.MFA_LOCKED == "auth.mfa_locked"
-    assert payload == {"user_id": 5}
+    assert payload == {"user_id": str(_USER_ID_5)}
     assert publish.call_args.kwargs["db"] is mock_db
     assert publish.call_args.kwargs["schema_version"] == 1
 

@@ -15,6 +15,9 @@ _ID = uuid.uuid4()
 _OTHER_ID = uuid.uuid4()
 
 
+_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
+
+
 def _build_app(mock_db):
     import core.database as core_db
     import modules.auth.dependencies as auth_deps
@@ -28,7 +31,7 @@ def _build_app(mock_db):
         return None
 
     def _uid():
-        return 1
+        return _USER_ID
 
     app.dependency_overrides[auth_deps.check_scopes] = _mock
     app.dependency_overrides[auth_deps.get_current_user_id] = _uid
@@ -40,7 +43,7 @@ class TestReadHealthWaterAllPagination:
     @patch(f"{_SERVICE}.list_health_water")
     def test_list_success(self, mock_list, mock_db):
         mock_list.return_value = core_pagination.Page(
-            items=[HealthWaterRead(updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1)],
+            items=[HealthWaterRead(updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID)],
             total=1,
             page=1,
             num_records=25,
@@ -69,7 +72,7 @@ class TestReadHealthWaterAllPagination:
         )
 
         args = mock_list.call_args
-        assert args.args[0] == 1
+        assert args.args[0] == _USER_ID
         assert (args.kwargs["page_number"], args.kwargs["num_records"]) == (2, 10)
         assert args.kwargs["interval"].value == "last_30_days"
 
@@ -78,7 +81,7 @@ class TestCreateHealthWater:
     @patch(f"{_SERVICE}.create_health_water")
     def test_create(self, mock_create, mock_db):
         mock_create.return_value = HealthWaterRead(
-            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, amount_ml=500.0
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, amount_ml=500.0
         )
 
         response = TestClient(_build_app(mock_db)).post(
@@ -102,7 +105,9 @@ class TestCreateHealthWater:
 class TestEditHealthWater:
     @patch(f"{_SERVICE}.edit_health_water")
     def test_edit(self, mock_edit, mock_db):
-        mock_edit.return_value = HealthWaterRead(updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, amount_ml=900.0)
+        mock_edit.return_value = HealthWaterRead(
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, amount_ml=900.0
+        )
 
         response = TestClient(_build_app(mock_db)).patch(
             f"/health_water/{_ID}", json={"amount_ml": 900}, headers={**_HEADERS, "If-Match": '"1"'}
@@ -128,7 +133,7 @@ class TestDeleteHealthWater:
         response = TestClient(_build_app(mock_db)).delete(f"/health_water/{_ID}", headers=_IF_MATCH_HEADERS)
 
         assert response.status_code == 204
-        assert mock_delete.call_args.args[:2] == (1, _ID)
+        assert mock_delete.call_args.args[:2] == (_USER_ID, _ID)
         assert mock_delete.call_args.kwargs == {"if_match": '"1"'}
 
     @patch(f"{_SERVICE}.delete_health_water")
@@ -143,13 +148,15 @@ class TestDeleteHealthWater:
 class TestReadHealthWaterById:
     @patch(f"{_SERVICE}.get_health_water")
     def test_returns_the_record_with_its_etag(self, mock_get, mock_db):
-        mock_get.return_value = HealthWaterRead(updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, amount_ml=500.0)
+        mock_get.return_value = HealthWaterRead(
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, amount_ml=500.0
+        )
 
         response = TestClient(_build_app(mock_db)).get(f"/health_water/{_ID}", headers=_HEADERS)
 
         assert response.status_code == 200
         assert response.headers["ETag"] == '"1"'
-        assert mock_get.call_args.args[:2] == (1, _ID)
+        assert mock_get.call_args.args[:2] == (_USER_ID, _ID)
 
     @patch(f"{_SERVICE}.get_health_water")
     def test_a_record_the_user_does_not_have_is_404(self, mock_get, mock_db):
@@ -164,7 +171,7 @@ class TestCreateHealthWaterHeaders:
     @patch(f"{_SERVICE}.create_health_water")
     def test_create_names_the_record_and_its_version(self, mock_create, mock_db):
         mock_create.return_value = HealthWaterRead(
-            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, amount_ml=500.0
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, amount_ml=500.0
         )
 
         response = TestClient(_build_app(mock_db)).post(

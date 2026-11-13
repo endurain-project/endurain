@@ -19,6 +19,7 @@ import modules.auth.identity_providers.dependencies as idp_dependencies
 import modules.auth.identity_providers.schema as idp_schema
 import modules.auth.identity_providers.utils as idp_utils
 from modules.auth.identity_providers.constants import StepUpAction
+from tests._helpers.auth import MOCK_USER_ID
 
 IDP_ID = uuid.UUID(int=3)
 SESSION_ID = "11111111-2222-3333-4444-555555555555"
@@ -53,7 +54,9 @@ class TestStartService:
             ) as url,
         ):
             order.attach_mock(url, "authorization_url")
-            flow = identity_link_service.start_idp_step_up(IDP_ID, START, "1.2.3.4", 7, SESSION_ID, MagicMock(), db)
+            flow = identity_link_service.start_idp_step_up(
+                IDP_ID, START, "1.2.3.4", MOCK_USER_ID, SESSION_ID, MagicMock(), db
+            )
         return flow, stage, order, locked
 
     def test_the_state_is_committed_before_the_provider_url_is_built(self):
@@ -61,7 +64,7 @@ class TestStartService:
 
         assert [call[0] for call in order.mock_calls] == ["commit", "authorization_url"]
         assert stage.call_args.args[:7] == (
-            7,
+            MOCK_USER_ID,
             SESSION_ID,
             IDP_ID,
             StepUpAction.MFA_DISABLE,
@@ -74,7 +77,7 @@ class TestStartService:
         )
 
     def test_the_generation_is_read_before_the_lockout_check_and_is_the_one_staged(self, security_generations):
-        security_generations.generations[7] = 4
+        security_generations.generations[MOCK_USER_ID] = 4
         order = MagicMock()
         with (
             patch.object(identity_link_service.step_up_service, "require_not_locked_out") as locked,
@@ -89,7 +92,9 @@ class TestStartService:
         ):
             order.attach_mock(read, "read_generation")
             order.attach_mock(locked, "lockout_check")
-            identity_link_service.start_idp_step_up(IDP_ID, START, "1.2.3.4", 7, SESSION_ID, MagicMock(), MagicMock())
+            identity_link_service.start_idp_step_up(
+                IDP_ID, START, "1.2.3.4", MOCK_USER_ID, SESSION_ID, MagicMock(), MagicMock()
+            )
 
         assert [call[0] for call in order.mock_calls] == ["read_generation", "lockout_check"]
         assert stage.call_args.kwargs["security_generation"] == 4
@@ -106,9 +111,11 @@ class TestStartService:
                 return_value="https://idp.example.com/authorize?prompt=login",
             ),
         ):
-            identity_link_service.start_idp_step_up(IDP_ID, START, "1.2.3.4", 7, SESSION_ID, store, MagicMock())
+            identity_link_service.start_idp_step_up(
+                IDP_ID, START, "1.2.3.4", MOCK_USER_ID, SESSION_ID, store, MagicMock()
+            )
 
-        locked.assert_called_once_with(7, SESSION_ID, store)
+        locked.assert_called_once_with(MOCK_USER_ID, SESSION_ID, store)
 
     def test_an_account_with_a_password_steps_up_with_it_instead(self):
         with pytest.raises(core_exceptions.ConflictError) as refused:
@@ -127,7 +134,9 @@ class TestStartService:
             patch.object(identity_link_service.identity_providers_integration, "stage_step_up") as stage,
             pytest.raises(core_exceptions.TooManyRequestsError),
         ):
-            identity_link_service.start_idp_step_up(IDP_ID, START, "1.2.3.4", 7, SESSION_ID, MagicMock(), MagicMock())
+            identity_link_service.start_idp_step_up(
+                IDP_ID, START, "1.2.3.4", MOCK_USER_ID, SESSION_ID, MagicMock(), MagicMock()
+            )
 
         stage.assert_not_called()
 
@@ -139,7 +148,7 @@ class TestStartRoute:
         app.include_router(identity_links_router.router, prefix=core_config.ROOT_PATH + "/profile/identity-providers")
         core_exceptions.register_exception_handlers(app)
         app.dependency_overrides[core_database.get_db] = lambda: MagicMock()
-        app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: 7
+        app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: MOCK_USER_ID
         app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = lambda: SESSION_ID
         app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
         app.dependency_overrides[auth_dependencies.get_step_up_attempts] = lambda: MagicMock()
@@ -162,7 +171,7 @@ class TestStartRoute:
         assert "httponly" in cookie
         assert "samesite=lax" in cookie
         assert "path=/;" in cookie or cookie.endswith("path=/")
-        assert start.call_args.args[3:5] == (7, SESSION_ID)
+        assert start.call_args.args[3:5] == (MOCK_USER_ID, SESSION_ID)
 
     @pytest.mark.parametrize(
         "body",

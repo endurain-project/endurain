@@ -8,6 +8,7 @@ is all a worker does.
 # ruff: noqa: E402 - a process entry point: it extends sys.path before importing.
 
 import sys
+import uuid
 
 sys.path.insert(0, ".")
 
@@ -31,6 +32,6 @@ runtime.set_active_platform(platform)
 
 import modules.websocket.integration_service as websocket_integration
 
-websocket_integration.push_to_user(int(sys.argv[1]), {"message": sys.argv[2], "notification_id": 1})
+websocket_integration.push_to_user(uuid.UUID(sys.argv[1]), {"message": sys.argv[2], "notification_id": 1})
 
 lifecycle.shutdown()

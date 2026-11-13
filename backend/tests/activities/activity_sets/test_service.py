@@ -17,6 +17,8 @@ import modules.activities.activity_sets.crud as activity_sets_crud
 import modules.activities.activity_sets.schema as activity_sets_schema
 import modules.activities.activity_sets.service as service
 
+_OWNER_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
+_OTHER_ID = uuid.UUID("00000000-0000-4000-8000-000000000002")
 _ACTIVITY_ID = uuid.UUID("00000000-0000-4000-8000-000000000005")
 _ROW_ID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
 
@@ -39,10 +41,10 @@ class TestDelegation:
         mock_gate.resolve_readable_parent.return_value = None
         db = MagicMock()
 
-        page = service.list_activity_sets(_ACTIVITY_ID, 1, db)
+        page = service.list_activity_sets(_ACTIVITY_ID, _OWNER_ID, db)
 
         assert (page.items, page.total) == ([], 0)
-        mock_gate.resolve_readable_parent.assert_called_once_with(_ACTIVITY_ID, 1, db)
+        mock_gate.resolve_readable_parent.assert_called_once_with(_ACTIVITY_ID, _OWNER_ID, db)
 
     @patch("modules.activities.activity.child_collection_service.activity_child_access_service")
     def test_the_public_read_goes_through_the_public_gate(self, mock_gate):
@@ -71,7 +73,7 @@ def _set() -> activity_sets_schema.ActivitySetsRead:
 
 def _parent(**flags) -> SimpleNamespace:
     return SimpleNamespace(
-        **{"id": _ACTIVITY_ID, "user_id": 1, "hide_workout_sets_steps": False, "hide_start_time": False} | flags
+        **{"id": _ACTIVITY_ID, "user_id": _OWNER_ID, "hide_workout_sets_steps": False, "hide_start_time": False} | flags
     )
 
 
@@ -90,7 +92,7 @@ class TestViewerMask:
 
     def test_a_non_owner_does_not_read_a_hidden_start(self):
         with patch.object(service, "_COLLECTION", _reading(_set())):
-            page = service.list_for_activity(_parent(hide_start_time=True), 2, MagicMock())
+            page = service.list_for_activity(_parent(hide_start_time=True), _OTHER_ID, MagicMock())
 
         assert page.items[0].start_time is None
         untouched = set(activity_sets_schema.ActivitySetsRead.model_fields) - {"start_time"}
@@ -98,18 +100,18 @@ class TestViewerMask:
 
     def test_the_masked_page_is_a_valid_response(self):
         with patch.object(service, "_COLLECTION", _reading(_set())):
-            page = service.list_for_activity(_parent(hide_start_time=True), 2, MagicMock())
+            page = service.list_for_activity(_parent(hide_start_time=True), _OTHER_ID, MagicMock())
 
         assert activity_sets_schema.ActivitySetsPage.model_validate(page.model_dump()).items[0].start_time is None
 
     def test_a_non_owner_reads_the_start_when_it_is_shown(self):
         with patch.object(service, "_COLLECTION", _reading(_set())):
-            page = service.list_for_activity(_parent(), 2, MagicMock())
+            page = service.list_for_activity(_parent(), _OTHER_ID, MagicMock())
 
         assert page.items == [_set()]
 
     def test_the_owner_reads_a_hidden_start(self):
         with patch.object(service, "_COLLECTION", _reading(_set())):
-            page = service.list_for_activity(_parent(hide_start_time=True), 1, MagicMock())
+            page = service.list_for_activity(_parent(hide_start_time=True), _OWNER_ID, MagicMock())
 
         assert page.items == [_set()]

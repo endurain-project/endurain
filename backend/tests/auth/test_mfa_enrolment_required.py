@@ -21,6 +21,7 @@ import modules.auth.dependencies as auth_dependencies
 import modules.server_settings.contracts as server_settings_contracts
 from modules.auth.access_tokens.contracts import TokenType
 from modules.auth.contracts import AccessTokenCred, Principal
+from tests._helpers.auth import MOCK_USER_ID
 
 _MODULE = "modules.auth.authentication.principal_service"
 _ENROLMENT_REQUIRED = "urn:endurain:error:mfa-enrolment-required"
@@ -41,11 +42,11 @@ def _policy(require_mfa: _RequireMfa) -> server_settings_contracts.AccessPolicy:
 
 
 def _user(access_type: str):
-    return SimpleNamespace(id=1, username="u", email="u@example.com", active=True, access_type=access_type)
+    return SimpleNamespace(id=MOCK_USER_ID, username="u", email="u@example.com", active=True, access_type=access_type)
 
 
 def _token_manager():
-    claims = {"sub": "1", "sid": "session-1", "scope": " ".join(auth_constants.ADMIN_ACCESS_SCOPE)}
+    claims = {"sub": str(MOCK_USER_ID), "sid": "session-1", "scope": " ".join(auth_constants.ADMIN_ACCESS_SCOPE)}
     manager = MagicMock()
 
     def claim(_token, name, token_type):
@@ -58,7 +59,7 @@ def _token_manager():
 
 def _session():
     now = datetime.now(UTC)
-    return SimpleNamespace(user_id=1, last_activity_at=now, created_at=now)
+    return SimpleNamespace(user_id=MOCK_USER_ID, last_activity_at=now, created_at=now)
 
 
 def _resolve(access_type: str, require_mfa: _RequireMfa, *, enrolled: bool):
@@ -67,7 +68,8 @@ def _resolve(access_type: str, require_mfa: _RequireMfa, *, enrolled: bool):
         patch(f"{_MODULE}.sessions_integration.get_session_by_id_not_expired", return_value=_session()),
         patch(f"{_MODULE}.server_settings_integration.get_access_policy", return_value=_policy(require_mfa)),
         patch(
-            f"{_MODULE}.mfa_integration.get_mfa_enabled_for_users", return_value={1: True} if enrolled else {}
+            f"{_MODULE}.mfa_integration.get_mfa_enabled_for_users",
+            return_value={MOCK_USER_ID: True} if enrolled else {},
         ) as mfa,
     ):
         principal = principal_service.resolve_from_access_token("token", _token_manager(), MagicMock())
@@ -112,12 +114,12 @@ class TestPrincipalCarriesTheRequirement:
         _, mfa = _resolve("admin", _RequireMfa.ADMINISTRATORS, enrolled=False)
 
         mfa.assert_called_once()
-        assert mfa.call_args.args[0] == [1]
+        assert mfa.call_args.args[0] == [MOCK_USER_ID]
 
 
 def _principal(*, enrolment_required: bool) -> Principal:
     return Principal(
-        user_id=1,
+        user_id=MOCK_USER_ID,
         username="u",
         email="u@example.com",
         is_active=True,
@@ -219,7 +221,7 @@ class TestTheRefusalIsAudited:
 
     def test_another_session_is_audited_on_its_own(self, client):
         other = Principal(
-            user_id=1,
+            user_id=MOCK_USER_ID,
             username="u",
             email="u@example.com",
             is_active=True,

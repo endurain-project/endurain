@@ -21,6 +21,7 @@ import modules.auth.mfa.dependencies as auth_mfa_dependencies
 import modules.auth.security_generation.integration_service as security_generation_integration
 import modules.server_settings.contracts as server_settings_contracts
 import modules.users.users.schema as user_schema
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 from tests._helpers.security_generation import FakeSecurityGenerations
 
 # Variables and constants
@@ -152,7 +153,7 @@ def sample_user_read() -> user_schema.UserRead:
         user_schema.UserRead: A sample user object with predefined attributes.
     """
     return user_schema.UserRead(
-        id=1,
+        id=MOCK_USER_ID,
         name="Test User",
         username="testuser",
         email="test@example.com",
@@ -170,7 +171,7 @@ def sample_inactive_user():
         user_schema.UserRead: An instance representing an inactive user with predefined attributes.
     """
     return user_schema.UserRead(
-        id=2,
+        id=OTHER_USER_ID,
         name="Inactive User",
         username="inactive",
         email="inactive@example.com",
@@ -396,7 +397,7 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
     # Create mock values for security dependencies
     app.state.mock_access_token = "mock_access_token"
     app.state.mock_refresh_token = "mock_refresh_token"
-    app.state.mock_user_id = 1
+    app.state.mock_user_id = MOCK_USER_ID
     app.state.mock_session_id = "mock_session_id"
 
     # Security dependency overrides for testing authenticated endpoints

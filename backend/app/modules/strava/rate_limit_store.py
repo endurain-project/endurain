@@ -1,5 +1,6 @@
 """Strava API shared state: the rate-limit flags and the token-refresh claim."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import jasil.providers as platform_providers
@@ -107,7 +108,7 @@ class StravaRateLimitStore:
         ]
         return max(expiries) if expiries else None
 
-    def claim_token_refresh(self, user_id: int) -> bool:
+    def claim_token_refresh(self, user_id: uuid.UUID) -> bool:
         """Claim the right to refresh a user's Strava token.
 
         Fails open when the shared state is unreachable: a refresh that races is
@@ -128,7 +129,7 @@ class StravaRateLimitStore:
             logger.warning("Could not claim the Strava token refresh; refreshing anyway", exc_info=err)
             return True
 
-    def release_token_refresh(self, user_id: int) -> None:
+    def release_token_refresh(self, user_id: uuid.UUID) -> None:
         """Release the claim on refreshing a user's Strava token once the refresh is over.
 
         Without it a second refresh, such as one that confirms a 401, would wait for the claim to expire.

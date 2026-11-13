@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 import gpxpy
 import pytest
 from geopy.distance import geodesic
+from tests._helpers.auth import MOCK_USER_ID
 
 import core.exceptions as core_exceptions
 import modules.activities.activity_file_import.gpx_parser as gpx_parser
@@ -65,7 +66,7 @@ class TestAutoLapDistance:
 
     def test_metric_laps_close_every_km(self, tmp_path, monkeypatch):
         _patch_parser_side_effects(monkeypatch)
-        result = gpx_parser.parse_gpx_file(_six_km_track(tmp_path), user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(_six_km_track(tmp_path), user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         full = [lap for lap in result["laps"] if lap["total_distance"] >= 990]
         assert len(full) == 6
@@ -73,7 +74,7 @@ class TestAutoLapDistance:
     def test_imperial_laps_close_every_mile(self, tmp_path, monkeypatch):
         _patch_parser_side_effects(monkeypatch)
         result = gpx_parser.parse_gpx_file(
-            _six_km_track(tmp_path), user_id=1, default_timezone=_SERVER_TZ, distance_per_lap_km=1.609344
+            _six_km_track(tmp_path), user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ, distance_per_lap_km=1.609344
         )
 
         distances = [lap["total_distance"] for lap in result["laps"]]
@@ -122,7 +123,7 @@ class TestParseGpxFile:
             """.strip(),
         )
 
-        result = gpx_parser.parse_gpx_file(gpx_path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(gpx_path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         expected_distance = (
             geodesic(
@@ -181,7 +182,7 @@ class TestParseGpxFile:
             """.strip(),
         )
 
-        result = gpx_parser.parse_gpx_file(gpx_path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(gpx_path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         expected_distance = (
             geodesic((0.0, 0.0), (0.0, 0.001)).meters
@@ -230,7 +231,7 @@ class TestParseGpxFile:
             """.strip(),
         )
 
-        result = gpx_parser.parse_gpx_file(gpx_path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(gpx_path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         expected_distance = geodesic((0.0, 0.0), (0.0, 0.001)).meters + geodesic((0.0, 0.010), (0.0, 0.011)).meters
 
@@ -264,7 +265,7 @@ class TestParseGpxFile:
             f"<trkseg>{points}</trkseg></trk></gpx>",
         )
 
-        result = gpx_parser.parse_gpx_file(gpx_path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(gpx_path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         expected_distance = 4 * geodesic((0.0, 0.0), (0.0, 0.001)).meters
 
@@ -311,7 +312,7 @@ class TestParseGpxFile:
             """.strip(),
         )
 
-        result = gpx_parser.parse_gpx_file(gpx_path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(gpx_path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         activity = result["activity"]
         assert activity.total_elapsed_time == 620
@@ -349,7 +350,7 @@ class TestParseGpxFile:
             """.strip(),
         )
 
-        result = gpx_parser.parse_gpx_file(gpx_path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(gpx_path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         expected_distance = geodesic((0.0, 0.0), (0.0, 0.001)).meters + geodesic((0.0, 0.001), (0.0, 0.002)).meters
 
@@ -386,7 +387,7 @@ class TestParseGpxFile:
             """.strip(),
         )
 
-        result = gpx_parser.parse_gpx_file(gpx_path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(gpx_path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         activity = result["activity"]
         assert activity.total_elapsed_time == 100
@@ -426,7 +427,7 @@ class TestParseGpxFile:
             """.strip(),
         )
 
-        result = gpx_parser.parse_gpx_file(gpx_path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(gpx_path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         activity = result["activity"]
         assert activity.total_elapsed_time == 10
@@ -459,7 +460,7 @@ class TestParseGpxFile:
             """.strip(),
         )
 
-        result = gpx_parser.parse_gpx_file(gpx_path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(gpx_path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert result["activity"].total_timer_time == 15
 
@@ -490,7 +491,7 @@ class TestParseGpxFile:
             """.strip(),
         )
 
-        result = gpx_parser.parse_gpx_file(gpx_path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(gpx_path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         # 08:19:19-07:00 == 15:19:19 UTC; the offset must be converted (not
         # silently dropped) and ActivityCore stores it as an aware-UTC datetime.
@@ -525,7 +526,7 @@ class TestParseGpxFile:
         )
 
         with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
-            gpx_parser.parse_gpx_file(gpx_path, user_id=1, default_timezone=_SERVER_TZ)
+            gpx_parser.parse_gpx_file(gpx_path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert exc_info.value.status_code == 400
         assert "no valid segments" in exc_info.value.detail
@@ -568,7 +569,7 @@ class TestParseGpxFile:
             """.strip(),
         )
 
-        result = gpx_parser.parse_gpx_file(gpx_path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(gpx_path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert result["ele_waypoints"] == [
             {
@@ -615,7 +616,7 @@ class TestParseGpxFile:
             """.strip(),
         )
 
-        result = gpx_parser.parse_gpx_file(gpx_path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(gpx_path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert result["activity"].calories == 123
 
@@ -647,7 +648,7 @@ class TestParseGpxFile:
             """.strip(),
         )
 
-        result = gpx_parser.parse_gpx_file(gpx_path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(gpx_path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert result["is_heart_rate_set"] is False
         assert result["hr_waypoints"] == []
@@ -690,7 +691,7 @@ class TestParseGpxFile:
             """.strip(),
         )
 
-        result = gpx_parser.parse_gpx_file(gpx_path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(gpx_path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert result["is_heart_rate_set"] is True
         assert len(result["hr_waypoints"]) == 2
@@ -734,7 +735,7 @@ class TestParseGpxFile:
             """.strip(),
         )
 
-        result = gpx_parser.parse_gpx_file(gpx_path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(gpx_path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert result["is_cadence_set"] is True
         assert [wp["cad"] for wp in result["cad_waypoints"]] == [80, 90]
@@ -775,7 +776,7 @@ class TestParseGpxFile:
             """.strip(),
         )
 
-        result = gpx_parser.parse_gpx_file(gpx_path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(gpx_path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert result["activity"].activity_type == "run"
         assert [wp["cad"] for wp in result["cad_waypoints"]] == [170, 190]
@@ -816,7 +817,7 @@ class TestParseGpxFile:
             """.strip(),
         )
 
-        result = gpx_parser.parse_gpx_file(gpx_path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(gpx_path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert result["is_heart_rate_set"] is False
         assert result["activity"].average_hr is None
@@ -853,7 +854,7 @@ class TestParseGpxFile:
             """.strip(),
         )
 
-        result = gpx_parser.parse_gpx_file(gpx_path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(gpx_path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert result["activity"].elevation_gain == 0
         assert result["activity"].elevation_loss == 0
@@ -875,7 +876,7 @@ class TestParseGpxFile:
         )
 
         gpx_parser._compute_derived_metrics(state)
-        activity = gpx_parser._build_activity_schema(state, user_id=1)
+        activity = gpx_parser._build_activity_schema(state, user_id=MOCK_USER_ID)
 
         assert activity.elevation_gain is None
         assert activity.elevation_loss is None
@@ -923,7 +924,7 @@ class TestParseGpxFile:
             """.strip(),
         )
 
-        result = gpx_parser.parse_gpx_file(gpx_path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(gpx_path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert len(received_streams) == 3
         assert all(stream is received_streams[0] for stream in received_streams)
@@ -955,7 +956,7 @@ class TestParseGpxMaxSpeed:
         _patch_parser_side_effects(monkeypatch)
         path = _write_gpx(tmp_path, _steady_run_gpx(30, {15: 0.00045}))  # one fix ~50 m ahead
 
-        result = gpx_parser.parse_gpx_file(path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert max(w["vel"] for w in result["vel_waypoints"]) > 40
         assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
@@ -964,7 +965,7 @@ class TestParseGpxMaxSpeed:
         _patch_parser_side_effects(monkeypatch)
         path = _write_gpx(tmp_path, _steady_run_gpx(30, {15: 0.00045, 16: 0.00045}))
 
-        result = gpx_parser.parse_gpx_file(path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
 
@@ -985,7 +986,7 @@ class TestParseGpxMaxSpeed:
             f'<gpx version="1.1" creator="pytest"><trk><type>Run</type><trkseg>{points}</trkseg></trk></gpx>',
         )
 
-        result = gpx_parser.parse_gpx_file(path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert result["activity"].max_speed == pytest.approx(9, abs=1)
 
@@ -993,7 +994,7 @@ class TestParseGpxMaxSpeed:
         _patch_parser_side_effects(monkeypatch)
         path = _write_gpx(tmp_path, _steady_run_gpx(4, {2: 0.00045}))
 
-        result = gpx_parser.parse_gpx_file(path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert result["activity"].max_speed == max(w["vel"] for w in result["vel_waypoints"])
         assert result["activity"].max_speed > 40
@@ -1159,7 +1160,7 @@ class TestParseGpxMaxSpeedSegmentPlaceholders:
         _patch_parser_side_effects(monkeypatch)
         path = _write_gpx(tmp_path, self._short_segments())
 
-        result = gpx_parser.parse_gpx_file(path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
 
@@ -1167,7 +1168,7 @@ class TestParseGpxMaxSpeedSegmentPlaceholders:
         _patch_parser_side_effects(monkeypatch)
         path = _write_gpx(tmp_path, self._short_segments())
 
-        result = gpx_parser.parse_gpx_file(path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         vels = [w["vel"] for w in result["vel_waypoints"]]
         assert len(vels) == 15
@@ -1179,7 +1180,7 @@ class TestParseGpxMaxSpeedSegmentPlaceholders:
         _patch_parser_side_effects(monkeypatch)
         path = _write_gpx(tmp_path, self._short_segments())
 
-        result = gpx_parser.parse_gpx_file(path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert len(result["laps"]) == 5
         assert all(lap["enhanced_max_speed"] == pytest.approx(3, abs=0.5) for lap in result["laps"])
@@ -1196,7 +1197,7 @@ class TestParseGpxMaxSpeedSegmentPlaceholders:
             ),
         )
 
-        result = gpx_parser.parse_gpx_file(path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert result["activity"].max_speed == 0
 
@@ -1213,7 +1214,7 @@ class TestParseGpxMaxSpeedSegmentPlaceholders:
             ),
         )
 
-        result = gpx_parser.parse_gpx_file(path, user_id=1, default_timezone=_SERVER_TZ)
+        result = gpx_parser.parse_gpx_file(path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
 
@@ -1245,18 +1246,18 @@ class TestMalformedGpxFile:
         path.write_text("<gpx><trk>")
 
         with pytest.raises(core_exceptions.InvalidInputError):
-            gpx_parser.parse_gpx_file(str(path), user_id=1, default_timezone=_SERVER_TZ)
+            gpx_parser.parse_gpx_file(str(path), user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
     def test_bytes_that_are_not_text_are_rejected_as_invalid_input(self, tmp_path):
         path = tmp_path / "bad.gpx"
         path.write_bytes(b"\xff\xfe\x00not xml")
 
         with pytest.raises(core_exceptions.InvalidInputError):
-            gpx_parser.parse_gpx_file(str(path), user_id=1, default_timezone=_SERVER_TZ)
+            gpx_parser.parse_gpx_file(str(path), user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
     def test_a_file_that_cannot_be_opened_stays_a_processing_error(self, tmp_path):
         with pytest.raises(core_exceptions.ProcessingError):
-            gpx_parser.parse_gpx_file(str(tmp_path / "missing.gpx"), user_id=1, default_timezone=_SERVER_TZ)
+            gpx_parser.parse_gpx_file(str(tmp_path / "missing.gpx"), user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
     @pytest.mark.parametrize(
         ("first_extension", "second_time"),
@@ -1285,4 +1286,4 @@ class TestMalformedGpxFile:
         )
 
         with pytest.raises(core_exceptions.InvalidInputError, match="Can't parse GPX file"):
-            gpx_parser.parse_gpx_file(path, user_id=1, default_timezone=_SERVER_TZ)
+            gpx_parser.parse_gpx_file(path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)

@@ -3,6 +3,7 @@
 ``crud`` calls these at its edges so ORM rows never leave the persistence layer.
 """
 
+import uuid
 from decimal import Decimal
 
 import core.stored_enum as core_stored_enum
@@ -47,7 +48,7 @@ def _normalize_payload(data: dict[str, object]) -> dict[str, object]:
     return data
 
 
-def to_orm(gear: gears_schema.GearCreateRequest | gears_schema.GearCreate, user_id: int) -> gears_models.Gear:
+def to_orm(gear: gears_schema.GearCreateRequest | gears_schema.GearCreate, user_id: uuid.UUID) -> gears_models.Gear:
     """Build an unsaved ORM row from a create payload.
 
     Args:

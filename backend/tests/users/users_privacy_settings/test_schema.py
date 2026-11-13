@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 import modules.activities.activity.constants as activity_constants
 import modules.users.users_privacy_settings.schema as user_privacy_settings_schema
+from tests._helpers.auth import MOCK_USER_ID
 
 
 class TestActivityVisibilityEnum:
@@ -204,7 +205,7 @@ class TestUsersPrivacySettingsReadSchema:
         record_id = uuid.uuid4()
         settings = user_privacy_settings_schema.UserPrivacySettingsRead(
             id=record_id,
-            user_id=1,
+            user_id=MOCK_USER_ID,
             default_activity_visibility=activity_constants.ActivityVisibility.PUBLIC,
             hide_activity_start_time=False,
             hide_activity_location=False,
@@ -222,7 +223,7 @@ class TestUsersPrivacySettingsReadSchema:
 
         # Assert
         assert settings.id == record_id
-        assert settings.user_id == 1
+        assert settings.user_id == MOCK_USER_ID
         assert settings.default_activity_visibility == activity_constants.ActivityVisibility.PUBLIC.value
 
     def test_read_schema_requires_id(self):
@@ -231,7 +232,7 @@ class TestUsersPrivacySettingsReadSchema:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            user_privacy_settings_schema.UserPrivacySettingsRead(user_id=1)
+            user_privacy_settings_schema.UserPrivacySettingsRead(user_id=MOCK_USER_ID)
 
         assert "id" in str(exc_info.value)
 
@@ -257,7 +258,7 @@ class TestUsersPrivacySettingsReadSchema:
             """Mock ORM model for testing."""
 
             id = record_id
-            user_id = 1
+            user_id = MOCK_USER_ID
             default_activity_visibility = "private"
             hide_activity_start_time = True
             hide_activity_location = True
@@ -277,7 +278,7 @@ class TestUsersPrivacySettingsReadSchema:
 
         # Assert
         assert settings.id == record_id
-        assert settings.user_id == 1
+        assert settings.user_id == MOCK_USER_ID
         assert settings.default_activity_visibility == activity_constants.ActivityVisibility.PRIVATE.value
         assert settings.hide_activity_start_time is True
 

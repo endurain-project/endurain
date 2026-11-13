@@ -1,10 +1,13 @@
 """The per-type stats sums run against real PostgreSQL, including its ``timezone()`` date filter."""
 
+import uuid
 from datetime import UTC, datetime
 
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.crud as activity_crud
 from tests._helpers.db import ensure_user
+
+_USER_1 = uuid.UUID(int=1)
 
 _PRIVACY_FLAGS = (
     "hide_start_time",
@@ -25,9 +28,9 @@ _WINDOW = (datetime(2026, 7, 27, tzinfo=UTC), datetime(2026, 8, 2, tzinfo=UTC))
 
 
 def _add(factory, **overrides):
-    ensure_user(factory, overrides.get("user_id", 1))
+    ensure_user(factory, overrides.get("user_id", _USER_1))
     data = {
-        "user_id": 1,
+        "user_id": _USER_1,
         "name": "Activity",
         "distance": 1000,
         "activity_type": 1,
@@ -48,7 +51,7 @@ def _add(factory, **overrides):
 
 def _sum(factory, **kwargs):
     with factory() as db:
-        totals = activity_crud.sum_user_activities_per_timeframe_by_type(1, *_WINDOW, db, **kwargs)
+        totals = activity_crud.sum_user_activities_per_timeframe_by_type(_USER_1, *_WINDOW, db, **kwargs)
     return {total.activity_type: total for total in totals}
 
 
@@ -85,10 +88,10 @@ def test_a_stranger_counts_only_public_activities(pg_factory):
 
     assert _sum(pg_factory, user_is_owner=True)[1].distance == 7000.0
     assert _sum(pg_factory, user_is_owner=False, followee_ids=[])[1].distance == 1000.0
-    assert _sum(pg_factory, user_is_owner=False, followee_ids=[1])[1].distance == 3000.0
+    assert _sum(pg_factory, user_is_owner=False, followee_ids=[_USER_1])[1].distance == 3000.0
 
 
 def test_no_activities_give_no_rows(pg_factory):
-    ensure_user(pg_factory, 1)
+    ensure_user(pg_factory, _USER_1)
 
     assert _sum(pg_factory, user_is_owner=True) == {}

@@ -34,7 +34,7 @@ def start_idp_link(
     idp_id: uuid.UUID,
     link: users_schema.IdentityProviderLinkStart,
     client_ip: str,
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     session_id: str,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
@@ -116,7 +116,7 @@ def start_idp_step_up(
     idp_id: uuid.UUID,
     start: identity_providers_schema.StepUpStartRequest,
     client_ip: str,
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     session_id: str,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
@@ -171,7 +171,7 @@ def start_idp_step_up(
     )
 
 
-def _stage_unlink(user_id: int, idp_id: uuid.UUID, db: Session) -> None:
+def _stage_unlink(user_id: uuid.UUID, idp_id: uuid.UUID, db: Session) -> None:
     """Stage the audit rows and the event of an identity provider unlinked from an account.
 
     Every session the user signed in to through the provider ends with the link, which is audited as a
@@ -208,7 +208,7 @@ def _stage_unlink(user_id: int, idp_id: uuid.UUID, db: Session) -> None:
 def delete_identity_provider_link(
     idp_id: uuid.UUID,
     step_up: auth_schema.StepUpVerification,
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     session_id: str,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
@@ -271,7 +271,7 @@ def delete_identity_provider_link(
 
 
 def admin_delete_identity_provider_link(
-    user_id: int,
+    user_id: uuid.UUID,
     idp_id: uuid.UUID,
     db: Session,
 ) -> None:
@@ -333,7 +333,7 @@ def admin_delete_identity_provider_link(
 
 
 def get_user_identity_provider_links(
-    user_id: int,
+    user_id: uuid.UUID,
     page: core_pagination.PageParams,
     db: Session,
 ) -> auth_identity_links_schema.IdentityProviderLinkPage:
@@ -351,9 +351,9 @@ def get_user_identity_provider_links(
 
 
 def get_identity_link_counts_for_users(
-    user_ids: list[int],
+    user_ids: list[uuid.UUID],
     db: Session,
-) -> dict[int, int]:
+) -> dict[uuid.UUID, int]:
     """Return identity link count per user ID in a single grouped query.
 
     Args:

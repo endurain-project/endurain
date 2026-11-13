@@ -13,6 +13,7 @@ import core.hashing as core_hashing
 import modules.auth.identity_providers.callback_service as callback_service
 import modules.auth.identity_providers.user_provisioning_service as user_provisioning_service
 import modules.auth.oauth_state.constants as oauth_state_constants
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
 IDP_ID = uuid.uuid4()
 OTHER_IDP_ID = uuid.uuid4()
@@ -29,7 +30,7 @@ _STATE_MESSAGE = "Invalid or expired OAuth state"
 def alive_session():
     """The session that started a link or step-up is alive and the user's."""
     with patch.object(
-        callback_service.sessions_integration, "lock_live_session", return_value=SimpleNamespace(user_id=7)
+        callback_service.sessions_integration, "lock_live_session", return_value=SimpleNamespace(user_id=MOCK_USER_ID)
     ):
         yield
 
@@ -88,7 +89,7 @@ def _assert_no_actor(entry):
     assert entry.credential_type is None
 
 
-def _assert_link_row(audit, *, outcome, reason, user_id=7):
+def _assert_link_row(audit, *, outcome, reason, user_id=MOCK_USER_ID):
     entry = audit.assert_audited(
         _LINK, outcome=outcome, target_type="user", target_id=str(user_id), target_owner_id=str(user_id)
     )
@@ -96,7 +97,7 @@ def _assert_link_row(audit, *, outcome, reason, user_id=7):
     return entry
 
 
-def _assert_step_up_row(audit, *, outcome, reason, user_id=7):
+def _assert_step_up_row(audit, *, outcome, reason, user_id=MOCK_USER_ID):
     entry = audit.assert_audited(
         _STEP_UP, outcome=outcome, target_type="user", target_id=str(user_id), target_owner_id=str(user_id)
     )
@@ -133,7 +134,9 @@ class TestStateRefusals:
 
     def test_a_refused_link_state_is_a_link_refusal_not_a_sign_in(self, service):
         audit = self._prepare(
-            service, idp=_idp(id=IDP_ID), oauth_state=_state(idp_id=OTHER_IDP_ID, purpose=_PURPOSE.LINK, user_id=7)
+            service,
+            idp=_idp(id=IDP_ID),
+            oauth_state=_state(idp_id=OTHER_IDP_ID, purpose=_PURPOSE.LINK, user_id=MOCK_USER_ID),
         )
 
         audit.assert_not_audited(_LOGIN)
@@ -141,7 +144,9 @@ class TestStateRefusals:
         _assert_no_actor(entry)
 
     def test_a_replayed_link_state_names_the_user_without_acting_as_them(self, service):
-        oauth_state = _state(purpose=_PURPOSE.LINK, user_id=7, browser_binding_hash=core_hashing.sha256_hex("binding"))
+        oauth_state = _state(
+            purpose=_PURPOSE.LINK, user_id=MOCK_USER_ID, browser_binding_hash=core_hashing.sha256_hex("binding")
+        )
         with (
             patch.object(callback_service.idp_crud, "get_identity_provider_by_slug", return_value=_idp()),
             patch.object(service, "get_unused_oauth_state", return_value=oauth_state),
@@ -155,7 +160,9 @@ class TestStateRefusals:
 
     def test_a_refused_step_up_state_is_audited_as_a_step_up(self, service):
         audit = self._prepare(
-            service, idp=_idp(id=IDP_ID), oauth_state=_state(idp_id=OTHER_IDP_ID, purpose=_PURPOSE.STEP_UP, user_id=7)
+            service,
+            idp=_idp(id=IDP_ID),
+            oauth_state=_state(idp_id=OTHER_IDP_ID, purpose=_PURPOSE.STEP_UP, user_id=MOCK_USER_ID),
         )
 
         audit.assert_not_audited(_LOGIN)
@@ -167,7 +174,9 @@ class TestStateRefusals:
     def test_a_callback_from_another_browser_is_denied_without_naming_the_user_as_actor(
         self, service, purpose, browser_binding
     ):
-        oauth_state = _state(purpose=purpose, user_id=7, browser_binding_hash=core_hashing.sha256_hex("binding"))
+        oauth_state = _state(
+            purpose=purpose, user_id=MOCK_USER_ID, browser_binding_hash=core_hashing.sha256_hex("binding")
+        )
         with (
             patch.object(callback_service.idp_crud, "get_identity_provider_by_slug", return_value=_idp()),
             patch.object(service, "get_unused_oauth_state", return_value=oauth_state),
@@ -264,14 +273,14 @@ class TestCompleteLoginRefusals:
         _assert_refusal(audit, outcome="denied", reason="provisioning_refused")
 
     def test_an_inactive_user_is_audited_with_the_account(self, service):
-        user = SimpleNamespace(id=9, username="bob", active=False)
+        user = SimpleNamespace(id=OTHER_USER_ID, username="bob", active=False)
 
         url, audit = self._complete(
             service, user=user, session_error=core_exceptions.PermissionDeniedError("Inactive user")
         )
 
         assert url == f"{_HOST}/login?error=sso_failed"
-        _assert_refusal(audit, outcome="denied", reason="inactive", user_id=9)
+        _assert_refusal(audit, outcome="denied", reason="inactive", user_id=OTHER_USER_ID)
 
     def test_a_refused_link_is_not_a_login_refusal(self, service):
         error = core_exceptions.NotFoundError("User not found")
@@ -284,7 +293,7 @@ class TestCompleteLoginRefusals:
                 "code",
                 None,
                 "state",
-                _state(purpose=_PURPOSE.LINK, user_id=7),
+                _state(purpose=_PURPOSE.LINK, user_id=MOCK_USER_ID),
                 "ip",
                 "agent",
                 MagicMock(),
@@ -362,7 +371,7 @@ class TestCompleteLinkRefusals:
             patch.object(
                 callback_service.users_integration,
                 "get_user",
-                return_value=SimpleNamespace(id=7, username="alice", active=True) if user else None,
+                return_value=SimpleNamespace(id=MOCK_USER_ID, username="alice", active=True) if user else None,
             ),
             patch.object(
                 callback_service.identity_provider_links_integration,
@@ -376,7 +385,7 @@ class TestCompleteLinkRefusals:
                 code,
                 None if code else "access_denied",
                 "state",
-                _state(purpose=_PURPOSE.LINK, user_id=7, redirect_path="/settings"),
+                _state(purpose=_PURPOSE.LINK, user_id=MOCK_USER_ID, redirect_path="/settings"),
                 "ip",
                 "agent",
                 MagicMock(),
@@ -388,20 +397,20 @@ class TestCompleteLinkRefusals:
         _, audit = self._complete(service, code=None)
 
         entry = _assert_link_row(audit, outcome="failure", reason="provider_error")
-        assert (entry.actor_type, entry.actor_id, entry.credential_type) == ("user", "7", "oauth")
+        assert (entry.actor_type, entry.actor_id, entry.credential_type) == ("user", str(MOCK_USER_ID), "oauth")
         audit.assert_not_audited(_LOGIN)
 
     def test_a_failed_token_exchange_is_audited(self, service):
         _, audit = self._complete(service, fetch_error=core_exceptions.UpstreamError("down"))
 
         entry = _assert_link_row(audit, outcome="failure", reason="token_exchange_failed")
-        assert (entry.actor_type, entry.actor_id, entry.credential_type) == ("user", "7", "oauth")
+        assert (entry.actor_type, entry.actor_id, entry.credential_type) == ("user", str(MOCK_USER_ID), "oauth")
 
     def test_a_provider_that_names_no_subject_is_audited(self, service):
         _, audit = self._complete(service, userinfo={})
 
         entry = _assert_link_row(audit, outcome="failure", reason="no_subject")
-        assert entry.actor_id == "7"
+        assert entry.actor_id == str(MOCK_USER_ID)
 
     def test_a_user_that_no_longer_exists_is_audited_without_an_actor(self, service):
         _, audit = self._complete(service, user=None)
@@ -410,20 +419,22 @@ class TestCompleteLinkRefusals:
         _assert_no_actor(entry)
 
     def test_an_identity_already_linked_to_this_account_is_denied(self, service):
-        _, audit = self._complete(service, existing_link=SimpleNamespace(user_id=7))
+        _, audit = self._complete(service, existing_link=SimpleNamespace(user_id=MOCK_USER_ID))
 
         entry = _assert_link_row(audit, outcome="denied", reason="already_linked_to_this_account")
-        assert (entry.actor_type, entry.actor_id) == ("user", "7")
+        assert (entry.actor_type, entry.actor_id) == ("user", str(MOCK_USER_ID))
 
     def test_an_identity_linked_to_another_account_is_denied_with_the_actor(self, service):
-        _, audit = self._complete(service, existing_link=SimpleNamespace(user_id=99))
+        _, audit = self._complete(service, existing_link=SimpleNamespace(user_id=OTHER_USER_ID))
 
         entry = _assert_link_row(audit, outcome="denied", reason="linked_to_another_account")
-        assert (entry.actor_type, entry.actor_id, entry.credential_type) == ("user", "7", "oauth")
+        assert (entry.actor_type, entry.actor_id, entry.credential_type) == ("user", str(MOCK_USER_ID), "oauth")
 
 
 class TestCompleteStepUpRefusals:
-    def _complete(self, service, *, claims=None, link_user_id=7, verify_error=None, issue_error=None, code="code"):
+    def _complete(
+        self, service, *, claims=None, link_user_id=MOCK_USER_ID, verify_error=None, issue_error=None, code="code"
+    ):
         claims = {"sub": "s", "auth_time": int(datetime.now(UTC).timestamp())} if claims is None else claims
         service._oidc.get_oidc_configuration.return_value = {"jwks_uri": "https://x/jwks", "issuer": "https://x"}
         oauth_client = service._oidc.create_oauth_client.return_value.__enter__.return_value
@@ -432,7 +443,7 @@ class TestCompleteStepUpRefusals:
         started = datetime.now(UTC)
         oauth_state = _state(
             purpose=_PURPOSE.STEP_UP,
-            user_id=7,
+            user_id=MOCK_USER_ID,
             session_id="sid",
             action="account_delete",
             code_challenge="c" * 43,
@@ -452,7 +463,9 @@ class TestCompleteStepUpRefusals:
                 return_value=link,
             ),
             patch.object(
-                callback_service.users_integration, "get_user", return_value=SimpleNamespace(id=7, active=True)
+                callback_service.users_integration,
+                "get_user",
+                return_value=SimpleNamespace(id=MOCK_USER_ID, active=True),
             ),
             jasil_testing.capture_audit() as audit,
         ):
@@ -471,7 +484,7 @@ class TestCompleteStepUpRefusals:
 
     def _assert(self, audit, *, outcome, reason):
         entry = _assert_step_up_row(audit, outcome=outcome, reason=reason)
-        assert (entry.actor_type, entry.actor_id, entry.credential_type) == ("user", "7", "oauth")
+        assert (entry.actor_type, entry.actor_id, entry.credential_type) == ("user", str(MOCK_USER_ID), "oauth")
 
     @pytest.mark.parametrize("link_user_id", [None, 8], ids=["not-linked", "linked-to-someone-else"])
     def test_an_account_not_linked_to_the_user_is_denied(self, service, link_user_id):
@@ -511,8 +524,8 @@ class TestLinkSuccessActor:
         oauth_client = MagicMock()
         oauth_client.fetch_token.return_value = {"access_token": "at"}
         idp = _idp(sync_user_info=False, sync_email=False)
-        oauth_state = _state(purpose=_PURPOSE.LINK, user_id=7, session_id="sid", ends_other_sessions=True)
-        user = SimpleNamespace(id=7, username="alice", active=True)
+        oauth_state = _state(purpose=_PURPOSE.LINK, user_id=MOCK_USER_ID, session_id="sid", ends_other_sessions=True)
+        user = SimpleNamespace(id=MOCK_USER_ID, username="alice", active=True)
         with (
             patch.object(service._oidc, "decrypt_client_id", return_value="cid"),
             patch.object(service._oidc, "decrypt_client_secret", return_value="secret"),
@@ -535,4 +548,4 @@ class TestLinkSuccessActor:
 
         for action_id in (_LINK, "auth.session.revoke"):
             entry = audit.matching(action_id)[0]
-            assert (entry.actor_type, entry.actor_id, entry.credential_type) == ("user", "7", "oauth")
+            assert (entry.actor_type, entry.actor_id, entry.credential_type) == ("user", str(MOCK_USER_ID), "oauth")

@@ -55,7 +55,7 @@ if TYPE_CHECKING:
     import modules.auth.account_security.step_up_store as account_security_step_up_store
 
 
-def _stage_sessions_revoked(user_id: int, revoked: int, db: Session) -> None:
+def _stage_sessions_revoked(user_id: uuid.UUID, revoked: int, db: Session) -> None:
     """Stage the audit row of several sessions a user lost at once.
 
     Args:
@@ -74,7 +74,7 @@ def _stage_sessions_revoked(user_id: int, revoked: int, db: Session) -> None:
 
 
 def list_user_sessions(
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     page: core_pagination.PageParams,
     db: Session,
 ) -> auth_sessions_schema.UserSessionsPage:
@@ -84,7 +84,7 @@ def list_user_sessions(
 
 def delete_user_session(
     session_id: str,
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     db: Session,
 ) -> None:
     """Delete one authenticated user's session."""
@@ -105,7 +105,7 @@ def delete_user_session(
     )
 
 
-def delete_all_user_sessions(user_id: int, db: Session) -> int:
+def delete_all_user_sessions(user_id: uuid.UUID, db: Session) -> int:
     """Stage the revocation of every session belonging to a user; the caller commits."""
     revoked = sessions_integration.delete_sessions_by_user(user_id, db)
     _stage_sessions_revoked(user_id, revoked, db)
@@ -113,7 +113,7 @@ def delete_all_user_sessions(user_id: int, db: Session) -> int:
     return revoked
 
 
-def sign_out_everywhere(token_user_id: int, db: Session) -> int:
+def sign_out_everywhere(token_user_id: uuid.UUID, db: Session) -> int:
     """Revoke every session of the user, the caller's current one included, and commit.
 
     Args:
@@ -135,7 +135,7 @@ def sign_out_everywhere(token_user_id: int, db: Session) -> int:
 
 
 def stage_delete_other_user_sessions(
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     current_session_id: str,
     db: Session,
 ) -> int:
@@ -164,7 +164,7 @@ def stage_delete_other_user_sessions(
 
 
 def delete_other_user_sessions(
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     current_session_id: str,
     db: Session,
 ) -> int:
@@ -188,7 +188,7 @@ def delete_other_user_sessions(
 
 
 def stage_account_change_notice(
-    user_id: int,
+    user_id: uuid.UUID,
     change: account_security_events.AccountSecurityChange,
     db: Session,
     *,
@@ -207,7 +207,7 @@ def stage_account_change_notice(
     account_security_event_publishers.publish_account_security_changed(user_id, change, db, access_type=access_type)
 
 
-def end_other_sessions(user_id: int, current_session_id: str | None, db: Session) -> int:
+def end_other_sessions(user_id: uuid.UUID, current_session_id: str | None, db: Session) -> int:
     """Stage the end of the user's sessions except the caller's, after a change of an authentication factor.
 
     The caller stages the audit row that reports the count, in the transaction that commits the change.
@@ -231,7 +231,7 @@ def end_other_sessions(user_id: int, current_session_id: str | None, db: Session
 def _stage_credential_changed(
     action: jasil_audit.AuditAction,
     change: account_security_events.AccountSecurityChange,
-    user_id: int,
+    user_id: uuid.UUID,
     revoked: int,
     db: Session,
 ) -> None:
@@ -255,7 +255,7 @@ def _stage_credential_changed(
     account_security_event_publishers.publish_account_security_changed(user_id, change, db)
 
 
-def _stage_own_password(user_id: int, new_password: str, db: Session) -> users_schema.UserRead:
+def _stage_own_password(user_id: uuid.UUID, new_password: str, db: Session) -> users_schema.UserRead:
     """Stage the owner's new password, which clears any requirement to change it, and void the unused reset tokens.
 
     Args:
@@ -287,7 +287,7 @@ def _stage_own_password(user_id: int, new_password: str, db: Session) -> users_s
     return db_user
 
 
-def stage_required_password_change(user_id: int, new_password: str, db: Session) -> None:
+def stage_required_password_change(user_id: uuid.UUID, new_password: str, db: Session) -> None:
     """Stage the new password an administrator-set password makes its owner choose at sign-in; the caller commits.
 
     The password policy is checked before anything is staged. The change is audited and published like any other
@@ -314,7 +314,7 @@ def stage_required_password_change(user_id: int, new_password: str, db: Session)
 
 
 def stage_change_own_password(
-    user_id: int,
+    user_id: uuid.UUID,
     current_password: str | None,
     new_password: str,
     mfa_code: str | None,
@@ -387,7 +387,7 @@ def stage_change_own_password(
 
 
 def change_managed_user_password(
-    user_id: int,
+    user_id: uuid.UUID,
     new_password: str,
     db: Session,
 ) -> None:
@@ -441,7 +441,7 @@ def change_managed_user_password(
     )
 
 
-def reset_managed_user_mfa(user_id: int, db: Session) -> None:
+def reset_managed_user_mfa(user_id: uuid.UUID, db: Session) -> None:
     """Stage a reset of a managed user's MFA and the end of all of their sessions; the caller commits.
 
     Args:
@@ -468,7 +468,7 @@ def reset_managed_user_mfa(user_id: int, db: Session) -> None:
     )
 
 
-def require_managed_user_password_change(user_id: int, db: Session) -> None:
+def require_managed_user_password_change(user_id: uuid.UUID, db: Session) -> None:
     """Stage the requirement that a managed user choose a new password at the next sign-in; the caller commits.
 
     The current password stays valid until then. The user's sessions end and a pending MFA sign-in is dropped, so the
@@ -650,7 +650,7 @@ def complete_password_change(
 
 
 def prepare_security_change_email(
-    user_id: int,
+    user_id: uuid.UUID,
     change: str,
     idp_id: uuid.UUID | None,
     frontend_host: str,
@@ -700,7 +700,7 @@ def prepare_security_change_email(
 
 
 def prepare_account_deletion_email(
-    user_id: int,
+    user_id: uuid.UUID,
     frontend_host: str,
     db: Session,
 ) -> tuple[str, str, str, str] | None:
@@ -732,8 +732,8 @@ def prepare_account_deletion_email(
 
 
 def prepare_admin_promoted_email(
-    user_id: int,
-    admin_user_id: int,
+    user_id: uuid.UUID,
+    admin_user_id: uuid.UUID,
     frontend_host: str,
     db: Session,
 ) -> tuple[str, str, str, str] | None:
@@ -761,7 +761,7 @@ def prepare_admin_promoted_email(
 
 
 def prepare_new_device_sign_in_email(
-    user_id: int,
+    user_id: uuid.UUID,
     browser: str,
     operating_system: str,
     ip_address: str,

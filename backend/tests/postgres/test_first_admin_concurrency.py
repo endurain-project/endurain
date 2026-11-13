@@ -6,6 +6,7 @@ what makes two simultaneous requests produce one administrator, and only separat
 
 import threading
 import time
+import uuid
 from collections.abc import Callable
 
 import pytest
@@ -73,7 +74,7 @@ def _users(factory) -> list[tuple[str, bool, bool]]:
     return [tuple(row) for row in rows]
 
 
-def _stage_and_commit(index: int, db) -> int:
+def _stage_and_commit(index: int, db) -> uuid.UUID:
     created = users_service.stage_first_admin(_admin(index), db)
     db.commit()
     return created.id
@@ -82,7 +83,7 @@ def _stage_and_commit(index: int, db) -> int:
 def test_concurrent_first_admin_creation_produces_exactly_one_administrator(pg_factory):
     outcomes = _race(pg_factory, _stage_and_commit)
 
-    created = [o for o in outcomes if isinstance(o, int)]
+    created = [o for o in outcomes if isinstance(o, uuid.UUID)]
     conflicts = [o for o in outcomes if isinstance(o, core_exceptions.ConflictError)]
     assert len(outcomes) == _THREADS
     assert len(created) == 1, outcomes
@@ -156,7 +157,7 @@ def test_two_onboardings_with_two_valid_tokens_create_one_administrator(pg_facto
 
     outcomes = _race(pg_factory, complete)
 
-    created = [o for o in outcomes if isinstance(o, int)]
+    created = [o for o in outcomes if isinstance(o, uuid.UUID)]
     refused = [o for o in outcomes if isinstance(o, core_exceptions.ConflictError)]
     assert len(created) == 1, outcomes
     assert len(refused) == _THREADS - 1

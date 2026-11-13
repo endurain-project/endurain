@@ -13,6 +13,12 @@ import core.exceptions as core_exceptions
 import modules.activities.activity.query as activity_query
 from modules.activities.activity.constants import ActivityType
 
+_USER_1 = uuid.UUID(int=1)
+_USER_2 = uuid.UUID(int=2)
+_USER_3 = uuid.UUID(int=3)
+_USER_7 = uuid.UUID(int=7)
+_USER_999 = uuid.UUID(int=999)
+
 _ACTIVITY_ID = uuid.uuid4()
 _UNKNOWN_ID = uuid.uuid4()
 _SECOND_ID = uuid.uuid4()
@@ -24,18 +30,18 @@ class TestGetUserActivities:
         import modules.activities.activity.crud as crud
         import modules.activities.activity.models as am
 
-        a = mock_model(am.Activity, id=_ACTIVITY_ID, user_id=1)
+        a = mock_model(am.Activity, id=_ACTIVITY_ID, user_id=_USER_1)
         setup_mock_execute(mock_db, return_scalars_all=[a])
         mock_ser.return_value = MagicMock()
 
-        r = crud.get_user_activities(user_id=1, db=mock_db, user_is_owner=True)
+        r = crud.get_user_activities(user_id=_USER_1, db=mock_db, user_is_owner=True)
         assert r is not None and len(r) == 1
 
     def test_empty(self, mock_db):
         import modules.activities.activity.crud as crud
 
         setup_mock_execute(mock_db, return_scalars_all=[])
-        assert crud.get_user_activities(user_id=1, db=mock_db, user_is_owner=True) == []
+        assert crud.get_user_activities(user_id=_USER_1, db=mock_db, user_is_owner=True) == []
 
     @patch("modules.activities.activity.crud.activity_serializers.to_read_schema")
     def test_with_filters(self, mock_ser, mock_db):
@@ -44,10 +50,10 @@ class TestGetUserActivities:
         import modules.activities.activity.crud as crud
         import modules.activities.activity.models as am
 
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=_ACTIVITY_ID, user_id=1)])
+        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=_ACTIVITY_ID, user_id=_USER_1)])
         mock_ser.return_value = MagicMock()
         r = crud.get_user_activities(
-            user_id=1,
+            user_id=_USER_1,
             db=mock_db,
             activity_type=ActivityType.RUN,
             start_date=date(2024, 1, 1),
@@ -67,7 +73,7 @@ class TestGetUserActivitiesWithPagination:
         setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=_ACTIVITY_ID)])
         mock_ser.return_value = MagicMock()
         r = crud.get_user_activities_with_pagination(
-            user_id=1, db=mock_db, page_number=1, num_records=10, user_is_owner=True
+            user_id=_USER_1, db=mock_db, page_number=1, num_records=10, user_is_owner=True
         )
         assert r is not None and len(r) == 1
 
@@ -75,7 +81,7 @@ class TestGetUserActivitiesWithPagination:
         import modules.activities.activity.crud as crud
 
         setup_mock_execute(mock_db, return_scalars_all=[])
-        assert crud.get_user_activities_with_pagination(user_id=1, db=mock_db, user_is_owner=True) == []
+        assert crud.get_user_activities_with_pagination(user_id=_USER_1, db=mock_db, user_is_owner=True) == []
 
     @patch("modules.activities.activity.crud.activity_serializers.to_read_schema")
     def test_sort_by_location(self, mock_ser, mock_db):
@@ -85,7 +91,7 @@ class TestGetUserActivitiesWithPagination:
         setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=_ACTIVITY_ID)])
         mock_ser.return_value = MagicMock()
         r = crud.get_user_activities_with_pagination(
-            user_id=1,
+            user_id=_USER_1,
             db=mock_db,
             page_number=1,
             num_records=10,
@@ -103,7 +109,7 @@ class TestGetUserActivitiesWithPagination:
         setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=_ACTIVITY_ID)])
         mock_ser.return_value = MagicMock()
         r = crud.get_user_activities_with_pagination(
-            user_id=1,
+            user_id=_USER_1,
             db=mock_db,
             page_number=1,
             num_records=10,
@@ -120,7 +126,7 @@ class TestGetActivityByID:
         import modules.activities.activity.crud as crud
         import modules.activities.activity.models as am
 
-        a = mock_model(am.Activity, id=_ACTIVITY_ID, user_id=1)
+        a = mock_model(am.Activity, id=_ACTIVITY_ID, user_id=_USER_1)
         setup_mock_execute(mock_db, return_one_or_none=a)
         mock_ser.return_value = MagicMock()
         r = crud.get_activity_by_id(activity_id=_ACTIVITY_ID, db=mock_db)
@@ -145,7 +151,7 @@ class TestCreateActivity:
         m.id = _ACTIVITY_ID
         mock_transform.return_value = m
         a = MagicMock()
-        a.user_id = 1
+        a.user_id = _USER_1
         a.start_time = datetime.now(UTC)
         r = crud.create_activity(activity=a, db=mock_db)
         # The stored row is serialized into the READ schema and returned; the
@@ -171,7 +177,7 @@ class TestCreateActivity:
         mock_check.return_value = None
         mock_transform.return_value = MagicMock(id=_ACTIVITY_ID)
         activity = contracts.ActivityCore(
-            user_id=1,
+            user_id=_USER_1,
             distance=1000,
             name="Ride",
             activity_type=1,
@@ -194,7 +200,7 @@ class TestCreateActivity:
         import modules.activities.activity.crud as crud
 
         a = MagicMock()
-        a.user_id = 1
+        a.user_id = _USER_1
         a.start_time = None
         with pytest.raises(core_exceptions.InvalidInputError) as e:
             crud.create_activity(activity=a, db=mock_db)
@@ -223,7 +229,7 @@ class TestCreateActivity:
         m.id = _ACTIVITY_ID
         mock_transform.return_value = m
         a = MagicMock()
-        a.user_id = 1
+        a.user_id = _USER_1
         a.start_time = datetime.now(UTC)
         a.is_hidden = False
         crud.create_activity(activity=a, db=mock_db)
@@ -244,7 +250,7 @@ class TestCreateActivity:
         m.id = _ACTIVITY_ID
         mock_transform.return_value = m
         a = MagicMock()
-        a.user_id = 1
+        a.user_id = _USER_1
         a.start_time = datetime.now(UTC)
         crud.create_activity(activity=a, db=mock_db, dedup_key="strava:99")
         # The idempotency key is stored on the ORM row so future re-imports of the
@@ -268,7 +274,9 @@ class TestEditActivity:
             id: uuid.UUID = _ACTIVITY_ID
             name: str = "U"
 
-        r = crud.edit_activity(user_id=1, activity_id=_ACTIVITY_ID, activity_attributes=A(), db=mock_db, if_match="*")
+        r = crud.edit_activity(
+            user_id=_USER_1, activity_id=_ACTIVITY_ID, activity_attributes=A(), db=mock_db, if_match="*"
+        )
         assert r is not None
 
     def test_stale_if_match_is_refused_before_anything_is_written(self, mock_db):
@@ -284,7 +292,9 @@ class TestEditActivity:
             name: str = "U"
 
         with pytest.raises(core_exceptions.PreconditionFailedError):
-            crud.edit_activity(user_id=1, activity_id=_ACTIVITY_ID, activity_attributes=A(), db=mock_db, if_match='"4"')
+            crud.edit_activity(
+                user_id=_USER_1, activity_id=_ACTIVITY_ID, activity_attributes=A(), db=mock_db, if_match='"4"'
+            )
         mock_db.flush.assert_not_called()
 
     def test_not_found(self, mock_db):
@@ -299,7 +309,9 @@ class TestEditActivity:
             name: str = "U"
 
         with pytest.raises(core_exceptions.NotFoundError) as e:
-            crud.edit_activity(user_id=1, activity_id=_UNKNOWN_ID, activity_attributes=A(), db=mock_db, if_match="*")
+            crud.edit_activity(
+                user_id=_USER_1, activity_id=_UNKNOWN_ID, activity_attributes=A(), db=mock_db, if_match="*"
+            )
         assert e.value.status_code == 404
 
     @patch("modules.activities.activity.crud.activity_serializers.to_read_schema")
@@ -315,7 +327,9 @@ class TestEditActivity:
         setup_mock_execute(mock_db, return_one_or_none=db_act)
 
         attrs = s.ActivityEdit(name="test", activity_type="run", description="desc", private_notes="notes")
-        crud.edit_activity(user_id=1, activity_id=_ACTIVITY_ID, activity_attributes=attrs, db=mock_db, if_match="*")
+        crud.edit_activity(
+            user_id=_USER_1, activity_id=_ACTIVITY_ID, activity_attributes=attrs, db=mock_db, if_match="*"
+        )
         assert mock_sanitize.call_count == 2
 
     def test_stale_flush_reaches_the_service_layer(self, mock_db):
@@ -329,7 +343,7 @@ class TestEditActivity:
 
         with pytest.raises(StaleDataError):
             crud.edit_activity(
-                user_id=1,
+                user_id=_USER_1,
                 activity_id=_ACTIVITY_ID,
                 activity_attributes=schema.ActivityEdit(name="Updated"),
                 db=mock_db,
@@ -346,7 +360,7 @@ class TestDelete:
         db_act = MagicMock()
         db_act.version = 3
         setup_mock_execute(mock_db, return_one_or_none=db_act)
-        crud.delete_activity(activity_id=_ACTIVITY_ID, user_id=7, db=mock_db, if_match='"3"')
+        crud.delete_activity(activity_id=_ACTIVITY_ID, user_id=_USER_7, db=mock_db, if_match='"3"')
         mock_db.delete.assert_called_once_with(db_act)
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
@@ -356,7 +370,7 @@ class TestDelete:
 
         setup_mock_execute(mock_db, return_one_or_none=None)
         with pytest.raises(core_exceptions.NotFoundError) as e:
-            crud.delete_activity(activity_id=_UNKNOWN_ID, user_id=7, db=mock_db, if_match='"1"')
+            crud.delete_activity(activity_id=_UNKNOWN_ID, user_id=_USER_7, db=mock_db, if_match='"1"')
         assert e.value.status_code == 404
         mock_db.delete.assert_not_called()
 
@@ -366,7 +380,7 @@ class TestDelete:
 
         setup_mock_execute(mock_db, return_one_or_none=None)
         with pytest.raises(core_exceptions.NotFoundError) as e:
-            crud.delete_activity(activity_id=_ACTIVITY_ID, user_id=999, db=mock_db, if_match='"1"')
+            crud.delete_activity(activity_id=_ACTIVITY_ID, user_id=_USER_999, db=mock_db, if_match='"1"')
         assert e.value.status_code == 404
         assert "user_id" in str(mock_db.execute.call_args.args[0])
         mock_db.delete.assert_not_called()
@@ -381,7 +395,7 @@ class TestDelete:
         db_act.version = 5
         setup_mock_execute(mock_db, return_one_or_none=db_act)
         with pytest.raises(core_exceptions.PreconditionFailedError):
-            crud.delete_activity(activity_id=_ACTIVITY_ID, user_id=7, db=mock_db, if_match='"4"')
+            crud.delete_activity(activity_id=_ACTIVITY_ID, user_id=_USER_7, db=mock_db, if_match='"4"')
         mock_db.delete.assert_not_called()
 
     def test_the_wildcard_deletes_whatever_the_version(self, mock_db):
@@ -390,7 +404,7 @@ class TestDelete:
         db_act = MagicMock()
         db_act.version = 5
         setup_mock_execute(mock_db, return_one_or_none=db_act)
-        crud.delete_activity(activity_id=_ACTIVITY_ID, user_id=7, db=mock_db, if_match="*")
+        crud.delete_activity(activity_id=_ACTIVITY_ID, user_id=_USER_7, db=mock_db, if_match="*")
         mock_db.delete.assert_called_once_with(db_act)
 
 
@@ -399,7 +413,7 @@ class TestDistinctTypes:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.return_value.scalars.return_value.all.return_value = [1, 2]
-        r = crud.get_distinct_activity_types_for_user(user_id=1, db=mock_db)
+        r = crud.get_distinct_activity_types_for_user(user_id=_USER_1, db=mock_db)
         assert r == [ActivityType.RUN, ActivityType.TRAIL_RUN]
 
 
@@ -418,7 +432,7 @@ class TestGearFilter:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.return_value.scalar.return_value = 0
-        crud.count_user_activities(1, mock_db, gear_id=_GEAR_ID, user_is_owner=True)
+        crud.count_user_activities(_USER_1, mock_db, gear_id=_GEAR_ID, user_is_owner=True)
 
         assert f"activities.gear_id = '{_GEAR_ID.hex}'" in _where_of(_compiled(mock_db.execute.call_args.args[0]))
 
@@ -431,13 +445,13 @@ class TestCountUserActivities:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.return_value.scalar.return_value = 4
-        assert crud.count_user_activities(user_id=1, db=mock_db, user_is_owner=True) == 4
+        assert crud.count_user_activities(user_id=_USER_1, db=mock_db, user_is_owner=True) == 4
 
     def test_none(self, mock_db):
         import modules.activities.activity.crud as crud
 
         mock_db.execute.return_value.scalar.return_value = None
-        assert crud.count_user_activities(user_id=1, db=mock_db, user_is_owner=True) == 0
+        assert crud.count_user_activities(user_id=_USER_1, db=mock_db, user_is_owner=True) == 0
 
 
 class TestBulkSetGear:
@@ -447,7 +461,9 @@ class TestBulkSetGear:
         r = MagicMock()
         r.all.return_value = [(_ACTIVITY_ID,), (_UNKNOWN_ID,)]
         mock_db.execute.return_value = r
-        assert crud.bulk_set_activities_gear_id(user_id=1, gear_assignments={_ACTIVITY_ID: _GEAR_ID}, db=mock_db) == [
+        assert crud.bulk_set_activities_gear_id(
+            user_id=_USER_1, gear_assignments={_ACTIVITY_ID: _GEAR_ID}, db=mock_db
+        ) == [
             _ACTIVITY_ID,
             _UNKNOWN_ID,
         ]
@@ -455,7 +471,7 @@ class TestBulkSetGear:
     def test_empty(self, mock_db):
         import modules.activities.activity.crud as crud
 
-        assert crud.bulk_set_activities_gear_id(user_id=1, gear_assignments={}, db=mock_db) == []
+        assert crud.bulk_set_activities_gear_id(user_id=_USER_1, gear_assignments={}, db=mock_db) == []
 
     def test_stages_without_committing(self, mock_db):
         """The update stays in the caller's transaction so events can join it."""
@@ -464,7 +480,7 @@ class TestBulkSetGear:
         r = MagicMock()
         r.all.return_value = [(_ACTIVITY_ID,)]
         mock_db.execute.return_value = r
-        crud.bulk_set_activities_gear_id(user_id=1, gear_assignments={_ACTIVITY_ID: _GEAR_ID}, db=mock_db)
+        crud.bulk_set_activities_gear_id(user_id=_USER_1, gear_assignments={_ACTIVITY_ID: _GEAR_ID}, db=mock_db)
         mock_db.commit.assert_not_called()
 
 
@@ -480,7 +496,7 @@ class TestBulkUpdatesLockInIdOrder:
 
         mock_db.execute.return_value.all.return_value = [(_ACTIVITY_ID,)]
         crud.bulk_set_activities_gear_id(
-            user_id=1, gear_assignments={_UNKNOWN_ID: _GEAR_ID, _ACTIVITY_ID: _GEAR_ID}, db=mock_db
+            user_id=_USER_1, gear_assignments={_UNKNOWN_ID: _GEAR_ID, _ACTIVITY_ID: _GEAR_ID}, db=mock_db
         )
 
         first = self._first_statement(mock_db)
@@ -494,7 +510,7 @@ class TestBulkUpdatesLockInIdOrder:
         mock_db.scalars.return_value.all.return_value = [_ACTIVITY_ID, _UNKNOWN_ID]
         mock_db.execute.return_value.all.return_value = [(_ACTIVITY_ID,), (_UNKNOWN_ID,)]
 
-        assert crud.edit_user_activities_visibility_batch(user_id=1, visibility=0, limit=500, db=mock_db) == [
+        assert crud.edit_user_activities_visibility_batch(user_id=_USER_1, visibility=0, limit=500, db=mock_db) == [
             _ACTIVITY_ID,
             _UNKNOWN_ID,
         ]
@@ -510,7 +526,7 @@ class TestBulkUpdatesLockInIdOrder:
 
         mock_db.scalars.return_value.all.return_value = []
 
-        assert crud.edit_user_activities_visibility_batch(user_id=1, visibility=0, limit=500, db=mock_db) == []
+        assert crud.edit_user_activities_visibility_batch(user_id=_USER_1, visibility=0, limit=500, db=mock_db) == []
         mock_db.execute.assert_not_called()
 
 
@@ -522,7 +538,7 @@ class TestActivityByStravaGarmin:
 
         setup_mock_execute(mock_db, return_one_or_none=mock_model(am.Activity, id=_ACTIVITY_ID, strava_activity_id=123))
         mock_ser.return_value = MagicMock()
-        r = crud.get_activity_by_strava_id_from_user_id(activity_strava_id=123, user_id=1, db=mock_db)
+        r = crud.get_activity_by_strava_id_from_user_id(activity_strava_id=123, user_id=_USER_1, db=mock_db)
         assert r is not None
 
     @patch("modules.activities.activity.crud.activity_serializers.to_read_schema")
@@ -534,21 +550,25 @@ class TestActivityByStravaGarmin:
             mock_db, return_one_or_none=mock_model(am.Activity, id=_ACTIVITY_ID, garminconnect_activity_id=456)
         )
         mock_ser.return_value = MagicMock()
-        r = crud.get_activity_by_garminconnect_id_from_user_id(activity_garminconnect_id=456, user_id=1, db=mock_db)
+        r = crud.get_activity_by_garminconnect_id_from_user_id(
+            activity_garminconnect_id=456, user_id=_USER_1, db=mock_db
+        )
         assert r is not None
 
     def test_by_strava_id_not_found(self, mock_db):
         import modules.activities.activity.crud as crud
 
         setup_mock_execute(mock_db, return_one_or_none=None)
-        assert crud.get_activity_by_strava_id_from_user_id(activity_strava_id=999, user_id=1, db=mock_db) is None
+        assert crud.get_activity_by_strava_id_from_user_id(activity_strava_id=999, user_id=_USER_1, db=mock_db) is None
 
     def test_by_garmin_id_not_found(self, mock_db):
         import modules.activities.activity.crud as crud
 
         setup_mock_execute(mock_db, return_one_or_none=None)
         assert (
-            crud.get_activity_by_garminconnect_id_from_user_id(activity_garminconnect_id=999, user_id=1, db=mock_db)
+            crud.get_activity_by_garminconnect_id_from_user_id(
+                activity_garminconnect_id=999, user_id=_USER_1, db=mock_db
+            )
             is None
         )
 
@@ -558,7 +578,7 @@ class TestGetGarminGearActivityRefs:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.return_value = [SimpleNamespace(id=_ACTIVITY_ID, garminconnect_gear_id="g-1")]
-        refs = crud.get_garminconnect_gear_activity_refs(user_id=1, db=mock_db)
+        refs = crud.get_garminconnect_gear_activity_refs(user_id=_USER_1, db=mock_db)
         assert [(ref.id, ref.garminconnect_gear_id) for ref in refs] == [(_ACTIVITY_ID, "g-1")]
         compiled = str(mock_db.execute.call_args.args[0].compile())
         assert compiled.startswith("SELECT activities.id, activities.garminconnect_gear_id")
@@ -567,15 +587,15 @@ class TestGetGarminGearActivityRefs:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.return_value = []
-        assert crud.get_garminconnect_gear_activity_refs(user_id=1, db=mock_db) == []
+        assert crud.get_garminconnect_gear_activity_refs(user_id=_USER_1, db=mock_db) == []
 
     def test_pages_from_the_cursor_for_one_user(self, mock_db):
         import modules.activities.activity.crud as crud
 
         mock_db.execute.return_value = []
-        crud.get_garminconnect_gear_activity_refs(user_id=3, db=mock_db, after_id=_UNKNOWN_ID, limit=2)
+        crud.get_garminconnect_gear_activity_refs(user_id=_USER_3, db=mock_db, after_id=_UNKNOWN_ID, limit=2)
         compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
-        assert "activities.user_id = 3" in compiled
+        assert f"activities.user_id = '{_USER_3.hex}'" in compiled
         assert "activities.garminconnect_gear_id IS NOT NULL" in compiled
         assert f"activities.id > '{_UNKNOWN_ID.hex}'" in compiled
         assert "LIMIT 2" in compiled
@@ -584,7 +604,7 @@ class TestGetGarminGearActivityRefs:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.return_value = []
-        crud.get_garminconnect_gear_activity_refs(user_id=3, db=mock_db, limit=2)
+        crud.get_garminconnect_gear_activity_refs(user_id=_USER_3, db=mock_db, limit=2)
         compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
         assert "activities.id >" not in compiled
         assert "ORDER BY activities.id" in compiled
@@ -598,10 +618,10 @@ class TestGetUserActivitiesPerTimeframeAndTypes:
         import modules.activities.activity.crud as crud
         import modules.activities.activity.models as am
 
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=_ACTIVITY_ID, user_id=1)])
+        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=_ACTIVITY_ID, user_id=_USER_1)])
         mock_ser.return_value = MagicMock()
         r = crud.get_user_activities_per_timeframe_and_activity_types(
-            user_id=1,
+            user_id=_USER_1,
             activity_types=[1, 2],
             start=datetime(2024, 1, 1, tzinfo=UTC),
             end=datetime(2024, 1, 31, tzinfo=UTC),
@@ -617,10 +637,10 @@ class TestGetUserActivitiesPerTimeframeAndTypes:
         import modules.activities.activity.crud as crud
         import modules.activities.activity.models as am
 
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=_ACTIVITY_ID, user_id=1)])
+        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=_ACTIVITY_ID, user_id=_USER_1)])
         mock_ser.return_value = MagicMock()
         r = crud.get_user_activities_per_timeframe_and_activity_types(
-            user_id=1,
+            user_id=_USER_1,
             activity_types=[1, 2],
             start=datetime(2024, 1, 1, tzinfo=UTC),
             end=datetime(2024, 1, 31, tzinfo=UTC),
@@ -638,7 +658,7 @@ class TestGetUserActivitiesPerTimeframeAndTypes:
         setup_mock_execute(mock_db, return_scalars_all=[])
         assert (
             crud.get_user_activities_per_timeframe_and_activity_types(
-                user_id=1,
+                user_id=_USER_1,
                 activity_types=[1],
                 start=datetime(2024, 1, 1, tzinfo=UTC),
                 end=datetime(2024, 1, 31, tzinfo=UTC),
@@ -656,10 +676,12 @@ class TestGetActivityByIdFromUserIdOrHasVisibility:
         import modules.activities.activity.crud as crud
         import modules.activities.activity.models as am
 
-        a = mock_model(am.Activity, id=_ACTIVITY_ID, user_id=1)
+        a = mock_model(am.Activity, id=_ACTIVITY_ID, user_id=_USER_1)
         setup_mock_execute(mock_db, return_one_or_none=a)
         mock_ser.return_value = MagicMock()
-        r = crud.get_activity_by_id_from_user_id_or_has_visibility(activity_id=_ACTIVITY_ID, user_id=1, db=mock_db)
+        r = crud.get_activity_by_id_from_user_id_or_has_visibility(
+            activity_id=_ACTIVITY_ID, user_id=_USER_1, db=mock_db
+        )
         assert r is not None
 
     @patch("modules.activities.activity.crud.activity_serializers.to_read_schema")
@@ -668,10 +690,12 @@ class TestGetActivityByIdFromUserIdOrHasVisibility:
         import modules.activities.activity.crud as crud
         import modules.activities.activity.models as am
 
-        a = mock_model(am.Activity, id=_ACTIVITY_ID, user_id=2, visibility=0)
+        a = mock_model(am.Activity, id=_ACTIVITY_ID, user_id=_USER_2, visibility=0)
         setup_mock_execute(mock_db, return_one_or_none=a)
         mock_ser.return_value = MagicMock()
-        r = crud.get_activity_by_id_from_user_id_or_has_visibility(activity_id=_ACTIVITY_ID, user_id=1, db=mock_db)
+        r = crud.get_activity_by_id_from_user_id_or_has_visibility(
+            activity_id=_ACTIVITY_ID, user_id=_USER_1, db=mock_db
+        )
         assert r is not None
 
     def test_not_found(self, mock_db):
@@ -679,7 +703,7 @@ class TestGetActivityByIdFromUserIdOrHasVisibility:
 
         setup_mock_execute(mock_db, return_one_or_none=None)
         assert (
-            crud.get_activity_by_id_from_user_id_or_has_visibility(activity_id=_UNKNOWN_ID, user_id=1, db=mock_db)
+            crud.get_activity_by_id_from_user_id_or_has_visibility(activity_id=_UNKNOWN_ID, user_id=_USER_1, db=mock_db)
             is None
         )
 
@@ -705,7 +729,7 @@ def _public_activity(**overrides):
     import modules.activities.activity.models as am
 
     fields = {
-        "user_id": 1,
+        "user_id": _USER_1,
         "distance": 1000,
         "activity_type": 1,
         "start_time": datetime(2024, 1, 1, tzinfo=UTC),
@@ -830,8 +854,8 @@ class TestStravaActivityVisibility:
 
     @pytest.fixture(autouse=True)
     def _seed(self, sqlite_session):
-        sqlite_session.add(_public_activity(id=_ACTIVITY_ID, user_id=1))
-        sqlite_session.add(_public_activity(id=_SECOND_ID, user_id=1, strava_activity_id=123))
+        sqlite_session.add(_public_activity(id=_ACTIVITY_ID, user_id=_USER_1))
+        sqlite_session.add(_public_activity(id=_SECOND_ID, user_id=_USER_1, strava_activity_id=123))
         sqlite_session.commit()
 
     @patch("modules.activities.activity.crud.activity_serializers.to_read_schema")
@@ -840,7 +864,7 @@ class TestStravaActivityVisibility:
         import modules.activities.activity.crud as crud
 
         result = crud.get_activity_by_id_from_user_id_or_has_visibility(
-            activity_id=_SECOND_ID, user_id=1, db=sqlite_session
+            activity_id=_SECOND_ID, user_id=_USER_1, db=sqlite_session
         )
         assert result is not None
 
@@ -850,7 +874,7 @@ class TestStravaActivityVisibility:
         import modules.activities.activity.crud as crud
 
         result = crud.get_activity_by_id_from_user_id_or_has_visibility(
-            activity_id=_SECOND_ID, user_id=2, db=sqlite_session, followee_ids=[1]
+            activity_id=_SECOND_ID, user_id=_USER_2, db=sqlite_session, followee_ids=[_USER_1]
         )
         assert result is None
 
@@ -860,7 +884,7 @@ class TestStravaActivityVisibility:
         """The profile list a follower sees leaves out the Strava-synced activity."""
         import modules.activities.activity.crud as crud
 
-        crud.get_user_activities(user_id=1, db=sqlite_session, user_is_owner=False, followee_ids=[2])
+        crud.get_user_activities(user_id=_USER_1, db=sqlite_session, user_is_owner=False, followee_ids=[_USER_2])
         assert [c.args[0].id for c in mock_ser.call_args_list] == [_ACTIVITY_ID]
 
 
@@ -881,10 +905,10 @@ class TestGetViewableActivityByIdForUser:
         import modules.activities.activity.crud as crud
 
         mock_ser.return_value = MagicMock()
-        sqlite_session.add(_public_activity(id=_ACTIVITY_ID, user_id=2, visibility=2, is_hidden=False))
+        sqlite_session.add(_public_activity(id=_ACTIVITY_ID, user_id=_USER_2, visibility=2, is_hidden=False))
         sqlite_session.commit()
 
-        result = crud.get_viewable_activity_by_id_for_user(activity_id=_ACTIVITY_ID, user_id=2, db=sqlite_session)
+        result = crud.get_viewable_activity_by_id_for_user(activity_id=_ACTIVITY_ID, user_id=_USER_2, db=sqlite_session)
 
         assert result is not None
         # Returned unmasked (no apply_visibility_mask) so callers can read hide_* flags.
@@ -895,10 +919,10 @@ class TestGetViewableActivityByIdForUser:
         """A non-owner must NOT read a private (visibility=2) activity by id."""
         import modules.activities.activity.crud as crud
 
-        sqlite_session.add(_public_activity(id=_ACTIVITY_ID, user_id=2, visibility=2, is_hidden=False))
+        sqlite_session.add(_public_activity(id=_ACTIVITY_ID, user_id=_USER_2, visibility=2, is_hidden=False))
         sqlite_session.commit()
 
-        result = crud.get_viewable_activity_by_id_for_user(activity_id=_ACTIVITY_ID, user_id=1, db=sqlite_session)
+        result = crud.get_viewable_activity_by_id_for_user(activity_id=_ACTIVITY_ID, user_id=_USER_1, db=sqlite_session)
 
         assert result is None
         mock_ser.assert_not_called()
@@ -908,10 +932,10 @@ class TestGetViewableActivityByIdForUser:
         import modules.activities.activity.crud as crud
 
         mock_ser.return_value = MagicMock()
-        sqlite_session.add(_public_activity(id=_ACTIVITY_ID, user_id=2, visibility=0, is_hidden=False))
+        sqlite_session.add(_public_activity(id=_ACTIVITY_ID, user_id=_USER_2, visibility=0, is_hidden=False))
         sqlite_session.commit()
 
-        result = crud.get_viewable_activity_by_id_for_user(activity_id=_ACTIVITY_ID, user_id=1, db=sqlite_session)
+        result = crud.get_viewable_activity_by_id_for_user(activity_id=_ACTIVITY_ID, user_id=_USER_1, db=sqlite_session)
 
         assert result is not None
 
@@ -922,7 +946,7 @@ class TestGetViewableActivityByIdForUser:
         sqlite_session.add(
             _public_activity(
                 id=_ACTIVITY_ID,
-                user_id=2,
+                user_id=_USER_2,
                 visibility=0,
                 is_hidden=False,
                 strava_activity_id=123,
@@ -930,7 +954,7 @@ class TestGetViewableActivityByIdForUser:
         )
         sqlite_session.commit()
 
-        result = crud.get_viewable_activity_by_id_for_user(activity_id=_ACTIVITY_ID, user_id=1, db=sqlite_session)
+        result = crud.get_viewable_activity_by_id_for_user(activity_id=_ACTIVITY_ID, user_id=_USER_1, db=sqlite_session)
 
         assert result is None
         mock_ser.assert_not_called()
@@ -943,7 +967,7 @@ class TestGetViewableActivityByIdForUser:
         sqlite_session.add(
             _public_activity(
                 id=_ACTIVITY_ID,
-                user_id=2,
+                user_id=_USER_2,
                 visibility=2,
                 is_hidden=False,
                 strava_activity_id=123,
@@ -951,7 +975,7 @@ class TestGetViewableActivityByIdForUser:
         )
         sqlite_session.commit()
 
-        result = crud.get_viewable_activity_by_id_for_user(activity_id=_ACTIVITY_ID, user_id=2, db=sqlite_session)
+        result = crud.get_viewable_activity_by_id_for_user(activity_id=_ACTIVITY_ID, user_id=_USER_2, db=sqlite_session)
 
         assert result is not None
 
@@ -960,10 +984,10 @@ class TestGetViewableActivityByIdForUser:
         """A hidden activity is never visible to a non-owner, even when public."""
         import modules.activities.activity.crud as crud
 
-        sqlite_session.add(_public_activity(id=_ACTIVITY_ID, user_id=2, visibility=0, is_hidden=True))
+        sqlite_session.add(_public_activity(id=_ACTIVITY_ID, user_id=_USER_2, visibility=0, is_hidden=True))
         sqlite_session.commit()
 
-        result = crud.get_viewable_activity_by_id_for_user(activity_id=_ACTIVITY_ID, user_id=1, db=sqlite_session)
+        result = crud.get_viewable_activity_by_id_for_user(activity_id=_ACTIVITY_ID, user_id=_USER_1, db=sqlite_session)
 
         assert result is None
         mock_ser.assert_not_called()
@@ -973,10 +997,10 @@ class TestGetViewableActivityByIdForUser:
         """A followers-only (visibility=1) activity is denied without an accepted follow."""
         import modules.activities.activity.crud as crud
 
-        sqlite_session.add(_public_activity(id=_ACTIVITY_ID, user_id=2, visibility=1, is_hidden=False))
+        sqlite_session.add(_public_activity(id=_ACTIVITY_ID, user_id=_USER_2, visibility=1, is_hidden=False))
         sqlite_session.commit()
 
-        result = crud.get_viewable_activity_by_id_for_user(activity_id=_ACTIVITY_ID, user_id=1, db=sqlite_session)
+        result = crud.get_viewable_activity_by_id_for_user(activity_id=_ACTIVITY_ID, user_id=_USER_1, db=sqlite_session)
 
         assert result is None
         mock_ser.assert_not_called()
@@ -987,11 +1011,11 @@ class TestGetViewableActivityByIdForUser:
         import modules.activities.activity.crud as crud
         import modules.followers.models as followers_models
 
-        sqlite_session.add(_public_activity(id=_ACTIVITY_ID, user_id=2, visibility=1, is_hidden=False))
-        sqlite_session.add(followers_models.Follower(follower_id=1, followee_id=2, status="pending"))
+        sqlite_session.add(_public_activity(id=_ACTIVITY_ID, user_id=_USER_2, visibility=1, is_hidden=False))
+        sqlite_session.add(followers_models.Follower(follower_id=_USER_1, followee_id=_USER_2, status="pending"))
         sqlite_session.commit()
 
-        result = crud.get_viewable_activity_by_id_for_user(activity_id=_ACTIVITY_ID, user_id=1, db=sqlite_session)
+        result = crud.get_viewable_activity_by_id_for_user(activity_id=_ACTIVITY_ID, user_id=_USER_1, db=sqlite_session)
 
         assert result is None
         mock_ser.assert_not_called()
@@ -1003,13 +1027,13 @@ class TestGetViewableActivityByIdForUser:
         import modules.followers.models as followers_models
 
         mock_ser.return_value = MagicMock()
-        sqlite_session.add(_public_activity(id=_ACTIVITY_ID, user_id=2, visibility=1, is_hidden=False))
-        sqlite_session.add(followers_models.Follower(follower_id=1, followee_id=2, status="accepted"))
+        sqlite_session.add(_public_activity(id=_ACTIVITY_ID, user_id=_USER_2, visibility=1, is_hidden=False))
+        sqlite_session.add(followers_models.Follower(follower_id=_USER_1, followee_id=_USER_2, status="accepted"))
         sqlite_session.commit()
 
         # The accepted follow is resolved by the caller now, not mid-SELECT.
         result = crud.get_viewable_activity_by_id_for_user(
-            activity_id=_ACTIVITY_ID, user_id=1, db=sqlite_session, followee_ids=[2]
+            activity_id=_ACTIVITY_ID, user_id=_USER_1, db=sqlite_session, followee_ids=[_USER_2]
         )
 
         assert result is not None
@@ -1018,7 +1042,10 @@ class TestGetViewableActivityByIdForUser:
     def test_not_found(self, sqlite_session):
         import modules.activities.activity.crud as crud
 
-        assert crud.get_viewable_activity_by_id_for_user(activity_id=_UNKNOWN_ID, user_id=1, db=sqlite_session) is None
+        assert (
+            crud.get_viewable_activity_by_id_for_user(activity_id=_UNKNOWN_ID, user_id=_USER_1, db=sqlite_session)
+            is None
+        )
 
 
 class TestStravaApiVisibilityPolicy:
@@ -1031,20 +1058,20 @@ class TestStravaApiVisibilityPolicy:
         mock_ser.side_effect = lambda activity: MagicMock(id=activity.id)
         sqlite_session.add_all(
             [
-                _public_activity(id=_ACTIVITY_ID, user_id=2, strava_activity_id=123),
-                _public_activity(id=_SECOND_ID, user_id=2, strava_activity_id=None),
+                _public_activity(id=_ACTIVITY_ID, user_id=_USER_2, strava_activity_id=123),
+                _public_activity(id=_SECOND_ID, user_id=_USER_2, strava_activity_id=None),
             ]
         )
         sqlite_session.commit()
 
         activities = crud.get_user_activities_with_pagination(
-            user_id=2,
+            user_id=_USER_2,
             db=sqlite_session,
             user_is_owner=False,
             followee_ids=[],
         )
         count = crud.count_user_activities(
-            user_id=2,
+            user_id=_USER_2,
             db=sqlite_session,
             user_is_owner=False,
             followee_ids=[],
@@ -1059,12 +1086,12 @@ class TestStravaApiVisibilityPolicy:
     def test_non_owner_detail_denies_live_api_activity(self, mock_mask, mock_ser, sqlite_session):
         import modules.activities.activity.crud as crud
 
-        sqlite_session.add(_public_activity(id=_ACTIVITY_ID, user_id=2, strava_activity_id=123))
+        sqlite_session.add(_public_activity(id=_ACTIVITY_ID, user_id=_USER_2, strava_activity_id=123))
         sqlite_session.commit()
 
         result = crud.get_activity_by_id_from_user_id_or_has_visibility(
             activity_id=_ACTIVITY_ID,
-            user_id=1,
+            user_id=_USER_1,
             db=sqlite_session,
         )
 
@@ -1077,12 +1104,12 @@ class TestStravaApiVisibilityPolicy:
         import modules.activities.activity.crud as crud
 
         mock_ser.return_value = MagicMock()
-        sqlite_session.add(_public_activity(id=_ACTIVITY_ID, user_id=2, strava_activity_id=123))
+        sqlite_session.add(_public_activity(id=_ACTIVITY_ID, user_id=_USER_2, strava_activity_id=123))
         sqlite_session.commit()
 
         result = crud.get_activity_by_id_from_user_id_or_has_visibility(
             activity_id=_ACTIVITY_ID,
-            user_id=2,
+            user_id=_USER_2,
             db=sqlite_session,
         )
 
@@ -1095,10 +1122,10 @@ class TestGetActivityByStartTime:
         import modules.activities.activity.crud as crud
         import modules.activities.activity.models as am
 
-        a = mock_model(am.Activity, id=_ACTIVITY_ID, user_id=1)
+        a = mock_model(am.Activity, id=_ACTIVITY_ID, user_id=_USER_1)
         setup_mock_execute(mock_db, return_one_or_none=a)
         mock_ser.return_value = MagicMock()
-        r = crud.get_activity_by_start_time(start_time="2024-01-01T10:00:00+00:00", user_id=1, db=mock_db)
+        r = crud.get_activity_by_start_time(start_time="2024-01-01T10:00:00+00:00", user_id=_USER_1, db=mock_db)
         assert r is not None
 
     @patch("modules.activities.activity.crud.activity_serializers.to_read_schema")
@@ -1108,17 +1135,19 @@ class TestGetActivityByStartTime:
         import modules.activities.activity.crud as crud
         import modules.activities.activity.models as am
 
-        a = mock_model(am.Activity, id=_ACTIVITY_ID, user_id=1)
+        a = mock_model(am.Activity, id=_ACTIVITY_ID, user_id=_USER_1)
         setup_mock_execute(mock_db, return_one_or_none=a)
         mock_ser.return_value = MagicMock()
-        r = crud.get_activity_by_start_time(start_time=datetime(2024, 1, 1, 10, 0), user_id=1, db=mock_db)
+        r = crud.get_activity_by_start_time(start_time=datetime(2024, 1, 1, 10, 0), user_id=_USER_1, db=mock_db)
         assert r is not None
 
     def test_not_found(self, mock_db):
         import modules.activities.activity.crud as crud
 
         setup_mock_execute(mock_db, return_one_or_none=None)
-        assert crud.get_activity_by_start_time(start_time="2024-01-01T10:00:00+00:00", user_id=1, db=mock_db) is None
+        assert (
+            crud.get_activity_by_start_time(start_time="2024-01-01T10:00:00+00:00", user_id=_USER_1, db=mock_db) is None
+        )
 
 
 class TestGetActivityByDedupKey:
@@ -1127,17 +1156,17 @@ class TestGetActivityByDedupKey:
         import modules.activities.activity.crud as crud
         import modules.activities.activity.models as am
 
-        a = mock_model(am.Activity, id=_ACTIVITY_ID, user_id=1, dedup_key="strava:123")
+        a = mock_model(am.Activity, id=_ACTIVITY_ID, user_id=_USER_1, dedup_key="strava:123")
         setup_mock_execute(mock_db, return_one_or_none=a)
         mock_ser.return_value = MagicMock()
-        r = crud.get_activity_by_dedup_key(dedup_key="strava:123", user_id=1, db=mock_db)
+        r = crud.get_activity_by_dedup_key(dedup_key="strava:123", user_id=_USER_1, db=mock_db)
         assert r is not None
 
     def test_not_found(self, mock_db):
         import modules.activities.activity.crud as crud
 
         setup_mock_execute(mock_db, return_one_or_none=None)
-        assert crud.get_activity_by_dedup_key(dedup_key="strava:999", user_id=1, db=mock_db) is None
+        assert crud.get_activity_by_dedup_key(dedup_key="strava:999", user_id=_USER_1, db=mock_db) is None
 
 
 class TestGetActivityByIdFromUserId:
@@ -1146,17 +1175,17 @@ class TestGetActivityByIdFromUserId:
         import modules.activities.activity.crud as crud
         import modules.activities.activity.models as am
 
-        a = mock_model(am.Activity, id=_ACTIVITY_ID, user_id=1)
+        a = mock_model(am.Activity, id=_ACTIVITY_ID, user_id=_USER_1)
         setup_mock_execute(mock_db, return_one_or_none=a)
         mock_ser.return_value = MagicMock()
-        r = crud.get_activity_by_id_from_user_id(activity_id=_ACTIVITY_ID, user_id=1, db=mock_db)
+        r = crud.get_activity_by_id_from_user_id(activity_id=_ACTIVITY_ID, user_id=_USER_1, db=mock_db)
         assert r is not None
 
     def test_not_found(self, mock_db):
         import modules.activities.activity.crud as crud
 
         setup_mock_execute(mock_db, return_one_or_none=None)
-        assert crud.get_activity_by_id_from_user_id(activity_id=_UNKNOWN_ID, user_id=1, db=mock_db) is None
+        assert crud.get_activity_by_id_from_user_id(activity_id=_UNKNOWN_ID, user_id=_USER_1, db=mock_db) is None
 
 
 class TestSetActivityThumbnailPath:
@@ -1275,7 +1304,7 @@ class TestEditUserActivitiesVisibility:
         r = MagicMock()
         r.all.return_value = [(activity_id,) for activity_id in ids]
         mock_db.execute.return_value = r
-        result = crud.edit_user_activities_visibility_batch(user_id=1, visibility=0, limit=500, db=mock_db)
+        result = crud.edit_user_activities_visibility_batch(user_id=_USER_1, visibility=0, limit=500, db=mock_db)
         assert result == ids
         mock_db.commit.assert_not_called()
 
@@ -1286,7 +1315,7 @@ class TestDeleteAllStravaActivitiesForUser:
 
         ids = [uuid.uuid4(), uuid.uuid4()]
         mock_db.scalars.return_value.all.return_value = ids
-        result = crud.delete_all_strava_activities_for_user(user_id=1, db=mock_db, limit=2)
+        result = crud.delete_all_strava_activities_for_user(user_id=_USER_1, db=mock_db, limit=2)
         assert result == ids
         assert mock_db.execute.call_count == 2  # the delete, then the tombstones
         mock_db.commit.assert_not_called()
@@ -1295,7 +1324,7 @@ class TestDeleteAllStravaActivitiesForUser:
         import modules.activities.activity.crud as crud
 
         mock_db.scalars.return_value.all.return_value = [_ACTIVITY_ID]
-        crud.delete_all_strava_activities_for_user(user_id=1, db=mock_db, limit=2)
+        crud.delete_all_strava_activities_for_user(user_id=_USER_1, db=mock_db, limit=2)
         statement = str(mock_db.scalars.call_args.args[0])
         assert "LIMIT" in statement and "FOR UPDATE" in statement
 
@@ -1303,7 +1332,7 @@ class TestDeleteAllStravaActivitiesForUser:
         import modules.activities.activity.crud as crud
 
         mock_db.scalars.return_value.all.return_value = []
-        result = crud.delete_all_strava_activities_for_user(user_id=1, db=mock_db, limit=2)
+        result = crud.delete_all_strava_activities_for_user(user_id=_USER_1, db=mock_db, limit=2)
         assert result == []
         mock_db.execute.assert_not_called()
 
@@ -1316,7 +1345,7 @@ class TestDeleteActivitiesBatchForUser:
         ids = [uuid.uuid4() for _ in range(3)]
         r.all.return_value = [(activity_id,) for activity_id in ids]
         mock_db.execute.return_value = r
-        result = crud.delete_activities_batch_for_user(user_id=1, limit=2, db=mock_db)
+        result = crud.delete_activities_batch_for_user(user_id=_USER_1, limit=2, db=mock_db)
         assert result == ids
         mock_db.commit.assert_not_called()
 
@@ -1407,7 +1436,7 @@ class TestSumGearUsageByWindow:
         db.get_bind.return_value.dialect.name = "postgresql"
         db.execute.return_value.one.return_value = [0] * (2 * len(windows))
 
-        crud.sum_gear_usage_by_window(uuid.uuid4(), 1, windows, db)
+        crud.sum_gear_usage_by_window(uuid.uuid4(), _USER_1, windows, db)
 
         from sqlalchemy.dialects import postgresql
 
@@ -1417,7 +1446,7 @@ class TestSumGearUsageByWindow:
     def test_only_the_gear_owners_activities_count(self):
         sql = self._emitted_sql([self._window()])
 
-        assert "activities.user_id = 1" in sql
+        assert f"activities.user_id = '{_USER_1}'" in sql
 
     def _window(self, **overrides):
         import modules.gears.contracts as gears_contracts
@@ -1450,7 +1479,7 @@ class TestSumGearUsageByWindow:
         import modules.activities.activity.crud as crud
 
         db = MagicMock()
-        assert crud.sum_gear_usage_by_window(uuid.uuid4(), 1, [], db) == {}
+        assert crud.sum_gear_usage_by_window(uuid.uuid4(), _USER_1, [], db) == {}
         db.execute.assert_not_called()
 
     def test_every_requested_key_is_returned(self):
@@ -1462,7 +1491,9 @@ class TestSumGearUsageByWindow:
 
         first, second = uuid.uuid4(), uuid.uuid4()
 
-        result = crud.sum_gear_usage_by_window(uuid.uuid4(), 1, [self._window(key=first), self._window(key=second)], db)
+        result = crud.sum_gear_usage_by_window(
+            uuid.uuid4(), _USER_1, [self._window(key=first), self._window(key=second)], db
+        )
 
         assert result[first].distance == 10.0
         assert result[first].time == 60.0
@@ -1477,7 +1508,7 @@ class TestClearGearFromActivities:
         db = MagicMock()
         db.execute.return_value.all.return_value = []
 
-        assert crud.clear_gear_from_activities(_GEAR_ID, 1, db) == []
+        assert crud.clear_gear_from_activities(_GEAR_ID, _USER_1, db) == []
         assert db.execute.call_count == 1
 
     def test_one_update_scoped_to_the_owner_bumps_the_version(self):
@@ -1486,7 +1517,7 @@ class TestClearGearFromActivities:
         db = MagicMock()
         db.execute.return_value.all.return_value = [(4,), (3,)]
 
-        assert crud.clear_gear_from_activities(_GEAR_ID, 1, db) == [3, 4]
+        assert crud.clear_gear_from_activities(_GEAR_ID, _USER_1, db) == [3, 4]
         (update,) = (call.args[0] for call in db.execute.call_args_list)
         compiled = str(update.compile(dialect=postgresql.dialect()))
         assert "version" in compiled
@@ -1504,7 +1535,7 @@ class TestSumUserActivitiesPerTimeframeAndTypes:
         mock_db.execute.return_value.one.return_value = (3, 1500, 42000.5, 800, 7200.0)
 
         totals = crud.sum_user_activities_per_timeframe_and_activity_types(
-            1, [1, 2], datetime(2024, 1, 1, tzinfo=UTC), datetime(2024, 1, 31, tzinfo=UTC), mock_db
+            _USER_1, [1, 2], datetime(2024, 1, 1, tzinfo=UTC), datetime(2024, 1, 31, tzinfo=UTC), mock_db
         )
 
         assert (totals.count, totals.calories, totals.distance, totals.elevation_gain, totals.elapsed_time) == (
@@ -1524,8 +1555,8 @@ class TestSumUserActivitiesPerTimeframeAndTypes:
         mock_db.execute.return_value.one.return_value = (0, 0, 0, 0, 0)
         window = (datetime(2024, 1, 1, tzinfo=UTC), datetime(2024, 1, 31, tzinfo=UTC))
 
-        crud.sum_user_activities_per_timeframe_and_activity_types(1, [1], *window, mock_db)
-        crud.sum_user_activities_per_timeframe_and_activity_types(1, [1], *window, mock_db, exclude_hidden=True)
+        crud.sum_user_activities_per_timeframe_and_activity_types(_USER_1, [1], *window, mock_db)
+        crud.sum_user_activities_per_timeframe_and_activity_types(_USER_1, [1], *window, mock_db, exclude_hidden=True)
 
         shown, hidden_excluded = (str(call.args[0]) for call in mock_db.execute.call_args_list)
         assert "is_hidden" not in shown
@@ -1550,7 +1581,9 @@ class TestHiddenStartTimeDoesNotLeakThroughQueries:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.return_value.scalars.return_value.all.return_value = []
-        crud.get_user_activities_with_pagination(1, mock_db, user_is_owner=owner, followee_ids=[1], **kwargs)
+        crud.get_user_activities_with_pagination(
+            _USER_1, mock_db, user_is_owner=owner, followee_ids=[_USER_1], **kwargs
+        )
         return self._sql(mock_db)
 
     def test_a_date_filter_skips_hidden_start_times_for_a_non_owner(self, mock_db):
@@ -1582,7 +1615,9 @@ class TestHiddenStartTimeDoesNotLeakThroughQueries:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.return_value.scalar_one.return_value = 0
-        crud.count_user_activities(1, mock_db, start_date=date(2026, 5, 1), user_is_owner=False, followee_ids=[1])
+        crud.count_user_activities(
+            _USER_1, mock_db, start_date=date(2026, 5, 1), user_is_owner=False, followee_ids=[_USER_1]
+        )
 
         assert "hide_start_time" in self._where(self._sql(mock_db))
 
@@ -1606,7 +1641,7 @@ def _listed_page_sql(mock_db, *, owner: bool, **kwargs) -> str:
     import modules.activities.activity.crud as crud
 
     mock_db.execute.return_value.scalars.return_value.all.return_value = []
-    crud.get_user_activities_with_pagination(1, mock_db, user_is_owner=owner, followee_ids=[1], **kwargs)
+    crud.get_user_activities_with_pagination(_USER_1, mock_db, user_is_owner=owner, followee_ids=[_USER_1], **kwargs)
     return _compiled(mock_db.execute.call_args.args[0])
 
 
@@ -1650,7 +1685,7 @@ class TestHiddenLocationDoesNotLeakThroughSearch:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.return_value.scalar.return_value = 0
-        crud.count_user_activities(1, mock_db, name_search="lisbon", user_is_owner=False, followee_ids=[1])
+        crud.count_user_activities(_USER_1, mock_db, name_search="lisbon", user_is_owner=False, followee_ids=[_USER_1])
 
         assert "hide_location" in _where_of(_compiled(mock_db.execute.call_args.args[0]))
 
@@ -1700,7 +1735,9 @@ class TestHiddenStartTimeDoesNotLeakThroughStats:
 
         mock_db.execute.return_value.all.return_value = []
         window = (datetime(2024, 1, 1, tzinfo=UTC), datetime(2024, 1, 7, tzinfo=UTC))
-        crud.sum_user_activities_per_timeframe_by_type(1, *window, mock_db, user_is_owner=owner, followee_ids=[1])
+        crud.sum_user_activities_per_timeframe_by_type(
+            _USER_1, *window, mock_db, user_is_owner=owner, followee_ids=[_USER_1]
+        )
         return _compiled(mock_db.execute.call_args.args[0])
 
     def test_a_non_owner_total_leaves_out_hidden_start_times(self, mock_db):
@@ -1722,7 +1759,7 @@ class TestFollowingFeedOrder:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.return_value.all.return_value = []
-        crud.get_following_feed_after([2], after, 10, mock_db)
+        crud.get_following_feed_after([_USER_2], after, 10, mock_db)
         return _compiled(mock_db.execute.call_args.args[0])
 
     def test_a_hidden_start_is_ordered_by_when_the_activity_was_recorded(self, mock_db):
@@ -1741,7 +1778,7 @@ class TestFollowingFeedOrder:
         mock_db.execute.return_value.all.return_value = [(row, recorded)]
 
         with patch.object(crud.activity_serializers, "serialize_and_mask", return_value=[MagicMock()]):
-            [entry] = crud.get_following_feed_after([2], None, 10, mock_db)
+            [entry] = crud.get_following_feed_after([_USER_2], None, 10, mock_db)
 
         assert (entry.cursor_sort_value, entry.cursor_id) == (recorded, 7)
 
@@ -1749,11 +1786,11 @@ class TestFollowingFeedOrder:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.return_value.all.return_value = []
-        crud.get_own_feed_after(3, None, 10, mock_db)
+        crud.get_own_feed_after(_USER_3, None, 10, mock_db)
         sql = _compiled(mock_db.execute.call_args.args[0])
 
         assert _order_by_of(sql).lstrip().startswith(f"{self._FEED_KEY} DESC")
-        assert "activities.user_id = 3" in _where_of(sql)
+        assert f"activities.user_id = '{_USER_3.hex}'" in _where_of(sql)
         assert "visibility" not in _where_of(sql)
 
     def test_the_own_feed_masks_nothing_for_its_owner(self, mock_db):
@@ -1762,6 +1799,6 @@ class TestFollowingFeedOrder:
         mock_db.execute.return_value.all.return_value = [(SimpleNamespace(id=7), datetime(2024, 1, 20, tzinfo=UTC))]
 
         with patch.object(crud.activity_serializers, "serialize_and_mask", return_value=[MagicMock()]) as serialize:
-            crud.get_own_feed_after(3, None, 10, mock_db)
+            crud.get_own_feed_after(_USER_3, None, 10, mock_db)
 
-        assert serialize.call_args.kwargs == {"requester_user_id": 3, "force_non_owner": False}
+        assert serialize.call_args.kwargs == {"requester_user_id": _USER_3, "force_non_owner": False}

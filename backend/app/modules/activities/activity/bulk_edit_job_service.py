@@ -11,6 +11,8 @@ row with that batch, so no transaction holds a whole library. Only activities th
 visibility yet are touched, so every step can be repeated and a job a worker died in is simply run again.
 """
 
+import uuid
+
 import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
 
@@ -49,7 +51,7 @@ def shutdown_pool(*, wait: bool = False) -> None:
     _pool.shutdown(wait=wait)
 
 
-def _stage_visibility_request(user_id: int, visibility: int, db: Session) -> None:
+def _stage_visibility_request(user_id: uuid.UUID, visibility: int, db: Session) -> None:
     """Stage the audit row of a bulk visibility edit in the transaction that queues it.
 
     Args:
@@ -68,7 +70,7 @@ def _stage_visibility_request(user_id: int, visibility: int, db: Session) -> Non
 
 
 def request_visibility_edit(
-    user_id: int,
+    user_id: uuid.UUID,
     visibility: int,
     states: bulk_edit_state_store.ActivityBulkEditStateStore,
     db: Session,
@@ -165,7 +167,7 @@ def run_visibility_edit(
     )
 
 
-def _apply(user_id: int, visibility: int) -> int:
+def _apply(user_id: uuid.UUID, visibility: int) -> int:
     """Change a user's activities one batch per transaction.
 
     Args:

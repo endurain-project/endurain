@@ -1,8 +1,12 @@
 """Tests for the followers event publishers."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import core.event_metadata as core_event_metadata
+
+_ID_1 = uuid.uuid4()
+_ID_2 = uuid.uuid4()
 
 
 class TestPublishFollowerRequested:
@@ -14,14 +18,14 @@ class TestPublishFollowerRequested:
 
         db = object()
         commit = MagicMock()
-        publish_follower_requested(1, 2, db, commit=commit)
+        publish_follower_requested(_ID_1, _ID_2, db, commit=commit)
 
         mock_publisher.publish_committing.assert_called_once()
         args, kwargs = mock_publisher.publish_committing.call_args
         assert args[0] == followers_events.FOLLOWER_REQUESTED
-        assert args[1] == {"requester_user_id": 1, "target_user_id": 2}
+        assert args[1] == {"requester_user_id": str(_ID_1), "target_user_id": str(_ID_2)}
         assert kwargs["schema_version"] == followers_events.FollowerRequestedPayload.SCHEMA_VERSION
-        assert kwargs["metadata"] == {core_event_metadata.META_USER_ID: 2}
+        assert kwargs["metadata"] == {core_event_metadata.META_USER_ID: str(_ID_2)}
         assert kwargs["db"] is db
         assert kwargs["commit"] is commit
 
@@ -35,14 +39,14 @@ class TestPublishFollowerAccepted:
 
         db = object()
         commit = MagicMock()
-        publish_follower_accepted(1, 2, db, commit=commit)
+        publish_follower_accepted(_ID_1, _ID_2, db, commit=commit)
 
         mock_publisher.publish_committing.assert_called_once()
         args, kwargs = mock_publisher.publish_committing.call_args
         assert args[0] == followers_events.FOLLOWER_ACCEPTED
-        assert args[1] == {"accepter_user_id": 1, "requester_user_id": 2}
+        assert args[1] == {"accepter_user_id": str(_ID_1), "requester_user_id": str(_ID_2)}
         assert kwargs["schema_version"] == followers_events.FollowerAcceptedPayload.SCHEMA_VERSION
-        assert kwargs["metadata"] == {core_event_metadata.META_USER_ID: 2}
+        assert kwargs["metadata"] == {core_event_metadata.META_USER_ID: str(_ID_2)}
         assert kwargs["db"] is db
         assert kwargs["commit"] is commit
 
@@ -55,13 +59,13 @@ class TestPublishFollowerRequestRemoved:
 
         db = object()
         commit = MagicMock()
-        publish_follower_request_removed(1, 2, db, commit=commit, source="api:test")
+        publish_follower_request_removed(_ID_1, _ID_2, db, commit=commit, source="api:test")
 
         args, kwargs = mock_publisher.publish_committing.call_args
         assert args[0] == followers_events.FOLLOWER_REQUEST_REMOVED
-        assert args[1] == {"requester_user_id": 1, "target_user_id": 2}
+        assert args[1] == {"requester_user_id": str(_ID_1), "target_user_id": str(_ID_2)}
         assert kwargs["source"] == "api:test"
         assert kwargs["schema_version"] == followers_events.FollowerRequestRemovedPayload.SCHEMA_VERSION
-        assert kwargs["metadata"] == {core_event_metadata.META_USER_ID: 2}
+        assert kwargs["metadata"] == {core_event_metadata.META_USER_ID: str(_ID_2)}
         assert kwargs["db"] is db
         assert kwargs["commit"] is commit

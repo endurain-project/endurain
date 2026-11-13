@@ -1,6 +1,7 @@
 """CRUD operations for user goals."""
 
 import uuid
+from datetime import datetime
 
 from sqlalchemy import Select, func, select
 from sqlalchemy.exc import IntegrityError
@@ -33,7 +34,7 @@ def _flush_goal(db: Session) -> None:
         ) from err
 
 
-def _select_goal(user_id: int, goal_id: uuid.UUID, db: Session) -> user_goals_models.UsersGoal:
+def _select_goal(user_id: uuid.UUID, goal_id: uuid.UUID, db: Session) -> user_goals_models.UsersGoal:
     """Select one of a user's goals as an ORM row.
 
     Args:
@@ -60,7 +61,7 @@ def _select_goal(user_id: int, goal_id: uuid.UUID, db: Session) -> user_goals_mo
 
 def _filtered_goals[RowT: tuple[object, ...]](
     stmt: Select[RowT],
-    user_id: int,
+    user_id: uuid.UUID,
     interval: user_goals_schema.Interval | None,
     activity_type: user_goals_schema.GoalActivityType | None,
     goal_type: user_goals_schema.GoalType | None,
@@ -88,7 +89,7 @@ def _filtered_goals[RowT: tuple[object, ...]](
 
 
 def get_user_goals_by_user_id(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     interval: user_goals_schema.Interval | None = None,
     activity_type: user_goals_schema.GoalActivityType | None = None,
@@ -114,7 +115,7 @@ def get_user_goals_by_user_id(
 
 
 def get_user_goals_page(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     interval: user_goals_schema.Interval | None = None,
     activity_type: user_goals_schema.GoalActivityType | None = None,
@@ -147,7 +148,7 @@ def get_user_goals_page(
 
 
 def count_user_goals(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     interval: user_goals_schema.Interval | None = None,
     activity_type: user_goals_schema.GoalActivityType | None = None,
@@ -171,7 +172,7 @@ def count_user_goals(
     return db.execute(stmt).scalar_one()
 
 
-def get_user_goal(user_id: int, goal_id: uuid.UUID, db: Session) -> user_goals_schema.UserGoalRead:
+def get_user_goal(user_id: uuid.UUID, goal_id: uuid.UUID, db: Session) -> user_goals_schema.UserGoalRead:
     """Retrieve one of a user's goals.
 
     Args:
@@ -189,9 +190,11 @@ def get_user_goal(user_id: int, goal_id: uuid.UUID, db: Session) -> user_goals_s
 
 
 def create_user_goal(
-    user_id: int,
+    user_id: uuid.UUID,
     user_goal: user_goals_schema.UserGoalCreate,
     db: Session,
+    *,
+    created_at: datetime | None = None,
 ) -> user_goals_schema.UserGoalRead:
     """Stage a new user goal (flushed, not committed).
 
@@ -199,6 +202,7 @@ def create_user_goal(
         user_id: The ID of the user.
         user_goal: Goal data to create.
         db: Database session.
+        created_at: Creation time to store; the transaction time when omitted.
 
     Returns:
         The created goal.
@@ -217,6 +221,8 @@ def create_user_goal(
         goal_elevation=user_goal.goal_elevation,
         goal_duration=user_goal.goal_duration,
     )
+    if created_at is not None:
+        db_goal.created_at = created_at
     db.add(db_goal)
     _flush_goal(db)
     db.refresh(db_goal)
@@ -225,7 +231,7 @@ def create_user_goal(
 
 
 def update_user_goal(
-    user_id: int,
+    user_id: uuid.UUID,
     goal_id: uuid.UUID,
     user_goal: user_goals_schema.UserGoalUpdate,
     db: Session,
@@ -262,7 +268,7 @@ def update_user_goal(
     return user_goals_serializers.to_read_schema(db_goal)
 
 
-def delete_user_goal(user_id: int, goal_id: uuid.UUID, db: Session, *, if_match: str) -> None:
+def delete_user_goal(user_id: uuid.UUID, goal_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Stage the deletion of a user's goal (flushed, not committed).
 
     Args:
@@ -281,7 +287,7 @@ def delete_user_goal(user_id: int, goal_id: uuid.UUID, db: Session, *, if_match:
     db.flush()
 
 
-def user_goal_exists(user_id: int, goal_id: uuid.UUID, db: Session) -> bool:
+def user_goal_exists(user_id: uuid.UUID, goal_id: uuid.UUID, db: Session) -> bool:
     """Report whether a user has a goal.
 
     Args:

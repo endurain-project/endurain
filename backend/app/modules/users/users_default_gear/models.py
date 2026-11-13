@@ -40,7 +40,7 @@ class UsersDefaultGear(Base):
     __table_args__ = (UniqueConstraint("user_id", name="uq_users_default_gear_user_id"),)
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[int] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

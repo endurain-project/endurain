@@ -1,5 +1,6 @@
 """User schema definitions for request and response models."""
 
+import uuid
 from datetime import date as datetime_date
 from datetime import datetime
 from enum import Enum, StrEnum
@@ -399,9 +400,8 @@ class UserRead(User):
         default=False,
         description="Whether pending admin approval",
     )
-    id: StrictInt = Field(
+    id: uuid.UUID = Field(
         ...,
-        ge=1,
         description="User ID",
     )
     photo_path: StrictStr | None = Field(
@@ -440,7 +440,7 @@ class UserPublicRead(BaseModel):
         photo_path: Servable URL of the user's photo.
     """
 
-    id: StrictInt = Field(..., ge=1, description="User ID")
+    id: uuid.UUID = Field(..., description="User ID")
     name: StrictStr = Field(..., description="User's full name")
     username: StrictStr = Field(..., description="Unique username")
     city: StrictStr | None = Field(default=None, description="User's city")

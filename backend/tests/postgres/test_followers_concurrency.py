@@ -6,6 +6,7 @@ check constraints, which only separate connections can exercise.
 """
 
 import threading
+import uuid
 from collections.abc import Callable
 
 import pytest
@@ -18,12 +19,18 @@ import modules.followers.crud as followers_crud
 import modules.followers.models as followers_models
 from tests._helpers.db import ensure_user
 
+_ID_1 = uuid.uuid4()
+_ID_2 = uuid.uuid4()
+_ID_3 = uuid.uuid4()
+_ID_999 = uuid.uuid4()
+
 _THREADS = 6
+_EXTRA_USERS = [uuid.uuid4() for _ in range(_THREADS)]
 
 
 @pytest.fixture
 def factory(pg_factory):
-    for user_id in (1, 2, 3):
+    for user_id in (_ID_1, _ID_2, _ID_3):
         ensure_user(pg_factory, user_id)
     return pg_factory
 
@@ -51,7 +58,7 @@ def _race(factory, work: Callable, count: int = _THREADS) -> list:
     return outcomes
 
 
-def _status(factory, follower_id: int, followee_id: int) -> str | None:
+def _status(factory, follower_id: uuid.UUID, followee_id: uuid.UUID) -> str | None:
     with factory() as db:
         return db.scalar(
             select(followers_models.Follower.status).where(
@@ -61,40 +68,42 @@ def _status(factory, follower_id: int, followee_id: int) -> str | None:
         )
 
 
-def _add_follow(factory, follower_id: int, followee_id: int, status: followers_constants.FollowStatus) -> None:
+def _add_follow(
+    factory, follower_id: uuid.UUID, followee_id: uuid.UUID, status: followers_constants.FollowStatus
+) -> None:
     with factory() as db:
         db.add(followers_models.Follower(follower_id=follower_id, followee_id=followee_id, status=status.value))
         db.commit()
 
 
 def test_concurrent_follow_requests_create_one_row_and_conflict_for_the_rest(factory):
-    outcomes = _race(factory, lambda db: followers_crud.create_follower(1, 2, db))
+    outcomes = _race(factory, lambda db: followers_crud.create_follower(_ID_1, _ID_2, db))
 
     conflicts = [o for o in outcomes if isinstance(o, core_exceptions.ConflictError)]
     assert len(outcomes) == _THREADS
     assert len(conflicts) == _THREADS - 1
-    assert _status(factory, 1, 2) == "pending"
+    assert _status(factory, _ID_1, _ID_2) == "pending"
 
 
 def test_following_a_user_that_does_not_exist_is_not_found_rather_than_a_conflict(factory):
     with factory() as db, pytest.raises(core_exceptions.NotFoundError):
-        followers_crud.create_follower(1, 999, db)
+        followers_crud.create_follower(_ID_1, _ID_999, db)
 
 
 def test_concurrent_accepts_have_exactly_one_winner(factory):
-    _add_follow(factory, 1, 2, followers_constants.FollowStatus.PENDING)
+    _add_follow(factory, _ID_1, _ID_2, followers_constants.FollowStatus.PENDING)
 
-    outcomes = _race(factory, lambda db: followers_crud.accept_follower(2, 1, db))
+    outcomes = _race(factory, lambda db: followers_crud.accept_follower(_ID_2, _ID_1, db))
 
     not_found = [o for o in outcomes if isinstance(o, core_exceptions.NotFoundError)]
     assert len(outcomes) == _THREADS
     assert len(not_found) == _THREADS - 1
-    assert _status(factory, 1, 2) == "accepted"
+    assert _status(factory, _ID_1, _ID_2) == "accepted"
 
 
 def test_an_accept_racing_a_reject_leaves_a_consistent_row(factory):
     """Whichever commits first wins, and the other reports not-found instead of resurrecting the row."""
-    _add_follow(factory, 1, 2, followers_constants.FollowStatus.PENDING)
+    _add_follow(factory, _ID_1, _ID_2, followers_constants.FollowStatus.PENDING)
     barrier = threading.Barrier(2)
     outcomes: dict[str, object] = {}
 
@@ -102,7 +111,7 @@ def test_an_accept_racing_a_reject_leaves_a_consistent_row(factory):
         barrier.wait()
         with factory() as db:
             try:
-                outcomes["accept"] = followers_crud.accept_follower(2, 1, db)
+                outcomes["accept"] = followers_crud.accept_follower(_ID_2, _ID_1, db)
                 db.commit()
             except core_exceptions.NotFoundError as err:
                 db.rollback()
@@ -112,7 +121,7 @@ def test_an_accept_racing_a_reject_leaves_a_consistent_row(factory):
         barrier.wait()
         with factory() as db:
             try:
-                followers_crud.delete_follower(1, 2, db, status=followers_constants.FollowStatus.PENDING)
+                followers_crud.delete_follower(_ID_1, _ID_2, db, status=followers_constants.FollowStatus.PENDING)
                 db.commit()
                 outcomes["reject"] = "deleted"
             except core_exceptions.NotFoundError as err:
@@ -129,35 +138,35 @@ def test_an_accept_racing_a_reject_leaves_a_consistent_row(factory):
     rejected = outcomes["reject"] == "deleted"
     # A reject scoped to ``pending`` cannot delete an accepted row, so exactly one side wins.
     assert accepted != rejected
-    assert _status(factory, 1, 2) == ("accepted" if accepted else None)
+    assert _status(factory, _ID_1, _ID_2) == ("accepted" if accepted else None)
 
 
 def test_a_reject_cannot_remove_an_accepted_follower(factory):
-    _add_follow(factory, 1, 2, followers_constants.FollowStatus.ACCEPTED)
+    _add_follow(factory, _ID_1, _ID_2, followers_constants.FollowStatus.ACCEPTED)
 
     with factory() as db, pytest.raises(core_exceptions.NotFoundError):
-        followers_crud.delete_follower(1, 2, db, status=followers_constants.FollowStatus.PENDING)
+        followers_crud.delete_follower(_ID_1, _ID_2, db, status=followers_constants.FollowStatus.PENDING)
 
-    assert _status(factory, 1, 2) == "accepted"
+    assert _status(factory, _ID_1, _ID_2) == "accepted"
 
 
 def test_the_database_refuses_a_self_follow(factory):
     with factory() as db:
-        db.add(followers_models.Follower(follower_id=1, followee_id=1, status="pending"))
+        db.add(followers_models.Follower(follower_id=_ID_1, followee_id=_ID_1, status="pending"))
         with pytest.raises(IntegrityError):
             db.flush()
 
 
 def test_the_database_refuses_an_unknown_status(factory):
     with factory() as db:
-        db.add(followers_models.Follower(follower_id=1, followee_id=2, status="blocked"))
+        db.add(followers_models.Follower(follower_id=_ID_1, followee_id=_ID_2, status="blocked"))
         with pytest.raises(IntegrityError):
             db.flush()
 
 
 def test_the_opposite_directions_are_independent_relationships(factory):
-    _add_follow(factory, 1, 2, followers_constants.FollowStatus.PENDING)
-    _add_follow(factory, 2, 1, followers_constants.FollowStatus.PENDING)
+    _add_follow(factory, _ID_1, _ID_2, followers_constants.FollowStatus.PENDING)
+    _add_follow(factory, _ID_2, _ID_1, followers_constants.FollowStatus.PENDING)
 
     with factory() as db:
         assert db.execute(text("SELECT count(*) FROM followers")).scalar_one() == 2
@@ -167,21 +176,21 @@ def test_concurrent_follow_requests_cannot_exceed_the_pending_cap(factory, monke
     import modules.followers.service as followers_service
 
     monkeypatch.setattr(followers_constants, "MAX_PENDING_REQUESTS", 2)
-    for user_id in range(10, 10 + _THREADS):
+    for user_id in _EXTRA_USERS:
         ensure_user(factory, user_id)
 
-    requesters = iter(range(10, 10 + _THREADS))
+    requesters = iter(_EXTRA_USERS)
     lock = threading.Lock()
 
     def follow(db):
         with lock:
             requester = next(requesters)
-        return followers_service.follow_user(requester, 1, db)
+        return followers_service.follow_user(requester, _ID_1, db)
 
     outcomes = _race(factory, follow)
 
     with factory() as db:
-        pending = followers_crud.count_pending_requests_for_user_id(1, db)
+        pending = followers_crud.count_pending_requests_for_user_id(_ID_1, db)
     assert pending == 2
     assert len([o for o in outcomes if isinstance(o, core_exceptions.ConflictError)]) == _THREADS - 2
 
@@ -190,10 +199,10 @@ def test_concurrent_accepts_cannot_exceed_the_followee_cap(factory, monkeypatch)
     import modules.followers.service as followers_service
 
     monkeypatch.setattr(followers_constants, "MAX_ACCEPTED_FOLLOWEES", 2)
-    followees = list(range(10, 10 + _THREADS))
+    followees = list(_EXTRA_USERS)
     for user_id in followees:
         ensure_user(factory, user_id)
-        _add_follow(factory, 1, user_id, followers_constants.FollowStatus.PENDING)
+        _add_follow(factory, _ID_1, user_id, followers_constants.FollowStatus.PENDING)
 
     accepters = iter(followees)
     lock = threading.Lock()
@@ -201,11 +210,11 @@ def test_concurrent_accepts_cannot_exceed_the_followee_cap(factory, monkeypatch)
     def accept(db):
         with lock:
             followee = next(accepters)
-        return followers_service.accept_follow_request(followee, 1, db)
+        return followers_service.accept_follow_request(followee, _ID_1, db)
 
     outcomes = _race(factory, accept)
 
     with factory() as db:
-        accepted = followers_crud.count_following_by_user_id(1, db, accepted_only=True)
+        accepted = followers_crud.count_following_by_user_id(_ID_1, db, accepted_only=True)
     assert accepted == 2
     assert len([o for o in outcomes if isinstance(o, core_exceptions.ConflictError)]) == _THREADS - 2

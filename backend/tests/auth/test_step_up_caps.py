@@ -1,5 +1,6 @@
 """The last per-session step-up tier ends the session; 100 failures across an account's sessions lock step-up."""
 
+import uuid
 from contextlib import ExitStack
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
@@ -21,7 +22,7 @@ _SERVICE = "modules.auth.account_security.step_up_service"
 _PUBLISH = "modules.auth.account_security.event_publishers.platform_publisher"
 _LAST_TIER = lockout_contracts.STEP_UP_LOCKOUT_TIERS[-1][0]
 _ACCOUNT_CAP = lockout_contracts.ACCOUNT_STEP_UP_LOCKOUT_TIERS[0][0]
-_USER_ID = 1
+_USER_ID = uuid.UUID(int=1)
 
 
 def _store() -> step_up_store_module.StepUpAttempts:
@@ -139,7 +140,7 @@ class TestLastPerSessionTier:
         assert entry.details == {"sessions_revoked": 1}
         events = spy.sent(account_security_events.STEP_UP_SESSION_ENDED)
         assert len(events) == 1
-        assert events[0].args[1] == {"user_id": _USER_ID}
+        assert events[0].args[1] == {"user_id": str(_USER_ID)}
         db.commit.assert_called()
 
     def test_the_callers_staged_work_is_discarded_before_the_session_end_commits(self):
@@ -218,7 +219,7 @@ class TestAccountWideCap:
         )
         events = spy.sent(account_security_events.STEP_UP_LOCKED)
         assert len(events) == 1
-        assert events[0].args[1] == {"user_id": _USER_ID}
+        assert events[0].args[1] == {"user_id": str(_USER_ID)}
 
     def test_the_callers_staged_work_is_discarded_before_the_lock_notice_is_published(self):
         store = _store()
@@ -271,7 +272,7 @@ class TestAccountWideCap:
         store = _store()
         _spend_account_failures(store, _ACCOUNT_CAP)
 
-        assert store.get_account_lockout_time(2) is None
+        assert store.get_account_lockout_time(uuid.UUID(int=2)) is None
 
 
 class TestAccountCounterReset:

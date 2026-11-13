@@ -174,7 +174,7 @@ class HealthPoopRead(HealthPoopBase):
         ...,
         description="Date and time of the bowel movement",
     )
-    user_id: StrictInt = Field(
+    user_id: uuid.UUID = Field(
         ...,
         description="Foreign key reference to the user",
     )

@@ -10,6 +10,7 @@ import pytest
 from pydantic import ValidationError
 
 import modules.users.users_default_gear.schema as user_default_gear_schema
+from tests._helpers.auth import OTHER_USER_ID
 
 _GEAR_A = uuid.uuid4()
 _GEAR_B = uuid.uuid4()
@@ -58,13 +59,13 @@ class TestUserDefaultGearRead:
         # Act
         gear = user_default_gear_schema.UserDefaultGearRead(
             id=record_id,
-            user_id=2,
+            user_id=OTHER_USER_ID,
             run_gear_id=_GEAR_C,
         )
 
         # Assert
         assert gear.id == record_id
-        assert gear.user_id == 2
+        assert gear.user_id == OTHER_USER_ID
         assert gear.run_gear_id == _GEAR_C
 
 

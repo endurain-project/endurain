@@ -16,7 +16,7 @@ import modules.auth.schema as auth_schema
 from modules.auth.identity_providers.constants import StepUpAction
 from modules.auth.identity_providers.step_up_ticket_store import StepUpTicketStore
 
-USER_ID = 7
+USER_ID = uuid.UUID(int=7)
 IDP_ID = uuid.UUID(int=3)
 SESSION_ID = "11111111-2222-3333-4444-555555555555"
 VERIFIER = "v" * 43
@@ -111,7 +111,7 @@ class TestTicket:
     @pytest.mark.parametrize(
         ("issued", "presented"),
         [
-            ({"user_id": USER_ID + 1}, {}),
+            ({"user_id": uuid.UUID(int=8)}, {}),
             ({"session_id": "99999999-2222-3333-4444-555555555555"}, {}),
             ({"action": StepUpAction.ACCOUNT_DELETE}, {}),
             ({"action": StepUpAction.ADMIN_USER_EDIT}, {"action": StepUpAction.ADMIN_USER_DELETE}),

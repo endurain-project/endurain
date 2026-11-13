@@ -14,6 +14,7 @@ import pytest
 import core.exceptions as core_exceptions
 import modules.activities.activity.contracts as activity_contracts
 import modules.strava.bulk_import_service as strava_bulk_import_source
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
 _GEAR = uuid.uuid4()
 
@@ -33,7 +34,7 @@ def mock_utils(monkeypatch):
 
 def _activity() -> activity_contracts.ActivityCore:
     return activity_contracts.ActivityCore(
-        user_id=1,
+        user_id=MOCK_USER_ID,
         name="Workout",
         distance=1000,
         activity_type=1,
@@ -170,22 +171,22 @@ class TestBuildSource:
         )
         monkeypatch.setattr(strava_bulk_import_source.core_database, "SessionLocal", MagicMock())
 
-        source = strava_bulk_import_source._build_source(7, "2026-10-15T00:00:00", read)
+        source = strava_bulk_import_source._build_source(MOCK_USER_ID, "2026-10-15T00:00:00", read)
 
         assert source.strava_activities == {"1.fit": {"Activity Name": "Ride"}}
         assert source.gear_nickname_to_id == {"Bike": [_GEAR]}
-        assert (source.user_id, source.import_initiated_time) == (7, "2026-10-15T00:00:00")
+        assert (source.user_id, source.import_initiated_time) == (MOCK_USER_ID, "2026-10-15T00:00:00")
         assert source.read_member is read
 
     def test_an_archive_without_a_manifest_is_not_a_strava_export(self):
         with pytest.raises(core_exceptions.InvalidInputError):
-            strava_bulk_import_source._build_source(7, "t", lambda name: None)
+            strava_bulk_import_source._build_source(MOCK_USER_ID, "t", lambda name: None)
 
     def test_an_unparseable_manifest_is_refused(self, monkeypatch):
         monkeypatch.setattr(strava_bulk_import_source, "parse_activities_manifest", lambda path: None)
 
         with pytest.raises(core_exceptions.InvalidInputError):
-            strava_bulk_import_source._build_source(7, "t", lambda name: b"garbage")
+            strava_bulk_import_source._build_source(MOCK_USER_ID, "t", lambda name: b"garbage")
 
     def test_the_format_is_registered_under_strava(self):
         from modules.activities.activity_ingestion import provider_registry
@@ -195,7 +196,7 @@ class TestBuildSource:
 
         registered = provider_registry.get_bulk_format("strava")
         assert registered is not None
-        assert registered.drop_directory(5).endswith("/5")
+        assert registered.drop_directory(MOCK_USER_ID).endswith(f"/{MOCK_USER_ID}")
         provider_registry.clear()
 
 
@@ -205,10 +206,6 @@ class TestDropDirectory:
     def test_each_user_gets_their_own_directory(self, monkeypatch):
         monkeypatch.setattr(strava_bulk_import_source.core_config.settings, "FILES_DIR", "/data/files")
 
-        assert strava_bulk_import_source.drop_directory_for(2) == "/data/files/strava_import/2"
-
-    def test_the_id_can_only_be_a_single_path_segment(self, monkeypatch):
-        monkeypatch.setattr(strava_bulk_import_source.core_config.settings, "FILES_DIR", "/data/files")
-
-        with pytest.raises(ValueError):
-            strava_bulk_import_source.drop_directory_for("../2")
+        assert (
+            strava_bulk_import_source.drop_directory_for(OTHER_USER_ID) == f"/data/files/strava_import/{OTHER_USER_ID}"
+        )

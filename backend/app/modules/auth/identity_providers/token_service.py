@@ -39,7 +39,7 @@ class IdpTokenService:
         """Initialize the service with the client that reaches the providers."""
         self._oidc = oidc
 
-    def request_idp_token_refresh(self, user_id: int, session_id: str, db: Session) -> None:
+    def request_idp_token_refresh(self, user_id: uuid.UUID, session_id: str, db: Session) -> None:
         """Clear the session's identity-provider token if policy retires it, or queue its refresh if it is expiring.
 
         Runs inside a request, so it makes no provider call: the refresh itself is an event handled by
@@ -62,7 +62,7 @@ class IdpTokenService:
             )
 
     def refresh_idp_tokens(
-        self, user_id: int, session_id: str, claims: idp_refresh_claim_store.IdpRefreshClaimStore
+        self, user_id: uuid.UUID, session_id: str, claims: idp_refresh_claim_store.IdpRefreshClaimStore
     ) -> None:
         """Refresh the session's identity-provider token if it is about to expire. Blocking; run it on a worker.
 
@@ -92,7 +92,7 @@ class IdpTokenService:
     @staticmethod
     def store_session_tokens(
         session_id: str,
-        user_id: int,
+        user_id: uuid.UUID,
         idp_id: uuid.UUID,
         token_response: dict[str, Any],
         db: Session,
@@ -136,7 +136,7 @@ class IdpTokenService:
         )
 
     @staticmethod
-    def _encrypt_id_token(user_id: int, idp_id: uuid.UUID, token_response: dict[str, Any]) -> str | None:
+    def _encrypt_id_token(user_id: uuid.UUID, idp_id: uuid.UUID, token_response: dict[str, Any]) -> str | None:
         """Encrypt the ID token of a token response, which RP-initiated logout presents as the hint.
 
         Args:
@@ -162,7 +162,7 @@ class IdpTokenService:
 
     @staticmethod
     def _encrypt_token_response(
-        user_id: int, idp_id: uuid.UUID, token_response: dict[str, Any]
+        user_id: uuid.UUID, idp_id: uuid.UUID, token_response: dict[str, Any]
     ) -> tuple[str, datetime] | tuple[None, None]:
         """Encrypt the refresh token of a token response and work out when its access token expires.
 
@@ -203,7 +203,7 @@ class IdpTokenService:
     def _store_refreshed_token(
         self,
         session_id: str,
-        user_id: int,
+        user_id: uuid.UUID,
         idp_id: uuid.UUID,
         token_response: dict[str, Any],
         expected_refresh_token: str,
@@ -430,7 +430,7 @@ class IdpTokenService:
     def _drop_unverified_id_token(
         self,
         idp: identity_provider_contracts.IdentityProviderState,
-        user_id: int,
+        user_id: uuid.UUID,
         client_id: str,
         token_response: dict[str, Any],
     ) -> None:
@@ -481,7 +481,9 @@ class IdpTokenService:
             del token_response["id_token"]
 
     @staticmethod
-    def _clear_refresh_token(session_id: str, user_id: int, idp_id: uuid.UUID, expected_refresh_token: str) -> bool:
+    def _clear_refresh_token(
+        session_id: str, user_id: uuid.UUID, idp_id: uuid.UUID, expected_refresh_token: str
+    ) -> bool:
         """Clear the refresh token a refresh read, in a session of its own, unless the session holds another now.
 
         Args:
@@ -511,7 +513,7 @@ class IdpTokenService:
         return True
 
     def _end_refused_session(
-        self, session_id: str, user_id: int, idp_id: uuid.UUID, expected_refresh_token: str
+        self, session_id: str, user_id: uuid.UUID, idp_id: uuid.UUID, expected_refresh_token: str
     ) -> None:
         """End the Endurain session whose refresh token the provider refused, and audit it.
 

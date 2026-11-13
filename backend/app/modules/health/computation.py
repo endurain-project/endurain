@@ -40,7 +40,7 @@ class OwnedRecord(Protocol):
         ...
 
     @declared_attr
-    def user_id(cls) -> Mapped[int]:
+    def user_id(cls) -> Mapped[uuid.UUID]:
         """The record's owner."""
         ...
 
@@ -163,7 +163,7 @@ def date_bounds(column: SQLColumnExpression[date], since: date | None, until: da
 
 
 def owned_record_statement[ModelT: OwnedRecord](
-    model: type[ModelT], record_id: uuid.UUID, user_id: int
+    model: type[ModelT], record_id: uuid.UUID, user_id: uuid.UUID
 ) -> Select[tuple[ModelT]]:
     """Build the query for a user's record by id.
 
@@ -179,7 +179,7 @@ def owned_record_statement[ModelT: OwnedRecord](
 
 
 def owned_record_exists_statement[ModelT: OwnedRecord](
-    model: type[ModelT], record_id: uuid.UUID, user_id: int
+    model: type[ModelT], record_id: uuid.UUID, user_id: uuid.UUID
 ) -> Select[tuple[bool]]:
     """Build the query that reports whether a user has a record.
 
@@ -196,7 +196,7 @@ def owned_record_exists_statement[ModelT: OwnedRecord](
 
 def user_record_count_statement[ModelT: OwnedRecord](
     model: type[ModelT],
-    user_id: int,
+    user_id: uuid.UUID,
     since_column: SQLColumnExpression[date],
     since: date | None,
     until: date | None,
@@ -224,7 +224,7 @@ def user_record_count_statement[ModelT: OwnedRecord](
 
 def user_records_statement[ModelT: OwnedRecord](
     model: type[ModelT],
-    user_id: int,
+    user_id: uuid.UUID,
     order_column: QueryableAttribute[date],
     since_column: SQLColumnExpression[date],
     since: date | None,

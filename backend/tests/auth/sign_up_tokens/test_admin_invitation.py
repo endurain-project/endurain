@@ -1,5 +1,6 @@
 """Tests for the invitation an administrator's passwordless account creation mails to the new user."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import jasil.events as platform_events
@@ -14,7 +15,13 @@ import modules.auth.sign_up_tokens.integration_service as sign_up_integration
 import modules.auth.sign_up_tokens.service as sign_up_service
 import modules.auth.sign_up_tokens.subscribers as sign_up_subscribers
 import modules.users.users.models as users_models
+from tests._helpers.auth import MOCK_USER_ID
 from tests._helpers.db import create_sqlite_session, ensure_user
+
+_OWNER_EMAIL = f"user{MOCK_USER_ID.hex}@example.com"
+
+_USER_4 = uuid.UUID("00000000-0000-4000-8000-000000000004")
+_USER_999 = uuid.UUID("00000000-0000-4000-8000-000000000999")
 
 _SERVICE = "modules.auth.sign_up_tokens.service"
 _PUBLISH = "modules.auth.sign_up_tokens.event_publishers.platform_publisher.publish_on_commit"
@@ -25,7 +32,7 @@ _HOST = "https://app.example"
 def db():
     session = create_sqlite_session()
     factory = sessionmaker(bind=session.get_bind())
-    ensure_user(factory, 7)
+    ensure_user(factory, MOCK_USER_ID)
     session.query(users_models.Users).update({"preferred_language": "en"})
     session.commit()
     yield session
@@ -54,16 +61,16 @@ class TestRequest:
     def test_the_invitation_event_is_staged_with_the_user_id_only(self, _configured, publish):
         database = MagicMock()
 
-        sign_up_integration.request_admin_invitation_email(7, database)
+        sign_up_integration.request_admin_invitation_email(MOCK_USER_ID, database)
 
-        assert publish.call_args.args[:2] == (sign_up_events.ADMIN_INVITATION_REQUESTED, {"user_id": 7})
+        assert publish.call_args.args[:2] == (sign_up_events.ADMIN_INVITATION_REQUESTED, {"user_id": str(MOCK_USER_ID)})
         assert publish.call_args.kwargs["db"] is database
 
     @patch(_PUBLISH)
     @patch(f"{_SERVICE}.server_settings_integration.is_mail_configured", return_value=False)
     def test_nothing_is_staged_without_mail(self, _configured, publish):
         with pytest.raises(core_exceptions.ServiceUnavailableError):
-            sign_up_integration.request_admin_invitation_email(7, MagicMock())
+            sign_up_integration.request_admin_invitation_email(MOCK_USER_ID, MagicMock())
 
         publish.assert_not_called()
 
@@ -71,28 +78,30 @@ class TestRequest:
     def test_the_publisher_stages_for_the_callers_commit(self, publish):
         database = MagicMock()
 
-        sign_up_publishers.publish_admin_invitation_requested(7, database)
+        sign_up_publishers.publish_admin_invitation_requested(MOCK_USER_ID, database)
 
         assert publish.call_args.kwargs["db"] is database
 
 
 class TestPrepare:
     def test_the_link_is_a_live_sign_up_token_and_the_mail_goes_to_the_account(self, db):
-        recipient, subject, html_body, _ = sign_up_service.prepare_admin_invitation_email(7, "event-1", _HOST, db)
+        recipient, subject, html_body, _ = sign_up_service.prepare_admin_invitation_email(
+            MOCK_USER_ID, "event-1", _HOST, db
+        )
 
-        assert recipient == "user7@example.com"
+        assert recipient == _OWNER_EMAIL
         assert "administrator" in subject.lower()
         token = html_body.split("/signup/confirm?token=")[1].split('"')[0].split("<")[0]
-        assert sign_up_service.verify_sign_up_token(token, db, email_change=False).user_id == 7
+        assert sign_up_service.verify_sign_up_token(token, db, email_change=False).user_id == MOCK_USER_ID
 
     def test_a_retried_event_mails_the_same_link(self, db):
-        first = sign_up_service.prepare_admin_invitation_email(7, "event-1", _HOST, db)
-        second = sign_up_service.prepare_admin_invitation_email(7, "event-1", _HOST, db)
+        first = sign_up_service.prepare_admin_invitation_email(MOCK_USER_ID, "event-1", _HOST, db)
+        second = sign_up_service.prepare_admin_invitation_email(MOCK_USER_ID, "event-1", _HOST, db)
 
         assert first[2] == second[2]
 
     def test_a_missing_user_is_skipped(self, db):
-        assert sign_up_service.prepare_admin_invitation_email(999, "event-1", _HOST, db) is None
+        assert sign_up_service.prepare_admin_invitation_email(_USER_999, "event-1", _HOST, db) is None
 
 
 class TestSubscriber:
@@ -105,12 +114,14 @@ class TestSubscriber:
     ):
         database = session_local.return_value.__enter__.return_value
         prepare.return_value = ("person@example.test", "subject", "html", "text")
-        event = platform_events.new_event(sign_up_events.ADMIN_INVITATION_REQUESTED, {"user_id": 4}, source="test")
+        event = platform_events.new_event(
+            sign_up_events.ADMIN_INVITATION_REQUESTED, {"user_id": str(_USER_4)}, source="test"
+        )
 
         sign_up_subscribers.send_admin_invitation_email_for_event(event)
 
         prepare.assert_called_once_with(
-            4, event.event_id, sign_up_subscribers.core_config.settings.ENDURAIN_HOST, database
+            _USER_4, event.event_id, sign_up_subscribers.core_config.settings.ENDURAIN_HOST, database
         )
         send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
 

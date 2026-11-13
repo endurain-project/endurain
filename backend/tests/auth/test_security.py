@@ -1,6 +1,8 @@
 """Tests for authentication token-selection and refresh-token dependencies."""
 
+import uuid
 from datetime import timedelta
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -52,6 +54,28 @@ def test_refresh_claims_are_extracted(token_manager, sample_user_read):
     )
     assert authentication_dependencies.get_sub_from_refresh_token(refresh_token, token_manager) == sample_user_read.id
     assert authentication_dependencies.get_sid_from_refresh_token(refresh_token, token_manager) == "session-id"
+
+
+def test_the_refresh_subject_is_the_user_uuid(token_manager, sample_user_read):
+    _, refresh_token = token_manager.create_token(
+        "session-id", sample_user_read, ClientType.WEB, access_tokens_service.TokenType.REFRESH, timedelta(days=1)
+    )
+
+    subject = authentication_dependencies.get_sub_from_refresh_token(refresh_token, token_manager)
+
+    assert isinstance(subject, uuid.UUID)
+
+
+@pytest.mark.parametrize("subject", [7, "7", "not-a-user-id", ""])
+def test_a_refresh_subject_that_is_not_a_user_uuid_is_refused(token_manager, sample_user_read, subject):
+    """A token from before the upgrade carries a decimal subject and is refused as unauthenticated."""
+    user = SimpleNamespace(id=subject, access_type=sample_user_read.access_type)
+    _, refresh_token = token_manager.create_token(
+        "session-id", user, ClientType.WEB, access_tokens_service.TokenType.REFRESH, timedelta(days=1)
+    )
+
+    with pytest.raises(core_exceptions.InvalidTokenError):
+        authentication_dependencies.get_sub_from_refresh_token(refresh_token, token_manager)
 
 
 def test_refresh_expiry_is_the_tokens_own_exp_claim(token_manager, sample_user_read):
@@ -149,6 +173,14 @@ class TestGetLogoutTarget:
         assert self._target(token_manager, cookie=token) == authentication_dependencies.LogoutTarget(
             sample_user_read.id, "session-id", token
         )
+
+    def test_a_token_with_a_decimal_subject_names_no_session(self, token_manager, sample_user_read):
+        user = SimpleNamespace(id=7, access_type=sample_user_read.access_type)
+        _, token = token_manager.create_token(
+            "session-id", user, ClientType.WEB, access_tokens_service.TokenType.REFRESH, timedelta(days=1)
+        )
+
+        assert self._target(token_manager, cookie=token) is None
 
     def test_a_valid_mobile_token_is_read_from_the_request_body(self, token_manager, sample_user_read):
         _, token = token_manager.create_token(

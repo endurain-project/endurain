@@ -1,5 +1,6 @@
 """Tests for auth.account_security_service."""
 
+import uuid
 from contextlib import ExitStack
 from unittest.mock import MagicMock, patch
 
@@ -8,6 +9,8 @@ import pytest
 import modules.auth.account_security.account_security_service as account_security_service
 import modules.auth.credentials.contracts as credentials_contracts
 
+USER_ID = uuid.UUID(int=7)
+OTHER_USER_ID = uuid.UUID(int=42)
 _PREFIX = "modules.auth.account_security.account_security_service."
 
 
@@ -48,7 +51,7 @@ class TestChangeOwnPassword:
             pytest.raises(credentials_contracts.PasswordUnchangedError),
         ):
             account_security_service.stage_change_own_password(
-                7,
+                USER_ID,
                 "same-pass",
                 "same-pass",
                 None,
@@ -59,7 +62,7 @@ class TestChangeOwnPassword:
             )
 
         verify.assert_called_once()
-        differs.assert_called_once_with(7, "same-pass", mock_db)
+        differs.assert_called_once_with(USER_ID, "same-pass", mock_db)
         set_hash.assert_not_called()
         delete_sessions.assert_not_called()
         publish.assert_not_called()
@@ -108,7 +111,7 @@ class TestChangeOwnPassword:
             ) as mock_set_password,
         ):
             account_security_service.stage_change_own_password(
-                user_id=7,
+                user_id=USER_ID,
                 current_password="old-pass",
                 new_password="new-pass",
                 mfa_code="123456",
@@ -119,7 +122,7 @@ class TestChangeOwnPassword:
             )
 
         mock_verify.assert_called_once_with(
-            7,
+            USER_ID,
             "old-pass",
             "123456",
             step_up_store,
@@ -129,7 +132,7 @@ class TestChangeOwnPassword:
         mock_hash_password.assert_called_once_with(
             mock_settings, "regular", "new-pass", mock_db, username="alice", email="alice@example.com"
         )
-        mock_set_password.assert_called_once_with(7, "hashed-new-pass", mock_db, change_required=False)
+        mock_set_password.assert_called_once_with(USER_ID, "hashed-new-pass", mock_db, change_required=False)
         mock_db.commit.assert_not_called()
         assert len(mock_log.method_calls) == 1
 
@@ -174,7 +177,7 @@ class TestChangeOwnPassword:
             ) as mock_hash_password,
         ):
             account_security_service.stage_change_own_password(
-                user_id=1,
+                user_id=USER_ID,
                 current_password="old-pass",
                 new_password="new-pass",
                 mfa_code=None,
@@ -203,7 +206,7 @@ class TestChangeOwnPassword:
             patch(prefix + "sessions_integration.delete_sessions_by_user"),
         ):
             account_security_service.stage_change_own_password(
-                user_id=7,
+                user_id=USER_ID,
                 current_password="old-pass",
                 new_password="new-pass",
                 mfa_code=None,
@@ -234,7 +237,7 @@ class TestChangeOwnPassword:
             patch(prefix + "sessions_integration.delete_sessions_by_user") as mock_delete_sessions,
         ):
             account_security_service.stage_change_own_password(
-                user_id=7,
+                user_id=USER_ID,
                 current_password="old-pass",
                 new_password="new-pass",
                 mfa_code=None,
@@ -245,7 +248,7 @@ class TestChangeOwnPassword:
             )
 
         if revoke:
-            mock_delete_sessions.assert_called_once_with(7, mock_db, exclude_session_id="session-1")
+            mock_delete_sessions.assert_called_once_with(USER_ID, mock_db, exclude_session_id="session-1")
         else:
             mock_delete_sessions.assert_not_called()
 
@@ -263,9 +266,9 @@ class TestChangeManagedUserPassword:
             patch(_PREFIX + "credentials_integration.set_local_password_hash"),
             patch(_PREFIX + "sessions_integration.delete_sessions_by_user"),
         ):
-            account_security_service.change_managed_user_password(42, "new-pass", mock_db)
+            account_security_service.change_managed_user_password(OTHER_USER_ID, "new-pass", mock_db)
 
-        api_keys.revoke_user_api_keys.assert_called_once_with(42, mock_db)
+        api_keys.revoke_user_api_keys.assert_called_once_with(OTHER_USER_ID, mock_db)
 
     def test_voids_the_users_unused_reset_tokens(self, mock_db, password_reset_tokens):
         """A reset link mailed before the administrator set a password stops working."""
@@ -277,9 +280,9 @@ class TestChangeManagedUserPassword:
             patch(_PREFIX + "credentials_integration.set_local_password_hash"),
             patch(_PREFIX + "sessions_integration.delete_sessions_by_user"),
         ):
-            account_security_service.change_managed_user_password(42, "new-pass", mock_db)
+            account_security_service.change_managed_user_password(OTHER_USER_ID, "new-pass", mock_db)
 
-        password_reset_tokens.revoke_unused_tokens.assert_called_once_with(42, mock_db)
+        password_reset_tokens.revoke_unused_tokens.assert_called_once_with(OTHER_USER_ID, mock_db)
 
     @patch("modules.auth.account_security.account_security_service.sessions_integration.delete_sessions_by_user")
     def test_updates_password_and_revokes_sessions(
@@ -319,7 +322,7 @@ class TestChangeManagedUserPassword:
             ) as mock_set_password,
         ):
             account_security_service.change_managed_user_password(
-                user_id=42,
+                user_id=OTHER_USER_ID,
                 new_password="new-pass",
                 db=mock_db,
             )
@@ -328,9 +331,9 @@ class TestChangeManagedUserPassword:
             mock_settings, "regular", "new-pass", mock_db, username="alice", email="alice@example.com"
         )
         # An administrator knows this password, so the user must change it at the next sign-in.
-        mock_set_password.assert_called_once_with(42, "hashed-managed-pass", mock_db, change_required=True)
+        mock_set_password.assert_called_once_with(OTHER_USER_ID, "hashed-managed-pass", mock_db, change_required=True)
 
-        mock_delete_sessions.assert_called_once_with(42, mock_db)
+        mock_delete_sessions.assert_called_once_with(OTHER_USER_ID, mock_db)
 
 
 class TestChangeOwnPasswordResetTokens:
@@ -349,7 +352,7 @@ class TestChangeOwnPasswordResetTokens:
             patch(_PREFIX + "sessions_integration.delete_sessions_by_user"),
         ):
             account_security_service.stage_change_own_password(
-                7,
+                USER_ID,
                 "old-pass",
                 "new-pass",
                 None,
@@ -359,7 +362,7 @@ class TestChangeOwnPasswordResetTokens:
                 current_session_id="sid",
             )
 
-        password_reset_tokens.revoke_unused_tokens.assert_called_once_with(7, mock_db)
+        password_reset_tokens.revoke_unused_tokens.assert_called_once_with(USER_ID, mock_db)
 
 
 class TestDeleteOtherUserSessions:
@@ -377,14 +380,14 @@ class TestDeleteOtherUserSessions:
         mock_delete_sessions.return_value = 3
 
         revoked = account_security_service.delete_other_user_sessions(
-            token_user_id=7,
+            token_user_id=USER_ID,
             current_session_id="session-1",
             db=mock_db,
         )
 
         assert revoked == 3
         mock_delete_sessions.assert_called_once_with(
-            7,
+            USER_ID,
             mock_db,
             exclude_session_id="session-1",
         )
@@ -403,7 +406,7 @@ class TestDeleteUserSessionLogging:
         session_id = "9f2c1d7e-session-handle-0001"
 
         with caplog.at_level(logging.DEBUG):
-            account_security_service.delete_user_session(session_id, 42, mock_db)
+            account_security_service.delete_user_session(session_id, OTHER_USER_ID, mock_db)
 
         assert caplog.records
         for record in caplog.records:
@@ -455,17 +458,17 @@ class TestSecurityGenerationBump:
                 "audit",
             )
             account_security_service.stage_change_own_password(
-                7, "old", "new", None, MagicMock(), mock_db, revoke_other_sessions=False, current_session_id="sid"
+                USER_ID, "old", "new", None, MagicMock(), mock_db, revoke_other_sessions=False, current_session_id="sid"
             )
 
-        generation.stage_bump.assert_called_once_with(7, mock_db)
+        generation.stage_bump.assert_called_once_with(USER_ID, mock_db)
 
     def test_the_forced_password_change_bumps(self, mock_db, generation):
         with ExitStack() as stack:
             self._enter(stack, "settings", "differs", "user", "hash", "set_hash", "audit")
-            account_security_service.stage_required_password_change(7, "new", mock_db)
+            account_security_service.stage_required_password_change(USER_ID, "new", mock_db)
 
-        generation.stage_bump.assert_called_once_with(7, mock_db)
+        generation.stage_bump.assert_called_once_with(USER_ID, mock_db)
 
     def test_a_refused_own_password_change_does_not_bump(self, mock_db, generation):
         with (
@@ -473,7 +476,7 @@ class TestSecurityGenerationBump:
             pytest.raises(Exception, match="identity provider"),
         ):
             account_security_service.stage_change_own_password(
-                7, "old", "new", None, MagicMock(), mock_db, revoke_other_sessions=False, current_session_id="sid"
+                USER_ID, "old", "new", None, MagicMock(), mock_db, revoke_other_sessions=False, current_session_id="sid"
             )
 
         generation.stage_bump.assert_not_called()
@@ -481,9 +484,9 @@ class TestSecurityGenerationBump:
     def test_an_administrator_setting_a_password_bumps(self, mock_db, generation):
         with ExitStack() as stack:
             self._enter(stack, "settings", "user", "hash", "set_hash", "sessions", "lockout", "audit")
-            account_security_service.change_managed_user_password(42, "new", mock_db)
+            account_security_service.change_managed_user_password(OTHER_USER_ID, "new", mock_db)
 
-        generation.stage_bump.assert_called_once_with(42, mock_db)
+        generation.stage_bump.assert_called_once_with(OTHER_USER_ID, mock_db)
 
     def test_requiring_a_password_change_bumps(self, mock_db, generation):
         with (
@@ -492,9 +495,9 @@ class TestSecurityGenerationBump:
             patch(_PREFIX + "sessions_integration.delete_sessions_by_user", return_value=0),
             patch(_PREFIX + "_stage_credential_changed"),
         ):
-            account_security_service.require_managed_user_password_change(42, mock_db)
+            account_security_service.require_managed_user_password_change(OTHER_USER_ID, mock_db)
 
-        generation.stage_bump.assert_called_once_with(42, mock_db)
+        generation.stage_bump.assert_called_once_with(OTHER_USER_ID, mock_db)
 
     def test_an_own_password_change_bumps_before_the_password_is_written(self, mock_db, generation):
         order = MagicMock()
@@ -509,7 +512,7 @@ class TestSecurityGenerationBump:
                 "delete_sessions",
             )
             account_security_service.stage_change_own_password(
-                7, "old", "new", None, MagicMock(), mock_db, revoke_other_sessions=True, current_session_id="sid"
+                USER_ID, "old", "new", None, MagicMock(), mock_db, revoke_other_sessions=True, current_session_id="sid"
             )
 
         names = [call[0] for call in order.mock_calls]
@@ -524,7 +527,7 @@ class TestSecurityGenerationBump:
             order.attach_mock(
                 stack.enter_context(patch(_PREFIX + "credentials_integration.set_local_password_hash")), "set_password"
             )
-            account_security_service.stage_required_password_change(7, "new", mock_db)
+            account_security_service.stage_required_password_change(USER_ID, "new", mock_db)
 
         assert [call[0] for call in order.mock_calls][:2] == ["bump", "set_password"]
 
@@ -544,7 +547,7 @@ class TestSecurityGenerationBump:
                 stack.enter_context(patch(_PREFIX + "sessions_integration.delete_sessions_by_user", return_value=0)),
                 "delete_sessions",
             )
-            account_security_service.change_managed_user_password(42, "new", mock_db)
+            account_security_service.change_managed_user_password(OTHER_USER_ID, "new", mock_db)
 
         assert [call[0] for call in order.mock_calls] == ["bump", "set_password", "void_tokens", "delete_sessions"]
 
@@ -559,7 +562,7 @@ class TestSecurityGenerationBump:
         ):
             order.attach_mock(require, "require_change")
             order.attach_mock(delete_sessions, "delete_sessions")
-            account_security_service.require_managed_user_password_change(42, mock_db)
+            account_security_service.require_managed_user_password_change(OTHER_USER_ID, mock_db)
 
         assert [call[0] for call in order.mock_calls] == ["bump", "require_change", "delete_sessions"]
 
@@ -572,16 +575,16 @@ class TestSecurityGenerationBump:
             patch(_PREFIX + "_stage_sessions_revoked"),
         ):
             order.attach_mock(delete_sessions, "delete_sessions")
-            account_security_service.sign_out_everywhere(7, mock_db)
+            account_security_service.sign_out_everywhere(USER_ID, mock_db)
 
         assert [call[0] for call in order.mock_calls] == ["bump", "delete_sessions", "commit"]
-        generation.stage_bump.assert_called_once_with(7, mock_db)
+        generation.stage_bump.assert_called_once_with(USER_ID, mock_db)
 
     def test_signing_out_other_devices_does_not_bump(self, mock_db, generation):
         with (
             patch(_PREFIX + "sessions_integration.delete_sessions_by_user", return_value=2),
             patch(_PREFIX + "_stage_sessions_revoked"),
         ):
-            account_security_service.stage_delete_other_user_sessions(7, "sid", mock_db)
+            account_security_service.stage_delete_other_user_sessions(USER_ID, "sid", mock_db)
 
         generation.stage_bump.assert_not_called()

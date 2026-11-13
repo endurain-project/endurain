@@ -4,6 +4,7 @@ Pure: file bytes in, parsed activity data out, with no database, provider or
 crud coupling, so a parser is unit-testable with a file alone.
 """
 
+import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -254,7 +255,7 @@ def _fill_missing_lap_elevation(
 
 def create_activity_objects(
     sessions_records: list[FitSessionRecord],
-    user_id: int,
+    user_id: uuid.UUID,
     default_timezone: str,
 ) -> list[activity_file_import_parser_utils.ActivityFilePayload[activity_file_import_fit_frames.FitLap]]:
     """Build per-activity parsed payloads from the split FIT session records.

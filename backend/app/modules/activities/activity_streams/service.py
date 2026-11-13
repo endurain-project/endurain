@@ -145,7 +145,7 @@ def _page_of(
     )
 
 
-def _max_heart_rate_of(user_id: int, db: Session) -> int | None:
+def _max_heart_rate_of(user_id: uuid.UUID, db: Session) -> int | None:
     """Resolve a user's max heart rate, or ``None`` when it cannot be derived.
 
     Args:
@@ -213,7 +213,7 @@ def _with_zones(
 
 def list_activity_streams(
     activity_id: uuid.UUID,
-    requester_user_id: int,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -250,7 +250,7 @@ def list_activity_streams(
 def get_activity_stream(
     activity_id: uuid.UUID,
     stream_type: int,
-    requester_user_id: int,
+    requester_user_id: uuid.UUID,
     db: Session,
 ) -> activity_streams_schema.ActivityStreamsRead:
     """Return one stream type of an activity for an authenticated caller.

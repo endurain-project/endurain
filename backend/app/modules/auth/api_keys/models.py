@@ -1,5 +1,6 @@
 """Auth-owned API key database models (table: ``users_api_keys``)."""
 
+import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, String, Text
@@ -38,7 +39,7 @@ class UsersApiKeys(Base):
         nullable=False,
         comment="Unique key identifier (UUID4)",
     )
-    user_id: Mapped[int] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

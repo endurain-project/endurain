@@ -5,6 +5,7 @@ import pytest
 from pydantic import ValidationError
 
 # A stored record always has its start time.
+_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
 _ID = uuid.uuid4()
 
 
@@ -68,9 +69,9 @@ class TestHealthFastingReadSchema:
     def test_valid(self):
         from modules.health.health_fasting.schema import HealthFastingRead
 
-        data = HealthFastingRead(updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, fast_start_time=_STARTED)
+        data = HealthFastingRead(updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, fast_start_time=_STARTED)
         assert data.id == _ID
-        assert data.user_id == 1
+        assert data.user_id == _USER_ID
 
 
 class TestHealthFastingCompleteSchema:

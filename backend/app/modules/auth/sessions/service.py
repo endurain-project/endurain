@@ -1,5 +1,6 @@
 """Session lifecycle and transaction orchestration."""
 
+import uuid
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 
@@ -33,13 +34,13 @@ logger = core_logger.get_logger(__name__)
 
 
 def list_user_sessions(
-    user_id: int,
+    user_id: uuid.UUID,
     page: core_pagination.PageParams,
     db: Session,
 ) -> sessions_schema.UserSessionsPage:
     """Return one page of a user's exchanged sessions, hiding them in the demo environment."""
     if core_config.settings.ENVIRONMENT == "demo":
-        logger.info("Session retrieval in demo environment", extra=core_logger.context(user_id=user_id))
+        logger.info("Session retrieval in demo environment", extra=core_logger.context(user_id=str(user_id)))
         return sessions_schema.UserSessionsPage.build([], 0, page.page_number, page.num_records)
     sessions = sessions_crud.get_user_sessions_page(
         user_id,
@@ -133,7 +134,7 @@ def create_session(
     session = sessions_crud.create_session(session_data, db)
     logger.info(
         "Session created",
-        extra=core_logger.context(user_id=user.id, session_id=core_hashing.log_fingerprint(session_id)),
+        extra=core_logger.context(user_id=str(user.id), session_id=core_hashing.log_fingerprint(session_id)),
     )
     return session
 
@@ -183,13 +184,13 @@ def update_session_csrf_token(session_id: str, new_csrf_token: str, db: Session)
     )
 
 
-def stage_delete_session(session_id: str, user_id: int, db: Session) -> None:
+def stage_delete_session(session_id: str, user_id: uuid.UUID, db: Session) -> None:
     """Stage deletion of a session with its token and OAuth state records; the caller commits."""
     session = sessions_crud.delete_session(session_id, user_id, db)
     _stage_deleted_session_cleanup(session, session_id, user_id, db)
 
 
-def stage_delete_session_if_present(session_id: str, user_id: int, db: Session) -> bool:
+def stage_delete_session_if_present(session_id: str, user_id: uuid.UUID, db: Session) -> bool:
     """Stage deletion of a session as ``stage_delete_session`` does, or do nothing when the user has no such session.
 
     Returns:
@@ -203,7 +204,7 @@ def stage_delete_session_if_present(session_id: str, user_id: int, db: Session) 
 
 
 def _stage_deleted_session_cleanup(
-    session: sessions_contracts.SessionRead, session_id: str, user_id: int, db: Session
+    session: sessions_contracts.SessionRead, session_id: str, user_id: uuid.UUID, db: Session
 ) -> None:
     """Stage the removal of a deleted session's OAuth state and rotated tokens and publish the revocation."""
     if session.oauth_state_id:
@@ -212,7 +213,7 @@ def _stage_deleted_session_cleanup(
     sessions_event_publishers.publish_sessions_revoked(user_id, db, session_id=session_id)
 
 
-def delete_sessions_by_device(user_id: int, device_hash: str, db: Session) -> int:
+def delete_sessions_by_device(user_id: uuid.UUID, device_hash: str, db: Session) -> int:
     """Stage deletion of a user's sessions that signed in from a known device, with their token records.
 
     The caller commits.
@@ -233,7 +234,7 @@ def set_session_device_hash(session_id: str, device_hash: str, db: Session) -> N
 
 def delete_session(
     session_id: str,
-    user_id: int,
+    user_id: uuid.UUID,
     step_up: auth_schema.StepUpVerification,
     verify_step_up: sessions_contracts.SessionRevokeVerifier,
     db: Session,
@@ -268,7 +269,7 @@ def delete_session(
     db.commit()
     logger.info(
         "Session deleted",
-        extra=core_logger.context(user_id=user_id, session_id=core_hashing.log_fingerprint(session_id)),
+        extra=core_logger.context(user_id=str(user_id), session_id=core_hashing.log_fingerprint(session_id)),
     )
 
 
@@ -332,7 +333,7 @@ def invalidate_token_family(token_family_id: str, db: Session) -> int:
     return sessions_deleted
 
 
-def delete_sessions_by_user(user_id: int, db: Session, exclude_session_id: str | None = None) -> int:
+def delete_sessions_by_user(user_id: uuid.UUID, db: Session, exclude_session_id: str | None = None) -> int:
     """Stage deletion of a user's sessions and their OAuth states for a larger auth transaction."""
     state_ids = sessions_crud.list_oauth_state_ids_by_user(user_id, db, exclude_session_id)
     deleted_count = sessions_crud.delete_sessions_by_user(user_id, db, exclude_session_id)
@@ -343,7 +344,7 @@ def delete_sessions_by_user(user_id: int, db: Session, exclude_session_id: str |
 
 
 def delete_sessions_by_user_and_commit(
-    user_id: int,
+    user_id: uuid.UUID,
     step_up: auth_schema.StepUpVerification,
     verify_step_up: sessions_contracts.SessionRevokeVerifier,
     db: Session,
@@ -389,7 +390,7 @@ def delete_sessions_by_user_and_commit(
     return deleted_count
 
 
-def _purge_ended_sessions(stage_batch: Callable[[int], list[tuple[int, str]]], db: Session) -> int:
+def _purge_ended_sessions(stage_batch: Callable[[int], list[tuple[uuid.UUID, str]]], db: Session) -> int:
     """Delete sessions one batch per commit, announcing each as revoked when its batch commits.
 
     The announcement closes the session's sockets and revokes its identity-provider tokens, as any other

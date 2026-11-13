@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime
 
 import jasil.audit as jasil_audit
@@ -109,9 +110,13 @@ def resolve_from_access_token(
     token_manager.validate_access_expiration_logged(access_token)
 
     sub = token_manager.get_token_claim(access_token, "sub", access_tokens_integration.TokenType.ACCESS)
-    if not isinstance(sub, str) or not sub.isascii() or not sub.isdecimal():
+    try:
+        user_id = uuid.UUID(sub) if isinstance(sub, str) else None
+    except ValueError:
+        user_id = None
+    if user_id is None:
         logger.warning("Access token refused: malformed 'sub' claim")
-        raise core_exceptions.InvalidTokenError("Invalid token: 'sub' claim must be a decimal string")
+        raise core_exceptions.InvalidTokenError("Invalid token: 'sub' claim must be a user id")
 
     sid = token_manager.get_token_claim(access_token, "sid", access_tokens_integration.TokenType.ACCESS)
     if not isinstance(sid, str):
@@ -119,7 +124,7 @@ def resolve_from_access_token(
         raise core_exceptions.InvalidTokenError("Invalid token: 'sid' claim must be a string")
 
     # A token of a deleted or deactivated user is a dead credential, not a refusal the caller may learn about.
-    user = users_integration.get_user(int(sub), db)
+    user = users_integration.get_user(user_id, db)
     if user is None or not user.active:
         logger.warning("Access token refused: its user is missing or inactive")
         raise core_exceptions.InvalidTokenError("User is no longer valid")
@@ -184,7 +189,7 @@ def _refuse_api_key(
     outcome: jasil_audit.Outcome,
     *,
     api_key_id: str | None = None,
-    owner_id: int | None = None,
+    owner_id: uuid.UUID | None = None,
 ) -> None:
     """Record a refused API key on a transaction of its own, since the request answers with an error.
 

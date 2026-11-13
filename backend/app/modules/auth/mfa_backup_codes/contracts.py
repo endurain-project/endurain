@@ -12,7 +12,7 @@ class BackupCodeRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    user_id: int
+    user_id: uuid.UUID
     code_hash: str
     created_at: datetime
     used: bool

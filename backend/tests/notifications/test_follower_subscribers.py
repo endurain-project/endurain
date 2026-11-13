@@ -7,6 +7,9 @@ from jasil.events import new_event
 
 import core.exceptions as core_exceptions
 
+_ID_1 = uuid.uuid4()
+_ID_2 = uuid.uuid4()
+
 
 def _event(event_type, payload):
     return new_event(event_type, payload, source="test")
@@ -17,7 +20,9 @@ class TestOnFollowerRequestedNotify:
     def test_noop_for_non_int_ids(self, mock_notif):
         from modules.notifications.subscribers import on_follower_requested_notify
 
-        on_follower_requested_notify(_event("follower.requested", {"requester_user_id": "x", "target_user_id": 2}))
+        on_follower_requested_notify(
+            _event("follower.requested", {"requester_user_id": "x", "target_user_id": str(_ID_2)})
+        )
         mock_notif.create_follow_request_notification.assert_not_called()
 
     @patch("modules.notifications.integration_service.websocket_integration")
@@ -31,9 +36,9 @@ class TestOnFollowerRequestedNotify:
             "NEW_FOLLOWER_REQUEST_NOTIFICATION",
             True,
         )
-        event = _event("follower.requested", {"requester_user_id": 1, "target_user_id": 2})
+        event = _event("follower.requested", {"requester_user_id": str(_ID_1), "target_user_id": str(_ID_2)})
         on_follower_requested_notify(event)
-        assert mock_notif.create_follow_request_notification.call_args.args[:2] == (1, 2)
+        assert mock_notif.create_follow_request_notification.call_args.args[:2] == (_ID_1, _ID_2)
         assert mock_notif.create_follow_request_notification.call_args.args[2] == event.event_id
         mock_ws.push_to_user.assert_called_once()
 
@@ -48,7 +53,9 @@ class TestOnFollowerRequestedNotify:
             "NEW_FOLLOWER_REQUEST_NOTIFICATION",
             False,
         )
-        notify_follower_requested_for_event(_event("follower.requested", {"requester_user_id": 1, "target_user_id": 2}))
+        notify_follower_requested_for_event(
+            _event("follower.requested", {"requester_user_id": str(_ID_1), "target_user_id": str(_ID_2)})
+        )
         mock_ws.push_to_user.assert_not_called()
 
     @patch("modules.notifications.integration_service.websocket_integration")
@@ -58,7 +65,9 @@ class TestOnFollowerRequestedNotify:
         from modules.notifications.subscribers import notify_follower_requested_for_event
 
         mock_notif.create_follow_request_notification.side_effect = core_exceptions.NotFoundError("User not found")
-        notify_follower_requested_for_event(_event("follower.requested", {"requester_user_id": 1, "target_user_id": 2}))
+        notify_follower_requested_for_event(
+            _event("follower.requested", {"requester_user_id": str(_ID_1), "target_user_id": str(_ID_2)})
+        )
         mock_ws.push_to_user.assert_not_called()
 
     @patch("jasil.subscribers.logger")
@@ -68,7 +77,9 @@ class TestOnFollowerRequestedNotify:
         from modules.notifications.subscribers import on_follower_requested_notify
 
         mock_notif.create_follow_request_notification.side_effect = RuntimeError("boom")
-        on_follower_requested_notify(_event("follower.requested", {"requester_user_id": 1, "target_user_id": 2}))
+        on_follower_requested_notify(
+            _event("follower.requested", {"requester_user_id": str(_ID_1), "target_user_id": str(_ID_2)})
+        )
         mock_logger.error.assert_called()
 
 
@@ -77,7 +88,9 @@ class TestOnFollowerAcceptedNotify:
     def test_noop_for_non_int_ids(self, mock_notif):
         from modules.notifications.subscribers import on_follower_accepted_notify
 
-        on_follower_accepted_notify(_event("follower.accepted", {"accepter_user_id": 1, "requester_user_id": None}))
+        on_follower_accepted_notify(
+            _event("follower.accepted", {"accepter_user_id": str(_ID_1), "requester_user_id": None})
+        )
         mock_notif.create_follow_accepted_notification.assert_not_called()
 
     @patch("modules.notifications.integration_service.websocket_integration")
@@ -91,9 +104,9 @@ class TestOnFollowerAcceptedNotify:
             "NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION",
             True,
         )
-        event = _event("follower.accepted", {"accepter_user_id": 1, "requester_user_id": 2})
+        event = _event("follower.accepted", {"accepter_user_id": str(_ID_1), "requester_user_id": str(_ID_2)})
         on_follower_accepted_notify(event)
-        assert mock_notif.create_follow_accepted_notification.call_args.args[:2] == (1, 2)
+        assert mock_notif.create_follow_accepted_notification.call_args.args[:2] == (_ID_1, _ID_2)
         assert mock_notif.create_follow_accepted_notification.call_args.args[2] == event.event_id
         mock_ws.push_to_user.assert_called_once()
 
@@ -108,7 +121,9 @@ class TestOnFollowerAcceptedNotify:
             "NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION",
             False,
         )
-        notify_follower_accepted_for_event(_event("follower.accepted", {"accepter_user_id": 1, "requester_user_id": 2}))
+        notify_follower_accepted_for_event(
+            _event("follower.accepted", {"accepter_user_id": str(_ID_1), "requester_user_id": str(_ID_2)})
+        )
         mock_ws.push_to_user.assert_not_called()
 
     @patch("jasil.subscribers.logger")
@@ -118,7 +133,9 @@ class TestOnFollowerAcceptedNotify:
         from modules.notifications.subscribers import on_follower_accepted_notify
 
         mock_notif.create_follow_accepted_notification.side_effect = RuntimeError("boom")
-        on_follower_accepted_notify(_event("follower.accepted", {"accepter_user_id": 1, "requester_user_id": 2}))
+        on_follower_accepted_notify(
+            _event("follower.accepted", {"accepter_user_id": str(_ID_1), "requester_user_id": str(_ID_2)})
+        )
         mock_logger.error.assert_called()
 
 
@@ -160,11 +177,11 @@ class TestClearFollowerRequestNotification:
 
         mock_notif.remove_follow_request_notifications.return_value = True
         clear_follower_request_notification_for_event(
-            _event("follower.request_removed", {"requester_user_id": 1, "target_user_id": 2})
+            _event("follower.request_removed", {"requester_user_id": str(_ID_1), "target_user_id": str(_ID_2)})
         )
 
-        assert mock_notif.remove_follow_request_notifications.call_args.args[:2] == (1, 2)
-        mock_ws.push_to_user.assert_called_once_with(2, {"message": "NEW_FOLLOWER_REQUEST_REMOVED_NOTIFICATION"})
+        assert mock_notif.remove_follow_request_notifications.call_args.args[:2] == (_ID_1, _ID_2)
+        mock_ws.push_to_user.assert_called_once_with(_ID_2, {"message": "NEW_FOLLOWER_REQUEST_REMOVED_NOTIFICATION"})
 
     @patch("modules.notifications.subscribers.websocket_integration")
     @patch("modules.notifications.subscribers.core_database")
@@ -174,7 +191,7 @@ class TestClearFollowerRequestNotification:
 
         mock_notif.remove_follow_request_notifications.return_value = False
         clear_follower_request_notification_for_event(
-            _event("follower.request_removed", {"requester_user_id": 1, "target_user_id": 2})
+            _event("follower.request_removed", {"requester_user_id": str(_ID_1), "target_user_id": str(_ID_2)})
         )
 
         mock_ws.push_to_user.assert_not_called()

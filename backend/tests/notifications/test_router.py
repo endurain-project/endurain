@@ -10,6 +10,8 @@ import core.exceptions as core_exceptions
 import core.pagination as core_pagination
 import modules.notifications.schema as notifications_schema
 
+_ID_1 = uuid.uuid4()
+
 _ID = uuid.UUID(int=1)
 _OTHER_ID = uuid.UUID(int=2)
 
@@ -21,7 +23,7 @@ def _read(**fields):
     return notifications_schema.NOTIFICATION_READ_ADAPTER.validate_python(
         {
             "id": _ID,
-            "user_id": 1,
+            "user_id": str(_ID_1),
             "type": "new_activity",
             "options": {"activity_id": "11111111-1111-4111-8111-111111111111"},
             "created_at": datetime(2024, 1, 1),
@@ -43,7 +45,7 @@ def _build_app(mock_db):
         return None
 
     def _uid():
-        return 1
+        return _ID_1
 
     app.dependency_overrides[auth_deps.check_scopes] = _mock
     app.dependency_overrides[auth_deps.get_current_user_id] = _uid
@@ -61,7 +63,7 @@ class TestReadUnreadCount:
 
         assert response.status_code == 200
         assert response.json() == {"count": 5}
-        mock_get.assert_called_once_with(1, mock_db)
+        mock_get.assert_called_once_with(_ID_1, mock_db)
 
     def test_the_old_number_route_is_gone(self, mock_db):
         client = TestClient(_build_app(mock_db))
@@ -113,7 +115,7 @@ class TestReadNotificationsPagination:
         assert body["next_cursor"] == "abc"
         assert "total" not in body
         assert body["items"][0]["id"] == str(_ID)
-        mock_get.assert_called_once_with(1, mock_db, cursor=None, num_records=10, unread_only=False)
+        mock_get.assert_called_once_with(_ID_1, mock_db, cursor=None, num_records=10, unread_only=False)
 
     @patch("modules.notifications.router.notifications_service.list_notifications")
     def test_cursor_and_default_size_are_forwarded(self, mock_get, mock_db):
@@ -124,7 +126,7 @@ class TestReadNotificationsPagination:
 
         assert response.status_code == 200
         mock_get.assert_called_once_with(
-            1, mock_db, cursor="abc", num_records=core_pagination.DEFAULT_NUM_RECORDS, unread_only=False
+            _ID_1, mock_db, cursor="abc", num_records=core_pagination.DEFAULT_NUM_RECORDS, unread_only=False
         )
 
     @patch("modules.notifications.router.notifications_service.list_notifications")
@@ -135,7 +137,7 @@ class TestReadNotificationsPagination:
         response = client.get("/notifications?unread_only=true&num_records=1", headers={"Authorization": "Bearer x"})
 
         assert response.status_code == 200
-        mock_get.assert_called_once_with(1, mock_db, cursor=None, num_records=1, unread_only=True)
+        mock_get.assert_called_once_with(_ID_1, mock_db, cursor=None, num_records=1, unread_only=True)
 
     @patch("modules.notifications.router.notifications_service.list_notifications")
     def test_created_at_is_full_utc_iso_timestamp(self, mock_get, mock_db):
@@ -188,7 +190,7 @@ class TestPathValidation:
     def test_a_malformed_notification_id_is_rejected(self, mock_db):
         client = TestClient(_build_app(mock_db))
 
-        response = client.get("/notifications/1", headers={"Authorization": "Bearer x"})
+        response = client.get("/notifications/not-a-uuid", headers={"Authorization": "Bearer x"})
         assert response.status_code == 422
 
     def test_oversized_page_is_rejected(self, mock_db):
@@ -216,7 +218,7 @@ class TestMarkNotificationsAsRead:
         )
 
         assert response.status_code == 204
-        mock_mark.assert_called_once_with([_ID, _OTHER_ID], 1, mock_db)
+        mock_mark.assert_called_once_with([_ID, _OTHER_ID], _ID_1, mock_db)
 
     @patch("modules.notifications.router.notifications_service.mark_all_notifications_as_read")
     def test_no_body_still_marks_everything(self, mock_all, mock_db):
@@ -225,7 +227,7 @@ class TestMarkNotificationsAsRead:
         response = client.post("/notifications/read", headers={"Authorization": "Bearer x"})
 
         assert response.status_code == 204
-        mock_all.assert_called_once_with(1, mock_db)
+        mock_all.assert_called_once_with(_ID_1, mock_db)
 
     @pytest.mark.parametrize(
         "body",
@@ -257,7 +259,7 @@ class TestDeleteNotification:
         response = client.delete(f"/notifications/{_ID}", headers={"Authorization": "Bearer x"})
 
         assert response.status_code == 204
-        mock_delete.assert_called_once_with(_ID, 1, mock_db)
+        mock_delete.assert_called_once_with(_ID, _ID_1, mock_db)
 
     @patch("modules.notifications.router.notifications_service.delete_notification")
     def test_someone_elses_or_a_missing_id_is_404(self, mock_delete, mock_db):

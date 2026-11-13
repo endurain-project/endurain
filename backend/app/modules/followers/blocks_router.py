@@ -65,7 +65,7 @@ def block_user(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def unblock_user(
     request: Request,
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
 ) -> None:

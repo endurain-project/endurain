@@ -182,7 +182,7 @@ def delete_my_identity_provider(
         idp_id (uuid.UUID): The ID of the identity provider to unlink.
         body (StepUpRequest): The step-up verification.
         request (Request): The FastAPI request object.
-        token_user_id (int): User ID extracted from the access token.
+        token_user_id (uuid.UUID): User ID extracted from the access token.
         token_session_id: Session ID from access token.
         step_up_store: Step-up lockout store.
         db: Database session.

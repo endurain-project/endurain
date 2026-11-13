@@ -1,6 +1,7 @@
 """The aggregated chart series every health metric serves beside its paginated list."""
 
 import importlib
+import uuid
 from datetime import date
 from unittest.mock import MagicMock, patch
 
@@ -70,6 +71,9 @@ _AVERAGED = [
 ]
 
 
+_USER_ID = uuid.uuid4()
+
+
 def _client(mock_db, route: str) -> TestClient:
     """Mount the one health router ``route`` belongs to, with auth and the session stubbed."""
     package = route.split("/")[1]
@@ -78,7 +82,7 @@ def _client(mock_db, route: str) -> TestClient:
     core_exceptions.register_exception_handlers(app)
     app.include_router(router.router, prefix=f"/{package}")
     app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
-    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: 1
+    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: _USER_ID
     app.dependency_overrides[core_database.get_db] = lambda: mock_db
     return TestClient(app)
 
@@ -153,7 +157,7 @@ class TestAveragedCrud:
     def test_averages_the_column_per_bucket(self, crud, service, route, function, column, mock_db):
         mock_db.execute.return_value.all.return_value = [(date(2024, 1, 1), 10.5), (date(2024, 1, 8), 20)]
 
-        points = getattr(crud, function)(1, date(2023, 1, 1), None, _BUCKET.WEEK, mock_db)
+        points = getattr(crud, function)(_USER_ID, date(2023, 1, 1), None, _BUCKET.WEEK, mock_db)
 
         assert points == [
             health_schema.HealthChartPoint(date=date(2024, 1, 1), value=10.5),
@@ -163,14 +167,14 @@ class TestAveragedCrud:
         assert f"avg({column})" in sql
         assert "date_trunc('week'" in sql
         assert f"{column} IS NOT NULL" in sql
-        assert "user_id = 1" in sql
+        assert f"user_id = '{_USER_ID}'" in sql
         assert "'2023-01-01'" in sql
         assert "GROUP BY" in sql
 
     def test_no_records_is_an_empty_series(self, crud, service, route, function, column, mock_db):
         mock_db.execute.return_value.all.return_value = []
 
-        assert getattr(crud, function)(1, date(2023, 1, 1), None, _BUCKET.DAY, mock_db) == []
+        assert getattr(crud, function)(_USER_ID, date(2023, 1, 1), None, _BUCKET.DAY, mock_db) == []
 
 
 @pytest.mark.parametrize(("crud", "service", "route", "function", "column"), _AVERAGED)
@@ -179,9 +183,9 @@ class TestAveragedService:
     def test_charts_the_intervals_window_in_its_bucket(self, _today, crud, service, route, function, column, mock_db):
         points = [health_schema.HealthChartPoint(date=date(2024, 1, 1), value=3.0)]
         with patch.object(crud, function, return_value=points) as mock_crud:
-            series = getattr(service, function)(1, _INTERVAL.LAST_YEAR, mock_db)
+            series = getattr(service, function)(_USER_ID, _INTERVAL.LAST_YEAR, mock_db)
 
-        mock_crud.assert_called_once_with(1, date(2023, 6, 2), None, _BUCKET.DAY, mock_db)
+        mock_crud.assert_called_once_with(_USER_ID, date(2023, 6, 2), None, _BUCKET.DAY, mock_db)
         assert series == health_schema.HealthChartSeries(bucket=_BUCKET.DAY, points=points)
 
 
@@ -196,7 +200,7 @@ class TestAveragedRouter:
 
         assert response.status_code == 200
         assert response.json() == {"bucket": "day", "points": [{"date": "2024-01-01", "value": 3.0}]}
-        assert mock_service.call_args.args[0] == 1
+        assert mock_service.call_args.args[0] == _USER_ID
         assert mock_service.call_args.args[1] is _INTERVAL.LAST_30_DAYS
 
     def test_defaults_to_the_last_seven_days(self, crud, service, route, function, column, mock_db):
@@ -216,14 +220,16 @@ class TestPoopCrud:
     def test_counts_movements_per_local_bucket(self, mock_db):
         mock_db.execute.return_value.all.return_value = [(date(2024, 1, 1), 9)]
 
-        points = health_poop_crud.get_health_poop_chart(1, date(2023, 1, 1), None, _BUCKET.MONTH, "Asia/Tokyo", mock_db)
+        points = health_poop_crud.get_health_poop_chart(
+            _USER_ID, date(2023, 1, 1), None, _BUCKET.MONTH, "Asia/Tokyo", mock_db
+        )
 
         assert points == [health_schema.HealthChartPoint(date=date(2024, 1, 1), value=9.0)]
         sql = _sql(mock_db)
         assert "count(*)" in sql
         assert "Asia/Tokyo" in sql
         assert "date_trunc('month'" in sql
-        assert "user_id = 1" in sql
+        assert f"user_id = '{_USER_ID}'" in sql
 
 
 class TestPoopService:
@@ -241,7 +247,7 @@ class TestPoopService:
             too_many_days if bucket is _BUCKET.DAY else weekly
         )
 
-        series = health_poop_service.get_health_poop_chart(1, _INTERVAL.ALL_TIME, mock_db)
+        series = health_poop_service.get_health_poop_chart(_USER_ID, _INTERVAL.ALL_TIME, mock_db)
 
         assert series.bucket is _BUCKET.WEEK
         # A full week of 14 movements is 2 a day; the current week has 3 days so far.
@@ -253,7 +259,7 @@ class TestPoopService:
     def test_a_daily_bucket_keeps_the_count(self, mock_crud, _today, _tz, mock_db):
         mock_crud.return_value = [health_schema.HealthChartPoint(date=date(2024, 6, 11), value=2.0)]
 
-        series = health_poop_service.get_health_poop_chart(1, _INTERVAL.LAST_30_DAYS, mock_db)
+        series = health_poop_service.get_health_poop_chart(_USER_ID, _INTERVAL.LAST_30_DAYS, mock_db)
 
         assert [point.value for point in series.points] == [2.0]
 
@@ -273,9 +279,9 @@ class TestPoopService:
             monthly if bucket is _BUCKET.MONTH else too_many
         )
 
-        series = health_poop_service.get_health_poop_chart(1, _INTERVAL.ALL_TIME, mock_db)
+        series = health_poop_service.get_health_poop_chart(_USER_ID, _INTERVAL.ALL_TIME, mock_db)
 
-        mock_crud.assert_any_call(1, date(2024, 2, 20), None, _BUCKET.MONTH, "UTC", mock_db)
+        mock_crud.assert_any_call(_USER_ID, date(2024, 2, 20), None, _BUCKET.MONTH, "UTC", mock_db)
         # February counts only its 10 days from the 20th; March is a full month.
         assert [point.value for point in series.points] == [1.0, 1.0]
 
@@ -284,7 +290,7 @@ class TestPoopService:
     @patch("modules.health.health_poop.service.health_poop_crud.get_health_poop_first_day", return_value=None)
     @patch("modules.health.health_poop.service.health_poop_crud.get_health_poop_chart", return_value=[])
     def test_all_time_without_movements_is_empty(self, _crud, _first, _today, _tz, mock_db):
-        assert health_poop_service.get_health_poop_chart(1, _INTERVAL.ALL_TIME, mock_db).points == []
+        assert health_poop_service.get_health_poop_chart(_USER_ID, _INTERVAL.ALL_TIME, mock_db).points == []
 
 
 class TestPoopRouter:

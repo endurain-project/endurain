@@ -48,7 +48,7 @@ def generate_activity_thumbnail_for_event(event: Event) -> None:
 
     Args:
         event: The ``activity.created`` event (payload
-            ``{"activity_id": uuid, "user_id": int}``).
+            ``{"activity_id": uuid, "user_id": "<uuid>"}``).
     """
     payload = platform_event_versioning.parse_payload(activity_events.ActivityCreatedPayload, event)
     storage = platform_runtime.get_active_platform().storage

@@ -102,5 +102,5 @@ def complete_onboarding(
         raise core_exceptions.InvalidInputError("Invalid or expired setup token")
 
     db.commit()
-    logger.info("First administrator created by onboarding", extra=core_logger.context(user_id=admin.id))
+    logger.info("First administrator created by onboarding", extra=core_logger.context(user_id=str(admin.id)))
     return admin

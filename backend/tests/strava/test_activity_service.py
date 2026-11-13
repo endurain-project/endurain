@@ -15,6 +15,7 @@ import core.exceptions as core_exceptions
 import modules.strava.activity_service as activity_utils
 import modules.strava.client_service as strava_utils
 import modules.strava.rate_limit_store as strava_rate_limit_store
+from tests._helpers.auth import MOCK_USER_ID
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -58,7 +59,7 @@ class TestFetchAndProcessActivityStreamsNotFound:
         return activity_utils.fetch_and_process_activity_streams(
             strava_client=client,
             strava_activity_id=99,
-            user_id=1,
+            user_id=MOCK_USER_ID,
             user_integrations=_integrations(),
             rate_limits=rate_limits,
         )
@@ -189,12 +190,19 @@ class TestSaveActivityStreamsLaps:
         def _fake_store(parsed, db):
             captured["parsed"] = parsed
             captured["db"] = db
-            return activity_schema.ActivityRead(id=uuid.UUID(int=42), user_id=1, distance=0, name="X", activity_type=1)
+            return activity_schema.ActivityRead(
+                id=uuid.UUID(int=42), user_id=MOCK_USER_ID, distance=0, name="X", activity_type=1
+            )
 
         monkeypatch.setattr(activity_utils.activity_integration, "store_parsed_activity", _fake_store)
 
         activity = activity_schema.ActivityRead(
-            id=uuid.UUID(int=1), user_id=1, distance=1000, name="Ride", activity_type=1, strava_activity_id=555
+            id=uuid.UUID(int=1),
+            user_id=MOCK_USER_ID,
+            distance=1000,
+            name="Ride",
+            activity_type=1,
+            strava_activity_id=555,
         )
         stream_data = [
             (True, 1, [{"hr": 140}]),
@@ -222,11 +230,15 @@ class TestSaveActivityStreamsLaps:
 
         def _fake_store(parsed, db):
             captured["parsed"] = parsed
-            return activity_schema.ActivityRead(id=uuid.UUID(int=1), user_id=1, distance=0, name="X", activity_type=1)
+            return activity_schema.ActivityRead(
+                id=uuid.UUID(int=1), user_id=MOCK_USER_ID, distance=0, name="X", activity_type=1
+            )
 
         monkeypatch.setattr(activity_utils.activity_integration, "store_parsed_activity", _fake_store)
 
-        activity = activity_schema.ActivityRead(id=uuid.UUID(int=1), user_id=1, distance=0, name="X", activity_type=1)
+        activity = activity_schema.ActivityRead(
+            id=uuid.UUID(int=1), user_id=MOCK_USER_ID, distance=0, name="X", activity_type=1
+        )
         activity_utils.save_activity_streams_laps(activity, [], None, Mock())
 
         parsed = captured["parsed"]
@@ -269,7 +281,9 @@ class TestProcessActivity:
 
         def _fake_save(*args, **kwargs):
             seen["during_save"] = _TrackingSession.open_count
-            return activity_schema.ActivityRead(id=uuid.UUID(int=7), user_id=1, distance=0, name="X", activity_type=1)
+            return activity_schema.ActivityRead(
+                id=uuid.UUID(int=7), user_id=MOCK_USER_ID, distance=0, name="X", activity_type=1
+            )
 
         monkeypatch.setattr(activity_utils, "parse_activity", _fake_parse)
         monkeypatch.setattr(activity_utils, "save_activity_streams_laps", _fake_save)
@@ -279,7 +293,7 @@ class TestProcessActivity:
         """A transaction held across Strava round trips is what this was restructured to avoid."""
         seen = self._setup(monkeypatch)
 
-        result = activity_utils.process_activity(Mock(id=555), 1, Mock(), "UTC", Mock(), Mock(), Mock())
+        result = activity_utils.process_activity(Mock(id=555), MOCK_USER_ID, Mock(), "UTC", Mock(), Mock(), Mock())
 
         assert result.id == uuid.UUID(int=7)
         assert seen["during_parse"] == 0
@@ -304,7 +318,9 @@ class TestProcessActivity:
     def test_an_activity_already_stored_is_skipped_without_calling_strava(self, monkeypatch):
         seen = self._setup(monkeypatch, already_stored=True)
 
-        assert activity_utils.process_activity(Mock(id=555), 1, Mock(), "UTC", Mock(), Mock(), Mock()) is None
+        assert (
+            activity_utils.process_activity(Mock(id=555), MOCK_USER_ID, Mock(), "UTC", Mock(), Mock(), Mock()) is None
+        )
         assert seen == {}
 
 
@@ -312,7 +328,7 @@ class TestFetchAndProcessActivityLapsRateLimit:
     """Laps count against the same per-app Strava quota as streams."""
 
     def _call(self, client: Mock, rate_limits):
-        return activity_utils.fetch_and_process_activity_laps(client, 1, 1, [], _integrations(), rate_limits)
+        return activity_utils.fetch_and_process_activity_laps(client, 1, MOCK_USER_ID, [], _integrations(), rate_limits)
 
     def test_a_limited_app_raises_429_before_any_api_call(self, rate_limits):
         client = Mock()
@@ -379,7 +395,7 @@ class TestFetchAndProcessActivityLapsElevation:
         client = Mock()
         client.get_activity_laps.return_value = [self._lap()]
         laps = activity_utils.fetch_and_process_activity_laps(
-            client, 1, 1, [(True, 4, ele_stream)], _integrations(), rate_limits
+            client, 1, MOCK_USER_ID, [(True, 4, ele_stream)], _integrations(), rate_limits
         )
         return laps[0]
 
@@ -404,7 +420,7 @@ class TestStreamsConversion:
     def _call(self, streams: dict, rate_limits):
         client = Mock()
         client.get_activity_streams.return_value = {name: Mock(data=data) for name, data in streams.items()}
-        return activity_utils.fetch_and_process_activity_streams(client, 99, 1, _integrations(), rate_limits)
+        return activity_utils.fetch_and_process_activity_streams(client, 99, MOCK_USER_ID, _integrations(), rate_limits)
 
     def test_a_stream_longer_than_time_is_cut_instead_of_failing(self, rate_limits, monkeypatch):
         monkeypatch.setattr(rate_limits, "is_rate_limited", lambda client_id: False)
@@ -450,7 +466,7 @@ class TestFetchAndProcessActivitiesIsolation:
         client = Mock()
         client.get_activities.return_value = [Mock(id=1), Mock(id=2), Mock(id=3)]
         return activity_utils.fetch_and_process_activities_by_dates(
-            client, datetime(2026, 1, 1), datetime(2026, 1, 2), 1, _integrations(), rate_limits
+            client, datetime(2026, 1, 1), datetime(2026, 1, 2), MOCK_USER_ID, _integrations(), rate_limits
         )
 
     def test_a_failing_activity_does_not_stop_the_others_but_fails_the_window(self, monkeypatch, rate_limits):
@@ -530,19 +546,21 @@ class TestARejectedTokenUnlinksTheAccount:
 
         with pytest.raises(core_exceptions.DependencyFailedError):
             activity_utils.fetch_and_process_activities_by_dates(
-                client, datetime(2026, 1, 1), datetime(2026, 1, 2), 1, self._integrations(), rate_limits
+                client, datetime(2026, 1, 1), datetime(2026, 1, 2), MOCK_USER_ID, self._integrations(), rate_limits
             )
 
-        assert handle.call_args.args[:2] == (1, "enc")
+        assert handle.call_args.args[:2] == (MOCK_USER_ID, "enc")
         assert handle.call_args.kwargs == {"revoked": True}
 
     def test_the_detail_fetch(self, handle, rate_limits):
         client = self.client
 
         with pytest.raises(core_exceptions.DependencyFailedError):
-            activity_utils.process_activity(Mock(id=9), 1, Mock(), "UTC", client, self._integrations(), rate_limits)
+            activity_utils.process_activity(
+                Mock(id=9), MOCK_USER_ID, Mock(), "UTC", client, self._integrations(), rate_limits
+            )
 
-        assert handle.call_args.args[:2] == (1, "enc")
+        assert handle.call_args.args[:2] == (MOCK_USER_ID, "enc")
         assert handle.call_args.kwargs == {"revoked": True}
 
     def test_the_streams_fetch(self, handle, rate_limits):
@@ -552,21 +570,23 @@ class TestARejectedTokenUnlinksTheAccount:
             activity_utils.fetch_and_process_activity_streams(
                 strava_client=client,
                 strava_activity_id=99,
-                user_id=1,
+                user_id=MOCK_USER_ID,
                 user_integrations=self._integrations(),
                 rate_limits=rate_limits,
             )
 
-        assert handle.call_args.args[:2] == (1, "enc")
+        assert handle.call_args.args[:2] == (MOCK_USER_ID, "enc")
         assert handle.call_args.kwargs == {"revoked": True}
 
     def test_the_laps_fetch(self, handle, rate_limits):
         client = self.client
 
         with pytest.raises(core_exceptions.DependencyFailedError):
-            activity_utils.fetch_and_process_activity_laps(client, 99, 1, [], self._integrations(), rate_limits)
+            activity_utils.fetch_and_process_activity_laps(
+                client, 99, MOCK_USER_ID, [], self._integrations(), rate_limits
+            )
 
-        assert handle.call_args.args[:2] == (1, "enc")
+        assert handle.call_args.args[:2] == (MOCK_USER_ID, "enc")
         assert handle.call_args.kwargs == {"revoked": True}
 
     def test_a_rejected_token_stops_the_window_instead_of_skipping_the_activity(self, handle, rate_limits, monkeypatch):
@@ -587,7 +607,7 @@ class TestARejectedTokenUnlinksTheAccount:
 
         with pytest.raises(strava_utils.StravaTokenRejectedError):
             activity_utils.fetch_and_process_activities_by_dates(
-                client, datetime(2026, 1, 1), datetime(2026, 1, 2), 1, self._integrations(), rate_limits
+                client, datetime(2026, 1, 1), datetime(2026, 1, 2), MOCK_USER_ID, self._integrations(), rate_limits
             )
 
         assert calls == [1]
@@ -620,7 +640,7 @@ class TestParseActivity:
         from tests._helpers.db import create_sqlite_session_factory, ensure_user
 
         factory = create_sqlite_session_factory()
-        ensure_user(factory, 1)
+        ensure_user(factory, MOCK_USER_ID)
         monkeypatch.setattr(activity_utils.core_database, "SessionLocal", factory)
         yield
         factory.kw["bind"].dispose()
@@ -643,11 +663,11 @@ class TestParseActivity:
         detailed.update(fields)
         return activity_utils.parse_activity(
             summary if summary is not None else Mock(id=42),
-            1,
-            privacy_schema.UserPrivacySettingsRead(id=uuid.uuid4(), user_id=1),
+            MOCK_USER_ID,
+            privacy_schema.UserPrivacySettingsRead(id=uuid.uuid4(), user_id=MOCK_USER_ID),
             "UTC",
             _StravaClient(DetailedActivity.model_validate(detailed), streams or {"time": [0, 1]}),
-            integrations_schema.UserIntegrationsRead(id=uuid.uuid4(), user_id=1, strava_client_id="app-a"),
+            integrations_schema.UserIntegrationsRead(id=uuid.uuid4(), user_id=MOCK_USER_ID, strava_client_id="app-a"),
             rate_limits,
         )
 
@@ -706,8 +726,8 @@ class TestIncompleteLaps:
         cadence = [{"cad": 80}, {"cad": 90}]
         return activity_utils.fetch_and_process_activity_laps(
             client,
-            1,
-            1,
+            99,
+            MOCK_USER_ID,
             [(True, activity_streams_constants.STREAM_TYPE_CADENCE, cadence)],
             _integrations(),
             rate_limits,

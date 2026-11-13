@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import uuid
+
 import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
 
@@ -38,7 +40,9 @@ _SESSION_NOT_ELIGIBLE_MESSAGE = "Session not found or not eligible for token exc
 _INVALID_VERIFIER_MESSAGE = "Invalid code_verifier"
 
 
-def _record_refusal(outcome: jasil_audit.Outcome, reason: login_audit_actions.LoginFailureReason, user_id: int) -> None:
+def _record_refusal(
+    outcome: jasil_audit.Outcome, reason: login_audit_actions.LoginFailureReason, user_id: uuid.UUID
+) -> None:
     """Audit a refused SSO token exchange, which signs in the account its session was created for.
 
     Args:

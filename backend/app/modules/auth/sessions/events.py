@@ -4,6 +4,7 @@ Payloads are persisted with the event log, so they hold the ids a subscriber nee
 else: never a token or a hash.
 """
 
+import uuid
 from typing import ClassVar
 
 from jasil.event_versioning import VersionedPayload
@@ -27,6 +28,6 @@ class SessionsRevokedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    user_id: int
+    user_id: uuid.UUID
     session_id: str | None = None
     except_session_id: str | None = None

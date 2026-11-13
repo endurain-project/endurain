@@ -15,6 +15,9 @@ from pydantic import BaseModel
 import core.pagination as core_pagination
 import modules.activities.activity.child_collection_service as child_collection_service
 
+_USER_1 = uuid.UUID(int=1)
+_USER_2 = uuid.UUID(int=2)
+
 _RESOLVE_READABLE = (
     "modules.activities.activity.child_collection_service.activity_child_access_service.resolve_readable_parent"
 )
@@ -26,7 +29,7 @@ _ACTIVITY_ID = uuid.uuid4()
 
 
 def _parent(**kw):
-    return SimpleNamespace(**{"id": _ACTIVITY_ID, "user_id": 1, "hide_laps": False, **kw})
+    return SimpleNamespace(**{"id": _ACTIVITY_ID, "user_id": _USER_1, "hide_laps": False, **kw})
 
 
 def _collection(fetch=None, count=None, fields_by_hide_flag=None):
@@ -46,17 +49,19 @@ class TestListForRequester:
         mock_resolve.return_value = _parent()
         db = MagicMock()
 
-        page = _collection().list_for_requester(_ACTIVITY_ID, 1, db, page_number=1, num_records=10)
+        page = _collection().list_for_requester(_ACTIVITY_ID, _USER_1, db, page_number=1, num_records=10)
 
         assert (page.items, page.total) == (["row"], 1)
-        mock_resolve.assert_called_once_with(_ACTIVITY_ID, 1, db)
+        mock_resolve.assert_called_once_with(_ACTIVITY_ID, _USER_1, db)
 
     @patch(_RESOLVE_READABLE, return_value=None)
     def test_an_invisible_parent_never_touches_persistence(self, _resolve):
         """A refused read must not query, so it cannot leak timing or rows."""
         fetch, count = MagicMock(), MagicMock()
 
-        page = _collection(fetch, count).list_for_requester(_ACTIVITY_ID, 1, MagicMock(), page_number=1, num_records=10)
+        page = _collection(fetch, count).list_for_requester(
+            _ACTIVITY_ID, _USER_1, MagicMock(), page_number=1, num_records=10
+        )
 
         assert (page.items, page.total) == ([], 0)
         fetch.assert_not_called()
@@ -67,7 +72,9 @@ class TestListForRequester:
         mock_resolve.return_value = _parent(hide_laps=True)
         fetch, count = MagicMock(), MagicMock()
 
-        page = _collection(fetch, count).list_for_requester(_ACTIVITY_ID, 2, MagicMock(), page_number=1, num_records=10)
+        page = _collection(fetch, count).list_for_requester(
+            _ACTIVITY_ID, _USER_2, MagicMock(), page_number=1, num_records=10
+        )
 
         assert (page.items, page.total) == ([], 0)
         fetch.assert_not_called()
@@ -81,7 +88,7 @@ class TestListForRequester:
         db = MagicMock()
 
         page = _collection(fetch, MagicMock(return_value=250)).list_for_requester(
-            _ACTIVITY_ID, 1, db, page_number=2, num_records=100
+            _ACTIVITY_ID, _USER_1, db, page_number=2, num_records=100
         )
 
         fetch.assert_called_once_with(_ACTIVITY_ID, db, page_number=2, num_records=100)
@@ -148,7 +155,7 @@ class TestViewerMask:
         fetch = MagicMock(return_value=[_Row()])
 
         page = _collection(fetch, fields_by_hide_flag=_FIELDS).list_for_requester(
-            _ACTIVITY_ID, 2, MagicMock(), page_number=1, num_records=10
+            _ACTIVITY_ID, _USER_2, MagicMock(), page_number=1, num_records=10
         )
 
         assert page.items == [_Row(lat=None, long=None)]
@@ -159,7 +166,7 @@ class TestViewerMask:
         fetch = MagicMock(return_value=[_Row()])
 
         page = _collection(fetch, fields_by_hide_flag=_FIELDS).list_for_requester(
-            _ACTIVITY_ID, 2, MagicMock(), page_number=1, num_records=10
+            _ACTIVITY_ID, _USER_2, MagicMock(), page_number=1, num_records=10
         )
 
         assert page.items == [_Row()]
@@ -181,7 +188,7 @@ class TestViewerMask:
         fetch = MagicMock(return_value=[_Row()])
 
         page = _collection(fetch, fields_by_hide_flag=_FIELDS).list_for_requester(
-            _ACTIVITY_ID, 1, MagicMock(), page_number=1, num_records=10
+            _ACTIVITY_ID, _USER_1, MagicMock(), page_number=1, num_records=10
         )
 
         assert page.items == [_Row()]
@@ -190,13 +197,13 @@ class TestViewerMask:
         fetch = MagicMock(return_value=[_Row()])
 
         page = _collection(fetch, fields_by_hide_flag=_FIELDS).list_for_activity(
-            _parent(hide_map=True, hide_hr=True), 2, MagicMock(), page_number=1, num_records=10
+            _parent(hide_map=True, hide_hr=True), _USER_2, MagicMock(), page_number=1, num_records=10
         )
 
         assert page.items == [_Row(lat=None, long=None, heart_rate=None)]
 
     def test_a_collection_declaring_no_fields_serves_the_rows_as_they_are(self):
-        page = _collection().list_for_activity(_parent(), 2, MagicMock(), page_number=1, num_records=10)
+        page = _collection().list_for_activity(_parent(), _USER_2, MagicMock(), page_number=1, num_records=10)
 
         assert page.items == ["row"]
 
@@ -208,7 +215,7 @@ class TestListForActivity:
         db = MagicMock()
         fetch = MagicMock(return_value=["row"])
 
-        page = _collection(fetch).list_for_activity(_parent(), 2, db, page_number=1, num_records=10)
+        page = _collection(fetch).list_for_activity(_parent(), _USER_2, db, page_number=1, num_records=10)
 
         assert (page.items, page.total) == (["row"], 1)
         fetch.assert_called_once_with(_ACTIVITY_ID, db, page_number=1, num_records=10)
@@ -217,7 +224,7 @@ class TestListForActivity:
         fetch, count = MagicMock(), MagicMock()
 
         page = _collection(fetch, count).list_for_activity(
-            _parent(hide_laps=True), 2, MagicMock(), page_number=1, num_records=10
+            _parent(hide_laps=True), _USER_2, MagicMock(), page_number=1, num_records=10
         )
 
         assert (page.items, page.total) == ([], 0)
@@ -225,7 +232,9 @@ class TestListForActivity:
         count.assert_not_called()
 
     def test_the_owner_reads_despite_the_flag(self):
-        page = _collection().list_for_activity(_parent(hide_laps=True), 1, MagicMock(), page_number=1, num_records=10)
+        page = _collection().list_for_activity(
+            _parent(hide_laps=True), _USER_1, MagicMock(), page_number=1, num_records=10
+        )
 
         assert page.items == ["row"]
 

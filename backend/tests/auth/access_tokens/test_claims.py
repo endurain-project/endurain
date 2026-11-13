@@ -1,6 +1,7 @@
 """The audience, client and lifetime claims of Endurain's own tokens (RFC 9068, RFC 8725)."""
 
 import time
+import uuid
 from datetime import timedelta
 from urllib.parse import urlsplit
 
@@ -15,6 +16,8 @@ import core.problem_details as core_problem_details
 import modules.auth.access_tokens.service as auth_token_manager
 from modules.auth.constants import ClientType
 from modules.users.users.schema import UserAccessType, UserRead
+
+_USER_ID = uuid.UUID(int=1)
 
 _ACCESS_KEY = "claims-access-key-for-testing-only-min-32-chars"
 _REFRESH_KEY = "claims-refresh-key-for-testing-only-min-32-chars"
@@ -32,7 +35,7 @@ def manager() -> auth_token_manager.TokenManager:
 @pytest.fixture
 def user() -> UserRead:
     return UserRead(
-        id=1,
+        id=_USER_ID,
         name="User",
         username="user",
         email="user@test.com",

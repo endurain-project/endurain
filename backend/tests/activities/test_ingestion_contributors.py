@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic import ValidationError
+from tests._helpers.auth import MOCK_USER_ID
 
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_exercise_titles.contracts as activity_exercise_titles_contracts
@@ -21,7 +22,9 @@ _ACTIVITY_ID = uuid.UUID("00000000-0000-4000-8000-00000000000a")
 
 
 def _activity() -> activity_schema.ActivityRead:
-    return activity_schema.ActivityRead(id=_ACTIVITY_ID, user_id=1, distance=0, name="Parsed", activity_type=1)
+    return activity_schema.ActivityRead(
+        id=_ACTIVITY_ID, user_id=MOCK_USER_ID, distance=0, name="Parsed", activity_type=1
+    )
 
 
 _SET = activity_sets_contracts.ActivitySetsCreate(

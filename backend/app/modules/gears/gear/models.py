@@ -60,7 +60,7 @@ class Gear(core_sync.UpdatedAtMixin, Base):
             " 8 - water sports board)"
         ),
     )
-    user_id: Mapped[int] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         comment=("User ID that the gear belongs to"),

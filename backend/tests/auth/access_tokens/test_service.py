@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -15,6 +16,9 @@ import modules.auth.authentication.token_service as auth_token_service
 import modules.auth.constants as auth_constants
 from modules.auth.constants import ClientType
 from modules.users.users.schema import UserAccessType, UserRead
+
+_USER_ID_1 = uuid.UUID(int=1)
+_USER_ID_2 = uuid.UUID(int=2)
 
 
 class TestTokenManagerSecurity:
@@ -581,7 +585,7 @@ class TestTokenManagerSecurity:
         Note: Backend now grants all users full scope regardless of access_type.
         """
         regular_user = UserRead(
-            id=2,
+            id=_USER_ID_2,
             name="Regular User",
             username="regular",
             email="regular@test.com",
@@ -626,7 +630,7 @@ class TestAdminTokenScopeNames:
 
     def test_an_admin_access_token_carries_the_renamed_scopes_and_no_former_name(self, token_manager):
         admin = UserRead(
-            id=1,
+            id=_USER_ID_1,
             name="Admin",
             username="admin",
             email="admin@example.com",

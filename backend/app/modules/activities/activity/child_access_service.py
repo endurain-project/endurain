@@ -26,7 +26,7 @@ import modules.server_settings.integration_service as server_settings_integratio
 
 def resolve_readable_parent(
     activity_id: uuid.UUID,
-    requester_user_id: int,
+    requester_user_id: uuid.UUID,
     db: Session,
 ) -> activity_schema.ActivityRead | None:
     """Return the parent activity when an authenticated caller may see it at all.
@@ -67,7 +67,9 @@ def resolve_public_parent(activity_id: uuid.UUID, db: Session) -> activity_schem
     return activity_crud.get_activity_by_id_if_is_public(activity_id, db)
 
 
-def is_hidden_from(activity: activity_schema.ActivityRead, requester_user_id: int | None, *, hide_attr: str) -> bool:
+def is_hidden_from(
+    activity: activity_schema.ActivityRead, requester_user_id: uuid.UUID | None, *, hide_attr: str
+) -> bool:
     """Return whether an activity's ``hide_*`` flag hides one of its children from a viewer.
 
     The owner is never hidden from; a non-owner, or an anonymous viewer (``None``), is whenever

@@ -5,6 +5,8 @@ relink within the grace period. Declared here so the composition root can collec
 ``core.scheduler`` importing a provider.
 """
 
+import uuid
+
 import sqlalchemy.exc
 
 import core.exceptions as core_exceptions
@@ -27,7 +29,7 @@ def delete_revoked_data() -> None:
     A user whose deletion fails is logged and left marked, so the next run tries again; it does not stop the
     users after them.
     """
-    after_id = 0
+    after_id: uuid.UUID | None = None
     while True:
         user_ids = strava_service.revoked_user_ids_due(after_id, strava_constants.REVOKED_DELETE_PAGE_SIZE)
         for user_id in user_ids:

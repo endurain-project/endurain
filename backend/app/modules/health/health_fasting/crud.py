@@ -28,7 +28,7 @@ _COMPLETED = health_fasting_schema.FastingStatus.COMPLETED.value
 
 
 def get_health_fasting_number_by_user_id(
-    user_id: int, db: Session, since: date | None = None, until: date | None = None
+    user_id: uuid.UUID, db: Session, since: date | None = None, until: date | None = None
 ) -> int:
     """Count a user's fasting records.
 
@@ -46,7 +46,7 @@ def get_health_fasting_number_by_user_id(
 
 
 def get_health_fasting_by_id_and_user_id(
-    health_fasting_id: uuid.UUID, user_id: int, db: Session
+    health_fasting_id: uuid.UUID, user_id: uuid.UUID, db: Session
 ) -> health_fasting_schema.HealthFastingRead | None:
     """Retrieve a user's fasting record by id.
 
@@ -62,7 +62,7 @@ def get_health_fasting_by_id_and_user_id(
 
 
 def get_health_fasting_by_user_id(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     page_number: int | None = None,
     num_records: int | None = None,
@@ -88,7 +88,7 @@ def get_health_fasting_by_user_id(
     )
 
 
-def get_active_fasting_by_user_id(user_id: int, db: Session) -> health_fasting_schema.HealthFastingRead | None:
+def get_active_fasting_by_user_id(user_id: uuid.UUID, db: Session) -> health_fasting_schema.HealthFastingRead | None:
     """Retrieve a user's in-progress fasting session.
 
     Args:
@@ -115,7 +115,7 @@ def get_active_fasting_by_user_id(user_id: int, db: Session) -> health_fasting_s
     )
 
 
-def get_completed_fasting_count(user_id: int, db: Session) -> int:
+def get_completed_fasting_count(user_id: uuid.UUID, db: Session) -> int:
     """Count a user's completed fasting sessions.
 
     Args:
@@ -136,7 +136,7 @@ def get_completed_fasting_count(user_id: int, db: Session) -> int:
     return db.execute(stmt).scalar_one()
 
 
-def get_total_fasting_seconds(user_id: int, db: Session) -> int:
+def get_total_fasting_seconds(user_id: uuid.UUID, db: Session) -> int:
     """Sum the duration of a user's completed fasting sessions.
 
     Args:
@@ -157,7 +157,7 @@ def get_total_fasting_seconds(user_id: int, db: Session) -> int:
     return db.execute(stmt).scalar_one() or 0
 
 
-def get_avg_fasting_duration(user_id: int, db: Session) -> int | None:
+def get_avg_fasting_duration(user_id: uuid.UUID, db: Session) -> int | None:
     """Average the duration of a user's completed fasting sessions.
 
     Args:
@@ -179,7 +179,7 @@ def get_avg_fasting_duration(user_id: int, db: Session) -> int | None:
     return int(result) if result else None
 
 
-def get_completed_fasting_dates_by_user_id(user_id: int, tz_name: str, db: Session) -> list[date]:
+def get_completed_fasting_dates_by_user_id(user_id: uuid.UUID, tz_name: str, db: Session) -> list[date]:
     """List the distinct local dates on which a user started a completed fast.
 
     Selects only the date component so a streak calculation does not have to
@@ -206,7 +206,7 @@ def get_completed_fasting_dates_by_user_id(user_id: int, tz_name: str, db: Sessi
     return list(db.execute(stmt).scalars().all())
 
 
-def health_fasting_exists_at(user_id: int, fast_start_time: datetime, db: Session) -> bool:
+def health_fasting_exists_at(user_id: uuid.UUID, fast_start_time: datetime, db: Session) -> bool:
     """Tell whether a user already has a fasting session started at an exact time.
 
     Args:
@@ -229,7 +229,7 @@ def health_fasting_exists_at(user_id: int, fast_start_time: datetime, db: Sessio
 
 
 def create_health_fasting(
-    user_id: int,
+    user_id: uuid.UUID,
     health_fasting: health_fasting_schema.HealthFastingImport,
     db: Session,
     *,
@@ -254,7 +254,7 @@ def create_health_fasting(
 
 
 def edit_health_fasting(
-    user_id: int,
+    user_id: uuid.UUID,
     health_fasting_id: uuid.UUID,
     health_fasting: health_fasting_schema.HealthFastingUpdate,
     db: Session,
@@ -291,7 +291,7 @@ def edit_health_fasting(
 
 
 def end_health_fasting(
-    user_id: int,
+    user_id: uuid.UUID,
     health_fasting_id: uuid.UUID,
     fast_end_time: datetime,
     status: str,
@@ -332,7 +332,7 @@ def end_health_fasting(
     return health_record_crud.save(SPEC, db_health_fasting, db)
 
 
-def delete_health_fasting(user_id: int, health_fasting_id: uuid.UUID, db: Session, *, if_match: str) -> None:
+def delete_health_fasting(user_id: uuid.UUID, health_fasting_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Stage the deletion of a user's fasting record.
 
     Args:
@@ -349,7 +349,7 @@ def delete_health_fasting(user_id: int, health_fasting_id: uuid.UUID, db: Sessio
 
 
 def fasting_overlaps(
-    user_id: int,
+    user_id: uuid.UUID,
     fast_start_time: datetime,
     fast_end_time: datetime | None,
     db: Session,
@@ -384,7 +384,7 @@ def fasting_overlaps(
 
 
 def list_changed(
-    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[health_fasting_schema.HealthFastingRead]:
     """Retrieve a user's records changed after a position, oldest change first.
 

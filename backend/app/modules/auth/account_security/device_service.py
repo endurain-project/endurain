@@ -20,7 +20,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def list_user_devices(
-    user_id: int, device_id: str | None, page: core_pagination.PageParams, db: Session
+    user_id: uuid.UUID, device_id: str | None, page: core_pagination.PageParams, db: Session
 ) -> known_devices_schema.KnownDevicePage:
     """Return one page of the user's known devices, marking the one the request comes from."""
     return known_devices_integration.list_devices(user_id, device_id, page, db)
@@ -28,7 +28,7 @@ def list_user_devices(
 
 def forget_user_device(
     device_id: uuid.UUID,
-    user_id: int,
+    user_id: uuid.UUID,
     session_id: str,
     current_device_id: str | None,
     step_up: auth_schema.StepUpVerification,
@@ -74,7 +74,7 @@ def forget_user_device(
 
 
 def forget_other_user_devices(
-    user_id: int,
+    user_id: uuid.UUID,
     session_id: str,
     device_id: str | None,
     step_up: auth_schema.StepUpVerification,
@@ -115,7 +115,7 @@ def forget_other_user_devices(
 
 
 def forget_all_user_devices(
-    user_id: int,
+    user_id: uuid.UUID,
     session_id: str,
     step_up: auth_schema.StepUpVerification,
     step_up_store: step_up_store_module.StepUpStore,

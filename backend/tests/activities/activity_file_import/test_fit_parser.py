@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
+from tests._helpers.auth import MOCK_USER_ID
 
 import core.exceptions as core_exceptions
 import modules.activities.activity_file_import.fit_frames as fit_frames
@@ -91,21 +92,25 @@ class TestUtilsFit:
         """Numeric FIT manufacturer ids are coerced to strings."""
         # Some devices (e.g. Amazfit/Zepp) report an unmapped numeric
         # manufacturer id rather than a name; the schema expects a string.
-        activities = fit_parser.create_activity_objects([_session_record(339)], user_id=1, default_timezone=_SERVER_TZ)
+        activities = fit_parser.create_activity_objects(
+            [_session_record(339)], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
+        )
 
         assert len(activities) == 1
         assert activities[0]["activity"].tracker_manufacturer == "339"
 
     def test_create_activity_objects_keeps_none_manufacturer(self):
         """A missing manufacturer stays None instead of the string 'None'."""
-        activities = fit_parser.create_activity_objects([_session_record(None)], user_id=1, default_timezone=_SERVER_TZ)
+        activities = fit_parser.create_activity_objects(
+            [_session_record(None)], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
+        )
 
         assert activities[0]["activity"].tracker_manufacturer is None
 
     def test_create_activity_objects_stringifies_numeric_model(self):
         """Numeric FIT product ids are coerced to strings."""
         activities = fit_parser.create_activity_objects(
-            [_session_record(None, product=4567)], user_id=1, default_timezone=_SERVER_TZ
+            [_session_record(None, product=4567)], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
         )
 
         assert activities[0]["activity"].tracker_model == "4567"
@@ -113,7 +118,7 @@ class TestUtilsFit:
     def test_create_activity_objects_keeps_none_model(self):
         """A missing product stays None instead of the string 'None'."""
         activities = fit_parser.create_activity_objects(
-            [_session_record(None, product=None)], user_id=1, default_timezone=_SERVER_TZ
+            [_session_record(None, product=None)], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
         )
 
         assert activities[0]["activity"].tracker_model is None
@@ -131,7 +136,9 @@ class TestUtilsFit:
         record["session"]["avg_hr"] = 103
         record["session"]["max_hr"] = 160
 
-        activities_list = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        activities_list = fit_parser.create_activity_objects(
+            [record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
+        )
 
         activity = activities_list[0]["activity"]
         # Zeros excluded: mean([150, 160]) = 155, max = 160.
@@ -147,7 +154,9 @@ class TestUtilsFit:
         record["session"]["avg_speed"] = None
         record["session"]["max_speed"] = None
 
-        activities_list = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        activities_list = fit_parser.create_activity_objects(
+            [record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
+        )
 
         activity = activities_list[0]["activity"]
         # 10012 m / 5006 s = 2.0 m/s.
@@ -164,7 +173,9 @@ class TestUtilsFit:
             {"time": "2026-06-20T08:20:10", "vel": 4.0},
         ]
 
-        activities_list = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        activities_list = fit_parser.create_activity_objects(
+            [record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
+        )
 
         activity = activities_list[0]["activity"]
         # mean([2, 4]) = 3.0, max = 4.0.
@@ -178,7 +189,9 @@ class TestUtilsFit:
         record["session"]["avg_speed"] = 2.5
         record["session"]["max_speed"] = 6.0
 
-        activities_list = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        activities_list = fit_parser.create_activity_objects(
+            [record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
+        )
 
         activity = activities_list[0]["activity"]
         assert activity.average_speed == 2.5
@@ -194,7 +207,9 @@ class TestUtilsFit:
             {"time": "2026-06-20T08:20:10", "cad": 90},
         ]
 
-        activities_list = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        activities_list = fit_parser.create_activity_objects(
+            [record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
+        )
 
         activity = activities_list[0]["activity"]
         # mean([80, 90]) = 85, max = 90.
@@ -211,7 +226,9 @@ class TestUtilsFit:
             {"time": "2026-06-20T08:20:10", "cad": 90},
         ]
 
-        activities_list = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        activities_list = fit_parser.create_activity_objects(
+            [record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
+        )
 
         activity = activities_list[0]["activity"]
         assert activity.average_cad == 88
@@ -240,7 +257,9 @@ class TestUtilsFit:
             }
         ]
 
-        activities_list = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        activities_list = fit_parser.create_activity_objects(
+            [record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
+        )
 
         payload = activities_list[0]
         # (85 + 0.328125) * 2 = 170.66 -> 171 ; (93 + 0) * 2 = 186.
@@ -265,7 +284,7 @@ class TestUtilsFit:
             {"time": "2026-06-20T08:20:10", "cad": 90},
         ]
 
-        payload = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)[0]
+        payload = fit_parser.create_activity_objects([record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)[0]
 
         # mean([84, 90]) * 2 = 174 ; 90 * 2 = 180.
         assert payload["activity"].average_cad == 174
@@ -282,7 +301,7 @@ class TestUtilsFit:
             {"time": "2026-06-20T08:20:10", "cad": None},
         ]
 
-        payload = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)[0]
+        payload = fit_parser.create_activity_objects([record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)[0]
 
         assert payload["activity"].activity_type == "treadmill_run"
         assert payload["activity"].average_cad == 260
@@ -295,7 +314,9 @@ class TestUtilsFit:
         record["session"]["activity_type"] = "running"
         record["session"]["max_cadence"] = 93
 
-        activity = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)[0]["activity"]
+        activity = fit_parser.create_activity_objects([record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)[0][
+            "activity"
+        ]
 
         assert activity.average_cad is None
         assert activity.max_cad == 186
@@ -309,7 +330,9 @@ class TestUtilsFit:
             {"time": "2026-06-20T08:20:10", "cad": 85},
         ]
 
-        activity = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)[0]["activity"]
+        activity = fit_parser.create_activity_objects([record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)[0][
+            "activity"
+        ]
 
         assert activity.average_cad == 82
         assert activity.max_cad == 85
@@ -321,7 +344,9 @@ class TestUtilsFit:
         record["session"]["avg_cadence"] = 88
         record["session"]["max_cadence"] = 110
 
-        activities_list = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        activities_list = fit_parser.create_activity_objects(
+            [record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
+        )
 
         activity = activities_list[0]["activity"]
         assert activity.average_cad == 88
@@ -339,7 +364,9 @@ class TestUtilsFit:
             {"time": f"2026-06-20T08:{i // 6:02d}:{(i % 6) * 10:02d}", "ele": ele} for i, ele in enumerate(eles)
         ]
 
-        activities_list = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        activities_list = fit_parser.create_activity_objects(
+            [record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
+        )
 
         activity = activities_list[0]["activity"]
         # Elevation increases overall then decreases, so both are set.
@@ -358,7 +385,9 @@ class TestUtilsFit:
             {"time": "2026-06-20T08:20:10", "ele": 130},
         ]
 
-        activities_list = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        activities_list = fit_parser.create_activity_objects(
+            [record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
+        )
 
         activity = activities_list[0]["activity"]
         assert activity.elevation_gain == 250
@@ -368,7 +397,7 @@ class TestUtilsFit:
         """No session distance, no GPS track, no avg_speed → distance/pace stay 0."""
         # Category A: an HR-only recording has nothing to derive distance from.
         activities_list = fit_parser.create_activity_objects(
-            [_session_record(None)], user_id=1, default_timezone=_SERVER_TZ
+            [_session_record(None)], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
         )
 
         activity = activities_list[0]["activity"]
@@ -382,7 +411,9 @@ class TestUtilsFit:
         record["session"]["avg_speed"] = 1.495
         record["session"]["total_timer_time"] = 1890.0
 
-        activities_list = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        activities_list = fit_parser.create_activity_objects(
+            [record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
+        )
 
         activity = activities_list[0]["activity"]
         assert activity.distance == round(1.495 * 1890.0)  # ~2826 m
@@ -398,7 +429,9 @@ class TestUtilsFit:
             {"time": datetime(2026, 6, 20, 8, 25, 3, tzinfo=UTC), "lat": 40.01, "lon": -3.0},
         ]
 
-        activities_list = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        activities_list = fit_parser.create_activity_objects(
+            [record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
+        )
 
         activity = activities_list[0]["activity"]
         # ~0.01 deg of latitude ≈ 1.1 km.
@@ -412,7 +445,9 @@ class TestUtilsFit:
         record["session"]["avg_speed"] = 1.495
         record["session"]["total_timer_time"] = 1890.0
 
-        activities_list = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        activities_list = fit_parser.create_activity_objects(
+            [record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
+        )
 
         assert activities_list[0]["activity"].distance == 5000
 
@@ -421,7 +456,9 @@ class TestUtilsFit:
         record = _session_record(None)
         record["ele_waypoints"] = [{"time": f"2026-06-20T08:20:{i:02d}", "ele": 100.0} for i in range(0, 60, 10)]
 
-        activities_list = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        activities_list = fit_parser.create_activity_objects(
+            [record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
+        )
 
         activity = activities_list[0]["activity"]
         assert activity.elevation_gain == 0
@@ -440,7 +477,9 @@ class TestUtilsFit:
             }
         ]
 
-        activities_list = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        activities_list = fit_parser.create_activity_objects(
+            [record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
+        )
 
         activity = activities_list[0]["activity"]
         assert activity.elevation_gain is None
@@ -466,7 +505,7 @@ class TestUtilsFit:
             }
         ]
 
-        fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        fit_parser.create_activity_objects([record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         lap = record["laps"][0]
         assert lap["total_ascent"] is not None
@@ -493,7 +532,7 @@ class TestUtilsFit:
             }
         ]
 
-        fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        fit_parser.create_activity_objects([record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         lap = record["laps"][0]
         assert lap["total_ascent"] == 250
@@ -511,7 +550,7 @@ class TestUtilsFit:
             }
         ]
 
-        fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        fit_parser.create_activity_objects([record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         lap = record["laps"][0]
         assert lap["total_ascent"] is None
@@ -530,7 +569,7 @@ class TestUtilsFit:
             }
         ]
 
-        fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        fit_parser.create_activity_objects([record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         lap = record["laps"][0]
         assert lap["total_ascent"] == 0
@@ -666,7 +705,7 @@ class TestPerSessionTimezone:
         without_offset = _session_record("garmin")
 
         activities = fit_parser.create_activity_objects(
-            [with_offset, without_offset], user_id=1, default_timezone=_SERVER_TZ
+            [with_offset, without_offset], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
         )
 
         assert activities[0]["activity"].timezone == "Etc/GMT-9"
@@ -679,7 +718,7 @@ class TestPerSessionTimezone:
         record = _session_record("garmin")
         record["time_offset"] = 1234  # no zone has this offset
 
-        activities = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        activities = fit_parser.create_activity_objects([record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert activities[0]["activity"].timezone == core_config.settings.TZ
 
@@ -696,7 +735,9 @@ class TestOwnerTimezoneFallback:
     def test_uses_the_owner_timezone_when_the_session_has_no_gps(self):
         record = _session_record("garmin")
 
-        activities = fit_parser.create_activity_objects([record], user_id=1, default_timezone="America/Los_Angeles")
+        activities = fit_parser.create_activity_objects(
+            [record], user_id=MOCK_USER_ID, default_timezone="America/Los_Angeles"
+        )
 
         assert activities[0]["activity"].timezone == "America/Los_Angeles"
 
@@ -705,7 +746,9 @@ class TestOwnerTimezoneFallback:
         record = _session_record("garmin")
         record["time_offset"] = 9 * 3600
 
-        activities = fit_parser.create_activity_objects([record], user_id=1, default_timezone="America/Los_Angeles")
+        activities = fit_parser.create_activity_objects(
+            [record], user_id=MOCK_USER_ID, default_timezone="America/Los_Angeles"
+        )
 
         assert activities[0]["activity"].timezone == "Etc/GMT-9"
 
@@ -731,7 +774,9 @@ class TestOffsetVersusAthleteTimezone:
         # Los Angeles is UTC-8 in January.
         record = self._record(-8 * 3600, datetime(2024, 1, 15, 17, 0, tzinfo=UTC))
 
-        activities = fit_parser.create_activity_objects([record], user_id=1, default_timezone="America/Los_Angeles")
+        activities = fit_parser.create_activity_objects(
+            [record], user_id=MOCK_USER_ID, default_timezone="America/Los_Angeles"
+        )
 
         assert activities[0]["activity"].timezone == "America/Los_Angeles"
 
@@ -742,7 +787,7 @@ class TestOffsetVersusAthleteTimezone:
         summer = self._record(-7 * 3600, datetime(2024, 7, 15, 16, 0, tzinfo=UTC))
 
         activities = fit_parser.create_activity_objects(
-            [winter, summer], user_id=1, default_timezone="America/Los_Angeles"
+            [winter, summer], user_id=MOCK_USER_ID, default_timezone="America/Los_Angeles"
         )
 
         zones = [a["activity"].timezone for a in activities]
@@ -752,21 +797,23 @@ class TestOffsetVersusAthleteTimezone:
         """A mismatch means they were not at home; trust the device."""
         record = self._record(9 * 3600, datetime(2024, 1, 15, 0, 0, tzinfo=UTC))
 
-        activities = fit_parser.create_activity_objects([record], user_id=1, default_timezone="America/Los_Angeles")
+        activities = fit_parser.create_activity_objects(
+            [record], user_id=MOCK_USER_ID, default_timezone="America/Los_Angeles"
+        )
 
         assert activities[0]["activity"].timezone == "Etc/GMT-9"
 
     def test_uses_a_fixed_offset_when_the_athlete_has_no_zone(self):
         record = self._record(9 * 3600, datetime(2024, 1, 15, 0, 0, tzinfo=UTC))
 
-        activities = fit_parser.create_activity_objects([record], user_id=1, default_timezone=None)
+        activities = fit_parser.create_activity_objects([record], user_id=MOCK_USER_ID, default_timezone=None)
 
         assert activities[0]["activity"].timezone == "Etc/GMT-9"
 
     def test_an_unusable_athlete_zone_does_not_break_resolution(self):
         record = self._record(9 * 3600, datetime(2024, 1, 15, 0, 0, tzinfo=UTC))
 
-        activities = fit_parser.create_activity_objects([record], user_id=1, default_timezone="Not/AZone")
+        activities = fit_parser.create_activity_objects([record], user_id=MOCK_USER_ID, default_timezone="Not/AZone")
 
         assert activities[0]["activity"].timezone == "Etc/GMT-9"
 
@@ -884,7 +931,7 @@ class TestActivityLocalTimestampOffset:
         record = _session_record("garmin")
         record["activity_time_offset"] = 2 * 3600
 
-        activities = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        activities = fit_parser.create_activity_objects([record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert activities[0]["activity"].timezone == "Etc/GMT-2"
 
@@ -893,7 +940,7 @@ class TestActivityLocalTimestampOffset:
         record["activity_time_offset"] = 2 * 3600
         record["time_offset"] = 3600
 
-        activities = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        activities = fit_parser.create_activity_objects([record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert activities[0]["activity"].timezone == "Etc/GMT-2"
 
@@ -902,7 +949,7 @@ class TestActivityLocalTimestampOffset:
         record["activity_time_offset"] = 0
         record["time_offset"] = 0
 
-        activities = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        activities = fit_parser.create_activity_objects([record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert activities[0]["activity"].timezone == "UTC"
 
@@ -911,7 +958,7 @@ class TestActivityLocalTimestampOffset:
         record["activity_time_offset"] = 0
         record["time_offset"] = 3600
 
-        activities = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        activities = fit_parser.create_activity_objects([record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert activities[0]["activity"].timezone == "Etc/GMT-1"
 
@@ -920,7 +967,7 @@ class TestActivityLocalTimestampOffset:
         record["activity_time_offset"] = None
         record["time_offset"] = 3600
 
-        activities = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        activities = fit_parser.create_activity_objects([record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert activities[0]["activity"].timezone == "Etc/GMT-1"
 
@@ -929,7 +976,7 @@ class TestActivityLocalTimestampOffset:
         record = _session_record("garmin")
         record["activity_time_offset"] = 2 * 3600
 
-        activities = fit_parser.create_activity_objects([record], user_id=1, default_timezone="Europe/Paris")
+        activities = fit_parser.create_activity_objects([record], user_id=MOCK_USER_ID, default_timezone="Europe/Paris")
 
         assert activities[0]["activity"].timezone == "Europe/Paris"
 
@@ -946,7 +993,7 @@ class TestActivityLocalTimestampOffset:
             lambda lat, lon, fallback: "Asia/Tokyo",
         )
 
-        activities = fit_parser.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+        activities = fit_parser.create_activity_objects([record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert activities[0]["activity"].timezone == "Asia/Tokyo"
 

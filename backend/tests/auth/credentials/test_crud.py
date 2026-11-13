@@ -6,11 +6,12 @@ from unittest.mock import MagicMock, patch
 
 import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.credentials.crud as credentials_crud
+from tests._helpers.auth import MOCK_USER_ID
 
 
 def test_get_credential_returns_internal_dto(mock_db):
     row = SimpleNamespace(
-        user_id=3,
+        user_id=MOCK_USER_ID,
         password_hash="secret-hash",
         password_change_required=True,
         created_at=datetime.now(UTC),
@@ -18,7 +19,7 @@ def test_get_credential_returns_internal_dto(mock_db):
     )
     mock_db.execute.return_value.scalar_one_or_none.return_value = row
 
-    result = credentials_crud.get_credential(3, mock_db)
+    result = credentials_crud.get_credential(MOCK_USER_ID, mock_db)
 
     assert result == credentials_contracts.CredentialRead.model_validate(row)
 
@@ -30,8 +31,8 @@ def test_upsert_password_hash_inserts_and_flushes(mock_db):
         patch("modules.auth.credentials.crud.select", return_value=MagicMock()),
         patch("modules.auth.credentials.crud.credentials_models.LocalCredential", return_value=row) as model,
     ):
-        credentials_crud.upsert_password_hash(3, "new-hash", True, mock_db)
-    model.assert_called_once_with(user_id=3, password_hash="new-hash", password_change_required=True)
+        credentials_crud.upsert_password_hash(MOCK_USER_ID, "new-hash", True, mock_db)
+    model.assert_called_once_with(user_id=MOCK_USER_ID, password_hash="new-hash", password_change_required=True)
     mock_db.add.assert_called_once_with(row)
     mock_db.flush.assert_called_once()
     mock_db.commit.assert_not_called()
@@ -41,7 +42,7 @@ def test_upsert_password_hash_updates_existing_row(mock_db):
     row = MagicMock()
     mock_db.execute.return_value.scalar_one_or_none.return_value = row
 
-    credentials_crud.upsert_password_hash(3, "new-hash", False, mock_db)
+    credentials_crud.upsert_password_hash(MOCK_USER_ID, "new-hash", False, mock_db)
 
     assert row.password_hash == "new-hash"
     assert row.password_change_required is False
@@ -50,17 +51,17 @@ def test_upsert_password_hash_updates_existing_row(mock_db):
 
 
 def test_delete_credential_stages_deletion(mock_db):
-    credentials_crud.delete_credential(3, mock_db)
+    credentials_crud.delete_credential(MOCK_USER_ID, mock_db)
     mock_db.execute.assert_called_once()
     mock_db.flush.assert_called_once()
     mock_db.commit.assert_not_called()
 
 
 def test_set_password_change_required_stages_the_update_and_flushes(mock_db):
-    credentials_crud.set_password_change_required(3, mock_db)
+    credentials_crud.set_password_change_required(MOCK_USER_ID, mock_db)
 
     statement = mock_db.execute.call_args.args[0]
     assert statement.is_update
-    assert str(statement.compile().params) == "{'password_change_required': True, 'user_id_1': 3}"
+    assert statement.compile().params == {"password_change_required": True, "user_id_1": MOCK_USER_ID}
     mock_db.flush.assert_called_once()
     mock_db.commit.assert_not_called()

@@ -1,5 +1,6 @@
 """Domain event channel names owned by the Garmin Connect module."""
 
+import uuid
 from datetime import date
 from typing import ClassVar
 
@@ -28,7 +29,7 @@ class SyncRequestedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    user_id: int
+    user_id: uuid.UUID
     kind: garmin_constants.SyncKind
     start_date: date | None = None
     end_date: date | None = None

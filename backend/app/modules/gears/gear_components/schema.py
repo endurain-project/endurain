@@ -145,7 +145,7 @@ class GearComponentRead(GearComponentCreate):
         ...,
         description="Unique identifier",
     )
-    user_id: StrictInt = Field(
+    user_id: uuid.UUID = Field(
         ...,
         description="Foreign key to user",
     )

@@ -46,7 +46,7 @@ import modules.users.users.integration_service as users_integration
 logger = core_logger.get_logger(__name__)
 
 
-def _followees_of(requester_user_id: int | None, db: Session) -> list[int]:
+def _followees_of(requester_user_id: uuid.UUID | None, db: Session) -> list[uuid.UUID]:
     """Resolve whose followers-only activities the requester may see.
 
     The cross-domain half of the visibility rule, answered here so the queries
@@ -66,10 +66,10 @@ def _followees_of(requester_user_id: int | None, db: Session) -> list[int]:
 
 
 def sum_activities_in_timeframe(
-    user_id: int,
+    user_id: uuid.UUID,
     start: datetime,
     end: datetime,
-    requester_user_id: int,
+    requester_user_id: uuid.UUID,
     db: Session,
 ) -> list[activity_contracts.ActivityTypeTotals]:
     """Add up a user's activities in ``[start, end]`` per activity type, scoped to the requester.
@@ -110,7 +110,7 @@ def sum_activities_in_timeframe(
     )
 
 
-def _anchor_date(anchor: date | None, requester_user_id: int, db: Session) -> datetime:
+def _anchor_date(anchor: date | None, requester_user_id: uuid.UUID, db: Session) -> datetime:
     """Return the midnight-aligned day the week/month window is built around.
 
     ``anchor`` is the *caller's* local calendar date, sent by the client because
@@ -136,7 +136,7 @@ def _anchor_date(anchor: date | None, requester_user_id: int, db: Session) -> da
 
 
 def _week_bounds(
-    requester_user_id: int,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     week_number: int = 0,
@@ -168,7 +168,7 @@ def _week_bounds(
 
 
 def _month_bounds(
-    requester_user_id: int,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     anchor: date | None = None,
@@ -194,8 +194,8 @@ def _month_bounds(
 
 
 def week_stats(
-    user_id: int,
-    requester_user_id: int,
+    user_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     anchor: date | None = None,
@@ -218,8 +218,8 @@ def week_stats(
 
 
 def month_stats(
-    user_id: int,
-    requester_user_id: int,
+    user_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     anchor: date | None = None,
@@ -241,7 +241,7 @@ def month_stats(
     )
 
 
-def _require_visible_owner(user_id: int, requester_user_id: int, db: Session) -> None:
+def _require_visible_owner(user_id: uuid.UUID, requester_user_id: uuid.UUID, db: Session) -> None:
     """Refuse another user's activities when that user is inactive or awaits approval.
 
     Args:
@@ -258,9 +258,9 @@ def _require_visible_owner(user_id: int, requester_user_id: int, db: Session) ->
 
 
 def period_stats(
-    user_id: int,
+    user_id: uuid.UUID,
     period: activity_constants.StatsPeriod,
-    requester_user_id: int,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     anchor: date | None = None,
@@ -292,8 +292,8 @@ def period_stats(
 
 
 def user_profile_summary(
-    user_id: int,
-    requester_user_id: int,
+    user_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     anchor: date | None = None,
@@ -329,7 +329,7 @@ def user_profile_summary(
 
 
 def count_user_activities(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     activity_type: activity_constants.ActivityType | None = None,
@@ -400,7 +400,7 @@ def _to_summaries(activities: list[activity_schema.ActivityRead]) -> list[activi
 
 def with_media(
     activities: list[activity_schema.ActivityRead],
-    requester_user_id: int,
+    requester_user_id: uuid.UUID,
     db: Session,
 ) -> list[activity_schema.ActivityRead]:
     """Set the media of the requester's own activities, in one query for the page.
@@ -425,7 +425,7 @@ def with_media(
 
 
 def list_changed_activities(
-    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[activity_schema.ActivityRead]:
     """List the owner's activities changed after a position, each as the owner's own list reads it.
 
@@ -444,8 +444,8 @@ def list_changed_activities(
 
 
 def list_user_activities_paginated(
-    user_id: int,
-    requester_user_id: int,
+    user_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int,
@@ -518,8 +518,8 @@ def list_user_activities_paginated(
 
 
 def page_user_activities(
-    user_id: int,
-    requester_user_id: int,
+    user_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int,
@@ -587,7 +587,7 @@ def page_user_activities(
 
 
 def scroll_feed(
-    requester_user_id: int,
+    requester_user_id: uuid.UUID,
     cursor: str | None,
     num_records: int,
     db: Session,
@@ -641,7 +641,7 @@ def scroll_feed(
 # ---------------------------------------------------------------------------
 
 
-def list_activity_types(user_id: int, db: Session) -> dict[activity_constants.ActivityType, str]:
+def list_activity_types(user_id: uuid.UUID, db: Session) -> dict[activity_constants.ActivityType, str]:
     """Return the distinct activity types a user has recorded.
 
     Args:
@@ -657,7 +657,7 @@ def list_activity_types(user_id: int, db: Session) -> dict[activity_constants.Ac
     }
 
 
-def get_activity(activity_id: uuid.UUID, requester_user_id: int, db: Session) -> activity_schema.ActivityRead:
+def get_activity(activity_id: uuid.UUID, requester_user_id: uuid.UUID, db: Session) -> activity_schema.ActivityRead:
     """Return an activity the requester owns or is permitted to see.
 
     Args:
@@ -736,7 +736,7 @@ def _is_visibility_field(field: str) -> bool:
 
 def _stage_visibility_update(
     activity_id: uuid.UUID,
-    user_id: int,
+    user_id: uuid.UUID,
     before: activity_schema.ActivityRead,
     after: activity_schema.ActivityRead,
     visibility_fields: list[str],
@@ -769,7 +769,7 @@ def _stage_visibility_update(
 
 def edit_activity(
     activity_id: uuid.UUID,
-    user_id: int,
+    user_id: uuid.UUID,
     activity_attributes: activity_schema.ActivityEdit,
     db: Session,
     *,
@@ -827,7 +827,7 @@ def edit_activity(
     return _with_thumbnail_urls([updated])[0]
 
 
-def delete_activity(activity_id: uuid.UUID, user_id: int, db: Session, *, if_match: str) -> None:
+def delete_activity(activity_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Delete one of the user's activities and publish ``activity.deleted``.
 
     The delete and the event are staged and committed together, so when durable
@@ -867,7 +867,7 @@ def delete_activity(activity_id: uuid.UUID, user_id: int, db: Session, *, if_mat
 
 
 def bulk_set_activities_gear(
-    user_id: int,
+    user_id: uuid.UUID,
     gear_assignments: Mapping[uuid.UUID, uuid.UUID | None],
     db: Session,
     *,
@@ -904,7 +904,7 @@ def bulk_set_activities_gear(
     return len(updated_ids)
 
 
-def clear_activities_gear(gear_id: uuid.UUID, user_id: int, db: Session, *, source: str) -> int:
+def clear_activities_gear(gear_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, source: str) -> int:
     """Unassign a gear from every activity of a user that carries it.
 
     Used when the gear is deleted: the foreign key would null the column silently, so
@@ -927,7 +927,7 @@ def clear_activities_gear(gear_id: uuid.UUID, user_id: int, db: Session, *, sour
     return len(updated_ids)
 
 
-def delete_all_strava_activities(user_id: int, db: Session, *, source: str, limit: int) -> int:
+def delete_all_strava_activities(user_id: uuid.UUID, db: Session, *, source: str, limit: int) -> int:
     """Delete up to ``limit`` of a user's Strava-sourced activities.
 
     Emits one ``activity.deleted`` per removed activity, staged with the deletes,
@@ -954,7 +954,7 @@ def delete_all_strava_activities(user_id: int, db: Session, *, source: str, limi
     return len(deleted_ids)
 
 
-def delete_activities_batch_for_user(user_id: int, limit: int, db: Session, *, source: str) -> int:
+def delete_activities_batch_for_user(user_id: uuid.UUID, limit: int, db: Session, *, source: str) -> int:
     """Delete up to ``limit`` of a user's activities, emitting cleanup events.
 
     The account-deletion path. Deleting the user row alone would let the database
@@ -982,7 +982,7 @@ def delete_activities_batch_for_user(user_id: int, limit: int, db: Session, *, s
     return len(deleted_ids)
 
 
-def owns_activity(activity_id: uuid.UUID, user_id: int, db: Session) -> bool:
+def owns_activity(activity_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> bool:
     """Return whether the user owns the activity.
 
     Args:

@@ -6,6 +6,7 @@ holds, and the loser is answered as a conflict.
 """
 
 import threading
+import uuid
 from datetime import UTC, datetime
 
 import pytest
@@ -19,6 +20,8 @@ import modules.health.health_fasting.service as fasting_service
 from tests._helpers import alembic_chain
 from tests._helpers.db import ensure_user
 
+_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
+_OTHER_USER_ID = uuid.UUID("22222222-2222-4222-8222-222222222222")
 _THREADS = 6
 _START = datetime(2026, 10, 1, 8, 0, 0, tzinfo=UTC)
 _INDEX = "uq_health_fasting_one_in_progress_per_user"
@@ -29,7 +32,7 @@ _REVISION = "d8b4f1a7c3e5"
 
 @pytest.fixture
 def factory(pg_factory):
-    for user_id in (1, 2):
+    for user_id in (_USER_ID, _OTHER_USER_ID):
         ensure_user(pg_factory, user_id)
     return pg_factory
 
@@ -44,7 +47,7 @@ def test_concurrent_starts_leave_one_running_fast(factory):
             try:
                 outcomes.append(
                     fasting_service.create_health_fasting(
-                        1, fasting_schema.HealthFastingCreate(fast_start_time=_START), db
+                        _USER_ID, fasting_schema.HealthFastingCreate(fast_start_time=_START), db
                     )
                 )
             except Exception as err:
@@ -67,16 +70,20 @@ def test_concurrent_starts_leave_one_running_fast(factory):
 
 def test_a_finished_fast_does_not_block_a_new_one(factory):
     with factory() as db:
-        first = fasting_service.create_health_fasting(1, fasting_schema.HealthFastingCreate(fast_start_time=_START), db)
+        first = fasting_service.create_health_fasting(
+            _USER_ID, fasting_schema.HealthFastingCreate(fast_start_time=_START), db
+        )
         fasting_service.complete_health_fasting(
-            1,
+            _USER_ID,
             first.id,
             fasting_schema.HealthFastingComplete(fast_end_time=datetime(2026, 10, 1, 20, 0, 0, tzinfo=UTC)),
             db,
             if_match=core_etag.format_etag(first.version),
         )
         fasting_service.create_health_fasting(
-            1, fasting_schema.HealthFastingCreate(fast_start_time=datetime(2026, 10, 1, 20, 0, 0, tzinfo=UTC)), db
+            _USER_ID,
+            fasting_schema.HealthFastingCreate(fast_start_time=datetime(2026, 10, 1, 20, 0, 0, tzinfo=UTC)),
+            db,
         )
 
         assert db.scalar(select(func.count()).select_from(fasting_models.HealthFasting)) == 2

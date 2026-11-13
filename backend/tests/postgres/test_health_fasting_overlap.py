@@ -5,6 +5,7 @@ the overlap rule beside the real one-running-fast index, and the migrations over
 are checked here.
 """
 
+import uuid
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
@@ -16,6 +17,7 @@ import modules.health.health_fasting.service as fasting_service
 from tests._helpers import alembic_chain
 from tests._helpers.db import ensure_user
 
+_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
 _T0 = datetime(2026, 10, 1, 8, 0, tzinfo=UTC)
 _REVISION_39_BEFORE = "7c3e9a1d5b24"
 _REVISION_39 = "b6e2d4a8c031"
@@ -28,14 +30,14 @@ def _hours(n: float) -> datetime:
 
 @pytest.fixture
 def db(pg_factory):
-    ensure_user(pg_factory, 1)
+    ensure_user(pg_factory, _USER_ID)
     with pg_factory() as session:
         yield session
 
 
 def _fast(db, start, end=None, status="completed"):
     return fasting_service.create_health_fasting(
-        1, fasting_schema.HealthFastingCreate(fast_start_time=start, fast_end_time=end, status=status), db
+        _USER_ID, fasting_schema.HealthFastingCreate(fast_start_time=start, fast_end_time=end, status=status), db
     )
 
 

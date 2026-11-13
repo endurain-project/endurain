@@ -1,5 +1,6 @@
 """Internal data contracts for auth sessions."""
 
+import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
@@ -54,7 +55,7 @@ class SessionRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    user_id: int
+    user_id: uuid.UUID
     refresh_token: str | None
     ip_address: str
     device_type: str

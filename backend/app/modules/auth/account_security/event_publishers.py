@@ -10,7 +10,7 @@ import modules.auth.account_security.events as account_security_events
 
 
 def publish_account_security_changed(
-    user_id: int,
+    user_id: uuid.UUID,
     change: account_security_events.AccountSecurityChange,
     db: Session,
     *,
@@ -33,13 +33,13 @@ def publish_account_security_changed(
         account_security_events.ACCOUNT_SECURITY_CHANGED,
         payload.model_dump(mode="json"),
         source="api:account_security",
-        metadata={core_event_metadata.META_USER_ID: user_id},
+        metadata={core_event_metadata.META_USER_ID: str(user_id)},
         db=db,
         schema_version=payload.SCHEMA_VERSION,
     )
 
 
-def publish_step_up_session_ended(user_id: int, db: Session) -> None:
+def publish_step_up_session_ended(user_id: uuid.UUID, db: Session) -> None:
     """Stage ``auth.step_up_session_ended`` in the caller's transaction.
 
     Args:
@@ -51,13 +51,13 @@ def publish_step_up_session_ended(user_id: int, db: Session) -> None:
         account_security_events.STEP_UP_SESSION_ENDED,
         payload.model_dump(mode="json"),
         source="api:step_up",
-        metadata={core_event_metadata.META_USER_ID: user_id},
+        metadata={core_event_metadata.META_USER_ID: str(user_id)},
         db=db,
         schema_version=payload.SCHEMA_VERSION,
     )
 
 
-def publish_step_up_locked(user_id: int, db: Session) -> None:
+def publish_step_up_locked(user_id: uuid.UUID, db: Session) -> None:
     """Publish ``auth.step_up_locked`` for an account that failed step-ups locked.
 
     The lock is applied by a request that fails, so there is no transaction to stage the event in and it is
@@ -72,7 +72,7 @@ def publish_step_up_locked(user_id: int, db: Session) -> None:
         account_security_events.STEP_UP_LOCKED,
         payload.model_dump(mode="json"),
         source="api:step_up",
-        metadata={core_event_metadata.META_USER_ID: user_id},
+        metadata={core_event_metadata.META_USER_ID: str(user_id)},
         db=db,
         schema_version=payload.SCHEMA_VERSION,
     )

@@ -16,7 +16,7 @@ import modules.health.record_crud as health_record_crud
 import modules.users.users_profile.contracts as users_profile_contracts
 
 
-def list_health_poop_by_date(user_id: int, date: str, db: Session) -> list[health_poop_schema.HealthPoopRead]:
+def list_health_poop_by_date(user_id: uuid.UUID, date: str, db: Session) -> list[health_poop_schema.HealthPoopRead]:
     """Return a user's poop records for a calendar date in their own timezone.
 
     Args:
@@ -44,7 +44,7 @@ def profile_section() -> users_profile_contracts.ProfileRecordsSection:
 
 
 def list_changed_health_poop(
-    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[health_poop_schema.HealthPoopRead]:
     """Return a user's poop records changed after a position, oldest change first.
 
@@ -62,7 +62,7 @@ def list_changed_health_poop(
 
 
 def list_health_poop_deletions(
-    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[core_sync.Deletion[uuid.UUID]]:
     """Return a user's deleted poop records after a position, oldest deletion first.
 

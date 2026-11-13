@@ -25,7 +25,11 @@ SPEC = health_record_crud.RecordSpec(
 
 
 def get_health_poop_number_by_user_id(
-    user_id: int, db: Session, since: date_type | None = None, until: date_type | None = None, tz_name: str = "UTC"
+    user_id: uuid.UUID,
+    db: Session,
+    since: date_type | None = None,
+    until: date_type | None = None,
+    tz_name: str = "UTC",
 ) -> int:
     """Count a user's poop records.
 
@@ -44,7 +48,7 @@ def get_health_poop_number_by_user_id(
 
 
 def get_health_poop_by_id_and_user_id(
-    health_poop_id: uuid.UUID, user_id: int, db: Session
+    health_poop_id: uuid.UUID, user_id: uuid.UUID, db: Session
 ) -> health_poop_schema.HealthPoopRead | None:
     """Retrieve a user's poop record by id.
 
@@ -60,7 +64,7 @@ def get_health_poop_by_id_and_user_id(
 
 
 def get_health_poop_by_user_id(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     page_number: int | None = None,
     num_records: int | None = None,
@@ -89,7 +93,7 @@ def get_health_poop_by_user_id(
 
 
 def get_health_poop_by_date_and_user_id(
-    user_id: int, date: str, tz_name: str, db: Session
+    user_id: uuid.UUID, date: str, tz_name: str, db: Session
 ) -> list[health_poop_schema.HealthPoopRead]:
     """Retrieve a user's poop records for a calendar date in their own timezone.
 
@@ -117,7 +121,7 @@ def get_health_poop_by_date_and_user_id(
     return health_computation.to_read_schemas(health_poop_schema.HealthPoopRead, list(db.execute(stmt).scalars().all()))
 
 
-def health_poop_exists_at(user_id: int, date_time: datetime, db: Session) -> bool:
+def health_poop_exists_at(user_id: uuid.UUID, date_time: datetime, db: Session) -> bool:
     """Tell whether a user already has a poop record at an exact time.
 
     Args:
@@ -140,7 +144,7 @@ def health_poop_exists_at(user_id: int, date_time: datetime, db: Session) -> boo
 
 
 def create_health_poop(
-    user_id: int, health_poop: health_poop_schema.HealthPoopImport, db: Session
+    user_id: uuid.UUID, health_poop: health_poop_schema.HealthPoopImport, db: Session
 ) -> health_poop_schema.HealthPoopRead:
     """Stage a new poop record for a user.
 
@@ -161,7 +165,7 @@ def create_health_poop(
 
 
 def edit_health_poop(
-    user_id: int,
+    user_id: uuid.UUID,
     health_poop_id: uuid.UUID,
     health_poop: health_poop_schema.HealthPoopUpdate,
     db: Session,
@@ -187,7 +191,7 @@ def edit_health_poop(
     return health_record_crud.edit(SPEC, health_poop_id, user_id, health_poop, db, if_match=if_match)
 
 
-def delete_health_poop(user_id: int, health_poop_id: uuid.UUID, db: Session, *, if_match: str) -> None:
+def delete_health_poop(user_id: uuid.UUID, health_poop_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Stage the deletion of a user's poop record.
 
     Args:
@@ -204,7 +208,7 @@ def delete_health_poop(user_id: int, health_poop_id: uuid.UUID, db: Session, *, 
 
 
 def get_health_poop_chart(
-    user_id: int,
+    user_id: uuid.UUID,
     since: date_type,
     until: date_type | None,
     bucket: health_constants.ChartBucket,
@@ -236,7 +240,7 @@ def get_health_poop_chart(
     return [health_schema.HealthChartPoint(date=d, value=float(count)) for d, count in db.execute(stmt).all()]
 
 
-def get_health_poop_first_day(user_id: int, tz_name: str, db: Session) -> date_type | None:
+def get_health_poop_first_day(user_id: uuid.UUID, tz_name: str, db: Session) -> date_type | None:
     """Return the day of a user's first bowel movement in their own timezone.
 
     Args:
@@ -255,7 +259,7 @@ def get_health_poop_first_day(user_id: int, tz_name: str, db: Session) -> date_t
 
 
 def list_changed(
-    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[health_poop_schema.HealthPoopRead]:
     """Retrieve a user's records changed after a position, oldest change first.
 

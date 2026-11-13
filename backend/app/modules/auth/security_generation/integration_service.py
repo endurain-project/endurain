@@ -4,12 +4,14 @@ A security change calls ``stage_bump`` before its other writes, and a redeem cal
 writes, so the generation row is always the first lock taken.
 """
 
+import uuid
+
 from sqlalchemy.orm import Session
 
 import modules.auth.security_generation.crud as security_generation_crud
 
 
-def current_generation(user_id: int, db: Session) -> int:
+def current_generation(user_id: uuid.UUID, db: Session) -> int:
     """Return the account's security generation, to stamp into a proof as it is created.
 
     Args:
@@ -23,7 +25,7 @@ def current_generation(user_id: int, db: Session) -> int:
     return security_generation_crud.read(user_id, db)
 
 
-def stage_bump(user_id: int, db: Session) -> None:
+def stage_bump(user_id: uuid.UUID, db: Session) -> None:
     """Stage the advance of the account's security generation; the caller commits.
 
     Every proof stamped with an earlier generation stops matching once the caller's transaction commits.
@@ -35,7 +37,7 @@ def stage_bump(user_id: int, db: Session) -> None:
     security_generation_crud.bump(user_id, db)
 
 
-def matches_locked(user_id: int, stamped: int | None, db: Session) -> bool:
+def matches_locked(user_id: uuid.UUID, stamped: int | None, db: Session) -> bool:
     """Return whether a proof's stamp is the account's current generation, holding the row's lock.
 
     The lock lasts until the caller's transaction ends, so a security change cannot commit between this check and

@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+import uuid
 from datetime import datetime
 from typing import Any
 
@@ -25,7 +26,7 @@ logger = core_logger.get_logger(__name__)
 def _download_and_ingest_activity(
     garminconnect_client: garminconnect.Garmin,
     activity: dict[str, Any],
-    user_id: int,
+    user_id: uuid.UUID,
 ) -> list[activity_schema.ActivityRead]:
     """Download one Garmin activity, and ingest the files it contains.
 
@@ -109,7 +110,7 @@ def _download_and_ingest_activity(
 def _process_listed_activity(
     session: garmin_service.GarminSession,
     activity: dict[str, Any],
-    user_id: int,
+    user_id: uuid.UUID,
     rate_limits: garmin_rate_limit_store.GarminRateLimitStore,
 ) -> list[activity_schema.ActivityRead]:
     """Download and store one activity of a window, unless it is already stored.
@@ -154,7 +155,7 @@ def fetch_and_process_activities_by_dates(
     session: garmin_service.GarminSession,
     start_date: datetime,
     end_date: datetime,
-    user_id: int,
+    user_id: uuid.UUID,
     rate_limits: garmin_rate_limit_store.GarminRateLimitStore,
 ) -> list[activity_schema.ActivityRead] | None:
     """Fetch a user's Garmin Connect activities in a window and store the new ones.
@@ -210,7 +211,7 @@ def fetch_and_process_activities_by_dates(
 
 
 def get_user_garminconnect_activities_by_dates(
-    user_id: int,
+    user_id: uuid.UUID,
     start_date: datetime,
     end_date: datetime,
     rate_limits: garmin_rate_limit_store.GarminRateLimitStore,

@@ -5,6 +5,7 @@ from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from sqlalchemy.exc import IntegrityError
+from tests._helpers.auth import MOCK_USER_ID
 
 import core.exceptions as core_exceptions
 import core.job_status as core_job_status
@@ -51,7 +52,7 @@ class TestReplay:
             patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_received_upload") as discard,
             patch.object(ingestion_jobs.activity_ingestion_crud, "create_ingestion_job") as create,
         ):
-            result = ingestion_jobs.accept_upload(7, *_upload(), "storage", db, idempotency_key="key-1")
+            result = ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload(), "storage", db, idempotency_key="key-1")
 
         assert result is original
         store.assert_not_called()
@@ -77,9 +78,9 @@ class TestReplay:
             patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", False),
             patch.object(ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"),
         ):
-            ingestion_jobs.accept_upload(7, *_upload(), "storage", db, idempotency_key="key-1")
+            ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload(), "storage", db, idempotency_key="key-1")
 
-        assert lookup.call_args.args == ("key-1", 7, _UPLOAD, db)
+        assert lookup.call_args.args == ("key-1", MOCK_USER_ID, _UPLOAD, db)
 
     def test_the_key_and_fingerprint_are_both_stored(self):
         db = MagicMock()
@@ -96,7 +97,7 @@ class TestReplay:
             patch.object(ingestion_jobs.activity_ingestion_crud, "get_ingestion_job", return_value="job-view"),
             patch.object(ingestion_jobs.activity_ingestion_event_publishers.platform_publisher, "publish_committing"),
         ):
-            ingestion_jobs.accept_upload(7, *_upload(), "storage", db, idempotency_key="key-1")
+            ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload(), "storage", db, idempotency_key="key-1")
 
         assert create.call_args.kwargs["idempotency_key"] == "key-1"
         assert create.call_args.kwargs["request_fingerprint"] == "fp-1"
@@ -121,7 +122,7 @@ class TestKeyReuseWithDifferentContent:
             patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "store_received_upload") as store,
             pytest.raises(core_exceptions.ConflictError),
         ):
-            ingestion_jobs.accept_upload(7, *_upload(), "storage", db, idempotency_key="key-1")
+            ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload(), "storage", db, idempotency_key="key-1")
 
         store.assert_not_called()
         discard.assert_called_once()
@@ -157,7 +158,7 @@ class TestDeletedActivities:
             patch.object(ingestion_jobs.activity_ingestion_dispatch_service, "commit_or_publish"),
             patch.object(ingestion_jobs.activity_ingestion_dispatch_service, "run_in_background"),
         ):
-            ingestion_jobs.accept_upload(7, *_upload(), "storage", db, idempotency_key="key-1")
+            ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload(), "storage", db, idempotency_key="key-1")
         return existing, release, create
 
     @staticmethod
@@ -225,7 +226,7 @@ class TestConcurrentSameKey:
             ),
             patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_staged_upload") as discard,
         ):
-            result = ingestion_jobs.accept_upload(7, *_upload(), "storage", db, idempotency_key="key-1")
+            result = ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload(), "storage", db, idempotency_key="key-1")
 
         assert result is winner
         discard.assert_called_once_with("abc.gpx", ANY)
@@ -255,7 +256,7 @@ class TestConcurrentSameKey:
             patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_staged_upload"),
             pytest.raises(core_exceptions.ConflictError),
         ):
-            ingestion_jobs.accept_upload(7, *_upload(), "storage", db, idempotency_key="key-1")
+            ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload(), "storage", db, idempotency_key="key-1")
 
     def test_an_integrity_error_without_a_key_still_propagates(self):
         """Only a key collision is recoverable; anything else is a real failure."""
@@ -274,7 +275,7 @@ class TestConcurrentSameKey:
             patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_staged_upload"),
             pytest.raises(IntegrityError),
         ):
-            ingestion_jobs.accept_upload(7, *_upload(), "storage", db)
+            ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload(), "storage", db)
 
 
 class TestWithoutAKey:
@@ -293,7 +294,7 @@ class TestWithoutAKey:
             patch.object(ingestion_jobs.activity_ingestion_crud, "get_ingestion_job", return_value="job-view"),
             patch.object(ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"),
         ):
-            ingestion_jobs.accept_upload(7, *_upload(), "storage", db)
+            ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload(), "storage", db)
 
         lookup.assert_not_called()
         assert create.call_args.kwargs["idempotency_key"] is None
@@ -311,7 +312,7 @@ class TestRefreshIsUnaffected:
             patch.object(ingestion_jobs.activity_ingestion_crud, "get_ingestion_job", return_value="job-view"),
             patch.object(ingestion_jobs.activity_ingestion_event_publishers.platform_publisher, "publish_committing"),
         ):
-            ingestion_jobs.accept_refresh(7, "storage", db)
+            ingestion_jobs.accept_refresh(MOCK_USER_ID, "storage", db)
 
         assert create.call_args.args[2] == activity_ingestion_constants.IngestionJobKind.REFRESH
         assert "idempotency_key" not in create.call_args.kwargs
@@ -336,7 +337,9 @@ class TestReceivedUploadIsNeverLeftBehind:
             patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_received_upload") as discard,
             pytest.raises(RuntimeError),
         ):
-            ingestion_jobs.accept_upload(7, "ride.gpx", MagicMock(), "storage", MagicMock(), idempotency_key="k")
+            ingestion_jobs.accept_upload(
+                MOCK_USER_ID, "ride.gpx", MagicMock(), "storage", MagicMock(), idempotency_key="k"
+            )
 
         discard.assert_called_once_with(received)
 
@@ -362,6 +365,6 @@ class TestNoConnectionHeldWhileStoring:
             patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "store_received_upload", store),
             pytest.raises(RuntimeError, match="stop here"),
         ):
-            ingestion_jobs.accept_upload(7, "a.fit", MagicMock(), MagicMock(), db, idempotency_key="key")
+            ingestion_jobs.accept_upload(MOCK_USER_ID, "a.fit", MagicMock(), MagicMock(), db, idempotency_key="key")
 
         assert [call[0] for call in order.mock_calls] == ["end_read", "store_received_upload"]

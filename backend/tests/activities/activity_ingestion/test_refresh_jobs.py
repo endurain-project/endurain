@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
+from tests._helpers.auth import MOCK_USER_ID
 
 import core.local_pool as core_local_pool
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
@@ -30,7 +31,7 @@ class TestAcceptRefresh:
                 ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"
             ) as submit,
         ):
-            result = ingestion_jobs.accept_refresh(7, "storage", db)
+            result = ingestion_jobs.accept_refresh(MOCK_USER_ID, "storage", db)
 
         assert result == "job-view"
         assert create.call_args.args[2] == activity_ingestion_constants.IngestionJobKind.REFRESH
@@ -55,7 +56,7 @@ class TestAcceptRefresh:
                 ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"
             ) as submit,
         ):
-            ingestion_jobs.accept_refresh(7, "storage", db)
+            ingestion_jobs.accept_refresh(MOCK_USER_ID, "storage", db)
 
         # Same client contract either way — only the executor differs.
         publish.assert_not_called()
@@ -73,7 +74,7 @@ class TestAcceptRefresh:
             patch.object(ingestion_jobs.activity_ingestion_crud, "create_ingestion_job") as create,
             pytest.raises(core_local_pool.PoolFullError),
         ):
-            ingestion_jobs.accept_refresh(7, "storage", db)
+            ingestion_jobs.accept_refresh(MOCK_USER_ID, "storage", db)
 
         create.assert_not_called()
 
@@ -90,7 +91,7 @@ class TestAcceptRefresh:
             patch.object(ingestion_jobs, "fail_ingestion_job") as fail,
             pytest.raises(core_local_pool.PoolFullError),
         ):
-            ingestion_jobs.accept_refresh(7, "storage", db)
+            ingestion_jobs.accept_refresh(MOCK_USER_ID, "storage", db)
 
         fail.assert_called_once_with(
             create.call_args.args[0], activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED, "storage"
@@ -104,13 +105,16 @@ class TestAcceptRefresh:
             patch.object(ingestion_jobs.activity_ingestion_crud, "get_ingestion_job", return_value="job-view"),
             patch.object(ingestion_jobs.activity_ingestion_event_publishers.platform_publisher, "publish_committing"),
         ):
-            ingestion_jobs.accept_refresh(7, "storage", db)
+            ingestion_jobs.accept_refresh(MOCK_USER_ID, "storage", db)
 
         assert "filename" not in create.call_args.kwargs
         assert "staged_key" not in create.call_args.kwargs
 
 
-_SCOPE = (7, None, None, None)
+_SCOPE = (MOCK_USER_ID, None, None, None)
+_FIRST = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+_SECOND = uuid.UUID("00000000-0000-4000-8000-0000000000a2")
+_THIRD = uuid.UUID("00000000-0000-4000-8000-0000000000a3")
 
 
 class TestRunRefreshJob:
@@ -135,7 +139,7 @@ class TestRunRefreshJob:
             session_local.return_value.__enter__.return_value = session
             ingestion_jobs.run_refresh_job("job-1", "storage")
 
-        push.assert_called_once_with(7, "job-1", "activity_refresh")
+        push.assert_called_once_with(MOCK_USER_ID, "job-1", "activity_refresh")
         assert events.index("push") > events.index("commit")
 
     def _patches(self, scope=_SCOPE):
@@ -307,11 +311,11 @@ class TestRunRefreshJob:
 
 
 class TestScheduledRefreshFanOut:
-    def _provider(self, name: str, pages: list[list[int]]):
-        calls: list[tuple[int, int]] = []
+    def _provider(self, name: str, pages: list[list[uuid.UUID]]):
+        calls: list[tuple[uuid.UUID | None, int]] = []
         remaining = list(pages)
 
-        def _linked(after_id: int, limit: int) -> list[int]:
+        def _linked(after_id: uuid.UUID | None, limit: int) -> list[uuid.UUID]:
             calls.append((after_id, limit))
             return remaining.pop(0) if remaining else []
 
@@ -325,7 +329,7 @@ class TestScheduledRefreshFanOut:
         provider_registry.clear()
 
     def test_queues_one_job_per_linked_user_and_runs_each_locally(self):
-        self._provider("strava", [[1, 2], [3]])
+        self._provider("strava", [[_FIRST, _SECOND], [_THIRD]])
         db = MagicMock()
         with (
             patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", False),
@@ -342,14 +346,14 @@ class TestScheduledRefreshFanOut:
             queued = ingestion_jobs.enqueue_scheduled_refreshes("storage")
 
         assert queued == 3
-        assert [call.args[1] for call in create.call_args_list] == [1, 2, 3]
+        assert [call.args[1] for call in create.call_args_list] == [_FIRST, _SECOND, _THIRD]
         assert submit.call_count == 3
         # One commit per page, not per user.
         assert db.commit.call_count == 2
 
     def test_a_user_linked_to_two_providers_gets_one_job(self):
-        self._provider("strava", [[1, 2]])
-        self._provider("garminconnect", [[2, 3]])
+        self._provider("strava", [[_FIRST, _SECOND]])
+        self._provider("garminconnect", [[_SECOND, _THIRD]])
         with (
             patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", False),
             patch.object(ingestion_jobs.core_database, "SessionLocal"),
@@ -361,25 +365,27 @@ class TestScheduledRefreshFanOut:
         ):
             ingestion_jobs.enqueue_scheduled_refreshes("storage")
 
-        assert sorted(call.args[1] for call in create.call_args_list) == [1, 2, 3]
+        assert sorted(call.args[1] for call in create.call_args_list) == [_FIRST, _SECOND, _THIRD]
 
     def test_a_user_whose_previous_refresh_has_not_finished_is_skipped(self):
         """A backed-up queue must not grow by a job per user per run."""
-        self._provider("strava", [[1, 2]])
+        self._provider("strava", [[_FIRST, _SECOND]])
         with (
             patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", False),
             patch.object(ingestion_jobs.core_database, "SessionLocal"),
-            patch.object(ingestion_jobs.activity_ingestion_crud, "get_user_ids_with_active_refresh", return_value={1}),
+            patch.object(
+                ingestion_jobs.activity_ingestion_crud, "get_user_ids_with_active_refresh", return_value={_FIRST}
+            ),
             patch.object(ingestion_jobs.activity_ingestion_crud, "create_ingestion_job") as create,
             patch.object(ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"),
         ):
             queued = ingestion_jobs.enqueue_scheduled_refreshes("storage")
 
         assert queued == 1
-        assert [call.args[1] for call in create.call_args_list] == [2]
+        assert [call.args[1] for call in create.call_args_list] == [_SECOND]
 
     def test_the_durable_profile_publishes_one_batch_and_runs_nothing_inline(self):
-        self._provider("strava", [[1, 2]])
+        self._provider("strava", [[_FIRST, _SECOND]])
         with (
             patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", True),
             patch.object(ingestion_jobs.core_database, "SessionLocal") as session_local,
@@ -402,7 +408,7 @@ class TestScheduledRefreshFanOut:
         submit.assert_not_called()
 
     def test_pages_each_provider_by_cursor(self):
-        calls = self._provider("strava", [[1, 2], [3]])
+        calls = self._provider("strava", [[_FIRST, _SECOND], [_THIRD]])
         with (
             patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", False),
             patch.object(ingestion_jobs.core_database, "SessionLocal"),
@@ -414,4 +420,4 @@ class TestScheduledRefreshFanOut:
         ):
             ingestion_jobs.enqueue_scheduled_refreshes("storage")
 
-        assert [after_id for after_id, _limit in calls] == [0, 2, 3]
+        assert [after_id for after_id, _limit in calls] == [None, _SECOND, _THIRD]

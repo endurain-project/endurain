@@ -6,6 +6,7 @@ both pass the read-then-write check, and the unique index on ``(user_id, dedup_k
 """
 
 import threading
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -14,9 +15,10 @@ from sqlalchemy import select
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.models as activity_models
+from tests._helpers.auth import MOCK_USER_ID
 from tests._helpers.db import ensure_user
 
-_USER_ID = 1
+_USER_ID = MOCK_USER_ID
 _THREADS = 6
 _START = datetime(2026, 7, 28, 9, 0, tzinfo=UTC)
 _PRIVACY_FLAGS = (
@@ -60,7 +62,7 @@ def _garmin_activity(garmin_id: int, start: datetime = _START) -> activity_contr
     )
 
 
-def _store(factory, parsed) -> int:
+def _store(factory, parsed) -> uuid.UUID:
     with factory() as db:
         stored = activity_integration.store_parsed_activity(parsed, db)
         db.commit()
@@ -69,7 +71,7 @@ def _store(factory, parsed) -> int:
 
 def test_concurrent_syncs_of_one_garmin_activity_store_it_once(factory):
     barrier = threading.Barrier(_THREADS)
-    ids: list[int] = []
+    ids: list[uuid.UUID] = []
     errors: list[BaseException] = []
 
     def sync() -> None:

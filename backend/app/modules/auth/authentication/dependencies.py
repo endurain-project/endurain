@@ -1,5 +1,6 @@
 """Authentication transport dependencies and refresh-cookie helpers."""
 
+import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Annotated, Any, Self
@@ -59,7 +60,7 @@ class LogoutTarget:
         refresh_token: The raw refresh token.
     """
 
-    user_id: int
+    user_id: uuid.UUID
     session_id: str
     refresh_token: str
 
@@ -426,15 +427,18 @@ def get_sub_from_refresh_token(
         access_tokens_integration.TokenManager,
         Depends(access_tokens_integration.get_token_manager),
     ],
-) -> int:
-    """Return the decimal subject claim from a refresh token.
+) -> uuid.UUID:
+    """Return the user id in the subject claim of a refresh token.
 
     Precondition: ``validate_refresh_token`` ran first; this reader checks only the signature.
     """
     sub = token_manager.get_token_claim(refresh_token, "sub", access_tokens_integration.TokenType.REFRESH)
-    if not isinstance(sub, str) or not sub.isascii() or not sub.isdecimal():
-        raise core_exceptions.InvalidTokenError("Invalid token: 'sub' claim must be a decimal string")
-    return int(sub)
+    try:
+        if isinstance(sub, str):
+            return uuid.UUID(sub)
+    except ValueError:
+        pass
+    raise core_exceptions.InvalidTokenError("Invalid token: 'sub' claim must be a user id")
 
 
 def get_sid_from_refresh_token(

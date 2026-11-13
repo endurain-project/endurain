@@ -9,6 +9,7 @@ from jasil.providers import StateBackendUnavailableError
 import core.exceptions as core_exceptions
 import modules.auth.mfa.dependencies as auth_mfa_dependencies
 import modules.auth.mfa.setup_store as auth_mfa_setup_store
+from tests._helpers.auth import MOCK_USER_ID
 
 
 class TestMFASecretStore:
@@ -48,9 +49,9 @@ class TestMFASecretStore:
 
     def test_overwrite_updates_value(self):
         store = self._make_store()
-        store.add_secret(1, "old")
-        store.add_secret(1, "new")
-        assert store.get_secret(1) == "new"
+        store.add_secret(MOCK_USER_ID, "old")
+        store.add_secret(MOCK_USER_ID, "new")
+        assert store.get_secret(MOCK_USER_ID) == "new"
 
     def test_add_secret_encryption_failure(self):
         with (
@@ -61,12 +62,12 @@ class TestMFASecretStore:
 
     def test_get_secret_returns_none_when_decrypt_fails(self):
         store = self._make_store()
-        store.add_secret(1, "secret")
+        store.add_secret(MOCK_USER_ID, "secret")
         with patch(
             "modules.auth.mfa.setup_store.core_cryptography.decrypt_token_fernet",
             side_effect=core_exceptions.UndecryptableError(),
         ):
-            assert store.get_secret(1) is None
+            assert store.get_secret(MOCK_USER_ID) is None
 
 
 class TestEncryptionHelpers:
@@ -98,22 +99,22 @@ class TestMFASecretStoreUnavailable:
 
     def test_add_secret_raises_unavailable(self):
         with pytest.raises(auth_mfa_setup_store.MFASecretStoreUnavailableError):
-            self._failing_store().add_secret(1, "secret-value")
+            self._failing_store().add_secret(MOCK_USER_ID, "secret-value")
 
     def test_get_secret_raises_unavailable(self):
         with pytest.raises(auth_mfa_setup_store.MFASecretStoreUnavailableError):
-            self._failing_store().get_secret(1)
+            self._failing_store().get_secret(MOCK_USER_ID)
 
     def test_has_secret_raises_unavailable(self):
         with pytest.raises(auth_mfa_setup_store.MFASecretStoreUnavailableError):
-            self._failing_store().has_secret(1)
+            self._failing_store().has_secret(MOCK_USER_ID)
 
     def test_clear_all_raises_unavailable(self):
         with pytest.raises(auth_mfa_setup_store.MFASecretStoreUnavailableError):
             self._failing_store().clear_all()
 
     def test_delete_secret_swallows_outage(self):
-        self._failing_store().delete_secret(1)
+        self._failing_store().delete_secret(MOCK_USER_ID)
 
 
 class TestGetMFASecretStore:
@@ -132,9 +133,9 @@ class TestDecryptSecretFailure:
     def test_undecryptable_secret_logs_warning_and_returns_none(self):
         state = MemoryState()
         store = auth_mfa_setup_store.MFASecretStore(state=state)
-        state.set(store._key(5), b"not-a-fernet-token", ttl_seconds=60)
+        state.set(store._key(MOCK_USER_ID), b"not-a-fernet-token", ttl_seconds=60)
         with patch.object(auth_mfa_setup_store, "logger") as mock_logger:
-            assert store.get_secret(5) is None
+            assert store.get_secret(MOCK_USER_ID) is None
         mock_logger.warning.assert_called_once()
         assert mock_logger.warning.call_args.kwargs["exc_info"] is not None
         assert "not-a-fernet-token" not in str(mock_logger.warning.call_args)

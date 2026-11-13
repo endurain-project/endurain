@@ -3,6 +3,7 @@
 ``crud`` calls these at its edges so ORM rows never leave the persistence layer.
 """
 
+import uuid
 from decimal import Decimal
 
 import modules.gears.gear_components.models as gear_components_models
@@ -24,7 +25,7 @@ def to_read_schema(
 
 
 def to_orm(
-    gear_component: gear_components_schema.GearComponentCreate, user_id: int
+    gear_component: gear_components_schema.GearComponentCreate, user_id: uuid.UUID
 ) -> gear_components_models.GearComponents:
     """Build an unsaved ORM row from a create payload.
 

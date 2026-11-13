@@ -1,5 +1,6 @@
 """Internal data contracts for password-reset-token persistence."""
 
+import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
@@ -9,7 +10,7 @@ class PasswordResetTokenState(BaseModel):
     """Database state used by password reset workflows."""
 
     id: str
-    user_id: int
+    user_id: uuid.UUID
     token_hash: str
     created_at: datetime
     expires_at: datetime

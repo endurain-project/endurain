@@ -16,7 +16,7 @@ import modules.health.record_crud as health_record_crud
 import modules.users.users_profile.contracts as users_profile_contracts
 
 
-def get_health_water_by_date(user_id: int, date: str, db: Session) -> health_water_schema.HealthWaterRead | None:
+def get_health_water_by_date(user_id: uuid.UUID, date: str, db: Session) -> health_water_schema.HealthWaterRead | None:
     """Return a user's water intake record for a date, or ``None``.
 
     Args:
@@ -44,7 +44,7 @@ def profile_section() -> users_profile_contracts.ProfileRecordsSection:
 
 
 def list_changed_health_water(
-    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[health_water_schema.HealthWaterRead]:
     """Return a user's water records changed after a position, oldest change first.
 
@@ -62,7 +62,7 @@ def list_changed_health_water(
 
 
 def list_health_water_deletions(
-    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[core_sync.Deletion[uuid.UUID]]:
     """Return a user's deleted water records after a position, oldest deletion first.
 

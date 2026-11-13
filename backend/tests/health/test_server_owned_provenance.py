@@ -26,6 +26,7 @@ _FIELDS = [
     for kind, (_, _, forged) in _KINDS.items()
     for field, value in {**forged, **({"garminconnect_sleep_id": "42"} if kind == "sleep" else {})}.items()
 ]
+_USER_ID = uuid.uuid4()
 _HEADERS = {"Authorization": "Bearer x", "If-Match": '"1"'}
 
 
@@ -39,7 +40,7 @@ def _client(kind: str, mock_db) -> TestClient:
     core_exceptions.register_exception_handlers(app)
     app.include_router(router.router, prefix=f"/{package}")
     app.dependency_overrides[auth_deps.check_scopes] = lambda: None
-    app.dependency_overrides[auth_deps.get_current_user_id] = lambda: 1
+    app.dependency_overrides[auth_deps.get_current_user_id] = lambda: _USER_ID
     app.dependency_overrides[core_db.get_db] = lambda: mock_db
     return TestClient(app)
 
@@ -77,7 +78,7 @@ class TestServerAssignedSource:
         import modules.health.health_poop.service as service
 
         with patch.object(service.health_poop_crud, "create_health_poop") as create:
-            service.create_health_poop(1, schema.HealthPoopCreate(date_time="2026-01-01T07:00:00Z"), mock_db)
+            service.create_health_poop(_USER_ID, schema.HealthPoopCreate(date_time="2026-01-01T07:00:00Z"), mock_db)
 
         assert create.call_args.args[1].source == "manual"
 
@@ -91,7 +92,7 @@ class TestServerAssignedSource:
             patch.object(service.health_fasting_crud, "create_health_fasting") as create,
         ):
             service.create_health_fasting(
-                1, schema.HealthFastingCreate(fast_start_time="2026-01-01T07:00:00Z"), mock_db
+                _USER_ID, schema.HealthFastingCreate(fast_start_time="2026-01-01T07:00:00Z"), mock_db
             )
 
         assert create.call_args.args[1].source == "manual"

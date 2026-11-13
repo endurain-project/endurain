@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -12,6 +13,7 @@ import core.exceptions as core_exceptions
 import modules.garmin.activity_service as activity_utils
 import modules.garmin.service as garmin_service
 from tests._helpers import garmin as garmin_helpers
+from tests._helpers.auth import MOCK_USER_ID
 
 
 def _make_garminconnect_client(activity_id: int = 12345) -> Mock:
@@ -26,7 +28,7 @@ def _make_garminconnect_client(activity_id: int = 12345) -> Mock:
     return client
 
 
-def _call(client: Mock, user_id: int = 1) -> list | None:
+def _call(client: Mock, user_id: uuid.UUID = MOCK_USER_ID) -> list | None:
     return activity_utils.fetch_and_process_activities_by_dates(
         session=garmin_service.GarminSession(client, {"di_token": "enc"}),
         start_date=datetime(2026, 1, 1, tzinfo=UTC),
@@ -224,7 +226,7 @@ def test_an_auth_rejection_while_downloading_unlinks_the_account_and_stops_the_w
         patch.object(garmin_service, "handle_rejected_token") as unlink,
     ):
         activity_utils.fetch_and_process_activities_by_dates(
-            session, datetime(2026, 1, 1), datetime(2026, 1, 2), 1, garmin_helpers.rate_limits()
+            session, datetime(2026, 1, 1), datetime(2026, 1, 2), MOCK_USER_ID, garmin_helpers.rate_limits()
         )
 
     unlink.assert_called_once()
@@ -241,7 +243,7 @@ def test_a_failed_sync_still_stores_the_refreshed_token_and_reaches_the_caller()
         pytest.raises(RuntimeError),
     ):
         activity_utils.get_user_garminconnect_activities_by_dates(
-            1, datetime(2026, 1, 1), datetime(2026, 1, 2), garmin_helpers.rate_limits()
+            MOCK_USER_ID, datetime(2026, 1, 1), datetime(2026, 1, 2), garmin_helpers.rate_limits()
         )
 
     save.assert_called_once()
@@ -286,13 +288,13 @@ def test_a_limited_account_is_refused_before_garmin_is_called():
     import core.exceptions as core_exceptions
 
     rate_limits = garmin_helpers.rate_limits()
-    until = rate_limits.mark_rate_limited(1)
+    until = rate_limits.mark_rate_limited(MOCK_USER_ID)
     with (
         patch.object(garmin_service, "get_user_garminconnect_session") as restore,
         pytest.raises(core_exceptions.TooManyRequestsError) as raised,
     ):
         activity_utils.get_user_garminconnect_activities_by_dates(
-            1, datetime(2026, 1, 1), datetime(2026, 1, 2), rate_limits
+            MOCK_USER_ID, datetime(2026, 1, 1), datetime(2026, 1, 2), rate_limits
         )
 
     assert raised.value.retry_at == until
@@ -311,7 +313,7 @@ def test_a_rate_limited_window_records_the_limit_for_every_replica():
 
     with pytest.raises(core_exceptions.TooManyRequestsError):
         activity_utils.fetch_and_process_activities_by_dates(
-            session, datetime(2026, 1, 1, tzinfo=UTC), datetime(2026, 1, 2, tzinfo=UTC), 1, rate_limits
+            session, datetime(2026, 1, 1, tzinfo=UTC), datetime(2026, 1, 2, tzinfo=UTC), MOCK_USER_ID, rate_limits
         )
 
-    assert rate_limits.rate_limited_until(1) is not None
+    assert rate_limits.rate_limited_until(MOCK_USER_ID) is not None

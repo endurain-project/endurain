@@ -34,7 +34,7 @@ router = APIRouter()
 @core_rate_limit.limiter.limit(core_rate_limit.PUBLIC_READ)
 def read_user_photo(
     request: Request,
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     storage: core_dependencies.Storage,
     db: core_dependencies.DbSession,
     token: Annotated[str, Query(alias="t", description="Signed photo access token")],

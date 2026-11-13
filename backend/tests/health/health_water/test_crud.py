@@ -17,11 +17,14 @@ _ID = uuid.uuid4()
 _OTHER_ID = uuid.uuid4()
 
 
+_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
+
+
 def _row(record_id: uuid.UUID = _ID, amount_ml: float = 500.0) -> MagicMock:
     row = MagicMock(spec=health_water_models.HealthWater)
     row.id = record_id
     row.version = 1
-    row.user_id = 1
+    row.user_id = _USER_ID
     row.amount_ml = amount_ml
     return row
 
@@ -38,19 +41,19 @@ class TestReads:
     def test_number_counts(self, mock_db):
         mock_db.execute.return_value.scalar_one.return_value = 4
 
-        assert health_water_crud.get_health_water_number_by_user_id(1, mock_db) == 4
+        assert health_water_crud.get_health_water_number_by_user_id(_USER_ID, mock_db) == 4
 
     def test_number_with_a_lower_bound(self, mock_db):
         mock_db.execute.return_value.scalar_one.return_value = 1
 
-        health_water_crud.get_health_water_number_by_user_id(1, mock_db, datetime_date(2024, 1, 1))
+        health_water_crud.get_health_water_number_by_user_id(_USER_ID, mock_db, datetime_date(2024, 1, 1))
 
         assert "health_water.date >=" in str(mock_db.execute.call_args.args[0])
 
     def test_list_paginates_and_bounds(self, mock_db):
         _returns_scalars(mock_db, [_row()])
 
-        result = health_water_crud.get_health_water_by_user_id(1, mock_db, 2, 10, datetime_date(2024, 1, 1))
+        result = health_water_crud.get_health_water_by_user_id(_USER_ID, mock_db, 2, 10, datetime_date(2024, 1, 1))
 
         assert len(result) == 1
         compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
@@ -60,12 +63,12 @@ class TestReads:
     def test_by_date_found(self, mock_db):
         _returns_one(mock_db, _row())
 
-        assert health_water_crud.get_health_water_by_date_and_user_id(1, "2024-01-15", mock_db).id == _ID
+        assert health_water_crud.get_health_water_by_date_and_user_id(_USER_ID, "2024-01-15", mock_db).id == _ID
 
     def test_by_date_not_found(self, mock_db):
         _returns_one(mock_db, None)
 
-        assert health_water_crud.get_health_water_by_date_and_user_id(1, "2024-01-15", mock_db) is None
+        assert health_water_crud.get_health_water_by_date_and_user_id(_USER_ID, "2024-01-15", mock_db) is None
 
 
 class TestCreateHealthWater:
@@ -73,9 +76,9 @@ class TestCreateHealthWater:
         record = health_water_schema.HealthWaterCreate(date=datetime_date(2024, 1, 15), amount_ml=500.0)
 
         with stub_model(health_water_crud, _row()) as model:
-            health_water_crud.create_health_water(1, record, mock_db)
+            health_water_crud.create_health_water(_USER_ID, record, mock_db)
 
-        assert model.call_args.kwargs["user_id"] == 1
+        assert model.call_args.kwargs["user_id"] == _USER_ID
         assert model.call_args.kwargs["amount_ml"] == 500.0
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
@@ -88,7 +91,7 @@ class TestCreateHealthWater:
             stub_model(health_water_crud, _row()),
             pytest.raises(core_exceptions.ConflictError, match="Duplicate entry error"),
         ):
-            health_water_crud.create_health_water(1, record, mock_db)
+            health_water_crud.create_health_water(_USER_ID, record, mock_db)
 
 
 class TestEditHealthWater:
@@ -97,7 +100,7 @@ class TestEditHealthWater:
         _returns_one(mock_db, row)
         update = health_water_schema.HealthWaterUpdate(date=datetime_date(2024, 1, 15), amount_ml=900.0)
 
-        health_water_crud.edit_health_water(1, _ID, update, mock_db, if_match="*")
+        health_water_crud.edit_health_water(_USER_ID, _ID, update, mock_db, if_match="*")
 
         assert row.amount_ml == 900.0
         mock_db.flush.assert_called_once()
@@ -108,7 +111,7 @@ class TestEditHealthWater:
         update = health_water_schema.HealthWaterUpdate(date=datetime_date(2024, 1, 15), amount_ml=900.0)
 
         with pytest.raises(core_exceptions.NotFoundError, match="Health water not found"):
-            health_water_crud.edit_health_water(1, _OTHER_ID, update, mock_db, if_match="*")
+            health_water_crud.edit_health_water(_USER_ID, _OTHER_ID, update, mock_db, if_match="*")
 
 
 class TestDeleteHealthWater:
@@ -116,7 +119,7 @@ class TestDeleteHealthWater:
         row = _row()
         _returns_one(mock_db, row)
 
-        health_water_crud.delete_health_water(1, _ID, mock_db, if_match="*")
+        health_water_crud.delete_health_water(_USER_ID, _ID, mock_db, if_match="*")
 
         mock_db.delete.assert_called_once_with(row)
         mock_db.flush.assert_called_once()
@@ -126,5 +129,5 @@ class TestDeleteHealthWater:
         _returns_one(mock_db, None)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            health_water_crud.delete_health_water(1, _OTHER_ID, mock_db, if_match="*")
+            health_water_crud.delete_health_water(_USER_ID, _OTHER_ID, mock_db, if_match="*")
         mock_db.delete.assert_not_called()

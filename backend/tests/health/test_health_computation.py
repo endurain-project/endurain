@@ -85,7 +85,7 @@ class TestToReadSchema:
         row = SimpleNamespace(
             id=uuid.uuid4(),
             version=2,
-            user_id=3,
+            user_id=uuid.uuid4(),
             updated_at=datetime(2024, 1, 15, tzinfo=UTC),
             date=date(2024, 1, 15),
             steps=9000,
@@ -103,7 +103,7 @@ class TestToReadSchema:
             SimpleNamespace(
                 id=ids[i - 1],
                 version=1,
-                user_id=3,
+                user_id=uuid.uuid4(),
                 updated_at=datetime(2024, 1, 15, tzinfo=UTC),
                 date=date(2024, 1, i),
                 steps=i,

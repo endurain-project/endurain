@@ -1,5 +1,6 @@
 """Auth maintenance stays with its owning token and session packages."""
 
+import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -32,6 +33,8 @@ import modules.auth.sign_up_tokens.scheduled_jobs as sign_up_jobs
 import modules.auth.sign_up_tokens.service as sign_up_service
 from tests._helpers.db import create_sqlite_session
 
+_USER_ID = uuid.UUID(int=1)
+
 
 def test_token_and_session_packages_publish_cleanup_jobs():
     """Each state-owning package publishes its recurring cleanup job."""
@@ -51,12 +54,14 @@ def _oauth_state(key: str, expires_at: datetime) -> Any:
 
 def _password_reset(key: str, expires_at: datetime) -> Any:
     return password_reset_models.PasswordResetToken(
-        id=key, user_id=1, token_hash=key, created_at=expires_at, expires_at=expires_at
+        id=key, user_id=_USER_ID, token_hash=key, created_at=expires_at, expires_at=expires_at
     )
 
 
 def _sign_up(key: str, expires_at: datetime) -> Any:
-    return sign_up_models.SignUpToken(id=key, user_id=1, token_hash=key, created_at=expires_at, expires_at=expires_at)
+    return sign_up_models.SignUpToken(
+        id=key, user_id=_USER_ID, token_hash=key, created_at=expires_at, expires_at=expires_at
+    )
 
 
 def _session(key: str, at: datetime, *, column: str) -> Any:
@@ -64,7 +69,7 @@ def _session(key: str, at: datetime, *, column: str) -> Any:
     times = {"last_activity_at": fresh, "expires_at": fresh, column: at}
     return sessions_models.UsersSessions(
         id=key,
-        user_id=1,
+        user_id=_USER_ID,
         ip_address="127.0.0.1",
         device_type="PC",
         operating_system="Linux",

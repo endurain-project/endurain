@@ -71,7 +71,7 @@ class TestHealthTargetsModel:
         """
         # Assert
         assert health_targets_models.HealthTargets.id.type.python_type is uuid.UUID
-        assert health_targets_models.HealthTargets.user_id.type.python_type is int
+        assert health_targets_models.HealthTargets.user_id.type.python_type is uuid.UUID
         assert health_targets_models.HealthTargets.steps.type.python_type is int
         assert health_targets_models.HealthTargets.sleep_seconds.type.python_type is int
 

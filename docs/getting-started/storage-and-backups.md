@@ -28,7 +28,7 @@ The blob store is `local://` by default, which means subfolders of `DATA_DIR` (`
 
 | Area | Holds | Can be rebuilt? |
 | ---- | ----- | --------------- |
-| `activity_files` | The original uploaded or synced files of activities, kept after import, plus working folders: `bulk_import/<user id>`, `strava_import/<user id>`, `upload_incoming` and `upload_staging` | No. Keep it |
+| `activity_files` | The original uploaded or synced files of activities, kept after import, plus working folders: `bulk_import/<user id>`, `strava_import/<user id>` (the `<user id>` folders are the user's UUID; folders named with an old numeric id are renamed at the first start after the upgrade to v0.21.0), `upload_incoming` and `upload_staging` | No. Keep it |
 | `activity_media` | Photos attached to activities | No |
 | `user_images` | Profile photos | No |
 | `server_images` | The login photo | No, but an admin can upload it again |

@@ -1,5 +1,7 @@
 """CRUD operations for user privacy settings."""
 
+import uuid
+
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -12,7 +14,7 @@ import modules.users.users_privacy_settings.serializers as users_privacy_setting
 
 
 def get_user_privacy_settings_by_user_id(
-    user_id: int, db: Session
+    user_id: uuid.UUID, db: Session
 ) -> users_privacy_settings_schema.UserPrivacySettingsRead | None:
     """Retrieve privacy settings for a specific user.
 
@@ -30,7 +32,7 @@ def get_user_privacy_settings_by_user_id(
     return users_privacy_settings_serializers.to_read_schema(db_privacy_settings) if db_privacy_settings else None
 
 
-def list_undiscoverable_user_ids(db: Session) -> list[int]:
+def list_undiscoverable_user_ids(db: Session) -> list[uuid.UUID]:
     """Retrieve the IDs of the users who opted out of the username search.
 
     Args:
@@ -45,7 +47,9 @@ def list_undiscoverable_user_ids(db: Session) -> list[int]:
     return list(db.execute(stmt).scalars().all())
 
 
-def create_user_privacy_settings(user_id: int, db: Session) -> users_privacy_settings_schema.UserPrivacySettingsRead:
+def create_user_privacy_settings(
+    user_id: uuid.UUID, db: Session
+) -> users_privacy_settings_schema.UserPrivacySettingsRead:
     """Stage privacy settings for a user with the model defaults (flushed, not committed).
 
     Args:
@@ -70,7 +74,7 @@ def create_user_privacy_settings(user_id: int, db: Session) -> users_privacy_set
 
 
 def edit_user_privacy_settings(
-    user_id: int,
+    user_id: uuid.UUID,
     user_privacy_settings_data: users_privacy_settings_schema.UserPrivacySettingsUpdate,
     db: Session,
     *,

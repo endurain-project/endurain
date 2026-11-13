@@ -13,12 +13,13 @@ import core.exceptions as core_exceptions
 import modules.activities.activity.contracts as activity_contracts
 import modules.strava.bulk_import_service as bulk_import_utils
 from core.file_uploads import UploadKind
+from tests._helpers.auth import MOCK_USER_ID
 
 
 def _activity(start_time: str) -> activity_contracts.ActivityCore:
     """An ActivityCore as the FIT parser produces it (start_time coerced to aware UTC)."""
     return activity_contracts.ActivityCore(
-        user_id=1,
+        user_id=MOCK_USER_ID,
         name="Workout",
         distance=1000,
         activity_type=1,

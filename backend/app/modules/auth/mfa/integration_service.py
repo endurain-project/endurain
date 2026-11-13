@@ -1,5 +1,7 @@
 """MFA operations exposed to auth peers and application entrypoints."""
 
+import uuid
+
 from jasil.providers import StateProvider
 from sqlalchemy.orm import Session
 
@@ -17,13 +19,13 @@ import modules.auth.mfa.totp_replay_store as mfa_totp_replay_store
 logger = core_logger.get_logger(__name__)
 
 
-def is_mfa_enabled_for_user(user_id: int, db: Session) -> bool:
+def is_mfa_enabled_for_user(user_id: uuid.UUID, db: Session) -> bool:
     """Return whether MFA is enabled for a user."""
     return mfa_service.is_mfa_enabled_for_user(user_id, db)
 
 
 def verify_user_mfa(
-    user_id: int,
+    user_id: uuid.UUID,
     mfa_code: str,
     password_verifier: credentials_contracts.SupportsVerifyPassword,
     db: Session,
@@ -34,18 +36,18 @@ def verify_user_mfa(
     return mfa_service.verify_user_mfa(user_id, mfa_code, password_verifier, db, replay_guard=replay_guard)
 
 
-def claim_totp_step(state: StateProvider, user_id: int, step: int) -> bool:
+def claim_totp_step(state: StateProvider, user_id: uuid.UUID, step: int) -> bool:
     """Record an accepted TOTP step as used; False when it already was."""
     return mfa_totp_replay_store.claim_totp_step(state, user_id, step)
 
 
-def setup_user_mfa(user_id: int, db: Session) -> mfa_schema.MFASetupRead:
+def setup_user_mfa(user_id: uuid.UUID, db: Session) -> mfa_schema.MFASetupRead:
     """Create setup material for a user's TOTP secret."""
     return mfa_service.setup_user_mfa(user_id, db)
 
 
 def enable_user_mfa(
-    user_id: int,
+    user_id: uuid.UUID,
     secret: str,
     mfa_code: str,
     password_hasher: credentials_contracts.SupportsHashPassword,
@@ -57,12 +59,12 @@ def enable_user_mfa(
     return mfa_service.enable_user_mfa(user_id, secret, mfa_code, password_hasher, db, replay_guard=replay_guard)
 
 
-def disable_user_mfa(user_id: int, db: Session) -> None:
+def disable_user_mfa(user_id: uuid.UUID, db: Session) -> None:
     """Disable MFA and remove backup codes."""
     mfa_service.disable_user_mfa(user_id, db)
 
 
-def clear_mfa_account_lockout(user_id: int) -> None:
+def clear_mfa_account_lockout(user_id: uuid.UUID) -> None:
     """Lift the account-wide MFA sign-in lock and wrong-code count of an account after its second factor changed.
 
     A change that follows an outage of the shared state still succeeds; the lock then ends on its own or at the next
@@ -77,6 +79,6 @@ def clear_mfa_account_lockout(user_id: int) -> None:
         logger.warning("Account MFA sign-in lock was not cleared because the shared state is unavailable")
 
 
-def get_mfa_enabled_for_users(user_ids: list[int], db: Session) -> dict[int, bool]:
+def get_mfa_enabled_for_users(user_ids: list[uuid.UUID], db: Session) -> dict[uuid.UUID, bool]:
     """Return which of the supplied users have a second factor, in one query."""
     return mfa_crud.get_mfa_enabled_for_users(user_ids, db)

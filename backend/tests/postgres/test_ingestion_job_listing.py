@@ -7,9 +7,10 @@ import pytest
 import core.job_status as core_job_status
 import modules.activities.activity_ingestion.integration_service as ingestion_integration
 import modules.activities.activity_ingestion.models as ingestion_models
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 from tests._helpers.db import ensure_user
 
-_USER_ID = 1
+_USER_ID = MOCK_USER_ID
 _NOW = datetime(2026, 7, 1, 12, 0, 0, tzinfo=UTC)
 _KINDS = {"activity_upload", "activity_refresh", "activity_bulk_import"}
 
@@ -17,7 +18,7 @@ _KINDS = {"activity_upload", "activity_refresh", "activity_bulk_import"}
 @pytest.fixture
 def factory(pg_factory):
     ensure_user(pg_factory, _USER_ID)
-    ensure_user(pg_factory, _USER_ID + 1)
+    ensure_user(pg_factory, OTHER_USER_ID)
     return pg_factory
 
 
@@ -53,7 +54,7 @@ def test_lists_newest_first_and_pages_without_gaps_or_repeats_across_equal_times
 def test_filters_by_owner_kind_and_state(factory):
     _add(factory, "mine-upload", status="processing")
     _add(factory, "mine-refresh", kind="refresh", status="deferred", age_minutes=1)
-    _add(factory, "theirs", user_id=_USER_ID + 1)
+    _add(factory, "theirs", user_id=OTHER_USER_ID)
 
     assert _list(factory) == ["mine-upload", "mine-refresh"]
     assert _list(factory, kinds={"activity_refresh"}) == ["mine-refresh"]
@@ -62,8 +63,8 @@ def test_filters_by_owner_kind_and_state(factory):
 
 
 def test_read_job_is_scoped_to_the_owner(factory):
-    _add(factory, "theirs", user_id=_USER_ID + 1)
+    _add(factory, "theirs", user_id=OTHER_USER_ID)
 
     with factory() as db:
         assert ingestion_integration.read_job("theirs", _USER_ID, db) is None
-        assert ingestion_integration.read_job("theirs", _USER_ID + 1, db) is not None
+        assert ingestion_integration.read_job("theirs", OTHER_USER_ID, db) is not None

@@ -13,6 +13,9 @@ from jasil.backends.state_memory import MemoryState
 import modules.activities.activity.bulk_edit_constants as bulk_edit_constants
 import modules.activities.activity.bulk_edit_state_store as bulk_edit_state_store
 
+_USER_1 = uuid.UUID(int=1)
+_USER_3 = uuid.UUID(int=3)
+_USER_7 = uuid.UUID(int=7)
 _AFTER_ID = uuid.uuid4()
 _Kind = bulk_edit_constants.BulkEditKind.VISIBILITY
 _Status = bulk_edit_constants.BulkEditStatus
@@ -26,10 +29,10 @@ class TestIntegrationService:
         db = MagicMock()
         mock_crud.get_activity_by_strava_id_from_user_id.return_value = "activity"
 
-        result = integration_service.get_activity_by_strava_id(111, 3, db)
+        result = integration_service.get_activity_by_strava_id(111, _USER_3, db)
 
         assert result == "activity"
-        mock_crud.get_activity_by_strava_id_from_user_id.assert_called_once_with(111, 3, db)
+        mock_crud.get_activity_by_strava_id_from_user_id.assert_called_once_with(111, _USER_3, db)
 
     @patch("modules.activities.activity.integration_service.activity_crud")
     def test_get_activity_by_garminconnect_id_delegates(self, mock_crud):
@@ -38,10 +41,10 @@ class TestIntegrationService:
         db = MagicMock()
         mock_crud.get_activity_by_garminconnect_id_from_user_id.return_value = "activity"
 
-        result = integration_service.get_activity_by_garminconnect_id(222, 3, db)
+        result = integration_service.get_activity_by_garminconnect_id(222, _USER_3, db)
 
         assert result == "activity"
-        mock_crud.get_activity_by_garminconnect_id_from_user_id.assert_called_once_with(222, 3, db)
+        mock_crud.get_activity_by_garminconnect_id_from_user_id.assert_called_once_with(222, _USER_3, db)
 
     @patch("modules.activities.activity.integration_service.activity_crud")
     def test_list_garminconnect_gear_activity_refs_delegates(self, mock_crud):
@@ -50,10 +53,12 @@ class TestIntegrationService:
         db = MagicMock()
         mock_crud.get_garminconnect_gear_activity_refs.return_value = ["a"]
 
-        result = integration_service.list_garminconnect_gear_activity_refs(3, db, after_id=_AFTER_ID, limit=10)
+        result = integration_service.list_garminconnect_gear_activity_refs(_USER_3, db, after_id=_AFTER_ID, limit=10)
 
         assert result == ["a"]
-        mock_crud.get_garminconnect_gear_activity_refs.assert_called_once_with(3, db, after_id=_AFTER_ID, limit=10)
+        mock_crud.get_garminconnect_gear_activity_refs.assert_called_once_with(
+            _USER_3, db, after_id=_AFTER_ID, limit=10
+        )
 
     @patch("modules.activities.activity.integration_service.activity_service")
     def test_bulk_set_activities_gear_delegates(self, mock_service):
@@ -64,11 +69,11 @@ class TestIntegrationService:
         assignments = {1: uuid.uuid4(), 2: None}
         mock_service.bulk_set_activities_gear.return_value = 2
 
-        result = integration_service.bulk_set_activities_gear(3, assignments, db)
+        result = integration_service.bulk_set_activities_gear(_USER_3, assignments, db)
 
         assert result == 2
         mock_service.bulk_set_activities_gear.assert_called_once_with(
-            3, assignments, db, source="api:bulk_set_activities_gear"
+            _USER_3, assignments, db, source="api:bulk_set_activities_gear"
         )
 
     @patch("modules.activities.activity.integration_service.activity_service")
@@ -78,11 +83,11 @@ class TestIntegrationService:
         db = MagicMock()
         mock_service.delete_all_strava_activities.return_value = 5
 
-        result = integration_service.delete_all_strava_activities(3, db, limit=500)
+        result = integration_service.delete_all_strava_activities(_USER_3, db, limit=500)
 
         assert result == 5
         mock_service.delete_all_strava_activities.assert_called_once_with(
-            3, db, source="api:delete_all_strava_activities", limit=500
+            _USER_3, db, source="api:delete_all_strava_activities", limit=500
         )
 
     @patch("modules.activities.activity.integration_service.activity_service")
@@ -92,10 +97,10 @@ class TestIntegrationService:
         db = MagicMock()
         mock_service.delete_activities_batch_for_user.return_value = 2
 
-        result = integration_service.delete_activities_batch_for_user(7, 50, db)
+        result = integration_service.delete_activities_batch_for_user(_USER_7, 50, db)
 
         assert result == 2
-        mock_service.delete_activities_batch_for_user.assert_called_once_with(7, 50, db, source="api:delete_user")
+        mock_service.delete_activities_batch_for_user.assert_called_once_with(_USER_7, 50, db, source="api:delete_user")
 
 
 class TestDerivedArtifactWritesStageOnly:
@@ -149,8 +154,8 @@ class TestWithMedia:
         activity = MagicMock()
         mock_service.with_media.return_value = [activity]
 
-        assert integration_service.with_media(activity, 1, db) is activity
-        mock_service.with_media.assert_called_once_with([activity], 1, db)
+        assert integration_service.with_media(activity, _USER_1, db) is activity
+        mock_service.with_media.assert_called_once_with([activity], _USER_1, db)
 
 
 class TestReadableActivity:
@@ -161,8 +166,8 @@ class TestReadableActivity:
         db = MagicMock()
         mock_service.get_activity.return_value = "activity"
 
-        assert integration_service.get_readable_activity(5, 1, db) == "activity"
-        mock_service.get_activity.assert_called_once_with(5, 1, db)
+        assert integration_service.get_readable_activity(5, _USER_1, db) == "activity"
+        mock_service.get_activity.assert_called_once_with(5, _USER_1, db)
 
     @patch("modules.activities.activity.integration_service.activity_service")
     def test_the_public_activity_reads_through_the_service(self, mock_service):
@@ -180,7 +185,7 @@ class TestReadBulkEditJob:
         from modules.activities.activity import integration_service
 
         state = MemoryState()
-        job = bulk_edit_state_store.ActivityBulkEditStateStore(state).begin(7, _Kind, conflict="x")
+        job = bulk_edit_state_store.ActivityBulkEditStateStore(state).begin(_USER_7, _Kind, conflict="x")
 
         result = integration_service.read_bulk_edit_job(job, state)
 
@@ -192,9 +197,9 @@ class TestReadBulkEditJob:
 
         state = MemoryState()
         store = bulk_edit_state_store.ActivityBulkEditStateStore(state)
-        earlier = store.begin(7, _Kind, conflict="x")
-        store.set_status(7, _Kind, _Status.SUCCEEDED)
-        later = store.begin(7, _Kind, conflict="x")
+        earlier = store.begin(_USER_7, _Kind, conflict="x")
+        store.set_status(_USER_7, _Kind, _Status.SUCCEEDED)
+        later = store.begin(_USER_7, _Kind, conflict="x")
 
         assert integration_service.read_bulk_edit_job(earlier, state) is None
         current = integration_service.read_bulk_edit_job(later, state)
@@ -205,7 +210,7 @@ class TestReadBulkEditJob:
 
         state = MemoryState()
         store = bulk_edit_state_store.ActivityBulkEditStateStore(state)
-        job = store.begin(7, _Kind, conflict="x")
-        store.discard(7, _Kind)
+        job = store.begin(_USER_7, _Kind, conflict="x")
+        store.discard(_USER_7, _Kind)
 
         assert integration_service.read_bulk_edit_job(job, state) is None

@@ -1,6 +1,7 @@
 """The process-local registry of open websocket connections, and bounded sends to them."""
 
 import asyncio
+import uuid
 from collections.abc import Sequence
 from functools import lru_cache
 from typing import Any
@@ -28,7 +29,7 @@ EVICTED_CLOSE_CODE = 4001
 SESSION_ENDED_CLOSE_CODE = 4401
 
 
-async def close_quietly(websocket: WebSocket, code: int, user_id: int) -> None:
+async def close_quietly(websocket: WebSocket, code: int, user_id: uuid.UUID) -> None:
     """Close a connection with a code, giving up on one that is stalled or already gone.
 
     Args:
@@ -84,10 +85,10 @@ class WebSocketManager:
 
     def __init__(self) -> None:
         """Initialize the WebSocket manager with empty connections."""
-        self.active_connections: dict[int, list[WebSocket]] = {}
+        self.active_connections: dict[uuid.UUID, list[WebSocket]] = {}
         self.session_ids: dict[WebSocket, str] = {}
 
-    async def connect(self, user_id: int, session_id: str, websocket: WebSocket) -> None:
+    async def connect(self, user_id: uuid.UUID, session_id: str, websocket: WebSocket) -> None:
         """Accept and register a new WebSocket connection.
 
         Args:
@@ -106,7 +107,7 @@ class WebSocketManager:
             await close_quietly(stale, EVICTED_CLOSE_CODE, user_id)
         logger.debug("WebSocket connected", extra=core_logger.context(user_id=user_id))
 
-    def disconnect(self, user_id: int, websocket: WebSocket) -> None:
+    def disconnect(self, user_id: uuid.UUID, websocket: WebSocket) -> None:
         """Remove one WebSocket connection of a user, leaving the others registered.
 
         Args:
@@ -140,7 +141,7 @@ class WebSocketManager:
                     self.disconnect(user_id, websocket)
 
     def get_session_connections(
-        self, user_id: int, session_id: str | None, except_session_id: str | None
+        self, user_id: uuid.UUID, session_id: str | None, except_session_id: str | None
     ) -> list[WebSocket]:
         """Retrieve the connections a session revocation ends.
 
@@ -159,7 +160,7 @@ class WebSocketManager:
             and (session_id is not None or self.session_ids.get(websocket) != except_session_id)
         ]
 
-    def get_connections(self, user_id: int) -> list[WebSocket]:
+    def get_connections(self, user_id: uuid.UUID) -> list[WebSocket]:
         """Retrieve a user's WebSocket connections.
 
         Args:

@@ -126,7 +126,7 @@ def fetch_and_process_activities_by_dates(
     strava_client: Client,
     start_date: datetime,
     end_date: datetime,
-    user_id: int,
+    user_id: uuid.UUID,
     user_integrations: user_integrations_schema.UserIntegrationsRead,
     rate_limits: strava_rate_limit_store.StravaRateLimitStore,
 ) -> list[activity_schema.ActivityRead] | None:
@@ -201,7 +201,7 @@ def fetch_and_process_activities_by_dates(
     return [stored for stored in processed if stored is not None]
 
 
-def _strava_activity_id(activity: SummaryActivity, user_id: int) -> int:
+def _strava_activity_id(activity: SummaryActivity, user_id: uuid.UUID) -> int:
     """Return a Strava activity's id.
 
     stravalib types the id as optional; without it the activity can be neither fetched nor deduplicated.
@@ -224,7 +224,7 @@ def _strava_activity_id(activity: SummaryActivity, user_id: int) -> int:
 
 def parse_activity(
     activity: SummaryActivity,
-    user_id: int,
+    user_id: uuid.UUID,
     user_privacy_settings: users_privacy_settings_schema.UserPrivacySettingsRead,
     timezone: str,
     strava_client: Client,
@@ -565,7 +565,7 @@ def save_activity_streams_laps(
 
 def process_activity(
     activity: SummaryActivity,
-    user_id: int,
+    user_id: uuid.UUID,
     user_privacy_settings: users_privacy_settings_schema.UserPrivacySettingsRead,
     timezone: str,
     strava_client: Client,
@@ -626,7 +626,7 @@ def process_activity(
 def fetch_and_process_activity_streams(
     strava_client: Client,
     strava_activity_id: int,
-    user_id: int,
+    user_id: uuid.UUID,
     user_integrations: user_integrations_schema.UserIntegrationsRead,
     rate_limits: strava_rate_limit_store.StravaRateLimitStore,
 ) -> StravaStreams:
@@ -754,7 +754,7 @@ def _lap_stream(filtered_stream_data: list[StravaStreamEntry], stream_type: int)
 def fetch_and_process_activity_laps(
     strava_client: Client,
     strava_activity_id: int,
-    user_id: int,
+    user_id: uuid.UUID,
     stream_data: list[StravaStreamEntry],
     user_integrations: user_integrations_schema.UserIntegrationsRead,
     rate_limits: strava_rate_limit_store.StravaRateLimitStore,
@@ -887,7 +887,7 @@ def fetch_and_process_activity_laps(
 
 
 def get_user_strava_activities_by_dates(
-    user_id: int,
+    user_id: uuid.UUID,
     start_date: datetime,
     end_date: datetime,
     rate_limits: strava_rate_limit_store.StravaRateLimitStore,

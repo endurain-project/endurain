@@ -1,5 +1,6 @@
 """Internal data contracts for sign-up-token persistence."""
 
+import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
@@ -9,7 +10,7 @@ class SignUpTokenState(BaseModel):
     """Database state used by sign-up workflows."""
 
     id: str
-    user_id: int
+    user_id: uuid.UUID
     token_hash: str
     created_at: datetime
     expires_at: datetime
@@ -33,7 +34,7 @@ class SignUpTokenClaim(BaseModel):
     """
 
     id: str
-    user_id: int
+    user_id: uuid.UUID
     email: str | None
     previous_email: str | None
     security_generation: int | None = None

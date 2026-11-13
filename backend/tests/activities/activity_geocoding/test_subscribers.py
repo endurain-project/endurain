@@ -22,7 +22,7 @@ class TestOnActivityCreatedGeocode:
     def test_noop_for_malformed_ids(self, mock_service):
         from modules.activities.activity_geocoding.subscribers import on_activity_created_geocode
 
-        on_activity_created_geocode(_event({"activity_id": "x", "user_id": 2}))
+        on_activity_created_geocode(_event({"activity_id": "x", "user_id": str(uuid.UUID(int=2))}))
 
         mock_service.geocode_and_store_activity_location.assert_not_called()
 
@@ -31,7 +31,7 @@ class TestOnActivityCreatedGeocode:
     def test_geocodes_for_activity(self, mock_service, _mock_db):
         from modules.activities.activity_geocoding.subscribers import on_activity_created_geocode
 
-        on_activity_created_geocode(_event({"activity_id": str(UUID_1), "user_id": 2}))
+        on_activity_created_geocode(_event({"activity_id": str(UUID_1), "user_id": str(uuid.UUID(int=2))}))
 
         assert mock_service.geocode_and_store_activity_location.call_args.args[0] == UUID_1
 
@@ -44,7 +44,7 @@ class TestOnActivityCreatedGeocode:
         mock_service.geocode_and_store_activity_location.side_effect = RuntimeError("boom")
 
         # Must not raise — a geocoding failure never breaks activity import.
-        on_activity_created_geocode(_event({"activity_id": str(UUID_1), "user_id": 2}))
+        on_activity_created_geocode(_event({"activity_id": str(UUID_1), "user_id": str(uuid.UUID(int=2))}))
 
         mock_logger.error.assert_called()
 
@@ -80,7 +80,7 @@ class TestGeocodeActivityForEvent:
         mock_service.geocode_and_store_activity_location.side_effect = RuntimeError("boom")
 
         with pytest.raises(RuntimeError):
-            geocode_activity_for_event(_event({"activity_id": str(UUID_1), "user_id": 2}))
+            geocode_activity_for_event(_event({"activity_id": str(UUID_1), "user_id": str(uuid.UUID(int=2))}))
 
     def test_register_durable_handlers(self):
         from modules.activities.activity_geocoding.subscribers import (

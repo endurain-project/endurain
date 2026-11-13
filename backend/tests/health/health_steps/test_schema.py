@@ -6,6 +6,7 @@ from pydantic import ValidationError
 
 import modules.health.health_steps.schema as health_steps_schema
 
+_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
 _ID = uuid.uuid4()
 _OTHER_ID = uuid.uuid4()
 
@@ -23,7 +24,7 @@ class TestHealthStepsSchema:
         health_steps = health_steps_schema.HealthStepsRead(
             updated_at="2024-01-01T00:00:00Z",
             id=_ID,
-            user_id=1,
+            user_id=_USER_ID,
             date=datetime_date(2024, 1, 15),
             steps=10000,
             source=health_steps_schema.Source.GARMIN,
@@ -31,7 +32,7 @@ class TestHealthStepsSchema:
 
         # Assert
         assert health_steps.id == _ID
-        assert health_steps.user_id == 1
+        assert health_steps.user_id == _USER_ID
         assert health_steps.date == datetime_date(2024, 1, 15)
         assert health_steps.steps == 10000
         assert health_steps.source == "garmin"
@@ -55,7 +56,7 @@ class TestHealthStepsSchema:
         health_steps = health_steps_schema.HealthStepsRead(
             updated_at="2024-01-01T00:00:00Z",
             id=_ID,
-            user_id=1,
+            user_id=_USER_ID,
             date=datetime_date(2024, 1, 15),
             steps=10000,
             source="manual",
@@ -97,7 +98,7 @@ class TestHealthStepsSchema:
             """Mock ORM model for testing."""
 
             id = _ID
-            user_id = 1
+            user_id = _USER_ID
             updated_at = "2024-01-01T00:00:00Z"
             date = datetime_date(2024, 1, 15)
             steps = 10000
@@ -178,7 +179,7 @@ class TestSourceEnum:
         """
         # Arrange & Act
         health_steps = health_steps_schema.HealthStepsRead(
-            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, source=health_steps_schema.Source.GARMIN
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, source=health_steps_schema.Source.GARMIN
         )
 
         # Assert
@@ -190,7 +191,7 @@ class TestSourceEnum:
         """
         # Arrange & Act
         health_steps = health_steps_schema.HealthStepsRead(
-            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, source="garmin"
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, source="garmin"
         )
 
         # Assert
@@ -202,7 +203,9 @@ class TestSourceEnum:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            health_steps_schema.HealthStepsRead(updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, source="invalid")
+            health_steps_schema.HealthStepsRead(
+                updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, source="invalid"
+            )
 
         assert "source" in str(exc_info.value)
 

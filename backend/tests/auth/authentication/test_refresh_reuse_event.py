@@ -1,6 +1,7 @@
 """A refresh token reused outside its grace window stages the notice event with the commit that ends the session."""
 
 import contextlib
+import uuid
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -12,13 +13,17 @@ import modules.auth.authentication.event_publishers as authentication_event_publ
 import modules.auth.authentication.events as authentication_events
 import modules.auth.authentication.refresh_service as refresh_service
 
+_USER_ID_5 = uuid.UUID(int=5)
+
+_USER_ID = uuid.UUID(int=1)
+
 _REFRESH = "modules.auth.authentication.refresh_service"
 
 
 def _session():
     return SimpleNamespace(
         id="sid",
-        user_id=1,
+        user_id=_USER_ID,
         token_family_id="family",
         refresh_token="hash",
         csrf_token_hash=None,
@@ -41,7 +46,7 @@ def _refresh(mock_db, reuse):
         refresh_service.refresh_token(
             "127.0.0.1",
             "agent",
-            1,
+            _USER_ID,
             "sid",
             "old",
             datetime(2999, 1, 1, tzinfo=UTC),
@@ -56,7 +61,7 @@ def _refresh(mock_db, reuse):
 def test_a_reuse_outside_the_grace_window_tells_the_session_owner(mock_db):
     publish = _refresh(mock_db, (True, False))
 
-    publish.assert_called_once_with(1, mock_db)
+    publish.assert_called_once_with(_USER_ID, mock_db)
 
 
 def test_the_event_is_staged_before_the_commit(mock_db):
@@ -70,7 +75,7 @@ def test_the_event_is_staged_before_the_commit(mock_db):
         ),
         pytest.raises(core_exceptions.InvalidTokenError),
     ):
-        refresh_service._end_session_on_reuse(1, "family", mock_db)
+        refresh_service._end_session_on_reuse(_USER_ID, "family", mock_db)
 
     assert calls == ["publish", "commit"]
 
@@ -83,9 +88,9 @@ def test_a_replay_inside_the_grace_window_tells_nobody(mock_db):
 
 def test_the_event_names_the_user_and_nothing_else(mock_db):
     with patch("modules.auth.authentication.event_publishers.platform_publisher.publish_on_commit") as publish:
-        authentication_event_publishers.publish_refresh_reuse_detected(5, mock_db)
+        authentication_event_publishers.publish_refresh_reuse_detected(_USER_ID_5, mock_db)
 
     event_type, payload = publish.call_args.args
     assert event_type == authentication_events.REFRESH_REUSE_DETECTED
-    assert payload == {"user_id": 5}
+    assert payload == {"user_id": str(_USER_ID_5)}
     assert publish.call_args.kwargs["db"] is mock_db

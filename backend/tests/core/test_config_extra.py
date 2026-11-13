@@ -1,6 +1,7 @@
 """Extra tests for core configuration module."""
 
 import os
+import uuid
 from pathlib import Path
 from tempfile import gettempdir
 from unittest.mock import patch
@@ -11,6 +12,7 @@ from pydantic import ValidationError
 
 import core.config as core_config
 from core.config import Settings
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
 
 class TestLookLikeIp:
@@ -1012,14 +1014,13 @@ class TestCheckDeprecatedEnvVars:
 class TestBulkImportDirectoriesArePerUser:
     def test_each_user_gets_their_own_directory_under_the_base(self):
         with patch("core.config.FILES_BULK_IMPORT_DIR", "/data/bulk_import"):
-            assert core_config.bulk_import_dir_for(1) == "/data/bulk_import/1"
-            assert core_config.bulk_import_dir_for(2) == "/data/bulk_import/2"
+            assert core_config.bulk_import_dir_for(MOCK_USER_ID) == f"/data/bulk_import/{MOCK_USER_ID}"
+            assert core_config.bulk_import_dir_for(OTHER_USER_ID) == f"/data/bulk_import/{OTHER_USER_ID}"
 
-    def test_the_id_can_only_be_a_single_path_segment(self):
+    def test_the_id_is_a_single_path_segment(self):
         with patch("core.config.FILES_BULK_IMPORT_DIR", "/data/bulk_import"):
-            assert core_config.bulk_import_dir_for("7") == "/data/bulk_import/7"
-            with pytest.raises(ValueError):
-                core_config.bulk_import_dir_for("../2")
+            directory = core_config.bulk_import_dir_for(uuid.uuid4())
+        assert directory.count("/") == "/data/bulk_import".count("/") + 1
 
 
 class TestSessionPolicySettings:

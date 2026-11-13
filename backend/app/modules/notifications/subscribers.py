@@ -1,5 +1,6 @@
 """Consume activity, follower, identity-provider, sign-up, sign-in, MFA and user events to create user notifications."""
 
+import uuid
 from collections.abc import Callable
 
 import jasil.event_versioning as platform_event_versioning
@@ -50,7 +51,7 @@ ADMIN_USER_PROMOTED_NOTIFICATION_SUBSCRIBER_ID = "users.notify_admin_user_promot
 
 def _notify_and_push(
     event: Event,
-    recipient_user_id: int,
+    recipient_user_id: uuid.UUID,
     create: Callable[[Session], tuple[notifications_schema.NotificationRead, str, bool]],
 ) -> bool:
     """Create a notification for an event and push it to the recipient.

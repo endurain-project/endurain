@@ -1,5 +1,7 @@
 """Publish the sign-up domain events through the platform publish facade."""
 
+import uuid
+
 import jasil.publisher as platform_publisher
 from sqlalchemy.orm import Session
 
@@ -7,7 +9,7 @@ import core.event_metadata as core_event_metadata
 import modules.auth.sign_up_tokens.events as sign_up_tokens_events
 
 
-def publish_sign_up_verification_requested(user_id: int, db: Session) -> None:
+def publish_sign_up_verification_requested(user_id: uuid.UUID, db: Session) -> None:
     """Stage ``auth.sign_up_verification_requested`` in the caller's transaction.
 
     Args:
@@ -25,7 +27,7 @@ def publish_sign_up_verification_requested(user_id: int, db: Session) -> None:
     )
 
 
-def publish_admin_invitation_requested(user_id: int, db: Session) -> None:
+def publish_admin_invitation_requested(user_id: uuid.UUID, db: Session) -> None:
     """Stage ``auth.admin_invitation_requested`` in the caller's transaction.
 
     Args:
@@ -43,7 +45,7 @@ def publish_admin_invitation_requested(user_id: int, db: Session) -> None:
     )
 
 
-def publish_email_change_verification_requested(user_id: int, db: Session) -> None:
+def publish_email_change_verification_requested(user_id: uuid.UUID, db: Session) -> None:
     """Stage ``auth.email_change_verification_requested`` in the caller's transaction.
 
     Args:
@@ -61,7 +63,7 @@ def publish_email_change_verification_requested(user_id: int, db: Session) -> No
     )
 
 
-def publish_email_changed(user_id: int, token_id: str, db: Session) -> None:
+def publish_email_changed(user_id: uuid.UUID, token_id: str, db: Session) -> None:
     """Stage ``auth.email_changed`` in the caller's transaction.
 
     Args:
@@ -80,7 +82,7 @@ def publish_email_changed(user_id: int, token_id: str, db: Session) -> None:
     )
 
 
-def publish_sign_up_approval_requested(user_id: int, admin_user_id: int, db: Session) -> None:
+def publish_sign_up_approval_requested(user_id: uuid.UUID, admin_user_id: uuid.UUID, db: Session) -> None:
     """Stage ``auth.sign_up_approval_requested`` for one admin in the caller's transaction.
 
     Args:
@@ -99,7 +101,7 @@ def publish_sign_up_approval_requested(user_id: int, admin_user_id: int, db: Ses
     )
 
 
-def publish_sign_up_approved(user_id: int, db: Session) -> None:
+def publish_sign_up_approved(user_id: uuid.UUID, db: Session) -> None:
     """Stage ``auth.sign_up_approved`` in the caller's transaction.
 
     Args:
@@ -117,7 +119,7 @@ def publish_sign_up_approved(user_id: int, db: Session) -> None:
     )
 
 
-def publish_sign_up_existing_account(user_id: int, db: Session) -> None:
+def publish_sign_up_existing_account(user_id: uuid.UUID, db: Session) -> None:
     """Stage ``auth.sign_up_existing_account`` for the owner of a reused email address.
 
     Args:
@@ -135,7 +137,7 @@ def publish_sign_up_existing_account(user_id: int, db: Session) -> None:
     )
 
 
-def publish_email_change_requested(user_id: int, db: Session) -> None:
+def publish_email_change_requested(user_id: uuid.UUID, db: Session) -> None:
     """Stage ``auth.email_change_requested`` for the user whose email change was requested.
 
     The payload carries the user id only: the pending address and the cancel link are read when the notice is sent.
@@ -155,7 +157,7 @@ def publish_email_change_requested(user_id: int, db: Session) -> None:
     )
 
 
-def publish_email_change_address_taken(user_id: int, db: Session) -> None:
+def publish_email_change_address_taken(user_id: uuid.UUID, db: Session) -> None:
     """Stage ``auth.email_change_address_taken`` for the holder of an address another account asked to move to.
 
     Args:

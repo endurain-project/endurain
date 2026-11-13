@@ -15,6 +15,7 @@ Key Features:
 import contextlib
 import tempfile
 import time
+import uuid
 import zipfile
 from collections.abc import Callable
 from typing import IO, Any, BinaryIO, Self
@@ -122,7 +123,7 @@ class ExportService:
 
     def __init__(
         self,
-        user_id: int,
+        user_id: uuid.UUID,
         storage: platform_providers.StorageProvider,
         db: Session,
         performance_config: ExportPerformanceConfig | None = None,

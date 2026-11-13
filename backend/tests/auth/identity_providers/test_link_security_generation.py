@@ -20,11 +20,12 @@ import modules.auth.identity_providers.integration_service as idp_integration
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.security_generation.integration_service as security_generation_integration
 from modules.auth.identity_providers.audit_actions import IdentityLinkRefusal
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
 IDP_ID = uuid.uuid4()
 
 HOST = "https://app.example.com"
-USER_ID = 7
+USER_ID = MOCK_USER_ID
 SESSION_ID = "sid"
 _ACCOUNT_SECURITY = "modules.auth.account_security.account_security_service."
 _LINK_AUDIT = "auth.identity_link.link"
@@ -267,7 +268,8 @@ class TestChangedAccount:
         state = _start_link(ends_other_sessions)
 
         _assert_refused(
-            *_callback(service, state, session=SimpleNamespace(user_id=USER_ID + 1)), IdentityLinkRefusal.SESSION_ENDED
+            *_callback(service, state, session=SimpleNamespace(user_id=OTHER_USER_ID)),
+            IdentityLinkRefusal.SESSION_ENDED,
         )
 
     @_BOTH

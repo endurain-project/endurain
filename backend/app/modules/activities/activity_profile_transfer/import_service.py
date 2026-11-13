@@ -88,7 +88,7 @@ def _restore_global_components(ctx: users_profile_contracts.ProfileImportContext
 def _restore_activity_components(
     ctx: users_profile_contracts.ProfileImportContext,
     component_data: dict[str, list[dict[str, Any]]],
-    original_activity_id: str,
+    original_activity_id: uuid.UUID,
     new_activity: activity_schema.ActivityRead,
 ) -> None:
     """Restore the contributed components for a single restored activity.
@@ -96,7 +96,7 @@ def _restore_activity_components(
     Args:
         ctx: The import context.
         component_data: Records keyed by profile contributor key.
-        original_activity_id: Old activity ID.
+        original_activity_id: Archived ID of the activity.
         new_activity: New activity object.
     """
     for contributor in activities_contributor_registry.profile_activity_contributors():
@@ -109,8 +109,8 @@ def _restore_activity_components(
 
 
 def _restore_activities(
-    ctx: users_profile_contracts.ProfileImportContext, gears_id_mapping: dict[str, uuid.UUID]
-) -> dict[str, uuid.UUID]:
+    ctx: users_profile_contracts.ProfileImportContext, gears_id_mapping: dict[uuid.UUID, uuid.UUID]
+) -> dict[uuid.UUID, uuid.UUID]:
     """Restore the archived activities in batches to manage memory.
 
     Args:
@@ -124,7 +124,7 @@ def _restore_activities(
         ActivityLimitError: If too many activities.
         ImportTimeoutError: If operation times out.
     """
-    activities_id_mapping: dict[str, uuid.UUID] = {}
+    activities_id_mapping: dict[uuid.UUID, uuid.UUID] = {}
 
     activities_data = ctx.archive.load_json(constants.ACTIVITIES_PATH)
     if not activities_data:
@@ -182,9 +182,8 @@ def _restore_activities(
                 )
 
         for activity_data in activities_batch:
-            activity_data["gear_id"] = gears_id_mapping.get(
-                users_profile_contracts.archived_id(activity_data.get("gear_id")) or ""
-            )
+            archived_gear_id = users_profile_contracts.archived_id(activity_data.get("gear_id"))
+            activity_data["gear_id"] = gears_id_mapping.get(archived_gear_id) if archived_gear_id else None
 
             original_activity_id = users_profile_contracts.archived_id(activity_data.get("id"))
             fields = {
@@ -309,7 +308,7 @@ def _load_components_for_batch(
 
 
 def _restore_activity_files(
-    ctx: users_profile_contracts.ProfileImportContext, activities_id_mapping: dict[str, uuid.UUID]
+    ctx: users_profile_contracts.ProfileImportContext, activities_id_mapping: dict[uuid.UUID, uuid.UUID]
 ) -> None:
     """Extract and store the archived activity files under the restored ids.
 
@@ -323,9 +322,9 @@ def _restore_activity_files(
         path = file_path.replace("\\", "/")
 
         if path.lower().endswith((".gpx", ".fit", ".tcx")) and path.startswith(constants.ACTIVITY_FILES_FOLDER):
-            file_id_str = os.path.splitext(os.path.basename(path))[0]
+            archived_file_id = users_profile_contracts.archived_id(os.path.splitext(os.path.basename(path))[0])
             ext = os.path.splitext(path)[1]
-            new_id = activities_id_mapping.get(file_id_str)
+            new_id = activities_id_mapping.get(archived_file_id) if archived_file_id else None
 
             if new_id is None:
                 continue
@@ -355,7 +354,7 @@ def _restore_activity_files(
 
 
 def _restore_activity_media(
-    ctx: users_profile_contracts.ProfileImportContext, activities_id_mapping: dict[str, uuid.UUID]
+    ctx: users_profile_contracts.ProfileImportContext, activities_id_mapping: dict[uuid.UUID, uuid.UUID]
 ) -> None:
     """Extract and store the archived activity media under the restored ids.
 
@@ -374,7 +373,8 @@ def _restore_activity_media(
 
             if "_" in base_name:
                 orig_id_str, suffix = base_name.split("_", 1)
-                new_id = activities_id_mapping.get(orig_id_str)
+                archived_media_id = users_profile_contracts.archived_id(orig_id_str)
+                new_id = activities_id_mapping.get(archived_media_id) if archived_media_id else None
 
                 if new_id is None:
                     continue

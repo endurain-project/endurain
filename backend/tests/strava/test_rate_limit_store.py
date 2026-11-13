@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 
@@ -10,6 +11,7 @@ import jasil.runtime as platform_runtime
 import pytest
 
 import modules.strava.rate_limit_store as strava_rate_limit_store
+from tests._helpers.auth import MOCK_USER_ID
 
 
 class TestRateLimitStoreIsSharedState:
@@ -73,33 +75,33 @@ class TestTokenRefreshClaim:
         return strava_rate_limit_store.StravaRateLimitStore(platform_runtime.get_state())
 
     def test_only_one_process_holds_the_claim(self, store):
-        assert store.claim_token_refresh(901) is True
-        assert store.claim_token_refresh(901) is False
+        assert store.claim_token_refresh(uuid.UUID(int=901)) is True
+        assert store.claim_token_refresh(uuid.UUID(int=901)) is False
 
     def test_a_released_claim_can_be_taken_again(self, store):
-        assert store.claim_token_refresh(904) is True
+        assert store.claim_token_refresh(uuid.UUID(int=904)) is True
 
-        store.release_token_refresh(904)
+        store.release_token_refresh(uuid.UUID(int=904))
 
-        assert store.claim_token_refresh(904) is True
+        assert store.claim_token_refresh(uuid.UUID(int=904)) is True
 
     def test_an_unreachable_state_does_not_fail_the_release(self):
         state = MagicMock()
         state.delete.side_effect = platform_providers.StateBackendUnavailableError("down")
         store = strava_rate_limit_store.StravaRateLimitStore(state)
 
-        store.release_token_refresh(1)  # must not raise
+        store.release_token_refresh(MOCK_USER_ID)  # must not raise
 
     def test_claims_are_per_user(self, store):
-        assert store.claim_token_refresh(902) is True
-        assert store.claim_token_refresh(903) is True
+        assert store.claim_token_refresh(uuid.UUID(int=902)) is True
+        assert store.claim_token_refresh(uuid.UUID(int=903)) is True
 
     def test_an_unreachable_state_does_not_stop_the_refresh(self):
         state = MagicMock()
         state.set_if_absent.side_effect = platform_providers.StateBackendUnavailableError("down")
         store = strava_rate_limit_store.StravaRateLimitStore(state)
 
-        assert store.claim_token_refresh(1) is True
+        assert store.claim_token_refresh(MOCK_USER_ID) is True
 
 
 class TestRateLimitedUntil:

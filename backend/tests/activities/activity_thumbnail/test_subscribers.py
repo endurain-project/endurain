@@ -20,7 +20,7 @@ class TestOnActivityCreatedGenerateThumbnail:
     def test_noop_for_malformed_activity_id(self, mock_runtime):
         from modules.activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
 
-        on_activity_created_generate_thumbnail(self._event({"activity_id": "x", "user_id": 2}))
+        on_activity_created_generate_thumbnail(self._event({"activity_id": "x", "user_id": str(uuid.UUID(int=2))}))
 
         mock_runtime.get_active_platform.assert_not_called()
 
@@ -44,7 +44,7 @@ class TestOnActivityCreatedGenerateThumbnail:
         mock_session.return_value.__enter__.return_value = MagicMock()
         mock_streams.get_stream_for_derivation.return_value = None
 
-        on_activity_created_generate_thumbnail(self._event({"activity_id": str(ID1), "user_id": 2}))
+        on_activity_created_generate_thumbnail(self._event({"activity_id": str(ID1), "user_id": str(uuid.UUID(int=2))}))
 
         mock_resolve.assert_not_called()
         mock_generate.assert_not_called()
@@ -60,7 +60,7 @@ class TestOnActivityCreatedGenerateThumbnail:
         mock_session.return_value.__enter__.return_value = MagicMock()
         mock_streams.get_stream_for_derivation.return_value = MagicMock(stream_waypoints=[{"lat": 1.0, "lon": 2.0}])
 
-        on_activity_created_generate_thumbnail(self._event({"activity_id": str(ID1), "user_id": 2}))
+        on_activity_created_generate_thumbnail(self._event({"activity_id": str(ID1), "user_id": str(uuid.UUID(int=2))}))
 
         mock_resolve.assert_not_called()
         mock_generate.assert_not_called()
@@ -81,7 +81,7 @@ class TestOnActivityCreatedGenerateThumbnail:
         mock_streams.get_stream_for_derivation.return_value = MagicMock(stream_waypoints=waypoints)
         mock_resolve.return_value = ("u", "#fff", None)
 
-        on_activity_created_generate_thumbnail(self._event({"activity_id": str(ID5), "user_id": 9}))
+        on_activity_created_generate_thumbnail(self._event({"activity_id": str(ID5), "user_id": str(uuid.UUID(int=9))}))
 
         # The stream read is now access-free; the subscriber addresses it by activity id.
         stream_args = mock_streams.get_stream_for_derivation.call_args.args
@@ -101,7 +101,7 @@ class TestOnActivityCreatedGenerateThumbnail:
         mock_runtime.get_active_platform.side_effect = RuntimeError("boom")
 
         # Must not raise — a thumbnail failure never breaks activity import.
-        on_activity_created_generate_thumbnail(self._event({"activity_id": str(ID1), "user_id": 2}))
+        on_activity_created_generate_thumbnail(self._event({"activity_id": str(ID1), "user_id": str(uuid.UUID(int=2))}))
 
         mock_logger.error.assert_called()
 
@@ -192,7 +192,9 @@ class TestDurableThumbnailHandlers:
         # The durable core propagates so the runner can retry/dead-letter.
         with pytest.raises(RuntimeError):
             generate_activity_thumbnail_for_event(
-                new_event("activity.created", {"activity_id": str(ID1), "user_id": 2}, source="test")
+                new_event(
+                    "activity.created", {"activity_id": str(ID1), "user_id": str(uuid.UUID(int=2))}, source="test"
+                )
             )
 
     @patch("modules.activities.activity_thumbnail.service.delete_activity_thumbnail")

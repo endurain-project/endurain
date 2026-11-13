@@ -12,6 +12,7 @@ Interface::
     read_job(job)                           - read the export a job reference names
 """
 
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from jasil.providers import StateProvider
@@ -69,7 +70,7 @@ class ProfileExportStateStore:
             state, "users", "profile_export", ttl_seconds, announce=websocket_integration.announce_job
         )
 
-    def begin(self, user_id: int, *, conflict: str) -> core_job_status.JobRef:
+    def begin(self, user_id: uuid.UUID, *, conflict: str) -> core_job_status.JobRef:
         """Record an export as queued unless one is still pending.
 
         Args:
@@ -93,7 +94,7 @@ class ProfileExportStateStore:
 
     def set_status(
         self,
-        user_id: int,
+        user_id: uuid.UUID,
         status: profile_constants.ExportStatus,
         *,
         error_code: profile_constants.ExportFailure | None = None,
@@ -120,7 +121,7 @@ class ProfileExportStateStore:
             finished=status in _FINISHED,
         )
 
-    def get(self, user_id: int) -> ProfileExportState | None:
+    def get(self, user_id: uuid.UUID) -> ProfileExportState | None:
         """Read a user's export state.
 
         Args:

@@ -1,5 +1,6 @@
 """Tests for the job routes: ``GET /jobs/{job_id}``, ``GET /jobs`` and the ``409`` that points at a running job."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -17,6 +18,9 @@ import modules.jobs.router as jobs_router
 import modules.strava.constants as strava_constants
 import modules.strava.sync_state_store as strava_sync_state_store
 
+USER = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
+OTHER_USER = uuid.UUID("7b1c93e4-5d28-4f6a-8e03-a94d2c6f1b57")
+
 Status = core_job_status.JobState
 _INGESTION_READ = "modules.activities.activity_ingestion.integration_service.read_job"
 
@@ -26,7 +30,7 @@ def state():
     return MemoryState()
 
 
-def _client(state, scopes=("account",), user_id=1) -> TestClient:
+def _client(state, scopes=("account",), user_id=USER) -> TestClient:
     app = FastAPI()
     app.include_router(jobs_router.router, prefix="/jobs")
     core_exceptions.register_exception_handlers(app)
@@ -51,7 +55,7 @@ def _client(state, scopes=("account",), user_id=1) -> TestClient:
     return TestClient(app)
 
 
-def _gear(state, user_id=1):
+def _gear(state, user_id=USER):
     return strava_sync_state_store.StravaSyncStateStore(state).begin(
         user_id, strava_constants.SyncKind.GEAR, conflict="Busy"
     )
@@ -73,7 +77,7 @@ class TestReadJob:
     def test_a_finished_job_is_not_polled_again(self, state):
         job = _gear(state)
         strava_sync_state_store.StravaSyncStateStore(state).set_status(
-            1, strava_constants.SyncKind.GEAR, Status.SUCCEEDED
+            USER, strava_constants.SyncKind.GEAR, Status.SUCCEEDED
         )
 
         response = _client(state).get(f"/jobs/{job.id}")
@@ -88,7 +92,7 @@ class TestReadJob:
         assert _client(state, scopes=("activities:upload",)).get(f"/jobs/{job.id}").status_code == 403
 
     def test_another_users_job_and_an_unknown_id_are_not_found(self, state):
-        job = _gear(state, user_id=2)
+        job = _gear(state, user_id=OTHER_USER)
 
         with patch(_INGESTION_READ, return_value=None):
             assert _client(state).get(f"/jobs/{job.id}").status_code == 404

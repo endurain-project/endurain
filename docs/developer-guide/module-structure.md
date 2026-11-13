@@ -689,7 +689,7 @@ one pattern. Recorded here so a review does not reopen them.
   How each layer takes part, and the checklist for a new resource, is in
   [Versioned writes](optimistic-concurrency.md).
 - **Request parameters.** A path or query parameter's constraint is part of its type
-  (`core.dependencies.PositiveId`, an enum for a closed set, `AfterValidator` for a
+  (`core.dependencies.UuidId`, an enum for a closed set, `AfterValidator` for a
   vocabulary lookup), so FastAPI validates it, answers with the validation problem
   document and publishes the accepted values in OpenAPI. A `dependencies.py` does not
   raise `HTTPException`, and a child router declares the shared alias

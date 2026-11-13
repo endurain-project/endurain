@@ -10,6 +10,7 @@ import core.database as core_database
 import core.exceptions as core_exceptions
 import modules.auth.dependencies as auth_dependencies
 from modules.auth.contracts import AccessTokenCred, ApiKeyCred, Principal
+from tests._helpers.auth import MOCK_USER_ID
 
 _RESOLVE_KEY = "modules.auth.dependencies.authentication_integration.resolve_from_api_key"
 _RESOLVE_TOKEN = "modules.auth.dependencies.authentication_integration.resolve_from_access_token"
@@ -17,7 +18,7 @@ _RESOLVE_TOKEN = "modules.auth.dependencies.authentication_integration.resolve_f
 
 def _principal(credential, scopes: set[str]) -> Principal:
     return Principal(
-        user_id=7,
+        user_id=MOCK_USER_ID,
         username="runner",
         email="runner@example.com",
         is_active=True,
@@ -60,7 +61,7 @@ class TestApiKeyReachesItsScopes:
             response = client.get("/gears", headers={"X-API-Key": "endurain_key"})
 
         assert response.status_code == 200
-        assert response.json() == {"user_id": 7, "scopes": ["gears:read"]}
+        assert response.json() == {"user_id": str(MOCK_USER_ID), "scopes": ["gears:read"]}
 
     def test_a_key_without_the_routes_scope_is_403_insufficient_scope(self, client):
         with patch(_RESOLVE_KEY, return_value=_key({"health:read"})):

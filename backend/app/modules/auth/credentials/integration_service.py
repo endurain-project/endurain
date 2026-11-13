@@ -1,5 +1,7 @@
 """Credential operations used by authentication peers."""
 
+import uuid
+
 from sqlalchemy import Select
 from sqlalchemy.orm import Session
 
@@ -12,32 +14,32 @@ import modules.server_settings.schema as server_settings_schema
 PasswordHasher = credentials_password_hasher.PasswordHasher
 
 
-def get_credential(user_id: int, db: Session) -> credentials_contracts.CredentialRead | None:
+def get_credential(user_id: uuid.UUID, db: Session) -> credentials_contracts.CredentialRead | None:
     """Return the user's local credential DTO."""
     return credentials_service.get_credential(user_id, db)
 
 
-def is_password_change_required(user_id: int, db: Session) -> bool:
+def is_password_change_required(user_id: uuid.UUID, db: Session) -> bool:
     """Return whether a user's password was set by an administrator and must be replaced at the next sign-in."""
     return credentials_service.is_password_change_required(user_id, db)
 
 
-def get_password_hash(user_id: int, db: Session) -> str | None:
+def get_password_hash(user_id: uuid.UUID, db: Session) -> str | None:
     """Return a user's stored local password hash."""
     return credentials_service.get_password_hash(user_id, db)
 
 
-def has_local_password(user_id: int, db: Session) -> bool:
+def has_local_password(user_id: uuid.UUID, db: Session) -> bool:
     """Return whether a user has a local password."""
     return credentials_service.has_local_password(user_id, db)
 
 
-def set_local_password_hash(user_id: int, password_hash: str, db: Session, *, change_required: bool) -> None:
+def set_local_password_hash(user_id: uuid.UUID, password_hash: str, db: Session, *, change_required: bool) -> None:
     """Stage a user's local password hash and whether its owner must replace the password at the next sign-in."""
     credentials_service.set_local_password_hash(user_id, password_hash, db, change_required=change_required)
 
 
-def require_password_change(user_id: int, db: Session) -> None:
+def require_password_change(user_id: uuid.UUID, db: Session) -> None:
     """Stage the requirement that a user replace their password at the next sign-in, keeping the current one."""
     credentials_service.require_password_change(user_id, db)
 
@@ -64,7 +66,7 @@ def reject_breached_password(
     credentials_service.reject_breached_password(server_settings, password, db)
 
 
-def ensure_password_differs_from_current(user_id: int, new_password: str, db: Session) -> None:
+def ensure_password_differs_from_current(user_id: uuid.UUID, new_password: str, db: Session) -> None:
     """Refuse a new password that is the user's current one."""
     credentials_service.ensure_password_differs_from_current(user_id, new_password, db)
 
@@ -91,6 +93,6 @@ def get_password_hasher() -> credentials_password_hasher.PasswordHasher:
     return credentials_password_hasher.get_password_hasher()
 
 
-def select_credentialed_user_ids() -> Select[tuple[int]]:
+def select_credentialed_user_ids() -> Select[tuple[uuid.UUID]]:
     """Return a query for the ids of the users who have a local credential, for a caller to filter with."""
     return credentials_crud.select_credentialed_user_ids()

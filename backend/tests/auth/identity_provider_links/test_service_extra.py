@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import modules.auth.identity_providers.integration_service as user_idp_utils
+from tests._helpers.auth import MOCK_USER_ID
 
 IDP_1 = uuid.uuid4()
 IDP_2 = uuid.uuid4()
@@ -27,7 +28,7 @@ class TestEnrichUserIdentityProviders:
         idp_links = []
 
         # Act
-        result = user_idp_utils.enrich_user_identity_providers(idp_links, 1, mock_db)
+        result = user_idp_utils.enrich_user_identity_providers(idp_links, MOCK_USER_ID, mock_db)
 
         # Assert
         assert result == []
@@ -50,7 +51,7 @@ class TestEnrichUserIdentityProviders:
         # Mock IdP links
         mock_link1 = MagicMock()
         mock_link1.id = uuid.UUID(int=1)
-        mock_link1.user_id = 1
+        mock_link1.user_id = MOCK_USER_ID
         mock_link1.idp_id = IDP_1
         mock_link1.idp_subject = "user123@strava.com"
         mock_link1.linked_at = now
@@ -58,7 +59,7 @@ class TestEnrichUserIdentityProviders:
 
         mock_link2 = MagicMock()
         mock_link2.id = uuid.UUID(int=2)
-        mock_link2.user_id = 1
+        mock_link2.user_id = MOCK_USER_ID
         mock_link2.idp_id = IDP_2
         mock_link2.idp_subject = "user456@garmin.com"
         mock_link2.linked_at = now
@@ -85,7 +86,7 @@ class TestEnrichUserIdentityProviders:
             mock_get_idps.return_value = [mock_idp1, mock_idp2]
 
             # Act
-            result = user_idp_utils.enrich_user_identity_providers([mock_link1, mock_link2], 1, mock_db)
+            result = user_idp_utils.enrich_user_identity_providers([mock_link1, mock_link2], MOCK_USER_ID, mock_db)
 
         # Assert
         assert len(result) == 2
@@ -112,14 +113,14 @@ class TestEnrichUserIdentityProviders:
         # Mock IdP links - 2 links
         mock_link1 = MagicMock()
         mock_link1.id = uuid.UUID(int=1)
-        mock_link1.user_id = 1
+        mock_link1.user_id = MOCK_USER_ID
         mock_link1.idp_id = IDP_1
         mock_link1.idp_subject = "user@example.com"
         mock_link1.linked_at = now
 
         mock_link2 = MagicMock()
         mock_link2.id = uuid.UUID(int=2)
-        mock_link2.user_id = 1
+        mock_link2.user_id = MOCK_USER_ID
         mock_link2.idp_id = IDP_2
         mock_link2.idp_subject = "user@example.com"
         mock_link2.linked_at = now
@@ -140,7 +141,7 @@ class TestEnrichUserIdentityProviders:
             mock_get_idps.return_value = [mock_idp1]
 
             # Act
-            result = user_idp_utils.enrich_user_identity_providers([mock_link1, mock_link2], 1, mock_db)
+            result = user_idp_utils.enrich_user_identity_providers([mock_link1, mock_link2], MOCK_USER_ID, mock_db)
 
         # Assert
         assert len(result) == 1
@@ -172,7 +173,7 @@ class TestEnrichUserIdentityProviders:
             mock_get_idps.return_value = []
 
             # Act
-            result = user_idp_utils.enrich_user_identity_providers([mock_link], 1, mock_db)
+            result = user_idp_utils.enrich_user_identity_providers([mock_link], MOCK_USER_ID, mock_db)
 
         # Assert
         assert result == []

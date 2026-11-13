@@ -4,6 +4,7 @@ The database enforces both, so a client that breaks either must be told which ru
 getting a server error or a misleading "duplicate" answer.
 """
 
+import uuid
 from datetime import date
 
 import pytest
@@ -22,6 +23,7 @@ import modules.health.health_weight.crud as weight_crud
 import modules.health.health_weight.schema as weight_schema
 import modules.health.record_crud as health_record_crud
 
+_USER_ID = uuid.uuid4()
 _DAY_ONE = date(2026, 1, 1)
 _DAY_TWO = date(2026, 1, 2)
 
@@ -62,7 +64,7 @@ _REQUIRED_VALUE = {"weight": "weight_kg", "steps": "steps", "water": "amount_ml"
 @pytest.fixture
 def db():
     session = create_sqlite_session()
-    ensure_user(sessionmaker(bind=session.get_bind()), 1)
+    ensure_user(sessionmaker(bind=session.get_bind()), _USER_ID)
     yield session
     session.close()
 
@@ -70,11 +72,11 @@ def db():
 @pytest.mark.parametrize("kind", ["weight", "steps", "water"])
 def test_moving_a_record_onto_a_day_that_has_one_is_a_conflict(db, kind):
     create, edit, create_schema, update_schema, values = _KINDS[kind]
-    create(1, create_schema(date=_DAY_ONE, **values), db)
-    second = create(1, create_schema(date=_DAY_TWO, **values), db)
+    create(_USER_ID, create_schema(date=_DAY_ONE, **values), db)
+    second = create(_USER_ID, create_schema(date=_DAY_TWO, **values), db)
 
     with pytest.raises(core_exceptions.ConflictError):
-        edit(1, second.id, update_schema(date=_DAY_ONE), db, if_match="*")
+        edit(_USER_ID, second.id, update_schema(date=_DAY_ONE), db, if_match="*")
 
 
 @pytest.mark.parametrize("kind", list(_REQUIRED_VALUE))
@@ -111,4 +113,6 @@ def test_a_sleep_record_moved_onto_a_day_that_has_one_is_a_conflict(mock_db):
         patch.object(health_record_crud, "get_owned", return_value=MagicMock(version=1)),
         pytest.raises(core_exceptions.ConflictError),
     ):
-        sleep_crud.edit_health_sleep(1, 5, sleep_schema.HealthSleepUpdate(date=_DAY_ONE), mock_db, if_match="1")
+        sleep_crud.edit_health_sleep(
+            _USER_ID, uuid.uuid4(), sleep_schema.HealthSleepUpdate(date=_DAY_ONE), mock_db, if_match="1"
+        )

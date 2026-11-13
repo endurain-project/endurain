@@ -29,7 +29,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def list_gears(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -67,7 +67,7 @@ def list_gears(
     return core_pagination.Page.build(records, total, page_number, num_records)
 
 
-def read_gear_detail(gear_id: uuid.UUID, user_id: int, db: Session) -> gears_schema.GearDetailRead:
+def read_gear_detail(gear_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> gears_schema.GearDetailRead:
     """Return a user's gear with its recorded usage and component cost.
 
     Args:
@@ -87,7 +87,7 @@ def read_gear_detail(gear_id: uuid.UUID, user_id: int, db: Session) -> gears_sch
     return _with_totals(gear, user_id, db)
 
 
-def _with_totals(gear: gears_schema.GearRead, user_id: int, db: Session) -> gears_schema.GearDetailRead:
+def _with_totals(gear: gears_schema.GearRead, user_id: uuid.UUID, db: Session) -> gears_schema.GearDetailRead:
     """Add the recorded usage and component cost to a gear.
 
     Args:
@@ -110,7 +110,7 @@ def _with_totals(gear: gears_schema.GearRead, user_id: int, db: Session) -> gear
 
 
 def list_changed_gears(
-    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[gears_schema.GearDetailRead]:
     """Return a page of a user's gears changed after a position, each with its totals.
 
@@ -127,7 +127,7 @@ def list_changed_gears(
     return [_with_totals(gear, user_id, db) for gear in gears_crud.list_changed_gears(user_id, after, until, limit, db)]
 
 
-def create_gear(gear: gears_schema.GearCreateRequest, user_id: int, db: Session) -> gears_schema.GearRead:
+def create_gear(gear: gears_schema.GearCreateRequest, user_id: uuid.UUID, db: Session) -> gears_schema.GearRead:
     """Create a gear for a user.
 
     Args:
@@ -147,7 +147,7 @@ def create_gear(gear: gears_schema.GearCreateRequest, user_id: int, db: Session)
     return created
 
 
-def stage_gears(gears: Iterable[gears_schema.GearCreate | None], user_id: int, db: Session) -> None:
+def stage_gears(gears: Iterable[gears_schema.GearCreate | None], user_id: uuid.UUID, db: Session) -> None:
     """Stage new gears for a user; the caller commits.
 
     Drops entries without a nickname, repeated nicknames and nicknames the user already
@@ -187,14 +187,13 @@ def stage_gears(gears: Iterable[gears_schema.GearCreate | None], user_id: int, d
 
 
 def restore_profile_gears(
-    records: list[dict[str, Any]], user_id: int, ids: users_profile_contracts.ProfileIdMaps, db: Session
+    records: list[dict[str, Any]], user_id: uuid.UUID, ids: users_profile_contracts.ProfileIdMaps, db: Session
 ) -> int:
     """Stage the gears of a profile archive; the caller commits.
 
     A gear whose nickname the user already has maps onto that gear. A provider gear ID the user already
-    holds on another gear is dropped, so the archive cannot make the import fail. The archived ids, an
-    integer from an earlier release or a UUID, are keyed by their text and mapped to the stored UUIDs,
-    which are published under ``ids["gears"]``, even when the archive lists none.
+    holds on another gear is dropped, so the archive cannot make the import fail. The archived ids
+    (UUIDs) are mapped to the stored UUIDs, which are published under ``ids["gears"]``, even when the archive lists none.
 
     Args:
         records: The archived gears.
@@ -205,7 +204,7 @@ def restore_profile_gears(
     Returns:
         How many gears were restored or matched.
     """
-    mapping: dict[str, uuid.UUID] = {}
+    mapping: dict[uuid.UUID, uuid.UUID] = {}
     ids[gears_constants.PROFILE_ARCHIVE_KEY] = mapping
     restored = 0
     for record in records:
@@ -261,7 +260,7 @@ def _read_legacy_creation_timestamp(record: dict[str, Any]) -> None:
     record["acquired_on"] = (moment.astimezone(UTC) if moment.tzinfo else moment).date()
 
 
-def _restore_gear(gear: gears_schema.GearCreate, user_id: int, db: Session) -> uuid.UUID:
+def _restore_gear(gear: gears_schema.GearCreate, user_id: uuid.UUID, db: Session) -> uuid.UUID:
     """Stage one archived gear, tolerating what the user already has.
 
     Args:
@@ -289,7 +288,7 @@ def _restore_gear(gear: gears_schema.GearCreate, user_id: int, db: Session) -> u
 
 
 def _require_components_fit_type_change(
-    gear_id: uuid.UUID, new_type: gears_schema.GearType, user_id: int, db: Session, *, if_match: str
+    gear_id: uuid.UUID, new_type: gears_schema.GearType, user_id: uuid.UUID, db: Session, *, if_match: str
 ) -> None:
     """Refuse a gear type change that leaves components the new type does not allow.
 
@@ -324,7 +323,7 @@ def _require_components_fit_type_change(
 def edit_gear(
     gear_id: uuid.UUID,
     gear: gears_schema.GearUpdate,
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     if_match: str,
@@ -365,7 +364,7 @@ def edit_gear(
     return updated
 
 
-def delete_gear(gear_id: uuid.UUID, user_id: int, db: Session, *, if_match: str) -> None:
+def delete_gear(gear_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Delete a user's gear, unassigning it from their activities first.
 
     Args:
@@ -394,7 +393,7 @@ def delete_gear(gear_id: uuid.UUID, user_id: int, db: Session, *, if_match: str)
     logger.info("Deleted a gear", extra=core_logger.context(user_id=user_id, gear_id=gear_id))
 
 
-def delete_all_strava_gear_for_user(user_id: int, db: Session) -> None:
+def delete_all_strava_gear_for_user(user_id: uuid.UUID, db: Session) -> None:
     """Stage the deletion of every Strava-linked gear a user has, unassigning it from their default gear first.
 
     The components the deletion cascades away are recorded as deleted.
@@ -409,12 +408,11 @@ def delete_all_strava_gear_for_user(user_id: int, db: Session) -> None:
     gears_crud.delete_all_strava_gear_for_user(user_id, db)
 
 
-def require_owned_gears(user_id: int, gear_ids: Iterable[uuid.UUID | None], db: Session) -> None:
+def require_owned_gears(user_id: uuid.UUID, gear_ids: Iterable[uuid.UUID | None], db: Session) -> None:
     """Require every given gear to belong to the user.
 
-    Gear ids arrive from the client on several write paths, and they are small
-    sequential integers, so each must be resolved through the owner-scoped lookup
-    before it is stored. ``None`` (clearing a gear) is always allowed.
+    Gear ids arrive from the client on several write paths, so each must be resolved
+    through the owner-scoped lookup before it is stored. ``None`` (clearing a gear) is always allowed.
 
     Args:
         user_id: The user who must own the gears.

@@ -61,7 +61,7 @@ def build_activity_privacy_kwargs(
 
 def resolve_gear_id(
     activity_type: int | None,
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     provider_gear_id: uuid.UUID | None = None,
@@ -99,7 +99,7 @@ def resolve_gear_id(
 def enrich_parsed_activity(
     activity: activity_contracts.ActivityCore,
     *,
-    user_id: int,
+    user_id: uuid.UUID,
     user_privacy_settings: users_privacy_settings_schema.UserPrivacySettingsRead,
     db: Session,
     from_garmin: bool = False,

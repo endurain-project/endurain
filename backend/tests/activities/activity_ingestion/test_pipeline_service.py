@@ -9,6 +9,7 @@ import os
 from unittest.mock import MagicMock, patch
 
 import pytest
+from tests._helpers.auth import MOCK_USER_ID
 
 import core.exceptions as core_exceptions
 import modules.activities.activity.contracts as activity_contracts
@@ -24,7 +25,7 @@ class TestParseFile:
         mock_adapter.parsed_info_to_parsed_activity.return_value = "parsed"
 
         result = pipeline.parse_file(
-            token_user_id=1,
+            token_user_id=MOCK_USER_ID,
             file_extension=".gpx",
             filename="/path/to/file.gpx",
         )
@@ -38,7 +39,7 @@ class TestParseFile:
         mock_adapter.parsed_info_to_parsed_activity.return_value = "parsed"
 
         result = pipeline.parse_file(
-            token_user_id=1,
+            token_user_id=MOCK_USER_ID,
             file_extension=".tcx",
             filename="/path/to/file.tcx",
         )
@@ -55,7 +56,7 @@ class TestParseFile:
         mock_adapter.parsed_info_to_parsed_activity.side_effect = lambda info: info
 
         result = pipeline.parse_file(
-            token_user_id=1,
+            token_user_id=MOCK_USER_ID,
             file_extension=".fit",
             filename="/path/to/file.fit",
         )
@@ -65,7 +66,7 @@ class TestParseFile:
     def test_raises_on_unsupported_extension(self):
         with pytest.raises(core_exceptions.UnsupportedFormatError) as exc:
             pipeline.parse_file(
-                token_user_id=1,
+                token_user_id=MOCK_USER_ID,
                 file_extension=".xyz",
                 filename="/path/to/file.xyz",
             )
@@ -73,7 +74,7 @@ class TestParseFile:
 
     def test_returns_none_for_bulk_import_init(self):
         result = pipeline.parse_file(
-            token_user_id=1,
+            token_user_id=MOCK_USER_ID,
             file_extension=".py",
             filename="bulk_import/__init__.py",
         )
@@ -91,7 +92,7 @@ class TestParseFileError:
 
         with pytest.raises(core_exceptions.InvalidInputError) as exc:
             pipeline.parse_file(
-                token_user_id=1,
+                token_user_id=MOCK_USER_ID,
                 file_extension=".gpx",
                 filename="/path/to/file.gpx",
             )
@@ -103,7 +104,7 @@ class TestParseFileError:
 
         with pytest.raises(core_exceptions.ProcessingError) as exc:
             pipeline.parse_file(
-                token_user_id=1,
+                token_user_id=MOCK_USER_ID,
                 file_extension=".gpx",
                 filename="/path/to/file.gpx",
             )

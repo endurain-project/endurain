@@ -1,5 +1,7 @@
 """Operations other modules may call on the profile import and export."""
 
+import uuid
+
 import jasil.providers as platform_providers
 
 import core.job_status as core_job_status
@@ -11,7 +13,7 @@ import modules.users.users_profile.schema as profile_schema
 import modules.users.users_profile.transfer_pool as profile_transfer_pool
 
 
-def delete_staged_transfers(user_id: int, storage: platform_providers.StorageProvider) -> None:
+def delete_staged_transfers(user_id: uuid.UUID, storage: platform_providers.StorageProvider) -> None:
     """Delete the archives staged for a user's profile export and imports.
 
     Housekeeping for a deleted account: a storage failure is logged, and the scheduled sweep

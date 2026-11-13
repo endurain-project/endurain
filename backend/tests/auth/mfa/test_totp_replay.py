@@ -10,6 +10,7 @@ from jasil.providers import StateBackendUnavailableError
 
 import core.exceptions as core_exceptions
 import modules.auth.mfa.totp_replay_store as totp_replay_store
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
 _SECRET = "JBSWY3DPEHPK3PXP"
 _NOW = datetime(2026, 1, 1, 12, 0, 15, tzinfo=UTC)
@@ -47,19 +48,19 @@ class TestClaimTotpStep:
     def test_a_step_is_accepted_once(self):
         state = MemoryState()
 
-        assert totp_replay_store.claim_totp_step(state, 7, 100) is True
-        assert totp_replay_store.claim_totp_step(state, 7, 100) is False
+        assert totp_replay_store.claim_totp_step(state, MOCK_USER_ID, 100) is True
+        assert totp_replay_store.claim_totp_step(state, MOCK_USER_ID, 100) is False
 
     def test_steps_and_users_do_not_block_each_other(self):
         state = MemoryState()
-        totp_replay_store.claim_totp_step(state, 7, 100)
+        totp_replay_store.claim_totp_step(state, MOCK_USER_ID, 100)
 
-        assert totp_replay_store.claim_totp_step(state, 7, 101) is True
-        assert totp_replay_store.claim_totp_step(state, 8, 100) is True
+        assert totp_replay_store.claim_totp_step(state, MOCK_USER_ID, 101) is True
+        assert totp_replay_store.claim_totp_step(state, OTHER_USER_ID, 100) is True
 
     def test_an_unreachable_store_fails_closed_as_unavailable(self):
         state = MagicMock()
         state.set_if_absent.side_effect = StateBackendUnavailableError("down")
 
         with pytest.raises(core_exceptions.ServiceUnavailableError):
-            totp_replay_store.claim_totp_step(state, 7, 100)
+            totp_replay_store.claim_totp_step(state, MOCK_USER_ID, 100)

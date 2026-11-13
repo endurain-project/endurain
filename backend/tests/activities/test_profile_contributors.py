@@ -6,6 +6,7 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+from tests._helpers.auth import MOCK_USER_ID
 
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_exercise_titles.integration_service as activity_exercise_titles_integration
@@ -16,13 +17,13 @@ import modules.activities.activity_streams.integration_service as activity_strea
 import modules.activities.activity_workout_steps.integration_service as activity_workout_steps_integration
 
 _NEW_ID = uuid.UUID(int=10)
-_OLD_ID = str(uuid.UUID(int=1))
-_OTHER_ID = str(uuid.UUID(int=2))
+_OLD_ID = uuid.UUID(int=1)
+_OTHER_ID = uuid.UUID(int=2)
 
 
 def _new_activity() -> activity_schema.ActivityRead:
     """Build a restored parent activity for contributor tests."""
-    return activity_schema.ActivityRead(id=_NEW_ID, user_id=1, distance=0, name="Restored", activity_type=1)
+    return activity_schema.ActivityRead(id=_NEW_ID, user_id=MOCK_USER_ID, distance=0, name="Restored", activity_type=1)
 
 
 @pytest.mark.parametrize(
@@ -31,7 +32,7 @@ def _new_activity() -> activity_schema.ActivityRead:
         (
             activity_laps_integration,
             "_store_laps",
-            {"id": str(uuid.UUID(int=11)), "activity_id": _OLD_ID, "start_time": "2024-01-01T00:00:00Z"},
+            {"id": str(uuid.UUID(int=11)), "activity_id": str(_OLD_ID), "start_time": "2024-01-01T00:00:00Z"},
             False,
         ),
         (
@@ -39,7 +40,7 @@ def _new_activity() -> activity_schema.ActivityRead:
             "_store_sets",
             {
                 "id": str(uuid.UUID(int=12)),
-                "activity_id": _OLD_ID,
+                "activity_id": str(_OLD_ID),
                 "duration": 30.0,
                 "set_type": "active",
                 "start_time": "2024-01-01T00:00:00Z",
@@ -51,7 +52,7 @@ def _new_activity() -> activity_schema.ActivityRead:
             "_store_streams",
             {
                 "id": str(uuid.UUID(int=13)),
-                "activity_id": _OLD_ID,
+                "activity_id": str(_OLD_ID),
                 "stream_type": 1,
                 "stream_waypoints": [{"hr": 140}],
             },
@@ -62,7 +63,7 @@ def _new_activity() -> activity_schema.ActivityRead:
             "_store_workout_steps",
             {
                 "id": str(uuid.UUID(int=14)),
-                "activity_id": _OLD_ID,
+                "activity_id": str(_OLD_ID),
                 "message_index": 0,
                 "duration_type": "time",
             },
@@ -77,7 +78,7 @@ def test_activity_profile_contributor_filters_copies_and_rekeys(
     uses_parent_schema: bool,
 ) -> None:
     """Each JSON contributor owns filtering, validation, and parent re-keying."""
-    source_records = [record, {**record, "id": str(uuid.UUID(int=99)), "activity_id": _OTHER_ID}]
+    source_records = [record, {**record, "id": str(uuid.UUID(int=99)), "activity_id": str(_OTHER_ID)}]
     original_records = deepcopy(source_records)
     activity = _new_activity()
     db = MagicMock()
@@ -100,7 +101,12 @@ def test_activity_profile_contributor_filters_copies_and_rekeys(
 def test_media_profile_contributor_rekeys_without_mutating_source() -> None:
     """Media restore validates a flat key and leaves archive data untouched."""
     records = [
-        {"id": str(uuid.UUID(int=15)), "activity_id": _OLD_ID, "media_path": f"{_OLD_ID}_photo.jpg", "media_type": 1}
+        {
+            "id": str(uuid.UUID(int=15)),
+            "activity_id": str(_OLD_ID),
+            "media_path": f"{_OLD_ID}_photo.jpg",
+            "media_type": 1,
+        }
     ]
     original_records = deepcopy(records)
     activity = _new_activity()

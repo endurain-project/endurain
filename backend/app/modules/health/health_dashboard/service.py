@@ -4,6 +4,8 @@ Reads each health package only through its ``integration_service``; the dashboar
 owns no table.
 """
 
+import uuid
+
 from sqlalchemy.orm import Session
 
 import modules.health.health_dashboard.schema as health_dashboard_schema
@@ -18,7 +20,7 @@ import modules.users.users.integration_service as users_integration
 
 
 def get_daily_stats(
-    user_id: int, db: Session, *, include_targets: bool
+    user_id: uuid.UUID, db: Session, *, include_targets: bool
 ) -> health_dashboard_schema.HealthDashboardResponse:
     """Build a user's dashboard: today's sleep, steps, water and bowel movements, plus the latest weight and fast.
 

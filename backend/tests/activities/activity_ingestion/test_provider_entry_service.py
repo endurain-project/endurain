@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import jasil.providers as platform_providers
 import pytest
 from sqlalchemy.exc import OperationalError
+from tests._helpers.auth import MOCK_USER_ID
 
 import core.exceptions as core_exceptions
 import modules.activities.activity_ingestion.provider_entry_service as provider_entry_service
@@ -17,7 +18,9 @@ def _store(db: MagicMock, error: Exception | None = None, result: object = None)
         side_effect=error,
         return_value=result,
     ):
-        return provider_entry_service.store_activity_file(7, "/tmp/a.fit", MagicMock(), db, source=MagicMock())
+        return provider_entry_service.store_activity_file(
+            MOCK_USER_ID, "/tmp/a.fit", MagicMock(), db, source=MagicMock()
+        )
 
 
 class TestStoreActivityFile:

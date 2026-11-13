@@ -42,7 +42,7 @@ def _get_open_job_for_update(job_id: str, db: Session) -> activity_ingestion_mod
 
 def create_ingestion_job(
     job_id: str,
-    user_id: int,
+    user_id: uuid.UUID,
     kind: activity_ingestion_constants.IngestionJobKind,
     db: Session,
     *,
@@ -109,7 +109,7 @@ def create_ingestion_job(
 
 def get_ingestion_job(
     job_id: str,
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
 ) -> activity_ingestion_schema.ActivityIngestionJobRead | None:
     """Retrieve one ingestion job belonging to a user.
@@ -135,7 +135,7 @@ def get_ingestion_job(
 
 
 def list_ingestion_jobs(
-    user_id: int,
+    user_id: uuid.UUID,
     kinds: Collection[activity_ingestion_constants.IngestionJobKind],
     statuses: Collection[activity_ingestion_constants.IngestionJobStatus] | None,
     before: tuple[datetime, str] | None,
@@ -165,7 +165,7 @@ def list_ingestion_jobs(
     return [activity_ingestion_serializers.to_read_schema(orm_job) for orm_job in db.scalars(stmt)]
 
 
-def get_job_work_item(job_id: str, db: Session) -> tuple[int, str] | None:
+def get_job_work_item(job_id: str, db: Session) -> tuple[uuid.UUID, str] | None:
     """Read the owner and staged key of a job, for the background executor.
 
     Not user-scoped, unlike :func:`get_ingestion_job`: the caller here is the
@@ -189,7 +189,7 @@ def get_job_work_item(job_id: str, db: Session) -> tuple[int, str] | None:
 
 def get_job_for_idempotency(
     idempotency_key: str,
-    user_id: int,
+    user_id: uuid.UUID,
     kind: activity_ingestion_constants.IngestionJobKind,
     db: Session,
 ) -> tuple[activity_ingestion_schema.ActivityIngestionJobRead, str | None] | None:
@@ -237,7 +237,7 @@ def release_idempotency_key(job_id: str, db: Session) -> None:
     db.flush()
 
 
-def get_job_owner(job_id: str, db: Session) -> int | None:
+def get_job_owner(job_id: str, db: Session) -> uuid.UUID | None:
     """Read the owner of a job, for the background executor.
 
     Not user-scoped, unlike :func:`get_ingestion_job`: the caller is the worker
@@ -256,7 +256,9 @@ def get_job_owner(job_id: str, db: Session) -> int | None:
     return orm_job.user_id if orm_job else None
 
 
-def get_refresh_scope(job_id: str, db: Session) -> tuple[int, str | None, datetime | None, datetime | None] | None:
+def get_refresh_scope(
+    job_id: str, db: Session
+) -> tuple[uuid.UUID, str | None, datetime | None, datetime | None] | None:
     """Read what a refresh job was asked to sync, for the background executor.
 
     Not user-scoped, for the same reason as :func:`get_job_owner`: the owner and
@@ -277,7 +279,7 @@ def get_refresh_scope(job_id: str, db: Session) -> tuple[int, str | None, dateti
     return orm_job.user_id, orm_job.provider, orm_job.window_start, orm_job.window_end
 
 
-def get_user_ids_with_active_refresh(user_ids: Sequence[int], db: Session) -> set[int]:
+def get_user_ids_with_active_refresh(user_ids: Sequence[uuid.UUID], db: Session) -> set[uuid.UUID]:
     """Return which of the given users already have a refresh queued or running.
 
     Lets the scheduled fan-out skip a user whose previous refresh has not finished
@@ -301,7 +303,7 @@ def get_user_ids_with_active_refresh(user_ids: Sequence[int], db: Session) -> se
     return set(db.scalars(stmt).all())
 
 
-def get_active_bulk_import_job_id(user_id: int, db: Session) -> str | None:
+def get_active_bulk_import_job_id(user_id: uuid.UUID, db: Session) -> str | None:
     """Return the id of the user's bulk import that has not finished, if any.
 
     Args:
@@ -537,7 +539,7 @@ def mark_deferred(job_id: str, retry_after: datetime, db: Session) -> None:
     db.flush()
 
 
-def release_due_deferred_jobs(limit: int, db: Session) -> list[tuple[str, int]]:
+def release_due_deferred_jobs(limit: int, db: Session) -> list[tuple[str, uuid.UUID]]:
     """Stage returning deferred refreshes whose wait is over to ``pending`` (not committed).
 
     The due test uses the database clock, like :func:`mark_processing`, so replicas with skewed
@@ -562,7 +564,7 @@ def release_due_deferred_jobs(limit: int, db: Session) -> list[tuple[str, int]]:
         .limit(limit)
         .with_for_update(skip_locked=True)
     )
-    released: list[tuple[str, int]] = []
+    released: list[tuple[str, uuid.UUID]] = []
     for orm_job in db.scalars(stmt).all():
         orm_job.status = activity_ingestion_constants.IngestionJobStatus.PENDING.value
         orm_job.retry_after = None
@@ -610,7 +612,7 @@ def mark_failed(
     job_id: str,
     error_code: activity_ingestion_constants.IngestionJobErrorCode,
     db: Session,
-) -> tuple[int, activity_ingestion_constants.IngestionJobKind] | None:
+) -> tuple[uuid.UUID, activity_ingestion_constants.IngestionJobKind] | None:
     """Stage a move of a job to the failed state with a sanitized reason.
 
     Args:

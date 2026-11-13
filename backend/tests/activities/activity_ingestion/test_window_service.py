@@ -1,6 +1,7 @@
 """Tests for activity_ingestion.window_service: the failure policy of a provider's activity window."""
 
 import pytest
+from tests._helpers.auth import MOCK_USER_ID
 
 import core.exceptions as core_exceptions
 import modules.activities.activity_ingestion.contracts as activity_ingestion_contracts
@@ -9,7 +10,7 @@ import modules.activities.activity_ingestion.window_service as window_service
 
 def _run(items, process, **kwargs):
     return window_service.run_window(
-        items, process, provider="acme", user_id=7, describe=lambda item: {"item": item}, **kwargs
+        items, process, provider="acme", user_id=MOCK_USER_ID, describe=lambda item: {"item": item}, **kwargs
     )
 
 

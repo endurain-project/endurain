@@ -13,6 +13,9 @@ _ID = uuid.uuid4()
 _PREFIX = "modules.health.health_dashboard.service"
 
 
+_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
+
+
 @pytest.fixture
 def peers():
     """Patch every peer read the dashboard makes, keyed by metric."""
@@ -54,7 +57,7 @@ class TestGetDailyStats:
         targets = health_targets_schema.HealthTargetsRead(
             updated_at="2024-01-01T00:00:00Z",
             id=_ID,
-            user_id=1,
+            user_id=_USER_ID,
             version=3,
             sleep_seconds=28800,
             steps=8000,
@@ -65,7 +68,7 @@ class TestGetDailyStats:
         )
         peers["targets"].return_value = targets
 
-        result = health_dashboard_service.get_daily_stats(1, mock_db, include_targets=True)
+        result = health_dashboard_service.get_daily_stats(_USER_ID, mock_db, include_targets=True)
 
         assert result.sleep.total_sleep_seconds == 28800
         assert result.weight.weight_kg == 75.5
@@ -73,27 +76,27 @@ class TestGetDailyStats:
         assert result.fasting.status == "in_progress"
         assert result.water.amount_ml == 1500.0
         assert result.poop.count == 2
-        peers["weight"].assert_called_once_with(1, date(2024, 1, 15), mock_db)
+        peers["weight"].assert_called_once_with(_USER_ID, date(2024, 1, 15), mock_db)
         assert result.targets == targets
-        peers["targets"].assert_called_once_with(1, mock_db)
+        peers["targets"].assert_called_once_with(_USER_ID, mock_db)
 
     def test_all_data_missing(self, peers, mock_db):
-        result = health_dashboard_service.get_daily_stats(1, mock_db, include_targets=True)
+        result = health_dashboard_service.get_daily_stats(_USER_ID, mock_db, include_targets=True)
 
         assert result.model_dump() == dict.fromkeys(("sleep", "weight", "steps", "fasting", "water", "poop", "targets"))
 
     def test_reads_every_day_metric_for_the_users_own_today(self, peers, mock_db):
-        health_dashboard_service.get_daily_stats(1, mock_db, include_targets=True)
+        health_dashboard_service.get_daily_stats(_USER_ID, mock_db, include_targets=True)
 
         for name in ("sleep", "steps", "water", "poop"):
-            assert peers[name].call_args.args == (1, "2024-01-15", mock_db)
+            assert peers[name].call_args.args == (_USER_ID, "2024-01-15", mock_db)
 
     def test_sleep_without_hrv_status_is_still_shown(self, peers, mock_db):
         peers["sleep"].return_value = MagicMock(
             total_sleep_seconds=27000, resting_heart_rate=None, hrv_status=None, avg_skin_temp_deviation=None
         )
 
-        sleep = health_dashboard_service.get_daily_stats(1, mock_db, include_targets=True).sleep
+        sleep = health_dashboard_service.get_daily_stats(_USER_ID, mock_db, include_targets=True).sleep
 
         assert sleep is not None
         assert sleep.total_sleep_seconds == 27000
@@ -104,17 +107,20 @@ class TestGetDailyStats:
             total_sleep_seconds=27000, resting_heart_rate=48, hrv_status="BALANCED", avg_skin_temp_deviation=0.2
         )
 
-        assert health_dashboard_service.get_daily_stats(1, mock_db, include_targets=True).sleep.hrv_status == "BALANCED"
+        assert (
+            health_dashboard_service.get_daily_stats(_USER_ID, mock_db, include_targets=True).sleep.hrv_status
+            == "BALANCED"
+        )
 
     def test_water_without_an_amount_is_left_out(self, peers, mock_db):
         peers["water"].return_value = MagicMock(amount_ml=None)
 
-        assert health_dashboard_service.get_daily_stats(1, mock_db, include_targets=True).water is None
+        assert health_dashboard_service.get_daily_stats(_USER_ID, mock_db, include_targets=True).water is None
 
     def test_targets_are_not_read_without_the_scope(self, peers, mock_db):
         peers["targets"].return_value = MagicMock()
 
-        result = health_dashboard_service.get_daily_stats(1, mock_db, include_targets=False)
+        result = health_dashboard_service.get_daily_stats(_USER_ID, mock_db, include_targets=False)
 
         assert result.targets is None
         peers["targets"].assert_not_called()

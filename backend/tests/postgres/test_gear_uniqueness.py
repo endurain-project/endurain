@@ -17,6 +17,7 @@ from sqlalchemy import func, select, text
 import core.exceptions as core_exceptions
 import modules.gears.gear.models as gear_models
 import modules.gears.gear.service as gear_service
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 from tests._helpers.db import ensure_user
 from tests._helpers.gears import gear_create
 
@@ -29,7 +30,7 @@ _MIGRATION_PATH = (
 
 @pytest.fixture
 def factory(pg_factory):
-    for user_id in (1, 2):
+    for user_id in (MOCK_USER_ID, OTHER_USER_ID):
         ensure_user(pg_factory, user_id)
     return pg_factory
 
@@ -42,7 +43,9 @@ def test_concurrent_creates_of_one_nickname_leave_one_gear(factory):
         barrier.wait()
         with factory() as db:
             try:
-                outcomes.append(gear_service.create_gear(gear_create("Road Bike" if index % 2 else "road bike"), 1, db))
+                outcomes.append(
+                    gear_service.create_gear(gear_create("Road Bike" if index % 2 else "road bike"), MOCK_USER_ID, db)
+                )
             except Exception as err:
                 db.rollback()
                 outcomes.append(err)
@@ -65,7 +68,15 @@ def test_the_migration_renames_duplicates_before_enforcing_the_index(factory):
         db.execute(text("DROP INDEX uq_gear_user_nickname"))
         gear_ids = [uuid.UUID(int=position) for position in range(1, 6)]
         for gear_id, (user_id, nickname) in zip(
-            gear_ids, ((1, "Bike"), (1, " bike "), (1, "BIKE"), (2, "bike"), (1, "Shoes")), strict=True
+            gear_ids,
+            (
+                (MOCK_USER_ID, "Bike"),
+                (MOCK_USER_ID, " bike "),
+                (MOCK_USER_ID, "BIKE"),
+                (OTHER_USER_ID, "bike"),
+                (MOCK_USER_ID, "Shoes"),
+            ),
+            strict=True,
         ):
             db.execute(
                 text(
@@ -89,9 +100,9 @@ def test_the_migration_renames_duplicates_before_enforcing_the_index(factory):
         rows = db.execute(text("SELECT id, user_id, nickname FROM gear ORDER BY id")).all()
 
     assert [(row.user_id, row.nickname) for row in rows] == [
-        (1, "Bike"),
-        (1, f"bike ({gear_ids[1]})"),
-        (1, f"BIKE ({gear_ids[2]})"),
-        (2, "bike"),
-        (1, "Shoes"),
+        (MOCK_USER_ID, "Bike"),
+        (MOCK_USER_ID, f"bike ({gear_ids[1]})"),
+        (MOCK_USER_ID, f"BIKE ({gear_ids[2]})"),
+        (OTHER_USER_ID, "bike"),
+        (MOCK_USER_ID, "Shoes"),
     ]

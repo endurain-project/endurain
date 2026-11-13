@@ -28,13 +28,13 @@ class Follower(Base, TimestampMixin):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
-    follower_id: Mapped[int] = mapped_column(
+    follower_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         comment="ID of the follower user (the requester)",
     )
-    followee_id: Mapped[int] = mapped_column(
+    followee_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -65,13 +65,13 @@ class FollowerBlock(Base, TimestampMixin):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
-    blocker_id: Mapped[int] = mapped_column(
+    blocker_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         comment="ID of the user who blocked",
     )
-    blocked_id: Mapped[int] = mapped_column(
+    blocked_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -97,13 +97,13 @@ class FollowRequestDecline(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    follower_id: Mapped[int] = mapped_column(
+    follower_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         comment="ID of the requester whose request was declined",
     )
-    followee_id: Mapped[int] = mapped_column(
+    followee_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

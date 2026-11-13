@@ -29,7 +29,7 @@ class IdpTokenRefreshPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    user_id: int
+    user_id: uuid.UUID
     session_id: str | None = None
 
 
@@ -45,5 +45,5 @@ class IdpLinkedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    user_id: int
+    user_id: uuid.UUID
     idp_id: uuid.UUID

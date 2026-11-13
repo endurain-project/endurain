@@ -87,7 +87,7 @@ class TestHealthWeightModel:
         """
         # Assert
         assert health_weight_models.HealthWeight.id.type.python_type is uuid.UUID
-        assert health_weight_models.HealthWeight.user_id.type.python_type is int
+        assert health_weight_models.HealthWeight.user_id.type.python_type is uuid.UUID
         assert health_weight_models.HealthWeight.date.type.python_type is datetime_date
         assert health_weight_models.HealthWeight.physique_rating.type.python_type is int
         assert health_weight_models.HealthWeight.metabolic_age.type.python_type is int

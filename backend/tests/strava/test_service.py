@@ -14,6 +14,7 @@ import modules.strava.constants as strava_constants
 import modules.strava.oauth_state_store as strava_oauth_state_store
 import modules.strava.schema as strava_schema
 import modules.strava.service as strava_service
+from tests._helpers.auth import MOCK_USER_ID
 
 
 @pytest.fixture
@@ -33,10 +34,13 @@ class TestStoredCredentials:
             ),
         ):
             version = strava_service.set_client(
-                7, strava_schema.StravaClientCredentials(client_id=123, client_secret="secret"), db, if_match='"2"'
+                MOCK_USER_ID,
+                strava_schema.StravaClientCredentials(client_id=123, client_secret="secret"),
+                db,
+                if_match='"2"',
             )
 
-        store.assert_called_once_with(7, "123", "secret", db, if_match='"2"')
+        store.assert_called_once_with(MOCK_USER_ID, "123", "secret", db, if_match='"2"')
         db.commit.assert_called_once()
         assert version == 3
 
@@ -52,7 +56,10 @@ class TestStoredCredentials:
             pytest.raises(core_exceptions.PreconditionFailedError),
         ):
             strava_service.set_client(
-                7, strava_schema.StravaClientCredentials(client_id=123, client_secret="secret"), db, if_match='"2"'
+                MOCK_USER_ID,
+                strava_schema.StravaClientCredentials(client_id=123, client_secret="secret"),
+                db,
+                if_match='"2"',
             )
 
         db.commit.assert_not_called()
@@ -60,22 +67,22 @@ class TestStoredCredentials:
 
 class TestOAuthState:
     def test_a_begun_state_is_consumed_once(self, oauth_states):
-        state = strava_service.begin_state(7, oauth_states)
+        state = strava_service.begin_state(MOCK_USER_ID, oauth_states)
 
-        assert oauth_states.consume(7, state) is True
-        assert oauth_states.consume(7, state) is False
+        assert oauth_states.consume(MOCK_USER_ID, state) is True
+        assert oauth_states.consume(MOCK_USER_ID, state) is False
 
     def test_the_state_is_unguessable_and_different_each_time(self, oauth_states):
-        states = {strava_service.begin_state(7, oauth_states) for _ in range(5)}
+        states = {strava_service.begin_state(MOCK_USER_ID, oauth_states) for _ in range(5)}
 
         assert len(states) == 5
         assert all(len(state) >= 32 for state in states)
 
     def test_a_new_state_replaces_the_old_one(self, oauth_states):
-        old = strava_service.begin_state(7, oauth_states)
-        strava_service.begin_state(7, oauth_states)
+        old = strava_service.begin_state(MOCK_USER_ID, oauth_states)
+        strava_service.begin_state(MOCK_USER_ID, oauth_states)
 
-        assert oauth_states.consume(7, old) is False
+        assert oauth_states.consume(MOCK_USER_ID, old) is False
 
 
 class TestUnlinkAccount:
@@ -106,7 +113,7 @@ class TestUnlinkAccount:
             ) as delete_activities,
             patch.object(strava_service.user_integrations_integration, "unlink_strava_account") as unlink,
         ):
-            result = strava_service.unlink_account(7)
+            result = strava_service.unlink_account(MOCK_USER_ID)
         return result, client, delete_gear, delete_activities, unlink, during_deauthorize
 
     def test_the_account_is_deauthorized_then_unlinked_and_imported_data_cleared(self):
@@ -176,7 +183,7 @@ class TestUnlinkDeletesInBatches:
                 side_effect=lambda *_a, **_k: order.append("unlink"),
             ),
         ):
-            assert strava_service.unlink_account(7) is True
+            assert strava_service.unlink_account(MOCK_USER_ID) is True
 
         assert delete_activities.call_count == 3
         assert all(call.kwargs["limit"] == batch for call in delete_activities.call_args_list)
@@ -224,7 +231,7 @@ class TestDeleteRevokedData:
             patch.object(strava_service.strava_client_service, "create_strava_client") as create_client,
             jasil_testing.capture_audit() as audit,
         ):
-            result = strava_service.delete_revoked_data(7)
+            result = strava_service.delete_revoked_data(MOCK_USER_ID)
         return result, order, push, create_client, audit
 
     def test_data_of_a_user_revoked_past_the_grace_period_is_deleted_and_the_user_told(self):
@@ -232,10 +239,13 @@ class TestDeleteRevokedData:
 
         assert result is True
         assert order == ["batch", "gear", "clear", "notify"]
-        push.assert_called_once_with(7, "n", "ws")
+        push.assert_called_once_with(MOCK_USER_ID, "n", "ws")
         create_client.assert_not_called()
         entry = audit.assert_audited(
-            strava_audit_actions.DATA_DELETE.id, target_type="user", target_id="7", target_owner_id="7"
+            strava_audit_actions.DATA_DELETE.id,
+            target_type="user",
+            target_id=str(MOCK_USER_ID),
+            target_owner_id=str(MOCK_USER_ID),
         )
         assert entry.details == {"activity_count": 2}
 

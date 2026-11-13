@@ -1,6 +1,7 @@
 """Tests for the sign-up workflow: a taken email gets the same answer as a new one."""
 
 import contextlib
+import uuid
 from unittest.mock import MagicMock, patch
 
 import jasil.audit as jasil_audit
@@ -15,6 +16,11 @@ import modules.auth.sign_up_tokens.contracts as sign_up_contracts
 import modules.auth.sign_up_tokens.schema as sign_up_schema
 import modules.auth.sign_up_tokens.service as sign_up_service
 import modules.users.users.schema as users_schema
+from tests._helpers.auth import MOCK_USER_ID
+
+_USER_3 = uuid.UUID("00000000-0000-4000-8000-000000000003")
+_USER_4 = uuid.UUID("00000000-0000-4000-8000-000000000004")
+_USER_10 = uuid.UUID("00000000-0000-4000-8000-000000000010")
 
 _MODULE = "modules.auth.sign_up_tokens.service"
 #: Configures a patched users module so that no account holds the username a sign-up asks for.
@@ -61,11 +67,11 @@ class TestSignupWithATakenEmail:
             patch(f"{_MODULE}.sign_up_event_publishers"),
         ):
             body = _signup_user(with_password=not verification)
-            users.stage_signup_user.return_value = MagicMock(id=7)
+            users.stage_signup_user.return_value = MagicMock(id=MOCK_USER_ID)
             created = sign_up_service.signup(body, state, mock_db)
 
             users.stage_signup_user.side_effect = core_exceptions.ConflictError("Unable to create user.")
-            users.get_user_by_email.return_value = MagicMock(id=3)
+            users.get_user_by_email.return_value = MagicMock(id=_USER_3)
             taken = sign_up_service.signup(body, state, mock_db)
 
         assert taken == created
@@ -78,12 +84,12 @@ class TestSignupWithATakenEmail:
             patch(f"{_MODULE}.sign_up_event_publishers") as publishers,
         ):
             users.stage_signup_user.side_effect = core_exceptions.ConflictError("Unable to create user.")
-            users.get_user_by_email.return_value = MagicMock(id=3)
+            users.get_user_by_email.return_value = MagicMock(id=_USER_3)
 
             sign_up_service.signup(_signup_user(), state, mock_db)
 
         users.get_user_by_email.assert_called_once_with("test@example.com", mock_db)
-        publishers.publish_sign_up_existing_account.assert_called_once_with(3, mock_db)
+        publishers.publish_sign_up_existing_account.assert_called_once_with(_USER_3, mock_db)
         publishers.publish_sign_up_verification_requested.assert_not_called()
         mock_db.rollback.assert_called_once()
         mock_db.commit.assert_called_once()
@@ -96,7 +102,7 @@ class TestSignupWithATakenEmail:
             patch(f"{_MODULE}.sign_up_event_publishers") as publishers,
         ):
             users.stage_signup_user.side_effect = core_exceptions.ConflictError("Unable to create user.")
-            users.get_user_by_email.return_value = MagicMock(id=3)
+            users.get_user_by_email.return_value = MagicMock(id=_USER_3)
 
             result = sign_up_service.signup(_signup_user(), state, mock_db)
 
@@ -117,7 +123,7 @@ class TestSignupCommitsTheAccountAndItsEventTogether:
             patch(f"{_MODULE}.users_integration", **_FREE_USERNAME) as users,
             patch(f"{_MODULE}.sign_up_event_publishers") as publishers,
         ):
-            users.stage_signup_user.return_value = MagicMock(id=7)
+            users.stage_signup_user.return_value = MagicMock(id=MOCK_USER_ID)
             order.attach_mock(users.stage_signup_user, "user")
             order.attach_mock(publishers.publish_sign_up_verification_requested, "event")
             order.attach_mock(mock_db.commit, "commit")
@@ -148,13 +154,13 @@ class TestSignupAwaitingApproval:
             patch(f"{_MODULE}.users_integration", **_FREE_USERNAME) as users,
             patch(f"{_MODULE}.sign_up_event_publishers") as publishers,
         ):
-            users.stage_signup_user.return_value = MagicMock(id=7, pending_admin_approval=approval)
-            users.require_admin_users.return_value = [MagicMock(id=10)]
+            users.stage_signup_user.return_value = MagicMock(id=MOCK_USER_ID, pending_admin_approval=approval)
+            users.require_admin_users.return_value = [MagicMock(id=_USER_10)]
 
             sign_up_service.signup(_signup_user(with_password=not verification), state, mock_db)
 
         if asked:
-            publishers.publish_sign_up_approval_requested.assert_called_once_with(7, 10, mock_db)
+            publishers.publish_sign_up_approval_requested.assert_called_once_with(MOCK_USER_ID, _USER_10, mock_db)
         else:
             publishers.publish_sign_up_approval_requested.assert_not_called()
         mock_db.commit.assert_called_once()
@@ -180,15 +186,15 @@ class TestSignUpVerificationResend:
 
     def test_sends_a_new_email_to_an_account_awaiting_verification(self, mock_db, state):
         _, publish = self._resend(
-            state, mock_db, user=MagicMock(id=7, active=False, email_verified=False, email="u@example.com")
+            state, mock_db, user=MagicMock(id=MOCK_USER_ID, active=False, email_verified=False, email="u@example.com")
         )
 
-        publish.assert_called_once_with(7, mock_db)
-        self.stage_token.assert_called_once_with(7, "u@example.com", None, mock_db)
+        publish.assert_called_once_with(MOCK_USER_ID, mock_db)
+        self.stage_token.assert_called_once_with(MOCK_USER_ID, "u@example.com", None, mock_db)
         mock_db.commit.assert_called_once()
 
     def test_a_second_request_within_the_cooldown_sends_nothing(self, mock_db, state):
-        user = MagicMock(id=7, active=False, email_verified=False, email="u@example.com")
+        user = MagicMock(id=MOCK_USER_ID, active=False, email_verified=False, email="u@example.com")
         self._resend(state, mock_db, user=user)
         _, publish = self._resend(state, mock_db, user=user)
 
@@ -198,8 +204,8 @@ class TestSignUpVerificationResend:
         "user",
         [
             None,
-            MagicMock(id=7, active=True, email_verified=True),
-            MagicMock(id=7, active=False, email_verified=True),
+            MagicMock(id=MOCK_USER_ID, active=True, email_verified=True),
+            MagicMock(id=MOCK_USER_ID, active=False, email_verified=True),
         ],
     )
     def test_an_address_that_is_not_awaiting_verification_sends_nothing(self, mock_db, state, user):
@@ -211,7 +217,7 @@ class TestSignUpVerificationResend:
         _, publish = self._resend(
             state,
             mock_db,
-            user=MagicMock(id=7, active=False, email_verified=False, email="u@example.com"),
+            user=MagicMock(id=MOCK_USER_ID, active=False, email_verified=False, email="u@example.com"),
             deactivated=True,
         )
 
@@ -222,7 +228,7 @@ class TestSignUpVerificationResend:
         _, publish = self._resend(
             state,
             mock_db,
-            user=MagicMock(id=7, active=False, email_verified=False, email="u@example.com"),
+            user=MagicMock(id=MOCK_USER_ID, active=False, email_verified=False, email="u@example.com"),
             mail=mail,
             verification=verification,
         )
@@ -233,14 +239,14 @@ class TestSignUpVerificationResend:
         state = MagicMock()
         state.set_if_absent.side_effect = StateBackendUnavailableError("down")
         _, publish = self._resend(
-            state, mock_db, user=MagicMock(id=7, active=False, email_verified=False, email="u@example.com")
+            state, mock_db, user=MagicMock(id=MOCK_USER_ID, active=False, email_verified=False, email="u@example.com")
         )
 
         publish.assert_not_called()
 
     def test_every_outcome_answers_the_same(self, mock_db, state):
         sent, _ = self._resend(
-            state, mock_db, user=MagicMock(id=7, active=False, email_verified=False, email="u@example.com")
+            state, mock_db, user=MagicMock(id=MOCK_USER_ID, active=False, email_verified=False, email="u@example.com")
         )
         unknown, _ = self._resend(MemoryState(), mock_db, user=None)
 
@@ -248,7 +254,7 @@ class TestSignUpVerificationResend:
 
 
 class TestExistingAccountNoticeCooldown:
-    def _signup_with_a_taken_email(self, state, db, *, owner_id=3):
+    def _signup_with_a_taken_email(self, state, db, *, owner_id=_USER_3):
         with (
             patch(f"{_MODULE}.server_settings_integration.get_server_settings", return_value=_settings()),
             patch(f"{_MODULE}.server_settings_integration.is_mail_configured", return_value=True),
@@ -269,8 +275,8 @@ class TestExistingAccountNoticeCooldown:
         assert second == first
 
     def test_each_owner_has_their_own_cooldown(self, mock_db, state):
-        self._signup_with_a_taken_email(state, mock_db, owner_id=3)
-        _, other = self._signup_with_a_taken_email(state, mock_db, owner_id=4)
+        self._signup_with_a_taken_email(state, mock_db, owner_id=_USER_3)
+        _, other = self._signup_with_a_taken_email(state, mock_db, owner_id=_USER_4)
 
         other.publish_sign_up_existing_account.assert_called_once()
 
@@ -299,7 +305,7 @@ class TestSignupWithATakenUsername:
             if insert_conflicts:
                 users.stage_signup_user.side_effect = core_exceptions.ConflictError("Unable to create user.")
             else:
-                users.stage_signup_user.return_value = MagicMock(id=7)
+                users.stage_signup_user.return_value = MagicMock(id=MOCK_USER_ID)
             try:
                 result = sign_up_service.signup(_signup_user(), state, db)
             finally:
@@ -307,9 +313,9 @@ class TestSignupWithATakenUsername:
         return result, captured
 
     def test_a_taken_username_is_refused_whatever_the_email(self, mock_db, state):
-        for email_holder in (None, MagicMock(id=3)):
+        for email_holder in (None, MagicMock(id=_USER_3)):
             with pytest.raises(core_exceptions.ConflictError, match="That username is already taken"):
-                self._signup(state, mock_db, username_holder=MagicMock(id=4), email_holder=email_holder)
+                self._signup(state, mock_db, username_holder=MagicMock(id=_USER_4), email_holder=email_holder)
 
     def test_a_taken_username_does_not_tell_the_email_owner_or_create_anything(self, mock_db, state):
         publishers = MagicMock()
@@ -320,8 +326,8 @@ class TestSignupWithATakenUsername:
             patch(f"{_MODULE}.sign_up_event_publishers", publishers),
             pytest.raises(core_exceptions.ConflictError),
         ):
-            users.get_user_by_username.return_value = MagicMock(id=4)
-            users.get_user_by_email.return_value = MagicMock(id=3)
+            users.get_user_by_username.return_value = MagicMock(id=_USER_4)
+            users.get_user_by_email.return_value = MagicMock(id=_USER_3)
             sign_up_service.signup(_signup_user(), state, mock_db)
 
         users.get_user_by_email.assert_not_called()
@@ -329,10 +335,12 @@ class TestSignupWithATakenUsername:
         publishers.publish_sign_up_existing_account.assert_not_called()
 
     def test_a_free_username_with_a_registered_email_answers_200_and_stages_the_notice(self, mock_db, state):
-        result, (_users, publishers) = self._signup(state, mock_db, username_holder=None, email_holder=MagicMock(id=3))
+        result, (_users, publishers) = self._signup(
+            state, mock_db, username_holder=None, email_holder=MagicMock(id=_USER_3)
+        )
 
         assert result.next_step
-        publishers.publish_sign_up_existing_account.assert_called_once_with(3, mock_db)
+        publishers.publish_sign_up_existing_account.assert_called_once_with(_USER_3, mock_db)
 
     def test_a_username_taken_while_the_insert_raced_is_refused(self, mock_db, state):
         with pytest.raises(core_exceptions.ConflictError, match="That username is already taken"):
@@ -340,8 +348,8 @@ class TestSignupWithATakenUsername:
                 state,
                 mock_db,
                 username_holder=None,
-                email_holder=MagicMock(id=3),
-                username_holder_after_race=MagicMock(id=4),
+                email_holder=MagicMock(id=_USER_3),
+                username_holder_after_race=MagicMock(id=_USER_4),
             )
 
 
@@ -350,7 +358,7 @@ class TestExistingAccountEmail:
         owner = MagicMock(email="owner@example.com", preferred_language="en")
         owner.name = "Owner"
         with patch(f"{_MODULE}.users_integration.get_user", return_value=owner):
-            message = sign_up_service.prepare_sign_up_existing_account_email(3, "https://app.example", mock_db)
+            message = sign_up_service.prepare_sign_up_existing_account_email(_USER_3, "https://app.example", mock_db)
 
         assert message is not None
         recipient, _subject, html_content, text_content = message
@@ -360,7 +368,9 @@ class TestExistingAccountEmail:
 
     def test_a_missing_owner_sends_nothing(self, mock_db):
         with patch(f"{_MODULE}.users_integration.get_user", return_value=None):
-            assert sign_up_service.prepare_sign_up_existing_account_email(3, "https://app.example", mock_db) is None
+            assert (
+                sign_up_service.prepare_sign_up_existing_account_email(_USER_3, "https://app.example", mock_db) is None
+            )
 
 
 class TestSignupPasswordPolicy:
@@ -406,14 +416,14 @@ class TestSignupPasswordPolicy:
             patch(f"{_MODULE}.users_integration", **_FREE_USERNAME) as users,
             patch(f"{_MODULE}.request_sign_up_verification_email"),
         ):
-            users.stage_signup_user.return_value = MagicMock(id=7)
+            users.stage_signup_user.return_value = MagicMock(id=MOCK_USER_ID)
             sign_up_service.signup(_signup_user(with_password=False), state, mock_db)
 
         assert users.stage_signup_user.call_args.args[0].password is None
 
 
 def _claim(*, previous_email=None):
-    return MagicMock(id="t1", user_id=7, email="u@example.com", previous_email=previous_email)
+    return MagicMock(id="t1", user_id=MOCK_USER_ID, email="u@example.com", previous_email=previous_email)
 
 
 class TestConfirmSignUp:
@@ -436,7 +446,9 @@ class TestConfirmSignUp:
             patch(f"{_MODULE}.sign_up_event_publishers"),
         ):
             verify_token.return_value = _claim()
-            mocks["users_integration"].get_user.return_value = MagicMock(id=7, active=False, access_type="regular")
+            mocks["users_integration"].get_user.return_value = MagicMock(
+                id=MOCK_USER_ID, active=False, access_type="regular"
+            )
             mocks["users_integration"].is_deactivated.return_value = False
             mocks["credentials_integration"].validate_and_hash_password_for_user.return_value = "hashed"
             yield mocks | {"verify_token": verify_token}
@@ -451,9 +463,9 @@ class TestConfirmSignUp:
             "username": deps["users_integration"].get_user.return_value.username,
             "email": deps["users_integration"].get_user.return_value.email,
         }
-        creds.set_local_password_hash.assert_called_once_with(7, "hashed", mock_db, change_required=False)
-        deps["sessions_integration"].delete_sessions_by_user.assert_called_once_with(7, mock_db)
-        deps["password_reset_tokens_integration"].revoke_unused_tokens.assert_called_once_with(7, mock_db)
+        creds.set_local_password_hash.assert_called_once_with(MOCK_USER_ID, "hashed", mock_db, change_required=False)
+        deps["sessions_integration"].delete_sessions_by_user.assert_called_once_with(MOCK_USER_ID, mock_db)
+        deps["password_reset_tokens_integration"].revoke_unused_tokens.assert_called_once_with(MOCK_USER_ID, mock_db)
         deps["users_integration"].stage_email_verification.assert_called_once()
         assert result.next_step is sign_up_schema.SignUpNextStep.SIGN_IN
 
@@ -486,18 +498,20 @@ class TestConfirmSignUp:
         deps["credentials_integration"].set_local_password_hash.assert_not_called()
 
     def test_an_activated_account_without_a_password_chooses_one(self, deps, mock_db):
-        deps["users_integration"].get_user.return_value = MagicMock(id=7, active=True, access_type="regular")
+        deps["users_integration"].get_user.return_value = MagicMock(id=MOCK_USER_ID, active=True, access_type="regular")
         deps["credentials_integration"].has_local_password.return_value = False
 
         sign_up_service.confirm_sign_up("tok", "ChosenPass1!", mock_db)
 
         deps["credentials_integration"].set_local_password_hash.assert_called_once_with(
-            7, "hashed", mock_db, change_required=False
+            MOCK_USER_ID, "hashed", mock_db, change_required=False
         )
 
     @pytest.mark.parametrize("active", [True, False])
     def test_an_account_that_does_not_take_a_password_refuses_one(self, deps, mock_db, active):
-        deps["users_integration"].get_user.return_value = MagicMock(id=7, active=active, access_type="regular")
+        deps["users_integration"].get_user.return_value = MagicMock(
+            id=MOCK_USER_ID, active=active, access_type="regular"
+        )
         deps["users_integration"].is_deactivated.return_value = not active
         deps["credentials_integration"].has_local_password.return_value = True
 
@@ -543,7 +557,9 @@ class TestSignUpOff:
             yield mocks | {"verify_token": verify_token}
 
     def test_a_real_sign_up_confirmation_is_refused_and_writes_nothing(self, deps, mock_db):
-        deps["users_integration"].get_user.return_value = MagicMock(id=7, active=False, access_type="regular")
+        deps["users_integration"].get_user.return_value = MagicMock(
+            id=MOCK_USER_ID, active=False, access_type="regular"
+        )
 
         with pytest.raises(core_exceptions.PermissionDeniedError) as refused:
             sign_up_service.confirm_sign_up("tok", "ChosenPass1!", mock_db)
@@ -554,7 +570,9 @@ class TestSignUpOff:
         mock_db.commit.assert_not_called()
 
     def test_a_refused_real_sign_up_rolls_back_the_claim_and_audits_the_failure(self, deps, mock_db):
-        deps["users_integration"].get_user.return_value = MagicMock(id=7, active=False, access_type="regular")
+        deps["users_integration"].get_user.return_value = MagicMock(
+            id=MOCK_USER_ID, active=False, access_type="regular"
+        )
 
         with (
             patch(f"{_MODULE}.jasil_audit.record_detached") as record,
@@ -568,24 +586,26 @@ class TestSignUpOff:
         assert record.call_args.kwargs == {
             "outcome": jasil_audit.Outcome.FAILURE,
             "target_type": "user",
-            "target_id": "7",
-            "target_owner_id": "7",
+            "target_id": str(MOCK_USER_ID),
+            "target_owner_id": str(MOCK_USER_ID),
             "details": sign_up_audit_actions.SignUpConfirmDetails(reason="sign_up_disabled"),
         }
 
     def test_an_activated_passwordless_account_still_chooses_its_password(self, deps, mock_db):
-        deps["users_integration"].get_user.return_value = MagicMock(id=7, active=True, access_type="regular")
+        deps["users_integration"].get_user.return_value = MagicMock(id=MOCK_USER_ID, active=True, access_type="regular")
 
         result = sign_up_service.confirm_sign_up("tok", "ChosenPass1!", mock_db)
 
         deps["credentials_integration"].set_local_password_hash.assert_called_once_with(
-            7, "hashed", mock_db, change_required=False
+            MOCK_USER_ID, "hashed", mock_db, change_required=False
         )
         mock_db.commit.assert_called_once()
         assert result.next_step is sign_up_schema.SignUpNextStep.SIGN_IN
 
     def test_the_breach_check_runs_before_the_claim_for_either_account(self, deps, mock_db):
-        deps["users_integration"].get_user.return_value = MagicMock(id=7, active=False, access_type="regular")
+        deps["users_integration"].get_user.return_value = MagicMock(
+            id=MOCK_USER_ID, active=False, access_type="regular"
+        )
         order: list[str] = []
         deps["credentials_integration"].reject_breached_password.side_effect = lambda *a, **k: order.append("breach")
         deps["verify_token"].side_effect = lambda *a, **k: (order.append("claim"), _claim())[1]
@@ -607,7 +627,9 @@ class TestSignUpOff:
     def test_the_refusal_is_the_one_the_sign_up_request_gives(self, deps, mock_db, state):
         with pytest.raises(core_exceptions.PermissionDeniedError) as signed_up:
             sign_up_service.signup(_signup_user(), state, mock_db)
-        deps["users_integration"].get_user.return_value = MagicMock(id=7, active=False, access_type="regular")
+        deps["users_integration"].get_user.return_value = MagicMock(
+            id=MOCK_USER_ID, active=False, access_type="regular"
+        )
         with pytest.raises(core_exceptions.PermissionDeniedError) as confirmed:
             sign_up_service.confirm_sign_up("tok", "ChosenPass1!", mock_db)
         with pytest.raises(core_exceptions.PermissionDeniedError) as resent:
@@ -617,7 +639,7 @@ class TestSignUpOff:
 
     def test_an_email_change_confirmation_is_not_affected(self, deps, mock_db):
         deps["verify_token"].return_value = _claim(previous_email="old@example.com")
-        deps["users_integration"].get_user.return_value = MagicMock(id=7, active=True)
+        deps["users_integration"].get_user.return_value = MagicMock(id=MOCK_USER_ID, active=True)
 
         result = sign_up_service.confirm_email_change("tok", mock_db)
 
@@ -636,15 +658,17 @@ class TestConfirmEmailChange:
             patch(f"{_MODULE}.sign_up_event_publishers") as publishers,
         ):
             verify_token.return_value = _claim(previous_email="old@example.com")
-            mocks["users_integration"].get_user.return_value = MagicMock(id=7, active=True)
+            mocks["users_integration"].get_user.return_value = MagicMock(id=MOCK_USER_ID, active=True)
             yield mocks | {"verify_token": verify_token, "publishers": publishers}
 
     def test_the_address_is_switched_and_the_account_signs_in_again(self, deps, mock_db):
         result = sign_up_service.confirm_email_change("tok", mock_db)
 
         deps["verify_token"].assert_called_once_with("tok", mock_db, email_change=True)
-        deps["users_integration"].stage_confirmed_email_change.assert_called_once_with(7, "u@example.com", mock_db)
-        deps["publishers"].publish_email_changed.assert_called_once_with(7, "t1", mock_db)
+        deps["users_integration"].stage_confirmed_email_change.assert_called_once_with(
+            MOCK_USER_ID, "u@example.com", mock_db
+        )
+        deps["publishers"].publish_email_changed.assert_called_once_with(MOCK_USER_ID, "t1", mock_db)
         deps["users_integration"].stage_email_verification.assert_called_once()
         deps["credentials_integration"].set_local_password_hash.assert_not_called()
         deps["sessions_integration"].delete_sessions_by_user.assert_not_called()
@@ -657,12 +681,18 @@ class TestVerifySignUpTokenBump:
 
     @staticmethod
     def _plain():
-        return sign_up_contracts.SignUpTokenClaim(id="t", user_id=7, email="u@example.com", previous_email=None)
+        return sign_up_contracts.SignUpTokenClaim(
+            id="t", user_id=MOCK_USER_ID, email="u@example.com", previous_email=None
+        )
 
     @staticmethod
     def _change(generation=0):
         return sign_up_contracts.EmailChangeClaim(
-            id="t", user_id=7, email="new@example.com", previous_email="old@example.com", security_generation=generation
+            id="t",
+            user_id=MOCK_USER_ID,
+            email="new@example.com",
+            previous_email="old@example.com",
+            security_generation=generation,
         )
 
     @staticmethod
@@ -685,7 +715,7 @@ class TestVerifySignUpTokenBump:
 
         assert names == ["bump", "claim"]
         bump.assert_called_once()
-        assert bump.call_args.args[0] == 7
+        assert bump.call_args.args[0] == MOCK_USER_ID
 
     def test_an_email_change_bumps_before_the_claim(self):
         names, _ = self._verify(self._change(), email_change=True)
@@ -693,7 +723,7 @@ class TestVerifySignUpTokenBump:
         assert names == ["bump", "claim"]
 
     def test_an_email_change_from_an_earlier_generation_neither_bumps_nor_claims(self, security_generations):
-        security_generations.generations[7] = 1
+        security_generations.generations[MOCK_USER_ID] = 1
 
         names, bump = self._verify(self._change(0), email_change=True)
 
@@ -735,7 +765,7 @@ class TestSignupNextStep:
             patch(f"{_MODULE}.users_integration", **_FREE_USERNAME) as users,
             patch(f"{_MODULE}.sign_up_event_publishers"),
         ):
-            users.stage_signup_user.return_value = MagicMock(id=7, pending_admin_approval=approval)
+            users.stage_signup_user.return_value = MagicMock(id=MOCK_USER_ID, pending_admin_approval=approval)
             result = sign_up_service.signup(_signup_user(with_password=not verification), state, mock_db)
 
         assert result.next_step is expected

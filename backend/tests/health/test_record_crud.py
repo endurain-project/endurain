@@ -1,3 +1,4 @@
+import uuid
 from datetime import date
 from unittest.mock import MagicMock
 
@@ -9,6 +10,8 @@ import modules.health.health_steps.models as health_steps_models
 import modules.health.health_steps.schema as health_steps_schema
 import modules.health.record_crud as health_record_crud
 
+_RECORD_ID = uuid.uuid4()
+_USER_ID = uuid.uuid4()
 _SPEC = health_record_crud.RecordSpec(
     model=health_steps_models.HealthSteps,
     read_schema=health_steps_schema.HealthStepsRead,
@@ -29,13 +32,13 @@ class TestGetOwned:
         row = _row()
         mock_db.execute.return_value.scalar_one_or_none.return_value = row
 
-        assert health_record_crud.get_owned(_SPEC, 1, 2, mock_db) is row
+        assert health_record_crud.get_owned(_SPEC, _RECORD_ID, _USER_ID, mock_db) is row
 
     def test_a_missing_row_is_not_found_with_the_spec_message(self, mock_db):
         mock_db.execute.return_value.scalar_one_or_none.return_value = None
 
         with pytest.raises(core_exceptions.NotFoundError, match="Health steps not found"):
-            health_record_crud.get_owned(_SPEC, 1, 2, mock_db)
+            health_record_crud.get_owned(_SPEC, _RECORD_ID, _USER_ID, mock_db)
 
 
 class TestSave:
@@ -83,7 +86,7 @@ class TestDelete:
         row = _row(version=3)
         mock_db.execute.return_value.scalar_one_or_none.return_value = row
 
-        health_record_crud.delete(_SPEC, 1, 2, mock_db, if_match='"3"')
+        health_record_crud.delete(_SPEC, _RECORD_ID, _USER_ID, mock_db, if_match='"3"')
 
         mock_db.delete.assert_called_once_with(row)
         mock_db.flush.assert_called_once()
@@ -92,14 +95,14 @@ class TestDelete:
         mock_db.execute.return_value.scalar_one_or_none.return_value = _row(version=4)
 
         with pytest.raises(core_exceptions.PreconditionFailedError):
-            health_record_crud.delete(_SPEC, 1, 2, mock_db, if_match='"3"')
+            health_record_crud.delete(_SPEC, _RECORD_ID, _USER_ID, mock_db, if_match='"3"')
         mock_db.delete.assert_not_called()
 
     def test_a_missing_row_is_not_found(self, mock_db):
         mock_db.execute.return_value.scalar_one_or_none.return_value = None
 
         with pytest.raises(core_exceptions.NotFoundError):
-            health_record_crud.delete(_SPEC, 1, 2, mock_db, if_match='"3"')
+            health_record_crud.delete(_SPEC, _RECORD_ID, _USER_ID, mock_db, if_match='"3"')
 
 
 def test_the_duplicate_date_message_names_the_day():

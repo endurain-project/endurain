@@ -3,6 +3,8 @@
 Writes stage; the caller owns the commit.
 """
 
+import uuid
+
 from sqlalchemy.orm import Session
 
 import modules.activities.activity.constants as activity_constants
@@ -10,7 +12,9 @@ import modules.users.users_privacy_settings.crud as users_privacy_settings_crud
 import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 
 
-def get_privacy_settings(user_id: int, db: Session) -> users_privacy_settings_schema.UserPrivacySettingsRead | None:
+def get_privacy_settings(
+    user_id: uuid.UUID, db: Session
+) -> users_privacy_settings_schema.UserPrivacySettingsRead | None:
     """Return a user's privacy settings.
 
     Args:
@@ -23,7 +27,7 @@ def get_privacy_settings(user_id: int, db: Session) -> users_privacy_settings_sc
     return users_privacy_settings_crud.get_user_privacy_settings_by_user_id(user_id, db)
 
 
-def list_undiscoverable_user_ids(db: Session) -> list[int]:
+def list_undiscoverable_user_ids(db: Session) -> list[uuid.UUID]:
     """Return the users who opted out of the username search.
 
     Args:
@@ -35,7 +39,7 @@ def list_undiscoverable_user_ids(db: Session) -> list[int]:
     return users_privacy_settings_crud.list_undiscoverable_user_ids(db)
 
 
-def create_privacy_settings(user_id: int, db: Session) -> users_privacy_settings_schema.UserPrivacySettingsRead:
+def create_privacy_settings(user_id: uuid.UUID, db: Session) -> users_privacy_settings_schema.UserPrivacySettingsRead:
     """Stage default privacy settings for a new user.
 
     Args:
@@ -52,7 +56,7 @@ def create_privacy_settings(user_id: int, db: Session) -> users_privacy_settings
 
 
 def edit_privacy_settings(
-    user_id: int,
+    user_id: uuid.UUID,
     privacy_settings: users_privacy_settings_schema.UserPrivacySettingsUpdate,
     db: Session,
     *,

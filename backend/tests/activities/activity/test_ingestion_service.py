@@ -7,6 +7,10 @@ import pytest
 
 import core.exceptions as core_exceptions
 
+_USER_1 = uuid.UUID(int=1)
+_USER_2 = uuid.UUID(int=2)
+_USER_3 = uuid.UUID(int=3)
+
 
 def _parsed(**overrides):
     """Build a ParsedActivity with a mock activity and components.
@@ -18,7 +22,7 @@ def _parsed(**overrides):
     import modules.activities.activity.contracts as schema
 
     data = {
-        "activity": MagicMock(strava_activity_id=None, garminconnect_activity_id=None, user_id=3),
+        "activity": MagicMock(strava_activity_id=None, garminconnect_activity_id=None, user_id=_USER_3),
         "components": {},
         "source": schema.ImportSource(kind="upload"),
     }
@@ -33,7 +37,7 @@ class TestStoreParsedActivity:
     def test_stores_activity_and_component(self, mock_crud, mock_registry, mock_pub):
         import modules.activities.activity.ingestion_service as ingestion_service
 
-        created = MagicMock(id=uuid.uuid4(), user_id=3)
+        created = MagicMock(id=uuid.uuid4(), user_id=_USER_3)
         mock_crud.create_activity = MagicMock(return_value=created)
         contributor = MagicMock(key="streams")
         mock_registry.get_activity_ingestion_contributor.return_value = contributor
@@ -49,7 +53,7 @@ class TestStoreParsedActivity:
         mock_registry.get_activity_ingestion_contributor.assert_called_once_with("streams")
         contributor.persist.assert_called_once_with(component_data, created, db)
         mock_pub.publish_activity_created.assert_called_once()
-        assert mock_pub.publish_activity_created.call_args.args[:2] == (created.id, 3)
+        assert mock_pub.publish_activity_created.call_args.args[:2] == (created.id, _USER_3)
 
     @patch("modules.activities.activity.ingestion_service.activity_event_publishers")
     @patch("modules.activities.activity.ingestion_service.activities_contributor_registry")
@@ -57,7 +61,7 @@ class TestStoreParsedActivity:
     def test_no_components_skips_contributor_lookup(self, mock_crud, mock_registry, mock_pub):
         import modules.activities.activity.ingestion_service as ingestion_service
 
-        mock_crud.create_activity = MagicMock(return_value=MagicMock(id=uuid.uuid4(), user_id=1))
+        mock_crud.create_activity = MagicMock(return_value=MagicMock(id=uuid.uuid4(), user_id=_USER_1))
 
         ingestion_service.store_parsed_activity(_parsed(), MagicMock())
 
@@ -69,7 +73,7 @@ class TestStoreParsedActivity:
     def test_persists_each_non_null_component(self, mock_crud, mock_registry, mock_pub):
         import modules.activities.activity.ingestion_service as ingestion_service
 
-        created = MagicMock(id=uuid.uuid4(), user_id=1)
+        created = MagicMock(id=uuid.uuid4(), user_id=_USER_1)
         mock_crud.create_activity = MagicMock(return_value=created)
         contributors = {key: MagicMock(key=key) for key in ("laps", "sets", "workout_steps")}
         mock_registry.get_activity_ingestion_contributor.side_effect = contributors.get
@@ -113,7 +117,7 @@ class TestStoreParsedActivity:
     def test_persists_components_and_activity_without_committing(self, mock_crud, mock_registry, mock_pub):
         import modules.activities.activity.ingestion_service as ingestion_service
 
-        created = MagicMock(id=uuid.uuid4(), user_id=3, is_hidden=False)
+        created = MagicMock(id=uuid.uuid4(), user_id=_USER_3, is_hidden=False)
         mock_crud.create_activity = MagicMock(return_value=created)
         contributor = MagicMock(key="streams")
         mock_registry.get_activity_ingestion_contributor.return_value = contributor
@@ -138,7 +142,7 @@ class TestStoreParsedActivity:
 
         import modules.activities.activity.ingestion_service as ingestion_service
 
-        mock_crud.create_activity = MagicMock(return_value=MagicMock(id=uuid.uuid4(), user_id=2, is_hidden=False))
+        mock_crud.create_activity = MagicMock(return_value=MagicMock(id=uuid.uuid4(), user_id=_USER_2, is_hidden=False))
         contributor = MagicMock(key="streams")
         contributor.persist.side_effect = SQLAlchemyError("boom")
         mock_registry.get_activity_ingestion_contributor.return_value = contributor
@@ -195,7 +199,7 @@ class TestStoreParsedActivity:
         import modules.activities.activity.contracts as schema
         import modules.activities.activity.ingestion_service as ingestion_service
 
-        existing = MagicMock(id=uuid.uuid4(), user_id=3)
+        existing = MagicMock(id=uuid.uuid4(), user_id=_USER_3)
         mock_crud.get_activity_by_dedup_key = MagicMock(return_value=existing)
         mock_crud.create_activity = MagicMock()
         db = MagicMock()
@@ -210,7 +214,7 @@ class TestStoreParsedActivity:
         # Re-import of an already-ingested dedup_key is a true no-op: the existing
         # activity is returned and nothing is created, staged, or published.
         assert result is existing
-        mock_crud.get_activity_by_dedup_key.assert_called_once_with("strava:123", 3, db)
+        mock_crud.get_activity_by_dedup_key.assert_called_once_with("strava:123", _USER_3, db)
         mock_crud.create_activity.assert_not_called()
         mock_registry.get_activity_ingestion_contributor.assert_called_once_with("streams")
         mock_registry.get_activity_ingestion_contributor.return_value.persist.assert_not_called()
@@ -230,7 +234,7 @@ class TestStoreParsedActivity:
         import modules.activities.activity.contracts as schema
         import modules.activities.activity.ingestion_service as ingestion_service
 
-        winner = MagicMock(id=uuid.uuid4(), user_id=3)
+        winner = MagicMock(id=uuid.uuid4(), user_id=_USER_3)
         # Not found before the insert, found after the conflict — the race.
         mock_crud.get_activity_by_dedup_key = MagicMock(side_effect=[None, winner])
         mock_crud.create_activity = MagicMock(
@@ -282,7 +286,7 @@ class TestStoreParsedActivity:
         mock_crud.create_activity = MagicMock(
             side_effect=sqlalchemy.exc.IntegrityError("INSERT", {}, Exception("boom"))
         )
-        activity = MagicMock(strava_activity_id=None, garminconnect_activity_id=None, user_id=3)
+        activity = MagicMock(strava_activity_id=None, garminconnect_activity_id=None, user_id=_USER_3)
         db = MagicMock()
 
         with pytest.raises(core_exceptions.ProcessingError) as exc:
@@ -298,9 +302,9 @@ class TestStoreParsedActivity:
         import modules.activities.activity.ingestion_service as ingestion_service
 
         mock_crud.get_activity_by_dedup_key = MagicMock(return_value=None)
-        mock_crud.create_activity = MagicMock(return_value=MagicMock(id=uuid.uuid4(), user_id=3, is_hidden=False))
+        mock_crud.create_activity = MagicMock(return_value=MagicMock(id=uuid.uuid4(), user_id=_USER_3, is_hidden=False))
 
-        activity = MagicMock(strava_activity_id=123, garminconnect_activity_id=None, user_id=3)
+        activity = MagicMock(strava_activity_id=123, garminconnect_activity_id=None, user_id=_USER_3)
         parsed = _parsed(activity=activity, source=schema.ImportSource(kind="upload"))
 
         ingestion_service.store_parsed_activity(parsed, MagicMock())
@@ -318,9 +322,9 @@ class TestStoreParsedActivity:
         import modules.activities.activity.ingestion_service as ingestion_service
 
         mock_crud.get_activity_by_dedup_key = MagicMock(return_value=None)
-        mock_crud.create_activity = MagicMock(return_value=MagicMock(id=uuid.uuid4(), user_id=3, is_hidden=False))
+        mock_crud.create_activity = MagicMock(return_value=MagicMock(id=uuid.uuid4(), user_id=_USER_3, is_hidden=False))
 
-        activity = MagicMock(strava_activity_id=None, garminconnect_activity_id=456, user_id=3)
+        activity = MagicMock(strava_activity_id=None, garminconnect_activity_id=456, user_id=_USER_3)
         parsed = _parsed(activity=activity, source=schema.ImportSource(kind="garmin"))
 
         ingestion_service.store_parsed_activity(parsed, MagicMock())
@@ -335,14 +339,14 @@ class TestStoreParsedActivity:
         import modules.activities.activity.contracts as schema
         import modules.activities.activity.ingestion_service as ingestion_service
 
-        existing = MagicMock(id=uuid.uuid4(), user_id=3)
+        existing = MagicMock(id=uuid.uuid4(), user_id=_USER_3)
         mock_crud.get_activity_by_dedup_key = MagicMock(return_value=existing)
         mock_crud.create_activity = MagicMock()
 
         activity = MagicMock(
             strava_activity_id=None,
             garminconnect_activity_id=None,
-            user_id=3,
+            user_id=_USER_3,
             start_time=datetime(2024, 1, 1, tzinfo=UTC),
         )
         parsed = _parsed(activity=activity, source=schema.ImportSource(kind="upload", content_hash="abc"))
@@ -356,7 +360,7 @@ class TestStoreParsedActivity:
         epoch = int(datetime(2024, 1, 1, tzinfo=UTC).timestamp())
         args = mock_crud.get_activity_by_dedup_key.call_args.args
         assert args[0] == f"file:abc:{epoch}"
-        assert args[1] == 3
+        assert args[1] == _USER_3
         mock_crud.create_activity.assert_not_called()
         mock_pub.publish_activity_created.assert_not_called()
 

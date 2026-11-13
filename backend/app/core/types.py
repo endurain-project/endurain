@@ -5,14 +5,11 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Annotated
 
-from pydantic import AfterValidator, AwareDatetime, BeforeValidator, Field, StrictInt, StrictStr, ValidationInfo
+from pydantic import AfterValidator, AwareDatetime, BeforeValidator, Field, StrictStr, ValidationInfo
 
-#: The largest value of a PostgreSQL ``integer`` column, which every id column is.
+#: The largest value of a PostgreSQL ``integer`` column, which bounds a count, a goal or a limit; no id column is an
+#: ``integer`` any more except the four allowlisted tables.
 INT32_MAX = 2**31 - 1
-
-#: An id a request body references. Strict, positive and inside the column's range, so a value
-#: the database cannot store is a validation failure rather than a 500.
-RecordId = Annotated[StrictInt, Field(ge=1, le=INT32_MAX)]
 
 #: Keyset sentinels below and above every id. PostgreSQL compares ``uuid`` bytewise and SQLAlchemy's ``Uuid`` on SQLite
 #: stores 32 hex characters, so both orders equal the integer order.

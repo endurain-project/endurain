@@ -25,6 +25,7 @@ import modules.auth.authentication.principal_service as principal_service
 import modules.users.users.schema as users_schema
 from modules.auth.constants import ClientType
 from modules.auth.contracts import AccessTokenCred
+from tests._helpers.auth import MOCK_USER_ID
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -63,7 +64,7 @@ def sample_user_read() -> users_schema.UserRead:
         users_schema.UserRead: Sample user.
     """
     return users_schema.UserRead(
-        id=1,
+        id=MOCK_USER_ID,
         name="Bench User",
         username="benchuser",
         email="bench@example.com",
@@ -80,7 +81,7 @@ def mock_user_orm() -> MagicMock:
         MagicMock: Mock ORM user.
     """
     user = MagicMock()
-    user.id = 1
+    user.id = MOCK_USER_ID
     user.username = "benchuser"
     user.email = "bench@example.com"
     user.active = True

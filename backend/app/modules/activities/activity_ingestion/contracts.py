@@ -40,14 +40,14 @@ class WindowStoppedError(Exception):
 #: opens a short session per unit of work so no transaction is held open across
 #: a network call.
 FetchWindow = Callable[
-    [int, datetime, datetime],
+    [uuid.UUID, datetime, datetime],
     list[activity_schema.ActivityRead] | None,
 ]
 
 #: The ids of users who have linked this provider, ascending, those greater than
 #: ``after_id``, at most ``limit``. Lets the scheduler enqueue one refresh per
 #: linked user instead of walking every user.
-LinkedUserIds = Callable[[int, int], list[int]]
+LinkedUserIds = Callable[[uuid.UUID | None, int], list[uuid.UUID]]
 
 
 def build_import_record(import_initiated_time: str, source_label: str = "Basic bulk import") -> dict[str, Any]:
@@ -141,7 +141,7 @@ class BulkImportSource:
     """
 
     import_initiated_time: str | None = None
-    user_id: int | None = None
+    user_id: uuid.UUID | None = None
 
     kind = "bulk_import"
 
@@ -247,8 +247,8 @@ class BulkImportFormat:
     name: str
     is_activity_member: Callable[[str], bool]
     is_export_member: Callable[[str], bool]
-    drop_directory: Callable[[int], str]
-    build_source: Callable[[int, str, ArchiveMemberReader], BulkImportSource]
+    drop_directory: Callable[[uuid.UUID], str]
+    build_source: Callable[[uuid.UUID, str, ArchiveMemberReader], BulkImportSource]
 
 
 @dataclass(frozen=True)
@@ -268,7 +268,7 @@ class BulkImportState:
         finished: Whether the job already reached a terminal state.
     """
 
-    user_id: int
+    user_id: uuid.UUID
     import_source: str
     staged_key: str | None
     cursor: str | None

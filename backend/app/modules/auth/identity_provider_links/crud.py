@@ -22,7 +22,9 @@ def check_user_identity_providers_by_idp_id(idp_id: uuid.UUID, db: Session) -> b
     return bool(db.execute(statement).scalar())
 
 
-def get_user_identity_providers_by_user_id(user_id: int, db: Session) -> list[identity_link_contracts.IdentityLinkRead]:
+def get_user_identity_providers_by_user_id(
+    user_id: uuid.UUID, db: Session
+) -> list[identity_link_contracts.IdentityLinkRead]:
     """Return the user's identity-provider links."""
     statement = select(identity_link_models.IdentityLink).where(identity_link_models.IdentityLink.user_id == user_id)
     rows = db.execute(statement).scalars().all()
@@ -30,7 +32,7 @@ def get_user_identity_providers_by_user_id(user_id: int, db: Session) -> list[id
 
 
 def get_identity_links_page(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     limit: int,
@@ -43,14 +45,14 @@ def get_identity_links_page(
     return [identity_link_serializers.to_read_schema(row) for row in rows]
 
 
-def count_identity_links(user_id: int, db: Session) -> int:
+def count_identity_links(user_id: uuid.UUID, db: Session) -> int:
     """Return how many links the user has."""
     model = identity_link_models.IdentityLink
     return db.execute(select(func.count(model.id)).where(model.user_id == user_id)).scalar_one()
 
 
 def get_user_identity_provider_by_user_id_and_idp_id(
-    user_id: int,
+    user_id: uuid.UUID,
     idp_id: uuid.UUID,
     db: Session,
 ) -> identity_link_contracts.IdentityLinkRead | None:
@@ -78,7 +80,7 @@ def get_user_identity_provider_by_subject_and_idp_id(
 
 
 def create_user_identity_provider(
-    user_id: int,
+    user_id: uuid.UUID,
     idp_id: uuid.UUID,
     idp_subject: str,
     db: Session,
@@ -101,7 +103,7 @@ def create_user_identity_provider(
 
 
 def update_user_identity_provider_last_login(
-    user_id: int,
+    user_id: uuid.UUID,
     idp_id: uuid.UUID,
     db: Session,
 ) -> identity_link_contracts.IdentityLinkRead | None:
@@ -119,7 +121,7 @@ def update_user_identity_provider_last_login(
     return identity_link_serializers.to_read_schema(row)
 
 
-def delete_user_identity_provider(user_id: int, idp_id: uuid.UUID, db: Session) -> bool:
+def delete_user_identity_provider(user_id: uuid.UUID, idp_id: uuid.UUID, db: Session) -> bool:
     """Stage deletion of a user's identity-provider link."""
     matched = core_database.rowcount(
         db,
@@ -132,7 +134,7 @@ def delete_user_identity_provider(user_id: int, idp_id: uuid.UUID, db: Session) 
     return bool(matched)
 
 
-def select_linked_user_ids() -> Select[tuple[int]]:
+def select_linked_user_ids() -> Select[tuple[uuid.UUID]]:
     """Return a query for the ids of the users who have at least one identity-provider link.
 
     Returns:
@@ -141,7 +143,7 @@ def select_linked_user_ids() -> Select[tuple[int]]:
     return select(identity_link_models.IdentityLink.user_id).distinct()
 
 
-def get_identity_link_counts_for_users(user_ids: list[int], db: Session) -> dict[int, int]:
+def get_identity_link_counts_for_users(user_ids: list[uuid.UUID], db: Session) -> dict[uuid.UUID, int]:
     """Return the number of identity-provider links for each matching user."""
     if not user_ids:
         return {}
@@ -158,7 +160,7 @@ def get_identity_link_counts_for_users(user_ids: list[int], db: Session) -> dict
 
 def create_idp_session_token(
     session_id: str,
-    user_id: int,
+    user_id: uuid.UUID,
     idp_id: uuid.UUID,
     encrypted_refresh_token: str | None,
     access_token_expires_at: datetime | None,
@@ -205,13 +207,13 @@ def get_idp_session_token(session_id: str, db: Session) -> identity_link_contrac
     return identity_link_serializers.to_session_token_read_schema(row) if row is not None else None
 
 
-def get_idp_session_token_ids_by_user_and_idp(user_id: int, idp_id: uuid.UUID, db: Session) -> list[str]:
+def get_idp_session_token_ids_by_user_and_idp(user_id: uuid.UUID, idp_id: uuid.UUID, db: Session) -> list[str]:
     """Return the ids of the sessions the user signed in to through the provider."""
     model = identity_link_models.IdpSessionToken
     return list(db.execute(select(model.session_id).where(model.user_id == user_id, model.idp_id == idp_id)).scalars())
 
 
-def get_idp_session_owners(idp_id: uuid.UUID, db: Session) -> list[tuple[str, int]]:
+def get_idp_session_owners(idp_id: uuid.UUID, db: Session) -> list[tuple[str, uuid.UUID]]:
     """Return the session id and user of every sign-in through the provider."""
     model = identity_link_models.IdpSessionToken
     return [
@@ -221,8 +223,8 @@ def get_idp_session_owners(idp_id: uuid.UUID, db: Session) -> list[tuple[str, in
 
 
 def get_idp_session_owners_by_sid(
-    idp_id: uuid.UUID, idp_sid: str, db: Session, *, user_id: int | None = None
-) -> list[tuple[str, int]]:
+    idp_id: uuid.UUID, idp_sid: str, db: Session, *, user_id: uuid.UUID | None = None
+) -> list[tuple[str, uuid.UUID]]:
     """Return the session id and user of each sign-in through the provider that holds a provider session id.
 
     Args:
@@ -242,7 +244,7 @@ def get_idp_session_owners_by_sid(
 
 
 def get_idp_session_tokens_page(
-    after_id: uuid.UUID | None, limit: int, db: Session, *, user_id: int | None = None
+    after_id: uuid.UUID | None, limit: int, db: Session, *, user_id: uuid.UUID | None = None
 ) -> list[identity_link_contracts.IdpSessionTokenRead]:
     """Return up to ``limit`` identity-provider sign-ins after ``after_id``, in id order, optionally one user's."""
     model = identity_link_models.IdpSessionToken

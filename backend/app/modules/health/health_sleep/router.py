@@ -175,7 +175,7 @@ def create_health_sleep(
         request: The incoming request, read by the rate limiter.
         health_sleep (health_sleep_schema.HealthSleepCreate): The health sleep data to create,
             including the date and sleep duration.
-        token_user_id (int): The ID of the authenticated user extracted from the
+        token_user_id (uuid.UUID): The ID of the authenticated user extracted from the
             access token.
         db (Session): Database session dependency for database operations.
         response: The response, whose ``Location`` names where the record is read.
@@ -215,7 +215,7 @@ def edit_health_sleep(
         health_sleep_id: ID of the record to change.
         health_sleep (health_sleep_schema.HealthSleepUpdate): The health sleep data to be updated,
             containing the new values for the health sleep record.
-        token_user_id (int): The user ID extracted from the JWT access token, used to identify
+        token_user_id (uuid.UUID): The user ID extracted from the JWT access token, used to identify
             the user making the request.
         db (Session): Database session dependency for performing database operations.
         response: The response, which carries the new ETag.
@@ -258,7 +258,7 @@ def delete_health_sleep(
     Args:
         request: The incoming request, read by the rate limiter.
         health_sleep_id (uuid.UUID): The unique identifier of the health sleep record to delete.
-        token_user_id (int): The user ID extracted from the access token.
+        token_user_id (uuid.UUID): The user ID extracted from the access token.
         if_match: The ``If-Match`` precondition.
         db (Session): Database session dependency for executing the delete operation.
 

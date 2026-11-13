@@ -11,11 +11,6 @@ from sqlalchemy.orm import Session
 import core.database as core_database
 import core.etag as core_etag
 import core.exceptions as core_exceptions
-import core.types as core_types
-
-#: A path-parameter id that must be positive and fit an ``integer`` column. Declared on the parameter's type, so
-#: FastAPI rejects a bad value with the standard validation problem document and publishes the bounds in OpenAPI.
-PositiveId = Annotated[int, Path(gt=0, le=core_types.INT32_MAX)]
 
 #: A path-parameter id that is a UUID. FastAPI answers 422 with the validation problem for a malformed value,
 #: and OpenAPI shows ``string``/``uuid``.

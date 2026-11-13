@@ -83,7 +83,7 @@ def duplicate_date_message(day: date | None) -> str:
 
 
 def get_owned[ModelT: Row, ReadT: BaseModel](
-    spec: RecordSpec[ModelT, ReadT], record_id: uuid.UUID, user_id: int, db: Session
+    spec: RecordSpec[ModelT, ReadT], record_id: uuid.UUID, user_id: uuid.UUID, db: Session
 ) -> ModelT:
     """Load a user's row by id.
 
@@ -106,7 +106,7 @@ def get_owned[ModelT: Row, ReadT: BaseModel](
 
 
 def exists[ModelT: Row, ReadT: BaseModel](
-    spec: RecordSpec[ModelT, ReadT], record_id: uuid.UUID, user_id: int, db: Session
+    spec: RecordSpec[ModelT, ReadT], record_id: uuid.UUID, user_id: uuid.UUID, db: Session
 ) -> bool:
     """Report whether a user has a record.
 
@@ -123,7 +123,7 @@ def exists[ModelT: Row, ReadT: BaseModel](
 
 
 def find_by_id[ModelT: Row, ReadT: BaseModel](
-    spec: RecordSpec[ModelT, ReadT], record_id: uuid.UUID, user_id: int, db: Session
+    spec: RecordSpec[ModelT, ReadT], record_id: uuid.UUID, user_id: uuid.UUID, db: Session
 ) -> ReadT | None:
     """Retrieve a user's record by id.
 
@@ -142,7 +142,7 @@ def find_by_id[ModelT: Row, ReadT: BaseModel](
 
 
 def find_by_date[ModelT: _DatedRow, ReadT: BaseModel](
-    spec: RecordSpec[ModelT, ReadT], user_id: int, day: str, db: Session
+    spec: RecordSpec[ModelT, ReadT], user_id: uuid.UUID, day: str, db: Session
 ) -> ReadT | None:
     """Retrieve a user's record for a date, for a record type that has one per day.
 
@@ -162,7 +162,7 @@ def find_by_date[ModelT: _DatedRow, ReadT: BaseModel](
 
 def count[ModelT: Row, ReadT: BaseModel](
     spec: RecordSpec[ModelT, ReadT],
-    user_id: int,
+    user_id: uuid.UUID,
     since_column: SQLColumnExpression[date],
     since: date | None,
     until: date | None,
@@ -189,7 +189,7 @@ def count[ModelT: Row, ReadT: BaseModel](
 
 def list_page[ModelT: Row, ReadT: BaseModel](
     spec: RecordSpec[ModelT, ReadT],
-    user_id: int,
+    user_id: uuid.UUID,
     order_column: QueryableAttribute[date],
     since_column: SQLColumnExpression[date],
     since: date | None,
@@ -251,7 +251,7 @@ def save[ModelT: Row, ReadT: BaseModel](
 
 
 def create[ModelT: Row, ReadT: BaseModel](
-    spec: RecordSpec[ModelT, ReadT], user_id: int, record: BaseModel, db: Session, *, conflict: str
+    spec: RecordSpec[ModelT, ReadT], user_id: uuid.UUID, record: BaseModel, db: Session, *, conflict: str
 ) -> ReadT:
     """Stage a new record for a user.
 
@@ -354,7 +354,7 @@ def edit_row[ModelT: Row, ReadT: BaseModel](
 def edit[ModelT: Row, ReadT: BaseModel](
     spec: RecordSpec[ModelT, ReadT],
     record_id: uuid.UUID,
-    user_id: int,
+    user_id: uuid.UUID,
     changes: BaseModel,
     db: Session,
     *,
@@ -386,7 +386,7 @@ def edit[ModelT: Row, ReadT: BaseModel](
 
 
 def delete[ModelT: Row, ReadT: BaseModel](
-    spec: RecordSpec[ModelT, ReadT], record_id: uuid.UUID, user_id: int, db: Session, *, if_match: str
+    spec: RecordSpec[ModelT, ReadT], record_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, if_match: str
 ) -> None:
     """Stage the deletion of a user's record.
 
@@ -410,10 +410,10 @@ def delete[ModelT: Row, ReadT: BaseModel](
 
 def list_changed[RowT: core_sync.UpdatedAtMixin, ReadT: BaseModel](
     model: type[RowT],
-    owner: InstrumentedAttribute[int],
+    owner: InstrumentedAttribute[uuid.UUID],
     row_id: InstrumentedAttribute[uuid.UUID],
     read_schema: type[ReadT],
-    user_id: int,
+    user_id: uuid.UUID,
     after: core_sync.Position[uuid.UUID] | None,
     until: datetime,
     limit: int,
@@ -441,7 +441,12 @@ def list_changed[RowT: core_sync.UpdatedAtMixin, ReadT: BaseModel](
 
 
 def list_deletions(
-    sync_type: str, user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    sync_type: str,
+    user_id: uuid.UUID,
+    after: core_sync.Position[uuid.UUID] | None,
+    until: datetime,
+    limit: int,
+    db: Session,
 ) -> list[core_sync.Deletion[uuid.UUID]]:
     """Retrieve a user's deleted records of one type after a position, oldest deletion first.
 

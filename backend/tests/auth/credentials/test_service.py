@@ -6,6 +6,7 @@ import pytest
 
 import core.exceptions as core_exceptions
 import modules.auth.credentials.service as credentials_service
+from tests._helpers.auth import MOCK_USER_ID
 
 
 def test_resolve_password_min_length_selects_access_type():
@@ -39,9 +40,9 @@ def test_require_password_change_flags_the_credential_without_touching_the_hash(
         patch.object(credentials_service, "has_local_password", return_value=True),
         patch.object(credentials_service.credentials_crud, "set_password_change_required") as mark,
     ):
-        credentials_service.require_password_change(3, mock_db)
+        credentials_service.require_password_change(MOCK_USER_ID, mock_db)
 
-    mark.assert_called_once_with(3, mock_db)
+    mark.assert_called_once_with(MOCK_USER_ID, mock_db)
 
 
 def test_require_password_change_refuses_an_account_without_a_local_password(mock_db):
@@ -50,7 +51,7 @@ def test_require_password_change_refuses_an_account_without_a_local_password(moc
         patch.object(credentials_service.credentials_crud, "set_password_change_required") as mark,
         pytest.raises(core_exceptions.ConflictError),
     ):
-        credentials_service.require_password_change(3, mock_db)
+        credentials_service.require_password_change(MOCK_USER_ID, mock_db)
 
     mark.assert_not_called()
 

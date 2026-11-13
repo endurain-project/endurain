@@ -13,6 +13,7 @@ from modules.users.users_integrations.schema import (
     UserIntegrationsRead,
     UserIntegrationsUpdate,
 )
+from tests._helpers.auth import MOCK_USER_ID
 
 
 class TestUsersIntegrationsBase:
@@ -162,7 +163,7 @@ class TestUsersIntegrationsRead:
         record_id = uuid.uuid4()
         data = {
             "id": record_id,
-            "user_id": 1,
+            "user_id": MOCK_USER_ID,
         }
 
         # Act
@@ -170,7 +171,7 @@ class TestUsersIntegrationsRead:
 
         # Assert
         assert obj.id == record_id
-        assert obj.user_id == 1
+        assert obj.user_id == MOCK_USER_ID
 
     def test_users_integrations_read_missing_id(self):
         """Test validation error when id is missing.
@@ -180,7 +181,7 @@ class TestUsersIntegrationsRead:
         """
         # Arrange
         data = {
-            "user_id": 1,
+            "user_id": MOCK_USER_ID,
         }
 
         # Act & Assert
@@ -210,12 +211,12 @@ class TestUsersIntegrationsRead:
         """Test strict int validation for id.
 
         Asserts:
-            - ValidationError for non-integer id
+            - ValidationError for malformed id
         """
         # Arrange
         data = {
-            "id": "not-an-int",
-            "user_id": 1,
+            "id": "not-a-uuid",
+            "user_id": MOCK_USER_ID,
         }
 
         # Act & Assert

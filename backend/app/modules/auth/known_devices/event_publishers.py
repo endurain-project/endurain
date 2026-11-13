@@ -1,5 +1,6 @@
 """Publish the known-devices domain events through the platform publish facade."""
 
+import uuid
 from datetime import datetime
 
 import jasil.publisher as platform_publisher
@@ -10,7 +11,7 @@ import modules.auth.known_devices.events as known_devices_events
 
 
 def publish_new_device_sign_in(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     browser: str,
@@ -45,7 +46,7 @@ def publish_new_device_sign_in(
         known_devices_events.NEW_DEVICE_SIGN_IN,
         payload.model_dump(mode="json"),
         source="api:known_devices",
-        metadata={core_event_metadata.META_USER_ID: user_id},
+        metadata={core_event_metadata.META_USER_ID: str(user_id)},
         db=db,
         schema_version=payload.SCHEMA_VERSION,
     )

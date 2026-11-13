@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime
 from typing import NoReturn
 from uuid import uuid4
@@ -54,7 +55,7 @@ _DEAD_MFA_CHALLENGE_MESSAGE = "Unable to authenticate with provided credentials"
 
 def _refuse_credentials(
     username: str,
-    user_id: int | None = None,
+    user_id: uuid.UUID | None = None,
     outcome: jasil_audit.Outcome = jasil_audit.Outcome.FAILURE,
     reason: login_audit_actions.LoginFailureReason = (login_audit_actions.LoginFailureReason.INVALID_CREDENTIALS),
 ) -> NoReturn:
@@ -269,7 +270,7 @@ def complete_login(
         device_hash=device_hash,
     )
     db.commit()
-    logger.info("Login completed for user <user_id>", extra=core_logger.context(user_id=user.id))
+    logger.info("Login completed for user <user_id>", extra=core_logger.context(user_id=str(user.id)))
 
     return authentication_token_service.build_web_token_response(
         session_id,
@@ -358,7 +359,7 @@ def create_mobile_pkce_session_response(
         device_hash=device_hash,
     )
     db.commit()
-    logger.debug("Mobile sign-in session created", extra=core_logger.context(user_id=user.id))
+    logger.debug("Mobile sign-in session created", extra=core_logger.context(user_id=str(user.id)))
 
     return auth_schema.MobileSessionRead(next_step="exchange", session_id=session_id)
 
@@ -384,7 +385,7 @@ def raise_auth_security_store_unavailable(
 def refuse_while_mfa_locked_out(
     username: str,
     ip_address: str,
-    user_id: int,
+    user_id: uuid.UUID,
     method: login_audit_actions.LoginMethod,
     pending_mfa_store: mfa_dependencies.PendingMFAStore,
     device_id: str | None,
@@ -440,7 +441,7 @@ def refuse_while_mfa_locked_out(
 def require_valid_mfa_code(
     username: str,
     ip_address: str,
-    user_id: int,
+    user_id: uuid.UUID,
     method: login_audit_actions.LoginMethod,
     mfa_code: str,
     pending_mfa_store: mfa_dependencies.PendingMFAStore,
@@ -507,7 +508,7 @@ def require_valid_mfa_code(
         raise core_exceptions.InvalidMfaCodeError(_INVALID_MFA_CODE_MESSAGE)
 
 
-def _refuse_mfa_challenge(reason: login_audit_actions.LoginFailureReason, user_id: int | None = None) -> NoReturn:
+def _refuse_mfa_challenge(reason: login_audit_actions.LoginFailureReason, user_id: uuid.UUID | None = None) -> NoReturn:
     """Audit and log a dead MFA challenge, then answer with the one message every dead challenge shares.
 
     Args:
@@ -518,7 +519,7 @@ def _refuse_mfa_challenge(reason: login_audit_actions.LoginFailureReason, user_i
         UnauthenticatedError: Always, so the client signs in again.
     """
     logger.warning(
-        "MFA verification refused: <reason>", extra=core_logger.context(reason=reason.value, user_id=user_id)
+        "MFA verification refused: <reason>", extra=core_logger.context(reason=reason.value, user_id=str(user_id))
     )
     login_audit_integration.record_login_refusal(
         login_audit_actions.LoginMethod.PASSWORD,
@@ -531,7 +532,7 @@ def _refuse_mfa_challenge(reason: login_audit_actions.LoginFailureReason, user_i
 
 
 def _end_outdated_mfa_challenge(
-    challenge: str, user_id: int, pending_mfa_store: mfa_dependencies.PendingMFAStore
+    challenge: str, user_id: uuid.UUID, pending_mfa_store: mfa_dependencies.PendingMFAStore
 ) -> NoReturn:
     """End an MFA challenge that a security change outdated, then refuse it like any dead challenge.
 
@@ -552,7 +553,7 @@ def _end_outdated_mfa_challenge(
 
 
 def _end_challenge_after_wrong_code(
-    challenge: str, user_id: int, pending_mfa_store: mfa_dependencies.PendingMFAStore
+    challenge: str, user_id: uuid.UUID, pending_mfa_store: mfa_dependencies.PendingMFAStore
 ) -> None:
     """Count a wrong code against its challenge and answer that the challenge is dead when it was the last allowed.
 
@@ -570,7 +571,9 @@ def _end_challenge_after_wrong_code(
     except lockout_contracts.AuthSecurityStoreUnavailableError as err:
         raise_auth_security_store_unavailable(err)
     if ended:
-        logger.warning("MFA challenge ended after too many wrong codes", extra=core_logger.context(user_id=user_id))
+        logger.warning(
+            "MFA challenge ended after too many wrong codes", extra=core_logger.context(user_id=str(user_id))
+        )
         raise core_exceptions.UnauthenticatedError(_DEAD_MFA_CHALLENGE_MESSAGE, scheme="Bearer")
 
 
@@ -709,7 +712,7 @@ def _require_password_change(
     # The password is verified, so persist a rehash staged by authenticate_user before answering the challenge.
     db.commit()
     logger.info(
-        "Password change required for user <user_id> before sign-in", extra=core_logger.context(user_id=user.id)
+        "Password change required for user <user_id> before sign-in", extra=core_logger.context(user_id=str(user.id))
     )
     return auth_schema.PasswordChangeRequiredRead(next_step="password_change", password_change_challenge=challenge)
 
@@ -842,7 +845,7 @@ def login_for_access_token(
             # password for the same reason.
             logger.warning(
                 "Password sign-in refused for user <user_id>: local sign-in is disabled",
-                extra=core_logger.context(user_id=user.id),
+                extra=core_logger.context(user_id=str(user.id)),
             )
             _refuse_credentials(
                 username,
@@ -988,7 +991,7 @@ def verify_mfa_and_login(
     user = users_integration.get_user(user_id, db)
     if not user:
         logger.warning(
-            "User ID <user_id> not found during MFA verification", extra=core_logger.context(user_id=user_id)
+            "User ID <user_id> not found during MFA verification", extra=core_logger.context(user_id=str(user_id))
         )
         raise core_exceptions.UnauthenticatedError("Unable to authenticate", scheme="Bearer")
     # Checked before any code is tried, so a challenge that a security change outdated cannot be used to guess codes.
@@ -1064,7 +1067,7 @@ def verify_mfa_and_login(
 def logout(
     token_session_id: str,
     refresh_token_value: str,
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     password_hasher: credentials_integration.PasswordHasher,
     client_type: auth_constants.ClientType,
     db: Session,
@@ -1105,7 +1108,7 @@ def logout(
     if not session.refresh_token or not password_hasher.verify_password(refresh_token_value, session.refresh_token):
         logger.warning(
             "Logout ended nothing: refresh token does not match session for user <token_user_id>",
-            extra=core_logger.context(token_user_id=token_user_id),
+            extra=core_logger.context(token_user_id=str(token_user_id)),
         )
         return None
 

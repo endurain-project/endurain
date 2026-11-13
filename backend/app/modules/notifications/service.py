@@ -37,10 +37,10 @@ def user_reference_options(user: users_schema.UserRead) -> dict[str, object]:
     Returns:
         The options carrying the user's ID, name and username.
     """
-    return {"user_id": user.id, "user_name": user.name, "user_username": user.username}
+    return {"user_id": str(user.id), "user_name": user.name, "user_username": user.username}
 
 
-def count_unread_notifications(user_id: int, db: Session) -> int:
+def count_unread_notifications(user_id: uuid.UUID, db: Session) -> int:
     """Count the user's unread notifications.
 
     Args:
@@ -53,7 +53,9 @@ def count_unread_notifications(user_id: int, db: Session) -> int:
     return notifications_crud.count_user_unread_notifications(user_id, db)
 
 
-def get_notification(notification_id: uuid.UUID, user_id: int, db: Session) -> notifications_schema.NotificationRead:
+def get_notification(
+    notification_id: uuid.UUID, user_id: uuid.UUID, db: Session
+) -> notifications_schema.NotificationRead:
     """Return one of the user's notifications.
 
     Args:
@@ -74,7 +76,7 @@ def get_notification(notification_id: uuid.UUID, user_id: int, db: Session) -> n
 
 
 def list_notifications(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     cursor: str | None,
@@ -104,7 +106,7 @@ def list_notifications(
     return notifications_schema.NotificationPage(items=items, num_records=num_records, next_cursor=next_cursor)
 
 
-def mark_notification_as_read(notification_id: uuid.UUID, user_id: int, db: Session) -> None:
+def mark_notification_as_read(notification_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> None:
     """Mark one of the user's notifications as read.
 
     Args:
@@ -124,7 +126,7 @@ def mark_notification_as_read(notification_id: uuid.UUID, user_id: int, db: Sess
     )
 
 
-def mark_notifications_as_read(notification_ids: list[uuid.UUID], user_id: int, db: Session) -> None:
+def mark_notifications_as_read(notification_ids: list[uuid.UUID], user_id: uuid.UUID, db: Session) -> None:
     """Mark some of the user's notifications as read; ids that are not the user's are skipped.
 
     Args:
@@ -137,7 +139,7 @@ def mark_notifications_as_read(notification_ids: list[uuid.UUID], user_id: int, 
     logger.info("Marked notifications as read", extra=core_logger.context(user_id=user_id, count=len(notification_ids)))
 
 
-def delete_notification(notification_id: uuid.UUID, user_id: int, db: Session) -> None:
+def delete_notification(notification_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> None:
     """Delete one of the user's notifications.
 
     Args:
@@ -156,7 +158,7 @@ def delete_notification(notification_id: uuid.UUID, user_id: int, db: Session) -
     )
 
 
-def mark_all_notifications_as_read(user_id: int, db: Session) -> None:
+def mark_all_notifications_as_read(user_id: uuid.UUID, db: Session) -> None:
     """Mark every unread notification of the user as read.
 
     Args:
@@ -189,7 +191,7 @@ def delete_read_notifications(db: Session) -> int:
 
 
 def _record_event_notification(
-    user_id: int,
+    user_id: uuid.UUID,
     notification_type: notifications_constants.NotificationType,
     ws_message: str,
     options: dict[str, object],
@@ -233,7 +235,7 @@ def _record_event_notification(
 
 
 def create_activity_created_notification(
-    user_id: int,
+    user_id: uuid.UUID,
     activity_id: uuid.UUID,
     duplicate_start_time: bool,
     source_event_id: str,
@@ -265,8 +267,8 @@ def create_activity_created_notification(
 
 
 def _create_user_reference_notification(
-    named_user_id: int,
-    owner_user_id: int,
+    named_user_id: uuid.UUID,
+    owner_user_id: uuid.UUID,
     notification_type: notifications_constants.NotificationType,
     ws_message: str,
     source_event_id: str,
@@ -297,8 +299,8 @@ def _create_user_reference_notification(
 
 
 def create_follow_request_notification(
-    requester_user_id: int,
-    target_user_id: int,
+    requester_user_id: uuid.UUID,
+    target_user_id: uuid.UUID,
     source_event_id: str,
     db: Session,
 ) -> tuple[notifications_schema.NotificationRead, str, bool]:
@@ -328,8 +330,8 @@ def create_follow_request_notification(
 
 
 def create_follow_accepted_notification(
-    accepter_user_id: int,
-    requester_user_id: int,
+    accepter_user_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     source_event_id: str,
     db: Session,
 ) -> tuple[notifications_schema.NotificationRead, str, bool]:
@@ -359,8 +361,8 @@ def create_follow_accepted_notification(
 
 
 def create_admin_sign_up_approval_notification(
-    user_id: int,
-    admin_user_id: int,
+    user_id: uuid.UUID,
+    admin_user_id: uuid.UUID,
     source_event_id: str,
     db: Session,
 ) -> tuple[notifications_schema.NotificationRead, str, bool]:
@@ -390,8 +392,8 @@ def create_admin_sign_up_approval_notification(
 
 
 def create_admin_user_promoted_notification(
-    user_id: int,
-    admin_user_id: int,
+    user_id: uuid.UUID,
+    admin_user_id: uuid.UUID,
     source_event_id: str,
     db: Session,
 ) -> tuple[notifications_schema.NotificationRead, str, bool]:
@@ -420,7 +422,7 @@ def create_admin_user_promoted_notification(
     )
 
 
-def remove_follow_request_notifications(requester_user_id: int, target_user_id: int, db: Session) -> bool:
+def remove_follow_request_notifications(requester_user_id: uuid.UUID, target_user_id: uuid.UUID, db: Session) -> bool:
     """Delete the "wants to follow you" notifications a removed follow request left behind.
 
     Args:
@@ -446,7 +448,7 @@ def remove_follow_request_notifications(requester_user_id: int, target_user_id: 
 
 
 def create_idp_linked_notification(
-    user_id: int,
+    user_id: uuid.UUID,
     idp_id: uuid.UUID,
     source_event_id: str,
     db: Session,
@@ -483,7 +485,7 @@ def create_idp_linked_notification(
 
 
 def create_account_security_changed_notification(
-    user_id: int,
+    user_id: uuid.UUID,
     change: str,
     idp_id: uuid.UUID | None,
     source_event_id: str,
@@ -534,7 +536,7 @@ def create_account_security_changed_notification(
 
 
 def create_new_device_sign_in_notification(
-    user_id: int,
+    user_id: uuid.UUID,
     browser: str,
     operating_system: str,
     ip_address: str,

@@ -198,7 +198,7 @@ class UserGoalRead(UserGoalBase):
     """
 
     id: uuid.UUID = Field(..., description="Unique identifier for the goal")
-    user_id: StrictInt = Field(..., ge=1, description="User who owns this goal")
+    user_id: uuid.UUID = Field(..., description="User who owns this goal")
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
 
 

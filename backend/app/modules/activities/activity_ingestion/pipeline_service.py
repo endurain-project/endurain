@@ -48,7 +48,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def parse_file(
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     file_extension: str,
     filename: str,
     activity_name: str | None = None,
@@ -157,7 +157,7 @@ def _retain_source_file(
 
 
 def store_activities_from_file(
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     file_path: str,
     file_extension: str,
     file_base_name: str,
@@ -357,7 +357,7 @@ def _finish_bulk_import_file(
 
 
 def validate_prepare_and_store_file(
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     file_path: str,
     db: Session,
     *,

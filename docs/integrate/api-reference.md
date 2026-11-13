@@ -24,7 +24,7 @@ A notification's `options` depend on its `type`, and the schema names each shape
 | `type` | `options` |
 | ------ | --------- |
 | `new_activity`, `duplicate_activity` | `activity_id` |
-| `new_follower_request`, `new_follower_request_accepted`, `admin_new_sign_up_approval_request`, `admin_user_promoted` | `user_id`, `user_name`, `user_username` |
+| `new_follower_request`, `new_follower_request_accepted`, `admin_new_sign_up_approval_request`, `admin_user_promoted` | `user_id` (a UUID string), `user_name`, `user_username` |
 | `garmin_token_expired`, `strava_data_deleted` | none (an empty object) |
 | `strava_token_expired` | `delete_on` (a date), only when Strava access was revoked |
 | `idp_linked` | `idp_id`, `idp_name` (null when the provider was deleted since) |

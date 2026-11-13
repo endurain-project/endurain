@@ -5,6 +5,7 @@ Linking lives in :mod:`modules.garmin.link_service`. The activity, gear and heal
 :mod:`modules.garmin.health_service`.
 """
 
+import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any, NamedTuple
@@ -27,7 +28,7 @@ import modules.users.users_integrations.schema as user_integrations_schema
 logger = core_logger.get_logger(__name__)
 
 
-def unlink_account(user_id: int, db: Session) -> None:
+def unlink_account(user_id: uuid.UUID, db: Session) -> None:
     """Unlink a user's Garmin Connect account.
 
     Args:
@@ -49,7 +50,9 @@ def unlink_account(user_id: int, db: Session) -> None:
     )
 
 
-def get_linked_user_integrations(user_id: int, db: Session) -> user_integrations_schema.UserIntegrationsRead | None:
+def get_linked_user_integrations(
+    user_id: uuid.UUID, db: Session
+) -> user_integrations_schema.UserIntegrationsRead | None:
     """Return a user's integrations when Garmin Connect is linked.
 
     Args:
@@ -86,7 +89,7 @@ class GarminSession(NamedTuple):
     token: dict[str, Any]
 
 
-def get_user_garminconnect_session(user_id: int, db: Session) -> GarminSession | None:
+def get_user_garminconnect_session(user_id: uuid.UUID, db: Session) -> GarminSession | None:
     """Restore the session of a linked user from the token stored for them.
 
     Args:
@@ -120,7 +123,7 @@ def get_user_garminconnect_session(user_id: int, db: Session) -> GarminSession |
 
 @contextmanager
 def linked_session(
-    user_id: int, rate_limits: garmin_rate_limit_store.GarminRateLimitStore
+    user_id: uuid.UUID, rate_limits: garmin_rate_limit_store.GarminRateLimitStore
 ) -> Iterator[GarminSession | None]:
     """Yield a linked user's session with no database session open, then store its refreshed token.
 
@@ -149,7 +152,7 @@ def linked_session(
         save_refreshed_token(user_id, session)
 
 
-def save_refreshed_token(user_id: int, session: GarminSession) -> None:
+def save_refreshed_token(user_id: uuid.UUID, session: GarminSession) -> None:
     """Store the token a sync's client refreshed, so the next sync restores a live one.
 
     Garmin Connect may rotate the refresh token, in which case the stored one stops working.
@@ -175,7 +178,7 @@ def save_refreshed_token(user_id: int, session: GarminSession) -> None:
         )
 
 
-def linked_user_ids(after_id: int, limit: int) -> list[int]:
+def linked_user_ids(after_id: uuid.UUID | None, limit: int) -> list[uuid.UUID]:
     """Page through the users who have linked Garmin Connect, in a short session of its own.
 
     Args:
@@ -190,7 +193,7 @@ def linked_user_ids(after_id: int, limit: int) -> list[int]:
 
 
 def rate_limit_error(
-    err: Exception, user_id: int, rate_limits: garmin_rate_limit_store.GarminRateLimitStore
+    err: Exception, user_id: uuid.UUID, rate_limits: garmin_rate_limit_store.GarminRateLimitStore
 ) -> core_exceptions.TooManyRequestsError:
     """Record that Garmin Connect refused a call as rate limited, and build the error for it.
 
@@ -212,7 +215,7 @@ def rate_limit_error(
     )
 
 
-def raise_if_rate_limited(user_id: int, rate_limits: garmin_rate_limit_store.GarminRateLimitStore) -> None:
+def raise_if_rate_limited(user_id: uuid.UUID, rate_limits: garmin_rate_limit_store.GarminRateLimitStore) -> None:
     """Refuse a Garmin Connect call while the user's account is rate limited.
 
     Args:
@@ -232,7 +235,7 @@ def raise_if_rate_limited(user_id: int, rate_limits: garmin_rate_limit_store.Gar
         )
 
 
-def handle_rejected_token(user_id: int, session: GarminSession, err: Exception) -> None:
+def handle_rejected_token(user_id: uuid.UUID, session: GarminSession, err: Exception) -> None:
     """Unlink an account whose token Garmin Connect rejected during a sync, and tell the user.
 
     Args:
@@ -249,7 +252,7 @@ def handle_rejected_token(user_id: int, session: GarminSession, err: Exception) 
         unlink_expired_account(user_id, session.token, db)
 
 
-def unlink_expired_account(user_id: int, token: dict[str, Any], db: Session) -> None:
+def unlink_expired_account(user_id: uuid.UUID, token: dict[str, Any], db: Session) -> None:
     """Unlink an account whose Garmin Connect token expired and tell the user.
 
     The unlink and the notification row commit together; the live push is published after.

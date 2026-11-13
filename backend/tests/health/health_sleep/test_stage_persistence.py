@@ -1,5 +1,6 @@
 """Sleep stages carry timestamps, and the JSON column that stores them must accept those."""
 
+import uuid
 from datetime import UTC, date, datetime
 
 import pytest
@@ -10,6 +11,7 @@ import modules.health.health_sleep.crud as health_sleep_crud
 import modules.health.health_sleep.schema as health_sleep_schema
 import modules.health.health_sleep.service as health_sleep_service
 
+_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
 _START = datetime(2026, 1, 1, 22, 0, tzinfo=UTC)
 _MIDDLE = datetime(2026, 1, 1, 23, 0, tzinfo=UTC)
 _END = datetime(2026, 1, 2, 0, 0, tzinfo=UTC)
@@ -18,7 +20,7 @@ _END = datetime(2026, 1, 2, 0, 0, tzinfo=UTC)
 @pytest.fixture
 def db():
     session = create_sqlite_session()
-    ensure_user(sessionmaker(bind=session.get_bind()), 1)
+    ensure_user(sessionmaker(bind=session.get_bind()), _USER_ID)
     yield session
     session.close()
 
@@ -43,40 +45,40 @@ def _assert_stage_times(record: health_sleep_schema.HealthSleepRead, *bounds: tu
 class TestStageTimestamps:
     def test_create_stores_stage_timestamps(self, db):
         created = health_sleep_crud.create_health_sleep(
-            1,
+            _USER_ID,
             health_sleep_schema.HealthSleepCreate(date=date(2026, 1, 1), sleep_stages=_stages((_START, _MIDDLE))),
             db,
         )
 
-        read = health_sleep_crud.get_health_sleep_by_id(1, created.id, db)
+        read = health_sleep_crud.get_health_sleep_by_id(_USER_ID, created.id, db)
         _assert_stage_times(read, (_START, _MIDDLE))
 
     def test_edit_stores_stage_timestamps(self, db):
         created = health_sleep_crud.create_health_sleep(
-            1, health_sleep_schema.HealthSleepCreate(date=date(2026, 1, 1)), db
+            _USER_ID, health_sleep_schema.HealthSleepCreate(date=date(2026, 1, 1)), db
         )
 
         health_sleep_crud.edit_health_sleep(
-            1,
+            _USER_ID,
             created.id,
             health_sleep_schema.HealthSleepUpdate(sleep_stages=_stages((_MIDDLE, _END))),
             db,
             if_match="*",
         )
 
-        _assert_stage_times(health_sleep_crud.get_health_sleep_by_id(1, created.id, db), (_MIDDLE, _END))
+        _assert_stage_times(health_sleep_crud.get_health_sleep_by_id(_USER_ID, created.id, db), (_MIDDLE, _END))
 
     def test_upsert_creates_then_updates_with_stage_timestamps(self, db):
         day = date(2026, 1, 1)
         health_sleep_service.stage_upsert_health_sleep(
-            1, health_sleep_schema.HealthSleepCreate(date=day, sleep_stages=_stages((_START, _MIDDLE))), db
+            _USER_ID, health_sleep_schema.HealthSleepCreate(date=day, sleep_stages=_stages((_START, _MIDDLE))), db
         )
 
         updated = health_sleep_service.stage_upsert_health_sleep(
-            1, health_sleep_schema.HealthSleepCreate(date=day, sleep_stages=_stages((_MIDDLE, _END))), db
+            _USER_ID, health_sleep_schema.HealthSleepCreate(date=day, sleep_stages=_stages((_MIDDLE, _END))), db
         )
 
-        _assert_stage_times(health_sleep_crud.get_health_sleep_by_id(1, updated.id, db), (_MIDDLE, _END))
+        _assert_stage_times(health_sleep_crud.get_health_sleep_by_id(_USER_ID, updated.id, db), (_MIDDLE, _END))
 
 
 class TestSleepStagesDump:

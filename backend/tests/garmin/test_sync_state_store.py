@@ -1,5 +1,6 @@
 """Tests for garmin.sync_state_store (provider-backed)."""
 
+import uuid
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,6 +11,7 @@ import core.attempt_state as core_attempt_state
 import core.exceptions as core_exceptions
 import modules.garmin.constants as garmin_constants
 import modules.garmin.sync_state_store as sync_state_store
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
 Kind = garmin_constants.SyncKind
 Status = garmin_constants.SyncStatus
@@ -22,43 +24,43 @@ def _store() -> sync_state_store.GarminSyncStateStore:
 def test_a_first_sync_is_queued_and_blocks_another_of_its_kind():
     store = _store()
 
-    store.begin(1, Kind.GEAR, conflict="busy")
-    assert store.get(1, Kind.GEAR) == core_attempt_state.SyncState(status=Status.QUEUED)
+    store.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
+    assert store.get(MOCK_USER_ID, Kind.GEAR) == core_attempt_state.SyncState(status=Status.QUEUED)
     with pytest.raises(core_exceptions.JobAlreadyRunningError):
-        store.begin(1, Kind.GEAR, conflict="busy")
+        store.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
 
 
 def test_progress_keeps_blocking_until_the_sync_finishes():
     store = _store()
-    store.begin(1, Kind.HEALTH, conflict="busy")
-    store.set_status(1, Kind.HEALTH, Status.RUNNING)
+    store.begin(MOCK_USER_ID, Kind.HEALTH, conflict="busy")
+    store.set_status(MOCK_USER_ID, Kind.HEALTH, Status.RUNNING)
     with pytest.raises(core_exceptions.JobAlreadyRunningError):
-        store.begin(1, Kind.HEALTH, conflict="busy")
+        store.begin(MOCK_USER_ID, Kind.HEALTH, conflict="busy")
 
-    store.set_status(1, Kind.HEALTH, Status.SUCCEEDED)
+    store.set_status(MOCK_USER_ID, Kind.HEALTH, Status.SUCCEEDED)
 
-    assert store.get(1, Kind.HEALTH).status == Status.SUCCEEDED
-    store.begin(1, Kind.HEALTH, conflict="busy")
+    assert store.get(MOCK_USER_ID, Kind.HEALTH).status == Status.SUCCEEDED
+    store.begin(MOCK_USER_ID, Kind.HEALTH, conflict="busy")
 
 
 def test_a_failed_sync_can_be_retried():
     store = _store()
-    store.begin(1, Kind.GEAR, conflict="busy")
-    store.set_status(1, Kind.GEAR, Status.FAILED)
+    store.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
+    store.set_status(MOCK_USER_ID, Kind.GEAR, Status.FAILED)
 
-    store.begin(1, Kind.GEAR, conflict="busy")
+    store.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
 
 
 def test_kinds_and_users_do_not_block_each_other():
     store = _store()
-    store.begin(1, Kind.GEAR, conflict="busy")
+    store.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
 
-    store.begin(1, Kind.HEALTH, conflict="busy")
-    store.begin(2, Kind.GEAR, conflict="busy")
+    store.begin(MOCK_USER_ID, Kind.HEALTH, conflict="busy")
+    store.begin(OTHER_USER_ID, Kind.GEAR, conflict="busy")
 
 
 def test_no_sync_reads_as_none():
-    assert _store().get(99, Kind.GEAR) is None
+    assert _store().get(uuid.UUID(int=99), Kind.GEAR) is None
 
 
 def test_an_unavailable_backend_fails_a_read_and_a_begin_but_not_a_recorded_outcome():
@@ -68,7 +70,7 @@ def test_an_unavailable_backend_fails_a_read_and_a_begin_but_not_a_recorded_outc
     store = sync_state_store.GarminSyncStateStore(state=state)
 
     with pytest.raises(core_attempt_state.StateUnavailableError):
-        store.begin(1, Kind.GEAR, conflict="busy")
+        store.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
     with pytest.raises(core_attempt_state.StateUnavailableError):
-        store.get(1, Kind.GEAR)
-    store.set_status(1, Kind.GEAR, Status.SUCCEEDED)
+        store.get(MOCK_USER_ID, Kind.GEAR)
+    store.set_status(MOCK_USER_ID, Kind.GEAR, Status.SUCCEEDED)

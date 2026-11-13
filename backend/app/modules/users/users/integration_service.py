@@ -5,6 +5,7 @@ helpers. Everything here returns schemas or primitives: no ORM row and no intern
 the boundary. Writes stage and the caller commits, except the listed units of work.
 """
 
+import uuid
 from collections.abc import Collection, Sequence
 from datetime import date, datetime
 
@@ -24,7 +25,7 @@ import modules.users.users.schema as users_schema
 import modules.users.users.service as users_service
 
 
-def get_user(user_id: int, db: Session) -> users_schema.UserRead | None:
+def get_user(user_id: uuid.UUID, db: Session) -> users_schema.UserRead | None:
     """Return a user by id, or ``None`` when there is no such user.
 
     Args:
@@ -37,7 +38,7 @@ def get_user(user_id: int, db: Session) -> users_schema.UserRead | None:
     return users_crud.get_user_by_id(user_id, db)
 
 
-def require_user(user_id: int, db: Session) -> users_schema.UserRead:
+def require_user(user_id: uuid.UUID, db: Session) -> users_schema.UserRead:
     """Return a user by id, which must exist.
 
     Args:
@@ -53,7 +54,7 @@ def require_user(user_id: int, db: Session) -> users_schema.UserRead:
     return users_service.require_user(user_id, db)
 
 
-def list_public_profiles(user_ids: Collection[int], db: Session) -> dict[int, users_schema.UserPublicRead]:
+def list_public_profiles(user_ids: Collection[uuid.UUID], db: Session) -> dict[uuid.UUID, users_schema.UserPublicRead]:
     """Return the public projection of several users in one read, keyed by user ID.
 
     A user who is missing, inactive or awaiting approval has no entry, as a single lookup of
@@ -69,7 +70,7 @@ def list_public_profiles(user_ids: Collection[int], db: Session) -> dict[int, us
     return users_service.list_public_profiles(user_ids, db)
 
 
-def get_public_profile(user_id: int, db: Session) -> users_schema.UserPublicRead:
+def get_public_profile(user_id: uuid.UUID, db: Session) -> users_schema.UserPublicRead:
     """Return the signed-in viewer's public projection of a user.
 
     Args:
@@ -85,7 +86,7 @@ def get_public_profile(user_id: int, db: Session) -> users_schema.UserPublicRead
     return users_service.get_public_profile(user_id, db)
 
 
-def get_public_user(user_id: int, db: Session) -> users_schema.UserPublicRead:
+def get_public_user(user_id: uuid.UUID, db: Session) -> users_schema.UserPublicRead:
     """Return a user's public projection for an anonymous viewer, when sharing allows it.
 
     Args:
@@ -218,7 +219,7 @@ def create_sso_user(
     return users_service.create_sso_user(profile, server_settings, db, email_verified=email_verified)
 
 
-def is_deactivated(user_id: int, db: Session) -> bool:
+def is_deactivated(user_id: uuid.UUID, db: Session) -> bool:
     """Tell whether an administrator or a deletion request deactivated a user.
 
     Args:
@@ -235,7 +236,7 @@ def is_deactivated(user_id: int, db: Session) -> bool:
     return users_service.is_deactivated(user_id, db)
 
 
-def was_created_after(user_id: int, moment: datetime, db: Session) -> bool:
+def was_created_after(user_id: uuid.UUID, moment: datetime, db: Session) -> bool:
     """Tell whether a user's account was created after a moment.
 
     Args:
@@ -250,7 +251,7 @@ def was_created_after(user_id: int, moment: datetime, db: Session) -> bool:
 
 
 def stage_email_verification(
-    user_id: int,
+    user_id: uuid.UUID,
     server_settings: server_settings_schema.ServerSettingsRead,
     db: Session,
 ) -> None:
@@ -267,7 +268,7 @@ def stage_email_verification(
     users_service.stage_email_verification(user_id, server_settings, db)
 
 
-def edit_user(user_id: int, user: users_schema.UserEdit, db: Session, *, if_match: str) -> users_schema.UserRead:
+def edit_user(user_id: uuid.UUID, user: users_schema.UserEdit, db: Session, *, if_match: str) -> users_schema.UserRead:
     """Stage an administrative edit of a user.
 
     Args:
@@ -288,7 +289,7 @@ def edit_user(user_id: int, user: users_schema.UserEdit, db: Session, *, if_matc
 
 
 def edit_profile(
-    user_id: int, profile: users_schema.ProfileUpdate, db: Session, *, if_match: str
+    user_id: uuid.UUID, profile: users_schema.ProfileUpdate, db: Session, *, if_match: str
 ) -> users_schema.UserRead:
     """Stage a self-service profile update, keeping only the allow-listed fields.
 
@@ -322,7 +323,7 @@ def changed_field_names(before: BaseModel, after: BaseModel, names: Collection[s
     return users_service.changed_field_names(before, after, names)
 
 
-def stage_username_change(user_id: int, username: str, db: Session) -> bool:
+def stage_username_change(user_id: uuid.UUID, username: str, db: Session) -> bool:
     """Stage a new username for a user, stored in lower case.
 
     Args:
@@ -340,7 +341,7 @@ def stage_username_change(user_id: int, username: str, db: Session) -> bool:
     return users_service.stage_username_change(user_id, username, db)
 
 
-def stage_email_change(user_id: int, email: str, db: Session) -> bool:
+def stage_email_change(user_id: uuid.UUID, email: str, db: Session) -> bool:
     """Stage a new email address for a user and mark it unverified.
 
     Args:
@@ -358,7 +359,7 @@ def stage_email_change(user_id: int, email: str, db: Session) -> bool:
     return users_service.stage_email_change(user_id, email, db)
 
 
-def is_email_available(user_id: int | None, email: str, db: Session) -> bool:
+def is_email_available(user_id: uuid.UUID | None, email: str, db: Session) -> bool:
     """Tell whether an address can be given to a user: no other account uses it or has it reserved.
 
     Args:
@@ -372,7 +373,7 @@ def is_email_available(user_id: int | None, email: str, db: Session) -> bool:
     return users_service.is_email_available(user_id, email, db)
 
 
-def stage_confirmed_email_change(user_id: int, email: str, db: Session) -> None:
+def stage_confirmed_email_change(user_id: uuid.UUID, email: str, db: Session) -> None:
     """Stage a confirmed email address for a user and mark it verified.
 
     Args:
@@ -387,7 +388,7 @@ def stage_confirmed_email_change(user_id: int, email: str, db: Session) -> None:
     users_service.stage_confirmed_email_change(user_id, email, db)
 
 
-def stage_synced_email_change(user_id: int, email: str, db: Session) -> None:
+def stage_synced_email_change(user_id: uuid.UUID, email: str, db: Session) -> None:
     """Stage an email address a sign-in provider verified as the user's, and tell the previous address.
 
     Args:
@@ -403,7 +404,7 @@ def stage_synced_email_change(user_id: int, email: str, db: Session) -> None:
 
 
 def upload_user_photo(
-    user_id: int,
+    user_id: uuid.UUID,
     file: UploadFile,
     storage: platform_providers.StorageProvider,
     db: Session,
@@ -428,7 +429,7 @@ def upload_user_photo(
 
 
 def store_user_photo(
-    user_id: int,
+    user_id: uuid.UUID,
     extension: str,
     data: bytes,
     storage: platform_providers.StorageProvider,
@@ -453,7 +454,7 @@ def store_user_photo(
     return users_photo_service.store_photo(user_id, extension, data, storage, db)
 
 
-def delete_user_photo(user_id: int, storage: platform_providers.StorageProvider, db: Session) -> None:
+def delete_user_photo(user_id: uuid.UUID, storage: platform_providers.StorageProvider, db: Session) -> None:
     """Clear a user's photo reference, commit, then delete the stored blobs.
 
     Args:
@@ -468,7 +469,7 @@ def delete_user_photo(user_id: int, storage: platform_providers.StorageProvider,
 
 
 def request_user_deletion(
-    user_id: int,
+    user_id: uuid.UUID,
     state: platform_providers.StateProvider,
     storage: platform_providers.StorageProvider,
     mail: platform_providers.MailProvider,
@@ -519,7 +520,7 @@ def read_deletion_job(
 
 
 def stage_unverified_sign_up_purge(
-    created_before: datetime, held_user_ids: Sequence[Select[tuple[int]]], limit: int, db: Session
+    created_before: datetime, held_user_ids: Sequence[Select[tuple[uuid.UUID]]], limit: int, db: Session
 ) -> int:
     """Stage the deletion of up to ``limit`` unverified self sign-ups created before ``created_before``.
 
@@ -540,7 +541,7 @@ def shutdown_deletion_pool() -> None:
     users_deletion_job_service.shutdown_deletion_pool()
 
 
-def local_today(user_id: int, db: Session) -> date:
+def local_today(user_id: uuid.UUID, db: Session) -> date:
     """Return today's calendar date in the user's own timezone.
 
     "Which day is it?" is a local question the server cannot answer from its own clock, and
@@ -558,7 +559,7 @@ def local_today(user_id: int, db: Session) -> date:
     return users_service.user_local_today(user_id, db)
 
 
-def resolve_timezone(user_id: int, db: Session) -> str:
+def resolve_timezone(user_id: uuid.UUID, db: Session) -> str:
     """Return the user's IANA timezone, falling back to the server default.
 
     Consumers that bucket timestamps into calendar days (health entries) resolve the zone here

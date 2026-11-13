@@ -1,5 +1,6 @@
 """Publish the profile import's domain events through the platform publish facade."""
 
+import uuid
 from collections.abc import Callable
 
 import jasil.publisher as platform_publisher
@@ -10,7 +11,7 @@ import modules.users.users_profile.constants as profile_constants
 import modules.users.users_profile.events as profile_events
 
 
-def publish_import_requested(user_id: int, staged_key: str, db: Session, *, commit: Callable[[], None]) -> None:
+def publish_import_requested(user_id: uuid.UUID, staged_key: str, db: Session, *, commit: Callable[[], None]) -> None:
     """Publish ``users.profile_import_requested`` so a worker imports the staged archive.
 
     The event is the work, so a staging failure propagates.
@@ -33,7 +34,7 @@ def publish_import_requested(user_id: int, staged_key: str, db: Session, *, comm
     )
 
 
-def publish_export_requested(user_id: int, db: Session, *, commit: Callable[[], None]) -> None:
+def publish_export_requested(user_id: uuid.UUID, db: Session, *, commit: Callable[[], None]) -> None:
     """Publish ``users.profile_export_requested`` so a worker builds the export.
 
     The event is the work, so a staging failure propagates.

@@ -31,6 +31,7 @@ Note:
     would slot into without touching the ingestion core's dispatch again.
 """
 
+import uuid
 from typing import Protocol
 
 import modules.activities.activity.contracts as activity_contracts
@@ -46,7 +47,7 @@ class FileParser(Protocol):
     def __call__(
         self,
         path: str,
-        user_id: int,
+        user_id: uuid.UUID,
         activity_name: str | None,
         default_timezone: str,
         lap_distance_km: float,
@@ -73,7 +74,7 @@ class FileParser(Protocol):
 
 def _parse_gpx(
     path: str,
-    user_id: int,
+    user_id: uuid.UUID,
     activity_name: str | None,
     default_timezone: str,
     lap_distance_km: float,
@@ -104,7 +105,7 @@ def _parse_gpx(
 
 def _parse_tcx(
     path: str,
-    user_id: int,
+    user_id: uuid.UUID,
     activity_name: str | None,
     default_timezone: str,
     lap_distance_km: float,
@@ -131,7 +132,7 @@ def _parse_tcx(
 
 def _parse_fit(
     path: str,
-    user_id: int,
+    user_id: uuid.UUID,
     activity_name: str | None,
     default_timezone: str,
     lap_distance_km: float,

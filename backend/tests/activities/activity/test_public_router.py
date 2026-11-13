@@ -5,6 +5,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+_USER_1 = uuid.UUID(int=1)
+
 _ACTIVITY_ID = uuid.uuid4()
 
 
@@ -49,7 +51,7 @@ def _valid_activity(**kw):
         description="desc",
         gear_id=uuid.uuid4(),
         id=_ACTIVITY_ID,
-        user_id=1,
+        user_id=_USER_1,
     )
     data.update(kw)
     return ActivityRead(**data)

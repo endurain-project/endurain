@@ -64,7 +64,7 @@ class ActivityCreatedPayload(VersionedPayload):
     SCHEMA_VERSION: ClassVar[int] = 1
 
     activity_id: uuid.UUID
-    user_id: int
+    user_id: uuid.UUID
     duplicate_start_time: bool = False
 
 
@@ -100,7 +100,7 @@ class ActivityUpdatedPayload(VersionedPayload):
     SCHEMA_VERSION: ClassVar[int] = 1
 
     activity_id: uuid.UUID
-    user_id: int | None = None
+    user_id: uuid.UUID | None = None
     changed_fields: list[str] = Field(default_factory=list)
 
 
@@ -116,5 +116,5 @@ class VisibilityEditRequestedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    user_id: int
+    user_id: uuid.UUID
     visibility: int

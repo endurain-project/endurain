@@ -1,5 +1,6 @@
 """Domain event channel names owned by the profile import."""
 
+import uuid
 from typing import ClassVar
 
 from jasil.event_versioning import VersionedPayload
@@ -25,7 +26,7 @@ class ProfileImportRequestedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    user_id: int
+    user_id: uuid.UUID
     staged_key: str
 
 
@@ -40,4 +41,4 @@ class ProfileExportRequestedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    user_id: int
+    user_id: uuid.UUID

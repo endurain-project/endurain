@@ -15,6 +15,7 @@ import modules.auth.account_security.identity_links_router as identity_links_rou
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_providers.contracts as idp_contracts
 import modules.auth.identity_providers.dependencies as idp_dependencies
+from tests._helpers.auth import MOCK_USER_ID
 
 SESSION_ID = "11111111-2222-3333-4444-555555555555"
 IDP_ID = uuid.UUID(int=3)
@@ -27,7 +28,7 @@ def client():
     app.include_router(identity_links_router.router, prefix=core_config.ROOT_PATH + "/profile/identity-providers")
     core_exceptions.register_exception_handlers(app)
     app.dependency_overrides[core_database.get_db] = lambda: MagicMock()
-    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: 7
+    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: MOCK_USER_ID
     app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = lambda: SESSION_ID
     app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
     app.dependency_overrides[auth_dependencies.get_step_up_attempts] = lambda: MagicMock()
@@ -49,7 +50,7 @@ def test_the_route_returns_the_url_and_binds_the_browser(client):
     assert "samesite=lax" in cookie
     assert start.call_args.args[0] == IDP_ID
     assert start.call_args.args[1].redirect == "/settings/security"
-    assert start.call_args.args[3:5] == (7, SESSION_ID)
+    assert start.call_args.args[3:5] == (MOCK_USER_ID, SESSION_ID)
 
 
 def test_the_old_token_route_and_unauthenticated_get_are_gone(client):

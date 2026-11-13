@@ -20,11 +20,14 @@ import modules.auth.login_audit.audit_actions as login_audit_actions
 import modules.auth.mfa.pending_login_store as pending_login_store
 from tests._helpers.auth import pending_login
 
+_USER_ID_1 = uuid.UUID(int=1)
+_USER_ID_5 = uuid.UUID(int=5)
+
 IDP_ID = uuid.uuid4()
 
 _SERVICE = "modules.auth.authentication.service"
 _CLAIMED_EXPIRY = datetime(2999, 1, 1, tzinfo=UTC)
-_USER = SimpleNamespace(id=5, username="alice", active=True, access_type="regular")
+_USER = SimpleNamespace(id=_USER_ID_5, username="alice", active=True, access_type="regular")
 _LOGIN = login_audit_actions.LOGIN.id
 _NO_LOCK = failed_login_store.FailedLoginRecord(client_count=1, account_locked_now=False)
 
@@ -74,7 +77,9 @@ class TestFailedPasswordSignIn:
         with jasil_testing.capture_audit() as audit:
             self._authenticate(mock_db, user=_USER)
 
-        entry = audit.assert_audited(_LOGIN, outcome="failure", target_type="user", target_id="5", target_owner_id="5")
+        entry = audit.assert_audited(
+            _LOGIN, outcome="failure", target_type="user", target_id=str(_USER_ID_5), target_owner_id=str(_USER_ID_5)
+        )
         assert entry.details == {
             "method": "password",
             "mfa": False,
@@ -86,7 +91,7 @@ class TestFailedPasswordSignIn:
         with jasil_testing.capture_audit() as audit:
             self._authenticate(mock_db, user=_USER, credential=None)
 
-        audit.assert_audited(_LOGIN, outcome="failure", target_id="5")
+        audit.assert_audited(_LOGIN, outcome="failure", target_id=str(_USER_ID_5))
 
     def test_an_unknown_username_is_a_failure_with_no_target_and_no_username(self, mock_db):
         with jasil_testing.capture_audit() as audit:
@@ -116,7 +121,7 @@ class TestRefusedPasswordSignIn:
         assert entry.target_id is None
 
     def test_an_inactive_account_is_denied_and_targets_the_user(self, mock_db):
-        user = SimpleNamespace(id=5, username="alice", active=False, access_type="regular")
+        user = SimpleNamespace(id=_USER_ID_5, username="alice", active=False, access_type="regular")
         with (
             patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=user),
             patch(f"{_SERVICE}.authenticate_user", return_value=user),
@@ -126,7 +131,9 @@ class TestRefusedPasswordSignIn:
         ):
             _login(mock_db)
 
-        entry = audit.assert_audited(_LOGIN, outcome="denied", target_id="5", target_owner_id="5")
+        entry = audit.assert_audited(
+            _LOGIN, outcome="denied", target_id=str(_USER_ID_5), target_owner_id=str(_USER_ID_5)
+        )
         assert entry.details["reason"] == "inactive"
         assert len(audit.matching(_LOGIN)) == 1
 
@@ -142,7 +149,7 @@ class TestRefusedPasswordSignIn:
         ):
             _login(mock_db)
 
-        entry = audit.assert_audited(_LOGIN, outcome="denied", target_id="5")
+        entry = audit.assert_audited(_LOGIN, outcome="denied", target_id=str(_USER_ID_5))
         assert entry.details["reason"] == "password_sign_in_disabled"
 
     def test_a_password_that_needs_mfa_is_not_a_sign_in(self, mock_db):
@@ -185,9 +192,14 @@ class TestSuccessfulSignIn:
             self._login_without_mfa(mock_db)
 
         entry = audit.assert_audited(
-            _LOGIN, outcome="success", actor_type="user", actor_id="5", credential_type="password", target_id="5"
+            _LOGIN,
+            outcome="success",
+            actor_type="user",
+            actor_id=str(_USER_ID_5),
+            credential_type="password",
+            target_id=str(_USER_ID_5),
         )
-        assert entry.target_owner_id == "5"
+        assert entry.target_owner_id == str(_USER_ID_5)
         assert entry.details == {"method": "password", "mfa": False, "reason": None, "new_device": False}
 
     def test_a_mobile_pkce_sign_in_is_audited_too(self, mock_db):
@@ -205,14 +217,14 @@ class TestSuccessfulSignIn:
             _login(mock_db, client_type="mobile", code_challenge=challenge, code_challenge_method="S256")
 
         pkce.assert_called_once()
-        audit.assert_audited(_LOGIN, outcome="success", target_id="5")
+        audit.assert_audited(_LOGIN, outcome="success", target_id=str(_USER_ID_5))
 
 
 class TestMfaSignIn:
     def _verify(self, db, *, code_valid, pending_mfa_store=None):
         store = pending_mfa_store or MagicMock()
-        store.get_pending_login.return_value = pending_login(5)
-        store.claim_pending_login.return_value = pending_login(5)
+        store.get_pending_login.return_value = pending_login(_USER_ID_5)
+        store.claim_pending_login.return_value = pending_login(_USER_ID_5)
         store.is_locked_out.return_value = False
         store.record_failed_attempt.return_value = pending_login_store.FailedMfaRecord(
             count=1, account_locked_now=False
@@ -251,14 +263,16 @@ class TestMfaSignIn:
         with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.InvalidMfaCodeError):
             self._verify(mock_db, code_valid=False)
 
-        entry = audit.assert_audited(_LOGIN, outcome="failure", target_id="5", target_owner_id="5")
+        entry = audit.assert_audited(
+            _LOGIN, outcome="failure", target_id=str(_USER_ID_5), target_owner_id=str(_USER_ID_5)
+        )
         assert entry.details == {"method": "password", "mfa": True, "reason": "invalid_mfa_code", "new_device": False}
 
     def test_a_locked_out_mfa_step_is_denied(self, mock_db):
         store = MagicMock()
         store.is_locked_out.return_value = True
         store.get_lockout_time.return_value = datetime(2999, 1, 1, tzinfo=UTC)
-        store.get_pending_login.return_value = pending_login(5)
+        store.get_pending_login.return_value = pending_login(_USER_ID_5)
         request = SimpleNamespace(mfa_challenge="challenge", mfa_code="123456")
         with (
             patch(f"{_SERVICE}.users_integration.get_user", return_value=_USER),
@@ -279,14 +293,16 @@ class TestMfaSignIn:
                 device_id=None,
             )
 
-        entry = audit.assert_audited(_LOGIN, outcome="denied", target_id="5")
+        entry = audit.assert_audited(_LOGIN, outcome="denied", target_id=str(_USER_ID_5))
         assert entry.details == {"method": "password", "mfa": True, "reason": "locked_out", "new_device": False}
 
     def test_a_completed_mfa_sign_in_is_audited_with_the_second_factor(self, mock_db):
         with jasil_testing.capture_audit() as audit:
             self._verify(mock_db, code_valid=True)
 
-        entry = audit.assert_audited(_LOGIN, outcome="success", actor_id="5", credential_type="password", target_id="5")
+        entry = audit.assert_audited(
+            _LOGIN, outcome="success", actor_id=str(_USER_ID_5), credential_type="password", target_id=str(_USER_ID_5)
+        )
         assert entry.details == {"method": "password", "mfa": True, "reason": None, "new_device": False}
 
 
@@ -294,7 +310,7 @@ class TestLogoutAndReuse:
     def _session(self):
         return SimpleNamespace(
             id="sid",
-            user_id=1,
+            user_id=_USER_ID_1,
             token_family_id="family",
             refresh_token="hash",
             csrf_token_hash=None,
@@ -311,15 +327,15 @@ class TestLogoutAndReuse:
             patch(f"{_SERVICE}.identity_providers_integration.read_end_session", return_value=None),
             jasil_testing.capture_audit() as audit,
         ):
-            authentication_service.logout("sid", "rt", 1, hasher, auth_constants.ClientType.WEB, mock_db)
+            authentication_service.logout("sid", "rt", _USER_ID_1, hasher, auth_constants.ClientType.WEB, mock_db)
 
         audit.assert_audited(
             authentication_audit_actions.LOGOUT.id,
             outcome="success",
-            actor_id="1",
+            actor_id=str(_USER_ID_1),
             target_type="user",
-            target_id="1",
-            target_owner_id="1",
+            target_id=str(_USER_ID_1),
+            target_owner_id=str(_USER_ID_1),
         )
 
     def test_a_logout_without_a_live_session_writes_nothing(self, mock_db):
@@ -347,7 +363,7 @@ class TestLogoutAndReuse:
             authentication_service_refresh_service.refresh_token(
                 "127.0.0.1",
                 "agent",
-                1,
+                _USER_ID_1,
                 "sid",
                 "old",
                 datetime(2999, 1, 1, tzinfo=UTC),
@@ -360,10 +376,10 @@ class TestLogoutAndReuse:
         audit.assert_audited(
             authentication_audit_actions.REFRESH_TOKEN_REUSE.id,
             outcome="denied",
-            actor_id="1",
+            actor_id=str(_USER_ID_1),
             target_type="user",
-            target_id="1",
-            target_owner_id="1",
+            target_id=str(_USER_ID_1),
+            target_owner_id=str(_USER_ID_1),
         )
 
     def test_a_replay_inside_the_grace_window_writes_nothing(self, mock_db):
@@ -381,7 +397,7 @@ class TestLogoutAndReuse:
             authentication_service_refresh_service.refresh_token(
                 "127.0.0.1",
                 "agent",
-                1,
+                _USER_ID_1,
                 "sid",
                 "old",
                 datetime(2999, 1, 1, tzinfo=UTC),
@@ -406,7 +422,7 @@ class TestSsoSignIn:
             security_generation=0,
         )
         session = SimpleNamespace(
-            user_id=5,
+            user_id=_USER_ID_5,
             tokens_exchanged=False,
             expires_at=datetime(2027, 1, 1, tzinfo=UTC),
             client_type="web",
@@ -445,7 +461,12 @@ class TestSsoSignIn:
             self._exchange(mock_db, idp_id=IDP_ID)
 
         entry = audit.assert_audited(
-            _LOGIN, outcome="success", actor_id="5", credential_type="oauth", target_type="user", target_id="5"
+            _LOGIN,
+            outcome="success",
+            actor_id=str(_USER_ID_5),
+            credential_type="oauth",
+            target_type="user",
+            target_id=str(_USER_ID_5),
         )
         assert entry.details == {"method": "identity_provider", "mfa": False, "reason": None, "new_device": False}
 

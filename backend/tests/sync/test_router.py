@@ -16,6 +16,8 @@ import modules.sync.router as sync_router
 import modules.sync.schema as sync_schema
 import modules.sync.service as sync_service
 
+USER = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
+
 _SYNC = "modules.sync.service.sync"
 
 
@@ -24,7 +26,7 @@ def _client() -> TestClient:
     app.include_router(sync_router.router, prefix="/sync")
     core_exceptions.register_exception_handlers(app)
     app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
-    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: 7
+    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: USER
     app.dependency_overrides[auth_dependencies.get_current_scopes] = lambda: frozenset({"health:read"})
     app.dependency_overrides[core_database.get_db] = lambda: MagicMock()
     return TestClient(app)
@@ -38,7 +40,7 @@ def test_the_page_and_the_parameters_reach_the_service():
     assert response.status_code == 200
     assert response.json() == {"changes": [], "next_cursor": "next", "has_more": False}
     args, kwargs = sync.call_args
-    assert args[:2] == (7, frozenset({"health:read"}))
+    assert args[:2] == (USER, frozenset({"health:read"}))
     assert kwargs["cursor"] == "c"
     assert kwargs["types"] == [sync_schema.SyncType.HEALTH_WEIGHT, sync_schema.SyncType.GEAR]
     assert kwargs["num_records"] == 100

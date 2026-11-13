@@ -1,5 +1,6 @@
 """Public login, refresh, MFA-login and logout routes."""
 
+import uuid
 from datetime import datetime
 from typing import Annotated
 
@@ -241,7 +242,7 @@ def refresh_token(
     request: Request,
     _validate_refresh_token: Annotated[None, Depends(authentication_dependencies.validate_refresh_token)],
     token_user_id: Annotated[
-        int,
+        uuid.UUID,
         Depends(authentication_dependencies.get_sub_from_refresh_token),
     ],
     token_session_id: Annotated[

@@ -48,10 +48,12 @@ _PRIVACY_FLAGS = (
 )
 
 
+_USER_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
+_OTHER_USER_ID = uuid.UUID("00000000-0000-4000-8000-000000000002")
 _LAP = {"start_time": datetime(2026, 7, 28, 9, 0, tzinfo=UTC)}
 
 
-def _add_activity(factory, user_id: int = 1) -> uuid.UUID:
+def _add_activity(factory, user_id: uuid.UUID = _USER_ID) -> uuid.UUID:
     """Commit one activity and return its id."""
     ensure_user(factory, user_id)
     core = activity_contracts.ActivityCore(
@@ -108,14 +110,14 @@ class TestStagedWorkIsPrivateUntilCommit:
 class TestAFailedFlushPoisonsTheSession:
     def _follow_twice(self, db: Session) -> None:
         """Stage the same follow twice, bypassing the pre-check that would 409 first."""
-        followers_crud.create_follower(1, 2, db)
+        followers_crud.create_follower(_USER_ID, _OTHER_USER_ID, db)
         db.commit()
         with patch.object(followers_crud, "get_follower_for_user_id_and_target_user_id", return_value=None):
-            followers_crud.create_follower(1, 2, db)
+            followers_crud.create_follower(_USER_ID, _OTHER_USER_ID, db)
 
     def test_the_unique_violation_is_a_conflict_and_the_session_needs_a_rollback(self, pg_factory):
-        ensure_user(pg_factory, 1)
-        ensure_user(pg_factory, 2)
+        ensure_user(pg_factory, _USER_ID)
+        ensure_user(pg_factory, _OTHER_USER_ID)
 
         with pg_factory() as db:
             with pytest.raises(core_exceptions.ConflictError):
@@ -131,8 +133,8 @@ class TestAFailedFlushPoisonsTheSession:
             assert db.scalar(select(func.count()).select_from(followers_models.Follower)) == 1
 
     def test_the_committed_row_survives_the_failed_duplicate(self, pg_factory):
-        ensure_user(pg_factory, 1)
-        ensure_user(pg_factory, 2)
+        ensure_user(pg_factory, _USER_ID)
+        ensure_user(pg_factory, _OTHER_USER_ID)
 
         with pg_factory() as db, pytest.raises(core_exceptions.ConflictError):
             self._follow_twice(db)
@@ -181,14 +183,14 @@ class TestRequestBoundaryRollsBack:
         """The real ``get_db`` plus the real error handler, over a real transaction."""
         import core.database as core_database
 
-        ensure_user(pg_factory, 1)
-        ensure_user(pg_factory, 2)
+        ensure_user(pg_factory, _USER_ID)
+        ensure_user(pg_factory, _OTHER_USER_ID)
         app = FastAPI()
         core_exceptions.register_exception_handlers(app)
 
         @app.post("/follow")
         def follow(db: Annotated[Session, Depends(core_database.get_db)]):
-            followers_crud.create_follower(1, 2, db)
+            followers_crud.create_follower(_USER_ID, _OTHER_USER_ID, db)
             raise SQLAlchemyError("commit failed: INSERT ... secret-parameter")
 
         with patch.object(core_database, "SessionLocal", pg_factory):

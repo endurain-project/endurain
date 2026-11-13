@@ -28,7 +28,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def list_health_poop(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -59,7 +59,7 @@ def list_health_poop(
     return core_pagination.Page.build(records, total, page_number, num_records)
 
 
-def get_health_poop(user_id: int, health_poop_id: uuid.UUID, db: Session) -> health_poop_schema.HealthPoopRead:
+def get_health_poop(user_id: uuid.UUID, health_poop_id: uuid.UUID, db: Session) -> health_poop_schema.HealthPoopRead:
     """Return one of a user's poop records.
 
     Args:
@@ -79,7 +79,7 @@ def get_health_poop(user_id: int, health_poop_id: uuid.UUID, db: Session) -> hea
     return record
 
 
-def list_health_poop_by_date(user_id: int, date: str, db: Session) -> list[health_poop_schema.HealthPoopRead]:
+def list_health_poop_by_date(user_id: uuid.UUID, date: str, db: Session) -> list[health_poop_schema.HealthPoopRead]:
     """Return a user's poop records for a calendar date in their own timezone.
 
     Args:
@@ -96,7 +96,7 @@ def list_health_poop_by_date(user_id: int, date: str, db: Session) -> list[healt
 
 
 def create_health_poop(
-    user_id: int, health_poop: health_poop_schema.HealthPoopCreate, db: Session
+    user_id: uuid.UUID, health_poop: health_poop_schema.HealthPoopCreate, db: Session
 ) -> health_poop_schema.HealthPoopRead:
     """Create a poop record and commit.
 
@@ -119,7 +119,7 @@ def create_health_poop(
     return created
 
 
-def stage_import_health_poop(user_id: int, health_poop: health_poop_schema.HealthPoopImport, db: Session) -> bool:
+def stage_import_health_poop(user_id: uuid.UUID, health_poop: health_poop_schema.HealthPoopImport, db: Session) -> bool:
     """Stage an imported poop record unless the user already has one at that time.
 
     Args:
@@ -137,7 +137,7 @@ def stage_import_health_poop(user_id: int, health_poop: health_poop_schema.Healt
 
 
 def edit_health_poop(
-    user_id: int,
+    user_id: uuid.UUID,
     health_poop_id: uuid.UUID,
     health_poop: health_poop_schema.HealthPoopUpdate,
     db: Session,
@@ -172,7 +172,7 @@ def edit_health_poop(
     return updated
 
 
-def delete_health_poop(user_id: int, health_poop_id: uuid.UUID, db: Session, *, if_match: str) -> None:
+def delete_health_poop(user_id: uuid.UUID, health_poop_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Delete a poop record and commit.
 
     Args:
@@ -196,7 +196,7 @@ def delete_health_poop(user_id: int, health_poop_id: uuid.UUID, db: Session, *, 
 
 
 def get_health_poop_chart(
-    user_id: int,
+    user_id: uuid.UUID,
     interval: health_constants.Interval,
     db: Session,
     *,
@@ -236,7 +236,7 @@ def get_health_poop_chart(
 
 
 def restore_profile_records(
-    records: list[dict[str, Any]], user_id: int, ids: users_profile_contracts.ProfileIdMaps, db: Session
+    records: list[dict[str, Any]], user_id: uuid.UUID, ids: users_profile_contracts.ProfileIdMaps, db: Session
 ) -> int:
     """Stage the poop records of a profile archive for a user.
 

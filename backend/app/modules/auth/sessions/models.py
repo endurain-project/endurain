@@ -1,5 +1,6 @@
 """Auth-owned session database models (table: ``users_sessions``)."""
 
+import uuid
 from datetime import datetime
 
 from sqlalchemy import JSON, CheckConstraint, DateTime, ForeignKey, String
@@ -58,7 +59,7 @@ class UsersSessions(Base):
         primary_key=True,
         nullable=False,
     )
-    user_id: Mapped[int] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

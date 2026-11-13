@@ -1,9 +1,11 @@
 """CRUD operations for users."""
 
+import uuid
 from collections.abc import Collection, Mapping, Sequence
 from datetime import datetime
 
 from sqlalchemy import Select, exists, func, select, text
+from sqlalchemy import update as sa_update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -22,7 +24,7 @@ _DUPLICATE_DETAIL = "Duplicate entry error. Check if email and username are uniq
 _FIRST_ADMIN_LOCK_KEY = 7_203_419_002
 
 
-def _get_user_model_by_id(user_id: int, db: Session) -> users_models.Users:
+def _get_user_model_by_id(user_id: uuid.UUID, db: Session) -> users_models.Users:
     """Retrieve a mapped user ORM row by ID.
 
     Args:
@@ -52,8 +54,8 @@ def _filtered[RowT: tuple[object, ...]](
     username: str | None = None,
     username_contains: str | None = None,
     external_auth: bool | None = None,
-    linked_user_ids: Select[tuple[int]] | None = None,
-    exclude_user_ids: Collection[int] = (),
+    linked_user_ids: Select[tuple[uuid.UUID]] | None = None,
+    exclude_user_ids: Collection[uuid.UUID] = (),
 ) -> Select[RowT]:
     """Apply the optional list filters to a users statement.
 
@@ -100,8 +102,8 @@ def get_users_number(
     username: str | None = None,
     username_contains: str | None = None,
     external_auth: bool | None = None,
-    linked_user_ids: Select[tuple[int]] | None = None,
-    exclude_user_ids: Collection[int] = (),
+    linked_user_ids: Select[tuple[uuid.UUID]] | None = None,
+    exclude_user_ids: Collection[uuid.UUID] = (),
 ) -> int:
     """Count users matching the optional list filters.
 
@@ -144,8 +146,8 @@ def get_users_with_pagination(
     username: str | None = None,
     username_contains: str | None = None,
     external_auth: bool | None = None,
-    linked_user_ids: Select[tuple[int]] | None = None,
-    exclude_user_ids: Collection[int] = (),
+    linked_user_ids: Select[tuple[uuid.UUID]] | None = None,
+    exclude_user_ids: Collection[uuid.UUID] = (),
 ) -> list[users_schema.UserRead]:
     """Retrieve a page of users, ordered by username, with optional filters.
 
@@ -226,7 +228,7 @@ def get_user_by_email(email: str, db: Session) -> users_schema.UserRead | None:
     return users_serializers.to_read_schema(user) if user else None
 
 
-def get_user_by_id(user_id: int, db: Session) -> users_schema.UserRead | None:
+def get_user_by_id(user_id: uuid.UUID, db: Session) -> users_schema.UserRead | None:
     """Retrieve a user by ID.
 
     Args:
@@ -241,7 +243,7 @@ def get_user_by_id(user_id: int, db: Session) -> users_schema.UserRead | None:
     return users_serializers.to_read_schema(user) if user else None
 
 
-def get_users_by_ids(user_ids: Collection[int], db: Session) -> list[users_schema.UserRead]:
+def get_users_by_ids(user_ids: Collection[uuid.UUID], db: Session) -> list[users_schema.UserRead]:
     """Retrieve several users by ID in one query.
 
     Args:
@@ -271,7 +273,7 @@ def get_users_admin(db: Session) -> list[users_schema.UserRead]:
     return [users_serializers.to_read_schema(user) for user in db.execute(stmt).scalars().all()]
 
 
-def get_photo_key(user_id: int, db: Session) -> str | None:
+def get_photo_key(user_id: uuid.UUID, db: Session) -> str | None:
     """Return the storage key of a user's photo, as stored on the row.
 
     Args:
@@ -285,7 +287,7 @@ def get_photo_key(user_id: int, db: Session) -> str | None:
     return db.execute(stmt).scalar_one_or_none()
 
 
-def get_photo_keys_by_user_ids(user_ids: list[int], db: Session) -> dict[int, str]:
+def get_photo_keys_by_user_ids(user_ids: list[uuid.UUID], db: Session) -> dict[uuid.UUID, str]:
     """Return the photo each of the given users names, as stored on the row.
 
     Args:
@@ -301,7 +303,7 @@ def get_photo_keys_by_user_ids(user_ids: list[int], db: Session) -> dict[int, st
     return {user_id: photo for user_id, photo in db.execute(stmt).all()}
 
 
-def replace_photo_key(user_id: int, photo_key: str | None, db: Session) -> str | None:
+def replace_photo_key(user_id: uuid.UUID, photo_key: str | None, db: Session) -> str | None:
     """Row-lock a user, set their stored photo key, and return the key it replaced (flushed, not committed).
 
     Concurrent photo changes for one user queue on the lock, so each sees exactly the key it
@@ -329,6 +331,24 @@ def replace_photo_key(user_id: int, photo_key: str | None, db: Session) -> str |
     return previous
 
 
+def replace_photo_keys(changes: Sequence[tuple[uuid.UUID, str, str]], db: Session) -> None:
+    """Stage new photo keys, each only where the user still holds the key it was read with.
+
+    A Core ``UPDATE`` that leaves ``version`` alone; the caller commits.
+
+    Args:
+        changes: ``(user id, current key, new key)`` triples.
+        db: Database session.
+    """
+    for user_id, old_key, new_key in changes:
+        db.execute(
+            sa_update(users_models.Users)
+            .where(users_models.Users.id == user_id, users_models.Users.photo_path == old_key)
+            .values(photo_path=new_key)
+        )
+    db.flush()
+
+
 def any_user_exists(db: Session) -> bool:
     """Tell whether at least one user exists.
 
@@ -354,7 +374,7 @@ def lock_first_admin_creation(db: Session) -> None:
     db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": _FIRST_ADMIN_LOCK_KEY})
 
 
-def lock_active_admin_ids(db: Session) -> list[int]:
+def lock_active_admin_ids(db: Session) -> list[uuid.UUID]:
     """Row-lock the active administrators, in id order, and return their ids.
 
     Two concurrent requests that each remove a different administrator would otherwise both see
@@ -379,7 +399,7 @@ def lock_active_admin_ids(db: Session) -> list[int]:
     return list(db.execute(stmt).scalars().all())
 
 
-def get_stored_photo_keys(db: Session) -> list[tuple[int, str | None]]:
+def get_stored_photo_keys(db: Session) -> list[tuple[uuid.UUID, str | None]]:
     """Return every user's raw stored photo value (migration use only).
 
     The read schema resolves ``photo_path`` into a signed URL, so a migration
@@ -422,7 +442,7 @@ def create_user(fields: Mapping[str, object], db: Session) -> users_schema.UserR
 
 
 def update_user(
-    user_id: int, changes: Mapping[str, object], db: Session, *, if_match: str | None = None
+    user_id: uuid.UUID, changes: Mapping[str, object], db: Session, *, if_match: str | None = None
 ) -> users_schema.UserRead:
     """Stage column changes on a user (flushed, not committed).
 
@@ -472,7 +492,7 @@ def update_user(
     return users_serializers.to_read_schema(db_user)
 
 
-def approve_pending_user(user_id: int, db: Session) -> bool:
+def approve_pending_user(user_id: uuid.UUID, db: Session) -> bool:
     """Activate a user who is awaiting approval (flushed, not committed).
 
     The row is locked while its state is read, so the check and the write cannot be split by a concurrent
@@ -506,8 +526,8 @@ def approve_pending_user(user_id: int, db: Session) -> bool:
 
 
 def lock_unverified_sign_ups(
-    created_before: datetime, held_user_ids: Sequence[Select[tuple[int]]], limit: int, db: Session
-) -> list[int]:
+    created_before: datetime, held_user_ids: Sequence[Select[tuple[uuid.UUID]]], limit: int, db: Session
+) -> list[uuid.UUID]:
     """Lock up to ``limit`` unverified self sign-ups created before ``created_before`` and return their ids.
 
     A row qualifies while it is inactive, its address is unverified and no administrator or deletion request
@@ -546,7 +566,7 @@ def lock_unverified_sign_ups(
     return list(db.execute(recheck.order_by(model.id)).scalars().all())
 
 
-def is_deactivated(user_id: int, db: Session) -> bool:
+def is_deactivated(user_id: uuid.UUID, db: Session) -> bool:
     """Tell whether an administrator or a deletion request deactivated a user.
 
     Args:
@@ -563,7 +583,7 @@ def is_deactivated(user_id: int, db: Session) -> bool:
     return _get_user_model_by_id(user_id, db).deactivated_at is not None
 
 
-def was_created_after(user_id: int, moment: datetime, db: Session) -> bool:
+def was_created_after(user_id: uuid.UUID, moment: datetime, db: Session) -> bool:
     """Tell whether a user's account was created after a moment.
 
     Args:
@@ -580,7 +600,7 @@ def was_created_after(user_id: int, moment: datetime, db: Session) -> bool:
     return bool(db.execute(stmt).scalar_one())
 
 
-def stage_deletion_request(user_id: int, db: Session) -> None:
+def stage_deletion_request(user_id: uuid.UUID, db: Session) -> None:
     """Stage the deactivation of a user and the marker that its deletion is queued (flushed, not committed).
 
     Args:
@@ -599,14 +619,14 @@ def stage_deletion_request(user_id: int, db: Session) -> None:
 
 
 def list_stalled_deletion_ids(
-    requested_before: datetime, max_attempts: int, after_id: int, limit: int, db: Session
-) -> list[int]:
+    requested_before: datetime, max_attempts: int, after_id: uuid.UUID | None, limit: int, db: Session
+) -> list[uuid.UUID]:
     """Return the ids of users whose queued deletion has not finished, oldest id first.
 
     Args:
         requested_before: Only deletions queued before this instant.
         max_attempts: Only users the sweep has queued fewer times than this.
-        after_id: Return only ids above this, so a pass pages through the table.
+        after_id: Return only ids above this, so a pass pages through the table; None starts from the first.
         limit: The most ids to return.
         db: Database session.
 
@@ -618,15 +638,16 @@ def list_stalled_deletion_ids(
         .where(
             users_models.Users.deletion_requested_at < requested_before,
             users_models.Users.deletion_attempts < max_attempts,
-            users_models.Users.id > after_id,
         )
         .order_by(users_models.Users.id)
         .limit(limit)
     )
+    if after_id is not None:
+        stmt = stmt.where(users_models.Users.id > after_id)
     return list(db.scalars(stmt).all())
 
 
-def record_deletion_attempt(user_id: int, db: Session) -> int | None:
+def record_deletion_attempt(user_id: uuid.UUID, db: Session) -> int | None:
     """Stage one more automatic attempt at a user's deletion (flushed, not committed).
 
     Args:
@@ -646,7 +667,7 @@ def record_deletion_attempt(user_id: int, db: Session) -> int | None:
     return db_user.deletion_attempts
 
 
-def get_deletion_attempts(user_id: int, db: Session) -> int | None:
+def get_deletion_attempts(user_id: uuid.UUID, db: Session) -> int | None:
     """Return how many times the sweep has queued a user's deletion again.
 
     Args:
@@ -660,7 +681,7 @@ def get_deletion_attempts(user_id: int, db: Session) -> int | None:
     return db.execute(stmt).scalar_one_or_none()
 
 
-def is_deletion_cancelled(user_id: int, db: Session) -> bool:
+def is_deletion_cancelled(user_id: uuid.UUID, db: Session) -> bool:
     """Tell whether an administrator reactivated a user whose deletion was queued.
 
     The row is locked until the caller's transaction ends, so a reactivation cannot slip in between
@@ -679,7 +700,7 @@ def is_deletion_cancelled(user_id: int, db: Session) -> bool:
     return db_user is not None and db_user.deletion_requested_at is None
 
 
-def delete_user(user_id: int, db: Session) -> None:
+def delete_user(user_id: uuid.UUID, db: Session) -> None:
     """Stage the deletion of a user row (flushed, not committed).
 
     Args:

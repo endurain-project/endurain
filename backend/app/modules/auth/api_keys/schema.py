@@ -1,5 +1,6 @@
 """User API key schemas."""
 
+import uuid
 from datetime import UTC, datetime
 
 from pydantic import (
@@ -98,7 +99,7 @@ class UserApiKeyRead(BaseModel):
     """
 
     id: StrictStr = Field(..., description="Unique key identifier (UUID)")
-    user_id: int = Field(..., ge=1, description="Owner's user ID")
+    user_id: uuid.UUID = Field(..., description="Owner's user ID")
     name: StrictStr = Field(..., description="User-friendly label")
     key_prefix: StrictStr = Field(..., description="First 8 chars of the random part")
     scopes: list[StrictStr] = Field(..., description="Granted scopes")

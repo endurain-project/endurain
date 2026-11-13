@@ -1,5 +1,6 @@
 """API-key lookup for request authentication."""
 
+import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
@@ -11,7 +12,9 @@ import modules.auth.api_keys.crud as api_keys_crud
 import modules.auth.api_keys.schema as api_keys_schema
 
 
-def list_user_api_keys(user_id: int, page: core_pagination.PageParams, db: Session) -> api_keys_schema.UserApiKeyPage:
+def list_user_api_keys(
+    user_id: uuid.UUID, page: core_pagination.PageParams, db: Session
+) -> api_keys_schema.UserApiKeyPage:
     """Return one page of a user's API keys."""
     keys = api_keys_crud.get_api_keys_page(
         user_id,

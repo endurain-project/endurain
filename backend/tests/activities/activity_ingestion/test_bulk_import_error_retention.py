@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import jasil.providers as platform_providers
 import pytest
+from tests._helpers.auth import MOCK_USER_ID
 
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.integration_service as ingestion_integration
@@ -18,14 +19,16 @@ class TestSweepStaleBulkImportErrors:
     def test_removes_only_files_older_than_the_retention_window(self):
         storage = MagicMock()
         now = time.time()
-        storage.iter_objects.return_value = iter([("1/job/old.fit", now - 10 * _DAY), ("1/job/new.fit", now - _DAY)])
+        storage.iter_objects.return_value = iter(
+            [(f"{MOCK_USER_ID}/job/old.fit", now - 10 * _DAY), (f"{MOCK_USER_ID}/job/new.fit", now - _DAY)]
+        )
 
         with patch.object(ingestion_service.core_config.settings, "JOBS_RETENTION_DAYS", 5):
             removed = ingestion_service.sweep_stale_bulk_import_errors(storage)
 
         assert removed == 1
         storage.iter_objects.assert_called_once_with(_AREA)
-        storage.delete.assert_called_once_with(_AREA, "1/job/old.fit")
+        storage.delete.assert_called_once_with(_AREA, f"{MOCK_USER_ID}/job/old.fit")
 
     @pytest.mark.parametrize("retention_days", [0, -1])
     def test_does_nothing_when_retention_is_disabled(self, retention_days):
@@ -42,15 +45,15 @@ class TestDeleteBulkImportErrors:
     def test_deletes_only_that_users_prefix(self):
         storage = MagicMock()
 
-        ingestion_integration.delete_bulk_import_errors(1, storage)
+        ingestion_integration.delete_bulk_import_errors(MOCK_USER_ID, storage)
 
-        storage.delete_prefix.assert_called_once_with(_AREA, "1")
+        storage.delete_prefix.assert_called_once_with(_AREA, f"{MOCK_USER_ID}/")
 
     def test_a_storage_failure_is_logged_not_raised(self):
         storage = MagicMock()
         storage.delete_prefix.side_effect = platform_providers.StorageBackendUnavailableError("down")
 
-        ingestion_integration.delete_bulk_import_errors(1, storage)
+        ingestion_integration.delete_bulk_import_errors(MOCK_USER_ID, storage)
 
         storage.delete_prefix.assert_called_once()
 
@@ -59,4 +62,4 @@ class TestDeleteBulkImportErrors:
         storage.delete_prefix.side_effect = TypeError("bug")
 
         with pytest.raises(TypeError):
-            ingestion_integration.delete_bulk_import_errors(1, storage)
+            ingestion_integration.delete_bulk_import_errors(MOCK_USER_ID, storage)

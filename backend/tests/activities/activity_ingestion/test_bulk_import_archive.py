@@ -9,6 +9,7 @@ import logging
 import lzma
 import os
 import time
+import uuid
 import zipfile
 import zlib
 from datetime import UTC, datetime, timedelta
@@ -19,6 +20,7 @@ import jasil.providers as platform_providers
 import pytest
 from jasil.backends.storage_local import LocalStorage
 from sqlalchemy.exc import InterfaceError, OperationalError
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 from tests._helpers.db import create_sqlite_session_factory, ensure_user
 
 import core.exceptions as core_exceptions
@@ -32,7 +34,7 @@ import modules.activities.activity_ingestion.provider_registry as provider_regis
 import modules.activities.activity_ingestion.service as ingestion_service
 import modules.activities.activity_ingestion.upload_entry_service as upload_entry_service
 
-_USER = 7
+_USER = MOCK_USER_ID
 
 
 def _commit_through(*_args, **kwargs):
@@ -217,7 +219,7 @@ class TestRunLocally:
         job_id = self._accept(tmp_path, factory, storage, {"a.fit": b"1"})
         seen: list[str] = []
 
-        def announce(user_id: int, announced_job: str, kind) -> None:
+        def announce(user_id: uuid.UUID, announced_job: str, kind) -> None:
             seen.append(_job(factory, job_id).status)
             assert (user_id, announced_job, kind) == (_USER, job_id, ingestion_constants.IngestionJobKind.BULK_IMPORT)
 
@@ -512,7 +514,7 @@ class TestFromFolder:
 
     def test_another_users_folder_is_neither_imported_nor_consumed(self, tmp_path, factory, storage, pipeline):
         mine = self._folder(tmp_path, {"mine.fit": b"1"})
-        other = tmp_path / "drop" / str(_USER + 1)
+        other = tmp_path / "drop" / str(OTHER_USER_ID)
         other.mkdir(parents=True)
         (other / "theirs.fit").write_bytes(b"2")
         with (

@@ -10,6 +10,7 @@ import core.exceptions as core_exceptions
 import modules.users.users_goals.crud as user_goals_crud
 import modules.users.users_goals.models as user_goals_models
 import modules.users.users_goals.schema as user_goals_schema
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 from tests._helpers.db import create_sqlite_session, ensure_user
 
 GOAL_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
@@ -44,7 +45,7 @@ class TestGetUserGoalsByUserId:
         goals = [MagicMock(spec=user_goals_models.UsersGoal), MagicMock(spec=user_goals_models.UsersGoal)]
         mock_db.execute.return_value.scalars.return_value.all.return_value = goals
 
-        assert user_goals_crud.get_user_goals_by_user_id(1, mock_db) == goals
+        assert user_goals_crud.get_user_goals_by_user_id(MOCK_USER_ID, mock_db) == goals
 
     def test_applies_every_filter(self, mock_db):
         mock_db.execute.return_value.scalars.return_value.all.return_value = []
@@ -68,8 +69,8 @@ class TestGetUserGoalsPage:
         mock_db.execute.return_value.scalars.return_value.all.return_value = goals
         mock_db.execute.return_value.scalar_one.return_value = 41
 
-        page = user_goals_crud.get_user_goals_page(1, mock_db, limit=25, offset=25)
-        total = user_goals_crud.count_user_goals(1, mock_db)
+        page = user_goals_crud.get_user_goals_page(MOCK_USER_ID, mock_db, limit=25, offset=25)
+        total = user_goals_crud.count_user_goals(MOCK_USER_ID, mock_db)
 
         assert page == goals
         assert total == 41
@@ -80,7 +81,7 @@ class TestGetUserGoalsPage:
     def test_the_count_applies_the_same_filters(self, mock_db):
         mock_db.execute.return_value.scalar_one.return_value = 3
 
-        user_goals_crud.count_user_goals(1, mock_db, interval=user_goals_schema.Interval.WEEKLY)
+        user_goals_crud.count_user_goals(MOCK_USER_ID, mock_db, interval=user_goals_schema.Interval.WEEKLY)
 
         assert "interval" in str(mock_db.execute.call_args.args[0])
 
@@ -90,25 +91,28 @@ class TestGetUserGoal:
         goal = MagicMock(spec=user_goals_models.UsersGoal)
         _one(mock_db, goal)
 
-        assert user_goals_crud.get_user_goal(1, GOAL_ID, mock_db) is goal
+        assert user_goals_crud.get_user_goal(MOCK_USER_ID, GOAL_ID, mock_db) is goal
         compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
-        assert "users_goals.user_id = 1" in compiled and f"users_goals.id = '{GOAL_ID.hex}'" in compiled
+        assert (
+            f"users_goals.user_id = '{MOCK_USER_ID.hex}'" in compiled
+            and f"users_goals.id = '{GOAL_ID.hex}'" in compiled
+        )
 
     def test_a_goal_the_user_does_not_have_is_not_found(self, mock_db):
         _one(mock_db, None)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            user_goals_crud.get_user_goal(1, GOAL_ID, mock_db)
+            user_goals_crud.get_user_goal(MOCK_USER_ID, GOAL_ID, mock_db)
 
 
 class TestCreateUserGoal:
     def test_stages_without_committing(self, mock_db):
         _one(mock_db, None)
 
-        result = user_goals_crud.create_user_goal(1, _create_input(), mock_db)
+        result = user_goals_crud.create_user_goal(MOCK_USER_ID, _create_input(), mock_db)
 
         assert isinstance(result, user_goals_models.UsersGoal)
-        assert result.user_id == 1
+        assert result.user_id == MOCK_USER_ID
         assert result.goal_calories == 5000
         mock_db.add.assert_called_once_with(result)
         mock_db.flush.assert_called_once()
@@ -124,7 +128,7 @@ class TestUpdateUserGoal:
             interval="weekly", activity_type="run", goal_type="calories", goal_calories=9000
         )
 
-        result = user_goals_crud.update_user_goal(1, GOAL_ID, update, mock_db, if_match="*")
+        result = user_goals_crud.update_user_goal(MOCK_USER_ID, GOAL_ID, update, mock_db, if_match="*")
 
         assert result == row
         assert row.goal_calories == 9000
@@ -138,7 +142,7 @@ class TestUpdateUserGoal:
         )
 
         with pytest.raises(core_exceptions.NotFoundError):
-            user_goals_crud.update_user_goal(1, GOAL_ID, update, mock_db, if_match="*")
+            user_goals_crud.update_user_goal(MOCK_USER_ID, GOAL_ID, update, mock_db, if_match="*")
 
 
 class TestDeleteUserGoal:
@@ -147,7 +151,7 @@ class TestDeleteUserGoal:
         row.version = 3
         _one(mock_db, row)
 
-        user_goals_crud.delete_user_goal(1, GOAL_ID, mock_db, if_match='"3"')
+        user_goals_crud.delete_user_goal(MOCK_USER_ID, GOAL_ID, mock_db, if_match='"3"')
 
         mock_db.delete.assert_called_once_with(row)
         mock_db.flush.assert_called_once()
@@ -159,7 +163,7 @@ class TestDeleteUserGoal:
         _one(mock_db, row)
 
         with pytest.raises(core_exceptions.PreconditionFailedError):
-            user_goals_crud.delete_user_goal(1, GOAL_ID, mock_db, if_match='"2"')
+            user_goals_crud.delete_user_goal(MOCK_USER_ID, GOAL_ID, mock_db, if_match='"2"')
 
         mock_db.delete.assert_not_called()
 
@@ -167,7 +171,7 @@ class TestDeleteUserGoal:
         _one(mock_db, None)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            user_goals_crud.delete_user_goal(1, GOAL_ID, mock_db, if_match="*")
+            user_goals_crud.delete_user_goal(MOCK_USER_ID, GOAL_ID, mock_db, if_match="*")
 
 
 class TestGoalUniquenessInTheDatabase:
@@ -177,8 +181,8 @@ class TestGoalUniquenessInTheDatabase:
     def db(self):
         session = create_sqlite_session()
         factory = sessionmaker(bind=session.get_bind())
-        ensure_user(factory, 1)
-        ensure_user(factory, 2)
+        ensure_user(factory, MOCK_USER_ID)
+        ensure_user(factory, OTHER_USER_ID)
         yield session
         session.close()
 
@@ -189,10 +193,10 @@ class TestGoalUniquenessInTheDatabase:
         return user_goals_schema.UserGoalCreate(**values)
 
     def test_the_same_goal_twice_is_a_conflict(self, db):
-        user_goals_crud.create_user_goal(1, self._goal(), db)
+        user_goals_crud.create_user_goal(MOCK_USER_ID, self._goal(), db)
 
         with pytest.raises(core_exceptions.ConflictError):
-            user_goals_crud.create_user_goal(1, self._goal(goal_calories=9000), db)
+            user_goals_crud.create_user_goal(MOCK_USER_ID, self._goal(goal_calories=9000), db)
 
     def test_goals_list_by_creation_time(self, db):
         from datetime import UTC, datetime, timedelta
@@ -206,7 +210,7 @@ class TestGoalUniquenessInTheDatabase:
             db.add(
                 user_goals_models.UsersGoal(
                     id=goal_id,
-                    user_id=1,
+                    user_id=MOCK_USER_ID,
                     interval=interval,
                     activity_type="run",
                     goal_type="calories",
@@ -216,33 +220,33 @@ class TestGoalUniquenessInTheDatabase:
             )
         db.commit()
 
-        goals = user_goals_crud.get_user_goals_page(1, db, limit=10, offset=0)
+        goals = user_goals_crud.get_user_goals_page(MOCK_USER_ID, db, limit=10, offset=0)
 
         assert [goal.interval for goal in goals] == ["weekly", "monthly"]
 
     def test_another_users_identical_goal_is_allowed(self, db):
-        user_goals_crud.create_user_goal(1, self._goal(), db)
+        user_goals_crud.create_user_goal(MOCK_USER_ID, self._goal(), db)
 
-        user_goals_crud.create_user_goal(2, self._goal(), db)
+        user_goals_crud.create_user_goal(OTHER_USER_ID, self._goal(), db)
 
     def test_editing_a_goal_into_another_one_is_a_conflict(self, db):
-        user_goals_crud.create_user_goal(1, self._goal(), db)
-        other = user_goals_crud.create_user_goal(1, self._goal(interval="monthly"), db)
+        user_goals_crud.create_user_goal(MOCK_USER_ID, self._goal(), db)
+        other = user_goals_crud.create_user_goal(MOCK_USER_ID, self._goal(interval="monthly"), db)
         change = user_goals_schema.UserGoalUpdate(**self._goal().model_dump())
 
         with pytest.raises(core_exceptions.ConflictError):
-            user_goals_crud.update_user_goal(1, other.id, change, db, if_match="*")
+            user_goals_crud.update_user_goal(MOCK_USER_ID, other.id, change, db, if_match="*")
 
     def test_replacing_a_goal_resets_the_targets_it_leaves_out(self, db):
         created = user_goals_crud.create_user_goal(
-            1, self._goal(goal_type="distance", goal_calories=None, goal_distance=10000), db
+            MOCK_USER_ID, self._goal(goal_type="distance", goal_calories=None, goal_distance=10000), db
         )
         # As a client sends it: the distance target is simply absent from the body.
         replacement = user_goals_schema.UserGoalUpdate(
             interval="weekly", activity_type="run", goal_type="calories", goal_calories=5000
         )
 
-        result = user_goals_crud.update_user_goal(1, created.id, replacement, db, if_match="*")
+        result = user_goals_crud.update_user_goal(MOCK_USER_ID, created.id, replacement, db, if_match="*")
 
         assert result.goal_calories == 5000
         assert result.goal_distance is None

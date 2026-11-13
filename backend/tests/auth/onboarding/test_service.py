@@ -1,5 +1,6 @@
 """Tests for the first-run onboarding workflow."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import jasil.testing as jasil_testing
@@ -11,6 +12,8 @@ import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.onboarding.schema as onboarding_schema
 import modules.auth.onboarding.service as onboarding_service
 import modules.auth.onboarding.token_store as onboarding_token_store
+
+_USER_ID = uuid.UUID(int=1)
 
 _USERS = "modules.auth.onboarding.service.users_integration"
 
@@ -121,7 +124,7 @@ class TestCompleteOnboarding:
     @patch(_USERS)
     def test_success_stages_claims_commits_in_that_order_and_consumes_the_token(self, users, store, mock_db):
         users.any_user_exists.return_value = False
-        users.stage_first_admin.return_value = MagicMock(id=1)
+        users.stage_first_admin.return_value = MagicMock(id=_USER_ID)
         token = store.issue()
         request = _request(token)
         order = MagicMock()
@@ -139,7 +142,7 @@ class TestCompleteOnboarding:
     @patch(_USERS)
     def test_a_token_cannot_be_reused_after_a_success(self, users, store, mock_db):
         users.any_user_exists.return_value = False
-        users.stage_first_admin.return_value = MagicMock(id=1)
+        users.stage_first_admin.return_value = MagicMock(id=_USER_ID)
         token = store.issue()
         onboarding_service.complete_onboarding(_request(token), store, mock_db)
 
@@ -234,7 +237,7 @@ class TestRefusalsAreAudited:
     @patch(_USERS)
     def test_a_success_records_no_refusal(self, users, store, mock_db):
         users.any_user_exists.return_value = False
-        users.stage_first_admin.return_value = MagicMock(id=1)
+        users.stage_first_admin.return_value = MagicMock(id=_USER_ID)
 
         with jasil_testing.capture_audit() as audit:
             onboarding_service.complete_onboarding(_request(store.issue()), store, mock_db)

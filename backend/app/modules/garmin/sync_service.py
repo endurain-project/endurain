@@ -6,6 +6,7 @@ pool that is not the request threadpool. Either way a gear or health sync is rec
 shared sync state, which the client polls and which stops a user queueing the same sync twice.
 """
 
+import uuid
 from datetime import date, timedelta
 
 import garminconnect
@@ -138,7 +139,7 @@ def close_dead_lettered_sync(
 
 
 def _queue(
-    user_id: int,
+    user_id: uuid.UUID,
     kind: garmin_constants.SyncKind,
     start_date: date | None,
     end_date: date | None,
@@ -196,7 +197,7 @@ def _queue(
 
 
 def request_gear_sync(
-    user_id: int,
+    user_id: uuid.UUID,
     states: garmin_sync_state_store.GarminSyncStateStore,
     rate_limits: garmin_rate_limit_store.GarminRateLimitStore,
     db: Session,
@@ -216,7 +217,7 @@ def request_gear_sync(
 
 
 def request_health_sync(
-    user_id: int,
+    user_id: uuid.UUID,
     start_date: date,
     end_date: date,
     states: garmin_sync_state_store.GarminSyncStateStore,
@@ -250,7 +251,7 @@ def request_health_sync(
 
 
 def request_activities_sync(
-    user_id: int,
+    user_id: uuid.UUID,
     start_date: date,
     end_date: date,
     storage: platform_providers.StorageProvider,
@@ -281,7 +282,7 @@ def request_activities_sync(
 
 
 def _sync_recent_health_for_user(
-    user_id: int,
+    user_id: uuid.UUID,
     states: garmin_sync_state_store.GarminSyncStateStore,
     rate_limits: garmin_rate_limit_store.GarminRateLimitStore,
 ) -> None:
@@ -334,7 +335,7 @@ def sync_recent_health(
         states: Shared store of the syncs' state.
         rate_limits: The shared Garmin Connect rate-limit state.
     """
-    after_id = 0
+    after_id: uuid.UUID | None = None
     while True:
         user_ids = garmin_service.linked_user_ids(after_id, _USERS_PAGE_SIZE)
         if not user_ids:

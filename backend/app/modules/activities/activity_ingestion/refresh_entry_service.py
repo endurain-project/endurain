@@ -11,6 +11,7 @@ session per unit of work, so no database transaction is held across a provider
 round trip.
 """
 
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import core.exceptions as core_exceptions
@@ -45,7 +46,7 @@ class RefreshDeferredError(Exception):
 
 
 def sync_linked_providers(
-    user_id: int,
+    user_id: uuid.UUID,
     window_start: datetime | None = None,
     window_end: datetime | None = None,
     *,

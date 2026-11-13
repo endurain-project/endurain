@@ -118,7 +118,7 @@ Content-Type: application/json
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
-  "user_id": 1,
+  "user_id": "2f1c6a3e-8d4b-4c57-9a1e-6b0d3f5e7a12",
   "name": "Home Server Integration",
   "key_prefix": "abc12345",
   "scopes": ["activities:upload"],
@@ -140,7 +140,7 @@ Content-Type: application/json
   "items": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
-      "user_id": 1,
+      "user_id": "2f1c6a3e-8d4b-4c57-9a1e-6b0d3f5e7a12",
       "name": "Home Server Integration",
       "key_prefix": "abc12345",
       "scopes": ["activities:upload"],

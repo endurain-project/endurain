@@ -8,6 +8,7 @@ import pytest
 import modules.auth.identity_provider_links.crud as identity_links_crud
 import modules.auth.identity_provider_links.integration_service as identity_links_integration
 import modules.auth.identity_provider_links.service as identity_links_service
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 from tests._helpers.db import create_sqlite_session
 
 IDP_3 = uuid.uuid4()
@@ -17,7 +18,12 @@ IDP_4 = uuid.uuid4()
 @pytest.fixture
 def db():
     session = create_sqlite_session()
-    for session_id, user_id, idp_id in (("s1", 7, IDP_3), ("s2", 7, IDP_3), ("s3", 7, IDP_4), ("s4", 8, IDP_3)):
+    for session_id, user_id, idp_id in (
+        ("s1", MOCK_USER_ID, IDP_3),
+        ("s2", MOCK_USER_ID, IDP_3),
+        ("s3", MOCK_USER_ID, IDP_4),
+        ("s4", OTHER_USER_ID, IDP_3),
+    ):
         identity_links_crud.create_idp_session_token(session_id, user_id, idp_id, None, None, session)
     session.commit()
     yield session
@@ -57,7 +63,9 @@ class TestOrphanedSessionTokens:
 
     def test_a_user_can_be_asked_about_alone(self, db):
         with _alive("s1"):
-            orphans, _ = identity_links_integration.get_orphaned_idp_session_tokens_page(None, 10, db, user_id=7)
+            orphans, _ = identity_links_integration.get_orphaned_idp_session_tokens_page(
+                None, 10, db, user_id=MOCK_USER_ID
+            )
 
         assert [row.session_id for row in orphans] == _in_id_order(db, "s2", "s3")
 
@@ -88,14 +96,17 @@ class TestEndIdpSessions:
         with (
             _live("s1") as delete_session,
         ):
-            ended = identity_links_integration.end_idp_sessions(7, IDP_3, db)
+            ended = identity_links_integration.end_idp_sessions(MOCK_USER_ID, IDP_3, db)
 
         assert ended == 1
-        assert [call.args for call in delete_session.call_args_list] == [("s1", 7, db), ("s2", 7, db)]
+        assert [call.args for call in delete_session.call_args_list] == [
+            ("s1", MOCK_USER_ID, db),
+            ("s2", MOCK_USER_ID, db),
+        ]
 
     def test_a_session_that_vanishes_before_it_is_ended_is_skipped_and_not_counted(self, db):
         with _live("s2") as delete_session:
-            ended = identity_links_integration.end_idp_sessions(7, IDP_3, db)
+            ended = identity_links_integration.end_idp_sessions(MOCK_USER_ID, IDP_3, db)
 
         assert ended == 1
         assert [call.args[0] for call in delete_session.call_args_list] == ["s1", "s2"]
@@ -104,13 +115,13 @@ class TestEndIdpSessions:
         with (
             _live() as delete_session,
         ):
-            assert identity_links_integration.end_idp_sessions(9, IDP_3, db) == 0
+            assert identity_links_integration.end_idp_sessions(uuid.uuid4(), IDP_3, db) == 0
 
         delete_session.assert_not_called()
 
     def test_the_sign_ins_stay_so_their_tokens_can_be_revoked(self, db):
         with _live("s1", "s2"):
-            identity_links_integration.end_idp_sessions(7, IDP_3, db)
+            identity_links_integration.end_idp_sessions(MOCK_USER_ID, IDP_3, db)
 
         assert identity_links_crud.get_idp_session_token("s1", db) is not None
 
@@ -123,7 +134,11 @@ class TestEndAllIdpSessions:
             ended = identity_links_integration.end_all_idp_sessions(IDP_3, db)
 
         assert ended == 2
-        assert sorted(call.args[:2] for call in delete_session.call_args_list) == [("s1", 7), ("s2", 7), ("s4", 8)]
+        assert sorted(call.args[:2] for call in delete_session.call_args_list) == [
+            ("s1", MOCK_USER_ID),
+            ("s2", MOCK_USER_ID),
+            ("s4", OTHER_USER_ID),
+        ]
 
     def test_a_provider_with_no_sign_in_ends_nothing(self, db):
         with _live() as delete_session:
@@ -139,12 +154,12 @@ class TestEndIdpSessionsBySid:
     def sid_db(self):
         session = create_sqlite_session()
         for session_id, user_id, idp_id, sid in (
-            ("a1", 7, IDP_3, "sid-1"),
-            ("a2", 7, IDP_3, "sid-1"),
-            ("a3", 8, IDP_3, "sid-1"),
-            ("a4", 7, IDP_3, "sid-2"),
-            ("a5", 7, IDP_4, "sid-1"),
-            ("a6", 7, IDP_3, None),
+            ("a1", MOCK_USER_ID, IDP_3, "sid-1"),
+            ("a2", MOCK_USER_ID, IDP_3, "sid-1"),
+            ("a3", OTHER_USER_ID, IDP_3, "sid-1"),
+            ("a4", MOCK_USER_ID, IDP_3, "sid-2"),
+            ("a5", MOCK_USER_ID, IDP_4, "sid-1"),
+            ("a6", MOCK_USER_ID, IDP_3, None),
         ):
             identity_links_crud.create_idp_session_token(session_id, user_id, idp_id, None, None, session, idp_sid=sid)
         session.commit()
@@ -157,24 +172,28 @@ class TestEndIdpSessionsBySid:
         ):
             ended = identity_links_integration.end_idp_sessions_by_sid(IDP_3, "sid-1", sid_db)
 
-        assert ended == {7: 1, 8: 1}
-        assert sorted(call.args[:2] for call in delete_session.call_args_list) == [("a1", 7), ("a2", 7), ("a3", 8)]
+        assert ended == {MOCK_USER_ID: 1, OTHER_USER_ID: 1}
+        assert sorted(call.args[:2] for call in delete_session.call_args_list) == [
+            ("a1", MOCK_USER_ID),
+            ("a2", MOCK_USER_ID),
+            ("a3", OTHER_USER_ID),
+        ]
 
     def test_a_session_that_vanishes_is_skipped_and_the_others_still_end(self, sid_db):
         with _live("a1", "a3") as delete_session:
             ended = identity_links_integration.end_idp_sessions_by_sid(IDP_3, "sid-1", sid_db)
 
-        assert ended == {7: 1, 8: 1}
+        assert ended == {MOCK_USER_ID: 1, OTHER_USER_ID: 1}
         assert delete_session.call_count == 3
 
     def test_a_user_restricts_the_match_to_their_own_sessions(self, sid_db):
         with (
             _live("a1", "a2", "a3") as delete_session,
         ):
-            ended = identity_links_integration.end_idp_sessions_by_sid(IDP_3, "sid-1", sid_db, user_id=8)
+            ended = identity_links_integration.end_idp_sessions_by_sid(IDP_3, "sid-1", sid_db, user_id=OTHER_USER_ID)
 
-        assert ended == {8: 1}
-        delete_session.assert_called_once_with("a3", 8, sid_db)
+        assert ended == {OTHER_USER_ID: 1}
+        delete_session.assert_called_once_with("a3", OTHER_USER_ID, sid_db)
 
     def test_an_unknown_provider_session_ends_nothing(self, sid_db):
         with (

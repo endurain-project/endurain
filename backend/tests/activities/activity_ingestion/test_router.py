@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
 import core.exceptions as core_exceptions
 import core.job_status as core_job_status
@@ -40,14 +41,14 @@ class TestUploadRoute:
             result = router.create_activity_with_uploaded_file(
                 request=MagicMock(),
                 response=MagicMock(),
-                token_user_id=7,
+                token_user_id=MOCK_USER_ID,
                 file=file,
                 db=db,
                 storage="storage",
                 idempotency_key="key-1",
             )
 
-        accept.assert_called_once_with(7, file.filename, ANY, "storage", db, idempotency_key="key-1")
+        accept.assert_called_once_with(MOCK_USER_ID, file.filename, ANY, "storage", db, idempotency_key="key-1")
         # The service never sees the upload itself: only the shared writer, bound to it.
         save_upload = accept.call_args.args[2]
         assert save_upload.func is router.core_file_uploads.save_validated_upload_sync
@@ -60,7 +61,7 @@ class TestUploadRoute:
             router.create_activity_with_uploaded_file(
                 request=MagicMock(),
                 response=MagicMock(),
-                token_user_id=7,
+                token_user_id=MOCK_USER_ID,
                 file=MagicMock(),
                 db=db,
                 storage="storage",
@@ -82,7 +83,7 @@ class TestUploadRoute:
         app.add_api_route("/jobs/{job_id}", lambda job_id: None, name="read_job")
         app.dependency_overrides[core_db.get_db] = lambda: db
         app.dependency_overrides[core_dependencies.get_storage] = lambda: "storage"
-        app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: 7
+        app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: MOCK_USER_ID
         app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
 
         with patch.object(
@@ -105,7 +106,7 @@ class TestUploadRoute:
         assert response.headers["Content-Location"] == "/jobs/job-1"
         assert response.headers["Retry-After"] == "2"
         # The activity is attributed to the authenticated user, not any body field.
-        assert accept.call_args.args[0] == 7
+        assert accept.call_args.args[0] == MOCK_USER_ID
 
 
 class TestBulkImportRoutesDelegate:
@@ -119,7 +120,7 @@ class TestBulkImportRoutesDelegate:
             result = router.create_bulk_import_from_archive(
                 request=MagicMock(),
                 response=MagicMock(),
-                token_user_id=3,
+                token_user_id=OTHER_USER_ID,
                 file=file,
                 db=db,
                 storage="storage",
@@ -127,7 +128,9 @@ class TestBulkImportRoutesDelegate:
                 idempotency_key="key-1",
             )
 
-        accept.assert_called_once_with(3, file.filename, ANY, "strava", "storage", db, idempotency_key="key-1")
+        accept.assert_called_once_with(
+            OTHER_USER_ID, file.filename, ANY, "strava", "storage", db, idempotency_key="key-1"
+        )
         # The service never sees the upload itself: only the shared writer, bound to it.
         save_upload = accept.call_args.args[2]
         assert save_upload.func is router.core_file_uploads.save_validated_upload_sync
@@ -141,10 +144,15 @@ class TestBulkImportRoutesDelegate:
             router.activity_ingestion_bulk_import_service, "start_from_directory", return_value=job
         ) as start:
             result = router.create_bulk_import_from_folder(
-                request=MagicMock(), response=MagicMock(), token_user_id=3, db=db, storage="storage", source="generic"
+                request=MagicMock(),
+                response=MagicMock(),
+                token_user_id=OTHER_USER_ID,
+                db=db,
+                storage="storage",
+                source="generic",
             )
 
-        start.assert_called_once_with(3, "generic", "storage", db)
+        start.assert_called_once_with(OTHER_USER_ID, "generic", "storage", db)
         assert result == job
 
     def test_a_service_refusal_is_not_swallowed(self):
@@ -160,7 +168,7 @@ class TestBulkImportRoutesDelegate:
             router.create_bulk_import_from_folder(
                 request=MagicMock(),
                 response=MagicMock(),
-                token_user_id=3,
+                token_user_id=OTHER_USER_ID,
                 db=MagicMock(),
                 storage="s",
                 source="generic",

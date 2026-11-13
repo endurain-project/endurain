@@ -22,7 +22,7 @@ router = APIRouter()
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
 )
 def read_user_activity_stats(
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     period: Annotated[activity_constants.StatsPeriod, Query()] = activity_constants.StatsPeriod.WEEK,
@@ -50,7 +50,7 @@ def read_user_activity_stats(
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
 )
 def list_user_activities(
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     page: core_pagination.ListPage,

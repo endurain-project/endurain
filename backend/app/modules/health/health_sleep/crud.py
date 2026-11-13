@@ -50,7 +50,7 @@ def _resting_heart_rate_conditions(has_resting_heart_rate: bool | None) -> list[
 
 
 def get_health_sleep_number_by_user_id(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     since: date_type | None = None,
     until: date_type | None = None,
@@ -82,7 +82,7 @@ def get_health_sleep_number_by_user_id(
 
 def _list_page[ModelT: health_record_crud.Row, ReadT: BaseModel](
     spec: health_record_crud.RecordSpec[ModelT, ReadT],
-    user_id: int,
+    user_id: uuid.UUID,
     page_number: int | None,
     num_records: int | None,
     since: date_type | None,
@@ -121,7 +121,7 @@ def _list_page[ModelT: health_record_crud.Row, ReadT: BaseModel](
 
 
 def get_health_sleep_by_user_id(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     page_number: int | None = None,
     num_records: int | None = None,
@@ -150,7 +150,7 @@ def get_health_sleep_by_user_id(
 
 
 def get_health_sleep_list_items_by_user_id(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     page_number: int | None = None,
     num_records: int | None = None,
@@ -179,7 +179,7 @@ def get_health_sleep_list_items_by_user_id(
 
 
 def get_health_sleep_by_id(
-    user_id: int, health_sleep_id: uuid.UUID, db: Session
+    user_id: uuid.UUID, health_sleep_id: uuid.UUID, db: Session
 ) -> health_sleep_schema.HealthSleepRead:
     """Retrieve a user's sleep record by id.
 
@@ -199,7 +199,7 @@ def get_health_sleep_by_id(
 
 
 def get_health_sleep_by_date_and_user_id(
-    user_id: int, date: str, db: Session
+    user_id: uuid.UUID, date: str, db: Session
 ) -> health_sleep_schema.HealthSleepRead | None:
     """Retrieve a user's sleep record for a date.
 
@@ -215,7 +215,7 @@ def get_health_sleep_by_date_and_user_id(
 
 
 def create_health_sleep(
-    user_id: int, health_sleep: health_sleep_schema.HealthSleepCreate, db: Session
+    user_id: uuid.UUID, health_sleep: health_sleep_schema.HealthSleepCreate, db: Session
 ) -> health_sleep_schema.HealthSleepRead:
     """Stage a new sleep record for a user.
 
@@ -236,7 +236,7 @@ def create_health_sleep(
 
 
 def edit_health_sleep(
-    user_id: int,
+    user_id: uuid.UUID,
     health_sleep_id: uuid.UUID,
     health_sleep: health_sleep_schema.HealthSleepUpdate,
     db: Session,
@@ -271,7 +271,7 @@ def edit_health_sleep(
     )
 
 
-def delete_health_sleep(user_id: int, health_sleep_id: uuid.UUID, db: Session, *, if_match: str) -> None:
+def delete_health_sleep(user_id: uuid.UUID, health_sleep_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Stage the deletion of a user's sleep record.
 
     Args:
@@ -289,7 +289,7 @@ def delete_health_sleep(user_id: int, health_sleep_id: uuid.UUID, db: Session, *
 
 def _average_by_bucket(
     column: SQLColumnExpression[int | None],
-    user_id: int,
+    user_id: uuid.UUID,
     since: date_type,
     until: date_type | None,
     bucket: health_constants.ChartBucket,
@@ -320,7 +320,7 @@ def _average_by_bucket(
 
 
 def get_health_sleep_chart(
-    user_id: int, since: date_type, until: date_type | None, bucket: health_constants.ChartBucket, db: Session
+    user_id: uuid.UUID, since: date_type, until: date_type | None, bucket: health_constants.ChartBucket, db: Session
 ) -> list[health_schema.HealthChartPoint]:
     """Average a user's total sleep seconds per chart bucket.
 
@@ -338,7 +338,7 @@ def get_health_sleep_chart(
 
 
 def get_health_sleep_resting_heart_rate_chart(
-    user_id: int, since: date_type, until: date_type | None, bucket: health_constants.ChartBucket, db: Session
+    user_id: uuid.UUID, since: date_type, until: date_type | None, bucket: health_constants.ChartBucket, db: Session
 ) -> list[health_schema.HealthChartPoint]:
     """Average a user's resting heart rate per chart bucket.
 
@@ -356,7 +356,7 @@ def get_health_sleep_resting_heart_rate_chart(
 
 
 def list_changed(
-    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[health_sleep_schema.HealthSleepRead]:
     """Retrieve a user's records changed after a position, oldest change first.
 

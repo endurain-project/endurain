@@ -7,6 +7,7 @@ follow service calls these instead of building events itself, so it stays
 ignorant of the substrate and of who subscribes.
 """
 
+import uuid
 from collections.abc import Callable
 
 import jasil.publisher as platform_publisher
@@ -17,8 +18,8 @@ import modules.followers.events as followers_events
 
 
 def publish_follower_requested(
-    requester_user_id: int,
-    target_user_id: int,
+    requester_user_id: uuid.UUID,
+    target_user_id: uuid.UUID,
     db: Session,
     *,
     commit: Callable[[], None],
@@ -42,7 +43,7 @@ def publish_follower_requested(
         followers_events.FOLLOWER_REQUESTED,
         payload.model_dump(mode="json"),
         source="api:follow_user",
-        metadata={core_event_metadata.META_USER_ID: target_user_id},
+        metadata={core_event_metadata.META_USER_ID: str(target_user_id)},
         db=db,
         commit=commit,
         schema_version=payload.SCHEMA_VERSION,
@@ -50,8 +51,8 @@ def publish_follower_requested(
 
 
 def publish_follower_accepted(
-    accepter_user_id: int,
-    requester_user_id: int,
+    accepter_user_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     commit: Callable[[], None],
@@ -73,7 +74,7 @@ def publish_follower_accepted(
         followers_events.FOLLOWER_ACCEPTED,
         payload.model_dump(mode="json"),
         source="api:accept_follow_request",
-        metadata={core_event_metadata.META_USER_ID: requester_user_id},
+        metadata={core_event_metadata.META_USER_ID: str(requester_user_id)},
         db=db,
         commit=commit,
         schema_version=payload.SCHEMA_VERSION,
@@ -81,8 +82,8 @@ def publish_follower_accepted(
 
 
 def publish_follower_request_removed(
-    requester_user_id: int,
-    target_user_id: int,
+    requester_user_id: uuid.UUID,
+    target_user_id: uuid.UUID,
     db: Session,
     *,
     commit: Callable[[], None],
@@ -107,7 +108,7 @@ def publish_follower_request_removed(
         followers_events.FOLLOWER_REQUEST_REMOVED,
         payload.model_dump(mode="json"),
         source=source,
-        metadata={core_event_metadata.META_USER_ID: target_user_id},
+        metadata={core_event_metadata.META_USER_ID: str(target_user_id)},
         db=db,
         commit=commit,
         schema_version=payload.SCHEMA_VERSION,

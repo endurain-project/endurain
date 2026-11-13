@@ -78,12 +78,16 @@ import modules.users.users_integrations.schema as integrations_schema
 import modules.users.users_privacy_settings.integration_service as privacy_integration
 import modules.users.users_privacy_settings.schema as privacy_schema
 import modules.users.users_profile.constants as profile_constants
+import modules.users.users_profile.exceptions as profile_exceptions
 import modules.users.users_profile.export_service as profile_export_service
 import modules.users.users_profile.import_service as profile_import_service
 import modules.users.users_profile.service as profile_service
 
-#: The checked-in archive of an export, written by an earlier run of this suite's seed.
-_FIXTURE = Path(__file__).parent / "fixtures" / "profile_export_archive.json"
+#: The checked-in archive of an export written by a UUID-era release, which the import accepts.
+_FIXTURE = Path(__file__).parent / "fixtures" / "profile_export_archive_v0_21.json"
+
+#: The checked-in archive of an export written while ids were integers, which the import refuses.
+_OLDER_FIXTURE = Path(__file__).parent / "fixtures" / "profile_export_archive.json"
 
 _USERNAME = "roundtrip"
 _EMAIL = "round.trip@example.com"
@@ -169,7 +173,7 @@ def _png(width: int = 2, height: int = 2, shade: int = 200) -> bytes:
     return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header) + chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b"")
 
 
-def _create_account(factory: sessionmaker[Session]) -> int:
+def _create_account(factory: sessionmaker[Session]) -> uuid.UUID:
     """Create the account the archive is exported from and imported into, with its default rows."""
     with factory() as db:
         created = users_service.create_user(
@@ -182,7 +186,7 @@ def _create_account(factory: sessionmaker[Session]) -> int:
                 active=True,
             ),
             None,
-            1,
+            uuid.UUID(int=1),
             "sid-1",
             MagicMock(),
             db,
@@ -190,7 +194,7 @@ def _create_account(factory: sessionmaker[Session]) -> int:
         return created.id
 
 
-def _activity(user_id: int, index: int, gear_id: uuid.UUID | None) -> activity_contracts.ActivityCore:
+def _activity(user_id: uuid.UUID, index: int, gear_id: uuid.UUID | None) -> activity_contracts.ActivityCore:
     return activity_contracts.ActivityCore(
         user_id=user_id,
         name=f"Ride {index}",
@@ -210,7 +214,7 @@ def _activity(user_id: int, index: int, gear_id: uuid.UUID | None) -> activity_c
     )
 
 
-def _seed_gears(db: Session, user_id: int) -> list[uuid.UUID]:
+def _seed_gears(db: Session, user_id: uuid.UUID) -> list[uuid.UUID]:
     road = gear_crud.create_gear(
         gear_schema.GearCreate(
             nickname="Road Bike",
@@ -248,7 +252,9 @@ def _seed_gears(db: Session, user_id: int) -> list[uuid.UUID]:
     return [road.id, shoes.id]
 
 
-def _seed_activities(db: Session, user_id: int, gear_ids: list[uuid.UUID], storage: platform_providers.StorageProvider):
+def _seed_activities(
+    db: Session, user_id: uuid.UUID, gear_ids: list[uuid.UUID], storage: platform_providers.StorageProvider
+):
     """Add three activities with every kind of per-activity child, an activity file and a media blob."""
     titles_crud.create_activity_exercise_titles(
         [
@@ -327,7 +333,7 @@ def _seed_activities(db: Session, user_id: int, gear_ids: list[uuid.UUID], stora
             activity_file_storage_integration.store_activity_file(activity_id, ".gpx", _GPX, storage)
 
 
-def _seed_health(db: Session, user_id: int) -> None:
+def _seed_health(db: Session, user_id: uuid.UUID) -> None:
     for day in range(1, 4):
         weight_integration.upsert_health_weight(
             user_id,
@@ -380,7 +386,7 @@ def _seed_health(db: Session, user_id: int) -> None:
     )
 
 
-def _seed(factory: sessionmaker[Session], storage: platform_providers.StorageProvider) -> int:
+def _seed(factory: sessionmaker[Session], storage: platform_providers.StorageProvider) -> uuid.UUID:
     """Create the account and fill every section the archive carries; return its id."""
     user_id = _create_account(factory)
     with factory() as db:
@@ -422,7 +428,7 @@ def _seed(factory: sessionmaker[Session], storage: platform_providers.StoragePro
     return user_id
 
 
-def _export(factory: sessionmaker[Session], storage: platform_providers.StorageProvider, user_id: int) -> bytes:
+def _export(factory: sessionmaker[Session], storage: platform_providers.StorageProvider, user_id: uuid.UUID) -> bytes:
     """Export the way production does and read back the staged archive."""
     with factory() as db:
         profile_service.stage_export(user_id, storage, db)
@@ -434,7 +440,7 @@ def _export(factory: sessionmaker[Session], storage: platform_providers.StorageP
 
 
 def _import(
-    factory: sessionmaker[Session], storage: platform_providers.StorageProvider, user_id: int, archive: bytes
+    factory: sessionmaker[Session], storage: platform_providers.StorageProvider, user_id: uuid.UUID, archive: bytes
 ) -> dict[str, int]:
     """Import the way the import job does, on a session of its own and a loop of its own."""
     with factory() as db:
@@ -447,7 +453,7 @@ def _import(
         return importer.import_from_zip_data(archive)
 
 
-def _wipe(factory: sessionmaker[Session], storage: platform_providers.StorageProvider, user_id: int) -> None:
+def _wipe(factory: sessionmaker[Session], storage: platform_providers.StorageProvider, user_id: uuid.UUID) -> None:
     """Delete the account's rows through the database cascade and every blob the account owned."""
     with factory() as db:
         users_crud.delete_user(user_id, db)
@@ -479,7 +485,7 @@ class _Normaliser:
 
     #: ``activity_files/{activity_id}.gpx`` and ``activity_media/{activity_id}_{suffix}``.
     _BLOB = re.compile(r"^(?P<folder>activity_files|activity_media)/(?P<id>[0-9a-f-]{36})(?P<rest>[._].*)$")
-    _USER_IMAGE = re.compile(r"^user_images/\d+(?P<ext>\..*)$")
+    _USER_IMAGE = re.compile(r"^user_images/[0-9a-f-]{36}(?P<ext>\..*)$")
     _MEDIA_KEY = re.compile(r"^(?P<id>[0-9a-f-]{36})_(?P<rest>.*)$")
 
     def __init__(self, entries: dict[str, Any]) -> None:
@@ -597,7 +603,22 @@ def _archive_of(document: dict[str, dict[str, Any]]) -> bytes:
     return buffer.getvalue()
 
 
-def test_an_archive_written_by_an_earlier_release_still_imports(pg_factory, storage):
+def test_an_archive_exported_with_integer_ids_is_refused_and_imports_nothing(pg_factory, storage):
+    document = json.loads(_OLDER_FIXTURE.read_text(encoding="utf-8"))
+    user_id = _create_account(pg_factory)
+
+    with pytest.raises(profile_exceptions.ImportArchiveFromOlderVersionError):
+        _import(pg_factory, storage, user_id, _archive_of(document))
+
+    with pg_factory() as db:
+        assert gear_integration.get_gear_user(user_id, db) == []
+        assert db.execute(text("SELECT count(*) FROM activities WHERE user_id = :u"), {"u": user_id}).scalar_one() == 0
+        assert (
+            db.execute(text("SELECT count(*) FROM health_weight WHERE user_id = :u"), {"u": user_id}).scalar_one() == 0
+        )
+
+
+def test_an_archive_written_by_a_uuid_era_release_still_imports(pg_factory, storage):
     document = json.loads(_FIXTURE.read_text(encoding="utf-8"))
     user_id = _create_account(pg_factory)
 

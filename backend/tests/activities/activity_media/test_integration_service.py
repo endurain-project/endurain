@@ -15,6 +15,7 @@ ACT1 = uuid.UUID("00000000-0000-4000-8000-000000000001")
 ACT2 = uuid.UUID("00000000-0000-4000-8000-000000000002")
 ACT3 = uuid.UUID("00000000-0000-4000-8000-000000000003")
 NEW_ACT = uuid.UUID("00000000-0000-4000-8000-000000000007")
+ORIGINAL_ACT = uuid.UUID("00000000-0000-4000-8000-000000000001")
 _EPOCH = datetime(2026, 1, 1, tzinfo=UTC)
 
 
@@ -80,14 +81,14 @@ _HASH_B = "b" * 64
 
 def _restore(session, records):
     activity = SimpleNamespace(id=NEW_ACT)
-    count = media_integration._restore_profile_records(records, "1", activity, session)
+    count = media_integration._restore_profile_records(records, ORIGINAL_ACT, activity, session)
     session.flush()
     rows = session.query(media_models.ActivityMedia).order_by(media_models.ActivityMedia.media_path).all()
     return count, [(r.media_path, r.content_hash) for r in rows]
 
 
 def _record(name, **extra):
-    return {"activity_id": 1, "media_path": f"1_{name}.jpg", "media_type": 1, **extra}
+    return {"activity_id": str(ORIGINAL_ACT), "media_path": f"{ORIGINAL_ACT}_{name}.jpg", "media_type": 1, **extra}
 
 
 class TestRestoreProfileRecords:

@@ -9,6 +9,7 @@ owns the transaction, commits, and then pushes the live hint with
 are safe to run where there is no event loop.
 """
 
+import uuid
 from datetime import date
 
 from sqlalchemy.orm import Session
@@ -19,7 +20,7 @@ import modules.notifications.schema as notifications_schema
 import modules.websocket.integration_service as websocket_integration
 
 
-def push_notification(user_id: int, notification: notifications_schema.NotificationRead, ws_message: str) -> None:
+def push_notification(user_id: uuid.UUID, notification: notifications_schema.NotificationRead, ws_message: str) -> None:
     """Tell a user's browser that a committed notification awaits.
 
     Args:
@@ -31,7 +32,7 @@ def push_notification(user_id: int, notification: notifications_schema.Notificat
 
 
 def create_garmin_token_expired_notification(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
 ) -> tuple[notifications_schema.NotificationRead, str]:
     """Stage the notification that a Garmin Connect account was unlinked.
@@ -56,7 +57,7 @@ def create_garmin_token_expired_notification(
 
 
 def create_strava_token_expired_notification(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     delete_on: date | None = None,
@@ -85,7 +86,7 @@ def create_strava_token_expired_notification(
 
 
 def create_strava_data_deleted_notification(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
 ) -> tuple[notifications_schema.NotificationRead, str]:
     """Stage the notification that a user's Strava data was deleted after Strava access was revoked.
@@ -109,7 +110,7 @@ def create_strava_data_deleted_notification(
     return notification, notifications_constants.STRAVA_DATA_DELETED_WS_MESSAGE
 
 
-def delete_notifications_naming_user(user_id: int, db: Session) -> None:
+def delete_notifications_naming_user(user_id: uuid.UUID, db: Session) -> None:
     """Stage deleting the notifications, whoever owns them, that name a user being erased.
 
     Args:

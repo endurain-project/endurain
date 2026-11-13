@@ -12,6 +12,8 @@ Interface::
     read_job(job)                           - read the import a job reference names
 """
 
+import uuid
+
 from jasil.providers import StateProvider
 from pydantic import BaseModel, model_validator
 
@@ -62,7 +64,7 @@ class ProfileImportStateStore:
             state, "users", "profile_import", ttl_seconds, announce=websocket_integration.announce_job
         )
 
-    def begin(self, user_id: int, *, conflict: str) -> core_job_status.JobRef:
+    def begin(self, user_id: uuid.UUID, *, conflict: str) -> core_job_status.JobRef:
         """Record an import as queued unless one is still pending.
 
         Args:
@@ -84,7 +86,7 @@ class ProfileImportStateStore:
             conflict=conflict,
         )
 
-    def discard(self, user_id: int) -> None:
+    def discard(self, user_id: uuid.UUID) -> None:
         """Forget an import that was refused before it started, so the user can try again at once.
 
         Args:
@@ -94,7 +96,7 @@ class ProfileImportStateStore:
 
     def set_status(
         self,
-        user_id: int,
+        user_id: uuid.UUID,
         status: profile_constants.ImportStatus,
         *,
         error_code: profile_constants.ImportFailure | None = None,
@@ -120,7 +122,7 @@ class ProfileImportStateStore:
             strict=strict,
         )
 
-    def get(self, user_id: int) -> ProfileImportState | None:
+    def get(self, user_id: uuid.UUID) -> ProfileImportState | None:
         """Read a user's import state.
 
         Args:

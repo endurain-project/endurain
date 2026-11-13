@@ -1,5 +1,6 @@
 """Tests for users.users.crud module."""
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
@@ -14,6 +15,8 @@ import modules.users.users.crud as users_crud
 import modules.users.users.models as users_models
 
 model_registry.import_all_models()
+
+_U1, _U2, _U3, _U4, _U5, _U9, _U99 = (uuid.UUID(int=n) for n in (1, 2, 3, 4, 5, 9, 99))
 
 
 @pytest.fixture(autouse=True)
@@ -46,12 +49,12 @@ class TestReads:
         row = MagicMock(spec=users_models.Users)
         _one(mock_db, row)
 
-        assert users_crud.get_user_by_id(1, mock_db) == row
+        assert users_crud.get_user_by_id(_U1, mock_db) == row
 
     def test_get_user_by_id_missing(self, mock_db):
         _one(mock_db, None)
 
-        assert users_crud.get_user_by_id(1, mock_db) is None
+        assert users_crud.get_user_by_id(_U1, mock_db) is None
 
     def test_get_user_by_email_is_case_insensitive(self, mock_db):
         _one(mock_db, MagicMock())
@@ -75,9 +78,9 @@ class TestReads:
         assert "access_type" in _sql(mock_db)
 
     def test_lock_active_admin_ids_locks_active_admins_in_id_order(self, mock_db):
-        mock_db.execute.return_value.scalars.return_value.all.return_value = [1, 3]
+        mock_db.execute.return_value.scalars.return_value.all.return_value = [_U1, _U3]
 
-        assert users_crud.lock_active_admin_ids(mock_db) == [1, 3]
+        assert users_crud.lock_active_admin_ids(mock_db) == [_U1, _U3]
 
         sql = _sql(mock_db)
         assert "FOR UPDATE" in sql
@@ -105,9 +108,9 @@ class TestReads:
         assert users_crud._FIRST_ADMIN_LOCK_KEY != migrations_startup._MIGRATION_LOCK_KEY
 
     def test_get_stored_photo_keys_returns_scalars(self, mock_db):
-        mock_db.execute.return_value.all.return_value = [(1, "1.png"), (2, None)]
+        mock_db.execute.return_value.all.return_value = [(_U1, f"{_U1}.png"), (_U2, None)]
 
-        assert users_crud.get_stored_photo_keys(mock_db) == [(1, "1.png"), (2, None)]
+        assert users_crud.get_stored_photo_keys(mock_db) == [(_U1, f"{_U1}.png"), (_U2, None)]
 
 
 class TestListFilters:
@@ -172,9 +175,9 @@ class TestListFilters:
     def test_listing_leaves_out_the_excluded_users(self, mock_db):
         _many(mock_db, [])
 
-        users_crud.get_users_with_pagination(mock_db, exclude_user_ids=[4, 9])
+        users_crud.get_users_with_pagination(mock_db, exclude_user_ids=[_U4, _U9])
 
-        assert "NOT IN (4, 9)" in _sql(mock_db)
+        assert f"NOT IN ('{_U4.hex}', '{_U9.hex}')" in _sql(mock_db)
 
     def test_page_is_ordered_and_offset(self, mock_db):
         _many(mock_db, [])
@@ -215,7 +218,7 @@ class TestUpdateUser:
         row = MagicMock(spec=users_models.Users)
         _one(mock_db, row)
 
-        result = users_crud.update_user(1, {"name": "New", "height": 180}, mock_db)
+        result = users_crud.update_user(_U1, {"name": "New", "height": 180}, mock_db)
 
         assert result == row
         assert row.name == "New"
@@ -228,7 +231,7 @@ class TestUpdateUser:
         _one(mock_db, row)
 
         with patch.object(users_models.Users, "computed", property(lambda self: 1), create=True):
-            users_crud.update_user(1, {"computed": 5, "name": "New"}, mock_db)
+            users_crud.update_user(_U1, {"computed": 5, "name": "New"}, mock_db)
 
         assert row.name == "New"
 
@@ -238,7 +241,7 @@ class TestUpdateUser:
         row.deletion_attempts = 3
         _one(mock_db, row)
 
-        users_crud.update_user(1, {"active": True}, mock_db)
+        users_crud.update_user(_U1, {"active": True}, mock_db)
 
         assert row.deletion_requested_at is None
         assert row.deletion_attempts == 0
@@ -248,7 +251,7 @@ class TestUpdateUser:
         row.deletion_requested_at = "2026-01-01"
         _one(mock_db, row)
 
-        users_crud.update_user(1, {"name": "New", "active": False}, mock_db)
+        users_crud.update_user(_U1, {"name": "New", "active": False}, mock_db)
 
         assert row.deletion_requested_at == "2026-01-01"
 
@@ -256,14 +259,14 @@ class TestUpdateUser:
         _one(mock_db, None)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            users_crud.update_user(1, {"name": "New"}, mock_db)
+            users_crud.update_user(_U1, {"name": "New"}, mock_db)
 
     def test_duplicate_is_a_conflict(self, mock_db):
         _one(mock_db, MagicMock(spec=users_models.Users))
         mock_db.flush.side_effect = IntegrityError("", "", "duplicate key")
 
         with pytest.raises(core_exceptions.ConflictError):
-            users_crud.update_user(1, {"username": "taken"}, mock_db)
+            users_crud.update_user(_U1, {"username": "taken"}, mock_db)
 
 
 class TestDeleteUser:
@@ -271,7 +274,7 @@ class TestDeleteUser:
         row = MagicMock(spec=users_models.Users)
         _one(mock_db, row)
 
-        users_crud.delete_user(1, mock_db)
+        users_crud.delete_user(_U1, mock_db)
 
         mock_db.delete.assert_called_once_with(row)
         mock_db.flush.assert_called_once()
@@ -281,7 +284,7 @@ class TestDeleteUser:
         _one(mock_db, None)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            users_crud.delete_user(1, mock_db)
+            users_crud.delete_user(_U1, mock_db)
 
 
 class TestStageDeletionRequest:
@@ -290,7 +293,7 @@ class TestStageDeletionRequest:
         row.deletion_attempts = 4
         _one(mock_db, row)
 
-        users_crud.stage_deletion_request(1, mock_db)
+        users_crud.stage_deletion_request(_U1, mock_db)
 
         assert row.active is False
         assert row.deletion_requested_at is not None
@@ -302,7 +305,7 @@ class TestStageDeletionRequest:
         _one(mock_db, None)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            users_crud.stage_deletion_request(1, mock_db)
+            users_crud.stage_deletion_request(_U1, mock_db)
 
 
 class TestRecordDeletionAttempt:
@@ -312,21 +315,21 @@ class TestRecordDeletionAttempt:
         row.deletion_attempts = 1
         _one(mock_db, row)
 
-        assert users_crud.record_deletion_attempt(1, mock_db) == 2
+        assert users_crud.record_deletion_attempt(_U1, mock_db) == 2
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
 
     def test_a_user_that_is_gone_is_none(self, mock_db):
         _one(mock_db, None)
 
-        assert users_crud.record_deletion_attempt(1, mock_db) is None
+        assert users_crud.record_deletion_attempt(_U1, mock_db) is None
 
     def test_a_user_no_longer_queued_for_deletion_is_none(self, mock_db):
         row = MagicMock(spec=users_models.Users)
         row.deletion_requested_at = None
         _one(mock_db, row)
 
-        assert users_crud.record_deletion_attempt(1, mock_db) is None
+        assert users_crud.record_deletion_attempt(_U1, mock_db) is None
         mock_db.flush.assert_not_called()
 
 
@@ -336,31 +339,31 @@ class TestIsDeletionCancelled:
         row.deletion_requested_at = "2026-01-01"
         _one(mock_db, row)
 
-        assert users_crud.is_deletion_cancelled(1, mock_db) is False
+        assert users_crud.is_deletion_cancelled(_U1, mock_db) is False
 
     def test_a_user_whose_marker_was_cleared_is_cancelled(self, mock_db):
         row = MagicMock(spec=users_models.Users)
         row.deletion_requested_at = None
         _one(mock_db, row)
 
-        assert users_crud.is_deletion_cancelled(1, mock_db) is True
+        assert users_crud.is_deletion_cancelled(_U1, mock_db) is True
 
     def test_a_user_that_is_gone_is_not_cancelled(self, mock_db):
         _one(mock_db, None)
 
-        assert users_crud.is_deletion_cancelled(1, mock_db) is False
+        assert users_crud.is_deletion_cancelled(_U1, mock_db) is False
 
 
 class TestGetPhotoKeysByUserIds:
     def test_returns_the_photo_each_existing_user_names(self):
         db = create_sqlite_session()
-        for user_id, photo in ((1, "1.png"), (2, None), (3, "3.jpg")):
+        for user_id, photo in ((_U1, f"{_U1}.png"), (_U2, None), (_U3, f"{_U3}.jpg")):
             db.add(
                 users_models.Users(
                     id=user_id,
-                    name=f"User {user_id}",
-                    username=f"user{user_id}",
-                    email=f"user{user_id}@example.com",
+                    name=f"User {user_id.int}",
+                    username=f"user{user_id.int}",
+                    email=f"user{user_id.int}@example.com",
                     preferred_language="us",
                     access_type="regular",
                     photo_path=photo,
@@ -369,7 +372,7 @@ class TestGetPhotoKeysByUserIds:
         db.commit()
 
         # A user without a photo, and one that does not exist, name nothing.
-        assert users_crud.get_photo_keys_by_user_ids([1, 2, 3, 4], db) == {1: "1.png", 3: "3.jpg"}
+        assert users_crud.get_photo_keys_by_user_ids([_U1, _U2, _U3, _U4], db) == {_U1: f"{_U1}.png", _U3: f"{_U3}.jpg"}
         db.close()
 
 
@@ -379,7 +382,7 @@ class TestWasCreatedAfter:
         created = datetime(2026, 1, 1, 12, tzinfo=UTC)
         db.add(
             users_models.Users(
-                id=1,
+                id=_U1,
                 name="User 1",
                 username="user1",
                 email="user1@example.com",
@@ -390,18 +393,69 @@ class TestWasCreatedAfter:
         )
         db.commit()
 
-        assert users_crud.was_created_after(1, datetime(2026, 1, 1, 11, tzinfo=UTC), db) is True
-        assert users_crud.was_created_after(1, created, db) is False
-        assert users_crud.was_created_after(1, datetime(2026, 1, 1, 13, tzinfo=UTC), db) is False
-        assert users_crud.was_created_after(2, datetime(2026, 1, 1, 11, tzinfo=UTC), db) is False
+        assert users_crud.was_created_after(_U1, datetime(2026, 1, 1, 11, tzinfo=UTC), db) is True
+        assert users_crud.was_created_after(_U1, created, db) is False
+        assert users_crud.was_created_after(_U1, datetime(2026, 1, 1, 13, tzinfo=UTC), db) is False
+        assert users_crud.was_created_after(_U2, datetime(2026, 1, 1, 11, tzinfo=UTC), db) is False
         db.close()
 
 
 class TestListStalledDeletionIds:
     def test_returns_the_ids_the_query_found(self, mock_db):
-        mock_db.scalars.return_value.all.return_value = [3, 5]
+        mock_db.scalars.return_value.all.return_value = [_U3, _U5]
 
-        assert users_crud.list_stalled_deletion_ids(datetime(2026, 1, 1, tzinfo=UTC), 5, 0, 100, mock_db) == [3, 5]
+        assert users_crud.list_stalled_deletion_ids(datetime(2026, 1, 1, tzinfo=UTC), 5, None, 100, mock_db) == [
+            _U3,
+            _U5,
+        ]
+
+    def test_a_cursor_keeps_only_the_ids_above_it(self, mock_db):
+        mock_db.scalars.return_value.all.return_value = []
+
+        users_crud.list_stalled_deletion_ids(datetime(2026, 1, 1, tzinfo=UTC), 5, _U3, 100, mock_db)
+
+        assert "users.id >" in str(mock_db.scalars.call_args.args[0])
+
+    def test_without_a_cursor_the_first_page_has_no_id_bound(self, mock_db):
+        mock_db.scalars.return_value.all.return_value = []
+
+        users_crud.list_stalled_deletion_ids(datetime(2026, 1, 1, tzinfo=UTC), 5, None, 100, mock_db)
+
+        assert "users.id >" not in str(mock_db.scalars.call_args.args[0])
+
+
+class TestReplacePhotoKeys:
+    def test_each_change_is_a_compare_and_set_that_leaves_the_version_alone(self, mock_db):
+        users_crud.replace_photo_keys([(_U1, "1.png", f"{_U1}.png")], mock_db)
+
+        statement = str(mock_db.execute.call_args.args[0])
+        assert "photo_path" in statement
+        assert "version" not in statement.split("WHERE")[0]
+        assert "users.photo_path =" in statement.split("WHERE")[1]
+        mock_db.flush.assert_called_once()
+
+    def test_the_row_is_rewritten_only_while_it_holds_the_old_key(self):
+        db = create_sqlite_session()
+        db.add(
+            users_models.Users(
+                id=_U1,
+                name="User 1",
+                username="user1",
+                email="user1@example.com",
+                preferred_language="us",
+                access_type="regular",
+                photo_path="1.png",
+            )
+        )
+        db.commit()
+
+        users_crud.replace_photo_keys([(_U1, "9.png", "stale.png")], db)
+        assert db.get(users_models.Users, _U1).photo_path == "1.png"
+
+        users_crud.replace_photo_keys([(_U1, "1.png", f"{_U1}.png")], db)
+        db.expire_all()
+        assert db.get(users_models.Users, _U1).photo_path == f"{_U1}.png"
+        db.close()
 
 
 class TestGetUsersByIds:
@@ -410,13 +464,13 @@ class TestGetUsersByIds:
     @pytest.fixture
     def db(self):
         session = create_sqlite_session()
-        for user_id in (1, 2, 3):
+        for number in (1, 2, 3):
             session.add(
                 users_models.Users(
-                    id=user_id,
-                    name=f"User {user_id}",
-                    username=f"user{user_id}",
-                    email=f"user{user_id}@example.com",
+                    id=uuid.UUID(int=number),
+                    name=f"User {number}",
+                    username=f"user{number}",
+                    email=f"user{number}@example.com",
                     preferred_language="us",
                     access_type="regular",
                 )
@@ -426,14 +480,14 @@ class TestGetUsersByIds:
         session.close()
 
     def test_returns_only_the_requested_users(self, db):
-        found = users_crud.get_users_by_ids({1, 3, 99}, db)
+        found = users_crud.get_users_by_ids({_U1, _U3, _U99}, db)
 
-        assert sorted(user.id for user in found) == [1, 3]
+        assert sorted(user.id for user in found) == [_U1, _U3]
 
     def test_a_repeated_id_returns_one_row(self, db):
-        found = users_crud.get_users_by_ids([2, 2, 2], db)
+        found = users_crud.get_users_by_ids([_U2] * 3, db)
 
-        assert [user.id for user in found] == [2]
+        assert [user.id for user in found] == [_U2]
 
     def test_no_ids_return_nothing_without_querying(self, mock_db):
         assert users_crud.get_users_by_ids([], mock_db) == []

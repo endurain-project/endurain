@@ -1,5 +1,6 @@
 """Tests for users_profile.export_state_store (provider-backed)."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -11,54 +12,56 @@ import modules.users.users_profile.constants as profile_constants
 import modules.users.users_profile.export_state_store as export_state_store
 
 Status = profile_constants.ExportStatus
+_USER_ID = uuid.UUID(int=1)
+_OTHER_USER_ID = uuid.UUID(int=2)
 
 
 def test_begin_records_queued_and_refuses_a_second_export():
     store = export_state_store.ProfileExportStateStore(MemoryState())
 
-    store.begin(1, conflict="held")
-    assert store.get(1) == export_state_store.ProfileExportState(status=Status.QUEUED)
+    store.begin(_USER_ID, conflict="held")
+    assert store.get(_USER_ID) == export_state_store.ProfileExportState(status=Status.QUEUED)
     with pytest.raises(core_exceptions.JobAlreadyRunningError):
-        store.begin(1, conflict="held")
-    store.begin(2, conflict="held")
+        store.begin(_USER_ID, conflict="held")
+    store.begin(_OTHER_USER_ID, conflict="held")
 
 
 def test_a_finished_export_releases_the_claim_and_keeps_its_size():
     store = export_state_store.ProfileExportStateStore(MemoryState())
-    store.begin(1, conflict="held")
+    store.begin(_USER_ID, conflict="held")
 
-    store.set_status(1, Status.SUCCEEDED, size_bytes=12)
+    store.set_status(_USER_ID, Status.SUCCEEDED, size_bytes=12)
 
-    assert store.get(1).size_bytes == 12
-    store.begin(1, conflict="held")
+    assert store.get(_USER_ID).size_bytes == 12
+    store.begin(_USER_ID, conflict="held")
 
 
 def test_state_lives_under_the_users_namespace():
     state = MemoryState()
-    export_state_store.ProfileExportStateStore(state).begin(5, conflict="held")
+    export_state_store.ProfileExportStateStore(state).begin(_USER_ID, conflict="held")
 
-    assert state.get(core_attempt_state.key("users", "profile_export:state", "5")) is not None
+    assert state.get(core_attempt_state.key("users", "profile_export:state", str(_USER_ID))) is not None
 
 
 def test_a_completed_export_records_when_its_download_stops_working():
     store = export_state_store.ProfileExportStateStore(MemoryState(), ttl_seconds=600)
-    store.begin(1, conflict="held")
+    store.begin(_USER_ID, conflict="held")
     before = datetime.now(UTC)
 
-    store.set_status(1, Status.SUCCEEDED, size_bytes=12)
+    store.set_status(_USER_ID, Status.SUCCEEDED, size_bytes=12)
 
-    expires_at = store.get(1).expires_at
+    expires_at = store.get(_USER_ID).expires_at
     assert expires_at.tzinfo is not None
     assert before + timedelta(seconds=600) <= expires_at <= datetime.now(UTC) + timedelta(seconds=600)
 
 
 def test_an_export_that_is_not_downloadable_has_no_expiry():
     store = export_state_store.ProfileExportStateStore(MemoryState())
-    store.begin(1, conflict="held")
-    assert store.get(1).expires_at is None
-    store.set_status(1, Status.FAILED, error_code=profile_constants.ExportFailure.TIMED_OUT)
-    assert store.get(1).expires_at is None
-    assert store.get(2) is None
+    store.begin(_USER_ID, conflict="held")
+    assert store.get(_USER_ID).expires_at is None
+    store.set_status(_USER_ID, Status.FAILED, error_code=profile_constants.ExportFailure.TIMED_OUT)
+    assert store.get(_USER_ID).expires_at is None
+    assert store.get(_OTHER_USER_ID) is None
 
 
 def test_a_state_written_before_expires_at_existed_still_reads():
@@ -70,16 +73,16 @@ def test_a_state_written_before_expires_at_existed_still_reads():
 
 
 def test_begin_names_the_export_job_and_its_owner():
-    job = export_state_store.ProfileExportStateStore(MemoryState()).begin(3, conflict="held")
+    job = export_state_store.ProfileExportStateStore(MemoryState()).begin(_USER_ID, conflict="held")
 
-    assert (job.kind, job.owner_id, job.subject) == (profile_constants.EXPORT_JOB, 3, "3")
+    assert (job.kind, job.owner_id, job.subject) == (profile_constants.EXPORT_JOB, _USER_ID, str(_USER_ID))
 
 
 def test_read_job_returns_the_export_until_a_later_one_replaces_it():
     store = export_state_store.ProfileExportStateStore(MemoryState())
-    first = store.begin(1, conflict="held")
-    store.set_status(1, Status.SUCCEEDED, size_bytes=4)
-    second = store.begin(1, conflict="held")
+    first = store.begin(_USER_ID, conflict="held")
+    store.set_status(_USER_ID, Status.SUCCEEDED, size_bytes=4)
+    second = store.begin(_USER_ID, conflict="held")
 
     assert store.read_job(first) is None
     job, state = store.read_job(second)

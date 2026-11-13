@@ -9,6 +9,7 @@ An export only reads, and each run replaces the user's one staged archive, so ru
 a worker died is safe.
 """
 
+import uuid
 from collections.abc import Generator
 
 import jasil.audit as jasil_audit
@@ -43,7 +44,7 @@ _STREAM_CHUNK_BYTES = 64 * 1024
 
 
 def request_export(
-    user_id: int,
+    user_id: uuid.UUID,
     session_id: str,
     step_up: auth_schema.StepUpVerification,
     step_up_store: account_security_integration.StepUpStore,
@@ -157,7 +158,7 @@ def export_status(
 
 
 def open_export(
-    user_id: int,
+    user_id: uuid.UUID,
     states: profile_export_state_store.ProfileExportStateStore,
     storage: platform_providers.StorageProvider,
 ) -> tuple[Generator[bytes], int]:
@@ -268,7 +269,7 @@ def sweep_staged_exports(storage: platform_providers.StorageProvider, older_than
     return removed
 
 
-def discard_staged_export(user_id: int, storage: platform_providers.StorageProvider) -> None:
+def discard_staged_export(user_id: uuid.UUID, storage: platform_providers.StorageProvider) -> None:
     """Delete a user's staged export, leaving the sweep to catch it if storage fails.
 
     Args:

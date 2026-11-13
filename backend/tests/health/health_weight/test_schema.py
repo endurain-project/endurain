@@ -10,6 +10,9 @@ _ID = uuid.uuid4()
 _OTHER_ID = uuid.uuid4()
 
 
+_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
+
+
 class TestHealthWeightSchema:
     """
     Test suite for HealthWeightRead Pydantic schema.
@@ -23,7 +26,7 @@ class TestHealthWeightSchema:
         health_weight = health_weight_schema.HealthWeightRead(
             updated_at="2024-01-01T00:00:00Z",
             id=_ID,
-            user_id=1,
+            user_id=_USER_ID,
             date=datetime_date(2024, 1, 15),
             weight_kg=75.5,
             bmi=24.5,
@@ -39,7 +42,7 @@ class TestHealthWeightSchema:
 
         # Assert
         assert health_weight.id == _ID
-        assert health_weight.user_id == 1
+        assert health_weight.user_id == _USER_ID
         assert health_weight.date == datetime_date(2024, 1, 15)
         assert health_weight.weight_kg == 75.5
         assert health_weight.bmi == 24.5
@@ -72,7 +75,7 @@ class TestHealthWeightSchema:
         health_weight = health_weight_schema.HealthWeightRead(
             updated_at="2024-01-01T00:00:00Z",
             id=_ID,
-            user_id=1,
+            user_id=_USER_ID,
             date=datetime_date(2024, 1, 15),
             weight_kg=75.5,
             bmi=None,
@@ -135,7 +138,7 @@ class TestHealthWeightSchema:
             """Mock ORM model for testing."""
 
             id = _ID
-            user_id = 1
+            user_id = _USER_ID
             updated_at = "2024-01-01T00:00:00Z"
             date = datetime_date(2024, 1, 15)
             weight_kg = 75.5
@@ -226,7 +229,7 @@ class TestSourceEnum:
         """
         # Arrange & Act
         health_weight = health_weight_schema.HealthWeightRead(
-            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, source=health_weight_schema.Source.GARMIN
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, source=health_weight_schema.Source.GARMIN
         )
 
         # Assert
@@ -238,7 +241,7 @@ class TestSourceEnum:
         """
         # Arrange & Act
         health_weight = health_weight_schema.HealthWeightRead(
-            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, source="garmin"
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, source="garmin"
         )
 
         # Assert
@@ -251,7 +254,7 @@ class TestSourceEnum:
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
             health_weight_schema.HealthWeightRead(
-                updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, source="invalid"
+                updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, source="invalid"
             )
 
         assert "source" in str(exc_info.value)

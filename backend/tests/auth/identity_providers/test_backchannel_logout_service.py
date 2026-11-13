@@ -24,6 +24,7 @@ import modules.auth.identity_providers.audit_actions as idp_audit_actions
 import modules.auth.identity_providers.backchannel_logout_service as backchannel_logout_service
 import modules.auth.identity_providers.oidc_client_service as oidc_client_service
 import modules.auth.sessions.audit_actions as sessions_audit_actions
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 from tests._helpers.db import create_sqlite_session
 
 IDP_ID = uuid.uuid4()
@@ -35,12 +36,12 @@ EVENT = "http://schemas.openid.net/event/backchannel-logout"
 
 #: (session_id, user_id, idp_id, sid) of each stored sign-in.
 _SIGN_INS = (
-    ("s1", 7, IDP_ID, "sid-a"),
-    ("s2", 7, IDP_ID, "sid-a"),
-    ("s3", 8, IDP_ID, "sid-a"),
-    ("s4", 7, IDP_ID, "sid-b"),
-    ("s5", 7, IDP_ID, None),
-    ("s6", 7, OTHER_IDP_ID, "sid-a"),
+    ("s1", MOCK_USER_ID, IDP_ID, "sid-a"),
+    ("s2", MOCK_USER_ID, IDP_ID, "sid-a"),
+    ("s3", OTHER_USER_ID, IDP_ID, "sid-a"),
+    ("s4", MOCK_USER_ID, IDP_ID, "sid-b"),
+    ("s5", MOCK_USER_ID, IDP_ID, None),
+    ("s6", MOCK_USER_ID, OTHER_IDP_ID, "sid-a"),
 )
 
 
@@ -54,8 +55,8 @@ def db():
     session = create_sqlite_session()
     for session_id, user_id, idp_id, sid in _SIGN_INS:
         identity_links_crud.create_idp_session_token(session_id, user_id, idp_id, None, None, session, idp_sid=sid)
-    identity_links_crud.create_user_identity_provider(7, IDP_ID, "subject-7", session)
-    identity_links_crud.create_user_identity_provider(8, IDP_ID, "subject-8", session)
+    identity_links_crud.create_user_identity_provider(MOCK_USER_ID, IDP_ID, "subject-7", session)
+    identity_links_crud.create_user_identity_provider(OTHER_USER_ID, IDP_ID, "subject-8", session)
     session.commit()
     yield session
     session.close()
@@ -114,7 +115,7 @@ class _Run:
         self.live = set(live)
         self.deleted: list[tuple[str, int]] = []
 
-    def _delete(self, session_id: str, user_id: int, _db) -> bool:
+    def _delete(self, session_id: str, user_id: uuid.UUID, _db) -> bool:
         if session_id not in self.live:
             return False
         self.deleted.append((session_id, user_id))
@@ -155,14 +156,14 @@ class TestProviderResolution:
 
         run(_token(rsa_key, sid="sid-b"))
 
-        assert run.deleted == [("s4", 7)]
+        assert run.deleted == [("s4", MOCK_USER_ID)]
 
     def test_an_oauth2_provider_asked_for_openid_has_back_channel_logout(self, service, db, rsa_key):
         run = _Run(service, db, idp=_idp(provider_type="oauth2", scopes="openid profile"))
 
         run(_token(rsa_key, sid="sid-b"))
 
-        assert run.deleted == [("s4", 7)]
+        assert run.deleted == [("s4", MOCK_USER_ID)]
 
     def test_the_read_transaction_ends_before_the_provider_is_reached(self, service, oidc, rsa_key):
         db = MagicMock()
@@ -182,14 +183,14 @@ class TestMatching:
 
         run(_token(rsa_key, sid="sid-a"))
 
-        assert sorted(run.deleted) == [("s1", 7), ("s3", 8)]
+        assert sorted(run.deleted) == [("s1", MOCK_USER_ID), ("s3", OTHER_USER_ID)]
 
     def test_a_sid_with_a_sub_ends_only_the_linked_users_sessions(self, service, db, rsa_key):
         run = _Run(service, db)
 
         run(_token(rsa_key, sid="sid-a", sub="subject-8"))
 
-        assert run.deleted == [("s3", 8)]
+        assert run.deleted == [("s3", OTHER_USER_ID)]
 
     def test_a_sid_with_a_sub_of_another_user_ends_nothing(self, service, db, rsa_key):
         run = _Run(service, db)
@@ -203,7 +204,12 @@ class TestMatching:
 
         run(_token(rsa_key, sub="subject-7"))
 
-        assert sorted(run.deleted) == [("s1", 7), ("s2", 7), ("s4", 7), ("s5", 7)]
+        assert sorted(run.deleted) == [
+            ("s1", MOCK_USER_ID),
+            ("s2", MOCK_USER_ID),
+            ("s4", MOCK_USER_ID),
+            ("s5", MOCK_USER_ID),
+        ]
 
     @pytest.mark.parametrize("claims", [{"sid": "sid-unknown"}, {"sub": "unlinked"}, {"sid": "sid-a", "sub": "x"}])
     def test_a_token_naming_no_live_session_succeeds_and_ends_nothing(self, service, db, rsa_key, claims):
@@ -234,9 +240,9 @@ class TestSessionsThatVanish:
         with jasil_testing.capture_audit() as audit:
             run(_token(rsa_key, sid="sid-a"))
 
-        assert sorted(run.deleted) == [("s1", 7), ("s3", 8)]
+        assert sorted(run.deleted) == [("s1", MOCK_USER_ID), ("s3", OTHER_USER_ID)]
         rows = {entry.target_id: entry.details for entry in audit.matching(sessions_audit_actions.SESSION_REVOKE.id)}
-        assert rows == {"7": {"sessions_revoked": 1}, "8": {"sessions_revoked": 1}}
+        assert rows == {str(MOCK_USER_ID): {"sessions_revoked": 1}, str(OTHER_USER_ID): {"sessions_revoked": 1}}
 
 
 class TestFailureWhileEndingSessions:
@@ -255,7 +261,7 @@ class TestFailureWhileEndingSessions:
         run(token)
 
         assert raised.value is error
-        assert sorted(run.deleted) == [("s1", 7), ("s2", 7), ("s3", 8)]
+        assert sorted(run.deleted) == [("s1", MOCK_USER_ID), ("s2", MOCK_USER_ID), ("s3", OTHER_USER_ID)]
 
     def test_a_release_that_fails_is_logged_and_the_original_error_is_raised(self, service, state, db, rsa_key):
         error = OperationalError("COMMIT", {}, Exception("db down"))
@@ -283,13 +289,13 @@ class TestAudit:
             _Run(service, db)(_token(rsa_key, sid="sid-a"))
 
         rows = {entry.target_id: entry.details for entry in audit.matching(sessions_audit_actions.SESSION_REVOKE.id)}
-        assert rows == {"7": {"sessions_revoked": 2}, "8": {"sessions_revoked": 1}}
-        entry = audit.assert_audited(sessions_audit_actions.SESSION_REVOKE.id, target_id="7")
-        assert (entry.target_type, entry.target_owner_id) == ("user", "7")
+        assert rows == {str(MOCK_USER_ID): {"sessions_revoked": 2}, str(OTHER_USER_ID): {"sessions_revoked": 1}}
+        entry = audit.assert_audited(sessions_audit_actions.SESSION_REVOKE.id, target_id=str(MOCK_USER_ID))
+        assert (entry.target_type, entry.target_owner_id) == ("user", str(MOCK_USER_ID))
 
     def test_the_sessions_end_in_a_committed_transaction(self, service, rsa_key):
         db = MagicMock()
-        ended = {7: 1}
+        ended = {MOCK_USER_ID: 1}
         with patch.object(
             backchannel_logout_service.identity_provider_links_integration,
             "end_idp_sessions_by_sid",
@@ -334,7 +340,7 @@ class TestRefusals:
 
         run(_token(rsa_key, sid="sid-b"))
 
-        assert run.deleted == [("s4", 7)]
+        assert run.deleted == [("s4", MOCK_USER_ID)]
 
     def test_the_replay_claim_lasts_until_the_token_can_no_longer_pass_the_expiry_check(self, service, db, rsa_key):
         state = MagicMock()

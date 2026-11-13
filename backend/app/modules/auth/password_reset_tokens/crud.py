@@ -1,5 +1,6 @@
 """Persistence operations for password reset tokens."""
 
+import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import ColumnElement, select
@@ -46,13 +47,13 @@ def _usable_token_conditions(token_hash: str) -> tuple[ColumnElement[bool], ...]
     return (model.token_hash == token_hash, model.used.is_(False), model.expires_at > datetime.now(UTC))
 
 
-def get_usable_password_reset_token_user_id(token_hash: str, db: Session) -> int | None:
+def get_usable_password_reset_token_user_id(token_hash: str, db: Session) -> uuid.UUID | None:
     """Return the owning user id when the token is unused and unexpired, without consuming it."""
     stmt = select(password_reset_models.PasswordResetToken.user_id).where(*_usable_token_conditions(token_hash))
     return db.execute(stmt).scalar_one_or_none()
 
 
-def claim_password_reset_token(token_hash: str, db: Session) -> int | None:
+def claim_password_reset_token(token_hash: str, db: Session) -> uuid.UUID | None:
     """Stage an atomic claim and return the owning user id when the token is valid."""
     stmt = (
         sa_update(password_reset_models.PasswordResetToken)
@@ -65,7 +66,7 @@ def claim_password_reset_token(token_hash: str, db: Session) -> int | None:
     return user_id
 
 
-def mark_user_password_reset_tokens_used(user_id: int, db: Session) -> int:
+def mark_user_password_reset_tokens_used(user_id: uuid.UUID, db: Session) -> int:
     """Stage invalidation of all unused reset tokens for a user."""
     stmt = (
         sa_update(password_reset_models.PasswordResetToken)

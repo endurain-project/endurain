@@ -32,7 +32,7 @@ ChildCollection = activity_child_collection_service.ChildCollection
 
 def get_activity_by_strava_id(
     strava_activity_id: int,
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
 ) -> activity_schema.ActivityRead | None:
     """Return the user's activity imported from the given Strava activity id.
@@ -50,7 +50,7 @@ def get_activity_by_strava_id(
 
 def get_activity_by_garminconnect_id(
     garminconnect_activity_id: int,
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
 ) -> activity_schema.ActivityRead | None:
     """Return the user's activity imported from the given Garmin Connect activity id.
@@ -67,7 +67,7 @@ def get_activity_by_garminconnect_id(
 
 
 def list_garminconnect_gear_activity_refs(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     after_id: uuid.UUID | None = None,
@@ -89,7 +89,7 @@ def list_garminconnect_gear_activity_refs(
 
 
 def bulk_set_activities_gear(
-    user_id: int,
+    user_id: uuid.UUID,
     gear_assignments: Mapping[uuid.UUID, uuid.UUID | None],
     db: Session,
 ) -> int:
@@ -113,7 +113,7 @@ def bulk_set_activities_gear(
     )
 
 
-def clear_activities_gear(gear_id: uuid.UUID, user_id: int, db: Session) -> int:
+def clear_activities_gear(gear_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> int:
     """Unassign a gear from every activity of a user that carries it; the caller commits.
 
     Args:
@@ -127,7 +127,7 @@ def clear_activities_gear(gear_id: uuid.UUID, user_id: int, db: Session) -> int:
     return activity_service.clear_activities_gear(gear_id, user_id, db, source="api:delete_gear")
 
 
-def get_gear_usage_totals(gear_id: uuid.UUID, user_id: int, db: Session) -> gears_contracts.UsageTotals:
+def get_gear_usage_totals(gear_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> gears_contracts.UsageTotals:
     """Return the total distance and moving time a user recorded against a gear.
 
     Args:
@@ -143,7 +143,7 @@ def get_gear_usage_totals(gear_id: uuid.UUID, user_id: int, db: Session) -> gear
 
 def get_gear_usage_totals_by_window(
     gear_id: uuid.UUID,
-    user_id: int,
+    user_id: uuid.UUID,
     windows: Sequence[gears_contracts.UsageWindow],
     db: Session,
 ) -> dict[uuid.UUID, gears_contracts.UsageTotals]:
@@ -168,7 +168,7 @@ def get_gear_usage_totals_by_window(
 
 
 def list_user_activities_page(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int,
@@ -201,7 +201,7 @@ def list_user_activities_page(
 
 
 def total_user_activities_in_timeframe_by_types(
-    user_id: int,
+    user_id: uuid.UUID,
     activity_types: list[int],
     start: datetime,
     end: datetime,
@@ -237,8 +237,8 @@ def total_user_activities_in_timeframe_by_types(
 
 
 def get_user_profile_summary(
-    user_id: int,
-    requester_user_id: int,
+    user_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     anchor: date | None = None,
@@ -306,7 +306,7 @@ def store_parsed_activity(
 
 def resolve_readable_parent(
     activity_id: uuid.UUID,
-    requester_user_id: int,
+    requester_user_id: uuid.UUID,
     db: Session,
 ) -> activity_schema.ActivityRead | None:
     """Return the parent activity when an authenticated caller may read it.
@@ -335,7 +335,7 @@ def resolve_public_parent(activity_id: uuid.UUID, db: Session) -> activity_schem
     return activity_child_access_service.resolve_public_parent(activity_id, db)
 
 
-def owns_activity(activity_id: uuid.UUID, user_id: int, db: Session) -> bool:
+def owns_activity(activity_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> bool:
     """Return whether a user owns an activity.
 
     Args:
@@ -496,7 +496,7 @@ def set_activity_location(
     return activity_crud.update_activity_location(activity_id, city, town, country, db)
 
 
-def delete_all_strava_activities(user_id: int, db: Session, *, limit: int) -> int:
+def delete_all_strava_activities(user_id: uuid.UUID, db: Session, *, limit: int) -> int:
     """Delete up to ``limit`` of a user's Strava-sourced activities.
 
     Emits one ``activity.deleted`` per removed activity so the thumbnail and
@@ -516,7 +516,7 @@ def delete_all_strava_activities(user_id: int, db: Session, *, limit: int) -> in
     )
 
 
-def delete_activities_batch_for_user(user_id: int, limit: int, db: Session) -> int:
+def delete_activities_batch_for_user(user_id: uuid.UUID, limit: int, db: Session) -> int:
     """Delete up to ``limit`` of a user's activities, emitting cleanup events.
 
     The account-deletion path, repeated until it returns 0. Deleting the user row alone would let the
@@ -549,7 +549,9 @@ def filter_existing_activity_ids(activity_ids: Sequence[uuid.UUID], db: Session)
     return activity_crud.get_existing_activity_ids(activity_ids, db)
 
 
-def get_readable_activity(activity_id: uuid.UUID, requester_user_id: int, db: Session) -> activity_schema.ActivityRead:
+def get_readable_activity(
+    activity_id: uuid.UUID, requester_user_id: uuid.UUID, db: Session
+) -> activity_schema.ActivityRead:
     """Return an activity the requester owns or may see, masked as they may see it.
 
     Args:
@@ -567,7 +569,7 @@ def get_readable_activity(activity_id: uuid.UUID, requester_user_id: int, db: Se
 
 
 def with_media(
-    activity: activity_schema.ActivityRead, requester_user_id: int, db: Session
+    activity: activity_schema.ActivityRead, requester_user_id: uuid.UUID, db: Session
 ) -> activity_schema.ActivityRead:
     """Set an activity's media as list responses do: the requester's own photos, empty for anyone else's.
 
@@ -635,7 +637,7 @@ def touch_activity(activity_id: uuid.UUID, db: Session) -> None:
 
 
 def list_changed_activities(
-    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[activity_schema.ActivityRead]:
     """List the user's activities changed after a position, as the owner reads them.
 
@@ -653,7 +655,7 @@ def list_changed_activities(
 
 
 def list_activity_deletions(
-    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[core_sync.Deletion[uuid.UUID]]:
     """List the user's deleted activities after a position.
 

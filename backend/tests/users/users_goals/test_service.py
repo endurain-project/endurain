@@ -10,6 +10,7 @@ import core.exceptions as core_exceptions
 import core.pagination as core_pagination
 import modules.users.users_goals.schema as user_goals_schema
 import modules.users.users_goals.service as user_goals_service
+from tests._helpers.auth import MOCK_USER_ID
 
 GOAL_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
 
@@ -21,19 +22,24 @@ class TestUserGoalsService:
             interval="weekly", activity_type="run", goal_type="calories", goal_calories=5000
         )
 
-        result = user_goals_service.create_goal(1, goal, mock_db)
+        result = user_goals_service.create_goal(MOCK_USER_ID, goal, mock_db)
 
         assert result == mock_crud.create_user_goal.return_value
         mock_db.commit.assert_called_once()
 
     def test_list_returns_a_page_with_the_total(self, mock_crud, mock_db):
         goal = user_goals_schema.UserGoalRead(
-            id=GOAL_ID, user_id=1, interval="weekly", activity_type="run", goal_type="calories", goal_calories=5000
+            id=GOAL_ID,
+            user_id=MOCK_USER_ID,
+            interval="weekly",
+            activity_type="run",
+            goal_type="calories",
+            goal_calories=5000,
         )
         mock_crud.get_user_goals_page.return_value = [goal]
         mock_crud.count_user_goals.return_value = 30
 
-        page = user_goals_service.list_goals(1, core_pagination.PageParams(2, 25), mock_db)
+        page = user_goals_service.list_goals(MOCK_USER_ID, core_pagination.PageParams(2, 25), mock_db)
 
         assert (page.items, page.total, page.page, page.next) == ([goal], 30, 2, None)
         assert mock_crud.get_user_goals_page.call_args.kwargs == {"limit": 25, "offset": 25}
@@ -43,16 +49,16 @@ class TestUserGoalsService:
             interval="weekly", activity_type="run", goal_type="calories", goal_calories=5000
         )
 
-        result = user_goals_service.update_goal(1, 7, goal, mock_db, if_match="*")
+        result = user_goals_service.update_goal(MOCK_USER_ID, 7, goal, mock_db, if_match="*")
 
         assert result == mock_crud.update_user_goal.return_value
-        mock_crud.update_user_goal.assert_called_once_with(1, 7, goal, mock_db, if_match="*")
+        mock_crud.update_user_goal.assert_called_once_with(MOCK_USER_ID, 7, goal, mock_db, if_match="*")
         mock_db.commit.assert_called_once()
 
     def test_delete_commits(self, mock_crud, mock_db):
-        user_goals_service.delete_goal(1, 5, mock_db, if_match='"2"')
+        user_goals_service.delete_goal(MOCK_USER_ID, 5, mock_db, if_match='"2"')
 
-        mock_crud.delete_user_goal.assert_called_once_with(1, 5, mock_db, if_match='"2"')
+        mock_crud.delete_user_goal.assert_called_once_with(MOCK_USER_ID, 5, mock_db, if_match='"2"')
         mock_db.commit.assert_called_once()
 
     def test_a_delete_that_races_past_the_check_is_a_precondition_failure(self, mock_crud, mock_db):
@@ -60,16 +66,19 @@ class TestUserGoalsService:
         mock_crud.user_goal_exists.return_value = True
 
         with pytest.raises(core_exceptions.PreconditionFailedError):
-            user_goals_service.delete_goal(1, 5, mock_db, if_match='"2"')
+            user_goals_service.delete_goal(MOCK_USER_ID, 5, mock_db, if_match='"2"')
 
         mock_db.commit.assert_not_called()
 
     @pytest.mark.parametrize(
         ("call", "message"),
         [
-            (lambda db: user_goals_service.create_goal(1, _goal_create(), db), "User goal created"),
-            (lambda db: user_goals_service.update_goal(1, 7, _goal_create(), db, if_match="*"), "User goal updated"),
-            (lambda db: user_goals_service.delete_goal(1, 5, db, if_match='"2"'), "User goal deleted"),
+            (lambda db: user_goals_service.create_goal(MOCK_USER_ID, _goal_create(), db), "User goal created"),
+            (
+                lambda db: user_goals_service.update_goal(MOCK_USER_ID, 7, _goal_create(), db, if_match="*"),
+                "User goal updated",
+            ),
+            (lambda db: user_goals_service.delete_goal(MOCK_USER_ID, 5, db, if_match='"2"'), "User goal deleted"),
         ],
     )
     def test_a_completed_change_is_logged_once_at_info(self, mock_crud, mock_db, call, message, caplog):

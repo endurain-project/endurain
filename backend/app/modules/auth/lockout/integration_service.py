@@ -1,5 +1,6 @@
 """Lockout primitives exposed to authentication stores."""
 
+import uuid
 from collections.abc import Callable
 
 import jasil.audit as jasil_audit
@@ -60,7 +61,7 @@ def new_step_up_account_lockout(state: StateProvider) -> lockout_contracts.Locko
     )
 
 
-def clear_step_up_account_lockout(user_id: int) -> None:
+def clear_step_up_account_lockout(user_id: uuid.UUID) -> None:
     """Lift the account-wide step-up lock and failure count of a user after a recovery that proved ownership.
 
     A recovery that follows an outage of the shared state still succeeds; the lock then ends on its own.
@@ -104,7 +105,7 @@ def report_lockout_applied(
     failed_attempts: int,
     *,
     username: str | None = None,
-    user_id: int | None = None,
+    user_id: uuid.UUID | None = None,
 ) -> None:
     """Log and audit that a failed attempt closed the lockout gate.
 

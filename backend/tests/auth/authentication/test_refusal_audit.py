@@ -1,5 +1,6 @@
 """Refused API keys, refused session refreshes and refused MFA challenges are audited without any secret."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -20,19 +21,22 @@ import modules.auth.mfa.pending_login_store as pending_login_store
 import modules.server_settings.contracts as server_settings_contracts
 from tests._helpers.auth import pending_login
 
+_USER_ID_5 = uuid.UUID(int=5)
+_USER_ID_9 = uuid.UUID(int=9)
+
 _SERVICE = "modules.auth.authentication.service"
 _PRINCIPAL = "modules.auth.authentication.principal_service"
 _API_KEY = authentication_audit_actions.API_KEY_AUTHENTICATE.id
 _REFRESH = authentication_audit_actions.REFRESH.id
 _LOGIN = login_audit_actions.LOGIN.id
 _KEY_HASH = "a" * 64
-_USER = SimpleNamespace(id=5, username="alice", email="a@example.com", active=True, access_type="regular")
+_USER = SimpleNamespace(id=_USER_ID_5, username="alice", email="a@example.com", active=True, access_type="regular")
 
 
 def _db_key(**overrides):
     values = {
         "id": "key-1",
-        "user_id": 5,
+        "user_id": _USER_ID_5,
         "name": "CLI",
         "key_prefix": "abcd1234",
         "is_active": True,
@@ -72,7 +76,7 @@ class TestApiKeyRefusal:
             _resolve(_db_key(is_active=False))
 
         entry = audit.assert_audited(
-            _API_KEY, outcome="failure", target_type="api_key", target_id="key-1", target_owner_id="5"
+            _API_KEY, outcome="failure", target_type="api_key", target_id="key-1", target_owner_id=str(_USER_ID_5)
         )
         assert entry.details == {"reason": "revoked"}
         assert "abcd1234" not in repr(entry)
@@ -83,17 +87,17 @@ class TestApiKeyRefusal:
             _resolve(expired)
 
         entry = audit.assert_audited(
-            _API_KEY, outcome="failure", target_type="api_key", target_id="key-1", target_owner_id="5"
+            _API_KEY, outcome="failure", target_type="api_key", target_id="key-1", target_owner_id=str(_USER_ID_5)
         )
         assert entry.details == {"reason": "expired"}
 
     def test_a_valid_key_of_an_inactive_owner_is_denied(self):
-        inactive = SimpleNamespace(id=5, username="alice", active=False, access_type="regular")
+        inactive = SimpleNamespace(id=_USER_ID_5, username="alice", active=False, access_type="regular")
         with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.PermissionDeniedError):
             _resolve(_db_key(), user=inactive)
 
         entry = audit.assert_audited(
-            _API_KEY, outcome="denied", target_type="api_key", target_id="key-1", target_owner_id="5"
+            _API_KEY, outcome="denied", target_type="api_key", target_id="key-1", target_owner_id=str(_USER_ID_5)
         )
         assert entry.details == {"reason": "owner_inactive"}
 
@@ -110,7 +114,7 @@ class TestApiKeyRefusal:
 def _session(**overrides):
     values = {
         "id": "sid",
-        "user_id": 5,
+        "user_id": _USER_ID_5,
         "token_family_id": "family",
         "refresh_token": "hash",
         "csrf_token_hash": None,
@@ -120,7 +124,7 @@ def _session(**overrides):
     return SimpleNamespace(**{**values, **overrides})
 
 
-def _refresh(db, *, session, x_csrf_token=None, hasher=None, token_user_id=5):
+def _refresh(db, *, session, x_csrf_token=None, hasher=None, token_user_id=_USER_ID_5):
     with (
         patch(f"{_SERVICE}.sessions_integration.lock_live_session", return_value=session),
         patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
@@ -146,11 +150,11 @@ class TestRefreshRefusal:
             _REFRESH,
             outcome=outcome,
             actor_type="user",
-            actor_id="5",
+            actor_id=str(_USER_ID_5),
             credential_type="refresh_token",
             target_type="user",
-            target_id="5",
-            target_owner_id="5",
+            target_id=str(_USER_ID_5),
+            target_owner_id=str(_USER_ID_5),
         )
         assert entry.details == {"reason": reason}
         assert len(audit.matching(_REFRESH)) == 1
@@ -164,7 +168,7 @@ class TestRefreshRefusal:
 
     def test_a_session_of_another_user_is_a_failure(self, mock_db):
         with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.UnauthenticatedError):
-            _refresh(mock_db, session=_session(user_id=9))
+            _refresh(mock_db, session=_session(user_id=_USER_ID_9))
 
         self._assert_refused(audit, "failure", "session_owner_mismatch")
 
@@ -245,7 +249,7 @@ class TestRefreshRefusal:
         self._assert_refused(audit, "failure", "user_not_found")
 
     def test_an_inactive_user_is_denied(self, mock_db):
-        inactive = SimpleNamespace(id=5, username="alice", active=False, access_type="regular")
+        inactive = SimpleNamespace(id=_USER_ID_5, username="alice", active=False, access_type="regular")
         with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.InvalidTokenError):
             self._refresh_with_valid_token(mock_db, user=inactive)
 
@@ -261,7 +265,7 @@ class TestRefreshRefusal:
             pytest.raises(core_exceptions.UnauthenticatedError),
         ):
             authentication_service_refresh_service._replay_rotation(
-                "web", _session(), "old-token", "127.0.0.1", "agent", 5, MagicMock(), MagicMock(), mock_db
+                "web", _session(), "old-token", "127.0.0.1", "agent", _USER_ID_5, MagicMock(), MagicMock(), mock_db
             )
 
         self._assert_refused(audit, "failure", "replay_unavailable")
@@ -277,13 +281,13 @@ class TestRefreshRefusal:
             pytest.raises(core_exceptions.UnauthenticatedError),
         ):
             authentication_service_refresh_service._replay_rotation(
-                "web", _session(), "old-token", "127.0.0.1", "agent", 5, MagicMock(), MagicMock(), mock_db
+                "web", _session(), "old-token", "127.0.0.1", "agent", _USER_ID_5, MagicMock(), MagicMock(), mock_db
             )
 
         self._assert_refused(audit, "failure", "user_not_found")
 
     def test_a_replay_for_an_inactive_user_is_denied(self, mock_db):
-        inactive = SimpleNamespace(id=5, username="alice", active=False, access_type="regular")
+        inactive = SimpleNamespace(id=_USER_ID_5, username="alice", active=False, access_type="regular")
         with (
             patch(
                 "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.get_grace_replay_token",
@@ -294,7 +298,7 @@ class TestRefreshRefusal:
             pytest.raises(core_exceptions.PermissionDeniedError),
         ):
             authentication_service_refresh_service._replay_rotation(
-                "web", _session(), "old-token", "127.0.0.1", "agent", 5, MagicMock(), MagicMock(), mock_db
+                "web", _session(), "old-token", "127.0.0.1", "agent", _USER_ID_5, MagicMock(), MagicMock(), mock_db
             )
 
         self._assert_refused(audit, "denied", "user_inactive")
@@ -324,7 +328,7 @@ class TestRefreshRefusal:
             patch(f"{_SERVICE}.sessions_integration.validate_session_timeout"),
             patch(f"{integration}.check_token_reuse", side_effect=[(False, False), reuse_after_conflict]) as check,
             patch(f"{integration}.store_rotated_token", side_effect=core_exceptions.ConflictError("rotated")),
-            patch(f"{_SERVICE}.users_integration.get_user", return_value=SimpleNamespace(id=5, active=True)),
+            patch(f"{_SERVICE}.users_integration.get_user", return_value=SimpleNamespace(id=_USER_ID_5, active=True)),
             patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens),
             patch(f"{_SERVICE}.sessions_integration.invalidate_token_family") as invalidate,
             patch.object(authentication_service_refresh_service, "_replay_rotation") as replay,
@@ -396,7 +400,7 @@ class TestRefreshRefusal:
             pytest.raises(core_exceptions.UnauthenticatedError),
         ):
             authentication_service_refresh_service._replay_rotation(
-                "web", _session(), "old-token", "127.0.0.1", "agent", 5, MagicMock(), MagicMock(), mock_db
+                "web", _session(), "old-token", "127.0.0.1", "agent", _USER_ID_5, MagicMock(), MagicMock(), mock_db
             )
 
         get_replay.assert_called_once_with("old-token", mock_db, ip_address="127.0.0.1", user_agent="agent")
@@ -442,7 +446,7 @@ class TestMfaChallengeRefusal:
         assert "challenge-secret" not in repr(entry)
 
     def test_a_challenge_of_the_other_client_type_is_audited_like_an_expired_one(self, mock_db):
-        mobile = pending_login(5, auth_constants.ClientType.MOBILE, "c" * 43, "S256")
+        mobile = pending_login(_USER_ID_5, auth_constants.ClientType.MOBILE, "c" * 43, "S256")
 
         with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.UnauthenticatedError):
             self._verify(mock_db, pending=mobile, claimed=mobile)
@@ -453,9 +457,11 @@ class TestMfaChallengeRefusal:
 
     def test_a_challenge_claimed_by_a_concurrent_request_is_a_failure_that_targets_the_user(self, mock_db):
         with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.UnauthenticatedError):
-            self._verify(mock_db, pending=pending_login(5), claimed=None)
+            self._verify(mock_db, pending=pending_login(_USER_ID_5), claimed=None)
 
-        entry = audit.assert_audited(_LOGIN, outcome="failure", target_type="user", target_id="5", target_owner_id="5")
+        entry = audit.assert_audited(
+            _LOGIN, outcome="failure", target_type="user", target_id=str(_USER_ID_5), target_owner_id=str(_USER_ID_5)
+        )
         assert entry.details == {
             "method": "password",
             "mfa": True,
@@ -481,7 +487,7 @@ class TestLockoutAppliedByFailedCodes:
             authentication_service.require_valid_mfa_code(
                 "alice",
                 "203.0.113.5",
-                5,
+                _USER_ID_5,
                 login_audit_actions.LoginMethod.PASSWORD,
                 "123456",
                 store,
@@ -490,7 +496,11 @@ class TestLockoutAppliedByFailedCodes:
             )
 
         entry = audit.assert_audited(
-            "auth.lockout.apply", outcome="success", target_type="user", target_id="5", target_owner_id="5"
+            "auth.lockout.apply",
+            outcome="success",
+            target_type="user",
+            target_id=str(_USER_ID_5),
+            target_owner_id=str(_USER_ID_5),
         )
         assert entry.details == {"counter": "mfa", "failed_attempts": 5}
         assert "alice" not in repr(entry)

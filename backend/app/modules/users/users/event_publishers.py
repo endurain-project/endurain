@@ -1,5 +1,6 @@
 """Publish the users domain events through the platform publish facade."""
 
+import uuid
 from collections.abc import Callable
 
 import jasil.publisher as platform_publisher
@@ -9,7 +10,7 @@ import core.event_metadata as core_event_metadata
 import modules.users.users.events as users_events
 
 
-def publish_deletion_requested(user_id: int, db: Session, *, commit: Callable[[], None], source: str) -> None:
+def publish_deletion_requested(user_id: uuid.UUID, db: Session, *, commit: Callable[[], None], source: str) -> None:
     """Publish ``users.deletion_requested`` so a durable worker erases the account.
 
     The event is the work, so it is staged in the transactional outbox on ``db`` and a staging
@@ -28,12 +29,12 @@ def publish_deletion_requested(user_id: int, db: Session, *, commit: Callable[[]
         source=source,
         db=db,
         commit=commit,
-        metadata={core_event_metadata.META_USER_ID: user_id},
+        metadata={core_event_metadata.META_USER_ID: str(user_id)},
         schema_version=payload.SCHEMA_VERSION,
     )
 
 
-def publish_admin_promoted(user_id: int, admin_user_id: int, db: Session) -> None:
+def publish_admin_promoted(user_id: uuid.UUID, admin_user_id: uuid.UUID, db: Session) -> None:
     """Stage ``users.admin_promoted`` for one administrator in the caller's transaction.
 
     Args:
@@ -46,7 +47,7 @@ def publish_admin_promoted(user_id: int, admin_user_id: int, db: Session) -> Non
         users_events.USERS_ADMIN_PROMOTED,
         payload.model_dump(mode="json"),
         source="api:users",
-        metadata={core_event_metadata.META_USER_ID: user_id},
+        metadata={core_event_metadata.META_USER_ID: str(user_id)},
         db=db,
         schema_version=payload.SCHEMA_VERSION,
     )

@@ -11,6 +11,11 @@ import core.exceptions as core_exceptions
 import modules.activities.activity.schema as activity_schema
 from modules.activities.activity.constants import ActivityType
 
+_USER_1 = uuid.UUID(int=1)
+_USER_2 = uuid.UUID(int=2)
+_USER_5 = uuid.UUID(int=5)
+_USER_6 = uuid.UUID(int=6)
+
 
 def _build_app(mock_db):
     import core.database as core_db
@@ -79,7 +84,7 @@ def _valid_activity(**kw):
         import_info={"imported": True},
         gear_id=uuid.uuid4(),
         id=_ACTIVITY_ID,
-        user_id=1,
+        user_id=_USER_1,
     )
     data.update(kw)
     return ActivityRead(**data)
@@ -123,7 +128,7 @@ class TestListOwnActivities:
             assert body["next"] is None
             _assert_summary(body["items"][0])
 
-    @pytest.mark.parametrize("path", ["/activities", "/users/2/activities"])
+    @pytest.mark.parametrize("path", ["/activities", f"/users/{_USER_2}/activities"])
     def test_a_start_after_the_end_is_a_validation_error(self, mock_db, path):
         resp = TestClient(_build_app(mock_db)).get(
             f"{path}?start_date=2026-02-01&end_date=2026-01-01", headers={"Authorization": "Bearer x"}
@@ -205,7 +210,7 @@ class TestFeed:
             patch("modules.activities.activity.service.followers_integration") as f,
             patch("modules.activities.activity.service.activity_crud.get_following_feed_after") as m,
         ):
-            f.list_accepted_followee_ids.return_value = [5]
+            f.list_accepted_followee_ids.return_value = [_USER_5]
             m.return_value = [_feed_entry()]
             resp = TestClient(_build_app(mock_db)).get("/activities/feed", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200
@@ -218,7 +223,7 @@ class TestFeed:
             patch("modules.activities.activity.service.activity_crud.get_following_feed_after", return_value=[]) as m,
             patch("modules.activities.activity.service.activity_crud.get_own_feed_after") as own,
         ):
-            f.list_accepted_followee_ids.return_value = [5]
+            f.list_accepted_followee_ids.return_value = [_USER_5]
             resp = TestClient(_build_app(mock_db)).get("/activities/feed", headers={"Authorization": "Bearer x"})
 
         assert resp.status_code == 200
@@ -234,15 +239,15 @@ class TestFeed:
             patch("modules.activities.activity.service.activity_crud.get_own_feed_after") as own,
             patch("modules.activities.activity.service.users_integration.list_public_profiles") as profiles,
         ):
-            own.return_value = [_feed_entry(id=_FEED_ID, user_id=1)]
-            profiles.return_value = {1: UserPublicRead(id=1, name="Me", username="me")}
+            own.return_value = [_feed_entry(id=_FEED_ID, user_id=_USER_1)]
+            profiles.return_value = {_USER_1: UserPublicRead(id=_USER_1, name="Me", username="me")}
             resp = TestClient(_build_app(mock_db)).get(
                 "/activities/feed?scope=mine", headers={"Authorization": "Bearer x"}
             )
 
         assert resp.status_code == 200
         assert [item["id"] for item in resp.json()["items"]] == [str(_FEED_ID)]
-        assert list(resp.json()["users"]) == ["1"]
+        assert list(resp.json()["users"]) == [str(_USER_1)]
         own.assert_called_once()
         following.assert_not_called()
         f.list_accepted_followee_ids.assert_not_called()
@@ -259,20 +264,20 @@ class TestFeed:
             patch("modules.activities.activity.service.activity_crud.get_following_feed_after") as m,
             patch("modules.activities.activity.service.users_integration.list_public_profiles") as profiles,
         ):
-            f.list_accepted_followee_ids.return_value = [5, 6]
+            f.list_accepted_followee_ids.return_value = [_USER_5, _USER_6]
             m.return_value = [
-                _feed_entry(id=uuid.uuid4(), user_id=5),
-                _feed_entry(id=uuid.uuid4(), user_id=6),
-                _feed_entry(id=uuid.uuid4(), user_id=5),
+                _feed_entry(id=uuid.uuid4(), user_id=_USER_5),
+                _feed_entry(id=uuid.uuid4(), user_id=_USER_6),
+                _feed_entry(id=uuid.uuid4(), user_id=_USER_5),
             ]
-            profiles.return_value = {5: UserPublicRead(id=5, name="Ada", username="ada")}
+            profiles.return_value = {_USER_5: UserPublicRead(id=_USER_5, name="Ada", username="ada")}
             resp = TestClient(_build_app(mock_db)).get("/activities/feed", headers={"Authorization": "Bearer x"})
 
         assert resp.status_code == 200
         profiles.assert_called_once()
-        assert profiles.call_args.args[0] == {5, 6}
+        assert profiles.call_args.args[0] == {_USER_5, _USER_6}
         assert resp.json()["users"] == {
-            "5": {"id": 5, "name": "Ada", "username": "ada", "city": None, "photo_path": None}
+            str(_USER_5): {"id": str(_USER_5), "name": "Ada", "username": "ada", "city": None, "photo_path": None}
         }
 
     def test_an_empty_feed_has_an_empty_users_object(self, mock_db):
@@ -280,7 +285,7 @@ class TestFeed:
             patch("modules.activities.activity.service.followers_integration") as f,
             patch("modules.activities.activity.service.activity_crud.get_following_feed_after", return_value=[]),
         ):
-            f.list_accepted_followee_ids.return_value = [5]
+            f.list_accepted_followee_ids.return_value = [_USER_5]
             resp = TestClient(_build_app(mock_db)).get("/activities/feed", headers={"Authorization": "Bearer x"})
 
         assert resp.json()["users"] == {}
@@ -291,7 +296,7 @@ class TestFeed:
             patch("modules.activities.activity.service.followers_integration") as f,
             patch("modules.activities.activity.service.activity_crud.get_following_feed_after") as m,
         ):
-            f.list_accepted_followee_ids.return_value = [5]
+            f.list_accepted_followee_ids.return_value = [_USER_5]
             m.return_value = [_feed_entry()]
             resp = TestClient(_build_app(mock_db)).get("/activities/feed", headers={"Authorization": "Bearer x"})
             assert resp.json()["next_cursor"] is None
@@ -301,7 +306,7 @@ class TestFeed:
             patch("modules.activities.activity.service.followers_integration") as followers,
             patch("modules.activities.activity.service.activity_crud.get_following_feed_after") as get_feed,
         ):
-            followers.list_accepted_followee_ids.return_value = [5]
+            followers.list_accepted_followee_ids.return_value = [_USER_5]
             get_feed.return_value = [
                 _feed_entry(hide_start_time=True, start_time=None, end_time=None),
                 _feed_entry(id=uuid.uuid4()),
@@ -370,7 +375,7 @@ class TestGearFilter:
         ):
             page.return_value = []
             TestClient(_build_app(mock_db)).get(
-                f"/users/2/activities?gear_id={_GEAR_ID}", headers={"Authorization": "Bearer x"}
+                f"/users/{_USER_2}/activities?gear_id={_GEAR_ID}", headers={"Authorization": "Bearer x"}
             )
 
         assert page.call_args.kwargs["gear_id"] is None
@@ -421,7 +426,7 @@ class TestUserStats:
         ) as totals:
             totals.return_value = [ActivityTypeTotals(1, distance=5000.0, time=1800.0, calories=250.0)]
             resp = TestClient(_build_app(mock_db)).get(
-                f"/users/1/activities/stats?period={period}", headers={"Authorization": "Bearer x"}
+                f"/users/{_USER_1}/activities/stats?period={period}", headers={"Authorization": "Bearer x"}
             )
 
         assert resp.status_code == 200
@@ -435,7 +440,7 @@ class TestUserStats:
             return_value=[],
         ):
             resp = TestClient(_build_app(mock_db)).get(
-                "/users/1/activities/stats?period=week", headers={"Authorization": "Bearer x"}
+                f"/users/{_USER_1}/activities/stats?period=week", headers={"Authorization": "Bearer x"}
             )
 
         assert resp.status_code == 200
@@ -443,7 +448,7 @@ class TestUserStats:
 
     def test_invalid_period(self, mock_db):
         resp = TestClient(_build_app(mock_db)).get(
-            "/users/1/activities/stats?period=bogus", headers={"Authorization": "Bearer x"}
+            f"/users/{_USER_1}/activities/stats?period=bogus", headers={"Authorization": "Bearer x"}
         )
         assert resp.status_code == 422
 
@@ -455,14 +460,16 @@ class TestListUserActivities:
             patch("modules.activities.activity.service.activity_crud.count_user_activities", return_value=1),
         ):
             m.return_value = [_valid_activity()]
-            resp = TestClient(_build_app(mock_db)).get("/users/2/activities", headers={"Authorization": "Bearer x"})
+            resp = TestClient(_build_app(mock_db)).get(
+                f"/users/{_USER_2}/activities", headers={"Authorization": "Bearer x"}
+            )
             assert resp.status_code == 200
             assert resp.json()["total"] == 1
             _assert_summary(resp.json()["items"][0])
 
 
 class TestAnotherUsersActivitiesOfAnInactiveOwner:
-    @pytest.mark.parametrize("path", ["/users/2/activities", "/users/2/activities/stats"])
+    @pytest.mark.parametrize("path", [f"/users/{_USER_2}/activities", f"/users/{_USER_2}/activities/stats"])
     def test_an_inactive_or_pending_owner_is_not_found(self, mock_db, visible_owner, path):
         visible_owner.side_effect = core_exceptions.NotFoundError("User not found")
 
@@ -766,7 +773,7 @@ class TestDateWindowBounds:
     @pytest.mark.parametrize("anchor", ["9999-12-31", "0001-01-01"])
     def test_stats_rejects_an_anchor_outside_the_supported_range(self, mock_db, period, anchor):
         resp = TestClient(_build_app(mock_db)).get(
-            f"/users/1/activities/stats?period={period}&date={anchor}", headers={"Authorization": "Bearer x"}
+            f"/users/{_USER_1}/activities/stats?period={period}&date={anchor}", headers={"Authorization": "Bearer x"}
         )
         assert resp.status_code == 422
 
@@ -774,7 +781,7 @@ class TestDateWindowBounds:
     @pytest.mark.parametrize("value", ["9999-12-31", "0001-01-01"])
     def test_user_list_rejects_a_bound_outside_the_supported_range(self, mock_db, param, value):
         resp = TestClient(_build_app(mock_db)).get(
-            f"/users/2/activities?{param}={value}", headers={"Authorization": "Bearer x"}
+            f"/users/{_USER_2}/activities?{param}={value}", headers={"Authorization": "Bearer x"}
         )
         assert resp.status_code == 422
 
@@ -785,7 +792,8 @@ class TestDateWindowBounds:
             return_value=[],
         ):
             resp = TestClient(_build_app(mock_db)).get(
-                f"/users/1/activities/stats?period={period}&date=9998-12-31", headers={"Authorization": "Bearer x"}
+                f"/users/{_USER_1}/activities/stats?period={period}&date=9998-12-31",
+                headers={"Authorization": "Bearer x"},
             )
         assert resp.status_code == 200
 

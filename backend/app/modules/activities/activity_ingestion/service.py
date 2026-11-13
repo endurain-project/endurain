@@ -105,7 +105,7 @@ def require_same_request(stored_fingerprint: str | None, fingerprint: str | None
 
 
 def accept_upload(
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     filename: str | None,
     save_upload: activity_ingestion_upload_entry_service.UploadSaver,
     storage: platform_providers.StorageProvider,
@@ -287,7 +287,7 @@ def _pending_view(
 
 
 def list_jobs(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     kinds: Collection[str],
@@ -319,7 +319,7 @@ def list_jobs(
 
 
 def accept_refresh(
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     storage: platform_providers.StorageProvider,
     db: Session,
     *,
@@ -463,9 +463,9 @@ def enqueue_scheduled_refreshes(
         The number of refresh jobs queued.
     """
     queued = 0
-    seen: set[int] = set()
+    seen: set[uuid.UUID] = set()
     for provider in activity_ingestion_provider_registry.registered():
-        after_id = 0
+        after_id: uuid.UUID | None = None
         while True:
             user_ids = provider.linked_user_ids(after_id, _REFRESH_FANOUT_BATCH_SIZE)
             if not user_ids:
@@ -483,7 +483,7 @@ def enqueue_scheduled_refreshes(
     return queued
 
 
-def _queue_refresh_batch(user_ids: list[int], storage: platform_providers.StorageProvider) -> int:
+def _queue_refresh_batch(user_ids: list[uuid.UUID], storage: platform_providers.StorageProvider) -> int:
     """Create and dispatch refresh jobs for a batch of users in one transaction.
 
     Args:
@@ -509,7 +509,7 @@ def _queue_refresh_batch(user_ids: list[int], storage: platform_providers.Storag
 
 
 def _dispatch_refresh_jobs(
-    jobs: list[tuple[str, int]], storage: platform_providers.StorageProvider, db: Session
+    jobs: list[tuple[str, uuid.UUID]], storage: platform_providers.StorageProvider, db: Session
 ) -> None:
     """Make staged refresh jobs durable and start them: a worker event, or the in-process pool.
 
@@ -733,7 +733,7 @@ def run_in_background_or_fail(
         raise
 
 
-def announce_job(user_id: int, job_id: str, kind: activity_ingestion_constants.IngestionJobKind) -> None:
+def announce_job(user_id: uuid.UUID, job_id: str, kind: activity_ingestion_constants.IngestionJobKind) -> None:
     """Tell the job's owner it reached a terminal state, so their client stops waiting for its poll.
 
     Call it after the state is committed.

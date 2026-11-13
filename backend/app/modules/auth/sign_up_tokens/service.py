@@ -1,6 +1,7 @@
 """Sign-up token workflows and email preparation."""
 
 import hmac
+import uuid
 from collections.abc import Callable, Collection
 from datetime import UTC, datetime, timedelta
 from typing import Literal, NoReturn, overload
@@ -54,7 +55,7 @@ EMAIL_CHANGE_REVERT_WINDOW = timedelta(days=7)
 
 
 def _stage_sign_up_token(
-    user_id: int,
+    user_id: uuid.UUID,
     email: str,
     previous_email: str | None,
     db: Session,
@@ -113,7 +114,7 @@ def _stage_sign_up_token(
 
 
 def create_sign_up_token(
-    user_id: int,
+    user_id: uuid.UUID,
     email: str,
     event_id: str,
     db: Session,
@@ -165,19 +166,19 @@ def _require_mail_configured(db: Session) -> None:
         raise core_exceptions.ServiceUnavailableError("Email service is not configured")
 
 
-def request_sign_up_verification_email(user_id: int, db: Session) -> None:
+def request_sign_up_verification_email(user_id: uuid.UUID, db: Session) -> None:
     """Stage a verification-email event for a new account."""
     _require_mail_configured(db)
     sign_up_event_publishers.publish_sign_up_verification_requested(user_id, db)
 
 
-def request_admin_invitation_email(user_id: int, db: Session) -> None:
+def request_admin_invitation_email(user_id: uuid.UUID, db: Session) -> None:
     """Stage an invitation-email event for an account an administrator created without a password."""
     _require_mail_configured(db)
     sign_up_event_publishers.publish_admin_invitation_requested(user_id, db)
 
 
-def request_email_change(user_id: int, email: str, previous_email: str, db: Session) -> bool:
+def request_email_change(user_id: uuid.UUID, email: str, previous_email: str, db: Session) -> bool:
     """Stage a pending email change, its notice to the current address and its confirmation event.
 
     Nothing is staged when mail is not configured. The change is not revertible, so the notice carries no link. The
@@ -207,7 +208,7 @@ def request_email_change(user_id: int, email: str, previous_email: str, db: Sess
     return True
 
 
-def stage_email_changed_notice(user_id: int, email: str, previous_email: str, db: Session) -> None:
+def stage_email_changed_notice(user_id: uuid.UUID, email: str, previous_email: str, db: Session) -> None:
     """Stage the notice, to the previous address, that an email change already applied to the account.
 
     The change was applied by a writer that confirms the address itself, such as an identity-provider sync, so no
@@ -226,7 +227,7 @@ def stage_email_changed_notice(user_id: int, email: str, previous_email: str, db
     sign_up_event_publishers.publish_email_changed(user_id, token.id, db)
 
 
-def get_email_reserver_id(email: str, except_user_id: int | None, db: Session) -> int | None:
+def get_email_reserver_id(email: str, except_user_id: uuid.UUID | None, db: Session) -> uuid.UUID | None:
     """Return the user an address is reserved for during the revert window of their confirmed email change.
 
     The address a confirmed change left behind stays the account's own until its "this wasn't me" link can no
@@ -243,7 +244,7 @@ def get_email_reserver_id(email: str, except_user_id: int | None, db: Session) -
     return sign_up_crud.get_email_reserver_id(email, except_user_id, datetime.now(UTC), db)
 
 
-def _holder_of(email: str, user_id: int, db: Session) -> int | None:
+def _holder_of(email: str, user_id: uuid.UUID, db: Session) -> uuid.UUID | None:
     """Return the other account that holds or reserves an address, or None when it is free or the user's own.
 
     Args:
@@ -260,7 +261,7 @@ def _holder_of(email: str, user_id: int, db: Session) -> int | None:
     return get_email_reserver_id(email, user_id, db)
 
 
-def _notify_address_holder(holder_id: int, state: StateProvider, db: Session) -> None:
+def _notify_address_holder(holder_id: uuid.UUID, state: StateProvider, db: Session) -> None:
     """Stage a notice event for the holder of an address another account asked to move to, once per cooldown.
 
     The requester's answer must not depend on the outcome, so a notice inside the cooldown, or with the cooldown
@@ -285,7 +286,7 @@ def _notify_address_holder(holder_id: int, state: StateProvider, db: Session) ->
 
 
 def request_self_service_email_change(
-    user_id: int, email: str, previous_email: str, state: StateProvider, db: Session
+    user_id: uuid.UUID, email: str, previous_email: str, state: StateProvider, db: Session
 ) -> bool:
     """Stage a user's own pending email change, when mail is configured.
 
@@ -322,15 +323,15 @@ def request_self_service_email_change(
     return True
 
 
-def _find_pending_email_change(user_id: int, db: Session) -> sign_up_contracts.SignUpTokenState | None:
+def _find_pending_email_change(user_id: uuid.UUID, db: Session) -> sign_up_contracts.SignUpTokenState | None:
     """Return a user's unused, unexpired email-change token, or None when no change is pending."""
     pending = sign_up_crud.get_pending_email_change_tokens([user_id], datetime.now(UTC), db)
     return pending[0] if pending else None
 
 
 def get_pending_email_changes(
-    user_ids: Collection[int], db: Session
-) -> dict[int, sign_up_contracts.PendingEmailChange]:
+    user_ids: Collection[uuid.UUID], db: Session
+) -> dict[uuid.UUID, sign_up_contracts.PendingEmailChange]:
     """Return the unconfirmed email change of each given user that has one.
 
     Args:
@@ -350,7 +351,7 @@ def get_pending_email_changes(
     }
 
 
-def request_email_change_resend(user_id: int, state: StateProvider, db: Session) -> None:
+def request_email_change_resend(user_id: uuid.UUID, state: StateProvider, db: Session) -> None:
     """Stage a new confirmation email for a user's pending email change.
 
     Nothing is staged without mail configured, without a pending change, when an email went out within the
@@ -427,7 +428,7 @@ def resend_sign_up_verification_email(email: str, state: StateProvider, db: Sess
     return response
 
 
-def request_sign_up_admin_approval_emails(user_id: int, db: Session) -> None:
+def request_sign_up_admin_approval_emails(user_id: uuid.UUID, db: Session) -> None:
     """Stage approval-email events for every configured administrator."""
     _require_mail_configured(db)
     admins = users_integration.require_admin_users(db)
@@ -435,7 +436,7 @@ def request_sign_up_admin_approval_emails(user_id: int, db: Session) -> None:
         sign_up_event_publishers.publish_sign_up_approval_requested(user_id, admin.id, db)
 
 
-def request_sign_up_admin_approval(user_id: int, db: Session) -> bool:
+def request_sign_up_admin_approval(user_id: uuid.UUID, db: Session) -> bool:
     """Stage the administrators' approval requests for a new account awaiting approval, when mail is configured.
 
     Each request emails one administrator and adds an in-app notification for them. The caller commits.
@@ -453,7 +454,7 @@ def request_sign_up_admin_approval(user_id: int, db: Session) -> bool:
     return True
 
 
-def request_sign_up_existing_account_notice(user_id: int, state: StateProvider, db: Session) -> None:
+def request_sign_up_existing_account_notice(user_id: uuid.UUID, state: StateProvider, db: Session) -> None:
     """Stage a notice event for the owner of an email address a sign-up reused.
 
     Nothing is staged without mail configured, when the owner was already told within the cooldown, or
@@ -473,7 +474,7 @@ def request_sign_up_existing_account_notice(user_id: int, state: StateProvider, 
     sign_up_event_publishers.publish_sign_up_existing_account(user_id, db)
 
 
-def request_sign_up_approved_email(user_id: int, db: Session) -> bool:
+def request_sign_up_approved_email(user_id: uuid.UUID, db: Session) -> bool:
     """Stage an approval notice event when mail is configured; the caller commits the transition."""
     if not server_settings_integration.is_mail_configured(db):
         return False
@@ -514,7 +515,7 @@ def _issue_verification_email(
 
 
 def prepare_sign_up_verification_email(
-    user_id: int,
+    user_id: uuid.UUID,
     event_id: str,
     frontend_host: str,
     db: Session,
@@ -536,7 +537,7 @@ def prepare_sign_up_verification_email(
 
 
 def prepare_admin_invitation_email(
-    user_id: int,
+    user_id: uuid.UUID,
     event_id: str,
     frontend_host: str,
     db: Session,
@@ -561,7 +562,7 @@ def prepare_admin_invitation_email(
 
 
 def prepare_email_change_verification_email(
-    user_id: int,
+    user_id: uuid.UUID,
     event_id: str,
     frontend_host: str,
     db: Session,
@@ -600,7 +601,7 @@ def prepare_email_change_verification_email(
 
 
 def prepare_email_changed_email(
-    user_id: int,
+    user_id: uuid.UUID,
     token_id: str,
     frontend_host: str,
     db: Session,
@@ -641,8 +642,8 @@ def prepare_email_changed_email(
 
 
 def prepare_sign_up_approval_request_email(
-    user_id: int,
-    admin_user_id: int,
+    user_id: uuid.UUID,
+    admin_user_id: uuid.UUID,
     frontend_host: str,
     db: Session,
 ) -> tuple[str, str, str, str] | None:
@@ -664,7 +665,7 @@ def prepare_sign_up_approval_request_email(
 
 
 def prepare_sign_up_approved_email(
-    user_id: int,
+    user_id: uuid.UUID,
     frontend_host: str,
     db: Session,
 ) -> tuple[str, str, str, str] | None:
@@ -680,7 +681,7 @@ def prepare_sign_up_approved_email(
 
 
 def prepare_sign_up_existing_account_email(
-    user_id: int,
+    user_id: uuid.UUID,
     frontend_host: str,
     db: Session,
 ) -> tuple[str, str, str, str] | None:
@@ -708,7 +709,7 @@ def _revert_link(change_id: str, revert_until: datetime, frontend_host: str) -> 
 
 
 def prepare_email_change_requested_email(
-    user_id: int,
+    user_id: uuid.UUID,
     frontend_host: str,
     db: Session,
 ) -> tuple[str, str, str, str] | None:
@@ -764,7 +765,7 @@ def _refuse_revert(db: Session) -> NoReturn:
     raise core_exceptions.InvalidInputError("Invalid or expired link")
 
 
-def _email_change_of_link(token: str, now: datetime, db: Session) -> tuple[str, int] | None:
+def _email_change_of_link(token: str, now: datetime, db: Session) -> tuple[str, uuid.UUID] | None:
     """Return the change a link names and its owner when the link is genuine and inside its revert window.
 
     Args:
@@ -876,7 +877,7 @@ def cancel_email_change(token: str, db: Session) -> sign_up_schema.EmailChangeCa
 
 
 def prepare_email_change_address_taken_email(
-    user_id: int,
+    user_id: uuid.UUID,
     frontend_host: str,
     db: Session,
 ) -> tuple[str, str, str, str] | None:
@@ -891,7 +892,7 @@ def prepare_email_change_address_taken_email(
     )
 
 
-def revoke_user_tokens(user_id: int, db: Session) -> None:
+def revoke_user_tokens(user_id: uuid.UUID, db: Session) -> None:
     """Stage invalidation of a user's unused verification tokens, so an old link cannot activate the account."""
     sign_up_crud.mark_user_sign_up_tokens_used(user_id, db)
 
@@ -1062,7 +1063,7 @@ def signup(
     return _signup_response(server_settings)
 
 
-def _commit_sign_up(user_id: int, db: Session) -> None:
+def _commit_sign_up(user_id: uuid.UUID, db: Session) -> None:
     """Commit a confirmed sign-up."""
     db.commit()
     logger.info("Email verification completed", extra=core_logger.context(user_id=user_id))

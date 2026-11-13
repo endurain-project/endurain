@@ -12,6 +12,7 @@ import core.cryptography as core_cryptography
 import core.exceptions as core_exceptions
 from modules.users.users_integrations import crud as user_integrations_crud
 from modules.users.users_integrations.models import UsersIntegrations
+from tests._helpers.auth import MOCK_USER_ID
 
 
 @pytest.fixture(autouse=True)
@@ -50,11 +51,11 @@ class TestGetUserIntegrationsByUserId:
         # Arrange
         mock_integrations = MagicMock(spec=UsersIntegrations)
         mock_integrations.id = 1
-        mock_integrations.user_id = 1
+        mock_integrations.user_id = MOCK_USER_ID
         mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
 
         # Act
-        result = user_integrations_crud.get_user_integrations_by_user_id(1, mock_db)
+        result = user_integrations_crud.get_user_integrations_by_user_id(MOCK_USER_ID, mock_db)
 
         # Assert
         assert result == mock_integrations
@@ -73,7 +74,7 @@ class TestGetUserIntegrationsByUserId:
         mock_db.execute.return_value.scalar_one_or_none.return_value = None
 
         # Act
-        result = user_integrations_crud.get_user_integrations_by_user_id(1, mock_db)
+        result = user_integrations_crud.get_user_integrations_by_user_id(MOCK_USER_ID, mock_db)
 
         # Assert
         assert result is None
@@ -95,7 +96,7 @@ class TestCreateUserIntegrations:
         # Arrange
         mock_integrations = MagicMock(spec=UsersIntegrations)
         mock_integrations.id = 1
-        mock_integrations.user_id = 1
+        mock_integrations.user_id = MOCK_USER_ID
 
         with patch(
             "modules.users.users_integrations.crud.user_integrations_models.UsersIntegrations"
@@ -106,7 +107,7 @@ class TestCreateUserIntegrations:
             mock_db.refresh = MagicMock()
 
             # Act
-            result = user_integrations_crud.create_user_integrations(1, mock_db)
+            result = user_integrations_crud.create_user_integrations(MOCK_USER_ID, mock_db)
 
         # Assert
         assert result == mock_integrations
@@ -128,7 +129,7 @@ class TestCreateUserIntegrations:
 
         # Act & Assert
         with pytest.raises(core_exceptions.ConflictError):
-            user_integrations_crud.create_user_integrations(1, mock_db)
+            user_integrations_crud.create_user_integrations(MOCK_USER_ID, mock_db)
 
 
 class TestLinkStravaAccount:
@@ -162,7 +163,7 @@ class TestLinkStravaAccount:
             mock_db.refresh = MagicMock()
 
             # Act
-            user_integrations_crud.link_strava_account(1, tokens, mock_db)
+            user_integrations_crud.link_strava_account(MOCK_USER_ID, tokens, mock_db)
 
         # Assert
         assert mock_integrations.strava_token == "encrypted_access_token_123"
@@ -186,7 +187,7 @@ class TestUnlinkStravaAccount:
             mock_db.refresh = MagicMock()
 
             # Act
-            user_integrations_crud.unlink_strava_account(1, mock_db)
+            user_integrations_crud.unlink_strava_account(MOCK_USER_ID, mock_db)
 
         # Assert
         assert mock_integrations.strava_token is None
@@ -205,7 +206,7 @@ class TestUnlinkStravaAccount:
 
             # Act & Assert
             with pytest.raises(core_exceptions.NotFoundError):
-                user_integrations_crud.unlink_strava_account(1, mock_db)
+                user_integrations_crud.unlink_strava_account(MOCK_USER_ID, mock_db)
 
 
 class TestSetUserStravaClient:
@@ -228,7 +229,9 @@ class TestSetUserStravaClient:
             mock_db.refresh = MagicMock()
 
             # Act
-            user_integrations_crud.set_user_strava_client(1, "client_id", "client_secret", mock_db, if_match="*")
+            user_integrations_crud.set_user_strava_client(
+                MOCK_USER_ID, "client_id", "client_secret", mock_db, if_match="*"
+            )
 
         # Assert
         assert mock_integrations.strava_client_id == "encrypted_client_id"
@@ -246,7 +249,7 @@ class TestSetUserStravaClient:
             ),
             pytest.raises(core_exceptions.PreconditionFailedError),
         ):
-            user_integrations_crud.set_user_strava_client(1, "id", "secret", mock_db, if_match='"3"')
+            user_integrations_crud.set_user_strava_client(MOCK_USER_ID, "id", "secret", mock_db, if_match='"3"')
 
         mock_db.flush.assert_not_called()
 
@@ -258,7 +261,7 @@ class TestSetUserStravaClient:
 
             # Act & Assert
             with pytest.raises(core_exceptions.NotFoundError):
-                user_integrations_crud.set_user_strava_client(1, "id", "secret", mock_db, if_match="*")
+                user_integrations_crud.set_user_strava_client(MOCK_USER_ID, "id", "secret", mock_db, if_match="*")
 
 
 class TestSetUserStravaSyncGear:
@@ -276,7 +279,7 @@ class TestSetUserStravaSyncGear:
             mock_db.flush = MagicMock()
 
             # Act
-            user_integrations_crud.set_user_strava_sync_gear(1, True, mock_db)
+            user_integrations_crud.set_user_strava_sync_gear(MOCK_USER_ID, True, mock_db)
 
         # Assert
         assert mock_integrations.strava_sync_gear is True
@@ -293,7 +296,7 @@ class TestSetUserStravaSyncGear:
             mock_db.flush = MagicMock()
 
             # Act
-            user_integrations_crud.set_user_strava_sync_gear(1, False, mock_db)
+            user_integrations_crud.set_user_strava_sync_gear(MOCK_USER_ID, False, mock_db)
 
         # Assert
         assert mock_integrations.strava_sync_gear is False
@@ -315,7 +318,7 @@ class TestLinkGarminConnectAccount:
             mock_db.flush = MagicMock()
 
             # Act
-            user_integrations_crud.link_garminconnect_account(1, token, mock_db)
+            user_integrations_crud.link_garminconnect_account(MOCK_USER_ID, token, mock_db)
 
         # Assert
         assert mock_integrations.garminconnect_token == token
@@ -329,7 +332,7 @@ class TestLinkGarminConnectAccount:
 
             # Act & Assert
             with pytest.raises(core_exceptions.NotFoundError):
-                user_integrations_crud.link_garminconnect_account(1, {}, mock_db)
+                user_integrations_crud.link_garminconnect_account(MOCK_USER_ID, {}, mock_db)
 
 
 class TestSetUserGarminConnectSyncGear:
@@ -347,7 +350,7 @@ class TestSetUserGarminConnectSyncGear:
             mock_db.flush = MagicMock()
 
             # Act
-            user_integrations_crud.set_user_garminconnect_sync_gear(1, True, mock_db)
+            user_integrations_crud.set_user_garminconnect_sync_gear(MOCK_USER_ID, True, mock_db)
 
         # Assert
         assert mock_integrations.garminconnect_sync_gear is True
@@ -364,7 +367,7 @@ class TestSetUserGarminConnectSyncGear:
             mock_db.flush = MagicMock()
 
             # Act
-            user_integrations_crud.set_user_garminconnect_sync_gear(1, False, mock_db)
+            user_integrations_crud.set_user_garminconnect_sync_gear(MOCK_USER_ID, False, mock_db)
 
         # Assert
         assert mock_integrations.garminconnect_sync_gear is False
@@ -385,7 +388,7 @@ class TestUnlinkGarminConnectAccount:
             mock_db.flush = MagicMock()
 
             # Act
-            user_integrations_crud.unlink_garminconnect_account(1, mock_db)
+            user_integrations_crud.unlink_garminconnect_account(MOCK_USER_ID, mock_db)
 
         # Assert
         assert mock_integrations.garminconnect_token is None
@@ -400,7 +403,7 @@ class TestUnlinkGarminConnectAccount:
 
             # Act & Assert
             with pytest.raises(core_exceptions.NotFoundError):
-                user_integrations_crud.unlink_garminconnect_account(1, mock_db)
+                user_integrations_crud.unlink_garminconnect_account(MOCK_USER_ID, mock_db)
 
 
 class TestUnlinkGarminConnectAccountIfToken:
@@ -412,7 +415,9 @@ class TestUnlinkGarminConnectAccountIfToken:
         mock_integrations.garminconnect_token = {"di_token": _enc("old")}
         mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
 
-        result = user_integrations_crud.unlink_garminconnect_account_if_token(1, {"di_token": _enc("old")}, mock_db)
+        result = user_integrations_crud.unlink_garminconnect_account_if_token(
+            MOCK_USER_ID, {"di_token": _enc("old")}, mock_db
+        )
 
         assert result is True
         assert mock_integrations.garminconnect_token is None
@@ -425,7 +430,9 @@ class TestUnlinkGarminConnectAccountIfToken:
         mock_integrations.garminconnect_token = {"di_token": "new"}
         mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
 
-        result = user_integrations_crud.unlink_garminconnect_account_if_token(1, {"di_token": "old"}, mock_db)
+        result = user_integrations_crud.unlink_garminconnect_account_if_token(
+            MOCK_USER_ID, {"di_token": "old"}, mock_db
+        )
 
         assert result is False
         assert mock_integrations.garminconnect_token == {"di_token": "new"}
@@ -434,7 +441,7 @@ class TestUnlinkGarminConnectAccountIfToken:
         """A user with no integrations row is not unlinked."""
         mock_db.execute.return_value.scalar_one_or_none.return_value = None
 
-        assert user_integrations_crud.unlink_garminconnect_account_if_token(1, {}, mock_db) is False
+        assert user_integrations_crud.unlink_garminconnect_account_if_token(MOCK_USER_ID, {}, mock_db) is False
 
 
 class TestReplaceStravaTokensIfRefreshToken:
@@ -466,7 +473,9 @@ class TestReplaceStravaTokensIfRefreshToken:
         mock_integrations.strava_refresh_token = "newer"
         mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
 
-        result = user_integrations_crud.replace_strava_tokens_if_refresh_token(1, "old", self.TOKENS, mock_db)
+        result = user_integrations_crud.replace_strava_tokens_if_refresh_token(
+            MOCK_USER_ID, "old", self.TOKENS, mock_db
+        )
 
         assert result is False
         assert mock_integrations.strava_refresh_token == "newer"
@@ -474,7 +483,10 @@ class TestReplaceStravaTokensIfRefreshToken:
     def test_returns_false_without_integrations(self, mock_db):
         mock_db.execute.return_value.scalar_one_or_none.return_value = None
 
-        assert user_integrations_crud.replace_strava_tokens_if_refresh_token(1, "old", self.TOKENS, mock_db) is False
+        assert (
+            user_integrations_crud.replace_strava_tokens_if_refresh_token(MOCK_USER_ID, "old", self.TOKENS, mock_db)
+            is False
+        )
 
 
 class TestUnlinkStravaTokensIfRefreshToken:
@@ -488,7 +500,7 @@ class TestUnlinkStravaTokensIfRefreshToken:
         mock_integrations.strava_client_secret = "secret"
         mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
 
-        result = user_integrations_crud.unlink_strava_tokens_if_refresh_token(1, _enc("old"), mock_db)
+        result = user_integrations_crud.unlink_strava_tokens_if_refresh_token(MOCK_USER_ID, _enc("old"), mock_db)
 
         assert result is True
         assert mock_integrations.strava_token is None
@@ -521,7 +533,7 @@ class TestUnlinkStravaTokensIfRefreshToken:
         mock_integrations.strava_revoked_at = None
         mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
 
-        user_integrations_crud.unlink_strava_tokens_if_refresh_token(1, _enc("old"), mock_db)
+        user_integrations_crud.unlink_strava_tokens_if_refresh_token(MOCK_USER_ID, _enc("old"), mock_db)
 
         assert mock_integrations.strava_revoked_at is None
 
@@ -531,7 +543,7 @@ class TestUnlinkStravaTokensIfRefreshToken:
         mock_integrations.strava_refresh_token = "new"
         mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
 
-        result = user_integrations_crud.unlink_strava_tokens_if_refresh_token(1, "old", mock_db)
+        result = user_integrations_crud.unlink_strava_tokens_if_refresh_token(MOCK_USER_ID, "old", mock_db)
 
         assert result is False
         assert mock_integrations.strava_refresh_token == "new"
@@ -540,7 +552,7 @@ class TestUnlinkStravaTokensIfRefreshToken:
         """A user with no integrations row is not unlinked."""
         mock_db.execute.return_value.scalar_one_or_none.return_value = None
 
-        assert user_integrations_crud.unlink_strava_tokens_if_refresh_token(1, "old", mock_db) is False
+        assert user_integrations_crud.unlink_strava_tokens_if_refresh_token(MOCK_USER_ID, "old", mock_db) is False
 
 
 class TestEditUserIntegrations:
@@ -561,7 +573,7 @@ class TestEditUserIntegrations:
             mock_db.refresh = MagicMock()
 
             # Act
-            result = user_integrations_crud.edit_user_integrations(mock_update, 1, mock_db)
+            result = user_integrations_crud.edit_user_integrations(mock_update, MOCK_USER_ID, mock_db)
 
         # Assert
         assert result == mock_integrations
@@ -578,7 +590,7 @@ class TestEditUserIntegrations:
 
             # Act & Assert
             with pytest.raises(core_exceptions.NotFoundError):
-                user_integrations_crud.edit_user_integrations(mock_update, 1, mock_db)
+                user_integrations_crud.edit_user_integrations(mock_update, MOCK_USER_ID, mock_db)
 
 
 class TestReplaceGarminConnectTokenIfToken:
@@ -626,21 +638,21 @@ class TestStravaRevokedAt:
     def test_relinking_clears_it(self, mock_db):
         row = self._integrations(mock_db)
 
-        user_integrations_crud.link_strava_account(1, self.TOKENS, mock_db)
+        user_integrations_crud.link_strava_account(MOCK_USER_ID, self.TOKENS, mock_db)
 
         assert row.strava_revoked_at is None
 
     def test_an_in_app_unlink_clears_it(self, mock_db):
         row = self._integrations(mock_db)
 
-        user_integrations_crud.unlink_strava_account(1, mock_db)
+        user_integrations_crud.unlink_strava_account(MOCK_USER_ID, mock_db)
 
         assert row.strava_revoked_at is None
 
     def test_clearing_it_after_the_deletion_flushes_without_committing(self, mock_db):
         row = self._integrations(mock_db)
 
-        user_integrations_crud.clear_strava_revoked_at(1, mock_db)
+        user_integrations_crud.clear_strava_revoked_at(MOCK_USER_ID, mock_db)
 
         assert row.strava_revoked_at is None
         mock_db.flush.assert_called_once()

@@ -2,7 +2,7 @@
 
 Most of the API needs a signed-in user. A few endpoints answer without any credentials, for a visitor who is not signed in. This page lists them, what they return and what they refuse. All paths are under `/api/v1`.
 
-Two path prefixes tell the routes that need no credential apart. The routes that obtain, renew or end a session (`/auth/login`, `/auth/mfa/verify`, `/auth/password-change`, `/auth/sessions/{session_id}/tokens`, `/auth/refresh` and `/auth/logout`) live under `/auth`. Every other route a visitor can call without signing in lives under `/public`. The exceptions are the version and health probes (`/about`, `/health`) and the signed media URLs (`/activities/{activity_id}/thumbnail`, `/activities/{activity_id}/media/{media_id}/file`, `/users/{user_id}/photo`), which an image tag follows without a header.
+Two path prefixes tell the routes that need no credential apart. The routes that obtain, renew or end a session (`/auth/login`, `/auth/mfa/verify`, `/auth/password-change`, `/auth/sessions/{session_id}/tokens`, `/auth/refresh` and `/auth/logout`) live under `/auth`. Every other route a visitor can call without signing in lives under `/public`. The exceptions are the version and health probes (`/about`, `/health`) and the signed media URLs (`/activities/{activity_id}/thumbnail`, `/activities/{activity_id}/media/{media_id}/file`, `/users/{user_id}/photo`, where `{user_id}` is a UUID), which an image tag follows without a header.
 
 Public endpoints send no `Authorization`, `X-Client-Type` or `X-CSRF-Token` header. They are rate limited per client address with the default limit (see [Errors, concurrency and rate limits](errors-and-limits.md#rate-limits)), so set `TRUSTED_PROXIES` correctly behind a proxy.
 

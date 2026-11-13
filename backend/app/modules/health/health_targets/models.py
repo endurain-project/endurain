@@ -28,7 +28,7 @@ class HealthTargets(core_sync.UpdatedAtMixin, Base):
     __table_args__ = (Index("ix_health_targets_user_updated_at_id", "user_id", "updated_at", "id"),)
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[int] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         unique=True,

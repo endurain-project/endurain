@@ -1,6 +1,7 @@
 """The shared-state store of pending password changes."""
 
 import json
+import uuid
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,10 +11,12 @@ from jasil.providers import StateBackendUnavailableError
 import modules.auth.authentication.pending_password_change_store as pending_store
 import modules.auth.constants as auth_constants
 
+_USER_ID_12 = uuid.UUID(int=12)
+
 
 def _record(**overrides) -> pending_store.PendingPasswordChange:
     fields = {
-        "user_id": 12,
+        "user_id": _USER_ID_12,
         "client_type": auth_constants.ClientType.MOBILE,
         "code_challenge": "c" * 43,
         "code_challenge_method": "S256",
@@ -47,7 +50,7 @@ def test_the_generation_is_stored_and_an_entry_written_without_one_reads_back_un
     assert store.get(challenge).security_generation == 3
 
     (key,) = list(state.iter_keys(""))
-    legacy = _record().model_dump(exclude={"security_generation"})
+    legacy = _record().model_dump(mode="json", exclude={"security_generation"})
     state.set(key, json.dumps(legacy).encode(), ttl_seconds=60)
 
     assert store.get(challenge).security_generation is None

@@ -8,6 +8,7 @@ development. Only a deployment where one process writes the file can offer it
 import json
 import logging
 import re
+import uuid
 from pathlib import Path
 
 import jasil.audit as jasil_audit
@@ -111,7 +112,7 @@ def read_logs(
     )
 
 
-def clear_logs(admin_id: int) -> None:
+def clear_logs(admin_id: uuid.UUID) -> None:
     """Empty the log file and delete its rotated backups.
 
     The file is truncated in place, so the logging handler keeps its open file and

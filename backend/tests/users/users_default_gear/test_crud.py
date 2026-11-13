@@ -10,6 +10,7 @@ import core.exceptions as core_exceptions
 import modules.users.users_default_gear.crud as user_default_gear_crud
 import modules.users.users_default_gear.models as user_default_gear_models
 import modules.users.users_default_gear.schema as user_default_gear_schema
+from tests._helpers.auth import MOCK_USER_ID
 
 _GEAR = uuid.uuid4()
 
@@ -36,12 +37,12 @@ class TestGetUserDefaultGearByUserId:
         row = MagicMock(spec=user_default_gear_models.UsersDefaultGear)
         _found(mock_db, row)
 
-        assert user_default_gear_crud.get_user_default_gear_by_user_id(1, mock_db) == row
+        assert user_default_gear_crud.get_user_default_gear_by_user_id(MOCK_USER_ID, mock_db) == row
 
     def test_returns_none_when_missing(self, mock_db):
         _found(mock_db, None)
 
-        assert user_default_gear_crud.get_user_default_gear_by_user_id(1, mock_db) is None
+        assert user_default_gear_crud.get_user_default_gear_by_user_id(MOCK_USER_ID, mock_db) is None
 
 
 class TestCreateUserDefaultGear:
@@ -49,7 +50,7 @@ class TestCreateUserDefaultGear:
         row = MagicMock(spec=user_default_gear_models.UsersDefaultGear)
 
         with patch.object(user_default_gear_models, "UsersDefaultGear", return_value=row):
-            result = user_default_gear_crud.create_user_default_gear(1, mock_db)
+            result = user_default_gear_crud.create_user_default_gear(MOCK_USER_ID, mock_db)
 
         assert result == row
         mock_db.add.assert_called_once_with(row)
@@ -60,7 +61,7 @@ class TestCreateUserDefaultGear:
         mock_db.flush.side_effect = IntegrityError("Duplicate entry", None, None)
 
         with pytest.raises(core_exceptions.ConflictError):
-            user_default_gear_crud.create_user_default_gear(1, mock_db)
+            user_default_gear_crud.create_user_default_gear(MOCK_USER_ID, mock_db)
 
 
 class TestEditUserDefaultGear:
@@ -69,7 +70,7 @@ class TestEditUserDefaultGear:
         _found(mock_db, row)
         update = user_default_gear_schema.UserDefaultGearUpdate(run_gear_id=_GEAR)
 
-        result = user_default_gear_crud.edit_user_default_gear(update, 1, mock_db, if_match="*")
+        result = user_default_gear_crud.edit_user_default_gear(update, MOCK_USER_ID, mock_db, if_match="*")
 
         assert result == row
         assert row.run_gear_id == _GEAR
@@ -81,12 +82,12 @@ class TestEditUserDefaultGear:
         update = user_default_gear_schema.UserDefaultGearUpdate(run_gear_id=_GEAR)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            user_default_gear_crud.edit_user_default_gear(update, 1, mock_db, if_match="*")
+            user_default_gear_crud.edit_user_default_gear(update, MOCK_USER_ID, mock_db, if_match="*")
 
 
 class TestClearGears:
     def test_stages_one_update_that_bumps_the_version(self, mock_db):
-        user_default_gear_crud.clear_gears([_GEAR], 1, mock_db)
+        user_default_gear_crud.clear_gears([_GEAR], MOCK_USER_ID, mock_db)
 
         stmt = mock_db.execute.call_args.args[0]
         compiled = str(stmt.compile())
@@ -95,6 +96,6 @@ class TestClearGears:
         mock_db.flush.assert_called_once()
 
     def test_does_nothing_without_gears(self, mock_db):
-        user_default_gear_crud.clear_gears([], 1, mock_db)
+        user_default_gear_crud.clear_gears([], MOCK_USER_ID, mock_db)
 
         mock_db.execute.assert_not_called()

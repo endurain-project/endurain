@@ -1,6 +1,7 @@
 """Tests for provider-backed authentication security stores."""
 
 import hashlib
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -14,6 +15,9 @@ import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.lockout.contracts as lockout_contracts
 import modules.auth.lockout.integration_service as lockout_integration
 import modules.auth.lockout.lockout_store as lockout_store
+
+_USER_ID_1 = uuid.UUID(int=1)
+_USER_ID_2 = uuid.UUID(int=2)
 
 
 class TestNormalizeUsernameKey:
@@ -111,129 +115,129 @@ class TestFailedLoginAttempts:
 
     def test_not_locked_initially(self):
         store = self._store()
-        assert store.is_locked_out("alice", self.IP, user_id=1) is False
-        assert store.get_lockout_time("alice", self.IP, user_id=1) is None
+        assert store.is_locked_out("alice", self.IP, user_id=_USER_ID_1) is False
+        assert store.get_lockout_time("alice", self.IP, user_id=_USER_ID_1) is None
 
     def test_record_returns_incrementing_count(self):
         store = self._store()
-        assert store.record_failed_attempt("alice", self.IP, user_id=1).client_count == 1
-        assert store.record_failed_attempt("alice", self.IP, user_id=1).client_count == 2
+        assert store.record_failed_attempt("alice", self.IP, user_id=_USER_ID_1).client_count == 1
+        assert store.record_failed_attempt("alice", self.IP, user_id=_USER_ID_1).client_count == 2
 
     def test_lockout_applied_at_5(self):
         store = self._store()
         self._fail(store, 5)
-        assert store.is_locked_out("alice", self.IP, user_id=1) is True
-        lockout = store.get_lockout_time("alice", self.IP, user_id=1)
+        assert store.is_locked_out("alice", self.IP, user_id=_USER_ID_1) is True
+        lockout = store.get_lockout_time("alice", self.IP, user_id=_USER_ID_1)
         assert lockout is not None
         assert lockout > datetime.now(UTC)
 
     def test_locked_does_not_increment(self):
         store = self._store()
         self._fail(store, 5)
-        assert store.record_failed_attempt("alice", self.IP, user_id=1).client_count == 5
+        assert store.record_failed_attempt("alice", self.IP, user_id=_USER_ID_1).client_count == 5
 
     def test_reset_clears_lockout(self):
         store = self._store()
         self._fail(store, 5)
-        store.reset_attempts("alice", self.IP, user_id=1)
-        assert store.is_locked_out("alice", self.IP, user_id=1) is False
-        assert store.record_failed_attempt("alice", self.IP, user_id=1).client_count == 1
+        store.reset_attempts("alice", self.IP, user_id=_USER_ID_1)
+        assert store.is_locked_out("alice", self.IP, user_id=_USER_ID_1) is False
+        assert store.record_failed_attempt("alice", self.IP, user_id=_USER_ID_1).client_count == 1
 
     def test_username_is_normalized(self):
         store = self._store()
-        store.record_failed_attempt("Alice", self.IP, user_id=1)
-        assert store.record_failed_attempt("  alice  ", self.IP, user_id=1).client_count == 2
+        store.record_failed_attempt("Alice", self.IP, user_id=_USER_ID_1)
+        assert store.record_failed_attempt("  alice  ", self.IP, user_id=_USER_ID_1).client_count == 2
 
     def test_clear_all(self):
         store = self._store()
         self._fail(store, 5)
         store.clear_all()
-        assert store.is_locked_out("alice", self.IP, user_id=1) is False
+        assert store.is_locked_out("alice", self.IP, user_id=_USER_ID_1) is False
 
     def test_distinct_users_isolated(self):
         store = self._store()
         self._fail(store, 5)
-        assert store.is_locked_out("bob", self.IP, user_id=2) is False
+        assert store.is_locked_out("bob", self.IP, user_id=_USER_ID_2) is False
 
     def test_failures_from_one_address_do_not_lock_another(self):
         store = self._store()
         self._fail(store, 5)
-        assert store.is_locked_out("alice", self.IP, user_id=1) is True
-        assert store.is_locked_out("alice", self.OTHER_IP, user_id=1) is False
-        assert store.get_lockout_time("alice", self.OTHER_IP, user_id=1) is None
+        assert store.is_locked_out("alice", self.IP, user_id=_USER_ID_1) is True
+        assert store.is_locked_out("alice", self.OTHER_IP, user_id=_USER_ID_1) is False
+        assert store.get_lockout_time("alice", self.OTHER_IP, user_id=_USER_ID_1) is None
 
     def test_an_address_counts_separately_per_username(self):
         store = self._store()
         self._fail(store, 5, username="alice")
-        assert store.is_locked_out("bob", self.IP, user_id=2) is False
+        assert store.is_locked_out("bob", self.IP, user_id=_USER_ID_2) is False
 
     def test_the_account_locks_after_100_failures_from_any_addresses(self):
         store = self._store()
         assert lockout_contracts.ACCOUNT_LOGIN_LOCKOUT_TIERS[0][0] == 100
         for i in range(99):
-            store.record_failed_attempt("alice", f"198.51.100.{i}", user_id=1)
-        assert store.is_locked_out("alice", self.IP, user_id=1) is False
-        store.record_failed_attempt("alice", "198.51.100.200", user_id=1)
-        assert store.is_locked_out("alice", self.IP, user_id=1) is True
-        assert store.get_lockout_time("alice", self.IP, user_id=1) > datetime.now(UTC) + timedelta(days=29)
-        assert store.is_locked_out("bob", self.IP, user_id=2) is False
+            store.record_failed_attempt("alice", f"198.51.100.{i}", user_id=_USER_ID_1)
+        assert store.is_locked_out("alice", self.IP, user_id=_USER_ID_1) is False
+        store.record_failed_attempt("alice", "198.51.100.200", user_id=_USER_ID_1)
+        assert store.is_locked_out("alice", self.IP, user_id=_USER_ID_1) is True
+        assert store.get_lockout_time("alice", self.IP, user_id=_USER_ID_1) > datetime.now(UTC) + timedelta(days=29)
+        assert store.is_locked_out("bob", self.IP, user_id=_USER_ID_2) is False
 
     def test_only_the_failure_that_reaches_100_reports_the_account_lock(self):
         store = self._store()
-        records = [store.record_failed_attempt("alice", f"198.51.100.{i}", user_id=1) for i in range(101)]
+        records = [store.record_failed_attempt("alice", f"198.51.100.{i}", user_id=_USER_ID_1) for i in range(101)]
         assert [i for i, record in enumerate(records) if record.account_locked_now] == [99]
 
     def test_a_known_device_is_not_refused_by_the_account_lock(self):
         store = self._store()
         for i in range(100):
-            store.record_failed_attempt("alice", f"198.51.100.{i}", user_id=1)
-        assert store.is_locked_out("alice", self.IP, known_device=True, user_id=1) is False
-        assert store.get_lockout_time("alice", self.IP, known_device=True, user_id=1) is None
+            store.record_failed_attempt("alice", f"198.51.100.{i}", user_id=_USER_ID_1)
+        assert store.is_locked_out("alice", self.IP, known_device=True, user_id=_USER_ID_1) is False
+        assert store.get_lockout_time("alice", self.IP, known_device=True, user_id=_USER_ID_1) is None
 
     def test_a_known_device_is_still_refused_by_the_client_lock(self):
         store = self._store()
         self._fail(store, 5)
-        assert store.is_locked_out("alice", self.IP, known_device=True, user_id=1) is True
+        assert store.is_locked_out("alice", self.IP, known_device=True, user_id=_USER_ID_1) is True
 
     def test_reset_clears_the_account_wide_count(self):
         store = self._store()
         for i in range(100):
-            store.record_failed_attempt("alice", f"198.51.100.{i}", user_id=1)
-        store.reset_attempts("alice", self.IP, user_id=1)
-        assert store.is_locked_out("alice", self.IP, user_id=1) is False
+            store.record_failed_attempt("alice", f"198.51.100.{i}", user_id=_USER_ID_1)
+        store.reset_attempts("alice", self.IP, user_id=_USER_ID_1)
+        assert store.is_locked_out("alice", self.IP, user_id=_USER_ID_1) is False
 
     def test_reset_account_clears_the_account_lock_for_every_address(self):
         store = self._store()
         for i in range(100):
-            store.record_failed_attempt("alice", f"198.51.100.{i}", user_id=1)
-        store.reset_account(1)
-        assert store.is_locked_out("alice", self.IP, user_id=1) is False
-        assert store.record_failed_attempt("alice", "198.51.100.1", user_id=1).account_locked_now is False
+            store.record_failed_attempt("alice", f"198.51.100.{i}", user_id=_USER_ID_1)
+        store.reset_account(_USER_ID_1)
+        assert store.is_locked_out("alice", self.IP, user_id=_USER_ID_1) is False
+        assert store.record_failed_attempt("alice", "198.51.100.1", user_id=_USER_ID_1).account_locked_now is False
 
     def test_lockout_time_is_the_later_of_the_two(self):
         store = self._store()
         self._fail(store, 5)
         for i in range(100):
-            store.record_failed_attempt("alice", f"198.51.100.{i}", user_id=1)
-        assert store.get_lockout_time("alice", self.IP, user_id=1) > datetime.now(UTC) + timedelta(days=29)
+            store.record_failed_attempt("alice", f"198.51.100.{i}", user_id=_USER_ID_1)
+        assert store.get_lockout_time("alice", self.IP, user_id=_USER_ID_1) > datetime.now(UTC) + timedelta(days=29)
 
     def test_an_ipv6_address_counts_by_its_64_network(self):
         store = self._store()
         for host in range(5):
-            store.record_failed_attempt("alice", f"2001:db8:1:2::{host + 1:x}", user_id=1)
-        assert store.is_locked_out("alice", "2001:db8:1:2:ffff:ffff:ffff:ffff", user_id=1) is True
-        assert store.is_locked_out("alice", "2001:db8:1:3::1", user_id=1) is False
+            store.record_failed_attempt("alice", f"2001:db8:1:2::{host + 1:x}", user_id=_USER_ID_1)
+        assert store.is_locked_out("alice", "2001:db8:1:2:ffff:ffff:ffff:ffff", user_id=_USER_ID_1) is True
+        assert store.is_locked_out("alice", "2001:db8:1:3::1", user_id=_USER_ID_1) is False
 
     def test_an_ipv4_mapped_ipv6_address_counts_as_its_ipv4_address(self):
         store = self._store()
         self._fail(store, 5, ip="::ffff:203.0.113.1")
-        assert store.is_locked_out("alice", "203.0.113.1", user_id=1) is True
+        assert store.is_locked_out("alice", "203.0.113.1", user_id=_USER_ID_1) is True
 
     def test_an_address_that_is_not_an_ip_is_kept_as_it_is(self):
         store = self._store()
         self._fail(store, 5, ip="unknown")
-        assert store.is_locked_out("alice", "unknown", user_id=1) is True
-        assert store.is_locked_out("alice", self.IP, user_id=1) is False
+        assert store.is_locked_out("alice", "unknown", user_id=_USER_ID_1) is True
+        assert store.is_locked_out("alice", self.IP, user_id=_USER_ID_1) is False
 
 
 class TestStepUpAttempts:
@@ -281,17 +285,17 @@ class TestUnavailable:
     def test_record_failed_attempt_raises(self):
         store = failed_login_store.FailedLoginAttempts(state=self._failing_state())
         with pytest.raises(lockout_contracts.AuthSecurityStoreUnavailableError):
-            store.record_failed_attempt("alice", "203.0.113.1", user_id=1)
+            store.record_failed_attempt("alice", "203.0.113.1", user_id=_USER_ID_1)
 
     def test_is_locked_out_raises(self):
         store = failed_login_store.FailedLoginAttempts(state=self._failing_state())
         with pytest.raises(lockout_contracts.AuthSecurityStoreUnavailableError):
-            store.is_locked_out("alice", "203.0.113.1", user_id=1)
+            store.is_locked_out("alice", "203.0.113.1", user_id=_USER_ID_1)
 
     def test_reset_raises(self):
         store = failed_login_store.FailedLoginAttempts(state=self._failing_state())
         with pytest.raises(lockout_contracts.AuthSecurityStoreUnavailableError):
-            store.reset_attempts("alice", "203.0.113.1", user_id=1)
+            store.reset_attempts("alice", "203.0.113.1", user_id=_USER_ID_1)
 
     def test_clear_all_raises(self):
         store = failed_login_store.FailedLoginAttempts(state=self._failing_state())
@@ -332,7 +336,7 @@ class TestReportLockoutApplied:
         store = failed_login_store.FailedLoginAttempts(state=MemoryState())
         with caplog.at_level("DEBUG"):
             for _ in range(5):
-                store.record_failed_attempt("alice", "203.0.113.1", user_id=1)
+                store.record_failed_attempt("alice", "203.0.113.1", user_id=_USER_ID_1)
         assert caplog.records == []
 
     def test_the_outage_error_is_a_503_domain_error(self):

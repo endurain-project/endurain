@@ -24,7 +24,7 @@ import modules.activities.activity.events as activity_events
 
 def publish_activity_created(
     activity_id: uuid.UUID,
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     source: str,
@@ -54,7 +54,7 @@ def publish_activity_created(
     )
     metadata = {
         core_event_metadata.META_ACTIVITY_ID: str(activity_id),
-        core_event_metadata.META_USER_ID: user_id,
+        core_event_metadata.META_USER_ID: str(user_id),
     }
     platform_publisher.publish_on_commit(
         activity_events.ACTIVITY_CREATED,
@@ -68,7 +68,7 @@ def publish_activity_created(
 
 def publish_activity_updated(
     activity_id: uuid.UUID,
-    user_id: int | None,
+    user_id: uuid.UUID | None,
     db: Session,
     *,
     changed_fields: Iterable[str],
@@ -93,7 +93,7 @@ def publish_activity_updated(
     )
     metadata = {
         core_event_metadata.META_ACTIVITY_ID: str(activity_id),
-        core_event_metadata.META_USER_ID: user_id,
+        core_event_metadata.META_USER_ID: str(user_id),
     }
     platform_publisher.publish_on_commit(
         activity_events.ACTIVITY_UPDATED,
@@ -107,7 +107,7 @@ def publish_activity_updated(
 
 def publish_activities_updated(
     activity_ids: Sequence[uuid.UUID],
-    user_id: int | None,
+    user_id: uuid.UUID | None,
     db: Session,
     *,
     changed_fields: Iterable[str],
@@ -145,7 +145,7 @@ def publish_activities_updated(
         source=source,
         metadata_for=lambda payload: {
             core_event_metadata.META_ACTIVITY_ID: payload["activity_id"],
-            core_event_metadata.META_USER_ID: user_id,
+            core_event_metadata.META_USER_ID: str(user_id),
         },
         db=db,
         schema_version=activity_events.ActivityUpdatedPayload.SCHEMA_VERSION,
@@ -154,7 +154,7 @@ def publish_activities_updated(
 
 def publish_activity_deleted(
     activity_id: uuid.UUID,
-    user_id: int | None,
+    user_id: uuid.UUID | None,
     db: Session,
 ) -> None:
     """Publish ``activity.deleted`` after an activity row has been removed.
@@ -168,7 +168,7 @@ def publish_activity_deleted(
     deleted = activity_events.ActivityDeletedPayload(activity_id=activity_id)
     metadata = {
         core_event_metadata.META_ACTIVITY_ID: str(activity_id),
-        core_event_metadata.META_USER_ID: user_id,
+        core_event_metadata.META_USER_ID: str(user_id),
     }
     platform_publisher.publish_on_commit(
         activity_events.ACTIVITY_DELETED,
@@ -182,7 +182,7 @@ def publish_activity_deleted(
 
 def publish_activities_deleted(
     activity_ids: Sequence[uuid.UUID],
-    user_id: int | None,
+    user_id: uuid.UUID | None,
     db: Session,
     *,
     source: str,
@@ -216,7 +216,7 @@ def publish_activities_deleted(
         source=source,
         metadata_for=lambda payload: {
             core_event_metadata.META_ACTIVITY_ID: payload["activity_id"],
-            core_event_metadata.META_USER_ID: user_id,
+            core_event_metadata.META_USER_ID: str(user_id),
         },
         db=db,
         schema_version=activity_events.ActivityDeletedPayload.SCHEMA_VERSION,
@@ -224,7 +224,7 @@ def publish_activities_deleted(
 
 
 def publish_visibility_edit_requested(
-    user_id: int, visibility: int, db: Session, *, commit: Callable[[], None]
+    user_id: uuid.UUID, visibility: int, db: Session, *, commit: Callable[[], None]
 ) -> None:
     """Publish ``activities.visibility_edit_requested`` so a durable worker applies the edit.
 
@@ -244,6 +244,6 @@ def publish_visibility_edit_requested(
         source="api:bulk_edit_activities",
         db=db,
         commit=commit,
-        metadata={core_event_metadata.META_USER_ID: user_id},
+        metadata={core_event_metadata.META_USER_ID: str(user_id)},
         schema_version=payload.SCHEMA_VERSION,
     )

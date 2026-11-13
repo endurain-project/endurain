@@ -24,7 +24,7 @@ import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.models as activity_models
 from tests._helpers.db import ensure_user
 
-_USER_ID = 1
+_USER_ID = uuid.UUID(int=1)
 _PRIVACY_FLAGS = (
     "hide_start_time",
     "hide_location",

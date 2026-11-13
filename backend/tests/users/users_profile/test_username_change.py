@@ -1,5 +1,6 @@
 """The dedicated username change: schema, step-up, conflict, no-op, session revocation, audit and notice."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import jasil.testing as jasil_testing
@@ -16,7 +17,8 @@ import modules.users.users_profile.service as profile_service
 
 _SERVICE = "modules.users.users_profile.service"
 _USERS = "modules.users.users.service"
-_TARGET = {"target_type": "user", "target_id": "7", "target_owner_id": "7"}
+_USER_ID = uuid.UUID(int=7)
+_TARGET = {"target_type": "user", "target_id": str(_USER_ID), "target_owner_id": str(_USER_ID)}
 
 
 def _change(username="New.Name", *, revoke=True) -> users_schema.UsernameChange:
@@ -54,16 +56,16 @@ class TestStageUsernameChange:
             patch(f"{_USERS}.security_generation_integration") as generation,
         ):
             crud.get_user_by_id.return_value = users_schema.UserRead(
-                id=7, name="N", username=current, email="a@example.com", active=True, access_type="regular"
+                id=_USER_ID, name="N", username=current, email="a@example.com", active=True, access_type="regular"
             )
-            result = users_service.stage_username_change(7, new, mock_db)
+            result = users_service.stage_username_change(_USER_ID, new, mock_db)
         return result, crud, generation
 
     def test_stores_the_lower_cased_username(self, mock_db):
         changed, crud, _ = self._stage(mock_db, "New.Name")
 
         assert changed is True
-        assert crud.update_user.call_args.args[:2] == (7, {"username": "new.name"})
+        assert crud.update_user.call_args.args[:2] == (_USER_ID, {"username": "new.name"})
 
     def test_the_same_username_in_any_case_changes_nothing(self, mock_db):
         changed, crud, _ = self._stage(mock_db, "OLD")
@@ -86,22 +88,22 @@ class TestChangeUsername:
         ):
             users.stage_username_change.return_value = staged
             users.stage_username_change.side_effect = side_effect
-            result = profile_service.change_username(7, change, "sid", MagicMock(), mock_db)
+            result = profile_service.change_username(_USER_ID, change, "sid", MagicMock(), mock_db)
         return result, security, users, get_profile
 
     def test_verifies_step_up_for_the_username_change_action(self, mock_db):
         _, security, _, _ = self._run(mock_db, _change())
 
         args = security.verify_step_up.call_args.args
-        assert args[1:3] == (7, "sid")
+        assert args[1:3] == (_USER_ID, "sid")
         assert args[3] == identity_providers_constants.StepUpAction.USERNAME_CHANGE
 
     def test_stages_the_username_and_commits_once(self, mock_db):
         _, _, users, get_profile = self._run(mock_db, _change())
 
-        assert users.stage_username_change.call_args.args[:2] == (7, "New.Name")
+        assert users.stage_username_change.call_args.args[:2] == (_USER_ID, "New.Name")
         mock_db.commit.assert_called_once()
-        get_profile.assert_called_once_with(7, mock_db)
+        get_profile.assert_called_once_with(_USER_ID, mock_db)
 
     def test_a_failed_step_up_changes_nothing(self, mock_db):
         with (
@@ -110,7 +112,7 @@ class TestChangeUsername:
         ):
             security.verify_step_up.side_effect = core_exceptions.StepUpFailedError("no")
             with pytest.raises(core_exceptions.StepUpFailedError):
-                profile_service.change_username(7, _change(), "sid", MagicMock(), mock_db)
+                profile_service.change_username(_USER_ID, _change(), "sid", MagicMock(), mock_db)
 
         users.stage_username_change.assert_not_called()
 
@@ -132,7 +134,7 @@ class TestChangeUsername:
     def test_revokes_other_sessions_when_asked(self, mock_db):
         _, security, _, _ = self._run(mock_db, _change(revoke=True))
 
-        security.delete_other_user_sessions.assert_called_once_with(7, "sid", mock_db)
+        security.delete_other_user_sessions.assert_called_once_with(_USER_ID, "sid", mock_db)
 
     def test_keeps_other_sessions_when_the_client_opts_out(self, mock_db):
         _, security, _, _ = self._run(mock_db, _change(revoke=False))
@@ -143,7 +145,7 @@ class TestChangeUsername:
         _, security, _, _ = self._run(mock_db, _change())
 
         security.stage_account_change_notice.assert_called_once_with(
-            7, account_security_events.AccountSecurityChange.USERNAME_CHANGED, mock_db
+            _USER_ID, account_security_events.AccountSecurityChange.USERNAME_CHANGED, mock_db
         )
 
     @pytest.mark.parametrize("revoke", [True, False])

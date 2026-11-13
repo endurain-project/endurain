@@ -15,7 +15,7 @@ import modules.users.users_default_gear.schema as users_default_gear_schema
 import modules.users.users_default_gear.service as users_default_gear_service
 
 
-def get_default_gear(user_id: int, db: Session) -> users_default_gear_schema.UserDefaultGearRead | None:
+def get_default_gear(user_id: uuid.UUID, db: Session) -> users_default_gear_schema.UserDefaultGearRead | None:
     """Return a user's default gear settings.
 
     Args:
@@ -28,7 +28,7 @@ def get_default_gear(user_id: int, db: Session) -> users_default_gear_schema.Use
     return users_default_gear_crud.get_user_default_gear_by_user_id(user_id, db)
 
 
-def get_default_gear_for_activity_type(user_id: int, activity_type: int, db: Session) -> uuid.UUID | None:
+def get_default_gear_for_activity_type(user_id: uuid.UUID, activity_type: int, db: Session) -> uuid.UUID | None:
     """Return the user's default gear id for an activity type, if they set one.
 
     Args:
@@ -47,7 +47,7 @@ def get_default_gear_for_activity_type(user_id: int, activity_type: int, db: Ses
     return getattr(default_gear, attr_name, None)
 
 
-def create_default_gear(user_id: int, db: Session) -> users_default_gear_schema.UserDefaultGearRead:
+def create_default_gear(user_id: uuid.UUID, db: Session) -> users_default_gear_schema.UserDefaultGearRead:
     """Stage empty default gear settings for a new user.
 
     Args:
@@ -63,7 +63,7 @@ def create_default_gear(user_id: int, db: Session) -> users_default_gear_schema.
     return users_default_gear_crud.create_user_default_gear(user_id, db)
 
 
-def clear_default_gears(gear_ids: Collection[uuid.UUID], user_id: int, db: Session) -> None:
+def clear_default_gears(gear_ids: Collection[uuid.UUID], user_id: uuid.UUID, db: Session) -> None:
     """Unassign gears from the user's default-gear settings; the caller commits.
 
     Args:
@@ -75,7 +75,7 @@ def clear_default_gears(gear_ids: Collection[uuid.UUID], user_id: int, db: Sessi
 
 
 def restore_profile_default_gear(
-    record: dict[str, Any], ids: dict[str, dict[str, uuid.UUID]], user_id: int, db: Session
+    record: dict[str, Any], ids: dict[str, dict[uuid.UUID, uuid.UUID]], user_id: uuid.UUID, db: Session
 ) -> bool:
     """Stage the default gear of a profile archive, moved onto the restored gears; the caller commits.
 

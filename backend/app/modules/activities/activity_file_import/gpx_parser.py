@@ -1,5 +1,6 @@
 """Utilities for parsing GPX files into activity data."""
 
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from math import isfinite
@@ -55,7 +56,7 @@ class ParseState:
     pause_threshold: float = activity_file_import_parser_utils.PAUSE_DETECTION_THRESHOLD_SECONDS
     first_waypoint_time: datetime | None = None
     last_waypoint_time: datetime | None = None
-    gear_id: int | None = None
+    gear_id: uuid.UUID | None = None
     city: str | None = None
     town: str | None = None
     country: str | None = None
@@ -450,7 +451,7 @@ def _compute_derived_metrics(
 
 def _build_activity_schema(
     state: ParseState,
-    user_id: int,
+    user_id: uuid.UUID,
 ) -> activity_contracts.ActivityCore:
     """Build an ActivityCore ingestion contract from parsed state.
 
@@ -505,7 +506,7 @@ def _build_activity_schema(
 
 def parse_gpx_file(
     file: str,
-    user_id: int,
+    user_id: uuid.UUID,
     *,
     activity_name_input: str | None = None,
     default_timezone: str,

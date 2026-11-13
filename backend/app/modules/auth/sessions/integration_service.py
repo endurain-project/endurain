@@ -1,5 +1,6 @@
 """Session operations exposed to auth peers."""
 
+import uuid
 from collections.abc import Sequence
 from datetime import datetime
 
@@ -19,7 +20,7 @@ import modules.users.users.schema as users_schema
 
 
 def list_user_sessions(
-    user_id: int,
+    user_id: uuid.UUID,
     page: core_pagination.PageParams,
     db: Session,
 ) -> sessions_schema.UserSessionsPage:
@@ -124,17 +125,17 @@ def update_session_csrf_token(session_id: str, new_csrf_token: str, db: Session)
     sessions_service.update_session_csrf_token(session_id, new_csrf_token, db)
 
 
-def delete_session(session_id: str, user_id: int, db: Session) -> None:
+def delete_session(session_id: str, user_id: uuid.UUID, db: Session) -> None:
     """Stage deletion of a session owned by a user."""
     sessions_service.stage_delete_session(session_id, user_id, db)
 
 
-def delete_session_if_present(session_id: str, user_id: int, db: Session) -> bool:
+def delete_session_if_present(session_id: str, user_id: uuid.UUID, db: Session) -> bool:
     """Stage deletion of a session owned by a user; returns False when it was already gone."""
     return sessions_service.stage_delete_session_if_present(session_id, user_id, db)
 
 
-def delete_sessions_by_user(user_id: int, db: Session, exclude_session_id: str | None = None) -> int:
+def delete_sessions_by_user(user_id: uuid.UUID, db: Session, exclude_session_id: str | None = None) -> int:
     """Stage deletion of a user's sessions."""
     return sessions_service.delete_sessions_by_user(user_id, db, exclude_session_id)
 
@@ -144,7 +145,7 @@ def set_session_device_hash(session_id: str, device_hash: str, db: Session) -> N
     sessions_service.set_session_device_hash(session_id, device_hash, db)
 
 
-def delete_sessions_by_device(user_id: int, device_hash: str, db: Session) -> int:
+def delete_sessions_by_device(user_id: uuid.UUID, device_hash: str, db: Session) -> int:
     """Stage deletion of a user's sessions that signed in from a known device; returns how many."""
     return sessions_service.delete_sessions_by_device(user_id, device_hash, db)
 

@@ -128,7 +128,7 @@ def _is_not_live_strava_api_activity() -> ColumnElement[bool]:
     return activity_models.Activity.strava_activity_id.is_(None)
 
 
-def _visible_to_requester_condition(followee_ids: Sequence[int] | None) -> ColumnElement[bool]:
+def _visible_to_requester_condition(followee_ids: Sequence[uuid.UUID] | None) -> ColumnElement[bool]:
     """Build the non-owner activity visibility condition.
 
     Live Strava API data is owner-only under the Strava API Policy, regardless
@@ -169,7 +169,7 @@ def _apply_activity_visibility_filter[RowT: tuple[object, ...]](
     stmt: Select[RowT],
     *,
     user_is_owner: bool,
-    followee_ids: Sequence[int] | None,
+    followee_ids: Sequence[uuid.UUID] | None,
 ) -> Select[RowT]:
     """Apply non-owner visibility filtering to an activity query.
 
@@ -197,7 +197,7 @@ def _apply_user_activity_filters[RowT: tuple[object, ...]](
     end_date: date | None,
     name_search: str | None,
     user_is_owner: bool,
-    followee_ids: Sequence[int] | None,
+    followee_ids: Sequence[uuid.UUID] | None,
     gear_id: uuid.UUID | None = None,
 ) -> Select[RowT]:
     """Apply the filters shared by the activity list, page and count queries.
@@ -236,7 +236,7 @@ def _apply_user_activity_filters[RowT: tuple[object, ...]](
 
 
 def get_user_activities(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     activity_type: activity_constants.ActivityType | None = None,
@@ -244,7 +244,7 @@ def get_user_activities(
     end_date: date | None = None,
     name_search: str | None = None,
     user_is_owner: bool,
-    followee_ids: Sequence[int] | None = None,
+    followee_ids: Sequence[uuid.UUID] | None = None,
 ) -> list[activity_schema.ActivityRead]:
     """Get activities owned by a user (with optional filters).
 
@@ -286,7 +286,7 @@ def get_user_activities(
 
 
 def count_user_activities(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     activity_type: activity_constants.ActivityType | None = None,
@@ -295,7 +295,7 @@ def count_user_activities(
     name_search: str | None = None,
     user_is_owner: bool,
     gear_id: uuid.UUID | None = None,
-    followee_ids: Sequence[int] | None = None,
+    followee_ids: Sequence[uuid.UUID] | None = None,
 ) -> int:
     """Count activities owned by a user (with optional filters).
 
@@ -334,7 +334,7 @@ def count_user_activities(
 
 
 def get_garminconnect_gear_activity_refs(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     after_id: uuid.UUID | None = None,
@@ -368,7 +368,7 @@ def get_garminconnect_gear_activity_refs(
 
 
 def get_user_activities_with_pagination(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -381,7 +381,7 @@ def get_user_activities_with_pagination(
     sort_order: str | None = None,
     user_is_owner: bool,
     gear_id: uuid.UUID | None = None,
-    followee_ids: Sequence[int] | None = None,
+    followee_ids: Sequence[uuid.UUID] | None = None,
 ) -> list[activity_schema.ActivityRead]:
     """Get a page of user activities with filters and sorting.
 
@@ -433,7 +433,7 @@ def get_user_activities_with_pagination(
     )
 
 
-def get_distinct_activity_types_for_user(user_id: int, db: Session) -> list[activity_constants.ActivityType]:
+def get_distinct_activity_types_for_user(user_id: uuid.UUID, db: Session) -> list[activity_constants.ActivityType]:
     """List the distinct activity types owned by a user.
 
     Args:
@@ -453,13 +453,13 @@ def get_distinct_activity_types_for_user(user_id: int, db: Session) -> list[acti
 
 
 def sum_user_activities_per_timeframe_by_type(
-    user_id: int,
+    user_id: uuid.UUID,
     start: datetime,
     end: datetime,
     db: Session,
     *,
     user_is_owner: bool,
-    followee_ids: Sequence[int] | None = None,
+    followee_ids: Sequence[uuid.UUID] | None = None,
 ) -> list[activity_contracts.ActivityTypeTotals]:
     """Add up a user's activities within a date range per activity type, in the database.
 
@@ -508,7 +508,7 @@ def sum_user_activities_per_timeframe_by_type(
 
 
 def sum_user_activities_per_timeframe_and_activity_types(
-    user_id: int,
+    user_id: uuid.UUID,
     activity_types: list[int],
     start: datetime,
     end: datetime,
@@ -557,14 +557,14 @@ def sum_user_activities_per_timeframe_and_activity_types(
 
 
 def get_user_activities_per_timeframe_and_activity_types(
-    user_id: int,
+    user_id: uuid.UUID,
     activity_types: list[int],
     start: datetime,
     end: datetime,
     db: Session,
     *,
     user_is_owner: bool,
-    followee_ids: Sequence[int] | None = None,
+    followee_ids: Sequence[uuid.UUID] | None = None,
     exclude_hidden: bool = False,
 ) -> list[activity_schema.ActivityRead]:
     """Get a user's activities within a date range by types.
@@ -617,7 +617,7 @@ def _feed_slice(
     num_records: int,
     db: Session,
     *,
-    requester_user_id: int | None = None,
+    requester_user_id: uuid.UUID | None = None,
     force_non_owner: bool = False,
 ) -> list[activity_contracts.ActivityFeedEntry]:
     """Read one keyset slice of the activities matching ``conditions``, newest first.
@@ -667,7 +667,7 @@ def _feed_slice(
 
 
 def get_following_feed_after(
-    followee_ids: list[int],
+    followee_ids: list[uuid.UUID],
     after: tuple[datetime, uuid.UUID] | None,
     num_records: int,
     db: Session,
@@ -702,7 +702,7 @@ def get_following_feed_after(
 
 
 def get_own_feed_after(
-    user_id: int,
+    user_id: uuid.UUID,
     after: tuple[datetime, uuid.UUID] | None,
     num_records: int,
     db: Session,
@@ -724,7 +724,7 @@ def get_own_feed_after(
     return _feed_slice([activity_models.Activity.user_id == user_id], after, num_records, db, requester_user_id=user_id)
 
 
-def sum_gear_usage(gear_id: uuid.UUID, user_id: int, db: Session) -> gears_contracts.UsageTotals:
+def sum_gear_usage(gear_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> gears_contracts.UsageTotals:
     """Total distance and moving time a user recorded against a gear.
 
     Lives here rather than in the gears module so the activities table is only
@@ -749,7 +749,7 @@ def sum_gear_usage(gear_id: uuid.UUID, user_id: int, db: Session) -> gears_contr
 
 def sum_gear_usage_by_window(
     gear_id: uuid.UUID,
-    user_id: int,
+    user_id: uuid.UUID,
     windows: Sequence[gears_contracts.UsageWindow],
     db: Session,
 ) -> dict[uuid.UUID, gears_contracts.UsageTotals]:
@@ -803,7 +803,7 @@ def sum_gear_usage_by_window(
 
 
 def get_activity_by_id_from_user_id_or_has_visibility(
-    activity_id: uuid.UUID, user_id: int, db: Session, *, followee_ids: Sequence[int] | None = None
+    activity_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, followee_ids: Sequence[uuid.UUID] | None = None
 ) -> activity_schema.ActivityRead | None:
     """Get an activity by ID if owned or visible to the user.
 
@@ -834,7 +834,7 @@ def get_activity_by_id_from_user_id_or_has_visibility(
 
 
 def get_viewable_activity_by_id_for_user(
-    activity_id: uuid.UUID, user_id: int, db: Session, *, followee_ids: Sequence[int] | None = None
+    activity_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, followee_ids: Sequence[uuid.UUID] | None = None
 ) -> activity_schema.ActivityRead | None:
     """Return an activity (unmasked) iff the user may view it — child-resource authz gate.
 
@@ -938,7 +938,7 @@ def get_activity_by_id(activity_id: uuid.UUID, db: Session) -> activity_schema.A
 
 
 def get_activity_by_start_time(
-    start_time: str | datetime, user_id: int, db: Session
+    start_time: str | datetime, user_id: uuid.UUID, db: Session
 ) -> activity_schema.ActivityRead | None:
     """Get a user's activity matching a specific start time.
 
@@ -971,7 +971,7 @@ def get_activity_by_start_time(
     return activity_serializers.to_read_schema(activity)
 
 
-def get_activity_by_dedup_key(dedup_key: str, user_id: int, db: Session) -> activity_schema.ActivityRead | None:
+def get_activity_by_dedup_key(dedup_key: str, user_id: uuid.UUID, db: Session) -> activity_schema.ActivityRead | None:
     """Get a user's activity by its idempotency dedup key.
 
     Used by the ingestion seam to make re-import of an already-ingested activity
@@ -996,7 +996,7 @@ def get_activity_by_dedup_key(dedup_key: str, user_id: int, db: Session) -> acti
 
 
 def get_activity_by_id_from_user_id(
-    activity_id: uuid.UUID, user_id: int, db: Session
+    activity_id: uuid.UUID, user_id: uuid.UUID, db: Session
 ) -> activity_schema.ActivityRead | None:
     """Get a user's activity by ID.
 
@@ -1019,7 +1019,7 @@ def get_activity_by_id_from_user_id(
 
 
 def get_activity_by_strava_id_from_user_id(
-    activity_strava_id: int, user_id: int, db: Session
+    activity_strava_id: int, user_id: uuid.UUID, db: Session
 ) -> activity_schema.ActivityRead | None:
     """Get a user's activity by its Strava activity ID.
 
@@ -1042,7 +1042,7 @@ def get_activity_by_strava_id_from_user_id(
 
 
 def get_activity_by_garminconnect_id_from_user_id(
-    activity_garminconnect_id: int, user_id: int, db: Session
+    activity_garminconnect_id: int, user_id: uuid.UUID, db: Session
 ) -> activity_schema.ActivityRead | None:
     """Get a user's activity by its Garmin Connect activity ID.
 
@@ -1406,7 +1406,7 @@ def defer_thumbnail_attempts(activity_ids: Sequence[uuid.UUID], retry_at: dateti
 
 
 def edit_activity(
-    user_id: int,
+    user_id: uuid.UUID,
     activity_id: uuid.UUID,
     activity_attributes: activity_schema.ActivityEdit | activity_schema.ActivityRead,
     db: Session,
@@ -1452,7 +1452,7 @@ def edit_activity(
     return activity_serializers.to_read_schema(db_activity)
 
 
-def _lock_user_activities(user_id: int, db: Session, activity_ids: Sequence[uuid.UUID] | None = None) -> None:
+def _lock_user_activities(user_id: uuid.UUID, db: Session, activity_ids: Sequence[uuid.UUID] | None = None) -> None:
     """Row-lock a user's activities in id order before a multi-row ``UPDATE``.
 
     A multi-row ``UPDATE`` locks rows in scan order, so two overlapping bulk
@@ -1470,7 +1470,9 @@ def _lock_user_activities(user_id: int, db: Session, activity_ids: Sequence[uuid
     db.execute(stmt.order_by(activity_models.Activity.id).with_for_update())
 
 
-def edit_user_activities_visibility_batch(user_id: int, visibility: int, limit: int, db: Session) -> list[uuid.UUID]:
+def edit_user_activities_visibility_batch(
+    user_id: uuid.UUID, visibility: int, limit: int, db: Session
+) -> list[uuid.UUID]:
     """Stage a visibility update for up to ``limit`` of a user's activities that do not have it yet.
 
     Only rows whose visibility differs are touched, so a repeated edit rewrites nothing and the batches of
@@ -1512,7 +1514,7 @@ def edit_user_activities_visibility_batch(user_id: int, visibility: int, limit: 
 
 
 def bulk_set_activities_gear_id(
-    user_id: int,
+    user_id: uuid.UUID,
     gear_assignments: Mapping[uuid.UUID, uuid.UUID | None],
     db: Session,
 ) -> list[uuid.UUID]:
@@ -1556,7 +1558,7 @@ def bulk_set_activities_gear_id(
     return updated_ids
 
 
-def clear_gear_from_activities(gear_id: uuid.UUID, user_id: int, db: Session) -> list[uuid.UUID]:
+def clear_gear_from_activities(gear_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> list[uuid.UUID]:
     """Stage unassigning a gear from every activity of a user that carries it.
 
     Args:
@@ -1578,7 +1580,7 @@ def clear_gear_from_activities(gear_id: uuid.UUID, user_id: int, db: Session) ->
     return sorted(row_id for (row_id,) in db.execute(stmt).all())
 
 
-def delete_activity(activity_id: uuid.UUID, user_id: int, db: Session, *, if_match: str) -> None:
+def delete_activity(activity_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Stage the deletion of an activity owned by ``user_id``.
 
     Ownership is part of the ``WHERE`` clause rather than a precondition the
@@ -1613,7 +1615,7 @@ def delete_activity(activity_id: uuid.UUID, user_id: int, db: Session, *, if_mat
     db.flush()
 
 
-def delete_all_strava_activities_for_user(user_id: int, db: Session, *, limit: int) -> list[uuid.UUID]:
+def delete_all_strava_activities_for_user(user_id: uuid.UUID, db: Session, *, limit: int) -> list[uuid.UUID]:
     """Stage the deletion of up to ``limit`` Strava-synced activities owned by a user.
 
     A caller that must remove them all calls this until fewer than ``limit`` come back,
@@ -1647,7 +1649,7 @@ def delete_all_strava_activities_for_user(user_id: int, db: Session, *, limit: i
     return batch_ids
 
 
-def delete_activities_batch_for_user(user_id: int, limit: int, db: Session) -> list[uuid.UUID]:
+def delete_activities_batch_for_user(user_id: uuid.UUID, limit: int, db: Session) -> list[uuid.UUID]:
     """Stage the deletion of up to ``limit`` of a user's activities.
 
     Used by account deletion, which repeats it, one transaction per batch, until nothing is left. The
@@ -1699,7 +1701,7 @@ def touch_activity(activity_id: uuid.UUID, db: Session) -> None:
 
 
 def get_changed_activities(
-    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[activity_schema.ActivityRead]:
     """Read a user's activities changed after a position, oldest change first.
 
@@ -1727,7 +1729,7 @@ def get_changed_activities(
 
 
 def get_activity_deletions(
-    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[core_sync.Deletion[uuid.UUID]]:
     """Read a user's activity tombstones after a position, oldest deletion first.
 

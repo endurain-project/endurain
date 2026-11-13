@@ -7,6 +7,7 @@ platform ``StateProvider`` (in-process under ``local``, Redis under
 """
 
 import secrets
+import uuid
 from dataclasses import dataclass
 
 from jasil.providers import ClockProvider, StateBackendUnavailableError, StateProvider
@@ -38,7 +39,7 @@ class WsTicketOwner:
         session_id: The session of the access token that asked for the ticket, so the socket ends with it.
     """
 
-    user_id: int
+    user_id: uuid.UUID
     session_id: str
 
 
@@ -97,7 +98,7 @@ class WsTicketStore:
             core_attempt_state.raise_unavailable("allow_handshake", err)
         return attempts <= MAX_HANDSHAKES_PER_WINDOW
 
-    def create_ticket(self, user_id: int, session_id: str) -> str:
+    def create_ticket(self, user_id: uuid.UUID, session_id: str) -> str:
         """Issue a new short-lived ticket for a user's session.
 
         Args:
@@ -141,8 +142,13 @@ class WsTicketStore:
             core_attempt_state.raise_unavailable("consume_ticket", err)
         if value is None:
             return None
-        user_id, _, session_id = value.decode().partition(":")
-        if not user_id.isascii() or not user_id.isdecimal() or not session_id:
+        raw_user_id, _, session_id = value.decode().partition(":")
+        try:
+            user_id = uuid.UUID(raw_user_id)
+        except ValueError:
             logger.warning("Unexpected value in WS ticket store")
             return None
-        return WsTicketOwner(user_id=int(user_id), session_id=session_id)
+        if not session_id:
+            logger.warning("Unexpected value in WS ticket store")
+            return None
+        return WsTicketOwner(user_id=user_id, session_id=session_id)

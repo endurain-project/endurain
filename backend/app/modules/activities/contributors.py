@@ -73,7 +73,7 @@ class RestoreActivityRecords(Protocol):
     def __call__(
         self,
         records: list[dict[str, Any]],
-        original_activity_id: str,
+        original_activity_id: uuid.UUID,
         new_activity: activity_schema.ActivityRead,
         db: Session,
     ) -> int:
@@ -81,7 +81,7 @@ class RestoreActivityRecords(Protocol):
 
         Args:
             records: Profile records to restore.
-            original_activity_id: The activity's archive-local key (``archived_id`` of its ID in the archive).
+            original_activity_id: The activity's archive-local key (its UUID in the archive).
             new_activity: The activity the records are restored onto.
             db: Database session.
 
@@ -282,7 +282,7 @@ def child_profile_contributor[R](
 
     def restore(
         records: list[dict[str, Any]],
-        original_activity_id: str,
+        original_activity_id: uuid.UUID,
         new_activity: activity_schema.ActivityRead,
         db: Session,
     ) -> int:

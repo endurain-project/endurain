@@ -9,7 +9,7 @@ import core.event_metadata as core_event_metadata
 import modules.auth.identity_providers.events as idp_events
 
 
-def publish_idp_token_refresh_requested(user_id: int, session_id: str, db: Session) -> None:
+def publish_idp_token_refresh_requested(user_id: uuid.UUID, session_id: str, db: Session) -> None:
     """Stage ``auth.idp_token_refresh_requested`` in the caller's transaction.
 
     Args:
@@ -22,13 +22,13 @@ def publish_idp_token_refresh_requested(user_id: int, session_id: str, db: Sessi
         idp_events.IDP_TOKEN_REFRESH_REQUESTED,
         payload.model_dump(mode="json"),
         source="api:refresh_token",
-        metadata={core_event_metadata.META_USER_ID: user_id},
+        metadata={core_event_metadata.META_USER_ID: str(user_id)},
         db=db,
         schema_version=payload.SCHEMA_VERSION,
     )
 
 
-def publish_idp_linked(user_id: int, idp_id: uuid.UUID, db: Session) -> None:
+def publish_idp_linked(user_id: uuid.UUID, idp_id: uuid.UUID, db: Session) -> None:
     """Stage ``auth.idp_linked`` in the caller's transaction.
 
     Args:
@@ -41,7 +41,7 @@ def publish_idp_linked(user_id: int, idp_id: uuid.UUID, db: Session) -> None:
         idp_events.IDP_LINKED,
         payload.model_dump(mode="json"),
         source="api:idp_callback",
-        metadata={core_event_metadata.META_USER_ID: user_id},
+        metadata={core_event_metadata.META_USER_ID: str(user_id)},
         db=db,
         schema_version=payload.SCHEMA_VERSION,
     )

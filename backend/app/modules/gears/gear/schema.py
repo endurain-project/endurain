@@ -192,7 +192,7 @@ class GearCreate(GearBase):
         ...,
         description="Gear type identifier",
     )
-    user_id: StrictInt | None = Field(
+    user_id: uuid.UUID | None = Field(
         default=None,
         description="Foreign key to user",
     )
@@ -222,7 +222,7 @@ class GearRead(GearCreate):
         ...,
         description="Unique identifier",
     )
-    user_id: StrictInt = Field(
+    user_id: uuid.UUID = Field(
         ...,
         description="Foreign key to user",
     )

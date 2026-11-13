@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 import modules.auth.api_keys.schema as users_api_keys_schema
 import modules.auth.constants as auth_constants
+from tests._helpers.auth import MOCK_USER_ID
 
 #: The scopes an API key may hold: the account's own data.
 _ALLOWED = {
@@ -207,7 +208,7 @@ class TestUsersApiKeyRead:
         now = datetime.now(UTC)
         data = users_api_keys_schema.UserApiKeyRead(
             id="some-uuid",
-            user_id=1,
+            user_id=MOCK_USER_ID,
             name="My Key",
             key_prefix="abcdefgh",
             scopes='["activities:upload"]',
@@ -217,7 +218,7 @@ class TestUsersApiKeyRead:
             is_active=True,
         )
         assert data.id == "some-uuid"
-        assert data.user_id == 1
+        assert data.user_id == MOCK_USER_ID
         assert data.is_active is True
         assert data.scopes == ["activities:upload"]
 
@@ -225,7 +226,7 @@ class TestUsersApiKeyRead:
         """The scopes stay a list when a read dump builds the creation response."""
         read = users_api_keys_schema.UserApiKeyRead(
             id="some-uuid",
-            user_id=1,
+            user_id=MOCK_USER_ID,
             name="My Key",
             key_prefix="abcdefgh",
             scopes='["activities:upload"]',
@@ -240,8 +241,8 @@ class TestUsersApiKeyRead:
         """Test that UserApiKeyRead does not expose a 'key' field."""
         assert not hasattr(users_api_keys_schema.UserApiKeyRead, "key")
 
-    def test_read_schema_user_id_ge_1_fails(self):
-        """Test that user_id < 1 fails validation."""
+    def test_read_schema_user_id_not_a_uuid_fails(self):
+        """Test that user_id that is not a UUID fails validation."""
         now = datetime.now(UTC)
         with pytest.raises(ValidationError):
             users_api_keys_schema.UserApiKeyRead(
@@ -271,7 +272,7 @@ class TestUsersApiKeyCreated:
         now = datetime.now(UTC)
         data = users_api_keys_schema.UserApiKeyCreatedRead(
             id="some-uuid",
-            user_id=1,
+            user_id=MOCK_USER_ID,
             name="My Key",
             key_prefix="abcdefgh",
             scopes='["activities:upload"]',
@@ -289,7 +290,7 @@ class TestUsersApiKeyCreated:
         with pytest.raises(ValidationError):
             users_api_keys_schema.UserApiKeyCreatedRead(
                 id="some-uuid",
-                user_id=1,
+                user_id=MOCK_USER_ID,
                 name="My Key",
                 key_prefix="abcdefgh",
                 scopes='["activities:upload"]',

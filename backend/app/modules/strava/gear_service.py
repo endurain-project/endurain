@@ -48,7 +48,7 @@ def _call_strava[ResultT](
     strava_client: Client,
     description: str,
     client_id: str,
-    user_id: int,
+    user_id: uuid.UUID,
     user_integrations: user_integrations_schema.UserIntegrationsRead,
     rate_limits: strava_rate_limit_store.StravaRateLimitStore,
 ) -> ResultT:
@@ -101,7 +101,7 @@ def _get_gear(strava_gear_id: str, client: Client) -> DetailedGear | None:
     return client.get_gear(strava_gear_id)
 
 
-def _strava_gear_id(gear: SummaryGear, user_id: int) -> str:
+def _strava_gear_id(gear: SummaryGear, user_id: uuid.UUID) -> str:
     """Return the id of a gear piece Strava listed on the athlete.
 
     stravalib types the id as optional; without it the gear can be neither fetched nor matched to activities.
@@ -139,7 +139,7 @@ def match_gear_for_activity(
     return None
 
 
-def set_activities_gear(user_id: int, db: Session) -> int:
+def set_activities_gear(user_id: uuid.UUID, db: Session) -> int:
     """Stage the assignment of the user's Strava-linked activities to the matching local gear.
 
     Args:
@@ -174,7 +174,7 @@ def set_activities_gear(user_id: int, db: Session) -> int:
     return len(gear_assignments)
 
 
-def get_user_gear(user_id: int, rate_limits: strava_rate_limit_store.StravaRateLimitStore) -> bool:
+def get_user_gear(user_id: uuid.UUID, rate_limits: strava_rate_limit_store.StravaRateLimitStore) -> bool:
     """Import the user's Strava gear and assign it to their activities.
 
     Runs on a worker. The Strava round trips happen with no database session open;
@@ -299,7 +299,9 @@ def _clean(value: str | None) -> str | None:
     return value.strip() or None if value else None
 
 
-def transform_csv_bike_gear_to_schema_gear(rows: list[dict[str, str]], user_id: int) -> list[gears_schema.GearCreate]:
+def transform_csv_bike_gear_to_schema_gear(
+    rows: list[dict[str, str]], user_id: uuid.UUID
+) -> list[gears_schema.GearCreate]:
     """Turn parsed bikes CSV rows into gear to create.
 
     A bike is identified by its name, so the last of several rows with one name wins
@@ -335,7 +337,7 @@ def transform_csv_bike_gear_to_schema_gear(rows: list[dict[str, str]], user_id: 
 
 
 def transform_csv_shoe_gear_to_schema_gear(
-    rows: list[dict[str, str]], user_id: int, db: Session
+    rows: list[dict[str, str]], user_id: uuid.UUID, db: Session
 ) -> list[gears_schema.GearCreate]:
     """Turn parsed shoes CSV rows into gear to create.
 
@@ -401,7 +403,7 @@ def _save_gear_csv(file: UploadFile) -> tuple[tempfile.TemporaryDirectory[str], 
     return work_dir, path
 
 
-def import_gear(file: UploadFile, user_id: int, gear_type: gears_schema.GearType, db: Session) -> int:
+def import_gear(file: UploadFile, user_id: uuid.UUID, gear_type: gears_schema.GearType, db: Session) -> int:
     """Create the bikes or shoes listed in an uploaded Strava gear CSV.
 
     Args:

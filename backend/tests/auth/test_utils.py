@@ -1,6 +1,7 @@
 """Tests for auth.utils module."""
 
 import dataclasses
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -15,6 +16,8 @@ import modules.auth.authentication.service as auth_utils
 import modules.auth.authentication.token_service as auth_utils_token_service
 import modules.auth.computation as auth_computation
 from modules.auth.constants import ClientType
+
+_USER_ID = uuid.UUID(int=1)
 
 
 @pytest.fixture(autouse=True)
@@ -98,7 +101,7 @@ class TestAuthenticateUser:
     def test_authenticate_user_refuses_a_bcrypt_hash_like_a_wrong_password(self, password_hasher, mock_db):
         """A leftover bcrypt hash is refused with 401 and the credential is left untouched."""
         mock_user = MagicMock()
-        mock_user.id = 1
+        mock_user.id = _USER_ID
         mock_credential = MagicMock()
         mock_credential.password_hash = "$2b$12$C6UzMDM.H6dfI/f/IKcEeO5lC7Zq3o1m1u0YF1kXJq8r9eJ8q7y6e"
 
@@ -667,7 +670,7 @@ class TestCreateMobilePkceSessionResponse:
 
     def test_valid_code_challenge_creates_session(self, password_hasher, mock_db):
         mock_user = MagicMock()
-        mock_user.id = 1
+        mock_user.id = _USER_ID
 
         with (
             patch("modules.auth.authentication.service.auth_computation.validate_pkce_challenge"),

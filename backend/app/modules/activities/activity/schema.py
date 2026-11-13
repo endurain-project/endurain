@@ -119,7 +119,7 @@ class ActivitySummaryBase(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
-    user_id: core_types.RecordId | None = None
+    user_id: uuid.UUID | None = None
     description: str | None = Field(default=None, max_length=2500)
     distance: int = Field(ge=0, description="Total distance in meters")
     name: str = Field(max_length=250)
@@ -376,7 +376,7 @@ class ActivityFeedPage(core_pagination.CursorPage[ActivitySummaryRead]):
             who is inactive or awaiting approval has no entry.
     """
 
-    users: dict[int, users_schema.UserPublicRead] = Field(
+    users: dict[uuid.UUID, users_schema.UserPublicRead] = Field(
         default_factory=dict,
         description="Public profile of each activity owner on this slice, keyed by user ID",
     )

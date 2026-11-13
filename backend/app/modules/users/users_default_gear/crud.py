@@ -16,7 +16,7 @@ import modules.users.users_default_gear.schema as users_default_gear_schema
 import modules.users.users_default_gear.serializers as users_default_gear_serializers
 
 
-def _select_by_user_id(user_id: int, db: Session) -> users_default_gear_models.UsersDefaultGear | None:
+def _select_by_user_id(user_id: uuid.UUID, db: Session) -> users_default_gear_models.UsersDefaultGear | None:
     """Select a user's default gear ORM row.
 
     Args:
@@ -33,7 +33,7 @@ def _select_by_user_id(user_id: int, db: Session) -> users_default_gear_models.U
 
 
 def get_user_default_gear_by_user_id(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
 ) -> users_default_gear_schema.UserDefaultGearRead | None:
     """Retrieve default gear settings for a specific user.
@@ -50,7 +50,7 @@ def get_user_default_gear_by_user_id(
 
 
 def create_user_default_gear(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
 ) -> users_default_gear_schema.UserDefaultGearRead:
     """Stage empty default gear settings for a user (flushed, not committed).
@@ -78,7 +78,7 @@ def create_user_default_gear(
 
 def edit_user_default_gear(
     user_default_gear: users_default_gear_schema.UserDefaultGearUpdate,
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     if_match: str,
@@ -115,7 +115,7 @@ def edit_user_default_gear(
     return users_default_gear_serializers.to_read_schema(db_default_gear)
 
 
-def clear_gears(gear_ids: Collection[uuid.UUID], user_id: int, db: Session) -> None:
+def clear_gears(gear_ids: Collection[uuid.UUID], user_id: uuid.UUID, db: Session) -> None:
     """Stage unassigning gears from every default-gear column of a user that names them.
 
     The gear foreign keys null a column when the gear is deleted, but they do not touch

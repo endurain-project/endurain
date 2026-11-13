@@ -17,6 +17,7 @@ Module layering (where MFA logic lives):
 from __future__ import annotations
 
 import base64
+import uuid
 from datetime import UTC, datetime
 from io import BytesIO
 
@@ -92,7 +93,7 @@ def generate_qr_code(secret: str, username: str, app_name: str = "Endurain") -> 
 # ---------------------------------------------------------------------------
 
 
-def setup_user_mfa(user_id: int, db: Session) -> mfa_schema.MFASetupRead:
+def setup_user_mfa(user_id: uuid.UUID, db: Session) -> mfa_schema.MFASetupRead:
     """Setup MFA for user.
 
     Args:
@@ -117,7 +118,7 @@ def setup_user_mfa(user_id: int, db: Session) -> mfa_schema.MFASetupRead:
 
 
 def enable_user_mfa(
-    user_id: int,
+    user_id: uuid.UUID,
     secret: str,
     mfa_code: str,
     password_hasher: credentials_contracts.SupportsHashPassword,
@@ -166,7 +167,7 @@ def enable_user_mfa(
     return mfa_backup_codes_integration.create_backup_codes(user_id, password_hasher, db)
 
 
-def disable_user_mfa(user_id: int, db: Session) -> None:
+def disable_user_mfa(user_id: uuid.UUID, db: Session) -> None:
     """Clear MFA state for user.
 
     This helper does NOT verify any MFA code itself — callers
@@ -199,7 +200,7 @@ def disable_user_mfa(user_id: int, db: Session) -> None:
 
 
 def verify_user_mfa(
-    user_id: int,
+    user_id: uuid.UUID,
     mfa_code: str,
     password_verifier: credentials_contracts.SupportsVerifyPassword,
     db: Session,
@@ -277,7 +278,7 @@ def verify_user_mfa(
     return False
 
 
-def is_mfa_enabled_for_user(user_id: int, db: Session) -> bool:
+def is_mfa_enabled_for_user(user_id: uuid.UUID, db: Session) -> bool:
     """Check if MFA is enabled for user.
 
     Args:

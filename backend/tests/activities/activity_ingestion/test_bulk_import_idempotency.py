@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 import pytest
 from jasil.backends.storage_local import LocalStorage
+from tests._helpers.auth import MOCK_USER_ID
 from tests._helpers.db import create_sqlite_session_factory, ensure_user
 
 import core.exceptions as core_exceptions
@@ -21,7 +22,7 @@ import modules.activities.activity_ingestion.constants as ingestion_constants
 import modules.activities.activity_ingestion.models as ingestion_models
 import modules.activities.activity_ingestion.upload_entry_service as upload_entry_service
 
-_USER = 7
+_USER = MOCK_USER_ID
 
 
 def _commit_through(*_args, **kwargs):

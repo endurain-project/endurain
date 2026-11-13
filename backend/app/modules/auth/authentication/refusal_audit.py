@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from contextlib import AbstractContextManager
 
 import jasil.audit as jasil_audit
@@ -13,7 +14,7 @@ import modules.auth.login_audit.integration_service as login_audit_integration
 logger = core_logger.get_logger(__name__)
 
 
-def refresh_token_context(user_id: int) -> AbstractContextManager[jasil_audit.AuditContext]:
+def refresh_token_context(user_id: uuid.UUID) -> AbstractContextManager[jasil_audit.AuditContext]:
     """Name the user whose refresh token a request presented as its audit actor.
 
     A request that carries only a refresh token has no principal for the audit context to read.
@@ -30,7 +31,7 @@ def refresh_token_context(user_id: int) -> AbstractContextManager[jasil_audit.Au
 
 
 def record_refresh_refusal(
-    user_id: int, outcome: jasil_audit.Outcome, reason: authentication_audit_actions.RefreshRefusalReason
+    user_id: uuid.UUID, outcome: jasil_audit.Outcome, reason: authentication_audit_actions.RefreshRefusalReason
 ) -> None:
     """Record a refused session refresh, on its own transaction because the request answers with an error.
 

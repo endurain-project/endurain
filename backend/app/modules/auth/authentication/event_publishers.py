@@ -1,5 +1,7 @@
 """Publish the authentication domain events through the platform publish facade."""
 
+import uuid
+
 import jasil.publisher as platform_publisher
 from sqlalchemy.orm import Session
 
@@ -27,7 +29,7 @@ def publish_api_key_used(api_key_id: str, db: Session) -> None:
     )
 
 
-def publish_account_locked(user_id: int, db: Session) -> None:
+def publish_account_locked(user_id: uuid.UUID, db: Session) -> None:
     """Publish ``auth.account_locked`` for an account that failed sign-ins locked.
 
     The lock is applied by a request that fails, so there is no transaction to stage the event in and it is
@@ -48,7 +50,7 @@ def publish_account_locked(user_id: int, db: Session) -> None:
     )
 
 
-def publish_mfa_locked(user_id: int, db: Session) -> None:
+def publish_mfa_locked(user_id: uuid.UUID, db: Session) -> None:
     """Publish ``auth.mfa_locked`` for an account that wrong MFA codes locked.
 
     The lock is applied by a request that fails, so there is no transaction to stage the event in and it is
@@ -69,7 +71,7 @@ def publish_mfa_locked(user_id: int, db: Session) -> None:
     )
 
 
-def publish_refresh_reuse_detected(user_id: int, db: Session) -> None:
+def publish_refresh_reuse_detected(user_id: uuid.UUID, db: Session) -> None:
     """Stage ``auth.refresh_reuse_detected`` in the caller's transaction.
 
     Args:

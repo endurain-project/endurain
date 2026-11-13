@@ -14,6 +14,7 @@ import modules.health.health_poop.schema as health_poop_schema
 pytestmark = pytest.mark.usefixtures("passthrough_serializers")
 
 
+_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
 _ID = uuid.uuid4()
 _OTHER_ID = uuid.uuid4()
 
@@ -22,7 +23,7 @@ def _row(record_id: uuid.UUID = _ID) -> MagicMock:
     row = MagicMock(spec=health_poop_models.HealthPoop)
     row.id = record_id
     row.version = 1
-    row.user_id = 1
+    row.user_id = _USER_ID
     row.date_time = datetime(2024, 1, 15, 10, 0, 0)
     return row
 
@@ -39,12 +40,12 @@ class TestReads:
     def test_number_counts(self, mock_db):
         mock_db.execute.return_value.scalar_one.return_value = 4
 
-        assert health_poop_crud.get_health_poop_number_by_user_id(1, mock_db) == 4
+        assert health_poop_crud.get_health_poop_number_by_user_id(_USER_ID, mock_db) == 4
 
     def test_number_with_a_lower_bound(self, mock_db):
         mock_db.execute.return_value.scalar_one.return_value = 1
 
-        health_poop_crud.get_health_poop_number_by_user_id(1, mock_db, datetime_date(2024, 1, 1), "Asia/Tokyo")
+        health_poop_crud.get_health_poop_number_by_user_id(_USER_ID, mock_db, datetime_date(2024, 1, 1), "Asia/Tokyo")
 
         compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
         assert "Asia/Tokyo" in compiled
@@ -53,7 +54,9 @@ class TestReads:
     def test_list_paginates_and_bounds(self, mock_db):
         _returns_scalars(mock_db, [_row()])
 
-        result = health_poop_crud.get_health_poop_by_user_id(1, mock_db, 2, 10, datetime_date(2024, 1, 1), "Asia/Tokyo")
+        result = health_poop_crud.get_health_poop_by_user_id(
+            _USER_ID, mock_db, 2, 10, datetime_date(2024, 1, 1), "Asia/Tokyo"
+        )
 
         assert len(result) == 1
         compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
@@ -73,7 +76,7 @@ class TestReads:
     def test_by_date_resolves_the_day_in_the_given_timezone(self, mock_db):
         _returns_scalars(mock_db, [_row(), _row(2)])
 
-        result = health_poop_crud.get_health_poop_by_date_and_user_id(1, "2024-01-15", "Asia/Tokyo", mock_db)
+        result = health_poop_crud.get_health_poop_by_date_and_user_id(_USER_ID, "2024-01-15", "Asia/Tokyo", mock_db)
 
         assert len(result) == 2
         compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
@@ -85,9 +88,9 @@ class TestCreateHealthPoop:
         record = health_poop_schema.HealthPoopCreate(date_time=datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC))
 
         with stub_model(health_poop_crud, _row()) as model:
-            health_poop_crud.create_health_poop(1, record, mock_db)
+            health_poop_crud.create_health_poop(_USER_ID, record, mock_db)
 
-        assert model.call_args.kwargs["user_id"] == 1
+        assert model.call_args.kwargs["user_id"] == _USER_ID
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
 
@@ -99,7 +102,7 @@ class TestCreateHealthPoop:
             stub_model(health_poop_crud, _row()),
             pytest.raises(core_exceptions.ConflictError),
         ):
-            health_poop_crud.create_health_poop(1, record, mock_db)
+            health_poop_crud.create_health_poop(_USER_ID, record, mock_db)
 
 
 class TestEditHealthPoop:
@@ -108,7 +111,7 @@ class TestEditHealthPoop:
         _returns_one(mock_db, row)
         update = health_poop_schema.HealthPoopUpdate(notes="ok")
 
-        health_poop_crud.edit_health_poop(1, _ID, update, mock_db, if_match="*")
+        health_poop_crud.edit_health_poop(_USER_ID, _ID, update, mock_db, if_match="*")
 
         assert row.notes == "ok"
         mock_db.flush.assert_called_once()
@@ -119,7 +122,7 @@ class TestEditHealthPoop:
         update = health_poop_schema.HealthPoopUpdate(notes="ok")
 
         with pytest.raises(core_exceptions.NotFoundError, match="Health poop not found"):
-            health_poop_crud.edit_health_poop(1, _OTHER_ID, update, mock_db, if_match="*")
+            health_poop_crud.edit_health_poop(_USER_ID, _OTHER_ID, update, mock_db, if_match="*")
 
 
 class TestDeleteHealthPoop:
@@ -127,7 +130,7 @@ class TestDeleteHealthPoop:
         row = _row()
         _returns_one(mock_db, row)
 
-        health_poop_crud.delete_health_poop(1, _ID, mock_db, if_match="*")
+        health_poop_crud.delete_health_poop(_USER_ID, _ID, mock_db, if_match="*")
 
         mock_db.delete.assert_called_once_with(row)
         mock_db.flush.assert_called_once()
@@ -137,5 +140,5 @@ class TestDeleteHealthPoop:
         _returns_one(mock_db, None)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            health_poop_crud.delete_health_poop(1, _OTHER_ID, mock_db, if_match="*")
+            health_poop_crud.delete_health_poop(_USER_ID, _OTHER_ID, mock_db, if_match="*")
         mock_db.delete.assert_not_called()

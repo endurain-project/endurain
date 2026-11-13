@@ -12,6 +12,9 @@ import core.pagination as core_pagination
 import modules.notifications.constants as notifications_constants
 import modules.notifications.service as notifications_service
 
+_ID_1 = uuid.uuid4()
+_ID_2 = uuid.uuid4()
+
 
 def _nid(number: int) -> uuid.UUID:
     return uuid.UUID(int=number)
@@ -23,7 +26,7 @@ def _read(notification_id: int):
     return notifications_schema.NOTIFICATION_READ_ADAPTER.validate_python(
         {
             "id": _nid(notification_id),
-            "user_id": 1,
+            "user_id": str(_ID_1),
             "type": "new_activity",
             "options": {"activity_id": str(_nid(notification_id))},
             "created_at": datetime(2024, 1, notification_id, tzinfo=UTC),
@@ -36,16 +39,16 @@ class TestReadsAndMarks:
         with patch(
             "modules.notifications.service.notifications_crud.count_user_unread_notifications", return_value=3
         ) as crud_count:
-            assert notifications_service.count_unread_notifications(1, mock_db) == 3
-        crud_count.assert_called_once_with(1, mock_db)
+            assert notifications_service.count_unread_notifications(_ID_1, mock_db) == 3
+        crud_count.assert_called_once_with(_ID_1, mock_db)
 
     def test_list_returns_a_slice_without_a_cursor_when_nothing_follows(self, mock_db):
         rows = [_read(1), _read(2)]
         with patch(
             "modules.notifications.service.notifications_crud.get_user_notifications_after", return_value=rows
         ) as crud_list:
-            page = notifications_service.list_notifications(1, mock_db, cursor=None, num_records=5)
-        crud_list.assert_called_once_with(1, None, 6, mock_db, unread_only=False)
+            page = notifications_service.list_notifications(_ID_1, mock_db, cursor=None, num_records=5)
+        crud_list.assert_called_once_with(_ID_1, None, 6, mock_db, unread_only=False)
         assert [n.id for n in page.items] == [_nid(1), _nid(2)]
         assert page.num_records == 5
         assert page.next_cursor is None
@@ -55,8 +58,10 @@ class TestReadsAndMarks:
         with patch(
             "modules.notifications.service.notifications_crud.get_user_notifications_after", return_value=rows
         ) as crud_list:
-            page = notifications_service.list_notifications(1, mock_db, cursor=None, num_records=2, unread_only=True)
-        crud_list.assert_called_once_with(1, None, 3, mock_db, unread_only=True)
+            page = notifications_service.list_notifications(
+                _ID_1, mock_db, cursor=None, num_records=2, unread_only=True
+            )
+        crud_list.assert_called_once_with(_ID_1, None, 3, mock_db, unread_only=True)
         assert [n.id for n in page.items] == [_nid(3), _nid(2)]
         assert page.next_cursor is not None
         assert core_pagination.decode_uuid_cursor(page.next_cursor) == (rows[1].created_at, _nid(2))
@@ -67,24 +72,24 @@ class TestReadsAndMarks:
         with patch(
             "modules.notifications.service.notifications_crud.get_user_notifications_after", return_value=[]
         ) as crud_list:
-            notifications_service.list_notifications(1, mock_db, cursor=cursor, num_records=2)
-        crud_list.assert_called_once_with(1, position, 3, mock_db, unread_only=False)
+            notifications_service.list_notifications(_ID_1, mock_db, cursor=cursor, num_records=2)
+        crud_list.assert_called_once_with(_ID_1, position, 3, mock_db, unread_only=False)
 
     def test_list_rejects_a_cursor_the_server_did_not_issue(self, mock_db):
         with pytest.raises(core_exceptions.InvalidInputError):
-            notifications_service.list_notifications(1, mock_db, cursor="garbage", num_records=2)
+            notifications_service.list_notifications(_ID_1, mock_db, cursor="garbage", num_records=2)
 
     def test_get_missing_notification_raises(self, mock_db):
         with (
             patch("modules.notifications.service.notifications_crud.get_user_notification_by_id", return_value=None),
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            notifications_service.get_notification(_nid(4), 1, mock_db)
+            notifications_service.get_notification(_nid(4), _ID_1, mock_db)
 
     def test_mark_read_commits(self, mock_db):
         with patch("modules.notifications.service.notifications_crud.mark_notification_as_read") as mark:
-            notifications_service.mark_notification_as_read(_nid(4), 1, mock_db)
-        mark.assert_called_once_with(_nid(4), 1, mock_db)
+            notifications_service.mark_notification_as_read(_nid(4), _ID_1, mock_db)
+        mark.assert_called_once_with(_nid(4), _ID_1, mock_db)
         mock_db.commit.assert_called_once()
 
     def test_mark_read_missing_raises_without_commit(self, mock_db):
@@ -92,13 +97,13 @@ class TestReadsAndMarks:
             patch("modules.notifications.service.notifications_crud.mark_notification_as_read", return_value=None),
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            notifications_service.mark_notification_as_read(_nid(4), 1, mock_db)
+            notifications_service.mark_notification_as_read(_nid(4), _ID_1, mock_db)
         mock_db.commit.assert_not_called()
 
     def test_mark_all_read_commits(self, mock_db):
         with patch("modules.notifications.service.notifications_crud.mark_all_notifications_as_read") as mark:
-            notifications_service.mark_all_notifications_as_read(1, mock_db)
-        mark.assert_called_once_with(1, mock_db)
+            notifications_service.mark_all_notifications_as_read(_ID_1, mock_db)
+        mark.assert_called_once_with(_ID_1, mock_db)
         mock_db.commit.assert_called_once()
 
 
@@ -109,7 +114,7 @@ class TestCreateActivityCreatedNotification:
             "modules.notifications.service.notifications_crud.create_notification_once", return_value=(stored, True)
         ) as create_once:
             notification, ws_message, created = notifications_service.create_activity_created_notification(
-                1, uuid.UUID("11111111-1111-4111-8111-111111111111"), False, "event-1", mock_db
+                _ID_1, uuid.UUID("11111111-1111-4111-8111-111111111111"), False, "event-1", mock_db
             )
 
         data = create_once.call_args.args[0]
@@ -125,7 +130,7 @@ class TestCreateActivityCreatedNotification:
             return_value=(MagicMock(id=_nid(9)), True),
         ) as create_once:
             _, ws_message, _ = notifications_service.create_activity_created_notification(
-                1, 5, True, "event-1", mock_db
+                _ID_1, uuid.UUID(int=5), True, "event-1", mock_db
             )
 
         assert create_once.call_args.args[0].type == notifications_constants.NotificationType.DUPLICATE_ACTIVITY
@@ -137,14 +142,14 @@ class TestCreateActivityCreatedNotification:
             return_value=(MagicMock(id=_nid(9)), False),
         ):
             _, _, created = notifications_service.create_activity_created_notification(
-                1, uuid.UUID("11111111-1111-4111-8111-111111111111"), False, "event-1", mock_db
+                _ID_1, uuid.UUID("11111111-1111-4111-8111-111111111111"), False, "event-1", mock_db
             )
         assert created is False
 
 
 class TestCreateFollowNotifications:
     def test_follow_request_names_the_requester(self, mock_db):
-        requester = MagicMock(id=1)
+        requester = MagicMock(id=_ID_1)
         requester.name = "Ann"
         requester.username = "ann"
         with (
@@ -154,12 +159,14 @@ class TestCreateFollowNotifications:
                 return_value=(MagicMock(id=_nid(3)), True),
             ) as create_once,
         ):
-            _, ws_message, created = notifications_service.create_follow_request_notification(1, 2, "event-1", mock_db)
+            _, ws_message, created = notifications_service.create_follow_request_notification(
+                _ID_1, _ID_2, "event-1", mock_db
+            )
 
         data = create_once.call_args.args[0]
-        assert data.user_id == 2
+        assert data.user_id == _ID_2
         assert data.type == notifications_constants.NotificationType.NEW_FOLLOWER_REQUEST
-        assert data.options == {"user_id": 1, "user_name": "Ann", "user_username": "ann"}
+        assert data.options == {"user_id": str(_ID_1), "user_name": "Ann", "user_username": "ann"}
         assert ws_message == notifications_constants.NEW_FOLLOWER_REQUEST_WS_MESSAGE
         assert created is True
         mock_db.commit.assert_called_once()
@@ -169,11 +176,11 @@ class TestCreateFollowNotifications:
             patch("modules.notifications.service.users_integration.get_user", return_value=None),
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            notifications_service.create_follow_request_notification(1, 2, "event-1", mock_db)
+            notifications_service.create_follow_request_notification(_ID_1, _ID_2, "event-1", mock_db)
         mock_db.commit.assert_not_called()
 
     def test_follow_accepted_notifies_the_requester(self, mock_db):
-        accepter = MagicMock(id=2)
+        accepter = MagicMock(id=_ID_2)
         accepter.name = "Bob"
         accepter.username = "bob"
         with (
@@ -183,12 +190,14 @@ class TestCreateFollowNotifications:
                 return_value=(MagicMock(id=_nid(3)), True),
             ) as create_once,
         ):
-            _, ws_message, _ = notifications_service.create_follow_accepted_notification(2, 1, "event-1", mock_db)
+            _, ws_message, _ = notifications_service.create_follow_accepted_notification(
+                _ID_2, _ID_1, "event-1", mock_db
+            )
 
         data = create_once.call_args.args[0]
-        assert data.user_id == 1
+        assert data.user_id == _ID_1
         assert data.type == notifications_constants.NotificationType.NEW_FOLLOWER_REQUEST_ACCEPTED
-        assert data.options == {"user_id": 2, "user_name": "Bob", "user_username": "bob"}
+        assert data.options == {"user_id": str(_ID_2), "user_name": "Bob", "user_username": "bob"}
         assert ws_message == notifications_constants.NEW_FOLLOWER_REQUEST_ACCEPTED_WS_MESSAGE
 
     def test_follow_accepted_requires_the_accepter(self, mock_db):
@@ -196,7 +205,7 @@ class TestCreateFollowNotifications:
             patch("modules.notifications.service.users_integration.get_user", return_value=None),
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            notifications_service.create_follow_accepted_notification(2, 1, "event-1", mock_db)
+            notifications_service.create_follow_accepted_notification(_ID_2, _ID_1, "event-1", mock_db)
 
 
 class TestPurgeReadNotifications:
@@ -238,7 +247,7 @@ class TestPurgeReadNotifications:
 class TestDeleteAndMarkSeveral:
     def test_delete_commits_when_the_notification_was_deleted(self, mock_db):
         with patch("modules.notifications.service.notifications_crud.delete_user_notification", return_value=True):
-            notifications_service.delete_notification(_nid(3), 1, mock_db)
+            notifications_service.delete_notification(_nid(3), _ID_1, mock_db)
 
         mock_db.commit.assert_called_once()
 
@@ -247,13 +256,13 @@ class TestDeleteAndMarkSeveral:
             patch("modules.notifications.service.notifications_crud.delete_user_notification", return_value=False),
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            notifications_service.delete_notification(_nid(3), 1, mock_db)
+            notifications_service.delete_notification(_nid(3), _ID_1, mock_db)
 
         mock_db.commit.assert_not_called()
 
     def test_marking_several_commits_once(self, mock_db):
         with patch("modules.notifications.service.notifications_crud.mark_notifications_as_read") as crud_mark:
-            notifications_service.mark_notifications_as_read([_nid(1), _nid(2)], 1, mock_db)
+            notifications_service.mark_notifications_as_read([_nid(1), _nid(2)], _ID_1, mock_db)
 
-        crud_mark.assert_called_once_with([_nid(1), _nid(2)], 1, mock_db)
+        crud_mark.assert_called_once_with([_nid(1), _nid(2)], _ID_1, mock_db)
         mock_db.commit.assert_called_once()

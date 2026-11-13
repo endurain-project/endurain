@@ -17,6 +17,7 @@ import core.exceptions as core_exceptions
 import modules.auth.identity_providers.audit_actions as idp_audit_actions
 import modules.auth.identity_providers.user_provisioning_service as user_provisioning_service
 import modules.users.users.schema as users_schema
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
 IDP_ID = uuid.uuid4()
 
@@ -95,7 +96,7 @@ class TestFindOrCreateUserEmailLinking:
         idp = _make_idp()
         mock_db = MagicMock(spec=Session)
         existing_user = MagicMock()
-        existing_user.id = 7
+        existing_user.id = MOCK_USER_ID
         existing_user.username = "legit"
 
         userinfo = {"email": "legit@example.com", "email_verified": True}
@@ -123,7 +124,7 @@ class TestFindOrCreateUserEmailLinking:
         idp = _make_idp()
         mock_db = MagicMock(spec=Session)
         existing_user = MagicMock()
-        existing_user.id = 7
+        existing_user.id = MOCK_USER_ID
         existing_user.username = "legit"
 
         with (
@@ -222,7 +223,7 @@ class TestSsoSignUpGate:
         create.assert_not_called()
 
     def test_the_server_switch_off_still_links_an_account_by_email(self):
-        existing = MagicMock(id=7, username="alice", email_verified=True)
+        existing = MagicMock(id=MOCK_USER_ID, username="alice", email_verified=True)
         create, result, error = self._sign_in(server_allows=False, provider_allows=True, existing_user=existing)
 
         assert error is None
@@ -387,7 +388,7 @@ class TestLinkByEmail:
     def test_off_refuses_an_email_match_and_tells_the_user_to_sign_in_locally(self):
         idp = _make_idp()
         idp.link_by_email = False
-        existing = MagicMock(id=7, email_verified=True)
+        existing = MagicMock(id=MOCK_USER_ID, email_verified=True)
         existing.username = "alice"
 
         _, error, link, create_user, refused, publish = self._sign_in(
@@ -400,23 +401,27 @@ class TestLinkByEmail:
         link.assert_not_called()
         publish.assert_not_called()
         create_user.assert_not_called()
-        refused.assert_called_once_with(7, IDP_ID, idp_audit_actions.IdentityLinkRefusal.LINK_BY_EMAIL_DISABLED)
+        refused.assert_called_once_with(
+            MOCK_USER_ID, IDP_ID, idp_audit_actions.IdentityLinkRefusal.LINK_BY_EMAIL_DISABLED
+        )
 
     def test_off_refuses_before_the_verification_checks(self):
         idp = _make_idp()
         idp.link_by_email = False
-        existing = MagicMock(id=7, email_verified=False)
+        existing = MagicMock(id=MOCK_USER_ID, email_verified=False)
         existing.username = "alice"
 
         _, error, _, _, refused, publish = self._sign_in(idp, {"email": "alice@example.com"}, existing_user=existing)
         publish.assert_not_called()
 
         assert error.login_error == "sso_link_by_email_disabled"
-        refused.assert_called_once_with(7, IDP_ID, idp_audit_actions.IdentityLinkRefusal.LINK_BY_EMAIL_DISABLED)
+        refused.assert_called_once_with(
+            MOCK_USER_ID, IDP_ID, idp_audit_actions.IdentityLinkRefusal.LINK_BY_EMAIL_DISABLED
+        )
 
     def test_on_links_as_before(self):
         idp = _make_idp()
-        existing = MagicMock(id=7, email_verified=True)
+        existing = MagicMock(id=MOCK_USER_ID, email_verified=True)
         existing.username = "alice"
 
         result, error, link, _, refused, _ = self._sign_in(
@@ -425,7 +430,7 @@ class TestLinkByEmail:
 
         assert error is None
         assert result is existing
-        link.assert_called_once_with(7, IDP_ID, "subject-1", ANY)
+        link.assert_called_once_with(MOCK_USER_ID, IDP_ID, "subject-1", ANY)
         refused.assert_not_called()
 
     def test_off_still_creates_a_new_user_when_no_account_has_the_email(self):
@@ -452,12 +457,12 @@ class TestLinkByEmail:
     def test_off_does_not_affect_a_subject_that_is_already_linked(self):
         idp = _make_idp()
         idp.link_by_email = False
-        user = MagicMock(id=7)
+        user = MagicMock(id=MOCK_USER_ID)
 
         with (
             patch(
                 f"{_BASE}.identity_provider_links_integration.get_user_identity_provider_by_subject_and_idp_id",
-                return_value=MagicMock(user_id=7),
+                return_value=MagicMock(user_id=MOCK_USER_ID),
             ),
             patch(f"{_BASE}.identity_provider_links_integration.update_user_identity_provider_last_login"),
             patch(f"{_BASE}.users_integration.get_user", return_value=user),
@@ -474,7 +479,7 @@ class TestUpdateUserFromIdp:
     @staticmethod
     def _user(**overrides):
         user = MagicMock()
-        user.id = 7
+        user.id = MOCK_USER_ID
         user.username = "alice"
         user.email = "old@example.com"
         user.name = "Old Name"
@@ -529,9 +534,9 @@ class TestUpdateUserFromIdp:
             user, idp, {"email": "new@example.com", "email_verified": True, "name": "New Name"}
         )
 
-        email_change.assert_called_once_with(7, "new@example.com", ANY)
+        email_change.assert_called_once_with(MOCK_USER_ID, "new@example.com", ANY)
         edit.assert_not_called()
-        get_user.assert_called_once_with(7, ANY)
+        get_user.assert_called_once_with(MOCK_USER_ID, ANY)
         assert result is refreshed
 
     def test_both_flags_sync_the_name_and_the_email(self):
@@ -560,7 +565,7 @@ class TestUpdateUserFromIdp:
         idp.sync_email = True
 
         _, _, _, email_change, _ = self._sync(
-            self._user(), idp, {"email": "new@example.com", "email_verified": True}, holder=MagicMock(id=8)
+            self._user(), idp, {"email": "new@example.com", "email_verified": True}, holder=MagicMock(id=OTHER_USER_ID)
         )
 
         email_change.assert_not_called()

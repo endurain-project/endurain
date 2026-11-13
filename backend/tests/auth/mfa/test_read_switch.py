@@ -15,6 +15,7 @@ import pytest
 import core.exceptions as core_exceptions
 import modules.auth.mfa.service as mfa_service
 import modules.users.users.models as users_models
+from tests._helpers.auth import MOCK_USER_ID
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -99,7 +100,7 @@ class TestSetupUserMFAReadSwitch:
         user = _make_user(mfa_enabled=True, mfa_secret="enc")
 
         with _patch_get_user(user), pytest.raises(core_exceptions.ConflictError) as exc:
-            mfa_service.setup_user_mfa(1, mock_db)
+            mfa_service.setup_user_mfa(MOCK_USER_ID, mock_db)
 
         assert "already enabled" in exc.value.detail
 
@@ -112,7 +113,7 @@ class TestSetupUserMFAReadSwitch:
         user.auth_mfa.mfa_enabled = False
 
         with _patch_get_user(user):
-            result = mfa_service.setup_user_mfa(1, mock_db)
+            result = mfa_service.setup_user_mfa(MOCK_USER_ID, mock_db)
 
         assert result is not None
 
@@ -125,7 +126,7 @@ class TestSetupUserMFAReadSwitch:
         user.auth_mfa = None
 
         with _patch_get_user(user):
-            result = mfa_service.setup_user_mfa(1, mock_db)
+            result = mfa_service.setup_user_mfa(MOCK_USER_ID, mock_db)
 
         assert result is not None
 
@@ -149,7 +150,9 @@ class TestEnableUserMFAReadSwitch:
             patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=True),
             pytest.raises(core_exceptions.ConflictError) as exc,
         ):
-            mfa_service.enable_user_mfa(1, "secret", "123456", MagicMock(), mock_db, replay_guard=MagicMock())
+            mfa_service.enable_user_mfa(
+                MOCK_USER_ID, "secret", "123456", MagicMock(), mock_db, replay_guard=MagicMock()
+            )
 
         assert "already enabled" in exc.value.detail
 
@@ -169,7 +172,7 @@ class TestDisableUserMFAReadSwitch:
         user = _make_user(mfa_enabled=False)
 
         with _patch_get_user(user), pytest.raises(core_exceptions.ConflictError) as exc:
-            mfa_service.disable_user_mfa(1, mock_db)
+            mfa_service.disable_user_mfa(MOCK_USER_ID, mock_db)
 
         assert "not enabled" in exc.value.detail
 
@@ -181,7 +184,7 @@ class TestDisableUserMFAReadSwitch:
         user.auth_mfa = None
 
         with _patch_get_user(user), pytest.raises(core_exceptions.ConflictError):
-            mfa_service.disable_user_mfa(1, mock_db)
+            mfa_service.disable_user_mfa(MOCK_USER_ID, mock_db)
 
 
 # ---------------------------------------------------------------------------
@@ -202,7 +205,7 @@ class TestVerifyUserMFAReadSwitch:
         user.mfa_secret = "enc"  # legacy — must be ignored
 
         with _patch_get_user(user):
-            result = mfa_service.verify_user_mfa(1, "123456", MagicMock(), mock_db, replay_guard=MagicMock())
+            result = mfa_service.verify_user_mfa(MOCK_USER_ID, "123456", MagicMock(), mock_db, replay_guard=MagicMock())
 
         assert result is False
 
@@ -213,7 +216,7 @@ class TestVerifyUserMFAReadSwitch:
         user.mfa_enabled = True  # legacy True — must be ignored
 
         with _patch_get_user(user):
-            result = mfa_service.verify_user_mfa(1, "123456", MagicMock(), mock_db, replay_guard=MagicMock())
+            result = mfa_service.verify_user_mfa(MOCK_USER_ID, "123456", MagicMock(), mock_db, replay_guard=MagicMock())
 
         assert result is False
 
@@ -232,7 +235,7 @@ class TestVerifyUserMFAReadSwitch:
                 return_value=None,  # decrypt fails → returns False cleanly
             ) as mock_decrypt,
         ):
-            mfa_service.verify_user_mfa(1, "123456", MagicMock(), mock_db, replay_guard=MagicMock())
+            mfa_service.verify_user_mfa(MOCK_USER_ID, "123456", MagicMock(), mock_db, replay_guard=MagicMock())
 
         mock_decrypt.assert_called_once_with("auth_enc_secret")
 
@@ -255,7 +258,7 @@ class TestIsMFAEnabledForUserReadSwitch:
         user.mfa_secret = None
 
         with _patch_get_user(user):
-            result = mfa_service.is_mfa_enabled_for_user(1, mock_db)
+            result = mfa_service.is_mfa_enabled_for_user(MOCK_USER_ID, mock_db)
 
         assert result is True
 
@@ -264,7 +267,7 @@ class TestIsMFAEnabledForUserReadSwitch:
         user = _make_user(mfa_enabled=True, mfa_secret=None)
 
         with _patch_get_user(user):
-            result = mfa_service.is_mfa_enabled_for_user(1, mock_db)
+            result = mfa_service.is_mfa_enabled_for_user(MOCK_USER_ID, mock_db)
 
         assert result is False
 
@@ -276,7 +279,7 @@ class TestIsMFAEnabledForUserReadSwitch:
         user.mfa_secret = "enc"  # legacy — must be ignored
 
         with _patch_get_user(user):
-            result = mfa_service.is_mfa_enabled_for_user(1, mock_db)
+            result = mfa_service.is_mfa_enabled_for_user(MOCK_USER_ID, mock_db)
 
         assert result is False
 

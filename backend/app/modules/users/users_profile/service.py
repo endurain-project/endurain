@@ -5,6 +5,7 @@ runs the profile export and import. Authentication concerns (sessions, MFA, iden
 links) stay behind the auth boundary and are called straight from the router.
 """
 
+import uuid
 from datetime import date, timedelta
 from typing import TYPE_CHECKING
 
@@ -57,7 +58,7 @@ _NON_EXPORTED_USER_FIELDS = (
 
 
 def get_profile(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
 ) -> users_schema.UserMe:
     """Assemble the authenticated user's profile.
@@ -124,8 +125,8 @@ def get_profile(
 
 
 def get_user_profile_overview(
-    user_id: int,
-    requester_user_id: int,
+    user_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     anchor_date: date | None = None,
@@ -160,7 +161,7 @@ def get_user_profile_overview(
 
 
 def edit_profile(
-    user_id: int, profile: users_schema.ProfileUpdate, db: Session, *, if_match: str
+    user_id: uuid.UUID, profile: users_schema.ProfileUpdate, db: Session, *, if_match: str
 ) -> users_schema.UserMe:
     """Apply the user's own profile edits and commit.
 
@@ -198,7 +199,7 @@ def edit_profile(
 
 
 def change_username(
-    user_id: int,
+    user_id: uuid.UUID,
     change: users_schema.UsernameChange,
     session_id: str,
     step_up_store: "auth_dependencies.StepUpStore",
@@ -262,7 +263,7 @@ def change_username(
 
 
 def change_email(
-    user_id: int,
+    user_id: uuid.UUID,
     change: users_schema.EmailChange,
     session_id: str,
     step_up_store: "auth_dependencies.StepUpStore",
@@ -346,7 +347,7 @@ def change_email(
     return get_profile(user_id, db)
 
 
-def resend_email_change(user_id: int, state: platform_providers.StateProvider, db: Session) -> None:
+def resend_email_change(user_id: uuid.UUID, state: platform_providers.StateProvider, db: Session) -> None:
     """Send the confirmation email of the user's pending email change again, at most once per cooldown.
 
     Nothing tells the caller whether an email was queued: the answer is the same with no pending
@@ -362,7 +363,7 @@ def resend_email_change(user_id: int, state: platform_providers.StateProvider, d
     logger.debug("Email change resend handled", extra=core_logger.context(user_id=user_id))
 
 
-def cancel_email_change(user_id: int, db: Session) -> None:
+def cancel_email_change(user_id: uuid.UUID, db: Session) -> None:
     """Cancel the user's pending email change, so its confirmation link stops working.
 
     Args:
@@ -374,7 +375,7 @@ def cancel_email_change(user_id: int, db: Session) -> None:
     logger.info("Pending email change cancelled", extra=core_logger.context(user_id=user_id))
 
 
-def get_privacy_settings(user_id: int, db: Session) -> users_privacy_settings_schema.UserPrivacySettingsRead:
+def get_privacy_settings(user_id: uuid.UUID, db: Session) -> users_privacy_settings_schema.UserPrivacySettingsRead:
     """Return the user's own privacy settings.
 
     Args:
@@ -394,7 +395,7 @@ def get_privacy_settings(user_id: int, db: Session) -> users_privacy_settings_sc
 
 
 def edit_privacy_settings(
-    user_id: int,
+    user_id: uuid.UUID,
     privacy_settings: users_privacy_settings_schema.UserPrivacySettingsUpdate,
     db: Session,
     *,
@@ -445,7 +446,7 @@ def edit_privacy_settings(
 
 
 def delete_account(
-    user_id: int,
+    user_id: uuid.UUID,
     session_id: str,
     step_up: auth_schema.StepUpVerification,
     step_up_store: "auth_dependencies.StepUpStore",
@@ -488,7 +489,7 @@ def delete_account(
     return status
 
 
-def stage_export(user_id: int, storage: platform_providers.StorageProvider, db: Session) -> int:
+def stage_export(user_id: uuid.UUID, storage: platform_providers.StorageProvider, db: Session) -> int:
     """Build the export of the user's profile data as a ZIP archive and stage it for download.
 
     The archive is complete before it is staged, so a failure never leaves a download that stops
@@ -530,7 +531,7 @@ def stage_export(user_id: int, storage: platform_providers.StorageProvider, db: 
 
 
 def change_password(
-    user_id: int,
+    user_id: uuid.UUID,
     change: users_schema.UserEditPassword,
     session_id: str,
     step_up_store: account_security_integration.StepUpStore,

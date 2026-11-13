@@ -14,6 +14,9 @@ import modules.activities.activity.models as activity_models
 import modules.activities.activity.scheduled_jobs as activity_scheduled_jobs
 import modules.activities.activity.schema as activity_schema
 
+_USER_1 = uuid.UUID(int=1)
+_USER_2 = uuid.UUID(int=2)
+
 _FAR_FUTURE = datetime(2999, 1, 1, tzinfo=UTC)
 
 
@@ -25,7 +28,7 @@ def db():
     session.bind.dispose()
 
 
-def _activity(user_id: int = 1, **overrides) -> activity_models.Activity:
+def _activity(user_id: uuid.UUID = _USER_1, **overrides) -> activity_models.Activity:
     values = {
         "user_id": user_id,
         "name": "Run",
@@ -131,7 +134,7 @@ class TestUpdatedAt:
 
 
 class TestTombstones:
-    def _tombstones(self, db) -> list[tuple[int, uuid.UUID]]:
+    def _tombstones(self, db) -> list[tuple[uuid.UUID, uuid.UUID]]:
         rows = db.query(activity_models.ActivityDeletion).order_by(activity_models.ActivityDeletion.record_id).all()
         return [(row.user_id, row.record_id) for row in rows]
 
@@ -140,10 +143,10 @@ class TestTombstones:
         version = db.get(activity_models.Activity, activity_id).version
         db.commit()
 
-        activity_crud.delete_activity(activity_id, 1, db, if_match=f'"{version}"')
+        activity_crud.delete_activity(activity_id, _USER_1, db, if_match=f'"{version}"')
         db.commit()
 
-        assert self._tombstones(db) == [(1, activity_id)]
+        assert self._tombstones(db) == [(_USER_1, activity_id)]
 
     def test_the_strava_batch_delete_records_the_deleted_ids_only(self, db):
         strava = [
@@ -152,17 +155,17 @@ class TestTombstones:
         _add(db, start_time=datetime(2026, 3, 1, tzinfo=UTC))
         db.commit()
 
-        deleted = activity_crud.delete_all_strava_activities_for_user(1, db, limit=10)
+        deleted = activity_crud.delete_all_strava_activities_for_user(_USER_1, db, limit=10)
         db.commit()
 
         assert sorted(deleted) == sorted(strava)
-        assert self._tombstones(db) == [(1, strava_id) for strava_id in sorted(strava)]
+        assert self._tombstones(db) == [(_USER_1, strava_id) for strava_id in sorted(strava)]
 
     def test_the_account_batch_delete_records_them(self, db):
         ids = [_add(db, start_time=datetime(2026, 2, 1 + n, tzinfo=UTC)) for n in range(3)]
         db.commit()
 
-        deleted = activity_crud.delete_activities_batch_for_user(1, 10, db)
+        deleted = activity_crud.delete_activities_batch_for_user(_USER_1, 10, db)
         db.commit()
 
         assert sorted(deleted) == sorted(ids)
@@ -173,17 +176,19 @@ class TestSurfaces:
     def test_changed_activities_page_in_stamp_then_id_order_with_ties(self, db):
         tied_a, tied_b, third, other = (_add(db, start_time=datetime(2026, 1, 1 + n, tzinfo=UTC)) for n in range(4))
         first, second = sorted((tied_a, tied_b))
-        db.execute(update(activity_models.Activity).where(activity_models.Activity.id == other).values(user_id=2))
+        db.execute(update(activity_models.Activity).where(activity_models.Activity.id == other).values(user_id=_USER_2))
         _stamp(db, first, datetime(2026, 5, 1))
         _stamp(db, second, datetime(2026, 5, 1))
         _stamp(db, third, datetime(2026, 5, 2))
         db.commit()
 
-        page = activity_integration.list_changed_activities(1, None, _FAR_FUTURE, 2, db)
+        page = activity_integration.list_changed_activities(_USER_1, None, _FAR_FUTURE, 2, db)
         assert [a.id for a in page] == [first, second]
         assert all(a.updated_at is not None for a in page)
 
-        rest = activity_integration.list_changed_activities(1, (page[-1].updated_at, page[-1].id), _FAR_FUTURE, 10, db)
+        rest = activity_integration.list_changed_activities(
+            _USER_1, (page[-1].updated_at, page[-1].id), _FAR_FUTURE, 10, db
+        )
         assert [a.id for a in rest] == [third]
 
     def test_after_is_exclusive_and_until_bounds_the_stamp(self, db):
@@ -192,11 +197,11 @@ class TestSurfaces:
         _stamp(db, second, datetime(2026, 5, 3))
         db.commit()
 
-        bounded = activity_integration.list_changed_activities(1, None, datetime(2026, 5, 3, tzinfo=UTC), 10, db)
+        bounded = activity_integration.list_changed_activities(_USER_1, None, datetime(2026, 5, 3, tzinfo=UTC), 10, db)
         assert [a.id for a in bounded] == [first]
 
         after = activity_integration.list_changed_activities(
-            1, (datetime(2026, 5, 1, tzinfo=UTC), first), _FAR_FUTURE, 10, db
+            _USER_1, (datetime(2026, 5, 1, tzinfo=UTC), first), _FAR_FUTURE, 10, db
         )
         assert [a.id for a in after] == [second]
 
@@ -204,21 +209,21 @@ class TestSurfaces:
         seven, eight, nine, ten = (uuid.uuid4() for _ in range(4))
         db.add_all(
             [
-                activity_models.ActivityDeletion(user_id=1, record_id=seven, deleted_at=datetime(2026, 5, 1)),
-                activity_models.ActivityDeletion(user_id=1, record_id=eight, deleted_at=datetime(2026, 5, 2)),
-                activity_models.ActivityDeletion(user_id=1, record_id=nine, deleted_at=datetime(2026, 5, 3)),
-                activity_models.ActivityDeletion(user_id=2, record_id=ten, deleted_at=datetime(2026, 5, 1)),
+                activity_models.ActivityDeletion(user_id=_USER_1, record_id=seven, deleted_at=datetime(2026, 5, 1)),
+                activity_models.ActivityDeletion(user_id=_USER_1, record_id=eight, deleted_at=datetime(2026, 5, 2)),
+                activity_models.ActivityDeletion(user_id=_USER_1, record_id=nine, deleted_at=datetime(2026, 5, 3)),
+                activity_models.ActivityDeletion(user_id=_USER_2, record_id=ten, deleted_at=datetime(2026, 5, 1)),
             ]
         )
         db.commit()
 
-        page = activity_integration.list_activity_deletions(1, None, _FAR_FUTURE, 2, db)
+        page = activity_integration.list_activity_deletions(_USER_1, None, _FAR_FUTURE, 2, db)
         assert [d.record_id for d in page] == [seven, eight]
         assert {d.type for d in page} == {"activity"}
         assert page[0].position[0] == page[0].deleted_at
         assert all(isinstance(d.position[1], uuid.UUID) for d in page)
 
-        rest = activity_integration.list_activity_deletions(1, page[-1].position, _FAR_FUTURE, 10, db)
+        rest = activity_integration.list_activity_deletions(_USER_1, page[-1].position, _FAR_FUTURE, 10, db)
         assert [d.record_id for d in rest] == [nine]
 
 
@@ -229,10 +234,12 @@ class TestPrune:
         db.add_all(
             [
                 activity_models.ActivityDeletion(
-                    user_id=1, record_id=old_record, deleted_at=now - core_sync.TOMBSTONE_RETENTION - timedelta(days=1)
+                    user_id=_USER_1,
+                    record_id=old_record,
+                    deleted_at=now - core_sync.TOMBSTONE_RETENTION - timedelta(days=1),
                 ),
                 activity_models.ActivityDeletion(
-                    user_id=1, record_id=recent_record, deleted_at=now - timedelta(days=1)
+                    user_id=_USER_1, record_id=recent_record, deleted_at=now - timedelta(days=1)
                 ),
             ]
         )

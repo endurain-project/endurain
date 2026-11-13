@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
 import core.exceptions as core_exceptions
 import modules.activities.activity_detail.service as detail_service
@@ -28,7 +29,7 @@ def children():
 @pytest.fixture
 def users():
     with patch(_USERS) as users_integration:
-        users_integration.list_public_profiles.return_value = {3: "owner-profile"}
+        users_integration.list_public_profiles.return_value = {OTHER_USER_ID: "owner-profile"}
         users_integration.get_public_user.return_value = "public-owner"
         yield users_integration
 
@@ -44,18 +45,18 @@ def _detail():
 class TestGetActivityDetail:
     def test_reads_the_activity_once_and_each_child_for_it(self, children, users):
         laps, sets, steps = children
-        activity, db = SimpleNamespace(id=_ACTIVITY_ID, user_id=3), MagicMock()
+        activity, db = SimpleNamespace(id=_ACTIVITY_ID, user_id=OTHER_USER_ID), MagicMock()
         with patch(_ACTIVITY) as activity_integration, _detail() as build:
             activity_integration.get_readable_activity.return_value = activity
             activity_integration.with_media.return_value = activity
-            detail_service.get_activity_detail(_ACTIVITY_ID, 1, db)
+            detail_service.get_activity_detail(_ACTIVITY_ID, MOCK_USER_ID, db)
 
-        activity_integration.get_readable_activity.assert_called_once_with(_ACTIVITY_ID, 1, db)
-        activity_integration.with_media.assert_called_once_with(activity, 1, db)
-        users.list_public_profiles.assert_called_once_with({3}, db)
-        laps.list_for_activity.assert_called_once_with(activity, 1, db)
-        sets.list_for_activity.assert_called_once_with(activity, 1, db)
-        steps.list_for_activity.assert_called_once_with(activity, 1, db)
+        activity_integration.get_readable_activity.assert_called_once_with(_ACTIVITY_ID, MOCK_USER_ID, db)
+        activity_integration.with_media.assert_called_once_with(activity, MOCK_USER_ID, db)
+        users.list_public_profiles.assert_called_once_with({OTHER_USER_ID}, db)
+        laps.list_for_activity.assert_called_once_with(activity, MOCK_USER_ID, db)
+        sets.list_for_activity.assert_called_once_with(activity, MOCK_USER_ID, db)
+        steps.list_for_activity.assert_called_once_with(activity, MOCK_USER_ID, db)
         build.assert_called_once_with(
             activity=activity,
             owner="owner-profile",
@@ -66,7 +67,7 @@ class TestGetActivityDetail:
 
     def test_an_owner_who_is_not_visible_is_null(self, children, users):
         users.list_public_profiles.return_value = {}
-        activity = SimpleNamespace(id=_ACTIVITY_ID, user_id=3)
+        activity = SimpleNamespace(id=_ACTIVITY_ID, user_id=OTHER_USER_ID)
         with patch(_ACTIVITY) as activity_integration, _detail() as build:
             activity_integration.get_readable_activity.return_value = activity
             activity_integration.with_media.return_value = activity
@@ -87,13 +88,13 @@ class TestGetActivityDetail:
 class TestGetPublicActivityDetail:
     def test_reads_the_public_activity_and_each_child_as_anonymous(self, children, users):
         laps, sets, steps = children
-        activity, db = SimpleNamespace(id=_ACTIVITY_ID, user_id=3), MagicMock()
+        activity, db = SimpleNamespace(id=_ACTIVITY_ID, user_id=OTHER_USER_ID), MagicMock()
         with patch(_ACTIVITY) as activity_integration, _detail() as build:
             activity_integration.get_public_activity.return_value = activity
             detail_service.get_public_activity_detail(_ACTIVITY_ID, db)
 
         activity_integration.with_media.assert_not_called()
-        users.get_public_user.assert_called_once_with(3, db)
+        users.get_public_user.assert_called_once_with(OTHER_USER_ID, db)
         assert build.call_args.kwargs["owner"] == "public-owner"
 
         activity_integration.get_public_activity.assert_called_once_with(_ACTIVITY_ID, db)
@@ -104,7 +105,9 @@ class TestGetPublicActivityDetail:
     def test_an_owner_the_server_does_not_share_is_null_not_a_refusal(self, children, users):
         users.get_public_user.side_effect = core_exceptions.NotFoundError("hidden")
         with patch(_ACTIVITY) as activity_integration, _detail() as build:
-            activity_integration.get_public_activity.return_value = SimpleNamespace(id=_ACTIVITY_ID, user_id=3)
+            activity_integration.get_public_activity.return_value = SimpleNamespace(
+                id=_ACTIVITY_ID, user_id=OTHER_USER_ID
+            )
             detail_service.get_public_activity_detail(_ACTIVITY_ID, MagicMock())
 
         assert build.call_args.kwargs["owner"] is None
@@ -126,7 +129,12 @@ class TestPublicOwnerVisibility:
         from modules.users.users.schema import UserRead
 
         data = dict(
-            id=3, name="Owner", username="owner", email="o@example.com", active=True, pending_admin_approval=False
+            id=OTHER_USER_ID,
+            name="Owner",
+            username="owner",
+            email="o@example.com",
+            active=True,
+            pending_admin_approval=False,
         )
         data.update(kw)
         return UserRead.model_construct(**data)
@@ -140,7 +148,9 @@ class TestPublicOwnerVisibility:
             patch(self._USER_SETTINGS, return_value=settings),
             patch(self._USER_CRUD, return_value=owner),
         ):
-            activity_integration.get_public_activity.return_value = SimpleNamespace(id=_ACTIVITY_ID, user_id=3)
+            activity_integration.get_public_activity.return_value = SimpleNamespace(
+                id=_ACTIVITY_ID, user_id=OTHER_USER_ID
+            )
             detail_service.get_public_activity_detail(_ACTIVITY_ID, MagicMock())
         return build.call_args.kwargs["owner"]
 
@@ -148,7 +158,7 @@ class TestPublicOwnerVisibility:
         owner = self._read(children)
 
         assert set(owner.model_dump()) == {"id", "name", "username", "city", "photo_path"}
-        assert owner.id == 3
+        assert owner.id == OTHER_USER_ID
 
     @pytest.mark.parametrize(
         "kwargs",

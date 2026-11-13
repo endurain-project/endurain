@@ -12,6 +12,7 @@ import modules.garmin.link_service as garmin_link_service
 import modules.garmin.link_state_store as link_state_store
 import modules.garmin.mfa_code_store as mfa_code_store
 import modules.garmin.service as garmin_service
+from tests._helpers.auth import MOCK_USER_ID
 
 
 @pytest.fixture
@@ -22,7 +23,7 @@ def stores():
 
 def _link(stores, *, login=None, has_token=True, prompt_mfa=False):
     mfa_codes, link_states = stores
-    link_states.begin(1, conflict="busy")
+    link_states.begin(MOCK_USER_ID, conflict="busy")
     garmin = MagicMock()
     garmin.client.di_token = "enc" if has_token else None
 
@@ -44,7 +45,7 @@ def _link(stores, *, login=None, has_token=True, prompt_mfa=False):
         ),
         jasil_testing.capture_audit() as audit,
     ):
-        garmin_link_service.link_garminconnect(1, "me@example.com", "pw-secret", mfa_codes, link_states)
+        garmin_link_service.link_garminconnect(MOCK_USER_ID, "me@example.com", "pw-secret", mfa_codes, link_states)
     return audit
 
 
@@ -56,8 +57,8 @@ class TestAccountLink:
             garmin_audit_actions.ACCOUNT_LINK.id,
             outcome="success",
             target_type="user",
-            target_id="1",
-            target_owner_id="1",
+            target_id=str(MOCK_USER_ID),
+            target_owner_id=str(MOCK_USER_ID),
         )
         assert entry.details == {"reason": None}
 
@@ -80,8 +81,8 @@ class TestAccountLink:
             garmin_audit_actions.ACCOUNT_LINK.id,
             outcome="failure",
             target_type="user",
-            target_id="1",
-            target_owner_id="1",
+            target_id=str(MOCK_USER_ID),
+            target_owner_id=str(MOCK_USER_ID),
         )
         assert entry.details == {"reason": reason}
 
@@ -101,10 +102,13 @@ class TestAccountUnlink:
             patch.object(garmin_service.user_integrations_integration, "unlink_garminconnect_account"),
             jasil_testing.capture_audit() as audit,
         ):
-            garmin_service.unlink_account(5, db)
+            garmin_service.unlink_account(MOCK_USER_ID, db)
 
         entry = audit.assert_audited(
-            garmin_audit_actions.ACCOUNT_UNLINK.id, target_type="user", target_id="5", target_owner_id="5"
+            garmin_audit_actions.ACCOUNT_UNLINK.id,
+            target_type="user",
+            target_id=str(MOCK_USER_ID),
+            target_owner_id=str(MOCK_USER_ID),
         )
         assert entry.details is None
         db.commit.assert_called_once()
@@ -119,7 +123,7 @@ class TestAccountUnlink:
             jasil_testing.capture_audit() as audit,
             pytest.raises(RuntimeError),
         ):
-            garmin_service.unlink_account(5, MagicMock())
+            garmin_service.unlink_account(MOCK_USER_ID, MagicMock())
 
         audit.assert_not_audited(garmin_audit_actions.ACCOUNT_UNLINK.id)
 
@@ -140,14 +144,17 @@ class TestAccountRevoke:
             patch.object(garmin_service.notifications_integration, "push_notification"),
             jasil_testing.capture_audit() as audit,
         ):
-            garmin_service.unlink_expired_account(5, {"di_token": "old"}, MagicMock())
+            garmin_service.unlink_expired_account(MOCK_USER_ID, {"di_token": "old"}, MagicMock())
         return audit
 
     def test_an_account_unlinked_because_its_token_was_rejected_is_audited_as_a_revocation(self):
         audit = self._expire(unlinked=True)
 
         entry = audit.assert_audited(
-            garmin_audit_actions.ACCOUNT_REVOKE.id, target_type="user", target_id="5", target_owner_id="5"
+            garmin_audit_actions.ACCOUNT_REVOKE.id,
+            target_type="user",
+            target_id=str(MOCK_USER_ID),
+            target_owner_id=str(MOCK_USER_ID),
         )
         assert entry.details is None
         audit.assert_not_audited(garmin_audit_actions.ACCOUNT_UNLINK.id)

@@ -14,6 +14,7 @@ Profile routes depend on this module, never on ``modules.auth.mfa.*`` directly.
 
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime
 
 import jasil.audit as jasil_audit
@@ -45,7 +46,7 @@ logger = core_logger.get_logger(__name__)
 def _stage_security_change(
     action: jasil_audit.AuditAction,
     change: account_security_events.AccountSecurityChange,
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     details: VersionedPayload | None = None,
@@ -65,7 +66,7 @@ def _stage_security_change(
     account_security_event_publishers.publish_account_security_changed(user_id, change, db)
 
 
-def _end_other_sessions(revoke_other_sessions: bool, user_id: int, session_id: str, db: Session) -> int:
+def _end_other_sessions(revoke_other_sessions: bool, user_id: uuid.UUID, session_id: str, db: Session) -> int:
     """Stage the end of the user's other sessions when the change asks for it.
 
     Args:
@@ -83,7 +84,7 @@ def _end_other_sessions(revoke_other_sessions: bool, user_id: int, session_id: s
 
 
 def get_mfa_status(
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     db: Session,
 ) -> mfa_schema.MFAStatusRead:
     """Return whether MFA is enabled for the user."""
@@ -92,15 +93,15 @@ def get_mfa_status(
 
 
 def get_mfa_enabled_for_users(
-    user_ids: list[int],
+    user_ids: list[uuid.UUID],
     db: Session,
-) -> dict[int, bool]:
+) -> dict[uuid.UUID, bool]:
     """Return MFA-enabled state per user ID in a single query."""
     return mfa_integration.get_mfa_enabled_for_users(user_ids, db)
 
 
 def get_backup_code_status(
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     db: Session,
 ) -> mfa_backup_codes_schema.MFABackupCodeStatusRead:
     """Retrieve MFA backup code status for the authenticated user."""
@@ -129,7 +130,7 @@ def get_backup_code_status(
 
 
 def setup_mfa(
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     mfa_secret_store: MFASecretStoreBackend,
     db: Session,
 ) -> mfa_schema.MFASetupRead:
@@ -143,7 +144,7 @@ def setup_mfa(
 
 def enable_mfa(
     request: mfa_schema.MFASetupRequest,
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     session_id: str,
     step_up_store: account_security_step_up_store.StepUpStore,
     mfa_secret_store: MFASecretStoreBackend,
@@ -203,7 +204,7 @@ def enable_mfa(
 
 def disable_mfa(
     step_up: auth_schema.StepUpVerification,
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     session_id: str,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
@@ -239,7 +240,7 @@ def disable_mfa(
 
 def generate_backup_codes(
     step_up: auth_schema.StepUpVerification,
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     session_id: str,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,

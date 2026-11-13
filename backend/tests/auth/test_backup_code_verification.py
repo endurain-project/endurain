@@ -13,9 +13,10 @@ import modules.auth.login_audit.audit_actions as login_audit_actions
 import modules.auth.mfa.crud as mfa_crud
 import modules.auth.mfa.pending_login_store as pending_login_store
 import modules.auth.mfa_backup_codes.crud as backup_codes_crud
+from tests._helpers.auth import MOCK_USER_ID
 from tests._helpers.db import create_sqlite_session_factory, ensure_user
 
-_USER_ID = 7
+_USER_ID = MOCK_USER_ID
 _PASSWORD = "correct horse battery staple"
 _BACKUP_CODE = "ABCD-EFGH"
 

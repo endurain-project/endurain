@@ -1,5 +1,6 @@
 """Domain event channel names owned by the Strava module."""
 
+import uuid
 from typing import ClassVar
 
 from jasil.event_versioning import VersionedPayload
@@ -25,5 +26,5 @@ class SyncRequestedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    user_id: int
+    user_id: uuid.UUID
     kind: strava_constants.SyncKind

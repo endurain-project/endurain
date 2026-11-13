@@ -26,18 +26,19 @@ import modules.users.users_profile.service as profile_service
 _SERVICE = "modules.users.users_profile.service"
 _EXPORT = "modules.users.users_profile.export_job_service"
 _IMPORT = "modules.users.users_profile.import_job_service"
-_TARGET = {"target_type": "user", "target_id": "7", "target_owner_id": "7"}
+_USER_ID = uuid.UUID(int=7)
+_TARGET = {"target_type": "user", "target_id": str(_USER_ID), "target_owner_id": str(_USER_ID)}
 
 
 def _request_export(states, db):
     return export_job_service.request_export(
-        7, "session-1", auth_schema.StepUpVerification(current_password="pw"), MagicMock(), states, db
+        _USER_ID, "session-1", auth_schema.StepUpVerification(current_password="pw"), MagicMock(), states, db
     )
 
 
 def _user(**overrides) -> users_schema.UserRead:
     fields = {
-        "id": 7,
+        "id": _USER_ID,
         "name": "Old Name",
         "username": "user7",
         "email": "user7@example.com",
@@ -56,7 +57,7 @@ class TestProfileUpdate:
             patch(f"{_SERVICE}.users_integration.edit_profile", return_value=after),
             patch(f"{_SERVICE}.get_profile"),
         ):
-            profile_service.edit_profile(7, profile, mock_db, if_match='"1"')
+            profile_service.edit_profile(_USER_ID, profile, mock_db, if_match='"1"')
 
     def test_names_the_fields_whose_value_changed(self, mock_db):
         profile = users_schema.ProfileUpdate(name="New Name", city="Porto")
@@ -83,23 +84,23 @@ class TestProfileUpdate:
             patch(f"{_SERVICE}.users_integration.edit_profile", side_effect=core_exceptions.ConflictError("taken")),
             pytest.raises(core_exceptions.ConflictError),
         ):
-            profile_service.edit_profile(7, users_schema.ProfileUpdate(name="x"), mock_db, if_match='"1"')
+            profile_service.edit_profile(_USER_ID, users_schema.ProfileUpdate(name="x"), mock_db, if_match='"1"')
 
         audit.assert_not_audited(profile_audit_actions.PROFILE_UPDATE.id)
 
 
 class TestPrivacyUpdate:
     def _edit(self, mock_db, update, after):
-        before = privacy_schema.UserPrivacySettingsRead(id=uuid.uuid4(), user_id=7)
+        before = privacy_schema.UserPrivacySettingsRead(id=uuid.uuid4(), user_id=_USER_ID)
         with (
             patch(f"{_SERVICE}.users_privacy_settings_integration.get_privacy_settings", return_value=before),
             patch(f"{_SERVICE}.users_privacy_settings_integration.edit_privacy_settings", return_value=after),
         ):
-            profile_service.edit_privacy_settings(7, update, mock_db, if_match='"1"')
+            profile_service.edit_privacy_settings(_USER_ID, update, mock_db, if_match='"1"')
 
     def test_names_the_settings_whose_value_changed(self, mock_db):
         update = privacy_schema.UserPrivacySettingsUpdate(hide_activity_map=True, hide_activity_hr=False)
-        after = privacy_schema.UserPrivacySettingsRead(id=uuid.uuid4(), user_id=7, hide_activity_map=True)
+        after = privacy_schema.UserPrivacySettingsRead(id=uuid.uuid4(), user_id=_USER_ID, hide_activity_map=True)
 
         with jasil_testing.capture_audit() as audit:
             self._edit(mock_db, update, after)
@@ -109,7 +110,7 @@ class TestPrivacyUpdate:
 
     def test_an_edit_that_changes_nothing_writes_no_row(self, mock_db):
         update = privacy_schema.UserPrivacySettingsUpdate(hide_activity_hr=False)
-        after = privacy_schema.UserPrivacySettingsRead(id=uuid.uuid4(), user_id=7)
+        after = privacy_schema.UserPrivacySettingsRead(id=uuid.uuid4(), user_id=_USER_ID)
 
         with jasil_testing.capture_audit() as audit:
             self._edit(mock_db, update, after)
@@ -128,7 +129,7 @@ class TestEmailChangeRequest:
         ):
             users.require_user.return_value = _user(email=current)
             tokens.request_self_service_email_change.return_value = queued
-            profile_service.change_email(7, change, "sid", MagicMock(), MagicMock(), mock_db)
+            profile_service.change_email(_USER_ID, change, "sid", MagicMock(), MagicMock(), mock_db)
 
     def test_a_queued_change_records_that_a_confirmation_is_required(self, mock_db):
         with jasil_testing.capture_audit() as audit:
@@ -152,8 +153,8 @@ class TestEmailChangeRequest:
 
     def test_cancel_and_resend_write_no_row(self, mock_db):
         with jasil_testing.capture_audit() as audit, patch(f"{_SERVICE}.sign_up_tokens_integration"):
-            profile_service.cancel_email_change(7, mock_db)
-            profile_service.resend_email_change(7, MagicMock(), mock_db)
+            profile_service.cancel_email_change(_USER_ID, mock_db)
+            profile_service.resend_email_change(_USER_ID, MagicMock(), mock_db)
 
         audit.assert_not_audited(profile_audit_actions.EMAIL_CHANGE_REQUEST.id)
 
@@ -175,7 +176,7 @@ class TestProfileExport:
         assert entry.details is None
 
     def test_a_refused_request_writes_no_row(self, states, mock_db):
-        states.begin(7, conflict="held")
+        states.begin(_USER_ID, conflict="held")
 
         with (
             jasil_testing.capture_audit() as audit,
@@ -187,34 +188,34 @@ class TestProfileExport:
         audit.assert_not_audited(profile_audit_actions.PROFILE_EXPORT_REQUEST.id)
 
     def test_a_download_is_recorded_once_the_archive_is_found(self, states):
-        states.begin(7, conflict="held")
-        states.set_status(7, profile_constants.ExportStatus.SUCCEEDED, size_bytes=8)
+        states.begin(_USER_ID, conflict="held")
+        states.set_status(_USER_ID, profile_constants.ExportStatus.SUCCEEDED, size_bytes=8)
         storage = MagicMock()
         storage.open_stream.return_value = io.BytesIO(b"zip-data")
 
         with jasil_testing.capture_audit() as audit:
-            export_job_service.open_export(7, states, storage)
+            export_job_service.open_export(_USER_ID, states, storage)
 
         entry = audit.assert_audited(profile_audit_actions.PROFILE_EXPORT_DOWNLOAD.id, **_TARGET)
         assert entry.outcome == Outcome.SUCCESS
         assert entry.details is None
 
     def test_no_download_without_a_finished_export_writes_no_row(self, states):
-        states.begin(7, conflict="held")
+        states.begin(_USER_ID, conflict="held")
 
         with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.NotFoundError):
-            export_job_service.open_export(7, states, MagicMock())
+            export_job_service.open_export(_USER_ID, states, MagicMock())
 
         audit.assert_not_audited(profile_audit_actions.PROFILE_EXPORT_DOWNLOAD.id)
 
     def test_a_missing_archive_writes_no_row(self, states):
-        states.begin(7, conflict="held")
-        states.set_status(7, profile_constants.ExportStatus.SUCCEEDED, size_bytes=8)
+        states.begin(_USER_ID, conflict="held")
+        states.set_status(_USER_ID, profile_constants.ExportStatus.SUCCEEDED, size_bytes=8)
         storage = MagicMock()
         storage.open_stream.side_effect = FileNotFoundError
 
         with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.NotFoundError):
-            export_job_service.open_export(7, states, storage)
+            export_job_service.open_export(_USER_ID, states, storage)
 
         audit.assert_not_audited(profile_audit_actions.PROFILE_EXPORT_DOWNLOAD.id)
 
@@ -226,7 +227,7 @@ def _saver(*, kind, upload_dir, filename):
     return path
 
 
-def _payload(user_id: int = 7) -> profile_events.ProfileImportRequestedPayload:
+def _payload(user_id: uuid.UUID = _USER_ID) -> profile_events.ProfileImportRequestedPayload:
     return profile_events.ProfileImportRequestedPayload(user_id=user_id, staged_key=f"{user_id}/abc.zip")
 
 
@@ -251,21 +252,21 @@ class TestProfileImport:
             jasil_testing.capture_audit() as audit,
             patch(f"{_IMPORT}.profile_event_publishers.publish_import_requested"),
         ):
-            import_job_service.request_import(7, _saver, states, storage, mock_db)
+            import_job_service.request_import(_USER_ID, _saver, states, storage, mock_db)
 
         entry = audit.assert_audited(profile_audit_actions.PROFILE_IMPORT_REQUEST.id, **_TARGET)
         assert entry.details is None
 
     def test_a_refused_request_writes_no_row(self, states, storage, mock_db):
-        states.begin(7, conflict="held")
+        states.begin(_USER_ID, conflict="held")
 
         with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.ConflictError):
-            import_job_service.request_import(7, _saver, states, storage, mock_db)
+            import_job_service.request_import(_USER_ID, _saver, states, storage, mock_db)
 
         audit.assert_not_audited(profile_audit_actions.PROFILE_IMPORT_REQUEST.id)
 
     def test_a_finished_import_records_success_once(self, states, storage):
-        states.begin(7, conflict="held")
+        states.begin(_USER_ID, conflict="held")
 
         with jasil_testing.capture_audit() as audit:
             self._run(states, storage, {"activities": 3})
@@ -276,7 +277,7 @@ class TestProfileImport:
         audit.assert_audited(profile_audit_actions.PROFILE_IMPORT_COMPLETE.id, **_TARGET)
 
     def test_a_failed_import_records_failure_once(self, states, storage):
-        states.begin(7, conflict="held")
+        states.begin(_USER_ID, conflict="held")
 
         with jasil_testing.capture_audit() as audit:
             self._run(states, storage, RuntimeError("boom"))
@@ -286,7 +287,7 @@ class TestProfileImport:
         audit.assert_audited(profile_audit_actions.PROFILE_IMPORT_COMPLETE.id, outcome=Outcome.FAILURE, **_TARGET)
 
     def test_a_retried_attempt_writes_nothing_until_the_import_ends(self, states, storage):
-        states.begin(7, conflict="held")
+        states.begin(_USER_ID, conflict="held")
         transient = OperationalError("stmt", {}, Exception("db down"))
 
         with jasil_testing.capture_audit() as audit:
@@ -298,7 +299,7 @@ class TestProfileImport:
         assert len(audit.matching(profile_audit_actions.PROFILE_IMPORT_COMPLETE.id)) == 1
 
     def test_a_missing_staged_archive_records_failure(self, states, storage):
-        states.begin(7, conflict="held")
+        states.begin(_USER_ID, conflict="held")
         storage.get.return_value = None
 
         with jasil_testing.capture_audit() as audit:
@@ -307,8 +308,8 @@ class TestProfileImport:
         audit.assert_audited(profile_audit_actions.PROFILE_IMPORT_COMPLETE.id, outcome=Outcome.FAILURE, **_TARGET)
 
     def test_a_redelivery_that_finds_the_import_already_finished_writes_nothing(self, states, storage):
-        states.begin(7, conflict="held")
-        states.set_status(7, profile_constants.ImportStatus.SUCCEEDED)
+        states.begin(_USER_ID, conflict="held")
+        states.set_status(_USER_ID, profile_constants.ImportStatus.SUCCEEDED)
 
         with jasil_testing.capture_audit() as audit:
             self._run(states, storage, {})
@@ -316,8 +317,8 @@ class TestProfileImport:
         audit.assert_not_audited(profile_audit_actions.PROFILE_IMPORT_COMPLETE.id)
 
     def test_an_import_that_died_writing_files_records_failure_once(self, states, storage):
-        states.begin(7, conflict="held")
-        states.set_status(7, profile_constants.ImportStatus.WRITING_FILES)
+        states.begin(_USER_ID, conflict="held")
+        states.set_status(_USER_ID, profile_constants.ImportStatus.WRITING_FILES)
 
         with jasil_testing.capture_audit() as audit:
             self._run(states, storage, {})
@@ -325,20 +326,20 @@ class TestProfileImport:
         assert len(audit.matching(profile_audit_actions.PROFILE_IMPORT_COMPLETE.id)) == 1
 
     def test_a_dead_lettered_pending_import_records_failure_but_a_finished_one_does_not(self, states, storage):
-        states.begin(7, conflict="held")
+        states.begin(_USER_ID, conflict="held")
         with jasil_testing.capture_audit() as audit:
             import_job_service.close_dead_lettered_import(_payload(), states, storage)
         audit.assert_audited(profile_audit_actions.PROFILE_IMPORT_COMPLETE.id, outcome=Outcome.FAILURE, **_TARGET)
 
-        states.discard(7)
-        states.begin(7, conflict="held")
-        states.set_status(7, profile_constants.ImportStatus.SUCCEEDED)
+        states.discard(_USER_ID)
+        states.begin(_USER_ID, conflict="held")
+        states.set_status(_USER_ID, profile_constants.ImportStatus.SUCCEEDED)
         with jasil_testing.capture_audit() as audit:
             import_job_service.close_dead_lettered_import(_payload(), states, storage)
         audit.assert_not_audited(profile_audit_actions.PROFILE_IMPORT_COMPLETE.id)
 
     def test_an_import_the_pool_could_not_take_records_failure(self, states, storage):
-        states.begin(7, conflict="held")
+        states.begin(_USER_ID, conflict="held")
 
         with jasil_testing.capture_audit() as audit:
             import_job_service.fail_unstarted_import(_payload(), states, storage)

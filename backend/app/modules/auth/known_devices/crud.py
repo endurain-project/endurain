@@ -13,13 +13,13 @@ import modules.auth.known_devices.contracts as known_devices_contracts
 import modules.auth.known_devices.models as known_devices_models
 
 
-def has_devices(user_id: int, db: Session) -> bool:
+def has_devices(user_id: uuid.UUID, db: Session) -> bool:
     """Return whether the user has any registered device, whatever its security generation."""
     model = known_devices_models.KnownDevice
     return bool(db.execute(select(exists().where(model.user_id == user_id))).scalar())
 
 
-def has_device(user_id: int, device_hash: str, generation: int, db: Session) -> bool:
+def has_device(user_id: uuid.UUID, device_hash: str, generation: int, db: Session) -> bool:
     """Return whether the device is known for the user under the account's security generation."""
     model = known_devices_models.KnownDevice
     return bool(
@@ -36,7 +36,7 @@ def has_device(user_id: int, device_hash: str, generation: int, db: Session) -> 
 
 
 def touch_device(
-    user_id: int,
+    user_id: uuid.UUID,
     device_hash: str,
     generation: int,
     seen_at: datetime,
@@ -73,7 +73,7 @@ def touch_device(
 
 
 def restamp_device(
-    user_id: int,
+    user_id: uuid.UUID,
     device_hash: str,
     generation: int,
     seen_at: datetime,
@@ -112,7 +112,7 @@ def restamp_device(
 
 
 def create_device(
-    user_id: int,
+    user_id: uuid.UUID,
     device_hash: str,
     generation: int,
     seen_at: datetime,
@@ -155,7 +155,7 @@ def create_device(
 
 
 def get_devices_page(
-    user_id: int, generation: int, limit: int, offset: int, db: Session
+    user_id: uuid.UUID, generation: int, limit: int, offset: int, db: Session
 ) -> list[known_devices_models.KnownDevice]:
     """Return one page of the user's devices known under the current security generation, latest sign-in first."""
     model = known_devices_models.KnownDevice
@@ -169,7 +169,7 @@ def get_devices_page(
     return list(db.execute(stmt).scalars().all())
 
 
-def count_devices(user_id: int, generation: int, db: Session) -> int:
+def count_devices(user_id: uuid.UUID, generation: int, db: Session) -> int:
     """Return how many devices the user has under the current security generation."""
     model = known_devices_models.KnownDevice
     stmt = (
@@ -178,7 +178,7 @@ def count_devices(user_id: int, generation: int, db: Session) -> int:
     return db.execute(stmt).scalar_one()
 
 
-def get_device_hash(device_id: uuid.UUID, user_id: int, generation: int, db: Session) -> str | None:
+def get_device_hash(device_id: uuid.UUID, user_id: uuid.UUID, generation: int, db: Session) -> str | None:
     """Return the SHA-256 hex digest of one of the user's devices known under the current security generation.
 
     Returns:
@@ -192,7 +192,7 @@ def get_device_hash(device_id: uuid.UUID, user_id: int, generation: int, db: Ses
     ).scalar_one_or_none()
 
 
-def delete_device(device_id: uuid.UUID, user_id: int, generation: int, db: Session) -> str | None:
+def delete_device(device_id: uuid.UUID, user_id: uuid.UUID, generation: int, db: Session) -> str | None:
     """Stage the deletion of one of the user's devices known under the current security generation.
 
     Returns:
@@ -208,7 +208,7 @@ def delete_device(device_id: uuid.UUID, user_id: int, generation: int, db: Sessi
     return device_hash
 
 
-def delete_devices_except(user_id: int, generation: int, keep_hash: str | None, db: Session) -> list[str]:
+def delete_devices_except(user_id: uuid.UUID, generation: int, keep_hash: str | None, db: Session) -> list[str]:
     """Stage the deletion of every device the user knows under the current security generation but one.
 
     Args:

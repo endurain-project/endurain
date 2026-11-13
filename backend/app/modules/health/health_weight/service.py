@@ -35,7 +35,7 @@ _ARCHIVE_RENAMES = {
 }
 
 
-def _user_height_cm(user_id: int, db: Session) -> float | None:
+def _user_height_cm(user_id: uuid.UUID, db: Session) -> float | None:
     """Return the user's height in centimeters, or ``None`` when unknown.
 
     Args:
@@ -50,7 +50,7 @@ def _user_height_cm(user_id: int, db: Session) -> float | None:
 
 
 def _with_bmi[RecordT: (health_weight_schema.HealthWeightCreate, health_weight_schema.HealthWeightUpdate)](
-    health_weight: RecordT, user_id: int, db: Session
+    health_weight: RecordT, user_id: uuid.UUID, db: Session
 ) -> RecordT:
     """Return the record with its BMI derived from the user's height.
 
@@ -67,7 +67,7 @@ def _with_bmi[RecordT: (health_weight_schema.HealthWeightCreate, health_weight_s
 
 
 def list_health_weight(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -104,7 +104,7 @@ def list_health_weight(
 
 
 def stage_create_health_weight(
-    user_id: int, health_weight: health_weight_schema.HealthWeightCreate, db: Session
+    user_id: uuid.UUID, health_weight: health_weight_schema.HealthWeightCreate, db: Session
 ) -> health_weight_schema.HealthWeightRead:
     """Stage a new manually entered weight record, deriving its BMI from the user's height.
 
@@ -125,7 +125,7 @@ def stage_create_health_weight(
 
 
 def _stage_upsert_create(
-    user_id: int, health_weight: health_weight_schema.HealthWeightImport, db: Session
+    user_id: uuid.UUID, health_weight: health_weight_schema.HealthWeightImport, db: Session
 ) -> health_weight_schema.HealthWeightRead:
     """Stage a new weight record from a provider or an archive, which carry their own BMI.
 
@@ -149,7 +149,7 @@ def _stage_upsert_create(
 
 
 def stage_edit_health_weight(
-    user_id: int,
+    user_id: uuid.UUID,
     health_weight_id: uuid.UUID,
     health_weight: health_weight_schema.HealthWeightUpdate,
     db: Session,
@@ -183,7 +183,7 @@ def stage_edit_health_weight(
 
 
 def _stage_upsert_edit(
-    user_id: int,
+    user_id: uuid.UUID,
     health_weight_id: uuid.UUID,
     health_weight: health_weight_schema.HealthWeightImportUpdate,
     db: Session,
@@ -211,7 +211,7 @@ def _stage_upsert_edit(
 
 
 def stage_upsert_health_weight(
-    user_id: int, health_weight: health_weight_schema.HealthWeightImport, db: Session
+    user_id: uuid.UUID, health_weight: health_weight_schema.HealthWeightImport, db: Session
 ) -> health_weight_schema.HealthWeightRead:
     """Stage a weight record, or an update to the user's record for the same date.
 
@@ -243,7 +243,7 @@ def stage_upsert_health_weight(
 
 
 def create_health_weight(
-    user_id: int, health_weight: health_weight_schema.HealthWeightCreate, db: Session
+    user_id: uuid.UUID, health_weight: health_weight_schema.HealthWeightCreate, db: Session
 ) -> health_weight_schema.HealthWeightRead:
     """Create a weight record for the user's day, and commit.
 
@@ -270,7 +270,7 @@ def create_health_weight(
 
 
 def edit_health_weight(
-    user_id: int,
+    user_id: uuid.UUID,
     health_weight_id: uuid.UUID,
     health_weight: health_weight_schema.HealthWeightUpdate,
     db: Session,
@@ -306,7 +306,9 @@ def edit_health_weight(
     return updated
 
 
-def get_health_weight(user_id: int, health_weight_id: uuid.UUID, db: Session) -> health_weight_schema.HealthWeightRead:
+def get_health_weight(
+    user_id: uuid.UUID, health_weight_id: uuid.UUID, db: Session
+) -> health_weight_schema.HealthWeightRead:
     """Return one of a user's weight records.
 
     Args:
@@ -323,7 +325,7 @@ def get_health_weight(user_id: int, health_weight_id: uuid.UUID, db: Session) ->
     return health_record_service.get_record(health_weight_crud.SPEC, health_weight_id, user_id, db)
 
 
-def delete_health_weight(user_id: int, health_weight_id: uuid.UUID, db: Session, *, if_match: str) -> None:
+def delete_health_weight(user_id: uuid.UUID, health_weight_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Delete a weight record and commit.
 
     Args:
@@ -347,7 +349,7 @@ def delete_health_weight(user_id: int, health_weight_id: uuid.UUID, db: Session,
 
 
 def get_health_weight_chart(
-    user_id: int,
+    user_id: uuid.UUID,
     interval: health_constants.Interval,
     db: Session,
     *,
@@ -374,7 +376,7 @@ def get_health_weight_chart(
 
 
 def restore_profile_records(
-    records: list[dict[str, Any]], user_id: int, ids: users_profile_contracts.ProfileIdMaps, db: Session
+    records: list[dict[str, Any]], user_id: uuid.UUID, ids: users_profile_contracts.ProfileIdMaps, db: Session
 ) -> int:
     """Stage the weight records of a profile archive for a user.
 

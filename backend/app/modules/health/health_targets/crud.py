@@ -22,7 +22,7 @@ SPEC = health_record_crud.RecordSpec(
 )
 
 
-def get_health_targets_by_user_id(user_id: int, db: Session) -> health_targets_schema.HealthTargetsRead | None:
+def get_health_targets_by_user_id(user_id: uuid.UUID, db: Session) -> health_targets_schema.HealthTargetsRead | None:
     """Retrieve health targets for a specific user.
 
     Args:
@@ -42,7 +42,7 @@ def get_health_targets_by_user_id(user_id: int, db: Session) -> health_targets_s
     )
 
 
-def create_health_targets(user_id: int, db: Session) -> health_targets_schema.HealthTargetsRead:
+def create_health_targets(user_id: uuid.UUID, db: Session) -> health_targets_schema.HealthTargetsRead:
     """Stage empty health targets for a user.
 
     Args:
@@ -63,7 +63,7 @@ def create_health_targets(user_id: int, db: Session) -> health_targets_schema.He
 
 def edit_health_targets(
     health_target: health_targets_schema.HealthTargetsUpdate,
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     if_match: str,
@@ -92,7 +92,7 @@ def edit_health_targets(
     return health_record_crud.edit_row(SPEC, db_health_target, health_target, db, if_match=if_match)
 
 
-def health_targets_exists(user_id: int, db: Session) -> bool:
+def health_targets_exists(user_id: uuid.UUID, db: Session) -> bool:
     """Report whether a user has health targets.
 
     Args:
@@ -111,7 +111,7 @@ def health_targets_exists(user_id: int, db: Session) -> bool:
 
 
 def list_changed(
-    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[health_targets_schema.HealthTargetsRead]:
     """Retrieve a user's records changed after a position, oldest change first.
 

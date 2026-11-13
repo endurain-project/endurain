@@ -23,7 +23,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from pydantic import Field, field_validator
+from pydantic import field_validator
 
 import core.timezone as core_timezone
 import modules.activities.activity.schema as activity_schema
@@ -164,7 +164,7 @@ class ActivityCore(activity_schema.ActivityBase):
       allowed through.
     """
 
-    user_id: int = Field(ge=1)
+    user_id: uuid.UUID
     # Required (no default): ingestion must provide a start/end time; the validator
     # rejects a null/unparseable value and coerces the rest to aware UTC.
     start_time: datetime

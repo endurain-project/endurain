@@ -1,5 +1,6 @@
 """Local fixtures for profile router tests."""
 
+import uuid
 from unittest.mock import MagicMock
 
 import pytest
@@ -7,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from jasil.backends.state_memory import MemoryState
 from sqlalchemy.orm import Session
+from tests._helpers.auth import MOCK_USER_ID
 
 import core.config as core_config
 import core.database as core_database
@@ -36,13 +38,13 @@ class FakeMFASecretStore:
     def __init__(self):
         self._store = {}
 
-    def add_secret(self, user_id: int, secret: str) -> None:
+    def add_secret(self, user_id: uuid.UUID, secret: str) -> None:
         self._store[user_id] = secret
 
-    def get_secret(self, user_id: int) -> str | None:
+    def get_secret(self, user_id: uuid.UUID) -> str | None:
         return self._store.get(user_id)
 
-    def delete_secret(self, user_id: int) -> None:
+    def delete_secret(self, user_id: uuid.UUID) -> None:
         self._store.pop(user_id, None)
 
 
@@ -100,7 +102,7 @@ def profile_app(
 
     app.dependency_overrides[core_database.get_db] = lambda: local_mock_db
     app.dependency_overrides[core_dependencies.get_storage] = lambda: MagicMock()
-    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: 1
+    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: MOCK_USER_ID
     app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = lambda: "session-1"
     app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
     app.dependency_overrides[auth_mfa_dependencies.get_mfa_secret_store] = lambda: fake_mfa_secret_store

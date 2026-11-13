@@ -1,5 +1,6 @@
 """The own-activities feed cursor and the gear filter run as SQL, against real PostgreSQL."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -14,6 +15,9 @@ from tests._helpers.db import ensure_user
 from tests._helpers.gears import gear_create
 from tests.postgres.test_transaction_ownership import _add_activity
 
+_USER_1 = uuid.UUID(int=1)
+_USER_2 = uuid.UUID(int=2)
+
 _BASE = datetime(2026, 7, 1, 9, tzinfo=UTC)
 
 
@@ -23,7 +27,7 @@ def factory(pg_factory):
     return pg_factory
 
 
-def _add(factory, *, user_id=1, hours=0, visibility=2, gear_id=None, hide_start_time=False, created_at=None):
+def _add(factory, *, user_id=_USER_1, hours=0, visibility=2, gear_id=None, hide_start_time=False, created_at=None):
     """Add an activity starting ``hours`` after the base time and return its id."""
     activity_id = _add_activity(factory, user_id=user_id)
     values = {
@@ -61,19 +65,19 @@ class TestOwnFeed:
         private = _add(factory, hours=1, visibility=2)
         public = _add(factory, hours=3, visibility=0)
         followers = _add(factory, hours=2, visibility=1)
-        _add(factory, user_id=2, hours=4)
+        _add(factory, user_id=_USER_2, hours=4)
 
-        assert _walk(factory, 1, 10) == [[public, followers, private]]
+        assert _walk(factory, _USER_1, 10) == [[public, followers, private]]
 
     def test_the_cursor_walks_every_activity_once_across_slices(self, factory):
         ids = [_add(factory, hours=hours) for hours in range(5)]
 
-        assert _walk(factory, 1, 2) == [[ids[4], ids[3]], [ids[2], ids[1]], [ids[0]]]
+        assert _walk(factory, _USER_1, 2) == [[ids[4], ids[3]], [ids[2], ids[1]], [ids[0]]]
 
     def test_activities_sharing_a_start_time_are_neither_skipped_nor_repeated(self, factory):
         ids = [_add(factory, hours=0) for _ in range(4)]
 
-        walked = [activity_id for page in _walk(factory, 1, 2) for activity_id in page]
+        walked = [activity_id for page in _walk(factory, _USER_1, 2) for activity_id in page]
 
         assert walked == sorted(ids, reverse=True)
 
@@ -81,13 +85,13 @@ class TestOwnFeed:
         late = _add(factory, hours=5)
         hidden = _add(factory, hours=0, hide_start_time=True, created_at=_BASE + timedelta(hours=9))
 
-        assert _walk(factory, 1, 10) == [[hidden, late]]
+        assert _walk(factory, _USER_1, 10) == [[hidden, late]]
 
     def test_the_owner_sees_the_hidden_start_time_of_their_own_activity(self, factory):
         hidden = _add(factory, hours=2, hide_start_time=True)
 
         with factory() as db:
-            [entry] = activity_crud.get_own_feed_after(1, None, 10, db)
+            [entry] = activity_crud.get_own_feed_after(_USER_1, None, 10, db)
 
         assert entry.activity.id == hidden
         assert entry.activity.start_time == _BASE + timedelta(hours=2)
@@ -95,18 +99,18 @@ class TestOwnFeed:
 
 class TestGearFilter:
     def _gears(self, factory):
-        ensure_user(factory, 1)
+        ensure_user(factory, _USER_1)
         with factory() as db:
-            first = gear_service.create_gear(gear_create("First"), 1, db).id
-            second = gear_service.create_gear(gear_create("Second"), 1, db).id
+            first = gear_service.create_gear(gear_create("First"), _USER_1, db).id
+            second = gear_service.create_gear(gear_create("Second"), _USER_1, db).id
         return first, second
 
     def _listed(self, factory, gear_id):
         with factory() as db:
             items = activity_crud.get_user_activities_with_pagination(
-                1, db, page_number=1, num_records=10, gear_id=gear_id, user_is_owner=True
+                _USER_1, db, page_number=1, num_records=10, gear_id=gear_id, user_is_owner=True
             )
-            total = activity_crud.count_user_activities(1, db, gear_id=gear_id, user_is_owner=True)
+            total = activity_crud.count_user_activities(_USER_1, db, gear_id=gear_id, user_is_owner=True)
         return [item.id for item in items], total
 
     def test_only_the_activities_of_that_gear_are_listed_and_counted(self, factory):
@@ -126,6 +130,6 @@ class TestGearFilter:
 
     def test_another_users_activity_on_the_same_gear_is_not_listed(self, factory):
         first, _ = self._gears(factory)
-        _add(factory, user_id=2, hours=1, gear_id=first)
+        _add(factory, user_id=_USER_2, hours=1, gear_id=first)
 
         assert self._listed(factory, first) == ([], 0)

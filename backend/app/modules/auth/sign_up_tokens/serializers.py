@@ -1,5 +1,7 @@
 """Convert sign-up token ORM rows into internal contracts."""
 
+import uuid
+
 from sqlalchemy import Row
 
 import modules.auth.sign_up_tokens.contracts as sign_up_contracts
@@ -11,7 +13,7 @@ def to_state(row: sign_up_models.SignUpToken) -> sign_up_contracts.SignUpTokenSt
     return sign_up_contracts.SignUpTokenState.model_validate(row)
 
 
-def to_claim(row: Row[tuple[str, int, str | None, str | None, int | None]]) -> sign_up_contracts.SignUpTokenClaim:
+def to_claim(row: Row[tuple[str, uuid.UUID, str | None, str | None, int | None]]) -> sign_up_contracts.SignUpTokenClaim:
     """Return the claim contract for the columns a token claim returned.
 
     A token that replaces an address is an email change, which must also name the address it confirms.

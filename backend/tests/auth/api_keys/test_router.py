@@ -10,6 +10,7 @@ import core.exceptions as core_exceptions
 import modules.auth.api_keys.constants as api_keys_constants
 import modules.auth.api_keys.models as users_api_keys_models
 import modules.auth.api_keys.schema as api_keys_schema
+from tests._helpers.auth import MOCK_USER_ID
 
 
 @pytest.fixture(autouse=True)
@@ -33,7 +34,7 @@ class TestGetUserApiKeys:
         now = datetime.now(UTC)
         mock_key = MagicMock(spec=users_api_keys_models.UsersApiKeys)
         mock_key.id = "some-uuid"
-        mock_key.user_id = 1
+        mock_key.user_id = MOCK_USER_ID
         mock_key.name = "FitoTrack"
         mock_key.key_prefix = "abcdefgh"
         mock_key.scopes = '["activities:upload"]'
@@ -113,7 +114,7 @@ class TestCreateUserApiKey:
         now = datetime.now(UTC)
         mock_orm_key = MagicMock(spec=users_api_keys_models.UsersApiKeys)
         mock_orm_key.id = "new-uuid"
-        mock_orm_key.user_id = 1
+        mock_orm_key.user_id = MOCK_USER_ID
         mock_orm_key.name = "FitoTrack"
         mock_orm_key.key_prefix = "abcdefgh"
         mock_orm_key.scopes = '["activities:upload"]'
@@ -123,7 +124,7 @@ class TestCreateUserApiKey:
         mock_orm_key.is_active = True
         mock_create.return_value = api_keys_schema.UserApiKeyCreatedRead(
             id=mock_orm_key.id,
-            user_id=1,
+            user_id=MOCK_USER_ID,
             name=mock_orm_key.name,
             key_prefix=mock_orm_key.key_prefix,
             scopes=mock_orm_key.scopes,
@@ -537,7 +538,7 @@ class TestApiKeyResponseSafety:
         now = datetime.now(UTC)
         mock_key = MagicMock(spec=users_api_keys_models.UsersApiKeys)
         mock_key.id = "some-uuid"
-        mock_key.user_id = 1
+        mock_key.user_id = MOCK_USER_ID
         mock_key.name = "FitoTrack"
         mock_key.key_prefix = "abcdefgh"
         mock_key.key_hash = "deadbeef" * 8  # ORM has it
@@ -578,7 +579,7 @@ class TestApiKeyResponseSafety:
         now = datetime.now(UTC)
         mock_orm_key = MagicMock(spec=users_api_keys_models.UsersApiKeys)
         mock_orm_key.id = "new-uuid"
-        mock_orm_key.user_id = 1
+        mock_orm_key.user_id = MOCK_USER_ID
         mock_orm_key.name = "FitoTrack"
         mock_orm_key.key_prefix = "abcdefgh"
         mock_orm_key.key_hash = "deadbeef" * 8
@@ -589,7 +590,7 @@ class TestApiKeyResponseSafety:
         mock_orm_key.is_active = True
         mock_create.return_value = api_keys_schema.UserApiKeyCreatedRead(
             id=mock_orm_key.id,
-            user_id=1,
+            user_id=MOCK_USER_ID,
             name=mock_orm_key.name,
             key_prefix=mock_orm_key.key_prefix,
             scopes=mock_orm_key.scopes,
@@ -635,7 +636,7 @@ class TestApiKeyResponseSafety:
         now = datetime.now(UTC)
         mock_orm_key = MagicMock(spec=users_api_keys_models.UsersApiKeys)
         mock_orm_key.id = "new-uuid"
-        mock_orm_key.user_id = 1
+        mock_orm_key.user_id = MOCK_USER_ID
         mock_orm_key.name = "FitoTrack"
         mock_orm_key.key_prefix = "abcdefgh"
         mock_orm_key.key_hash = "deadbeef" * 8
@@ -646,7 +647,7 @@ class TestApiKeyResponseSafety:
         mock_orm_key.is_active = True
         mock_create.return_value = api_keys_schema.UserApiKeyCreatedRead(
             id=mock_orm_key.id,
-            user_id=1,
+            user_id=MOCK_USER_ID,
             name=mock_orm_key.name,
             key_prefix=mock_orm_key.key_prefix,
             scopes=mock_orm_key.scopes,

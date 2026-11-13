@@ -6,6 +6,7 @@ ciphertext is handed to the ``StateProvider`` (an in-process dict under
 backend is used.
 """
 
+import uuid
 from typing import NoReturn
 
 from jasil.providers import StateBackendUnavailableError, StateProvider
@@ -45,7 +46,7 @@ def _raise_store_unavailable(err: StateBackendUnavailableError) -> NoReturn:
     raise MFASecretStoreUnavailableError("MFA secret storage is unavailable") from err
 
 
-def _user_id_digest(user_id: int) -> str:
+def _user_id_digest(user_id: uuid.UUID) -> str:
     """Hash a user ID for storage key names.
 
     Args:
@@ -116,11 +117,11 @@ class MFASecretStore:
         """
         self._state = state
 
-    def _key(self, user_id: int) -> str:
+    def _key(self, user_id: uuid.UUID) -> str:
         """Build the storage key for a user's pending MFA secret."""
         return f"{_MFA_SECRET_KEY_PREFIX}:{_user_id_digest(user_id)}"
 
-    def add_secret(self, user_id: int, secret: str) -> None:
+    def add_secret(self, user_id: uuid.UUID, secret: str) -> None:
         """Encrypt and store an MFA setup secret with TTL.
 
         Args:
@@ -138,7 +139,7 @@ class MFASecretStore:
         except StateBackendUnavailableError as err:
             _raise_store_unavailable(err)
 
-    def get_secret(self, user_id: int) -> str | None:
+    def get_secret(self, user_id: uuid.UUID) -> str | None:
         """Retrieve and decrypt an MFA secret if present.
 
         Args:
@@ -158,7 +159,7 @@ class MFASecretStore:
             return None
         return _decrypt_secret(encrypted_secret.decode())
 
-    def delete_secret(self, user_id: int) -> None:
+    def delete_secret(self, user_id: uuid.UUID) -> None:
         """Remove an MFA secret from storage.
 
         Failures are swallowed because the entry expires via TTL anyway.
@@ -174,7 +175,7 @@ class MFASecretStore:
         except StateBackendUnavailableError:
             return
 
-    def has_secret(self, user_id: int) -> bool:
+    def has_secret(self, user_id: uuid.UUID) -> bool:
         """Check if a non-expired secret exists for a user.
 
         Args:

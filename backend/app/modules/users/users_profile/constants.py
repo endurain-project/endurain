@@ -1,5 +1,6 @@
 """Domain constants for the profile import job."""
 
+import uuid
 from enum import StrEnum
 
 import core.job_status as core_job_status
@@ -42,7 +43,7 @@ EXPORT_STAGED_MAX_AGE_SECONDS = 3 * 60 * 60
 EXPORT_SOURCE_API = "api:profile_export"
 
 
-def export_staged_key(user_id: int) -> str:
+def export_staged_key(user_id: uuid.UUID) -> str:
     """Return the storage key of a user's staged export.
 
     One key per user: a new export replaces the last, and the claim allows one at a time.
@@ -54,6 +55,18 @@ def export_staged_key(user_id: int) -> str:
         The key within :data:`EXPORT_STAGING_AREA`.
     """
     return f"{user_id}.zip"
+
+
+def import_staged_prefix(user_id: uuid.UUID) -> str:
+    """Return the storage key prefix of the archives staged for a user's import.
+
+    Args:
+        user_id: The importing user.
+
+    Returns:
+        The prefix within :data:`IMPORT_STAGING_AREA`.
+    """
+    return f"{user_id}/"
 
 
 class ImportStatus(StrEnum):
@@ -89,6 +102,7 @@ class ImportFailure(StrEnum):
     TOO_MANY_ACTIVITIES = "too_many_activities"
     TIMED_OUT = "timed_out"
     WRONG_ACCOUNT = "wrong_account"
+    OLDER_VERSION = "older_version"
     FILES_INCOMPLETE = "files_incomplete"
     PROCESSING_FAILED = "processing_failed"
 

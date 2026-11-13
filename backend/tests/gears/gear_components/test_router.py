@@ -13,6 +13,7 @@ import modules.auth.dependencies as auth_deps
 import modules.gears.gear_components.gear_router as gear_router
 import modules.gears.gear_components.router as router
 import modules.gears.gear_components.schema as schema
+from tests._helpers.auth import MOCK_USER_ID
 
 _HEADERS = {"Authorization": "Bearer x"}
 GEAR_ID = uuid.uuid4()
@@ -27,14 +28,20 @@ def client(mock_db):
     app.include_router(gear_router.router, prefix="/gears")
     core_exceptions.register_exception_handlers(app)
     app.dependency_overrides[auth_deps.check_scopes] = lambda: None
-    app.dependency_overrides[auth_deps.get_current_user_id] = lambda: 1
+    app.dependency_overrides[auth_deps.get_current_user_id] = lambda: MOCK_USER_ID
     app.dependency_overrides[core_db.get_db] = lambda: mock_db
     return TestClient(app)
 
 
 def _read(**overrides) -> schema.GearComponentRead:
     return schema.GearComponentRead(
-        **{"id": COMPONENT_ID, "user_id": 1, "updated_at": datetime(2025, 1, 1, tzinfo=UTC), **_BODY, **overrides}
+        **{
+            "id": COMPONENT_ID,
+            "user_id": MOCK_USER_ID,
+            "updated_at": datetime(2025, 1, 1, tzinfo=UTC),
+            **_BODY,
+            **overrides,
+        }
     )
 
 
@@ -74,7 +81,7 @@ def test_list_for_gear_passes_the_active_filter(mock_list, client, mock_db):
     response = client.get(f"/gears/{GEAR_ID}/components?active=true", headers=_HEADERS)
 
     assert response.json()["items"][0]["current_distance"] == 3.0
-    mock_list.assert_called_once_with(GEAR_ID, 1, mock_db, active=True, page_number=1, num_records=200)
+    mock_list.assert_called_once_with(GEAR_ID, MOCK_USER_ID, mock_db, active=True, page_number=1, num_records=200)
 
 
 def test_a_malformed_gear_id_is_rejected(client):
@@ -126,7 +133,7 @@ def test_read_returns_the_component_with_its_etag(mock_get, client, mock_db):
 
     assert response.status_code == 200
     assert response.headers["ETag"] == '"3"'
-    mock_get.assert_called_once_with(1, COMPONENT_ID, mock_db)
+    mock_get.assert_called_once_with(MOCK_USER_ID, COMPONENT_ID, mock_db)
 
 
 @patch("modules.gears.gear_components.service.get_gear_component")
@@ -183,7 +190,7 @@ def test_delete(mock_delete, client, mock_db):
     response = client.delete(f"/gear_components/{COMPONENT_ID}", headers={**_HEADERS, "If-Match": '"3"'})
 
     assert response.status_code == 204
-    mock_delete.assert_called_once_with(1, COMPONENT_ID, mock_db, if_match='"3"')
+    mock_delete.assert_called_once_with(MOCK_USER_ID, COMPONENT_ID, mock_db, if_match='"3"')
 
 
 @patch("modules.gears.gear_components.service.delete_gear_component")

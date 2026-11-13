@@ -1,5 +1,6 @@
 """Sign-in verifies the NFC form of a password, migrates legacy hashes, and commits a rehash on the MFA path."""
 
+import uuid
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -8,6 +9,8 @@ import pytest
 import core.exceptions as core_exceptions
 import modules.auth.authentication.service as authentication_service
 import modules.auth.credentials.password_hasher as credentials_password_hasher
+
+_USER_ID = uuid.UUID(int=7)
 
 _SERVICE = "modules.auth.authentication.service"
 _COMPOSED = "café-au-lait-noir"
@@ -25,7 +28,7 @@ def _authenticate(stored_hash: str, typed: str, hasher, mock_db):
         patch(f"{_SERVICE}.credentials_integration.get_credential", return_value=credential),
         patch(f"{_SERVICE}.credentials_integration.set_local_password_hash") as set_hash,
     ):
-        user = authentication_service.authenticate_user(SimpleNamespace(id=7), "alice", typed, hasher, mock_db)
+        user = authentication_service.authenticate_user(SimpleNamespace(id=_USER_ID), "alice", typed, hasher, mock_db)
     return user, set_hash
 
 
@@ -34,7 +37,7 @@ def test_a_password_set_composed_signs_in_typed_decomposed(hasher, mock_db):
 
     user, set_hash = _authenticate(stored, _DECOMPOSED, hasher, mock_db)
 
-    assert user.id == 7
+    assert user.id == _USER_ID
     set_hash.assert_not_called()
 
 
@@ -43,7 +46,7 @@ def test_a_legacy_raw_hash_signs_in_and_is_replaced_by_the_nfc_hash(hasher, mock
 
     user, set_hash = _authenticate(legacy, _DECOMPOSED, hasher, mock_db)
 
-    assert user.id == 7
+    assert user.id == _USER_ID
     new_hash = set_hash.call_args.args[1]
     assert hasher.verify_password(_COMPOSED, new_hash)
     # A rehash is not a password change: it leaves the must-change flag as it was.
@@ -67,7 +70,7 @@ def test_an_mfa_user_whose_hash_was_updated_has_it_committed_before_the_challeng
     with (
         patch(
             f"{_SERVICE}.users_integration.get_user_by_username",
-            return_value=SimpleNamespace(id=7, active=True, access_type="regular"),
+            return_value=SimpleNamespace(id=_USER_ID, active=True, access_type="regular"),
         ),
         patch(
             f"{_SERVICE}.credentials_integration.get_credential",
@@ -108,7 +111,7 @@ def test_a_refused_mfa_login_commits_nothing(mock_db):
     hasher = MagicMock()
     hasher.verify_and_update.return_value = (False, None)
     with (
-        patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=SimpleNamespace(id=7)),
+        patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=SimpleNamespace(id=_USER_ID)),
         patch(
             f"{_SERVICE}.credentials_integration.get_credential",
             return_value=SimpleNamespace(password_hash="old", password_change_required=False),
@@ -147,7 +150,7 @@ def test_a_bcrypt_hash_is_refused_like_a_wrong_password_and_counts_a_failure(has
     failed_attempts.record_failed_attempt.return_value = SimpleNamespace(client_count=1, account_locked_now=False)
     credential = SimpleNamespace(password_hash=_BCRYPT_HASH, password_change_required=False)
     with (
-        patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=SimpleNamespace(id=7)),
+        patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=SimpleNamespace(id=_USER_ID)),
         patch(f"{_SERVICE}.credentials_integration.get_credential", return_value=credential),
         pytest.raises(core_exceptions.UnauthenticatedError),
     ):
@@ -168,7 +171,7 @@ def test_a_bcrypt_hash_is_refused_like_a_wrong_password_and_counts_a_failure(has
             device_id=None,
         )
 
-    failed_attempts.record_failed_attempt.assert_called_once_with("alice", "127.0.0.1", user_id=7)
+    failed_attempts.record_failed_attempt.assert_called_once_with("alice", "127.0.0.1", user_id=_USER_ID)
 
 
 _NFC = "café"
@@ -192,4 +195,4 @@ def test_an_unknown_user_costs_the_verifies_of_a_known_user_with_a_wrong_passwor
 
 @pytest.mark.parametrize(("typed", "verifies"), [(_NFC, 1), (_NFD, 2)])
 def test_an_account_without_a_local_credential_costs_the_verifies_of_a_wrong_password(hasher, mock_db, typed, verifies):
-    assert _dummy_verifies(hasher, mock_db, typed, user=SimpleNamespace(id=7), credential=None) == verifies
+    assert _dummy_verifies(hasher, mock_db, typed, user=SimpleNamespace(id=_USER_ID), credential=None) == verifies

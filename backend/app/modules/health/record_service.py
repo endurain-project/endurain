@@ -47,7 +47,7 @@ class _DatedInput(Protocol):
         ...
 
 
-def require_not_future(user_id: int, when: date | datetime | None, db: Session, *, what: str) -> None:
+def require_not_future(user_id: uuid.UUID, when: date | datetime | None, db: Session, *, what: str) -> None:
     """Refuse a manual record dated after the user's local today.
 
     An instant counts as the day it falls on in the user's own time zone.
@@ -75,7 +75,7 @@ def require_not_future(user_id: int, when: date | datetime | None, db: Session, 
 def commit_write[ModelT: health_record_crud.Row, ReadT: BaseModel, ResultT](
     spec: health_record_crud.RecordSpec[ModelT, ReadT],
     record_id: uuid.UUID,
-    user_id: int,
+    user_id: uuid.UUID,
     write: Callable[[], ResultT],
     db: Session,
     *,
@@ -108,7 +108,7 @@ def commit_write[ModelT: health_record_crud.Row, ReadT: BaseModel, ResultT](
 
 
 def get_record[ModelT: health_record_crud.Row, ReadT: BaseModel](
-    spec: health_record_crud.RecordSpec[ModelT, ReadT], record_id: uuid.UUID, user_id: int, db: Session
+    spec: health_record_crud.RecordSpec[ModelT, ReadT], record_id: uuid.UUID, user_id: uuid.UUID, db: Session
 ) -> ReadT:
     """Return one of a user's records.
 
@@ -129,7 +129,7 @@ def get_record[ModelT: health_record_crud.Row, ReadT: BaseModel](
 
 
 def chart_window(
-    user_id: int, interval: health_constants.Interval, date_range: core_date_range.DateRange, db: Session
+    user_id: uuid.UUID, interval: health_constants.Interval, date_range: core_date_range.DateRange, db: Session
 ) -> tuple[date, date | None]:
     """Resolve the first and last day a chart covers.
 
@@ -150,7 +150,7 @@ def chart_window(
 
 
 def chart(
-    user_id: int,
+    user_id: uuid.UUID,
     interval: health_constants.Interval,
     date_range: core_date_range.DateRange,
     fetch: Callable[[date, date | None, health_constants.ChartBucket], list[health_schema.HealthChartPoint]],
@@ -176,7 +176,7 @@ def chart(
 
 
 def list_page[RecordT](
-    user_id: int,
+    user_id: uuid.UUID,
     interval: health_constants.Interval | None,
     date_range: core_date_range.DateRange,
     page_number: int,
@@ -208,7 +208,7 @@ def list_page[RecordT](
 
 
 def upsert_dated[RecordT: _DatedRecord, CreateT: _DatedInput, UpdateT: BaseModel](
-    user_id: int,
+    user_id: uuid.UUID,
     record: CreateT,
     to_update: type[UpdateT],
     find: Callable[[str], RecordT | None],
@@ -270,8 +270,8 @@ def in_current_names(row: dict[str, Any], renamed: Mapping[str, str]) -> dict[st
 def restore_archived_records[CreateT: BaseModel](
     records: list[dict[str, Any]],
     schema: type[CreateT],
-    stage: Callable[[int, CreateT, Session], bool | BaseModel],
-    user_id: int,
+    stage: Callable[[uuid.UUID, CreateT, Session], bool | BaseModel],
+    user_id: uuid.UUID,
     db: Session,
     *,
     kind: str,

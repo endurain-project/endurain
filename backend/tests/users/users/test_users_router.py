@@ -22,6 +22,7 @@ import modules.users.users.schema as users_schema
 _SERVICE = "modules.users.users.router.users_service"
 _PHOTO = "modules.users.users.router.users_photo_service"
 _STEP_UP_STORE = MagicMock()
+_U1, _U4, _U9, _U42 = (uuid.UUID(int=n) for n in (1, 4, 9, 42))
 _IDP_ID = uuid.UUID(int=2)
 _STEP_UP = {"current_password": "admin-password"}
 
@@ -39,7 +40,7 @@ def _app_client(mock_db, scopes: frozenset[str]) -> TestClient:
     app.add_api_route("/jobs/{job_id}", lambda job_id: None, name="read_job")
     core_exceptions.register_exception_handlers(app)
     app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
-    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: 9
+    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: _U9
     app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = lambda: "sid-9"
     app.dependency_overrides[auth_dependencies.get_step_up_attempts] = lambda: _STEP_UP_STORE
     app.dependency_overrides[auth_dependencies.get_current_scopes] = lambda: scopes
@@ -61,12 +62,12 @@ def regular_client(mock_db):
     return _app_client(mock_db, frozenset({"users:read"}))
 
 
-def _user(user_id: int, **overrides) -> users_schema.UserRead:
+def _user(user_id: uuid.UUID, **overrides) -> users_schema.UserRead:
     fields = {
         "id": user_id,
-        "name": f"User {user_id}",
-        "username": f"user{user_id}",
-        "email": f"user{user_id}@example.com",
+        "name": f"User {user_id.int}",
+        "username": f"user{user_id.int}",
+        "email": f"user{user_id.int}@example.com",
         "active": True,
         "access_type": "regular",
     }
@@ -84,7 +85,7 @@ class TestReadUsers:
 
     @patch(f"{_SERVICE}.list_users")
     def test_list_passes_the_query_through(self, mock_list, client, mock_db, page_size_setting):
-        mock_list.return_value = core_pagination.Page(items=[_user(1, name="Alice")], total=1, page=1, num_records=10)
+        mock_list.return_value = core_pagination.Page(items=[_user(_U1, name="Alice")], total=1, page=1, num_records=10)
 
         response = client.get(
             "/users?page_number=1&num_records=10&external_auth=false&active=true&email_verified=false"
@@ -121,7 +122,7 @@ class TestReadUsers:
 
     @patch(f"{_SERVICE}.list_users")
     def test_an_exact_username_keeps_accepting_short_names(self, mock_list, client, page_size_setting):
-        mock_list.return_value = core_pagination.Page(items=[_user(1)], total=1, page=1, num_records=20)
+        mock_list.return_value = core_pagination.Page(items=[_user(_U1)], total=1, page=1, num_records=20)
 
         assert client.get("/users?username=ab").status_code == 200
         assert mock_list.call_args.kwargs["username"] == "ab"
@@ -130,8 +131,8 @@ class TestReadUsers:
     def test_a_regular_token_gets_the_public_projection(self, mock_search, regular_client, page_size_setting):
         mock_search.return_value = users_schema.UserPublicPage.build(
             [
-                users_schema.UserPublicRead(id=1, name="A", username="testuser1"),
-                users_schema.UserPublicRead(id=2, name="B", username="testuser2"),
+                users_schema.UserPublicRead(id=_U1, name="A", username="testuser1"),
+                users_schema.UserPublicRead(id=uuid.UUID(int=2), name="B", username="testuser2"),
             ],
             2,
             1,
@@ -168,7 +169,7 @@ class TestReadUsers:
 
     @patch(f"{_SERVICE}.list_users")
     def test_an_administrator_lists_every_user_without_a_filter(self, mock_list, client, page_size_setting):
-        mock_list.return_value = core_pagination.Page(items=[_user(1)], total=1, page=1, num_records=20)
+        mock_list.return_value = core_pagination.Page(items=[_user(_U1)], total=1, page=1, num_records=20)
 
         assert client.get("/users").status_code == 200
 
@@ -203,9 +204,9 @@ class TestReadUsers:
 
     @patch(f"{_SERVICE}.require_user_with_pending_email")
     def test_an_admin_reads_the_full_record_with_its_version(self, mock_get, client):
-        mock_get.return_value = _user(42, name="ID User", version=7)
+        mock_get.return_value = _user(_U42, name="ID User", version=7)
 
-        response = client.get("/users/42")
+        response = client.get(f"/users/{_U42}")
 
         assert response.status_code == 200
         assert response.json()["email"] == "user42@example.com"
@@ -213,34 +214,41 @@ class TestReadUsers:
 
     @patch(f"{_SERVICE}.require_user_with_pending_email")
     def test_a_read_carries_mfa_enabled(self, mock_get, client):
-        mock_get.return_value = _user(42, mfa_enabled=True)
+        mock_get.return_value = _user(_U42, mfa_enabled=True)
 
-        assert client.get("/users/42").json()["mfa_enabled"] is True
+        assert client.get(f"/users/{_U42}").json()["mfa_enabled"] is True
 
     @patch(f"{_SERVICE}.require_user_with_pending_email")
     def test_a_read_carries_pending_admin_approval(self, mock_get, client):
-        mock_get.return_value = _user(42, pending_admin_approval=True)
+        mock_get.return_value = _user(_U42, pending_admin_approval=True)
 
-        assert client.get("/users/42").json()["pending_admin_approval"] is True
+        assert client.get(f"/users/{_U42}").json()["pending_admin_approval"] is True
 
     @patch(f"{_SERVICE}.get_public_profile")
     def test_a_regular_token_reads_the_public_projection(self, mock_get, regular_client):
-        mock_get.return_value = users_schema.UserPublicRead(id=42, name="ID User", username="u42")
+        mock_get.return_value = users_schema.UserPublicRead(id=_U42, name="ID User", username="u42")
 
-        response = regular_client.get("/users/42")
+        response = regular_client.get(f"/users/{_U42}")
 
         assert response.status_code == 200
-        assert response.json() == {"id": 42, "name": "ID User", "username": "u42", "city": None, "photo_path": None}
+        assert response.json() == {
+            "id": str(_U42),
+            "name": "ID User",
+            "username": "u42",
+            "city": None,
+            "photo_path": None,
+        }
         assert "ETag" not in response.headers
 
     @patch(f"{_SERVICE}.get_public_profile")
     def test_a_regular_token_reading_an_unknown_user_is_404(self, mock_get, regular_client):
         mock_get.side_effect = core_exceptions.NotFoundError("User not found")
 
-        assert regular_client.get("/users/42").status_code == 404
+        assert regular_client.get(f"/users/{_U42}").status_code == 404
 
-    def test_id_must_be_positive(self, client):
+    def test_a_malformed_id_is_422(self, client):
         assert client.get("/users/0").status_code == 422
+        assert client.get("/users/not-a-uuid").status_code == 422
 
 
 class TestCreateUser:
@@ -282,7 +290,7 @@ class TestCreateUser:
 
     @patch(f"{_SERVICE}.create_user")
     def test_creates_through_the_service(self, mock_create, client, mock_db):
-        mock_create.return_value = _user(1, name="New User", username="newuser", email="new@example.com")
+        mock_create.return_value = _user(_U1, name="New User", username="newuser", email="new@example.com")
 
         response = client.post(
             "/users",
@@ -298,13 +306,13 @@ class TestCreateUser:
 
         assert response.status_code == 201
         assert response.json()["username"] == "newuser"
-        assert response.headers["Location"] == "/users/1"
+        assert response.headers["Location"] == f"/users/{_U1}"
         assert response.headers["ETag"] == '"1"'
-        assert mock_create.call_args.args[1:] == (None, 9, "sid-9", _STEP_UP_STORE, mock_db)
+        assert mock_create.call_args.args[1:] == (None, _U9, "sid-9", _STEP_UP_STORE, mock_db)
 
     @patch(f"{_SERVICE}.create_user")
     def test_the_step_up_travels_apart_from_the_user_fields(self, mock_create, client):
-        mock_create.return_value = _user(1, access_type="admin")
+        mock_create.return_value = _user(_U1, access_type="admin")
 
         response = client.post(
             "/users",
@@ -368,12 +376,12 @@ class TestUploadUserImage:
     @patch(f"{_PHOTO}.upload_photo")
     def test_returns_the_resolved_photo_url(self, mock_upload, mock_get, replaced, status_code, client):
         mock_upload.return_value = replaced
-        mock_get.return_value = _user(1, photo_path="/users/1/photo?t=x")
+        mock_get.return_value = _user(_U1, photo_path=f"/users/{_U1}/photo?t=x")
 
-        response = client.put("/users/1/photo", files={"file": ("avatar.jpg", b"fake-image-data", "image/jpeg")})
+        response = client.put(f"/users/{_U1}/photo", files={"file": ("avatar.jpg", b"fake-image-data", "image/jpeg")})
 
         assert response.status_code == status_code
-        assert response.json() == {"photo_path": "/users/1/photo?t=x"}
+        assert response.json() == {"photo_path": f"/users/{_U1}/photo?t=x"}
         mock_upload.assert_called_once()
         assert mock_upload.call_args.kwargs == {"audit": True}
 
@@ -382,7 +390,7 @@ class TestEditUserNeedsIfMatch:
     @patch(f"{_SERVICE}.edit_user")
     def test_an_edit_without_if_match_is_428(self, mock_edit, client):
         response = client.patch(
-            "/users/1",
+            f"/users/{_U1}",
             json={"name": "U", "username": "u", "email": "u@example.com", "active": True, "access_type": "regular"},
         )
 
@@ -396,7 +404,7 @@ class TestEditUser:
         mock_edit.side_effect = core_exceptions.LastAdministratorError("The only administrator cannot be demoted")
 
         response = client.patch(
-            "/users/1",
+            f"/users/{_U1}",
             json={"name": "U", "username": "u", "email": "u@example.com", "active": True, "access_type": "regular"},
             headers={"If-Match": '"1"'},
         )
@@ -406,11 +414,11 @@ class TestEditUser:
 
     @pytest.mark.parametrize(
         "read_only",
-        [{"id": 1}, {"external_auth_count": 2}, {"mfa_enabled": True}, {"pending_admin_approval": True}],
+        [{"id": str(_U1)}, {"external_auth_count": 2}, {"mfa_enabled": True}, {"pending_admin_approval": True}],
     )
     def test_a_read_only_field_is_not_accepted_in_the_body(self, read_only, client):
         response = client.patch(
-            "/users/1",
+            f"/users/{_U1}",
             json={"name": "U", "username": "u", "email": "u@example.com", "active": True, "access_type": "regular"}
             | read_only,
             headers={"If-Match": '"1"'},
@@ -420,10 +428,10 @@ class TestEditUser:
 
     @patch(f"{_SERVICE}.edit_user")
     def test_returns_the_edited_user(self, mock_edit, client, mock_db):
-        mock_edit.return_value = _user(1, name="Updated User", external_auth_count=2)
+        mock_edit.return_value = _user(_U1, name="Updated User", external_auth_count=2)
 
         response = client.patch(
-            "/users/1",
+            f"/users/{_U1}",
             json={
                 "name": "Updated User",
                 "username": "updated",
@@ -436,15 +444,15 @@ class TestEditUser:
 
         assert response.status_code == 200
         assert response.json()["external_auth_count"] == 2
-        assert mock_edit.call_args.args[0] == 1
-        assert mock_edit.call_args.args[2:] == (None, 9, "sid-9", _STEP_UP_STORE, mock_db)
+        assert mock_edit.call_args.args[0] == _U1
+        assert mock_edit.call_args.args[2:] == (None, _U9, "sid-9", _STEP_UP_STORE, mock_db)
 
     @patch(f"{_SERVICE}.edit_user")
     def test_the_step_up_travels_apart_from_the_user_fields(self, mock_edit, client):
-        mock_edit.return_value = _user(1)
+        mock_edit.return_value = _user(_U1)
 
         response = client.patch(
-            "/users/1",
+            f"/users/{_U1}",
             json={
                 "name": "Updated User",
                 "username": "updated",
@@ -466,17 +474,17 @@ class TestEditUser:
 class TestApproveUser:
     @patch(f"{_SERVICE}.approve_user")
     def test_approves_with_the_notice_in_the_same_unit_of_work(self, mock_approve, client, mock_db):
-        response = client.post("/users/1/approve")
+        response = client.post(f"/users/{_U1}/approve")
 
         assert response.status_code == 204
         assert response.content == b""
-        mock_approve.assert_called_once_with(1, mock_db)
+        mock_approve.assert_called_once_with(_U1, mock_db)
 
     @patch(f"{_SERVICE}.approve_user")
     def test_unverified_email_is_refused(self, mock_approve, client):
         mock_approve.side_effect = core_exceptions.ConflictError("User email is not verified")
 
-        response = client.post("/users/1/approve")
+        response = client.post(f"/users/{_U1}/approve")
 
         assert response.status_code == 409
         assert response.json()["type"] == "urn:endurain:error:conflict"
@@ -486,22 +494,22 @@ class TestEditUserPassword:
     @patch(f"{_SERVICE}.change_user_password")
     def test_changes_the_password_with_the_administrators_step_up(self, change_password, client, mock_db):
         response = client.post(
-            "/users/1/password/change",
+            f"/users/{_U1}/password/change",
             json={"password": "newpassword123", "step_up": {"current_password": "admin-password"}},
         )
 
         assert response.status_code == 204
         assert response.content == b""
         args = change_password.call_args.args
-        assert args[0] == 1
+        assert args[0] == _U1
         assert (args[1].password, args[1].step_up.current_password) == ("newpassword123", "admin-password")
-        assert args[2:] == (9, "sid-9", _STEP_UP_STORE, mock_db)
+        assert args[2:] == (_U9, "sid-9", _STEP_UP_STORE, mock_db)
 
     @patch(f"{_SERVICE}.change_user_password")
     def test_a_refused_step_up_is_the_services_answer(self, change_password, client):
         change_password.side_effect = core_exceptions.PermissionDeniedError("wrong password")
 
-        response = client.post("/users/1/password/change", json={"password": "newpassword123", "step_up": {}})
+        response = client.post(f"/users/{_U1}/password/change", json={"password": "newpassword123", "step_up": {}})
 
         assert response.status_code == 403
 
@@ -510,8 +518,8 @@ class TestAdministratorCredentialActions:
     @pytest.mark.parametrize(
         ("path", "service_function"),
         [
-            ("/users/1/mfa/reset", "reset_user_mfa"),
-            ("/users/1/password/require-change", "require_user_password_change"),
+            (f"/users/{_U1}/mfa/reset", "reset_user_mfa"),
+            (f"/users/{_U1}/password/require-change", "require_user_password_change"),
         ],
     )
     def test_runs_with_the_administrators_step_up(self, path, service_function, client, mock_db):
@@ -521,16 +529,21 @@ class TestAdministratorCredentialActions:
         assert response.status_code == 204
         assert response.content == b""
         args = service.call_args.args
-        assert args[0] == 1
+        assert args[0] == _U1
         assert args[1].step_up.current_password == "admin-password"
-        assert args[2:] == (9, "sid-9", _STEP_UP_STORE, mock_db)
+        assert args[2:] == (_U9, "sid-9", _STEP_UP_STORE, mock_db)
 
     @pytest.mark.parametrize(
         ("path", "service_function", "error", "status_code"),
         [
-            ("/users/1/mfa/reset", "reset_user_mfa", core_exceptions.PermissionDeniedError("no"), 403),
-            ("/users/1/mfa/reset", "reset_user_mfa", core_exceptions.ConflictError("off"), 409),
-            ("/users/1/password/require-change", "require_user_password_change", core_exceptions.ConflictError(), 409),
+            (f"/users/{_U1}/mfa/reset", "reset_user_mfa", core_exceptions.PermissionDeniedError("no"), 403),
+            (f"/users/{_U1}/mfa/reset", "reset_user_mfa", core_exceptions.ConflictError("off"), 409),
+            (
+                f"/users/{_U1}/password/require-change",
+                "require_user_password_change",
+                core_exceptions.ConflictError(),
+                409,
+            ),
         ],
     )
     def test_a_refusal_is_the_services_answer(self, path, service_function, error, status_code, client):
@@ -539,7 +552,7 @@ class TestAdministratorCredentialActions:
 
         assert response.status_code == status_code
 
-    @pytest.mark.parametrize("path", ["/users/1/mfa/reset", "/users/1/password/require-change"])
+    @pytest.mark.parametrize("path", [f"/users/{_U1}/mfa/reset", f"/users/{_U1}/password/require-change"])
     def test_a_body_without_the_step_up_is_422(self, path, client):
         assert client.post(path, json={}).status_code == 422
 
@@ -547,10 +560,10 @@ class TestAdministratorCredentialActions:
 class TestDeleteUserPhoto:
     @patch(f"{_PHOTO}.delete_photo")
     def test_success(self, mock_delete, client, mock_db):
-        response = client.delete("/users/1/photo")
+        response = client.delete(f"/users/{_U1}/photo")
 
         assert response.status_code == 204
-        assert mock_delete.call_args.args[0] == 1
+        assert mock_delete.call_args.args[0] == _U1
         assert mock_delete.call_args.args[2] == mock_db
         assert mock_delete.call_args.kwargs == {"audit": True}
 
@@ -562,7 +575,7 @@ class TestDeleteUser:
             id="job-1", kind="user_deletion", created_at=datetime(2026, 1, 1, tzinfo=UTC), status="queued"
         )
 
-        response = client.post("/users/1/delete", json={"step_up": _STEP_UP}, headers={"If-Match": '"3"'})
+        response = client.post(f"/users/{_U1}/delete", json={"step_up": _STEP_UP}, headers={"If-Match": '"3"'})
 
         assert response.status_code == 202
         assert response.headers["Content-Location"] == "/jobs/job-1"
@@ -575,7 +588,7 @@ class TestDeleteUser:
             "status": "queued",
         }
         args = mock_request.call_args.args
-        assert args[:3] == (1, 9, "sid-9")
+        assert args[:3] == (_U1, _U9, "sid-9")
         assert args[3] == auth_schema.StepUpVerification(current_password="admin-password")
         assert args[4] is _STEP_UP_STORE
         assert args[5] is not None
@@ -584,7 +597,7 @@ class TestDeleteUser:
 
     @patch("modules.users.users.router.users_deletion_job_service.request_deletion_by_administrator")
     def test_without_if_match_is_428(self, mock_request, client):
-        assert client.post("/users/1/delete", json={"step_up": _STEP_UP}).status_code == 428
+        assert client.post(f"/users/{_U1}/delete", json={"step_up": _STEP_UP}).status_code == 428
         mock_request.assert_not_called()
 
     @patch("modules.users.users.router.users_deletion_job_service.request_deletion_by_administrator")
@@ -592,7 +605,8 @@ class TestDeleteUser:
         mock_request.side_effect = core_exceptions.PreconditionFailedError("stale")
 
         assert (
-            client.post("/users/1/delete", json={"step_up": _STEP_UP}, headers={"If-Match": '"1"'}).status_code == 412
+            client.post(f"/users/{_U1}/delete", json={"step_up": _STEP_UP}, headers={"If-Match": '"1"'}).status_code
+            == 412
         )
 
     @patch("modules.users.users.router.users_deletion_job_service.request_deletion_by_administrator")
@@ -600,30 +614,31 @@ class TestDeleteUser:
         mock_request.side_effect = core_exceptions.NotFoundError("User not found")
 
         assert (
-            client.post("/users/1/delete", json={"step_up": _STEP_UP}, headers={"If-Match": '"1"'}).status_code == 404
+            client.post(f"/users/{_U1}/delete", json={"step_up": _STEP_UP}, headers={"If-Match": '"1"'}).status_code
+            == 404
         )
 
     @patch("modules.users.users.router.users_deletion_job_service.request_deletion_by_administrator")
     def test_the_only_administrator_is_refused(self, mock_request, client):
         mock_request.side_effect = core_exceptions.LastAdministratorError("The only administrator cannot be deleted")
 
-        response = client.post("/users/1/delete", json={"step_up": _STEP_UP}, headers={"If-Match": '"1"'})
+        response = client.post(f"/users/{_U1}/delete", json={"step_up": _STEP_UP}, headers={"If-Match": '"1"'})
 
         assert response.status_code == 409
         assert response.json()["type"] == "urn:endurain:error:last-administrator"
 
     def test_the_delete_verb_is_gone(self, client):
-        assert client.delete("/users/1", headers={"If-Match": '"1"'}).status_code == 405
+        assert client.delete(f"/users/{_U1}", headers={"If-Match": '"1"'}).status_code == 405
 
     @patch("modules.users.users.router.users_deletion_job_service.request_deletion_by_administrator")
     def test_a_refused_step_up_queues_nothing(self, mock_request, client):
         mock_request.side_effect = core_exceptions.PermissionDeniedError("wrong password")
 
-        assert client.post("/users/1/delete", json={"step_up": {}}, headers={"If-Match": '"1"'}).status_code == 403
+        assert client.post(f"/users/{_U1}/delete", json={"step_up": {}}, headers={"If-Match": '"1"'}).status_code == 403
 
     @patch("modules.users.users.router.users_deletion_job_service.request_deletion_by_administrator")
     def test_a_body_with_an_unknown_field_is_422(self, mock_request, client):
-        response = client.post("/users/1/delete", json={"extra": 1}, headers={"If-Match": '"1"'})
+        response = client.post(f"/users/{_U1}/delete", json={"extra": 1}, headers={"If-Match": '"1"'})
 
         assert response.status_code == 422
         mock_request.assert_not_called()
@@ -632,14 +647,14 @@ class TestDeleteUser:
 class TestUnlinkUserIdentityProvider:
     @patch(f"{_SERVICE}.unlink_identity_provider")
     def test_unlinks_with_the_administrators_step_up(self, unlink, client, mock_db):
-        response = client.post(f"/users/4/identity-providers/{_IDP_ID}/unlink", json={"step_up": _STEP_UP})
+        response = client.post(f"/users/{_U4}/identity-providers/{_IDP_ID}/unlink", json={"step_up": _STEP_UP})
 
         assert response.status_code == 204
         assert response.content == b""
         unlink.assert_called_once_with(
-            4,
+            _U4,
             _IDP_ID,
-            9,
+            _U9,
             "sid-9",
             auth_schema.StepUpVerification(current_password="admin-password"),
             _STEP_UP_STORE,
@@ -648,24 +663,24 @@ class TestUnlinkUserIdentityProvider:
 
     @patch(f"{_SERVICE}.unlink_identity_provider")
     def test_a_malformed_provider_id_is_422(self, unlink, client):
-        response = client.post("/users/4/identity-providers/2/unlink", json={"step_up": _STEP_UP})
+        response = client.post(f"/users/{_U4}/identity-providers/2/unlink", json={"step_up": _STEP_UP})
 
         assert response.status_code == 422
         unlink.assert_not_called()
 
     def test_the_delete_verb_is_gone(self, client):
-        assert client.delete(f"/users/4/identity-providers/{_IDP_ID}").status_code in (404, 405)
+        assert client.delete(f"/users/{_U4}/identity-providers/{_IDP_ID}").status_code in (404, 405)
 
     @patch(f"{_SERVICE}.unlink_identity_provider")
     def test_a_refused_step_up_is_the_services_answer(self, unlink, client):
         unlink.side_effect = core_exceptions.PermissionDeniedError("wrong password")
 
-        assert client.post(f"/users/4/identity-providers/{_IDP_ID}/unlink", json={"step_up": {}}).status_code == 403
+        assert client.post(f"/users/{_U4}/identity-providers/{_IDP_ID}/unlink", json={"step_up": {}}).status_code == 403
 
 
 class TestDeletionStatusRouteIsGone:
     def test_the_status_read_moved_to_the_jobs_route(self, client):
-        assert client.get("/users/1/deletion").status_code in (404, 405)
+        assert client.get(f"/users/{_U1}/deletion").status_code in (404, 405)
 
 
 class TestReadUserIdentityProviders:
@@ -673,11 +688,11 @@ class TestReadUserIdentityProviders:
     def test_returns_the_page_for_the_requested_window(self, mock_links, client, mock_db):
         mock_links.return_value = {"items": [], "total": 3, "page": 2, "num_records": 1, "next": 3}
 
-        response = client.get("/users/4/identity-providers", params={"page_number": 2, "num_records": 1})
+        response = client.get(f"/users/{_U4}/identity-providers", params={"page_number": 2, "num_records": 1})
 
         assert response.status_code == 200
         assert response.json() == {"items": [], "total": 3, "page": 2, "num_records": 1, "next": 3}
-        mock_links.assert_called_once_with(4, core_pagination.PageParams(2, 1), mock_db)
+        mock_links.assert_called_once_with(_U4, core_pagination.PageParams(2, 1), mock_db)
 
 
 class TestLookupParametersAreBounded:
@@ -745,7 +760,7 @@ class TestReadScopeEnforcement:
     @pytest.mark.parametrize(
         "path",
         [
-            "/users/1/identity-providers",
+            f"/users/{_U1}/identity-providers",
         ],
     )
     def test_regular_token_cannot_read_full_records(self, path):
@@ -758,7 +773,7 @@ class TestReadScopeEnforcement:
         ("path", "target"),
         [
             ("/users", "list_users"),
-            ("/users/1", "require_user_with_pending_email"),
+            (f"/users/{_U1}", "require_user_with_pending_email"),
         ],
     )
     def test_admin_token_passes_the_scope_check(self, path, target):
@@ -774,9 +789,9 @@ class TestReadScopeEnforcement:
 
     @patch(f"{_SERVICE}.get_public_profile")
     def test_regular_token_reads_only_the_public_projection(self, mock_get):
-        mock_get.return_value = users_schema.UserPublicRead(id=4, name="Dee", username="dee")
+        mock_get.return_value = users_schema.UserPublicRead(id=_U4, name="Dee", username="dee")
 
-        response = self._client(auth_constants.REGULAR_ACCESS_SCOPE).get("/users/4")
+        response = self._client(auth_constants.REGULAR_ACCESS_SCOPE).get(f"/users/{_U4}")
 
         assert response.status_code == 200
         assert set(response.json()) == {"id", "name", "username", "city", "photo_path"}
@@ -784,7 +799,7 @@ class TestReadScopeEnforcement:
     @patch(f"{_SERVICE}.list_public_users")
     def test_regular_token_lists_only_public_projections(self, mock_list):
         mock_list.return_value = users_schema.UserPublicPage.build(
-            [users_schema.UserPublicRead(id=4, name="Dee", username="dee")], 1, 1, 25
+            [users_schema.UserPublicRead(id=_U4, name="Dee", username="dee")], 1, 1, 25
         )
         with patch("modules.users.users.dependencies.server_settings_integration.get_server_settings") as settings:
             settings.return_value = MagicMock(num_records_per_page=25)
@@ -798,11 +813,11 @@ class TestReadSendsTheETag:
     @pytest.mark.parametrize(
         ("path", "service"),
         [
-            ("/users/42", "require_user_with_pending_email"),
+            (f"/users/{_U42}", "require_user_with_pending_email"),
         ],
     )
     def test_a_full_record_carries_its_version(self, path, service, client):
-        with patch(f"{_SERVICE}.{service}", return_value=_user(42, version=7)):
+        with patch(f"{_SERVICE}.{service}", return_value=_user(_U42, version=7)):
             response = client.get(path)
 
         assert response.headers["ETag"] == '"7"'

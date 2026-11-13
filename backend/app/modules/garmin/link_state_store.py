@@ -15,6 +15,8 @@ Interface::
     read_job(job)                  - read the state of the job a reference names
 """
 
+import uuid
+
 from jasil.providers import StateProvider
 from pydantic import BaseModel, model_validator
 
@@ -76,7 +78,7 @@ class GarminLinkStateStore:
             state, "garmin", "link", ttl_seconds, announce=websocket_integration.announce_job
         )
 
-    def begin(self, user_id: int, *, conflict: str) -> core_job_status.JobRef:
+    def begin(self, user_id: uuid.UUID, *, conflict: str) -> core_job_status.JobRef:
         """Start a link attempt as a job unless one is still running.
 
         A finished attempt releases the claim, so the user can retry straight after a failure.
@@ -100,7 +102,7 @@ class GarminLinkStateStore:
             conflict=conflict,
         )
 
-    def release(self, user_id: int) -> None:
+    def release(self, user_id: uuid.UUID) -> None:
         """Abandon an attempt that never got to run, so the user can retry at once.
 
         Args:
@@ -110,7 +112,7 @@ class GarminLinkStateStore:
 
     def set_status(
         self,
-        user_id: int,
+        user_id: uuid.UUID,
         status: core_job_status.JobState,
         error_code: garmin_constants.LinkFailure | None = None,
         *,
@@ -130,7 +132,7 @@ class GarminLinkStateStore:
             finished=status in _FINISHED,
         )
 
-    def get(self, user_id: int) -> LinkState | None:
+    def get(self, user_id: uuid.UUID) -> LinkState | None:
         """Read a user's link attempt state.
 
         Args:
@@ -145,7 +147,7 @@ class GarminLinkStateStore:
         value = self._attempts.read(str(user_id))
         return LinkState.model_validate_json(value) if value is not None else None
 
-    def current_job(self, user_id: int) -> core_job_status.JobRef | None:
+    def current_job(self, user_id: uuid.UUID) -> core_job_status.JobRef | None:
         """Read the job of a user's current link attempt.
 
         Args:

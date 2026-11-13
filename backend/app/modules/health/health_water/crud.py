@@ -25,7 +25,7 @@ SPEC = health_record_crud.RecordSpec(
 
 
 def get_health_water_number_by_user_id(
-    user_id: int, db: Session, since: date_type | None = None, until: date_type | None = None
+    user_id: uuid.UUID, db: Session, since: date_type | None = None, until: date_type | None = None
 ) -> int:
     """Count a user's water intake records.
 
@@ -42,7 +42,7 @@ def get_health_water_number_by_user_id(
 
 
 def get_health_water_by_user_id(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     page_number: int | None = None,
     num_records: int | None = None,
@@ -76,7 +76,7 @@ def get_health_water_by_user_id(
 
 
 def get_health_water_by_date_and_user_id(
-    user_id: int, date: str, db: Session
+    user_id: uuid.UUID, date: str, db: Session
 ) -> health_water_schema.HealthWaterRead | None:
     """Retrieve a user's water intake record for a date.
 
@@ -92,7 +92,7 @@ def get_health_water_by_date_and_user_id(
 
 
 def create_health_water(
-    user_id: int, health_water: health_water_schema.HealthWaterCreate, db: Session
+    user_id: uuid.UUID, health_water: health_water_schema.HealthWaterCreate, db: Session
 ) -> health_water_schema.HealthWaterRead:
     """Stage a new water intake record for a user.
 
@@ -113,7 +113,7 @@ def create_health_water(
 
 
 def edit_health_water(
-    user_id: int,
+    user_id: uuid.UUID,
     health_water_id: uuid.UUID,
     health_water: health_water_schema.HealthWaterUpdate,
     db: Session,
@@ -148,7 +148,7 @@ def edit_health_water(
     )
 
 
-def delete_health_water(user_id: int, health_water_id: uuid.UUID, db: Session, *, if_match: str) -> None:
+def delete_health_water(user_id: uuid.UUID, health_water_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Stage the deletion of a user's water intake record.
 
     Args:
@@ -165,7 +165,7 @@ def delete_health_water(user_id: int, health_water_id: uuid.UUID, db: Session, *
 
 
 def get_health_water_chart(
-    user_id: int, since: date_type, until: date_type | None, bucket: health_constants.ChartBucket, db: Session
+    user_id: uuid.UUID, since: date_type, until: date_type | None, bucket: health_constants.ChartBucket, db: Session
 ) -> list[health_schema.HealthChartPoint]:
     """Average a user's water intake per chart bucket.
 
@@ -195,7 +195,7 @@ def get_health_water_chart(
 
 
 def list_changed(
-    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[health_water_schema.HealthWaterRead]:
     """Retrieve a user's records changed after a position, oldest change first.
 

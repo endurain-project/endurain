@@ -9,17 +9,18 @@ from fastapi.security import SecurityScopes
 import core.exceptions as core_exceptions
 import modules.auth.dependencies as auth_dependencies
 from modules.auth.contracts import AccessTokenCred, Principal
+from tests._helpers.auth import MOCK_USER_ID
 
 
 def _principal(scopes: frozenset[str] = frozenset({"account"})) -> Principal:
     return Principal(
-        user_id=12,
+        user_id=MOCK_USER_ID,
         username="alice",
         email="alice@example.com",
         is_active=True,
         is_superuser=False,
         scopes=scopes,
-        credential=AccessTokenCred(session_id="sid-12"),
+        credential=AccessTokenCred(session_id="sid-1"),
     )
 
 
@@ -37,7 +38,7 @@ def test_resolver_caches_principal_for_request():
 
 
 def test_sid_dependency_returns_the_session_of_an_access_token():
-    assert auth_dependencies.get_sid_from_access_token(_principal()) == "sid-12"
+    assert auth_dependencies.get_sid_from_access_token(_principal()) == "sid-1"
 
 
 def test_scope_dependency_rejects_missing_scope():

@@ -1,6 +1,7 @@
 """The optional ``start_date`` / ``end_date`` window every health list and chart accepts beside ``interval``."""
 
 import importlib
+import uuid
 from datetime import date
 from unittest.mock import MagicMock, patch
 
@@ -24,6 +25,7 @@ import modules.health.health_weight.crud as health_weight_crud
 import modules.health.record_service as health_record_service
 import modules.health.schema as health_schema
 
+_USER_ID = uuid.uuid4()
 _HEADERS = {"Authorization": "Bearer mock_token"}
 _LOCAL_TODAY = "modules.users.users.integration_service.local_today"
 _RESOLVE_TIMEZONE = "modules.users.users.integration_service.resolve_timezone"
@@ -51,7 +53,7 @@ def _client(mock_db, route: str) -> tuple[TestClient, str]:
     core_exceptions.register_exception_handlers(app)
     app.include_router(router.router, prefix=f"/{package}")
     app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
-    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: 1
+    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: _USER_ID
     app.dependency_overrides[core_database.get_db] = lambda: mock_db
     return TestClient(app), f"modules.health.{package}.router.{package}_service"
 
@@ -163,7 +165,7 @@ class TestRecordService:
         fetch = MagicMock(return_value=[])
 
         health_record_service.list_page(
-            1, _INTERVAL.LAST_7_DAYS, _RANGE(date(2023, 1, 1), date(2023, 1, 31)), 1, 25, count, fetch, mock_db
+            _USER_ID, _INTERVAL.LAST_7_DAYS, _RANGE(date(2023, 1, 1), date(2023, 1, 31)), 1, 25, count, fetch, mock_db
         )
 
         count.assert_called_once_with(date(2023, 1, 1), date(2023, 1, 31))
@@ -174,7 +176,7 @@ class TestRecordService:
         fetch = MagicMock(return_value=[])
 
         health_record_service.chart(
-            1, _INTERVAL.LAST_7_DAYS, _RANGE(date(2023, 1, 1), date(2023, 1, 31)), fetch, mock_db
+            _USER_ID, _INTERVAL.LAST_7_DAYS, _RANGE(date(2023, 1, 1), date(2023, 1, 31)), fetch, mock_db
         )
 
         fetch.assert_called_once_with(date(2023, 1, 1), date(2023, 1, 31), _BUCKET.DAY)
@@ -183,7 +185,7 @@ class TestRecordService:
     def test_a_chart_with_only_an_end_opens_at_the_earliest_date(self, _today, mock_db):
         fetch = MagicMock(return_value=[])
 
-        health_record_service.chart(1, _INTERVAL.LAST_7_DAYS, _RANGE(None, date(2023, 1, 31)), fetch, mock_db)
+        health_record_service.chart(_USER_ID, _INTERVAL.LAST_7_DAYS, _RANGE(None, date(2023, 1, 31)), fetch, mock_db)
 
         fetch.assert_called_once_with(date.min, date(2023, 1, 31), _BUCKET.DAY)
 
@@ -192,7 +194,7 @@ class TestCrud:
     def test_a_count_is_bounded_on_both_sides(self, mock_db):
         mock_db.execute.return_value.scalar_one.return_value = 3
 
-        health_steps_crud.get_health_steps_number_by_user_id(1, mock_db, date(2024, 1, 5), date(2024, 2, 10))
+        health_steps_crud.get_health_steps_number_by_user_id(_USER_ID, mock_db, date(2024, 1, 5), date(2024, 2, 10))
 
         sql = _sql(mock_db)
         assert "health_steps.date >= '2024-01-05'" in sql
@@ -201,7 +203,9 @@ class TestCrud:
     def test_a_list_is_bounded_on_both_sides(self, mock_db):
         mock_db.execute.return_value.scalars.return_value.all.return_value = []
 
-        health_weight_crud.get_health_weight_by_user_id(1, mock_db, None, None, date(2024, 1, 5), date(2024, 2, 10))
+        health_weight_crud.get_health_weight_by_user_id(
+            _USER_ID, mock_db, None, None, date(2024, 1, 5), date(2024, 2, 10)
+        )
 
         sql = _sql(mock_db)
         assert "health_weight.date >= '2024-01-05'" in sql
@@ -210,14 +214,16 @@ class TestCrud:
     def test_an_open_end_adds_no_upper_bound(self, mock_db):
         mock_db.execute.return_value.scalar_one.return_value = 3
 
-        health_steps_crud.get_health_steps_number_by_user_id(1, mock_db, date(2024, 1, 5))
+        health_steps_crud.get_health_steps_number_by_user_id(_USER_ID, mock_db, date(2024, 1, 5))
 
         assert "<=" not in _sql(mock_db)
 
     def test_a_fasting_session_is_filed_under_the_day_it_started(self, mock_db):
         mock_db.execute.return_value.scalars.return_value.all.return_value = []
 
-        health_fasting_crud.get_health_fasting_by_user_id(1, mock_db, None, None, date(2024, 1, 5), date(2024, 2, 10))
+        health_fasting_crud.get_health_fasting_by_user_id(
+            _USER_ID, mock_db, None, None, date(2024, 1, 5), date(2024, 2, 10)
+        )
 
         sql = _sql(mock_db)
         assert "CAST(health_fasting.fast_start_time AS DATE) <= '2024-02-10'" in sql
@@ -226,7 +232,7 @@ class TestCrud:
         mock_db.execute.return_value.scalars.return_value.all.return_value = []
 
         health_poop_crud.get_health_poop_by_user_id(
-            1, mock_db, None, None, date(2024, 1, 5), date(2024, 2, 10), "Asia/Tokyo"
+            _USER_ID, mock_db, None, None, date(2024, 1, 5), date(2024, 2, 10), "Asia/Tokyo"
         )
 
         sql = _sql(mock_db)
@@ -236,7 +242,7 @@ class TestCrud:
     def test_a_chart_is_bounded_on_both_sides(self, mock_db):
         mock_db.execute.return_value.all.return_value = []
 
-        health_steps_crud.get_health_steps_chart(1, date(2024, 1, 5), date(2024, 2, 10), _BUCKET.DAY, mock_db)
+        health_steps_crud.get_health_steps_chart(_USER_ID, date(2024, 1, 5), date(2024, 2, 10), _BUCKET.DAY, mock_db)
 
         sql = _sql(mock_db)
         assert "health_steps.date >= '2024-01-05'" in sql
@@ -254,10 +260,10 @@ class TestPoopChart:
         mock_crud.return_value = []
 
         health_poop_service.get_health_poop_chart(
-            1, _INTERVAL.LAST_7_DAYS, mock_db, date_range=_RANGE(None, date(2024, 4, 1))
+            _USER_ID, _INTERVAL.LAST_7_DAYS, mock_db, date_range=_RANGE(None, date(2024, 4, 1))
         )
 
-        mock_crud.assert_called_once_with(1, date(2024, 2, 20), date(2024, 4, 1), _BUCKET.DAY, "UTC", mock_db)
+        mock_crud.assert_called_once_with(_USER_ID, date(2024, 2, 20), date(2024, 4, 1), _BUCKET.DAY, "UTC", mock_db)
 
     @patch(_RESOLVE_TIMEZONE, return_value="UTC")
     @patch(_LOCAL_TODAY, return_value=date(2024, 6, 12))
@@ -271,7 +277,7 @@ class TestPoopChart:
 
         # The window closes on Wed 2024-03-27, so the week of the 25th spans 3 of its days: 7 / 3.
         series = health_poop_service.get_health_poop_chart(
-            1, _INTERVAL.LAST_7_DAYS, mock_db, date_range=_RANGE(date(2024, 1, 1), date(2024, 3, 27))
+            _USER_ID, _INTERVAL.LAST_7_DAYS, mock_db, date_range=_RANGE(date(2024, 1, 1), date(2024, 3, 27))
         )
 
         assert [point.value for point in series.points] == [2.33]

@@ -7,6 +7,7 @@ the shared state (Redis), so any replica can accept it when the socket connects.
 # ruff: noqa: T201 - a process entry point: it extends sys.path before importing, and prints for its parent.
 
 import sys
+import uuid
 from datetime import UTC, datetime, timedelta
 
 sys.path.insert(0, ".")
@@ -25,7 +26,7 @@ import modules.users.users.models as users_models
 import modules.websocket.ticket_store as websocket_ticket_store
 from core.database import SessionLocal
 
-user_id = int(sys.argv[1])
+user_id = uuid.UUID(sys.argv[1])
 model_registry.import_all_models()
 substrate_settings = core_platform_settings.build_jasil_settings(
     core_config.settings, plain_areas=module_registry.storage_plain_areas()

@@ -7,6 +7,7 @@ import core.exceptions as core_exceptions
 import core.pagination as core_pagination
 import modules.users.users_goals.models as user_goals_models
 import modules.users.users_goals.schema as user_goals_schema
+from tests._helpers.auth import MOCK_USER_ID
 
 GOAL_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
 OTHER_ID = uuid.UUID("00000000-0000-4000-8000-000000000002")
@@ -23,7 +24,7 @@ class TestGetUserGoals:
         # Arrange
         mock_goal1 = MagicMock(spec=user_goals_models.UsersGoal)
         mock_goal1.id = GOAL_ID
-        mock_goal1.user_id = 1
+        mock_goal1.user_id = MOCK_USER_ID
         mock_goal1.version = 1
         mock_goal1.interval = "weekly"
         mock_goal1.activity_type = "run"
@@ -97,7 +98,7 @@ class TestGetUserGoalsResults:
         data = response.json()
         assert [item["goal_id"] for item in data["items"]] == [str(GOAL_ID)]
         assert (data["total"], data["page"], data["num_records"], data["next"]) == (3, 2, 1, 3)
-        assert mock_calculate.call_args.args[0] == 1
+        assert mock_calculate.call_args.args[0] == MOCK_USER_ID
         assert mock_calculate.call_args.args[1] == core_pagination.PageParams(2, 1)
 
     @patch("modules.users.users_goals.router.user_goals_progress_service.get_goals_progress")
@@ -135,7 +136,7 @@ class TestCreateUserGoal:
         # Arrange
         mock_created_goal = MagicMock(spec=user_goals_models.UsersGoal)
         mock_created_goal.id = GOAL_ID
-        mock_created_goal.user_id = 1
+        mock_created_goal.user_id = MOCK_USER_ID
         mock_created_goal.version = 1
         mock_created_goal.interval = "weekly"
         mock_created_goal.activity_type = "run"
@@ -206,7 +207,7 @@ class TestUpdateUserGoal:
         # Arrange
         mock_update.return_value = user_goals_schema.UserGoalRead(
             id=GOAL_ID,
-            user_id=1,
+            user_id=MOCK_USER_ID,
             interval=user_goals_schema.Interval.MONTHLY,
             activity_type=user_goals_schema.GoalActivityType.RUN,
             goal_type=user_goals_schema.GoalType.CALORIES,
@@ -347,7 +348,7 @@ class TestGetUserGoal:
     def test_returns_the_goal_with_its_etag(self, mock_get, fast_api_client, fast_api_app):
         mock_get.return_value = user_goals_schema.UserGoalRead(
             id=GOAL_ID,
-            user_id=1,
+            user_id=MOCK_USER_ID,
             version=2,
             interval="weekly",
             activity_type="run",
@@ -359,7 +360,7 @@ class TestGetUserGoal:
 
         assert response.status_code == 200
         assert response.headers["ETag"] == '"2"'
-        assert mock_get.call_args.args[:2] == (1, GOAL_ID)
+        assert mock_get.call_args.args[:2] == (MOCK_USER_ID, GOAL_ID)
 
     @patch("modules.users.users_goals.router.user_goals_service.get_goal")
     def test_a_goal_the_user_does_not_have_is_404(self, mock_get, fast_api_client, fast_api_app):

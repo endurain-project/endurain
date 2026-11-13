@@ -1,5 +1,6 @@
 """Operations exposed to authentication peers."""
 
+import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
@@ -31,13 +32,15 @@ def generate_api_key() -> str:
     return api_keys_utils.generate_api_key()
 
 
-def list_user_api_keys(user_id: int, page: core_pagination.PageParams, db: Session) -> api_keys_schema.UserApiKeyPage:
+def list_user_api_keys(
+    user_id: uuid.UUID, page: core_pagination.PageParams, db: Session
+) -> api_keys_schema.UserApiKeyPage:
     """Return one page of the API keys owned by a user."""
     return api_keys_service.list_user_api_keys(user_id, page, db)
 
 
 def create_api_key(
-    user_id: int,
+    user_id: uuid.UUID,
     data: api_keys_schema.UserApiKeyCreate,
     raw_key: str,
     expires_at: datetime,
@@ -55,21 +58,21 @@ def create_api_key(
     )
 
 
-def count_active_api_keys(user_id: int, db: Session) -> int:
+def count_active_api_keys(user_id: uuid.UUID, db: Session) -> int:
     """Return how many API keys a user holds that are not revoked and have not expired."""
     return api_keys_crud.count_active_api_keys(user_id, datetime.now(UTC), db)
 
 
-def revoke_api_key(api_key_id: str, user_id: int, db: Session) -> None:
+def revoke_api_key(api_key_id: str, user_id: uuid.UUID, db: Session) -> None:
     """Stage revocation of a user's API key."""
     api_keys_crud.revoke_api_key(api_key_id, user_id, db)
 
 
-def revoke_user_api_keys(user_id: int, db: Session) -> int:
+def revoke_user_api_keys(user_id: uuid.UUID, db: Session) -> int:
     """Stage revocation of every active API key a user owns and return how many were revoked."""
     return api_keys_crud.revoke_all_api_keys_for_user(user_id, db)
 
 
-def delete_api_key(api_key_id: str, user_id: int, db: Session) -> None:
+def delete_api_key(api_key_id: str, user_id: uuid.UUID, db: Session) -> None:
     """Stage deletion of a user's API key."""
     api_keys_crud.delete_api_key(api_key_id, user_id, db)

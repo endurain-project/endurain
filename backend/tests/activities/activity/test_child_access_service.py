@@ -7,6 +7,9 @@ lives; the four child CRUDs used to hold a copy each.
 import uuid
 from unittest.mock import MagicMock, patch
 
+_USER_1 = uuid.UUID(int=1)
+_USER_2 = uuid.UUID(int=2)
+
 _ACTIVITY_ID = uuid.uuid4()
 
 
@@ -18,25 +21,25 @@ class TestIsHiddenFrom:
 
         from modules.activities.activity import child_access_service
 
-        activity = SimpleNamespace(user_id=1, hide_laps=True)
+        activity = SimpleNamespace(user_id=_USER_1, hide_laps=True)
 
-        assert child_access_service.is_hidden_from(activity, 1, hide_attr="hide_laps") is False
+        assert child_access_service.is_hidden_from(activity, _USER_1, hide_attr="hide_laps") is False
 
     def test_a_non_owner_is_hidden_from_when_the_flag_is_set(self):
         from types import SimpleNamespace
 
         from modules.activities.activity import child_access_service
 
-        activity = SimpleNamespace(user_id=1, hide_laps=True)
+        activity = SimpleNamespace(user_id=_USER_1, hide_laps=True)
 
-        assert child_access_service.is_hidden_from(activity, 2, hide_attr="hide_laps") is True
+        assert child_access_service.is_hidden_from(activity, _USER_2, hide_attr="hide_laps") is True
 
     def test_an_anonymous_viewer_is_hidden_from_when_the_flag_is_set(self):
         from types import SimpleNamespace
 
         from modules.activities.activity import child_access_service
 
-        activity = SimpleNamespace(user_id=1, hide_laps=True)
+        activity = SimpleNamespace(user_id=_USER_1, hide_laps=True)
 
         assert child_access_service.is_hidden_from(activity, None, hide_attr="hide_laps") is True
 
@@ -45,9 +48,9 @@ class TestIsHiddenFrom:
 
         from modules.activities.activity import child_access_service
 
-        activity = SimpleNamespace(user_id=1, hide_laps=False)
+        activity = SimpleNamespace(user_id=_USER_1, hide_laps=False)
 
-        assert child_access_service.is_hidden_from(activity, 2, hide_attr="hide_laps") is False
+        assert child_access_service.is_hidden_from(activity, _USER_2, hide_attr="hide_laps") is False
         assert child_access_service.is_hidden_from(activity, None, hide_attr="hide_laps") is False
 
 
@@ -63,7 +66,7 @@ class TestResolveParents:
         activity = MagicMock()
         mock_crud.get_viewable_activity_by_id_for_user.return_value = activity
 
-        assert child_access_service.resolve_readable_parent(_ACTIVITY_ID, 1, db) is activity
+        assert child_access_service.resolve_readable_parent(_ACTIVITY_ID, _USER_1, db) is activity
 
     @patch("modules.activities.activity.child_access_service.followers_integration")
     @patch("modules.activities.activity.child_access_service.server_settings_integration")

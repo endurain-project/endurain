@@ -89,7 +89,7 @@ def _check_times(fast_start_time: datetime, fast_end_time: datetime | None, stat
 
 
 def _overlaps(
-    user_id: int,
+    user_id: uuid.UUID,
     fast_start_time: datetime,
     fast_end_time: datetime | None,
     status: str | None,
@@ -125,7 +125,7 @@ def _overlaps(
 
 
 def list_health_fasting(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -162,7 +162,7 @@ def list_health_fasting(
 
 
 def get_health_fasting(
-    user_id: int, health_fasting_id: uuid.UUID, db: Session
+    user_id: uuid.UUID, health_fasting_id: uuid.UUID, db: Session
 ) -> health_fasting_schema.HealthFastingRead:
     """Return one of a user's fasting records.
 
@@ -183,7 +183,7 @@ def get_health_fasting(
     return record
 
 
-def get_active_fasting(user_id: int, db: Session) -> health_fasting_schema.HealthFastingRead | None:
+def get_active_fasting(user_id: uuid.UUID, db: Session) -> health_fasting_schema.HealthFastingRead | None:
     """Return a user's in-progress fasting session, or ``None``.
 
     Args:
@@ -196,7 +196,7 @@ def get_active_fasting(user_id: int, db: Session) -> health_fasting_schema.Healt
     return health_fasting_crud.get_active_fasting_by_user_id(user_id, db)
 
 
-def get_fasting_stats(user_id: int, db: Session) -> health_fasting_schema.HealthFastingStatsResponse:
+def get_fasting_stats(user_id: uuid.UUID, db: Session) -> health_fasting_schema.HealthFastingStatsResponse:
     """Compute a user's fasting statistics.
 
     Args:
@@ -227,7 +227,7 @@ def get_fasting_stats(user_id: int, db: Session) -> health_fasting_schema.Health
 
 
 def create_health_fasting(
-    user_id: int, health_fasting: health_fasting_schema.HealthFastingCreate, db: Session
+    user_id: uuid.UUID, health_fasting: health_fasting_schema.HealthFastingCreate, db: Session
 ) -> health_fasting_schema.HealthFastingRead:
     """Start a fasting session and commit, unless the user already has one running.
 
@@ -268,7 +268,7 @@ def create_health_fasting(
 
 
 def stage_import_health_fasting(
-    user_id: int, health_fasting: health_fasting_schema.HealthFastingImport, db: Session
+    user_id: uuid.UUID, health_fasting: health_fasting_schema.HealthFastingImport, db: Session
 ) -> bool:
     """Stage an imported fasting session unless the user already has it.
 
@@ -304,7 +304,7 @@ def stage_import_health_fasting(
 
 
 def edit_health_fasting(
-    user_id: int,
+    user_id: uuid.UUID,
     health_fasting_id: uuid.UUID,
     health_fasting: health_fasting_schema.HealthFastingUpdate,
     db: Session,
@@ -362,7 +362,7 @@ def edit_health_fasting(
 
 
 def complete_health_fasting(
-    user_id: int,
+    user_id: uuid.UUID,
     health_fasting_id: uuid.UUID,
     complete_data: health_fasting_schema.HealthFastingComplete,
     db: Session,
@@ -417,7 +417,7 @@ def complete_health_fasting(
     return ended
 
 
-def delete_health_fasting(user_id: int, health_fasting_id: uuid.UUID, db: Session, *, if_match: str) -> None:
+def delete_health_fasting(user_id: uuid.UUID, health_fasting_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Delete a fasting record and commit.
 
     Args:
@@ -441,7 +441,7 @@ def delete_health_fasting(user_id: int, health_fasting_id: uuid.UUID, db: Sessio
 
 
 def restore_profile_records(
-    records: list[dict[str, Any]], user_id: int, ids: users_profile_contracts.ProfileIdMaps, db: Session
+    records: list[dict[str, Any]], user_id: uuid.UUID, ids: users_profile_contracts.ProfileIdMaps, db: Session
 ) -> int:
     """Stage the fasting records of a profile archive for a user.
 

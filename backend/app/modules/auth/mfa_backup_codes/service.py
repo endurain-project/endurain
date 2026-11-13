@@ -35,7 +35,7 @@ def generate_backup_code() -> str:
 
 
 def create_backup_codes(
-    user_id: int, password_hasher: credentials_contracts.SupportsHashPassword, db: Session
+    user_id: uuid.UUID, password_hasher: credentials_contracts.SupportsHashPassword, db: Session
 ) -> list[str]:
     """Generate and stage replacement backup codes for a user."""
     codes = [generate_backup_code() for _ in range(10)]
@@ -45,7 +45,7 @@ def create_backup_codes(
 
 
 def verify_and_consume_backup_code(
-    user_id: int,
+    user_id: uuid.UUID,
     code: str,
     password_verifier: credentials_contracts.SupportsVerifyPassword,
     db: Session,

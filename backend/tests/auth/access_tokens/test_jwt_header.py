@@ -1,5 +1,6 @@
 """The JOSE header names the kind of token and the key that signed it, and a key list lets the key rotate."""
 
+import uuid
 from datetime import timedelta
 
 import pytest
@@ -13,6 +14,8 @@ import modules.auth.access_tokens.service as auth_token_manager
 from modules.auth.constants import ClientType
 from modules.users.users.schema import UserAccessType, UserRead
 
+_USER_ID = uuid.UUID(int=1)
+
 _NEW = "new-secret-key-for-testing-only-min-32-chars"
 _OLD = "old-secret-key-for-testing-only-min-32-chars"
 _NEW_REFRESH = "new-refresh-key-for-testing-only-min-32-chars"
@@ -25,7 +28,7 @@ _REFRESH = auth_token_manager.TokenType.REFRESH
 @pytest.fixture
 def user() -> UserRead:
     return UserRead(
-        id=1,
+        id=_USER_ID,
         name="User",
         username="user",
         email="user@test.com",

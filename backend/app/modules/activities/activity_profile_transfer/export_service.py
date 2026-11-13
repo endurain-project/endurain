@@ -117,7 +117,9 @@ def _write_global_components(ctx: users_profile_contracts.ProfileExportContext) 
         ctx.counts[contributor.count_key] = len(records)
 
 
-def _get_activities_batch(user_id: int, offset: int, limit: int, db: Session) -> list[activity_schema.ActivityRead]:
+def _get_activities_batch(
+    user_id: uuid.UUID, offset: int, limit: int, db: Session
+) -> list[activity_schema.ActivityRead]:
     """Get batch of activities using pagination.
 
     Args:

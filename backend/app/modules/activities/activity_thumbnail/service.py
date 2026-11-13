@@ -190,7 +190,7 @@ def generate_and_store_thumbnail(
 
 def generate_thumbnail_for_activity(
     activity_id: uuid.UUID,
-    user_id: int,
+    user_id: uuid.UUID,
     storage: platform_providers.StorageProvider,
     db: Session,
 ) -> str | None:

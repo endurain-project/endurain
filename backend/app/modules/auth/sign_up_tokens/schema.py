@@ -1,5 +1,6 @@
 """Pydantic schemas for sign-up token operations."""
 
+import uuid
 from datetime import datetime
 from enum import StrEnum
 
@@ -31,7 +32,7 @@ class SignUpToken(BaseModel):
         description="Unique identifier for the token",
         max_length=64,
     )
-    user_id: StrictInt = Field(
+    user_id: uuid.UUID = Field(
         ...,
         description="ID of the user who signed up",
     )

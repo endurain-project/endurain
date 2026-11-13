@@ -8,6 +8,7 @@ window and re-raises it so the refresh job is retried. Bulk imports do not come 
 here: they work a staged archive in batches (:mod:`bulk_import_service`) and count their own failures.
 """
 
+import uuid
 from pathlib import Path
 
 import jasil.providers as platform_providers
@@ -23,7 +24,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def store_activity_file(
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     file_path: str,
     storage: platform_providers.StorageProvider,
     db: Session,

@@ -15,13 +15,17 @@ import modules.users.users.integration_service as users_integration
 import modules.users.users.models as users_models
 import modules.users.users.schema as users_schema
 import modules.users.users.service as users_service
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 from tests._helpers.db import create_sqlite_session, ensure_user
+
+_OWNER_EMAIL = f"user{MOCK_USER_ID.hex}@example.com"
+_OTHER_EMAIL = f"user{OTHER_USER_ID.hex}@example.com"
 
 _SERVICE = "modules.auth.sign_up_tokens.service"
 _PUBLISH = "modules.auth.sign_up_tokens.event_publishers.platform_publisher.publish_on_commit"
 _HOST = "https://app.example"
 _ACTION = "auth.email_change.cancel"
-_OLD = "user7@example.com"
+_OLD = _OWNER_EMAIL
 _NEW = "new@example.com"
 
 
@@ -29,8 +33,8 @@ _NEW = "new@example.com"
 def db():
     session = create_sqlite_session()
     factory = sessionmaker(bind=session.get_bind())
-    ensure_user(factory, 7)
-    ensure_user(factory, 8)
+    ensure_user(factory, MOCK_USER_ID)
+    ensure_user(factory, OTHER_USER_ID)
     session.query(users_models.Users).update({"preferred_language": "en", "active": True, "email_verified": False})
     session.commit()
     yield session
@@ -50,7 +54,7 @@ def platform():
         yield MagicMock(sessions=sessions, keys=keys)
 
 
-def _user(db, user_id=7):
+def _user(db, user_id=MOCK_USER_ID):
     db.expire_all()
     return db.get(users_models.Users, user_id)
 
@@ -62,16 +66,16 @@ def _extract(html_body: str) -> str:
 def _request(db, new=_NEW, previous=_OLD) -> str:
     """Request a change as the owner and return the link mailed to the current address."""
     with patch(_PUBLISH):
-        sign_up_service.request_self_service_email_change(7, new, previous, MemoryState(), db)
+        sign_up_service.request_self_service_email_change(MOCK_USER_ID, new, previous, MemoryState(), db)
     db.commit()
-    message = sign_up_service.prepare_email_change_requested_email(7, _HOST, db)
+    message = sign_up_service.prepare_email_change_requested_email(MOCK_USER_ID, _HOST, db)
     assert message is not None
     return _extract(message[2])
 
 
 def _confirm(db, event="event-1") -> str:
     """Deliver the confirmation mail and open its link; return the id of the notice's token."""
-    message = sign_up_service.prepare_email_change_verification_email(7, event, _HOST, db)
+    message = sign_up_service.prepare_email_change_verification_email(MOCK_USER_ID, event, _HOST, db)
     assert message is not None
     raw = message[2].split("?token=")[1].split('"')[0].split("<")[0].split("&")[0]
     with patch(_PUBLISH) as publish:
@@ -95,16 +99,18 @@ class TestTheLinkSurvivesConfirmation:
         assert result.email_restored is True
         user = _user(db)
         assert (user.email, user.email_verified) == (_OLD, True)
-        assert set(security_generations.bumps) == {7}
-        platform.sessions.assert_called_once_with(7, db)
-        platform.keys.assert_called_once_with(7, db)
-        entry = audit.assert_audited(_ACTION, target_type="user", target_id="7", target_owner_id="7")
+        assert set(security_generations.bumps) == {MOCK_USER_ID}
+        platform.sessions.assert_called_once_with(MOCK_USER_ID, db)
+        platform.keys.assert_called_once_with(MOCK_USER_ID, db)
+        entry = audit.assert_audited(
+            _ACTION, target_type="user", target_id=str(MOCK_USER_ID), target_owner_id=str(MOCK_USER_ID)
+        )
         assert entry.details["email_restored"] is True
         assert entry.details["change_applied"] is True
 
     def test_the_link_mailed_before_a_resend_still_works(self, db):
         link = _request(db)
-        sign_up_service.prepare_email_change_verification_email(7, "first-delivery", _HOST, db)
+        sign_up_service.prepare_email_change_verification_email(MOCK_USER_ID, "first-delivery", _HOST, db)
 
         result = _revert(db, link)
 
@@ -115,7 +121,7 @@ class TestTheLinkSurvivesConfirmation:
         link = _request(db)
         token_id = _confirm(db)
 
-        message = sign_up_service.prepare_email_changed_email(7, token_id, _HOST, db)
+        message = sign_up_service.prepare_email_changed_email(MOCK_USER_ID, token_id, _HOST, db)
 
         assert message is not None
         recipient, _subject, html_body, text_body = message
@@ -172,8 +178,8 @@ class TestTheLinkSurvivesConfirmation:
 
         assert (result.change_applied, result.email_restored) == (True, True)
         assert _user(db).email == _OLD
-        platform.sessions.assert_called_once_with(7, db)
-        platform.keys.assert_called_once_with(7, db)
+        platform.sessions.assert_called_once_with(MOCK_USER_ID, db)
+        platform.keys.assert_called_once_with(MOCK_USER_ID, db)
         with pytest.raises(core_exceptions.InvalidInputError):
             _revert(db, second)
 
@@ -187,7 +193,7 @@ class TestTheLinkSurvivesConfirmation:
         assert (result.change_applied, result.email_restored) == (True, True)
         assert _user(db).email == _OLD
         assert db.query(sign_up_models.SignUpToken).filter_by(used=False).count() == 0
-        platform.sessions.assert_called_once_with(7, db)
+        platform.sessions.assert_called_once_with(MOCK_USER_ID, db)
 
     def test_a_later_changes_own_link_after_the_first_revert_is_refused(self, db, platform):
         first = _request(db)
@@ -228,7 +234,7 @@ class TestTheLinkSurvivesConfirmation:
     def test_an_address_the_account_has_since_been_given_by_an_administrator_is_replaced(self, db):
         link = _request(db)
         _confirm(db)
-        db.query(users_models.Users).filter_by(id=7).update({"email": "admin-set@example.com"})
+        db.query(users_models.Users).filter_by(id=MOCK_USER_ID).update({"email": "admin-set@example.com"})
         db.commit()
 
         assert _revert(db, link).email_restored is True
@@ -239,7 +245,7 @@ class TestTheLinkSurvivesConfirmation:
     ):
         link = _request(db)
         _confirm(db)
-        db.query(users_models.Users).filter_by(id=8).update({"email": _OLD})
+        db.query(users_models.Users).filter_by(id=OTHER_USER_ID).update({"email": _OLD})
         db.commit()
 
         with jasil_testing.capture_audit() as audit:
@@ -247,15 +253,15 @@ class TestTheLinkSurvivesConfirmation:
 
         assert result.email_restored is False
         assert _user(db).email == _NEW
-        assert 7 in security_generations.bumps
-        platform.sessions.assert_called_once_with(7, db)
-        platform.keys.assert_called_once_with(7, db)
-        assert audit.assert_audited(_ACTION, target_id="7").details["email_restored"] is False
+        assert MOCK_USER_ID in security_generations.bumps
+        platform.sessions.assert_called_once_with(MOCK_USER_ID, db)
+        platform.keys.assert_called_once_with(MOCK_USER_ID, db)
+        assert audit.assert_audited(_ACTION, target_id=str(MOCK_USER_ID)).details["email_restored"] is False
 
     def test_an_address_not_restored_revokes_the_reset_tokens_and_audits_it(self, db, platform, security_generations):
         link = _request(db)
         _confirm(db)
-        db.query(users_models.Users).filter_by(id=8).update({"email": _OLD})
+        db.query(users_models.Users).filter_by(id=OTHER_USER_ID).update({"email": _OLD})
         db.commit()
 
         with (
@@ -264,8 +270,8 @@ class TestTheLinkSurvivesConfirmation:
         ):
             _revert(db, link)
 
-        revoke.assert_called_once_with(7, db)
-        assert audit.assert_audited(_ACTION, target_id="7").details["reset_tokens_revoked"] is True
+        revoke.assert_called_once_with(MOCK_USER_ID, db)
+        assert audit.assert_audited(_ACTION, target_id=str(MOCK_USER_ID)).details["reset_tokens_revoked"] is True
 
     def test_a_restored_address_is_audited_without_a_reset_token_revocation(self, db, platform, security_generations):
         link = _request(db)
@@ -274,11 +280,11 @@ class TestTheLinkSurvivesConfirmation:
         with jasil_testing.capture_audit() as audit:
             _revert(db, link)
 
-        assert audit.assert_audited(_ACTION, target_id="7").details["reset_tokens_revoked"] is False
+        assert audit.assert_audited(_ACTION, target_id=str(MOCK_USER_ID)).details["reset_tokens_revoked"] is False
 
 
 def _reserve_for_user_7(db):
-    """Request and confirm a change of user 7, so that the old address is reserved for it."""
+    """Request and confirm a change of the owner, so that the old address is reserved for it."""
     link = _request(db)
     _confirm(db)
     return link
@@ -288,44 +294,44 @@ class TestThePreviousAddressIsReserved:
     def test_it_is_reserved_for_the_account_it_came_from_and_only_during_the_window(self, db):
         _reserve_for_user_7(db)
 
-        assert sign_up_service.get_email_reserver_id(_OLD, 8, db) == 7
-        assert sign_up_service.get_email_reserver_id(_OLD.upper(), 8, db) == 7
-        assert sign_up_service.get_email_reserver_id(_OLD, None, db) == 7
-        assert sign_up_service.get_email_reserver_id(_OLD, 7, db) is None
-        assert sign_up_service.get_email_reserver_id("free@example.com", 8, db) is None
+        assert sign_up_service.get_email_reserver_id(_OLD, OTHER_USER_ID, db) == MOCK_USER_ID
+        assert sign_up_service.get_email_reserver_id(_OLD.upper(), OTHER_USER_ID, db) == MOCK_USER_ID
+        assert sign_up_service.get_email_reserver_id(_OLD, None, db) == MOCK_USER_ID
+        assert sign_up_service.get_email_reserver_id(_OLD, MOCK_USER_ID, db) is None
+        assert sign_up_service.get_email_reserver_id("free@example.com", OTHER_USER_ID, db) is None
         db.query(sign_up_models.SignUpToken).update({"revert_until": datetime.now(UTC) - timedelta(seconds=1)})
-        assert sign_up_service.get_email_reserver_id(_OLD, 8, db) is None
+        assert sign_up_service.get_email_reserver_id(_OLD, OTHER_USER_ID, db) is None
 
     def test_it_is_not_reserved_before_the_change_is_confirmed(self, db):
         _request(db)
 
-        assert sign_up_service.get_email_reserver_id(_OLD, 8, db) is None
+        assert sign_up_service.get_email_reserver_id(_OLD, OTHER_USER_ID, db) is None
 
     def test_it_is_released_by_the_revert(self, db):
         link = _reserve_for_user_7(db)
         _revert(db, link)
 
-        assert sign_up_service.get_email_reserver_id(_OLD, 8, db) is None
+        assert sign_up_service.get_email_reserver_id(_OLD, OTHER_USER_ID, db) is None
 
     def test_a_change_made_by_an_administrator_reserves_nothing(self, db):
         with patch(_PUBLISH):
-            sign_up_service.stage_email_changed_notice(7, _NEW, _OLD, db)
+            sign_up_service.stage_email_changed_notice(MOCK_USER_ID, _NEW, _OLD, db)
         db.commit()
 
-        assert sign_up_service.get_email_reserver_id(_OLD, 8, db) is None
+        assert sign_up_service.get_email_reserver_id(_OLD, OTHER_USER_ID, db) is None
 
     def test_the_account_can_take_its_own_previous_address_back(self, db):
         _reserve_for_user_7(db)
 
-        assert users_service.is_email_available(7, _OLD, db) is True
-        assert users_service.is_email_available(8, _OLD, db) is False
+        assert users_service.is_email_available(MOCK_USER_ID, _OLD, db) is True
+        assert users_service.is_email_available(OTHER_USER_ID, _OLD, db) is False
         assert users_service.is_email_available(None, _OLD, db) is False
-        assert users_service.is_email_available(8, "free@example.com", db) is True
+        assert users_service.is_email_available(OTHER_USER_ID, "free@example.com", db) is True
 
     def test_the_revert_restores_it_when_nobody_could_take_it(self, db):
         link = _reserve_for_user_7(db)
         with pytest.raises(core_exceptions.ConflictError):
-            users_service.require_email_available(8, _OLD, db)
+            users_service.require_email_available(OTHER_USER_ID, _OLD, db)
 
         assert _revert(db, link).email_restored is True
         assert _user(db).email == _OLD
@@ -346,39 +352,41 @@ class TestThePreviousAddressIsReserved:
 
     def test_an_administrator_cannot_set_it_on_another_account(self, db):
         _reserve_for_user_7(db)
-        edit = users_schema.UserEdit.from_read(users_integration.get_user(8, db)).model_copy(update={"email": _OLD})
+        edit = users_schema.UserEdit.from_read(users_integration.get_user(OTHER_USER_ID, db)).model_copy(
+            update={"email": _OLD}
+        )
 
         with pytest.raises(core_exceptions.ConflictError):
-            users_service.stage_user_edit(8, edit, db, if_match="*")
+            users_service.stage_user_edit(OTHER_USER_ID, edit, db, if_match="*")
 
     def test_an_administrator_edit_that_asks_for_confirmation_is_refused_too(self, db):
         _reserve_for_user_7(db)
-        edit = users_schema.UserEdit.from_read(users_integration.get_user(8, db)).model_copy(
+        edit = users_schema.UserEdit.from_read(users_integration.get_user(OTHER_USER_ID, db)).model_copy(
             update={"email": _OLD, "email_verified": False}
         )
 
         with pytest.raises(core_exceptions.ConflictError):
             users_service._stage_edit_with_email_change(
-                users_integration.get_user(8, db), edit, _OLD.lower(), db, if_match="*"
+                users_integration.get_user(OTHER_USER_ID, db), edit, _OLD.lower(), db, if_match="*"
             )
 
     def test_the_change_without_mail_is_refused(self, db):
         _reserve_for_user_7(db)
 
         with pytest.raises(core_exceptions.ConflictError):
-            users_service.stage_email_change(8, _OLD, db)
+            users_service.stage_email_change(OTHER_USER_ID, _OLD, db)
 
     def test_a_confirmation_of_it_by_another_account_is_refused(self, db):
         _reserve_for_user_7(db)
 
         with pytest.raises(core_exceptions.ConflictError):
-            users_service.stage_confirmed_email_change(8, _OLD, db)
+            users_service.stage_confirmed_email_change(OTHER_USER_ID, _OLD, db)
 
     def test_a_provider_sync_does_not_copy_it(self, db):
         import modules.auth.identity_providers.user_provisioning_service as provisioning
 
         _reserve_for_user_7(db)
-        user = users_integration.get_user(8, db)
+        user = users_integration.get_user(OTHER_USER_ID, db)
         idp = MagicMock(sync_email=True)
 
         with (
@@ -406,7 +414,7 @@ class TestThePreviousAddressIsReserved:
         assert answer.next_step == sign_up_service.sign_up_schema.SignUpNextStep.SIGN_IN
         assert db.query(users_models.Users).filter_by(username="signer").count() == 0
         publish.assert_called_once()
-        assert publish.call_args.args[1]["user_id"] == 7
+        assert publish.call_args.args[1]["user_id"] == str(MOCK_USER_ID)
 
     def test_a_sign_up_with_it_answers_like_one_with_a_held_address(self, db):
         _reserve_for_user_7(db)
@@ -422,7 +430,9 @@ class TestThePreviousAddressIsReserved:
         _reserve_for_user_7(db)
 
         with patch(_PUBLISH) as publish:
-            staged = sign_up_service.request_self_service_email_change(8, _OLD, "user8@example.com", MemoryState(), db)
+            staged = sign_up_service.request_self_service_email_change(
+                OTHER_USER_ID, _OLD, _OTHER_EMAIL, MemoryState(), db
+            )
         db.commit()
 
         assert staged is True
@@ -430,17 +440,17 @@ class TestThePreviousAddressIsReserved:
         assert "auth.email_change_address_taken" in names
         assert "auth.email_change_verification_requested" not in names
         taken = next(call for call in publish.call_args_list if call.args[0] == "auth.email_change_address_taken")
-        assert taken.args[1]["user_id"] == 7
-        assert sign_up_service.prepare_email_change_verification_email(8, "event-x", _HOST, db) is None
+        assert taken.args[1]["user_id"] == str(MOCK_USER_ID)
+        assert sign_up_service.prepare_email_change_verification_email(OTHER_USER_ID, "event-x", _HOST, db) is None
 
     def test_a_resend_for_it_sends_no_link(self, db):
         _reserve_for_user_7(db)
         with patch(_PUBLISH):
-            sign_up_service.request_self_service_email_change(8, _OLD, "user8@example.com", MemoryState(), db)
+            sign_up_service.request_self_service_email_change(OTHER_USER_ID, _OLD, _OTHER_EMAIL, MemoryState(), db)
         db.commit()
 
         with patch(_PUBLISH) as publish:
-            sign_up_service.request_email_change_resend(8, MemoryState(), db)
+            sign_up_service.request_email_change_resend(OTHER_USER_ID, MemoryState(), db)
 
         assert [call.args[0] for call in publish.call_args_list] == ["auth.email_change_address_taken"]
 
@@ -455,9 +465,9 @@ class TestTheLinkBeforeConfirmation:
         assert (result.email_restored, result.change_applied) == (False, False)
         assert _user(db).email == _OLD
         assert db.query(sign_up_models.SignUpToken).filter_by(used=False).count() == 0
-        assert 7 in security_generations.bumps
-        platform.sessions.assert_called_once_with(7, db)
-        assert audit.assert_audited(_ACTION, target_id="7").details["change_applied"] is False
+        assert MOCK_USER_ID in security_generations.bumps
+        platform.sessions.assert_called_once_with(MOCK_USER_ID, db)
+        assert audit.assert_audited(_ACTION, target_id=str(MOCK_USER_ID)).details["change_applied"] is False
 
     def test_works_once(self, db):
         link = _request(db)
@@ -488,15 +498,17 @@ class TestTheLinkBeforeConfirmation:
 
 class TestChangesTheOwnerDidNotRequest:
     def test_an_applied_change_notice_has_no_revert_link_and_no_link_can_be_made_for_it(self, db, platform):
-        sign_up_service.request_email_change(7, _NEW, _OLD, db)
+        sign_up_service.request_email_change(MOCK_USER_ID, _NEW, _OLD, db)
         db.commit()
-        message = sign_up_service.prepare_email_change_verification_email(7, "event-1", _HOST, db)
+        message = sign_up_service.prepare_email_change_verification_email(MOCK_USER_ID, "event-1", _HOST, db)
         assert message is not None
         raw = message[2].split("?token=")[1].split('"')[0].split("<")[0].split("&")[0]
         with patch(_PUBLISH) as publish:
             sign_up_service.confirm_email_change(raw, db)
 
-        notice = sign_up_service.prepare_email_changed_email(7, publish.call_args.args[1]["token_id"], _HOST, db)
+        notice = sign_up_service.prepare_email_changed_email(
+            MOCK_USER_ID, publish.call_args.args[1]["token_id"], _HOST, db
+        )
 
         assert notice is not None
         assert "cancel-email-change" not in notice[2] + notice[3]
@@ -510,11 +522,11 @@ class TestChangesTheOwnerDidNotRequest:
         platform.sessions.assert_not_called()
 
     def test_a_synced_change_notice_has_no_revert_link(self, db):
-        sign_up_service.stage_email_changed_notice(7, _NEW, _OLD, db)
+        sign_up_service.stage_email_changed_notice(MOCK_USER_ID, _NEW, _OLD, db)
         db.commit()
         row = db.query(sign_up_models.SignUpToken).one()
 
-        notice = sign_up_service.prepare_email_changed_email(7, row.id, _HOST, db)
+        notice = sign_up_service.prepare_email_changed_email(MOCK_USER_ID, row.id, _HOST, db)
 
         assert notice is not None
         assert "cancel-email-change" not in notice[2] + notice[3]
@@ -557,7 +569,7 @@ class TestRowsOutliveTheRevertWindow:
         assert db.query(sign_up_models.SignUpToken).count() == 0
 
     def test_a_sign_up_token_is_still_deleted_when_it_expires(self, db):
-        sign_up_service.create_sign_up_token(7, _OLD, "event-1", db)
+        sign_up_service.create_sign_up_token(MOCK_USER_ID, _OLD, "event-1", db)
 
         with patch(f"{_SERVICE}.datetime") as clock:
             clock.now.return_value = datetime.now(UTC) + timedelta(days=2)

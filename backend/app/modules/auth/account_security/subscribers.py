@@ -1,5 +1,6 @@
 """Event subscribers for the account-security, sign-in and administrator-promotion notice emails."""
 
+import uuid
 from collections.abc import Callable
 
 import jasil.event_versioning as platform_event_versioning
@@ -40,7 +41,7 @@ PASSWORD_RESET_COMPLETED_EMAIL_SUBSCRIBER_ID = "auth.send_password_reset_complet
 
 
 def _send_security_email(
-    user_id: int,
+    user_id: uuid.UUID,
     change: str,
     prepare: Callable[[Session], tuple[str, str, str, str] | None],
     mail: platform_providers.MailProvider,

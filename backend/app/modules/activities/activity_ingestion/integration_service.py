@@ -6,6 +6,7 @@ the source types they need to describe where a file came from, including the
 :class:`BulkImportSource` base a provider export subclasses.
 """
 
+import uuid
 from collections.abc import Callable, Collection, Iterable
 from datetime import UTC, date, datetime
 
@@ -45,7 +46,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def ingest_activity_file(
-    user_id: int,
+    user_id: uuid.UUID,
     file_path: str,
     db: Session,
     *,
@@ -103,7 +104,7 @@ def run_provider_window[ItemT, ResultT](
     process: Callable[[ItemT], ResultT],
     *,
     provider: str,
-    user_id: int,
+    user_id: uuid.UUID,
     describe: Callable[[ItemT], dict[str, object]],
     propagate: tuple[type[BaseException], ...] = (),
 ) -> list[ResultT]:
@@ -135,7 +136,7 @@ def run_provider_window[ItemT, ResultT](
 
 def request_range_sync(
     provider: str,
-    user_id: int,
+    user_id: uuid.UUID,
     start_date: date,
     end_date: date,
     storage: platform_providers.StorageProvider,
@@ -198,7 +199,7 @@ def shutdown_background_ingestion(*, wait: bool = False) -> None:
     activity_ingestion_background.shutdown(wait=wait)
 
 
-def delete_bulk_import_errors(user_id: int, storage: platform_providers.StorageProvider) -> None:
+def delete_bulk_import_errors(user_id: uuid.UUID, storage: platform_providers.StorageProvider) -> None:
     """Delete a user's failed bulk-import files, leaving the retention sweep to catch them if storage fails.
 
     Runs after the account deletion is committed, so an unavailable storage backend is logged
@@ -209,7 +210,10 @@ def delete_bulk_import_errors(user_id: int, storage: platform_providers.StorageP
         storage: The platform storage provider.
     """
     try:
-        storage.delete_prefix(activity_ingestion_constants.BULK_IMPORT_ERROR_STORAGE_AREA, str(user_id))
+        storage.delete_prefix(
+            activity_ingestion_constants.BULK_IMPORT_ERROR_STORAGE_AREA,
+            activity_ingestion_constants.bulk_import_error_prefix(user_id),
+        )
     except platform_providers.StorageBackendUnavailableError as err:
         logger.warning(
             "Could not delete a user's failed bulk-import files",
@@ -232,7 +236,7 @@ def set_job_location(
     core_location.set_job_location(response, request, job.id, activity_ingestion_constants.JOB_POLL_SECONDS[kind])
 
 
-def read_job(job_id: str, user_id: int, db: Session) -> activity_ingestion_schema.ActivityIngestionJobRead | None:
+def read_job(job_id: str, user_id: uuid.UUID, db: Session) -> activity_ingestion_schema.ActivityIngestionJobRead | None:
     """Return one of a user's ingestion jobs.
 
     Args:
@@ -247,7 +251,7 @@ def read_job(job_id: str, user_id: int, db: Session) -> activity_ingestion_schem
 
 
 def list_jobs(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     kinds: Collection[str],

@@ -3,6 +3,7 @@
 Payloads carry the user and a count only: events are persisted, so a backup code is never put in one.
 """
 
+import uuid
 from typing import ClassVar
 
 from jasil.event_versioning import VersionedPayload
@@ -24,5 +25,5 @@ class BackupCodeUsedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    user_id: int
+    user_id: uuid.UUID
     backup_codes_remaining: int

@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import core.exceptions as core_exceptions
+from tests._helpers.auth import MOCK_USER_ID
 
 
 def _build_app(mock_db):
@@ -31,7 +32,7 @@ class TestReadUserDefaultGear:
         from modules.users.users_default_gear.schema import UserDefaultGearRead
 
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = UserDefaultGearRead(id=uuid.uuid4(), user_id=1)
+        mock_get.return_value = UserDefaultGearRead(id=uuid.uuid4(), user_id=MOCK_USER_ID)
 
         response = client.get("/user_default_gear", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
@@ -44,7 +45,7 @@ class TestEditUserDefaultGear:
 
         client = TestClient(_build_app(mock_db))
         mock_edit.return_value = UserDefaultGearRead(
-            id=uuid.uuid4(), user_id=1, run_gear_id=uuid.uuid4(), ride_gear_id=uuid.uuid4()
+            id=uuid.uuid4(), user_id=MOCK_USER_ID, run_gear_id=uuid.uuid4(), ride_gear_id=uuid.uuid4()
         )
 
         response = client.patch(
@@ -69,7 +70,7 @@ class TestReadSendsTheETag:
     def test_the_settings_carry_their_version(self, mock_get, mock_db):
         from modules.users.users_default_gear.schema import UserDefaultGearRead
 
-        mock_get.return_value = UserDefaultGearRead(id=uuid.uuid4(), user_id=1, version=6)
+        mock_get.return_value = UserDefaultGearRead(id=uuid.uuid4(), user_id=MOCK_USER_ID, version=6)
 
         response = TestClient(_build_app(mock_db)).get("/user_default_gear", headers={"Authorization": "Bearer x"})
 

@@ -1,9 +1,13 @@
 """Request schemas refuse a blank name and one carrying direction controls; stored names still read."""
 
+import uuid
+
 import pytest
 from pydantic import ValidationError
 
 import modules.users.users.schema as users_schema
+
+_USER_ID = uuid.UUID(int=1)
 
 _SIGNUP = {"username": "newuser", "email": "new@example.com", "password": "SecurePass1!"}
 _ADMIN = {
@@ -45,7 +49,7 @@ def test_joiners_and_inner_spaces_are_accepted(shape, name):
 
 def test_a_stored_name_still_reads():
     stored = {
-        "id": 1,
+        "id": _USER_ID,
         "username": "olduser",
         "email": "old@example.com",
         "access_type": "regular",

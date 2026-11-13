@@ -69,6 +69,8 @@ A scope name is `resource:action` in lowercase kebab-case (`health-targets:read`
 <!-- generated:scopes -->
 
 ### Scope Usage
+The `sub` claim of access and refresh tokens is the user's UUID. Tokens issued before v0.21.0 are refused (`401`) and every web and mobile session ended at the upgrade; API keys keep working. Third-party clients and older mobile app versions must update.
+
 Scopes are assigned from the user's role and embedded in the `scope` claim of the JWT access token, a space-separated string. An endpoint checks its required scopes against the scopes the token carries, limited to the scopes the user's role holds when the request arrives: a token cannot name a scope its role lacks, and a demotion takes effect on the next request. A missing scope is `403` with `WWW-Authenticate: Bearer error="insufficient_scope"`. Tokens issued by a login carry every scope of the role. `account` covers the account's own data; `account:export` covers profile export and import, `account:security` covers the password, email, MFA, API keys, sessions, identity provider links and account deletion, and `account:integrations` covers linking and unlinking Garmin Connect and Strava (`POST` and `DELETE /garmin/link`, `POST /garmin/mfa`, `POST` and `DELETE /strava/link`, `POST /strava/state`, `PUT /strava/client`). Every user holds all four.
 
 ## Error responses

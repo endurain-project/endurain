@@ -6,6 +6,7 @@ kind names the feature that reads it. A caller reads only the jobs they started,
 an account deletion is also visible to every holder of ``users:read-all``, since any administrator may follow it.
 """
 
+import uuid
 from collections.abc import Callable, Collection
 from dataclasses import dataclass
 from datetime import datetime
@@ -136,7 +137,7 @@ def _read_indexed(ref: core_job_status.JobRef, state: StateProvider) -> jobs_sch
     return read(ref, state) if read is not None else None
 
 
-def get_job(job_id: str, caller_id: int, scopes: Collection[str], state: StateProvider, db: Session) -> JobView:
+def get_job(job_id: str, caller_id: uuid.UUID, scopes: Collection[str], state: StateProvider, db: Session) -> JobView:
     """Read a job the caller may see.
 
     Args:
@@ -170,7 +171,7 @@ def get_job(job_id: str, caller_id: int, scopes: Collection[str], state: StatePr
 
 
 def list_jobs(
-    caller_id: int,
+    caller_id: uuid.UUID,
     scopes: Collection[str],
     state: StateProvider,
     db: Session,

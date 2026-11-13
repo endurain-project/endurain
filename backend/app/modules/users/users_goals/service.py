@@ -6,6 +6,7 @@ modules may consume lives in :mod:`modules.users.users_goals.integration_service
 """
 
 import uuid
+from datetime import datetime
 
 from sqlalchemy.orm import Session
 
@@ -19,7 +20,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def list_goals(
-    user_id: int,
+    user_id: uuid.UUID,
     page: core_pagination.PageParams,
     db: Session,
     interval: user_goals_schema.Interval | None = None,
@@ -52,7 +53,7 @@ def list_goals(
     return user_goals_schema.UserGoalPage.build(goals, total, page.page_number, page.num_records)
 
 
-def get_goal(user_id: int, goal_id: uuid.UUID, db: Session) -> user_goals_schema.UserGoalRead:
+def get_goal(user_id: uuid.UUID, goal_id: uuid.UUID, db: Session) -> user_goals_schema.UserGoalRead:
     """Return one of a user's goals.
 
     Args:
@@ -70,9 +71,11 @@ def get_goal(user_id: int, goal_id: uuid.UUID, db: Session) -> user_goals_schema
 
 
 def create_goal(
-    user_id: int,
+    user_id: uuid.UUID,
     user_goal: user_goals_schema.UserGoalCreate,
     db: Session,
+    *,
+    created_at: datetime | None = None,
 ) -> user_goals_schema.UserGoalRead:
     """Create a goal for a user and commit.
 
@@ -80,6 +83,7 @@ def create_goal(
         user_id: The user the goal belongs to.
         user_goal: Goal data to create.
         db: Database session.
+        created_at: Creation time to store; the transaction time when omitted.
 
     Returns:
         The created goal.
@@ -87,14 +91,14 @@ def create_goal(
     Raises:
         ConflictError: If the user already has a goal for this activity type, interval and goal type.
     """
-    created = user_goals_crud.create_user_goal(user_id, user_goal, db)
+    created = user_goals_crud.create_user_goal(user_id, user_goal, db, created_at=created_at)
     db.commit()
     logger.info("User goal created", extra=core_logger.context(user_id=user_id, goal_id=created.id))
     return created
 
 
 def update_goal(
-    user_id: int,
+    user_id: uuid.UUID,
     goal_id: uuid.UUID,
     user_goal: user_goals_schema.UserGoalUpdate,
     db: Session,
@@ -129,7 +133,7 @@ def update_goal(
     return updated
 
 
-def delete_goal(user_id: int, goal_id: uuid.UUID, db: Session, *, if_match: str) -> None:
+def delete_goal(user_id: uuid.UUID, goal_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Delete a user's goal and commit.
 
     Args:

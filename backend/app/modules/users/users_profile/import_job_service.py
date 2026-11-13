@@ -11,9 +11,9 @@ from then on is final.
 """
 
 import tempfile
+import uuid
 from collections.abc import Callable
 from typing import Protocol
-from uuid import uuid4
 
 import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
@@ -48,6 +48,7 @@ _REJECTION_CODES: tuple[tuple[type[Exception], profile_constants.ImportFailure],
     (profile_exceptions.ActivityLimitError, _Failure.TOO_MANY_ACTIVITIES),
     (profile_exceptions.ImportTimeoutError, _Failure.TIMED_OUT),
     (profile_exceptions.ImportAccountMismatchError, _Failure.WRONG_ACCOUNT),
+    (profile_exceptions.ImportArchiveFromOlderVersionError, _Failure.OLDER_VERSION),
     (profile_exceptions.ImportValidationError, _Failure.INVALID_FILE),
     (profile_exceptions.FileFormatError, _Failure.INVALID_FILE),
     (profile_exceptions.ZipStructureError, _Failure.INVALID_FILE),
@@ -79,7 +80,7 @@ class UploadSaver(Protocol):
 
 
 def request_import(
-    user_id: int,
+    user_id: uuid.UUID,
     save_upload: UploadSaver,
     states: profile_import_state_store.ProfileImportStateStore,
     storage: platform_providers.StorageProvider,
@@ -110,7 +111,7 @@ def request_import(
         profile_transfer_pool.pool.require_capacity()
     job = states.begin(user_id, conflict="A profile import is already in progress")
 
-    staged_key = f"{user_id}/{uuid4()}.zip"
+    staged_key = f"{profile_constants.import_staged_prefix(user_id)}{uuid.uuid4()}.zip"
     with tempfile.TemporaryDirectory(prefix="profile-import-") as incoming_dir:
         try:
             incoming_path = save_upload(
@@ -141,7 +142,7 @@ def request_import(
     return import_status(job, profile_import_state_store.ProfileImportState(status=_Status.QUEUED))
 
 
-def _record_import_ended(user_id: int, outcome: jasil_audit.Outcome) -> None:
+def _record_import_ended(user_id: uuid.UUID, outcome: jasil_audit.Outcome) -> None:
     """Record that a user's import ended, which is the one row an import writes for its end.
 
     Args:
@@ -158,7 +159,9 @@ def _record_import_ended(user_id: int, outcome: jasil_audit.Outcome) -> None:
 
 
 def _fail_import(
-    user_id: int, states: profile_import_state_store.ProfileImportStateStore, failure: profile_constants.ImportFailure
+    user_id: uuid.UUID,
+    states: profile_import_state_store.ProfileImportStateStore,
+    failure: profile_constants.ImportFailure,
 ) -> None:
     """Close a user's import as failed and record that it ended.
 
@@ -269,7 +272,7 @@ def _rejection_code(err: Exception) -> profile_constants.ImportFailure | None:
 
 
 def _run_importer(
-    user_id: int,
+    user_id: uuid.UUID,
     zip_data: bytes,
     storage: platform_providers.StorageProvider,
     on_committed: Callable[[], None],
@@ -319,7 +322,7 @@ def run_import(
             worker runs the import again; the state goes back to ``QUEUED`` first.
     """
     user_id, staged_key = payload.user_id, payload.staged_key
-    if not staged_key.startswith(f"{user_id}/"):
+    if not staged_key.startswith(profile_constants.import_staged_prefix(user_id)):
         logger.warning(
             "Refused a profile import whose archive is not the user's", extra=core_logger.context(user_id=user_id)
         )
@@ -395,7 +398,7 @@ def sweep_staged_imports(storage: platform_providers.StorageProvider, older_than
     return removed
 
 
-def discard_staged_imports(user_id: int, storage: platform_providers.StorageProvider) -> None:
+def discard_staged_imports(user_id: uuid.UUID, storage: platform_providers.StorageProvider) -> None:
     """Delete every archive staged for a user, leaving the sweep to catch them if storage fails.
 
     Args:
@@ -403,7 +406,9 @@ def discard_staged_imports(user_id: int, storage: platform_providers.StorageProv
         storage: The platform storage provider.
     """
     try:
-        for key in storage.list_keys(profile_constants.IMPORT_STAGING_AREA, f"{user_id}/"):
+        for key in storage.list_keys(
+            profile_constants.IMPORT_STAGING_AREA, profile_constants.import_staged_prefix(user_id)
+        ):
             storage.delete(profile_constants.IMPORT_STAGING_AREA, key)
     except platform_providers.StorageBackendUnavailableError as err:
         logger.warning(

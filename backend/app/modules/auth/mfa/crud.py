@@ -13,7 +13,7 @@ import modules.auth.mfa.models as auth_mfa_models
 import modules.auth.mfa.serializers as mfa_serializers
 
 
-def get_totp_factor(user_id: int, db: Session) -> mfa_contracts.MFAFactorRead | None:
+def get_totp_factor(user_id: uuid.UUID, db: Session) -> mfa_contracts.MFAFactorRead | None:
     """Return a user's TOTP factor."""
     stmt = select(auth_mfa_models.MFAFactor).where(
         auth_mfa_models.MFAFactor.user_id == user_id,
@@ -23,7 +23,7 @@ def get_totp_factor(user_id: int, db: Session) -> mfa_contracts.MFAFactorRead | 
     return mfa_serializers.to_read_schema(row) if row is not None else None
 
 
-def get_mfa_enabled_for_users(user_ids: list[int], db: Session) -> dict[int, bool]:
+def get_mfa_enabled_for_users(user_ids: list[uuid.UUID], db: Session) -> dict[uuid.UUID, bool]:
     """Return which of the supplied users have a second factor, in one query."""
     if not user_ids:
         return {}
@@ -31,7 +31,7 @@ def get_mfa_enabled_for_users(user_ids: list[int], db: Session) -> dict[int, boo
     return {row.user_id: True for row in db.execute(stmt).all()}
 
 
-def set_totp_factor(user_id: int, encrypted_secret: str, db: Session) -> None:
+def set_totp_factor(user_id: uuid.UUID, encrypted_secret: str, db: Session) -> None:
     """Stage a user's TOTP factor, replacing the one they have."""
     delete_user_factors(user_id, db)
     db.add(
@@ -42,7 +42,7 @@ def set_totp_factor(user_id: int, encrypted_secret: str, db: Session) -> None:
     db.flush()
 
 
-def delete_user_factors(user_id: int, db: Session) -> None:
+def delete_user_factors(user_id: uuid.UUID, db: Session) -> None:
     """Stage removal of every second factor a user has."""
     db.execute(delete(auth_mfa_models.MFAFactor).where(auth_mfa_models.MFAFactor.user_id == user_id))
 

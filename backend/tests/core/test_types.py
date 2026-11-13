@@ -24,21 +24,6 @@ def test_uuid_sentinels_bound_every_uuid():
     assert max(ids) < core_types.MAX_UUID
 
 
-class TestRecordId:
-    """A body id must fit the integer column it references."""
-
-    adapter = TypeAdapter(core_types.RecordId)
-
-    @pytest.mark.parametrize("value", [1, _INT32_MAX])
-    def test_an_id_inside_the_range_is_accepted(self, value):
-        assert self.adapter.validate_python(value) == value
-
-    @pytest.mark.parametrize("value", [0, -1, _INT32_MAX + 1, 2**63, "5", 1.0, True])
-    def test_anything_else_is_rejected(self, value):
-        with pytest.raises(ValidationError):
-            self.adapter.validate_python(value)
-
-
 class TestRecordDate:
     """A record date lies between 1900-01-01 and tomorrow in UTC, which any local today satisfies."""
 

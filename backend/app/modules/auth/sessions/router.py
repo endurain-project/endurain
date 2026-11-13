@@ -24,7 +24,7 @@ router = APIRouter()
 @core_rate_limit.limiter.limit(core_rate_limit.EXPENSIVE_READ)
 def read_sessions_user(
     request: Request,
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
 ) -> sessions_schema.UserSessionsPage:
@@ -52,7 +52,7 @@ def read_sessions_user(
 def revoke_session_user(
     request: Request,
     session_id: auth_dependencies.AuthSessionId,
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     body: auth_schema.StepUpRequest,
     db: core_dependencies.DbSession,
     verify_step_up: auth_dependencies.SessionRevokeVerifierDep,
@@ -88,7 +88,7 @@ def revoke_session_user(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def revoke_sessions_user(
     request: Request,
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     body: auth_schema.StepUpRequest,
     db: core_dependencies.DbSession,
     verify_step_up: auth_dependencies.SessionRevokeVerifierDep,

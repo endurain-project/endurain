@@ -12,6 +12,7 @@ from stravalib.exc import AccessUnauthorized
 import core.exceptions as core_exceptions
 import modules.gears.gear.schema as gears_schema
 import modules.strava.gear_service as gear_utils
+from tests._helpers.auth import MOCK_USER_ID
 
 _GEAR_A = uuid.uuid4()
 _ACT_10 = uuid.uuid4()
@@ -61,32 +62,36 @@ def test_shoes_headers_are_not_accepted_for_bikes(tmp_path):
 
 
 def test_bike_transform_strips_whitespace():
-    gears = gear_utils.transform_csv_bike_gear_to_schema_gear([_bike(" Trek ", " Trek ", " Domane ")], 1)
+    gears = gear_utils.transform_csv_bike_gear_to_schema_gear([_bike(" Trek ", " Trek ", " Domane ")], MOCK_USER_ID)
 
     assert [(g.nickname, g.brand, g.model) for g in gears] == [("Trek", "Trek", "Domane")]
 
 
 def test_bike_transform_keeps_missing_brand_and_model_as_none():
-    gears = gear_utils.transform_csv_bike_gear_to_schema_gear([_bike("Commuter"), _bike("Road", "", "Defy")], 1)
+    gears = gear_utils.transform_csv_bike_gear_to_schema_gear(
+        [_bike("Commuter"), _bike("Road", "", "Defy")], MOCK_USER_ID
+    )
 
     assert [(g.brand, g.model) for g in gears] == [(None, None), (None, "Defy")]
 
 
 def test_bike_transform_keeps_the_last_of_two_rows_with_one_name():
-    gears = gear_utils.transform_csv_bike_gear_to_schema_gear([_bike("Road", "Giant"), _bike("Road", "Trek")], 1)
+    gears = gear_utils.transform_csv_bike_gear_to_schema_gear(
+        [_bike("Road", "Giant"), _bike("Road", "Trek")], MOCK_USER_ID
+    )
 
     assert [(g.nickname, g.brand) for g in gears] == [("Road", "Trek")]
 
 
 def test_bike_transform_skips_a_row_without_a_name():
-    gears = gear_utils.transform_csv_bike_gear_to_schema_gear([_bike("  ", "Giant"), _bike("MTB")], 1)
+    gears = gear_utils.transform_csv_bike_gear_to_schema_gear([_bike("  ", "Giant"), _bike("MTB")], MOCK_USER_ID)
 
     assert [g.nickname for g in gears] == ["MTB"]
 
 
 def test_shoe_transform_strips_whitespace():
     gears = gear_utils.transform_csv_shoe_gear_to_schema_gear(
-        [_shoe(" Pegasus ", " Nike ", " Pegasus ")], 1, MagicMock()
+        [_shoe(" Pegasus ", " Nike ", " Pegasus ")], MOCK_USER_ID, MagicMock()
     )
 
     assert [(g.nickname, g.brand, g.model) for g in gears] == [("Pegasus", "Nike", "Pegasus")]
@@ -95,7 +100,7 @@ def test_shoe_transform_strips_whitespace():
 def test_shoe_transform_keeps_a_trailing_plus_in_a_name():
     with patch.object(gear_utils.gears_integration, "get_gear_user", return_value=[]):
         gears = gear_utils.transform_csv_shoe_gear_to_schema_gear(
-            [_shoe("Pegasus+ ", "Nike", "Pegasus")], 1, MagicMock()
+            [_shoe("Pegasus+ ", "Nike", "Pegasus")], MOCK_USER_ID, MagicMock()
         )
 
     assert gears[0].nickname == "Pegasus+"
@@ -104,7 +109,9 @@ def test_shoe_transform_keeps_a_trailing_plus_in_a_name():
 @pytest.mark.parametrize("blank", [None, "", "  ", "+", "+ +"])
 def test_shoe_transform_names_a_nameless_shoe(blank, monkeypatch):
     with patch.object(gear_utils.gears_integration, "get_gear_user", return_value=[]):
-        gears = gear_utils.transform_csv_shoe_gear_to_schema_gear([_shoe(blank, "Nike", "Pegasus")], 1, MagicMock())
+        gears = gear_utils.transform_csv_shoe_gear_to_schema_gear(
+            [_shoe(blank, "Nike", "Pegasus")], MOCK_USER_ID, MagicMock()
+        )
 
     assert [(g.nickname, g.brand) for g in gears] == [("Unnamed Shoe 1", "Nike")]
 
@@ -113,7 +120,7 @@ def test_nameless_shoes_avoid_the_users_gear_and_each_other(monkeypatch):
     existing = [SimpleNamespace(nickname="Unnamed Shoe 1")]
     with patch.object(gear_utils.gears_integration, "get_gear_user", return_value=existing) as lookup:
         gears = gear_utils.transform_csv_shoe_gear_to_schema_gear(
-            [_shoe(None), _shoe(""), _shoe("Speed")], 1, MagicMock()
+            [_shoe(None), _shoe(""), _shoe("Speed")], MOCK_USER_ID, MagicMock()
         )
 
     assert [g.nickname for g in gears] == ["Unnamed Shoe 2", "Unnamed Shoe 3", "Speed"]
@@ -140,10 +147,10 @@ class TestSetActivitiesGear:
             patch.object(gear_utils.gears_integration, "get_gear_user", return_value=gears),
             patch.object(gear_utils.activity_integration, "bulk_set_activities_gear") as bulk,
         ):
-            assigned = gear_utils.set_activities_gear(7, db)
+            assigned = gear_utils.set_activities_gear(MOCK_USER_ID, db)
 
         assert assigned == 1
-        bulk.assert_called_once_with(7, {_ACT_10: _GEAR_A}, db)
+        bulk.assert_called_once_with(MOCK_USER_ID, {_ACT_10: _GEAR_A}, db)
         db.commit.assert_not_called()
 
     def test_a_long_history_is_read_a_page_at_a_time_and_every_page_is_matched(self):
@@ -158,7 +165,7 @@ class TestSetActivitiesGear:
             patch.object(gear_utils.gears_integration, "get_gear_user", return_value=gears),
             patch.object(gear_utils.activity_integration, "bulk_set_activities_gear") as bulk,
         ):
-            assigned = gear_utils.set_activities_gear(7, MagicMock())
+            assigned = gear_utils.set_activities_gear(MOCK_USER_ID, MagicMock())
 
         assert assigned == size + 1
         assert [c.kwargs["page_number"] for c in listing.call_args_list] == [1, 2]
@@ -171,7 +178,7 @@ class TestSetActivitiesGear:
             patch.object(gear_utils.gears_integration, "get_gear_user", return_value=[]),
             patch.object(gear_utils.activity_integration, "bulk_set_activities_gear") as bulk,
         ):
-            assert gear_utils.set_activities_gear(7, MagicMock()) == 0
+            assert gear_utils.set_activities_gear(MOCK_USER_ID, MagicMock()) == 0
 
         listing.assert_not_called()
         bulk.assert_not_called()
@@ -187,7 +194,7 @@ class TestSetActivitiesGear:
             patch.object(gear_utils.gears_integration, "get_gear_user", return_value=gears),
             patch.object(gear_utils.activity_integration, "bulk_set_activities_gear") as bulk,
         ):
-            assert gear_utils.set_activities_gear(7, MagicMock()) == 0
+            assert gear_utils.set_activities_gear(MOCK_USER_ID, MagicMock()) == 0
 
         bulk.assert_not_called()
 
@@ -226,7 +233,7 @@ def _linked_sync(athlete, *, existing_ids=(), gear_error=None, fetched_gear=None
         patch.object(gear_utils, "set_activities_gear", return_value=3) as assign,
     ):
         try:
-            result = gear_utils.get_user_gear(7, rate_limits)
+            result = gear_utils.get_user_gear(MOCK_USER_ID, rate_limits)
             error = None
         except core_exceptions.DomainError as err:
             result, error = None, err
@@ -268,7 +275,7 @@ class TestGetUserGear:
             ),
             patch.object(gear_utils.strava_client_service, "create_strava_client") as create_client,
         ):
-            assert gear_utils.get_user_gear(7, MagicMock()) is False
+            assert gear_utils.get_user_gear(MOCK_USER_ID, MagicMock()) is False
 
         create_client.assert_not_called()
 
@@ -323,6 +330,6 @@ class TestGetUserGear:
             patch.object(gear_utils.strava_client_service, "create_strava_client", return_value=client),
             pytest.raises(core_exceptions.TooManyRequestsError),
         ):
-            gear_utils.get_user_gear(7, rate_limits)
+            gear_utils.get_user_gear(MOCK_USER_ID, rate_limits)
 
         client.get_athlete.assert_not_called()

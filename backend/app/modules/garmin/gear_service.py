@@ -39,7 +39,7 @@ def gear_list(answer: object) -> list[dict[str, Any]]:
     return answer
 
 
-def fetch_and_process_gear(garminconnect_client: garminconnect.Garmin, user_id: int) -> int:
+def fetch_and_process_gear(garminconnect_client: garminconnect.Garmin, user_id: uuid.UUID) -> int:
     """Fetch the user's Garmin Connect gear and store the pieces not stored yet.
 
     Garmin is called with no session open; the gear is stored in one short one.
@@ -66,7 +66,7 @@ def fetch_and_process_gear(garminconnect_client: garminconnect.Garmin, user_id: 
     return len(new_gears)
 
 
-def process_gear(gear: dict[str, Any], user_id: int, db: Session) -> gears_schema.GearCreate | None:
+def process_gear(gear: dict[str, Any], user_id: uuid.UUID, db: Session) -> gears_schema.GearCreate | None:
     """Build the local gear for a Garmin Connect gear piece.
 
     Args:
@@ -115,7 +115,7 @@ def match_gear_for_activity(
 
 
 def resolve_synced_gear_id(
-    user_id: int, garminconnect_gear: list[dict[str, Any]] | None, db: Session
+    user_id: uuid.UUID, garminconnect_gear: list[dict[str, Any]] | None, db: Session
 ) -> uuid.UUID | None:
     """Resolve a downloaded activity's Garmin gear to a local gear ID.
 
@@ -142,7 +142,7 @@ def resolve_synced_gear_id(
     return gear.id if gear is not None else None
 
 
-def set_activities_gear(user_id: int, db: Session) -> int:
+def set_activities_gear(user_id: uuid.UUID, db: Session) -> int:
     """Assign local gear to the user's activities that carry a Garmin Connect gear id.
 
     Args:
@@ -177,7 +177,7 @@ def set_activities_gear(user_id: int, db: Session) -> int:
     return assigned
 
 
-def get_user_gear(user_id: int, rate_limits: garmin_rate_limit_store.GarminRateLimitStore) -> bool:
+def get_user_gear(user_id: uuid.UUID, rate_limits: garmin_rate_limit_store.GarminRateLimitStore) -> bool:
     """Fetch a user's Garmin Connect gear, store it and assign it to their activities.
 
     An expired token unlinks the account and notifies the user. Gear sync is switched on only

@@ -46,7 +46,7 @@ class GearComponents(core_sync.UpdatedAtMixin, Base):
     __tablename__ = "gear_components"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[int] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         comment=("User ID that the gear component belongs to"),

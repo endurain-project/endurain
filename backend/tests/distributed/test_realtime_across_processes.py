@@ -9,12 +9,13 @@ import json
 import subprocess
 import sys
 import time
+import uuid
 
 from websockets.sync.client import connect
 
 from tests.distributed.cluster import _APP_DIR, _SUPPORT_DIR
 
-_USER_ID = 7
+_USER_ID = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
 
 
 def _run(cluster, script: str, *args: str, distributed: bool = True) -> str:

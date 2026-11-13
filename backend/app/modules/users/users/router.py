@@ -99,7 +99,7 @@ def read_users(
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:read"])],
 )
 def read_user(
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     db: core_dependencies.DbSession,
     scopes: auth_dependencies.CurrentScopes,
     response: Response,
@@ -178,7 +178,7 @@ def create_user(
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def put_user_image(
     request: Request,
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     file: UploadFile,
     storage: core_dependencies.Storage,
     db: core_dependencies.DbSession,
@@ -213,7 +213,7 @@ def put_user_image(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_user(
     request: Request,
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     user_attributtes: users_schema.UserAdminEdit,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,
@@ -269,7 +269,7 @@ def edit_user(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def approve_user(
     request: Request,
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     db: core_dependencies.DbSession,
 ) -> None:
     """Approve pending user account.
@@ -294,7 +294,7 @@ def approve_user(
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def edit_user_password(
     request: Request,
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     user_attributes: users_schema.UserAdminEditPassword,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,
@@ -333,7 +333,7 @@ def edit_user_password(
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def reset_user_mfa(
     request: Request,
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     body: auth_schema.StepUpRequest,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,
@@ -362,7 +362,7 @@ def reset_user_mfa(
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def require_user_password_change(
     request: Request,
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     body: auth_schema.StepUpRequest,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,
@@ -391,7 +391,7 @@ def require_user_password_change(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_user_photo(
     request: Request,
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     storage: core_dependencies.Storage,
     db: core_dependencies.DbSession,
 ) -> None:
@@ -420,7 +420,7 @@ def delete_user_photo(
 def delete_user(
     request: Request,
     response: Response,
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     body: auth_schema.StepUpRequest,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,
@@ -487,7 +487,7 @@ def delete_user(
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:read-all"])],
 )
 def get_user_identity_providers(
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
 ) -> auth_identity_links_schema.IdentityProviderLinkPage:
@@ -513,7 +513,7 @@ def get_user_identity_providers(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_user_identity_provider(
     request: Request,
-    user_id: core_dependencies.PositiveId,
+    user_id: core_dependencies.UuidId,
     idp_id: core_dependencies.UuidId,
     body: auth_schema.StepUpRequest,
     token_user_id: auth_dependencies.CurrentUserId,

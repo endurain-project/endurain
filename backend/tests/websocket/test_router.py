@@ -1,5 +1,6 @@
 """Tests for websocket.router module."""
 
+import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -12,12 +13,15 @@ import modules.websocket.router as websocket_router
 from core.attempt_state import StateUnavailableError
 from modules.websocket.ticket_store import MAX_HANDSHAKES_PER_WINDOW, WsTicketOwner, WsTicketStore
 
+USER = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
+OTHER_USER = uuid.UUID("7b1c93e4-5d28-4f6a-8e03-a94d2c6f1b57")
+
 
 class TestIssueWsTicket:
     """Tests for the ticket endpoint."""
 
     @staticmethod
-    def _client(store: WsTicketStore, user_id: int = 1) -> TestClient:
+    def _client(store: WsTicketStore, user_id: uuid.UUID = USER) -> TestClient:
         import modules.auth.dependencies as auth_deps
         import modules.websocket.dependencies as websocket_dependencies
 
@@ -45,8 +49,8 @@ class TestIssueWsTicket:
     def test_ticket_is_consumable_for_correct_user(self):
         """The returned ticket is valid and bound to the authenticated user."""
         store = WsTicketStore(MemoryState(), FixedClock())
-        ticket = self._client(store, user_id=42).post("/ws/ticket").json()["ticket"]
-        assert store.consume_ticket(ticket) == WsTicketOwner(user_id=42, session_id="session-1")
+        ticket = self._client(store, user_id=OTHER_USER).post("/ws/ticket").json()["ticket"]
+        assert store.consume_ticket(ticket) == WsTicketOwner(user_id=OTHER_USER, session_id="session-1")
 
     def test_different_calls_produce_unique_tickets(self):
         """Each call issues a unique ticket."""
@@ -83,7 +87,7 @@ class TestWebSocketEndpoint:
     def ticket_store_with_user(self):
         """Return a WsTicketStore pre-loaded with a ticket for user 1."""
         store = WsTicketStore(MemoryState(), FixedClock())
-        ticket = store.create_ticket(user_id=1, session_id="s1")
+        ticket = store.create_ticket(user_id=USER, session_id="s1")
         return store, ticket
 
     async def test_invalid_ticket_raises_policy_violation(self, mock_websocket, mock_manager):
@@ -99,7 +103,7 @@ class TestWebSocketEndpoint:
     ):
         """A handshake past the per-network limit closes with 1013 and leaves the ticket usable."""
         store = WsTicketStore(MemoryState(), FixedClock())
-        ticket = store.create_ticket(user_id=1, session_id="s1")
+        ticket = store.create_ticket(user_id=USER, session_id="s1")
         for _ in range(MAX_HANDSHAKES_PER_WINDOW):
             assert store.allow_handshake("unknown")
 
@@ -108,7 +112,7 @@ class TestWebSocketEndpoint:
 
         assert exc_info.value.code == 1013
         mock_manager.connect.assert_not_awaited()
-        assert store.consume_ticket(ticket) == WsTicketOwner(user_id=1, session_id="s1")
+        assert store.consume_ticket(ticket) == WsTicketOwner(user_id=USER, session_id="s1")
 
     async def test_a_ticket_whose_session_is_gone_is_closed_as_revoked(
         self, mock_websocket, mock_manager, live_session
@@ -116,11 +120,11 @@ class TestWebSocketEndpoint:
         """A ticket issued before a revocation cannot open a socket the close event already missed."""
         live_session.return_value = False
         store = WsTicketStore(MemoryState(), FixedClock())
-        ticket = store.create_ticket(user_id=4, session_id="gone")
+        ticket = store.create_ticket(user_id=USER, session_id="gone")
 
         await websocket_router.websocket_endpoint(mock_websocket, ticket, store, mock_manager)
 
-        live_session.assert_called_once_with(4, "gone")
+        live_session.assert_called_once_with(USER, "gone")
         mock_websocket.accept.assert_awaited_once()
         mock_websocket.close.assert_awaited_once_with(code=4401)
         mock_manager.connect.assert_not_awaited()
@@ -128,12 +132,12 @@ class TestWebSocketEndpoint:
     async def test_the_socket_is_bound_to_the_session_of_its_ticket(self, mock_websocket, mock_manager):
         """The manager registers the connection under the session the ticket was issued for."""
         store = WsTicketStore(MemoryState(), FixedClock())
-        ticket = store.create_ticket(user_id=4, session_id="session-9")
+        ticket = store.create_ticket(user_id=USER, session_id="session-9")
         mock_websocket.receive.side_effect = [{"type": "websocket.disconnect", "code": 1001}]
 
         await websocket_router.websocket_endpoint(mock_websocket, ticket, store, mock_manager)
 
-        mock_manager.connect.assert_awaited_once_with(4, "session-9", mock_websocket)
+        mock_manager.connect.assert_awaited_once_with(USER, "session-9", mock_websocket)
 
     async def test_a_state_outage_closes_with_try_again_later(self, mock_websocket, mock_manager):
         """websocket_endpoint raises WS_1013 when the ticket store cannot be reached."""
@@ -147,7 +151,7 @@ class TestWebSocketEndpoint:
     @patch("modules.websocket.service.logger")
     async def test_websocket_endpoint_normal_operation(self, mock_log, mock_websocket, mock_manager):
         """Test WebSocket endpoint normal operation until disconnect."""
-        user_id = 1
+        user_id = USER
         store = WsTicketStore(MemoryState(), FixedClock())
         ticket = store.create_ticket(user_id=user_id, session_id="s1")
 
@@ -170,7 +174,7 @@ class TestWebSocketEndpoint:
     @patch("modules.websocket.service.logger")
     async def test_websocket_endpoint_immediate_disconnect(self, mock_log, mock_websocket, mock_manager):
         """Test WebSocket endpoint with immediate disconnect."""
-        user_id = 1
+        user_id = USER
         store = WsTicketStore(MemoryState(), FixedClock())
         ticket = store.create_ticket(user_id=user_id, session_id="s1")
 
@@ -185,8 +189,8 @@ class TestWebSocketEndpoint:
     async def test_websocket_endpoint_different_users(self, mock_manager):
         """Test WebSocket endpoint with different user IDs."""
         store = WsTicketStore(MemoryState(), FixedClock())
-        ticket1 = store.create_ticket(user_id=1, session_id="s1")
-        ticket2 = store.create_ticket(user_id=2, session_id="s1")
+        ticket1 = store.create_ticket(user_id=USER, session_id="s1")
+        ticket2 = store.create_ticket(user_id=OTHER_USER, session_id="s1")
 
         ws1 = AsyncMock()
         ws1.client = None
@@ -200,8 +204,8 @@ class TestWebSocketEndpoint:
         await websocket_router.websocket_endpoint(ws2, ticket2, store, mock_manager)
 
         assert mock_manager.connect.await_count == 2
-        mock_manager.connect.assert_any_await(1, "s1", ws1)
-        mock_manager.connect.assert_any_await(2, "s1", ws2)
+        mock_manager.connect.assert_any_await(USER, "s1", ws1)
+        mock_manager.connect.assert_any_await(OTHER_USER, "s1", ws2)
         assert mock_manager.disconnect.call_count == 2
-        mock_manager.disconnect.assert_any_call(1, ws1)
-        mock_manager.disconnect.assert_any_call(2, ws2)
+        mock_manager.disconnect.assert_any_call(USER, ws1)
+        mock_manager.disconnect.assert_any_call(OTHER_USER, ws2)

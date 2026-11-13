@@ -1,5 +1,6 @@
 """Sign-in audit rows other auth packages write: the refusals and the target of a row about a user."""
 
+import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import TypedDict
@@ -17,7 +18,7 @@ class AuditTarget(TypedDict, total=False):
     target_owner_id: str
 
 
-def user_target(user_id: int | None) -> AuditTarget:
+def user_target(user_id: uuid.UUID | None) -> AuditTarget:
     """Name the user an audit row is about, in the keywords the audit calls take.
 
     Args:
@@ -32,7 +33,7 @@ def user_target(user_id: int | None) -> AuditTarget:
 
 
 @contextmanager
-def acting_as_user(user_id: int) -> Iterator[None]:
+def acting_as_user(user_id: uuid.UUID) -> Iterator[None]:
     """Attribute the audit rows written inside the block to a user who signed in with an OAuth provider.
 
     For a route that is not behind an auth dependency, so its request audit context is anonymous, when the
@@ -56,7 +57,7 @@ def record_login_refusal(
     reason: login_audit_actions.LoginFailureReason,
     *,
     mfa: bool = False,
-    user_id: int | None = None,
+    user_id: uuid.UUID | None = None,
 ) -> None:
     """Record a refused sign-in, on its own transaction because nothing was changed to join.
 

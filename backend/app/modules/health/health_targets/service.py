@@ -4,6 +4,7 @@ The module's own application layer; what other modules may consume lives in
 :mod:`modules.health.health_targets.integration_service`.
 """
 
+import uuid
 from typing import Any
 
 from pydantic import ValidationError
@@ -22,7 +23,7 @@ logger = core_logger.get_logger(__name__)
 _ARCHIVE_RENAMES = {"weight": "weight_kg", "sleep": "sleep_seconds", "fasting": "fasting_seconds"}
 
 
-def get_health_targets(user_id: int, db: Session) -> health_targets_schema.HealthTargetsRead | None:
+def get_health_targets(user_id: uuid.UUID, db: Session) -> health_targets_schema.HealthTargetsRead | None:
     """Return a user's health targets.
 
     Args:
@@ -37,7 +38,7 @@ def get_health_targets(user_id: int, db: Session) -> health_targets_schema.Healt
 
 def update_health_targets(
     health_targets: health_targets_schema.HealthTargetsUpdate,
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     if_match: str,
@@ -70,7 +71,7 @@ def update_health_targets(
 
 
 def restore_profile_records(
-    records: list[dict[str, Any]], user_id: int, ids: users_profile_contracts.ProfileIdMaps, db: Session
+    records: list[dict[str, Any]], user_id: uuid.UUID, ids: users_profile_contracts.ProfileIdMaps, db: Session
 ) -> int:
     """Stage the health targets of a profile archive for a user.
 

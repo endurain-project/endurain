@@ -1,5 +1,6 @@
 """Tests for core.attempt_state (provider-backed claim, polled state and the job index)."""
 
+import uuid
 from enum import StrEnum
 from unittest.mock import MagicMock, patch
 
@@ -11,6 +12,7 @@ from pydantic import BaseModel
 import core.attempt_state as core_attempt_state
 import core.exceptions as core_exceptions
 import core.job_status as core_job_status
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
 
 class _State(BaseModel):
@@ -21,7 +23,7 @@ def _store(state=None, ttl=60, announce=None) -> core_attempt_state.AttemptState
     return core_attempt_state.AttemptStateStore(state or MemoryState(), "feature", "job", ttl, announce=announce)
 
 
-def _begin(store, subject="1", owner_id=1):
+def _begin(store, subject="1", owner_id=MOCK_USER_ID):
     return store.begin(subject, _State(step="queued"), kind="feature_job", owner_id=owner_id, conflict="Busy")
 
 
@@ -39,15 +41,15 @@ def test_begin_starts_a_job_with_its_own_id_and_indexes_it():
     state = MemoryState()
     store = _store(state)
 
-    job = _begin(store, owner_id=5)
+    job = _begin(store, owner_id=OTHER_USER_ID)
 
     assert job.kind == "feature_job"
-    assert job.owner_id == 5
+    assert job.owner_id == OTHER_USER_ID
     assert job.subject == "1"
     assert job.finished_at is None
     assert core_attempt_state.JobIndex(state).get(job.id) == job
-    assert core_attempt_state.JobIndex(state).list_owned(5) == [job]
-    assert core_attempt_state.JobIndex(state).list_owned(6) == []
+    assert core_attempt_state.JobIndex(state).list_owned(OTHER_USER_ID) == [job]
+    assert core_attempt_state.JobIndex(state).list_owned(uuid.uuid4()) == []
 
 
 def test_a_second_begin_is_refused_with_the_running_job_until_the_attempt_finishes():
@@ -168,7 +170,7 @@ def test_discard_removes_the_claim_the_state_and_the_job():
 
     assert store.read("1") is None
     assert core_attempt_state.JobIndex(state).get(job.id) is None
-    assert core_attempt_state.JobIndex(state).list_owned(1) == []
+    assert core_attempt_state.JobIndex(state).list_owned(MOCK_USER_ID) == []
     _begin(store)
 
 
@@ -232,7 +234,7 @@ def test_an_outage_reading_the_index_is_a_service_unavailable_error():
     with pytest.raises(core_attempt_state.StateUnavailableError):
         index.get("job")
     with pytest.raises(core_attempt_state.StateUnavailableError):
-        index.list_owned(1)
+        index.list_owned(MOCK_USER_ID)
 
 
 class _Kind(StrEnum):
@@ -257,102 +259,102 @@ class TestSyncStateStore:
     def test_a_first_sync_is_queued_as_a_job_of_its_kind_and_blocks_another(self):
         syncs = _syncs()
 
-        job = _queue(syncs, 1, _Kind.GEAR)
+        job = _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
 
         assert job.kind == "feature_gear"
-        assert job.owner_id == 1
-        assert syncs.get(1, _Kind.GEAR) == core_attempt_state.SyncState(status=Status.QUEUED)
+        assert job.owner_id == MOCK_USER_ID
+        assert syncs.get(MOCK_USER_ID, _Kind.GEAR) == core_attempt_state.SyncState(status=Status.QUEUED)
         with pytest.raises(core_exceptions.JobAlreadyRunningError) as refused:
-            _queue(syncs, 1, _Kind.GEAR)
+            _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
         assert refused.value.job_id == job.id
 
     def test_another_user_can_own_the_sync(self):
-        assert _queue(_syncs(), 7, _Kind.GEAR, owner_id=1).owner_id == 1
+        assert _queue(_syncs(), OTHER_USER_ID, _Kind.GEAR, owner_id=MOCK_USER_ID).owner_id == MOCK_USER_ID
 
     def test_progress_keeps_blocking_until_the_sync_finishes(self):
         announce = MagicMock()
         syncs = _syncs(announce=announce)
-        job = _queue(syncs, 1, _Kind.HEALTH)
-        syncs.set_status(1, _Kind.HEALTH, Status.RUNNING)
+        job = _queue(syncs, MOCK_USER_ID, _Kind.HEALTH)
+        syncs.set_status(MOCK_USER_ID, _Kind.HEALTH, Status.RUNNING)
         with pytest.raises(core_exceptions.JobAlreadyRunningError):
-            _queue(syncs, 1, _Kind.HEALTH)
+            _queue(syncs, MOCK_USER_ID, _Kind.HEALTH)
 
-        syncs.set_status(1, _Kind.HEALTH, Status.SUCCEEDED)
+        syncs.set_status(MOCK_USER_ID, _Kind.HEALTH, Status.SUCCEEDED)
 
-        assert syncs.get(1, _Kind.HEALTH).status == Status.SUCCEEDED
+        assert syncs.get(MOCK_USER_ID, _Kind.HEALTH).status == Status.SUCCEEDED
         assert announce.call_args.args[0].id == job.id
-        _queue(syncs, 1, _Kind.HEALTH)
+        _queue(syncs, MOCK_USER_ID, _Kind.HEALTH)
 
     def test_a_failed_sync_can_be_retried(self):
         syncs = _syncs()
-        _queue(syncs, 1, _Kind.GEAR)
-        syncs.set_status(1, _Kind.GEAR, Status.FAILED)
+        _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
+        syncs.set_status(MOCK_USER_ID, _Kind.GEAR, Status.FAILED)
 
-        _queue(syncs, 1, _Kind.GEAR)
+        _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
 
     def test_read_job_returns_the_sync_while_it_is_the_latest_of_its_kind(self):
         syncs = _syncs()
-        first = _queue(syncs, 1, _Kind.GEAR)
-        syncs.set_status(1, _Kind.GEAR, Status.SUCCEEDED)
+        first = _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
+        syncs.set_status(MOCK_USER_ID, _Kind.GEAR, Status.SUCCEEDED)
 
         job, state = syncs.read_job(first)
         assert job.id == first.id
         assert job.finished_at is not None
         assert state.status == Status.SUCCEEDED
 
-        _queue(syncs, 1, _Kind.GEAR)
+        _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
         assert syncs.read_job(first) is None
 
     def test_a_discarded_sync_leaves_no_state_and_frees_the_claim(self):
         syncs = _syncs()
-        _queue(syncs, 1, _Kind.GEAR)
+        _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
 
-        syncs.discard(1, _Kind.GEAR)
+        syncs.discard(MOCK_USER_ID, _Kind.GEAR)
 
-        assert syncs.get(1, _Kind.GEAR) is None
-        _queue(syncs, 1, _Kind.GEAR)
+        assert syncs.get(MOCK_USER_ID, _Kind.GEAR) is None
+        _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
 
     def test_kinds_users_and_features_do_not_block_each_other(self):
         state = MemoryState()
         syncs = _syncs(state)
-        _queue(syncs, 1, _Kind.GEAR)
+        _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
 
-        _queue(syncs, 1, _Kind.HEALTH)
-        _queue(syncs, 2, _Kind.GEAR)
+        _queue(syncs, MOCK_USER_ID, _Kind.HEALTH)
+        _queue(syncs, OTHER_USER_ID, _Kind.GEAR)
         other = core_attempt_state.SyncStateStore(state, "other", 60, job_kind=lambda kind: kind.value)
-        _queue(other, 1, _Kind.GEAR)
+        _queue(other, MOCK_USER_ID, _Kind.GEAR)
 
     def test_the_keys_are_the_ones_each_feature_always_used(self):
         state = MemoryState()
-        _queue(_syncs(state), 7, _Kind.GEAR)
+        _queue(_syncs(state), MOCK_USER_ID, _Kind.GEAR)
 
-        assert state.get("endurain:feature:sync:state:7:gear") is not None
-        assert state.get("endurain:feature:sync:claim:7:gear") is not None
+        assert state.get(f"endurain:feature:sync:state:{MOCK_USER_ID}:gear") is not None
+        assert state.get(f"endurain:feature:sync:claim:{MOCK_USER_ID}:gear") is not None
 
     def test_no_sync_reads_as_none(self):
-        assert _syncs().get(99, _Kind.GEAR) is None
+        assert _syncs().get(uuid.uuid4(), _Kind.GEAR) is None
 
     @pytest.mark.parametrize("pending", [Status.QUEUED, Status.RUNNING])
     def test_a_pending_sync_is_closed_as_failed_and_frees_the_claim(self, pending):
         syncs = _syncs()
-        _queue(syncs, 1, _Kind.GEAR)
-        syncs.set_status(1, _Kind.GEAR, pending)
+        _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
+        syncs.set_status(MOCK_USER_ID, _Kind.GEAR, pending)
 
-        assert syncs.close_pending(1, _Kind.GEAR) is True
-        assert syncs.get(1, _Kind.GEAR).status == Status.FAILED
-        _queue(syncs, 1, _Kind.GEAR)
+        assert syncs.close_pending(MOCK_USER_ID, _Kind.GEAR) is True
+        assert syncs.get(MOCK_USER_ID, _Kind.GEAR).status == Status.FAILED
+        _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
 
     @pytest.mark.parametrize("finished", [Status.SUCCEEDED, Status.FAILED])
     def test_a_finished_sync_is_left_as_it_is(self, finished):
         syncs = _syncs()
-        _queue(syncs, 1, _Kind.GEAR)
-        syncs.set_status(1, _Kind.GEAR, finished)
+        _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
+        syncs.set_status(MOCK_USER_ID, _Kind.GEAR, finished)
 
-        assert syncs.close_pending(1, _Kind.GEAR) is False
-        assert syncs.get(1, _Kind.GEAR).status == finished
+        assert syncs.close_pending(MOCK_USER_ID, _Kind.GEAR) is False
+        assert syncs.get(MOCK_USER_ID, _Kind.GEAR).status == finished
 
     def test_an_expired_sync_is_left_alone(self):
-        assert _syncs().close_pending(1, _Kind.GEAR) is False
+        assert _syncs().close_pending(MOCK_USER_ID, _Kind.GEAR) is False
 
     def test_an_unavailable_backend_fails_a_read_and_a_begin_but_not_a_recorded_outcome(self):
         state = MagicMock()
@@ -361,10 +363,10 @@ class TestSyncStateStore:
         syncs = _syncs(state)
 
         with pytest.raises(core_attempt_state.StateUnavailableError):
-            _queue(syncs, 1, _Kind.GEAR)
+            _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
         with pytest.raises(core_attempt_state.StateUnavailableError):
-            syncs.get(1, _Kind.GEAR)
-        syncs.set_status(1, _Kind.GEAR, Status.SUCCEEDED)
+            syncs.get(MOCK_USER_ID, _Kind.GEAR)
+        syncs.set_status(MOCK_USER_ID, _Kind.GEAR, Status.SUCCEEDED)
 
 
 def test_a_sync_state_stored_before_the_job_vocabulary_reads_as_the_new_one():

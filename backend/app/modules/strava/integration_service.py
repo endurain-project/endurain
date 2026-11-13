@@ -5,6 +5,7 @@ never the reverse. Ingestion's refresh path asks the registry what is available
 instead of importing this module.
 """
 
+import uuid
 from datetime import datetime
 
 import jasil.runtime as platform_runtime
@@ -25,7 +26,7 @@ import modules.strava.sync_state_store as strava_sync_state_store
 
 
 def _fetch_window(
-    user_id: int,
+    user_id: uuid.UUID,
     window_start: datetime,
     window_end: datetime,
 ) -> list[activity_schema.ActivityRead] | None:

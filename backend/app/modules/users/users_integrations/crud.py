@@ -19,7 +19,7 @@ import modules.users.users_integrations.serializers as user_integrations_seriali
 
 
 def _get_user_integrations_model_by_user_id_or_404(
-    user_id: int, db: Session
+    user_id: uuid.UUID, db: Session
 ) -> user_integrations_models.UsersIntegrations:
     """Retrieve integrations for a specific user.
 
@@ -45,7 +45,9 @@ def _get_user_integrations_model_by_user_id_or_404(
     return db_user_integrations
 
 
-def get_user_integrations_by_user_id(user_id: int, db: Session) -> user_integrations_schema.UserIntegrationsRead | None:
+def get_user_integrations_by_user_id(
+    user_id: uuid.UUID, db: Session
+) -> user_integrations_schema.UserIntegrationsRead | None:
     """Retrieve integrations for a specific user.
 
     Args:
@@ -63,11 +65,11 @@ def get_user_integrations_by_user_id(user_id: int, db: Session) -> user_integrat
     return user_integrations_serializers.to_read_schema(user_integrations) if user_integrations else None
 
 
-def list_user_ids_with_strava_linked(after_id: int, limit: int, db: Session) -> list[int]:
+def list_user_ids_with_strava_linked(after_id: uuid.UUID | None, limit: int, db: Session) -> list[uuid.UUID]:
     """List the users who have linked Strava, ascending, a page at a time.
 
     Args:
-        after_id: Return only users with an id greater than this.
+        after_id: Return only users with an id greater than this; None starts from the first user.
         limit: Maximum number of user ids to return.
         db: SQLAlchemy database session.
 
@@ -76,17 +78,16 @@ def list_user_ids_with_strava_linked(after_id: int, limit: int, db: Session) -> 
     """
     stmt = (
         select(user_integrations_models.UsersIntegrations.user_id)
-        .where(
-            user_integrations_models.UsersIntegrations.user_id > after_id,
-            user_integrations_models.UsersIntegrations.strava_token.is_not(None),
-        )
+        .where(user_integrations_models.UsersIntegrations.strava_token.is_not(None))
         .order_by(user_integrations_models.UsersIntegrations.user_id)
         .limit(limit)
     )
+    if after_id is not None:
+        stmt = stmt.where(user_integrations_models.UsersIntegrations.user_id > after_id)
     return list(db.scalars(stmt).all())
 
 
-def list_user_ids_with_garminconnect_linked(after_id: int, limit: int, db: Session) -> list[int]:
+def list_user_ids_with_garminconnect_linked(after_id: uuid.UUID | None, limit: int, db: Session) -> list[uuid.UUID]:
     """List the users who have linked Garmin Connect, ascending, a page at a time.
 
     The token is a JSON column, and unlinking assigns ``None``, which is stored as
@@ -95,14 +96,14 @@ def list_user_ids_with_garminconnect_linked(after_id: int, limit: int, db: Sessi
     decoded value until a page is full.
 
     Args:
-        after_id: Return only users with an id greater than this.
+        after_id: Return only users with an id greater than this; None starts from the first user.
         limit: Maximum number of user ids to return.
         db: SQLAlchemy database session.
 
     Returns:
         User ids with a stored Garmin Connect token, ascending.
     """
-    linked: list[int] = []
+    linked: list[uuid.UUID] = []
     cursor = after_id
     while len(linked) < limit:
         stmt = (
@@ -110,10 +111,11 @@ def list_user_ids_with_garminconnect_linked(after_id: int, limit: int, db: Sessi
                 user_integrations_models.UsersIntegrations.user_id,
                 user_integrations_models.UsersIntegrations.garminconnect_token,
             )
-            .where(user_integrations_models.UsersIntegrations.user_id > cursor)
             .order_by(user_integrations_models.UsersIntegrations.user_id)
             .limit(limit)
         )
+        if cursor is not None:
+            stmt = stmt.where(user_integrations_models.UsersIntegrations.user_id > cursor)
         rows = db.execute(stmt).all()
         if not rows:
             break
@@ -122,7 +124,7 @@ def list_user_ids_with_garminconnect_linked(after_id: int, limit: int, db: Sessi
     return linked[:limit]
 
 
-def create_user_integrations(user_id: int, db: Session) -> user_integrations_schema.UserIntegrationsRead:
+def create_user_integrations(user_id: uuid.UUID, db: Session) -> user_integrations_schema.UserIntegrationsRead:
     """Create integration settings for a user (flushed, not committed).
 
     Args:
@@ -153,7 +155,7 @@ def create_user_integrations(user_id: int, db: Session) -> user_integrations_sch
 
 
 def link_strava_account(
-    user_id: int,
+    user_id: uuid.UUID,
     tokens: user_integrations_contracts.StravaTokens,
     db: Session,
 ) -> None:
@@ -202,7 +204,7 @@ def _same_garmin_token(stored: dict[str, Any] | None, expected: dict[str, Any]) 
 
 
 def replace_strava_tokens_if_refresh_token(
-    user_id: int, old_refresh_token: str, tokens: user_integrations_contracts.StravaTokens, db: Session
+    user_id: uuid.UUID, old_refresh_token: str, tokens: user_integrations_contracts.StravaTokens, db: Session
 ) -> bool:
     """Store refreshed Strava tokens only while the stored refresh token is still the one they came from.
 
@@ -237,7 +239,7 @@ def replace_strava_tokens_if_refresh_token(
     return True
 
 
-def unlink_strava_account(user_id: int, db: Session) -> None:
+def unlink_strava_account(user_id: uuid.UUID, db: Session) -> None:
     """Unlink a Strava account by clearing OAuth tokens (flushed, not committed).
 
     Args:
@@ -264,7 +266,7 @@ def unlink_strava_account(user_id: int, db: Session) -> None:
 
 
 def unlink_strava_tokens_if_refresh_token(
-    user_id: int, refresh_token: str, db: Session, *, revoked_at: datetime | None = None
+    user_id: uuid.UUID, refresh_token: str, db: Session, *, revoked_at: datetime | None = None
 ) -> bool:
     """Clear a user's Strava tokens only while they still hold the given refresh token.
 
@@ -304,12 +306,14 @@ def unlink_strava_tokens_if_refresh_token(
     return True
 
 
-def list_user_ids_with_strava_revoked_before(cutoff: datetime, after_id: int, limit: int, db: Session) -> list[int]:
+def list_user_ids_with_strava_revoked_before(
+    cutoff: datetime, after_id: uuid.UUID | None, limit: int, db: Session
+) -> list[uuid.UUID]:
     """List the users whose Strava access was revoked before a moment and who have not relinked.
 
     Args:
         cutoff: Return only users revoked before this moment.
-        after_id: Return only users with an id greater than this.
+        after_id: Return only users with an id greater than this; None starts from the first user.
         limit: Maximum number of user ids to return.
         db: SQLAlchemy database session.
 
@@ -319,17 +323,18 @@ def list_user_ids_with_strava_revoked_before(cutoff: datetime, after_id: int, li
     stmt = (
         select(user_integrations_models.UsersIntegrations.user_id)
         .where(
-            user_integrations_models.UsersIntegrations.user_id > after_id,
             user_integrations_models.UsersIntegrations.strava_revoked_at < cutoff,
             user_integrations_models.UsersIntegrations.strava_token.is_(None),
         )
         .order_by(user_integrations_models.UsersIntegrations.user_id)
         .limit(limit)
     )
+    if after_id is not None:
+        stmt = stmt.where(user_integrations_models.UsersIntegrations.user_id > after_id)
     return list(db.scalars(stmt).all())
 
 
-def clear_strava_revoked_at(user_id: int, db: Session) -> None:
+def clear_strava_revoked_at(user_id: uuid.UUID, db: Session) -> None:
     """Clear the Strava revocation mark once the user's Strava data was deleted (flushed, not committed).
 
     Args:
@@ -344,7 +349,9 @@ def clear_strava_revoked_at(user_id: int, db: Session) -> None:
     db.flush()
 
 
-def set_user_strava_client(user_id: int, client_id: str, client_secret: str, db: Session, *, if_match: str) -> None:
+def set_user_strava_client(
+    user_id: uuid.UUID, client_id: str, client_secret: str, db: Session, *, if_match: str
+) -> None:
     """Set Strava client credentials for a user (flushed, not committed).
 
     Args:
@@ -370,7 +377,7 @@ def set_user_strava_client(user_id: int, client_id: str, client_secret: str, db:
     db.refresh(db_user_integrations)
 
 
-def set_user_strava_sync_gear(user_id: int, strava_sync_gear: bool, db: Session) -> None:
+def set_user_strava_sync_gear(user_id: uuid.UUID, strava_sync_gear: bool, db: Session) -> None:
     """Set Strava gear synchronization preference for a user (flushed, not committed).
 
     Args:
@@ -392,7 +399,7 @@ def set_user_strava_sync_gear(user_id: int, strava_sync_gear: bool, db: Session)
 
 
 def link_garminconnect_account(
-    user_id: int,
+    user_id: uuid.UUID,
     token: dict[str, Any],
     db: Session,
 ) -> None:
@@ -415,7 +422,7 @@ def link_garminconnect_account(
     db_user_integrations.garminconnect_token = token
 
 
-def set_user_garminconnect_sync_gear(user_id: int, garminconnect_sync_gear: bool, db: Session) -> None:
+def set_user_garminconnect_sync_gear(user_id: uuid.UUID, garminconnect_sync_gear: bool, db: Session) -> None:
     """Set Garmin Connect gear synchronization preference (flushed, not committed).
 
     Args:
@@ -437,7 +444,7 @@ def set_user_garminconnect_sync_gear(user_id: int, garminconnect_sync_gear: bool
     db.refresh(db_user_integrations)
 
 
-def unlink_garminconnect_account(user_id: int, db: Session) -> None:
+def unlink_garminconnect_account(user_id: uuid.UUID, db: Session) -> None:
     """Unlink a Garmin Connect account by clearing OAuth tokens.
 
     The caller commits.
@@ -457,7 +464,7 @@ def unlink_garminconnect_account(user_id: int, db: Session) -> None:
     db_user_integrations.garminconnect_sync_gear = False
 
 
-def unlink_garminconnect_account_if_token(user_id: int, token: dict[str, Any], db: Session) -> bool:
+def unlink_garminconnect_account_if_token(user_id: uuid.UUID, token: dict[str, Any], db: Session) -> bool:
     """Unlink a Garmin Connect account only while it still holds the given token.
 
     The row is locked while the token is compared, so a link made in the meantime is
@@ -488,7 +495,7 @@ def unlink_garminconnect_account_if_token(user_id: int, token: dict[str, Any], d
 
 
 def replace_garminconnect_token_if_token(
-    user_id: int, old_token: dict[str, Any], new_token: dict[str, Any], db: Session
+    user_id: uuid.UUID, old_token: dict[str, Any], new_token: dict[str, Any], db: Session
 ) -> bool:
     """Replace a Garmin Connect token only while it is still the given one.
 
@@ -520,7 +527,7 @@ def replace_garminconnect_token_if_token(
 
 def edit_user_integrations(
     user_integrations: user_integrations_schema.UserIntegrationsUpdate,
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
 ) -> user_integrations_schema.UserIntegrationsRead:
     """Update user integration settings (flushed, not committed).

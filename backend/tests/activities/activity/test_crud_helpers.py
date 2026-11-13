@@ -4,8 +4,11 @@ Covers the schema→ORM transformation in ``serializers`` and the sort order; th
 ``test_crud.py``.
 """
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
+
+_USER_1 = uuid.UUID(int=1)
 
 
 class TestTransformSchemaToModel:
@@ -13,7 +16,7 @@ class TestTransformSchemaToModel:
         from modules.activities.activity import schema as activities_schema
 
         defaults = dict(
-            user_id=1,
+            user_id=_USER_1,
             distance=10000,
             name="Morning Run",
             activity_type=1,
@@ -48,7 +51,7 @@ class TestTransformSchemaToModel:
 
         mock_model.assert_called_once()
         _, kwargs = mock_model.call_args
-        assert kwargs["user_id"] == 1
+        assert kwargs["user_id"] == _USER_1
         assert kwargs["distance"] == 10000
         assert kwargs["name"] == "Morning Run"
         assert kwargs["city"] == "Lisbon"

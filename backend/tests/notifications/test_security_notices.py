@@ -17,6 +17,12 @@ import modules.notifications.service as notifications_service
 import modules.notifications.subscribers as notification_subscribers
 import modules.users.users.events as users_events
 
+_ID_1 = uuid.uuid4()
+_ID_2 = uuid.uuid4()
+_ID_3 = uuid.uuid4()
+_ID_4 = uuid.uuid4()
+_ID_8 = uuid.uuid4()
+
 _SERVICE = "modules.notifications.service"
 _SUBSCRIBERS = "modules.notifications.subscribers"
 _Change = account_security_events.AccountSecurityChange
@@ -24,14 +30,14 @@ _Change = account_security_events.AccountSecurityChange
 
 def _create(mock_db, **kwargs):
     with (
-        patch(f"{_SERVICE}.users_integration.get_user", return_value=MagicMock(id=1)),
+        patch(f"{_SERVICE}.users_integration.get_user", return_value=MagicMock(id=_ID_1)),
         patch(
             f"{_SERVICE}.notifications_crud.create_notification_once",
             return_value=(MagicMock(id=uuid.UUID(int=3)), True),
         ) as create_once,
     ):
         notifications_service.create_account_security_changed_notification(
-            1, kwargs.pop("change"), None, "event-1", mock_db, **kwargs
+            _ID_1, kwargs.pop("change"), None, "event-1", mock_db, **kwargs
         )
     return create_once.call_args.args[0]
 
@@ -56,7 +62,7 @@ class TestAccountSecurityChangedOptions:
         notification = notifications_schema.NOTIFICATION_READ_ADAPTER.validate_python(
             {
                 "id": uuid.UUID(int=1),
-                "user_id": 2,
+                "user_id": str(_ID_2),
                 "type": "account_security_changed",
                 "read": False,
                 "created_at": "2026-01-01T00:00:00Z",
@@ -75,11 +81,11 @@ class TestAdminUserPromotedType:
         notification = notifications_schema.NOTIFICATION_READ_ADAPTER.validate_python(
             {
                 "id": uuid.UUID(int=1),
-                "user_id": 2,
+                "user_id": str(_ID_2),
                 "type": "admin_user_promoted",
                 "read": False,
                 "created_at": "2026-01-01T00:00:00Z",
-                "options": {"user_id": 3, "user_name": "Ada", "user_username": "ada"},
+                "options": {"user_id": str(_ID_3), "user_name": "Ada", "user_username": "ada"},
             }
         )
 
@@ -90,7 +96,7 @@ class TestAdminUserPromotedType:
             notifications_schema.NOTIFICATION_READ_ADAPTER.validate_python(
                 {
                     "id": uuid.UUID(int=1),
-                    "user_id": 2,
+                    "user_id": str(_ID_2),
                     "type": "admin_user_promoted",
                     "read": False,
                     "created_at": "2026-01-01T00:00:00Z",
@@ -99,7 +105,7 @@ class TestAdminUserPromotedType:
             )
 
     def test_the_service_records_it_for_the_admin_naming_the_promoted_user(self, mock_db):
-        user = MagicMock(id=3, username="ada")
+        user = MagicMock(id=_ID_3, username="ada")
         user.name = "Ada"
         with (
             patch(f"{_SERVICE}.users_integration.get_user", return_value=user),
@@ -109,13 +115,13 @@ class TestAdminUserPromotedType:
             ) as create_once,
         ):
             _, ws_message, created = notifications_service.create_admin_user_promoted_notification(
-                3, 8, "event-1", mock_db
+                _ID_3, _ID_8, "event-1", mock_db
             )
 
         data = create_once.call_args.args[0]
-        assert data.user_id == 8
+        assert data.user_id == _ID_8
         assert data.type == notifications_constants.NotificationType.ADMIN_USER_PROMOTED
-        assert data.options == {"user_id": 3, "user_name": "Ada", "user_username": "ada"}
+        assert data.options == {"user_id": str(_ID_3), "user_name": "Ada", "user_username": "ada"}
         assert ws_message == notifications_constants.ADMIN_USER_PROMOTED_WS_MESSAGE
         assert created is True
 
@@ -131,16 +137,16 @@ class TestBackupCodeUsedSubscriber:
             True,
         )
         event = new_event(
-            backup_codes_events.BACKUP_CODE_USED, {"user_id": 4, "backup_codes_remaining": 2}, source="test"
+            backup_codes_events.BACKUP_CODE_USED, {"user_id": str(_ID_4), "backup_codes_remaining": 2}, source="test"
         )
 
         notification_subscribers.notify_backup_code_used_for_event(event)
 
         call = mock_notif.create_account_security_changed_notification.call_args
-        assert call.args[:4] == (4, _Change.BACKUP_CODE_USED.value, None, event.event_id)
+        assert call.args[:4] == (_ID_4, _Change.BACKUP_CODE_USED.value, None, event.event_id)
         assert call.kwargs == {"backup_codes_remaining": 2}
         mock_ws.push_to_user.assert_called_once()
-        assert mock_ws.push_to_user.call_args.args[0] == 4
+        assert mock_ws.push_to_user.call_args.args[0] == _ID_4
 
     def test_is_registered_on_the_bus_and_as_a_durable_handler(self):
         events = MagicMock()
@@ -166,17 +172,17 @@ class TestRefreshTokenReuseSubscriber:
             "WS",
             True,
         )
-        event = new_event(authentication_events.REFRESH_REUSE_DETECTED, {"user_id": 4}, source="test")
+        event = new_event(authentication_events.REFRESH_REUSE_DETECTED, {"user_id": str(_ID_4)}, source="test")
 
         notification_subscribers.notify_refresh_reuse_for_event(event)
 
         assert mock_notif.create_account_security_changed_notification.call_args.args[:4] == (
-            4,
+            _ID_4,
             _Change.REFRESH_TOKEN_REUSE_DETECTED.value,
             None,
             event.event_id,
         )
-        assert mock_ws.push_to_user.call_args.args[0] == 4
+        assert mock_ws.push_to_user.call_args.args[0] == _ID_4
 
     def test_is_registered_on_the_bus_and_as_a_durable_handler(self):
         events = MagicMock()
@@ -198,20 +204,24 @@ class TestAdminPromotedSubscriber:
     @patch(f"{_SUBSCRIBERS}.notifications_service")
     def test_notifies_only_the_admin_the_event_names(self, mock_notif, _db, mock_ws):
         mock_notif.create_admin_user_promoted_notification.return_value = (MagicMock(id=uuid.UUID(int=5)), "WS", True)
-        event = new_event(users_events.USERS_ADMIN_PROMOTED, {"user_id": 3, "admin_user_id": 8}, source="test")
+        event = new_event(
+            users_events.USERS_ADMIN_PROMOTED, {"user_id": str(_ID_3), "admin_user_id": str(_ID_8)}, source="test"
+        )
 
         notification_subscribers.notify_admin_user_promoted_for_event(event)
 
-        assert mock_notif.create_admin_user_promoted_notification.call_args.args[:3] == (3, 8, event.event_id)
+        assert mock_notif.create_admin_user_promoted_notification.call_args.args[:3] == (_ID_3, _ID_8, event.event_id)
         mock_ws.push_to_user.assert_called_once()
-        assert mock_ws.push_to_user.call_args.args[0] == 8
+        assert mock_ws.push_to_user.call_args.args[0] == _ID_8
 
     @patch("modules.notifications.integration_service.websocket_integration")
     @patch(f"{_SUBSCRIBERS}.core_database")
     @patch(f"{_SUBSCRIBERS}.notifications_service")
     def test_drops_the_event_when_the_promoted_user_is_gone(self, mock_notif, _db, mock_ws):
         mock_notif.create_admin_user_promoted_notification.side_effect = core_exceptions.NotFoundError("x")
-        event = new_event(users_events.USERS_ADMIN_PROMOTED, {"user_id": 3, "admin_user_id": 8}, source="test")
+        event = new_event(
+            users_events.USERS_ADMIN_PROMOTED, {"user_id": str(_ID_3), "admin_user_id": str(_ID_8)}, source="test"
+        )
 
         notification_subscribers.notify_admin_user_promoted_for_event(event)
 

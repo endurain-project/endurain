@@ -2,10 +2,13 @@ import uuid
 from datetime import date as datetime_date
 from unittest.mock import patch
 
+from tests._helpers.auth import MOCK_USER_ID
+
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
 import modules.health.health_sleep.schema as health_sleep_schema
 
+_USER_ID = MOCK_USER_ID
 _SERVICE = "modules.health.health_sleep.router.health_sleep_service"
 _HEADERS = {"Authorization": "Bearer mock_token"}
 _IF_MATCH_HEADERS = {**_HEADERS, "If-Match": '"1"'}
@@ -17,7 +20,7 @@ def _record(record_id: uuid.UUID = _ID, day: int = 15, seconds: int = 28800) -> 
     return health_sleep_schema.HealthSleepRead(
         updated_at="2024-01-01T00:00:00Z",
         id=record_id,
-        user_id=1,
+        user_id=_USER_ID,
         date=datetime_date(2024, 1, day),
         total_sleep_seconds=seconds,
     )
@@ -27,7 +30,7 @@ def _item(record_id: uuid.UUID = _ID, *, has_stages: bool = False) -> health_sle
     return health_sleep_schema.HealthSleepListItem(
         updated_at="2024-01-01T00:00:00Z",
         id=record_id,
-        user_id=1,
+        user_id=_USER_ID,
         date=datetime_date(2024, 1, 15),
         has_sleep_stages=has_stages,
     )
@@ -37,7 +40,7 @@ def _item_with(record_id: uuid.UUID, seconds: int) -> health_sleep_schema.Health
     return health_sleep_schema.HealthSleepListItem(
         updated_at="2024-01-01T00:00:00Z",
         id=record_id,
-        user_id=1,
+        user_id=_USER_ID,
         date=datetime_date(2024, 1, 15),
         total_sleep_seconds=seconds,
         has_sleep_stages=False,
@@ -89,7 +92,7 @@ class TestReadHealthSleepAll:
 
         assert response.status_code == 200
         args = mock_list.call_args
-        assert args.args[0] == 1
+        assert args.args[0] == _USER_ID
         assert (args.kwargs["page_number"], args.kwargs["num_records"]) == (2, 10)
         assert args.kwargs["interval"].value == "last_30_days"
         assert args.kwargs["has_resting_heart_rate"] is None
@@ -184,7 +187,7 @@ class TestDeleteHealthSleep:
         response = fast_api_client.delete(f"/health_sleep/{_ID}", headers=_IF_MATCH_HEADERS)
 
         assert response.status_code == 204
-        assert mock_delete.call_args.args[:2] == (1, _ID)
+        assert mock_delete.call_args.args[:2] == (_USER_ID, _ID)
         assert mock_delete.call_args.kwargs == {"if_match": '"1"'}
 
     @patch(f"{_SERVICE}.delete_health_sleep")
@@ -205,7 +208,7 @@ class TestReadHealthSleepById:
 
         assert response.status_code == 200
         assert response.headers["ETag"] == '"1"'
-        assert mock_get.call_args.args[:2] == (1, _ID)
+        assert mock_get.call_args.args[:2] == (_USER_ID, _ID)
 
     @patch(f"{_SERVICE}.get_health_sleep")
     def test_a_record_the_user_does_not_have_is_404(self, mock_get, fast_api_client, fast_api_app):

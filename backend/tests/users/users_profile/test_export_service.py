@@ -3,6 +3,7 @@
 import contextlib
 import io
 import json
+import uuid
 import zipfile
 from unittest.mock import MagicMock, patch
 
@@ -24,6 +25,10 @@ from modules.users.users_profile.exceptions import (
     MemoryAllocationError,
     ZipCreationError,
 )
+
+_USER_ID = uuid.UUID(int=1)
+_GEAR_A = uuid.UUID(int=11)
+_GEAR_B = uuid.UUID(int=12)
 
 
 @contextlib.contextmanager
@@ -93,8 +98,8 @@ class TestExportPerformanceConfig:
 class TestExportServiceInit:
     def test_init_creates_service(self) -> None:
         mock_db = MagicMock(spec=Session)
-        service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
-        assert service.user_id == 1
+        service = profile_export_service.ExportService(user_id=_USER_ID, storage=MagicMock(), db=mock_db)
+        assert service.user_id == _USER_ID
         assert service.db is mock_db
         assert "user" in service.counts
 
@@ -102,7 +107,7 @@ class TestExportServiceInit:
         mock_db = MagicMock(spec=Session)
         config = profile_export_service.ExportPerformanceConfig(batch_size=10)
         service = profile_export_service.ExportService(
-            user_id=1,
+            user_id=_USER_ID,
             storage=MagicMock(),
             db=mock_db,
             performance_config=config,
@@ -111,7 +116,7 @@ class TestExportServiceInit:
 
 
 def _service(batch_size: int = 10) -> profile_export_service.ExportService:
-    service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=MagicMock(spec=Session))
+    service = profile_export_service.ExportService(user_id=_USER_ID, storage=MagicMock(), db=MagicMock(spec=Session))
     service.performance_config.batch_size = batch_size
     service.performance_config.enable_memory_monitoring = False
     return service
@@ -126,7 +131,7 @@ def _read_json(buf: io.BytesIO, name: str):
 class _GearRecord(BaseModel):
     """A stored record as a section's export returns it."""
 
-    id: int
+    id: uuid.UUID
 
 
 def _records_section(key: str = "gears", export=None) -> users_profile_contracts.ProfileRecordsSection:
@@ -154,19 +159,21 @@ def _collect(service, timeout_calls=None):
 
 class TestExportServiceCollectProfileSections:
     def _service(self):
-        service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=MagicMock(spec=Session))
+        service = profile_export_service.ExportService(
+            user_id=_USER_ID, storage=MagicMock(), db=MagicMock(spec=Session)
+        )
         service.performance_config.enable_memory_monitoring = False
         return service
 
     def test_a_records_section_writes_its_entry_and_counts_it(self, sections) -> None:
         sections.register_profile_section(
-            _records_section("gears", lambda user_id, db: [_GearRecord(id=1), _GearRecord(id=2)])
+            _records_section("gears", lambda user_id, db: [_GearRecord(id=_GEAR_A), _GearRecord(id=_GEAR_B)])
         )
         service = self._service()
 
         buf, files = _collect(service)
 
-        assert _read_json(buf, "data/gears.json") == [{"id": 1}, {"id": 2}]
+        assert _read_json(buf, "data/gears.json") == [{"id": str(_GEAR_A)}, {"id": str(_GEAR_B)}]
         assert service.counts["gears"] == 2
         assert files == []
 
@@ -198,7 +205,7 @@ class TestExportServiceCollectProfileSections:
 
         def export(context: users_profile_contracts.ProfileExportContext):
             seen.append(context)
-            context.archive.write_json("data/extra.json", [_GearRecord(id=7)])
+            context.archive.write_json("data/extra.json", [_GearRecord(id=_GEAR_A)])
             return after_commit
 
         sections.register_profile_section(
@@ -209,7 +216,7 @@ class TestExportServiceCollectProfileSections:
         _, files = _collect(service)
 
         assert files == [after_commit]
-        assert seen[0].user_id == 1
+        assert seen[0].user_id == _USER_ID
         assert seen[0].counts is service.counts
         assert seen[0].batch_size == service.performance_config.batch_size
         assert service.counts["extra"] == 1
@@ -254,7 +261,7 @@ class TestExportServiceCollectUserSettings:
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
             mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
+            service = profile_export_service.ExportService(user_id=_USER_ID, storage=MagicMock(), db=mock_db)
             service.performance_config.enable_memory_monitoring = False
 
             with (
@@ -281,7 +288,7 @@ class TestExportServiceCollectUserSettings:
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
             mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
+            service = profile_export_service.ExportService(user_id=_USER_ID, storage=MagicMock(), db=mock_db)
             service.performance_config.enable_memory_monitoring = False
 
             with (
@@ -301,7 +308,7 @@ class TestExportServiceCollectUserSettings:
                     "modules.users.users_profile.export_service.users_privacy_settings_integration.get_privacy_settings",
                     return_value=MagicMock(),
                 ),
-                patch.object(profile_utils, "model_to_dict", return_value={"id": 1}),
+                patch.object(profile_utils, "model_to_dict", return_value={"id": str(_USER_ID)}),
             ):
                 service.collect_user_settings_data(z)
 
@@ -313,7 +320,7 @@ class TestExportServiceCollectUserSettings:
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
             mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
+            service = profile_export_service.ExportService(user_id=_USER_ID, storage=MagicMock(), db=mock_db)
             service.performance_config.enable_memory_monitoring = False
 
             with (
@@ -344,7 +351,7 @@ class TestExportServiceCollectUserSettings:
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
             mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
+            service = profile_export_service.ExportService(user_id=_USER_ID, storage=MagicMock(), db=mock_db)
             service.performance_config.enable_memory_monitoring = False
 
             with (
@@ -360,11 +367,11 @@ class TestExportServiceCollectUserSettings:
 class TestExportServiceGenerateExportArchive:
     def test_generate_archive_streams_bytes(self) -> None:
         mock_db = MagicMock(spec=Session)
-        service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
+        service = profile_export_service.ExportService(user_id=_USER_ID, storage=MagicMock(), db=mock_db)
         service.performance_config.enable_memory_monitoring = False
         service.performance_config.compression_level = 0
 
-        user_dict = {"id": 1, "username": "test"}
+        user_dict = {"id": str(_USER_ID), "username": "test"}
 
         with (
             patch.object(service, "collect_profile_sections", return_value=[]),
@@ -378,11 +385,11 @@ class TestExportServiceGenerateExportArchive:
 
     def test_generate_archive_memory_error_raised(self) -> None:
         mock_db = MagicMock(spec=Session)
-        service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
+        service = profile_export_service.ExportService(user_id=_USER_ID, storage=MagicMock(), db=mock_db)
         service.performance_config.enable_memory_monitoring = False
         service.performance_config.compression_level = 0
 
-        user_dict = {"id": 1, "username": "test"}
+        user_dict = {"id": str(_USER_ID), "username": "test"}
 
         with (
             patch.object(service, "collect_profile_sections", return_value=[]),
@@ -422,7 +429,7 @@ class TestExportServiceCollectUserSettingsEdgeCases:
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
             mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
+            service = profile_export_service.ExportService(user_id=_USER_ID, storage=MagicMock(), db=mock_db)
             service.performance_config.enable_memory_monitoring = False
 
             with (
@@ -452,7 +459,7 @@ class TestExportServiceCollectUserSettingsEdgeCases:
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
             mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
+            service = profile_export_service.ExportService(user_id=_USER_ID, storage=MagicMock(), db=mock_db)
             service.performance_config.enable_memory_monitoring = False
 
             with (
@@ -471,7 +478,7 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
     def test_bad_zip_file_raises_zip_creation_error(self) -> None:
         """BadZipFile during ZIP creation raises ZipCreationError (lines 1076-1077)."""
         mock_db = MagicMock(spec=Session)
-        service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
+        service = profile_export_service.ExportService(user_id=_USER_ID, storage=MagicMock(), db=mock_db)
         service.performance_config.enable_memory_monitoring = False
 
         with (
@@ -481,12 +488,12 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
             ),
             pytest.raises(ZipCreationError),
         ):
-            service.build_export_archive({"id": 1}, timeout_seconds=60)
+            service.build_export_archive({"id": str(_USER_ID)}, timeout_seconds=60)
 
     def test_large_zip_file_raises_zip_creation_error(self) -> None:
         """LargeZipFile during ZIP creation raises ZipCreationError (lines 1079-1080)."""
         mock_db = MagicMock(spec=Session)
-        service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
+        service = profile_export_service.ExportService(user_id=_USER_ID, storage=MagicMock(), db=mock_db)
         service.performance_config.enable_memory_monitoring = False
 
         with (
@@ -496,12 +503,12 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
             ),
             pytest.raises(ZipCreationError),
         ):
-            service.build_export_archive({"id": 1}, timeout_seconds=60)
+            service.build_export_archive({"id": str(_USER_ID)}, timeout_seconds=60)
 
     def test_exception_re_raised(self) -> None:
         """Non-specific exception from collection re-raised (lines 1083-1084)."""
         mock_db = MagicMock(spec=Session)
-        service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
+        service = profile_export_service.ExportService(user_id=_USER_ID, storage=MagicMock(), db=mock_db)
         service.performance_config.enable_memory_monitoring = False
         service.performance_config.compression_level = 0
 
@@ -510,12 +517,12 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
             patch.object(service, "collect_user_settings_data", side_effect=DataCollectionError("collect failed")),
             pytest.raises(DataCollectionError),
         ):
-            service.build_export_archive({"id": 1}, timeout_seconds=60)
+            service.build_export_archive({"id": str(_USER_ID)}, timeout_seconds=60)
 
     def test_export_timeout_re_raised(self) -> None:
         """ExportTimeoutError re-raised through inner except Exception (lines 1083-1084)."""
         mock_db = MagicMock(spec=Session)
-        service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
+        service = profile_export_service.ExportService(user_id=_USER_ID, storage=MagicMock(), db=mock_db)
         service.performance_config.enable_memory_monitoring = False
         service.performance_config.compression_level = 0
 
@@ -530,11 +537,11 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
             patch.object(export_media_service, "add_user_images_to_zip"),
             pytest.raises(ExportTimeoutError),
         ):
-            service.build_export_archive({"id": 1}, timeout_seconds=60)
+            service.build_export_archive({"id": str(_USER_ID)}, timeout_seconds=60)
 
     def test_an_os_error_while_writing_raises_file_system_error(self) -> None:
         mock_db = MagicMock(spec=Session)
-        service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
+        service = profile_export_service.ExportService(user_id=_USER_ID, storage=MagicMock(), db=mock_db)
         service.performance_config.enable_memory_monitoring = False
         service.performance_config.compression_level = 0
 
@@ -543,11 +550,11 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
             patch.object(service, "collect_user_settings_data", side_effect=OSError("disk full")),
             pytest.raises(FileSystemError),
         ):
-            service.build_export_archive({"id": 1}, timeout_seconds=60)
+            service.build_export_archive({"id": str(_USER_ID)}, timeout_seconds=60)
 
     def test_a_memory_error_while_writing_raises_memory_allocation_error(self) -> None:
         mock_db = MagicMock(spec=Session)
-        service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
+        service = profile_export_service.ExportService(user_id=_USER_ID, storage=MagicMock(), db=mock_db)
         service.performance_config.enable_memory_monitoring = False
         service.performance_config.compression_level = 0
 
@@ -556,7 +563,7 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
             patch.object(service, "collect_user_settings_data", side_effect=MemoryError("OOM")),
             pytest.raises(MemoryAllocationError),
         ):
-            service.build_export_archive({"id": 1}, timeout_seconds=60)
+            service.build_export_archive({"id": str(_USER_ID)}, timeout_seconds=60)
 
 
 def test_export_writes_only_the_sync_preferences_of_the_integrations() -> None:
@@ -569,7 +576,9 @@ def test_export_writes_only_the_sync_preferences_of_the_integrations() -> None:
     )
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-        service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=MagicMock(spec=Session))
+        service = profile_export_service.ExportService(
+            user_id=_USER_ID, storage=MagicMock(), db=MagicMock(spec=Session)
+        )
         service.performance_config.enable_memory_monitoring = False
         with (
             patch(
@@ -596,7 +605,7 @@ def test_export_writes_only_the_sync_preferences_of_the_integrations() -> None:
 
 def test_the_database_phase_ends_before_the_storage_phase() -> None:
     mock_db = MagicMock(spec=Session)
-    service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
+    service = profile_export_service.ExportService(user_id=_USER_ID, storage=MagicMock(), db=mock_db)
     service.performance_config.enable_memory_monitoring = False
     order = MagicMock()
     order.attach_mock(mock_db.commit, "commit")
@@ -608,13 +617,13 @@ def test_the_database_phase_ends_before_the_storage_phase() -> None:
     ):
         order.attach_mock(settings, "last_db_read")
         order.attach_mock(files, "first_storage_read")
-        service.build_export_archive({"id": 1}).close()
+        service.build_export_archive({"id": str(_USER_ID)}).close()
 
     assert [call[0] for call in order.mock_calls] == ["last_db_read", "commit", "first_storage_read"]
 
 
 def test_a_failed_build_leaves_no_archive_open() -> None:
-    service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=MagicMock(spec=Session))
+    service = profile_export_service.ExportService(user_id=_USER_ID, storage=MagicMock(), db=MagicMock(spec=Session))
     service.performance_config.enable_memory_monitoring = False
     opened = []
     real = profile_export_service.tempfile.TemporaryFile
@@ -630,6 +639,6 @@ def test_a_failed_build_leaves_no_archive_open() -> None:
         patch.object(service, "collect_user_settings_data", side_effect=DataCollectionError("boom")),
         pytest.raises(DataCollectionError),
     ):
-        service.build_export_archive({"id": 1})
+        service.build_export_archive({"id": str(_USER_ID)})
 
     assert opened and all(handle.closed for handle in opened)

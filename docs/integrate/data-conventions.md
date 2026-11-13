@@ -51,7 +51,7 @@ So `run`, `bike`, `swim` and `walk` mean a group of types in the stats and in th
 - **A measurement states its unit** in the field description of the OpenAPI document: meters for distance and elevation, seconds for time, meters per second for speed, seconds per meter for pace, watts for power, beats per minute for heart rate. Where the name can carry the unit it does (`weight_kg`, `amount_ml`, `total_sleep_seconds`, `body_fat_percent`).
 - **A gear's distances are meters.** `initial_distance` (the distance the gear had before it was tracked) uses the same unit as `total_distance`, which includes it. A component's `expected_usage` is the wear threshold in meters of activity distance for a distance-tracked gear and in seconds of activity time for a time-tracked one (racquets).
 - **A price is a decimal string.** `purchase_value` of a gear or a component, and the gear's `total_components_cost`, are strings with two decimals such as `"129.90"`, in the owner's `currency` user setting; the API does not convert between currencies. A JSON number (`129.9`) or a string with another shape (`"129.9"`, `"129,90"`) is refused with `422`.
-- **An export from an earlier release still imports.** A gear archive with `initial_kms` (kilometers) or a numeric `purchase_value` is read as `initial_distance` in meters and a decimal string.
+- **An export from an earlier release does not import.** An archive exported by an Endurain version before v0.21.0 is refused (`older_version`) and nothing is imported.
 
 ## Goals
 

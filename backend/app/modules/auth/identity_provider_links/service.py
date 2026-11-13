@@ -16,7 +16,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def get_orphaned_idp_session_tokens_page(
-    after_id: uuid.UUID | None, limit: int, db: Session, *, user_id: int | None = None
+    after_id: uuid.UUID | None, limit: int, db: Session, *, user_id: uuid.UUID | None = None
 ) -> tuple[list[auth_identity_links_contracts.IdpSessionTokenRead], uuid.UUID | None]:
     """Find the sign-ins in one window whose Endurain session no longer exists.
 
@@ -37,7 +37,7 @@ def get_orphaned_idp_session_tokens_page(
     return [row for row in window if row.session_id not in alive], window[-1].id
 
 
-def end_idp_sessions(user_id: int, idp_id: uuid.UUID, db: Session) -> int:
+def end_idp_sessions(user_id: uuid.UUID, idp_id: uuid.UUID, db: Session) -> int:
     """Stage the end of every session the user signed in to through the provider; the caller commits.
 
     The sessions go through the sessions surface, which publishes the revocation, so each sign-in's token is
@@ -73,8 +73,8 @@ def end_all_idp_sessions(idp_id: uuid.UUID, db: Session) -> int:
 
 
 def end_idp_sessions_by_sid(
-    idp_id: uuid.UUID, idp_sid: str, db: Session, *, user_id: int | None = None
-) -> dict[int, int]:
+    idp_id: uuid.UUID, idp_sid: str, db: Session, *, user_id: uuid.UUID | None = None
+) -> dict[uuid.UUID, int]:
     """Stage the end of every session signed in through the provider under a provider session id; the caller commits.
 
     The sessions go through the sessions surface, which publishes the revocation, so each sign-in's token is
@@ -93,7 +93,7 @@ def end_idp_sessions_by_sid(
     return _end_live_sessions(owners, db)
 
 
-def _end_live_sessions(owners: list[tuple[str, int]], db: Session) -> dict[int, int]:
+def _end_live_sessions(owners: list[tuple[str, uuid.UUID]], db: Session) -> dict[uuid.UUID, int]:
     """Stage the end of the sessions that still exist among the given ones.
 
     A sign-in row outlives its session, and a session can end between the lookup and here, so a session that is
@@ -106,7 +106,7 @@ def _end_live_sessions(owners: list[tuple[str, int]], db: Session) -> dict[int, 
     Returns:
         How many sessions ended, per user; a user with none ended is absent.
     """
-    ended: dict[int, int] = {}
+    ended: dict[uuid.UUID, int] = {}
     for session_id, owner_id in owners:
         if sessions_integration.delete_session_if_present(session_id, owner_id, db):
             ended[owner_id] = ended.get(owner_id, 0) + 1
@@ -116,7 +116,7 @@ def _end_live_sessions(owners: list[tuple[str, int]], db: Session) -> dict[int, 
 def enrich_user_identity_providers(
     idp_links: list[auth_identity_links_contracts.IdentityLinkRead],
     idps: Sequence[auth_identity_links_contracts.IdentityProviderDetails],
-    user_id: int,
+    user_id: uuid.UUID,
 ) -> list[auth_identity_links_schema.IdentityProviderLinkRead]:
     """Enrich identity provider links with IDP details.
 

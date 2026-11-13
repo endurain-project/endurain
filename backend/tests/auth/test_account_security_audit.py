@@ -24,6 +24,7 @@ import modules.auth.mfa.schema as mfa_schema
 import modules.auth.schema as auth_schema
 import modules.auth.sessions.audit_actions as sessions_audit_actions
 
+USER_ID = uuid.UUID(int=7)
 IDP_ID = uuid.UUID(int=3)
 Change = account_security_events.AccountSecurityChange
 Reason = login_audit_actions.StepUpFailureReason
@@ -37,11 +38,11 @@ def published():
         yield publish
 
 
-def assert_event(publish, change, user_id=7, idp_id=None):
+def assert_event(publish, change, user_id=USER_ID, idp_id=None):
     publish.assert_called_once()
     assert publish.call_args.args[0] == account_security_events.ACCOUNT_SECURITY_CHANGED
     assert publish.call_args.args[1] == {
-        "user_id": user_id,
+        "user_id": str(user_id),
         "change": change.value,
         "idp_id": None if idp_id is None else str(idp_id),
         "access_type": None,
@@ -51,11 +52,11 @@ def assert_event(publish, change, user_id=7, idp_id=None):
 class TestPayloadAndPublisher:
     def test_payload_carries_ids_and_the_change_only(self):
         payload = account_security_events.AccountSecurityChangedPayload(
-            user_id=7, change=Change.PASSWORD_CHANGED, extra="dropped"
+            user_id=USER_ID, change=Change.PASSWORD_CHANGED, extra="dropped"
         )
 
         assert payload.model_dump() == {
-            "user_id": 7,
+            "user_id": USER_ID,
             "change": "password_changed",
             "idp_id": None,
             "access_type": None,
@@ -88,7 +89,7 @@ class TestPayloadAndPublisher:
         }
 
     def test_the_event_is_staged_on_the_callers_session(self, mock_db, published):
-        account_security_event_publishers.publish_account_security_changed(7, Change.MFA_ENABLED, mock_db)
+        account_security_event_publishers.publish_account_security_changed(USER_ID, Change.MFA_ENABLED, mock_db)
 
         assert_event(published, Change.MFA_ENABLED)
         assert published.call_args.kwargs["db"] is mock_db
@@ -113,7 +114,7 @@ class TestPasswordAudit:
             require_user.return_value.access_type = "regular"
             require_user.return_value.username = "alice"
             account_security_service.stage_change_own_password(
-                7,
+                USER_ID,
                 "old",
                 "new",
                 None,
@@ -129,7 +130,10 @@ class TestPasswordAudit:
             self._stage_own(mock_db)
 
         entry = audit.assert_audited(
-            account_security_audit_actions.PASSWORD_CHANGE.id, target_type="user", target_id="7", target_owner_id="7"
+            account_security_audit_actions.PASSWORD_CHANGE.id,
+            target_type="user",
+            target_id=str(USER_ID),
+            target_owner_id=str(USER_ID),
         )
         assert entry.details == {"sessions_revoked": 3}
         assert_event(published, Change.PASSWORD_CHANGED)
@@ -137,7 +141,7 @@ class TestPasswordAudit:
     def test_own_password_change_lifts_the_account_sign_in_lock(self, mock_db, published):
         clear_lock = self._stage_own(mock_db)
 
-        clear_lock.assert_called_once_with(7)
+        clear_lock.assert_called_once_with(USER_ID)
 
     def test_own_password_change_without_revoking_records_zero(self, mock_db, published):
         with jasil_testing.capture_audit() as audit:
@@ -163,13 +167,16 @@ class TestPasswordAudit:
         ):
             require_user.return_value.access_type = "regular"
             require_user.return_value.username = "alice"
-            account_security_service.change_managed_user_password(7, "new", mock_db)
+            account_security_service.change_managed_user_password(USER_ID, "new", mock_db)
 
-        clear_lock.assert_called_once_with(7)
-        clear_step_up.assert_called_once_with(7)
+        clear_lock.assert_called_once_with(USER_ID)
+        clear_step_up.assert_called_once_with(USER_ID)
 
         entry = audit.assert_audited(
-            account_security_audit_actions.PASSWORD_SET.id, target_type="user", target_id="7", target_owner_id="7"
+            account_security_audit_actions.PASSWORD_SET.id,
+            target_type="user",
+            target_id=str(USER_ID),
+            target_owner_id=str(USER_ID),
         )
         assert entry.details == {"sessions_revoked": 2}
         assert_event(published, Change.PASSWORD_SET_BY_ADMIN)
@@ -191,13 +198,16 @@ class TestAdministratorCredentialAudit:
             jasil_testing.capture_audit() as audit,
         ):
             require_user.return_value.username = "alice"
-            account_security_service.reset_managed_user_mfa(7, mock_db)
+            account_security_service.reset_managed_user_mfa(USER_ID, mock_db)
 
-        disable.assert_called_once_with(7, mock_db)
-        clear_lock.assert_called_once_with(7)
-        sessions.assert_called_once_with(7, mock_db)
+        disable.assert_called_once_with(USER_ID, mock_db)
+        clear_lock.assert_called_once_with(USER_ID)
+        sessions.assert_called_once_with(USER_ID, mock_db)
         entry = audit.assert_audited(
-            account_security_audit_actions.MFA_RESET.id, target_type="user", target_id="7", target_owner_id="7"
+            account_security_audit_actions.MFA_RESET.id,
+            target_type="user",
+            target_id=str(USER_ID),
+            target_owner_id=str(USER_ID),
         )
         assert entry.details == {"sessions_revoked": 2}
         assert_event(published, Change.MFA_RESET_BY_ADMIN)
@@ -213,7 +223,7 @@ class TestAdministratorCredentialAudit:
             jasil_testing.capture_audit() as audit,
             pytest.raises(core_exceptions.ConflictError),
         ):
-            account_security_service.reset_managed_user_mfa(7, mock_db)
+            account_security_service.reset_managed_user_mfa(USER_ID, mock_db)
 
         sessions.assert_not_called()
         audit.assert_not_audited(account_security_audit_actions.MFA_RESET.id)
@@ -226,15 +236,15 @@ class TestAdministratorCredentialAudit:
             self._sessions() as sessions,
             jasil_testing.capture_audit() as audit,
         ):
-            account_security_service.require_managed_user_password_change(7, mock_db)
+            account_security_service.require_managed_user_password_change(USER_ID, mock_db)
 
-        require.assert_called_once_with(7, mock_db)
-        sessions.assert_called_once_with(7, mock_db)
+        require.assert_called_once_with(USER_ID, mock_db)
+        sessions.assert_called_once_with(USER_ID, mock_db)
         entry = audit.assert_audited(
             account_security_audit_actions.PASSWORD_CHANGE_REQUIRE.id,
             target_type="user",
-            target_id="7",
-            target_owner_id="7",
+            target_id=str(USER_ID),
+            target_owner_id=str(USER_ID),
         )
         assert entry.details == {"sessions_revoked": 2}
         assert_event(published, Change.PASSWORD_CHANGE_REQUIRED_BY_ADMIN)
@@ -251,7 +261,7 @@ class TestAdministratorCredentialAudit:
             jasil_testing.capture_audit() as audit,
             pytest.raises(core_exceptions.ConflictError),
         ):
-            account_security_service.require_managed_user_password_change(7, mock_db)
+            account_security_service.require_managed_user_password_change(USER_ID, mock_db)
 
         sessions.assert_not_called()
         audit.assert_not_audited(account_security_audit_actions.PASSWORD_CHANGE_REQUIRE.id)
@@ -281,7 +291,7 @@ class TestMfaAudit:
             jasil_testing.capture_audit() as audit,
         ):
             require_user.return_value.username = "alice"
-            mfa_workflow.enable_mfa(request, 7, "sid", MagicMock(), store, mock_db)
+            mfa_workflow.enable_mfa(request, USER_ID, "sid", MagicMock(), store, mock_db)
         self.cleared = clear_lock
         return audit
 
@@ -295,33 +305,38 @@ class TestMfaAudit:
             jasil_testing.capture_audit() as audit,
         ):
             require_user.return_value.username = "alice"
-            mfa_workflow.disable_mfa(request, 7, "sid", MagicMock(), mock_db, revoke_other_sessions=revoke)
+            mfa_workflow.disable_mfa(request, USER_ID, "sid", MagicMock(), mock_db, revoke_other_sessions=revoke)
         self.cleared = clear_lock
         return audit
 
     def _backup_codes(self, mock_db, *, revoke=True):
         step_up = auth_schema.StepUpVerification(current_password="pw", mfa_code="123456")
         with (
-            patch.object(mfa_workflow.users_integration, "get_user", return_value=MagicMock(id=7)),
+            patch.object(mfa_workflow.users_integration, "get_user", return_value=MagicMock(id=USER_ID)),
             patch.object(mfa_workflow.mfa_integration, "is_mfa_enabled_for_user", return_value=True),
             patch.object(mfa_workflow.step_up_service, "verify_step_up_credentials"),
             patch.object(mfa_workflow.mfa_backup_codes_integration, "create_backup_codes", return_value=["a", "b"]),
             jasil_testing.capture_audit() as audit,
         ):
-            mfa_workflow.generate_backup_codes(step_up, 7, "sid", MagicMock(), mock_db, revoke_other_sessions=revoke)
+            mfa_workflow.generate_backup_codes(
+                step_up, USER_ID, "sid", MagicMock(), mock_db, revoke_other_sessions=revoke
+            )
         return audit
 
     def test_enable(self, mock_db, published):
         with self._revoker(3) as delete:
             audit = self._enable(mock_db)
 
-        delete.assert_called_once_with(7, mock_db, exclude_session_id="sid")
+        delete.assert_called_once_with(USER_ID, mock_db, exclude_session_id="sid")
         entry = audit.assert_audited(
-            account_security_audit_actions.MFA_ENABLE.id, target_type="user", target_id="7", target_owner_id="7"
+            account_security_audit_actions.MFA_ENABLE.id,
+            target_type="user",
+            target_id=str(USER_ID),
+            target_owner_id=str(USER_ID),
         )
         assert entry.details == {"sessions_revoked": 3}
         assert_event(published, Change.MFA_ENABLED)
-        self.cleared.assert_called_once_with(7)
+        self.cleared.assert_called_once_with(USER_ID)
 
     def test_enable_keeps_every_session_when_told_to(self, mock_db, published):
         with self._revoker(3) as delete:
@@ -341,13 +356,16 @@ class TestMfaAudit:
         with self._revoker(2) as delete:
             audit = self._disable(mock_db)
 
-        delete.assert_called_once_with(7, mock_db, exclude_session_id="sid")
+        delete.assert_called_once_with(USER_ID, mock_db, exclude_session_id="sid")
         entry = audit.assert_audited(
-            account_security_audit_actions.MFA_DISABLE.id, target_type="user", target_id="7", target_owner_id="7"
+            account_security_audit_actions.MFA_DISABLE.id,
+            target_type="user",
+            target_id=str(USER_ID),
+            target_owner_id=str(USER_ID),
         )
         assert entry.details == {"sessions_revoked": 2}
         assert_event(published, Change.MFA_DISABLED)
-        self.cleared.assert_called_once_with(7)
+        self.cleared.assert_called_once_with(USER_ID)
 
     def test_disable_keeps_every_session_when_told_to(self, mock_db, published):
         with self._revoker(2) as delete:
@@ -368,7 +386,7 @@ class TestMfaAudit:
             patch.object(mfa_workflow.mfa_integration, "disable_user_mfa"),
             pytest.raises(core_exceptions.UnauthenticatedError),
         ):
-            mfa_workflow.disable_mfa(request, 7, "sid", MagicMock(), mock_db, revoke_other_sessions=True)
+            mfa_workflow.disable_mfa(request, USER_ID, "sid", MagicMock(), mock_db, revoke_other_sessions=True)
 
         delete.assert_not_called()
         mock_db.commit.assert_not_called()
@@ -377,9 +395,9 @@ class TestMfaAudit:
         with self._revoker(4) as delete:
             audit = self._backup_codes(mock_db)
 
-        delete.assert_called_once_with(7, mock_db, exclude_session_id="sid")
+        delete.assert_called_once_with(USER_ID, mock_db, exclude_session_id="sid")
         entry = audit.assert_audited(
-            account_security_audit_actions.BACKUP_CODES_GENERATE.id, target_type="user", target_id="7"
+            account_security_audit_actions.BACKUP_CODES_GENERATE.id, target_type="user", target_id=str(USER_ID)
         )
         assert entry.details == {"count": 2, "sessions_revoked": 4}
         assert_event(published, Change.BACKUP_CODES_GENERATED)
@@ -396,7 +414,7 @@ class TestMfaAudit:
         step_up = auth_schema.StepUpVerification(current_password="pw", mfa_code="123456")
         with (
             self._revoker(4) as delete,
-            patch.object(mfa_workflow.users_integration, "get_user", return_value=MagicMock(id=7)),
+            patch.object(mfa_workflow.users_integration, "get_user", return_value=MagicMock(id=USER_ID)),
             patch.object(mfa_workflow.mfa_integration, "is_mfa_enabled_for_user", return_value=True),
             patch.object(
                 mfa_workflow.step_up_service,
@@ -405,7 +423,9 @@ class TestMfaAudit:
             ),
             pytest.raises(core_exceptions.UnauthenticatedError),
         ):
-            mfa_workflow.generate_backup_codes(step_up, 7, "sid", MagicMock(), mock_db, revoke_other_sessions=True)
+            mfa_workflow.generate_backup_codes(
+                step_up, USER_ID, "sid", MagicMock(), mock_db, revoke_other_sessions=True
+            )
 
         delete.assert_not_called()
         mock_db.commit.assert_not_called()
@@ -436,13 +456,13 @@ class TestApiKeyAudit:
             patch.object(api_keys_schema, "UserApiKeyCreatedRead"),
             jasil_testing.capture_audit() as audit,
         ):
-            api_key_service.create_user_api_key(7, "sid", data, datetime.now(UTC), MagicMock(), mock_db)
+            api_key_service.create_user_api_key(USER_ID, "sid", data, datetime.now(UTC), MagicMock(), mock_db)
 
         entry = audit.assert_audited(
             account_security_audit_actions.API_KEY_CREATE.id,
             target_type="api_key",
             target_id="key-1",
-            target_owner_id="7",
+            target_owner_id=str(USER_ID),
         )
         assert entry.details == {"scopes": ["activities:upload"]}
         assert_event(published, Change.API_KEY_CREATED)
@@ -453,20 +473,20 @@ class TestApiKeyAudit:
             patch.object(api_key_service.api_keys_integration, "delete_api_key"),
             jasil_testing.capture_audit() as audit,
         ):
-            api_key_service.revoke_user_api_key("key-1", 7, mock_db)
-            api_key_service.delete_user_api_key("key-2", 7, mock_db)
+            api_key_service.revoke_user_api_key("key-1", USER_ID, mock_db)
+            api_key_service.delete_user_api_key("key-2", USER_ID, mock_db)
 
         audit.assert_audited(
             account_security_audit_actions.API_KEY_REVOKE.id,
             target_type="api_key",
             target_id="key-1",
-            target_owner_id="7",
+            target_owner_id=str(USER_ID),
         )
         audit.assert_audited(
             account_security_audit_actions.API_KEY_DELETE.id,
             target_type="api_key",
             target_id="key-2",
-            target_owner_id="7",
+            target_owner_id=str(USER_ID),
         )
 
 
@@ -476,13 +496,13 @@ class TestSessionAudit:
             patch.object(account_security_service.sessions_integration, "delete_session"),
             jasil_testing.capture_audit() as audit,
         ):
-            account_security_service.delete_user_session("sess-1", 7, mock_db)
+            account_security_service.delete_user_session("sess-1", USER_ID, mock_db)
 
         entry = audit.assert_audited(
             sessions_audit_actions.SESSION_REVOKE.id,
             target_type="session",
             target_id="sess-1",
-            target_owner_id="7",
+            target_owner_id=str(USER_ID),
         )
         assert entry.details == {"sessions_revoked": 1}
 
@@ -491,10 +511,13 @@ class TestSessionAudit:
             patch.object(account_security_service.sessions_integration, "delete_sessions_by_user", return_value=4),
             jasil_testing.capture_audit() as audit,
         ):
-            account_security_service.delete_other_user_sessions(7, "sess-1", mock_db)
+            account_security_service.delete_other_user_sessions(USER_ID, "sess-1", mock_db)
 
         entry = audit.assert_audited(
-            sessions_audit_actions.SESSION_REVOKE.id, target_type="user", target_id="7", target_owner_id="7"
+            sessions_audit_actions.SESSION_REVOKE.id,
+            target_type="user",
+            target_id=str(USER_ID),
+            target_owner_id=str(USER_ID),
         )
         assert entry.details == {"sessions_revoked": 4}
 
@@ -503,10 +526,13 @@ class TestSessionAudit:
             patch.object(account_security_service.sessions_integration, "delete_sessions_by_user", return_value=5),
             jasil_testing.capture_audit() as audit,
         ):
-            account_security_service.delete_all_user_sessions(7, mock_db)
+            account_security_service.delete_all_user_sessions(USER_ID, mock_db)
 
         entry = audit.assert_audited(
-            sessions_audit_actions.SESSION_REVOKE.id, target_type="user", target_id="7", target_owner_id="7"
+            sessions_audit_actions.SESSION_REVOKE.id,
+            target_type="user",
+            target_id=str(USER_ID),
+            target_owner_id=str(USER_ID),
         )
         assert entry.details == {"sessions_revoked": 5}
 
@@ -517,12 +543,15 @@ class TestSessionAudit:
             ) as end,
             jasil_testing.capture_audit() as audit,
         ):
-            revoked = account_security_service.sign_out_everywhere(7, mock_db)
+            revoked = account_security_service.sign_out_everywhere(USER_ID, mock_db)
 
         assert revoked == 3
-        end.assert_called_once_with(7, mock_db)
+        end.assert_called_once_with(USER_ID, mock_db)
         entry = audit.assert_audited(
-            sessions_audit_actions.SESSION_REVOKE.id, target_type="user", target_id="7", target_owner_id="7"
+            sessions_audit_actions.SESSION_REVOKE.id,
+            target_type="user",
+            target_id=str(USER_ID),
+            target_owner_id=str(USER_ID),
         )
         assert entry.details == {"sessions_revoked": 3}
         mock_db.commit.assert_called_once()
@@ -561,13 +590,13 @@ class TestIdentityUnlinkAudit:
             patch.object(identity_link_service.step_up_service, "verify_step_up_credentials"),
             jasil_testing.capture_audit() as audit,
         ):
-            identity_link_service.delete_identity_provider_link(IDP_ID, step_up, 7, "sid", MagicMock(), mock_db)
+            identity_link_service.delete_identity_provider_link(IDP_ID, step_up, USER_ID, "sid", MagicMock(), mock_db)
 
         entry = audit.assert_audited(
             account_security_audit_actions.IDENTITY_LINK_UNLINK.id,
             target_type="user",
-            target_id="7",
-            target_owner_id="7",
+            target_id=str(USER_ID),
+            target_owner_id=str(USER_ID),
         )
         assert entry.details == {"idp_id": str(IDP_ID)}
         assert_event(published, Change.IDENTITY_PROVIDER_UNLINKED, idp_id=IDP_ID)
@@ -588,14 +617,19 @@ class TestIdentityUnlinkAudit:
             jasil_testing.capture_audit() as audit,
         ):
             if admin:
-                account_security_integration.admin_delete_identity_provider_link(7, IDP_ID, mock_db)
+                account_security_integration.admin_delete_identity_provider_link(USER_ID, IDP_ID, mock_db)
             else:
                 step_up = auth_schema.StepUpVerification(current_password="pw")
-                identity_link_service.delete_identity_provider_link(IDP_ID, step_up, 7, "sid", MagicMock(), mock_db)
+                identity_link_service.delete_identity_provider_link(
+                    IDP_ID, step_up, USER_ID, "sid", MagicMock(), mock_db
+                )
 
-        end_sessions.assert_called_once_with(7, IDP_ID, mock_db)
+        end_sessions.assert_called_once_with(USER_ID, IDP_ID, mock_db)
         entry = audit.assert_audited(
-            sessions_audit_actions.SESSION_REVOKE.id, target_type="user", target_id="7", target_owner_id="7"
+            sessions_audit_actions.SESSION_REVOKE.id,
+            target_type="user",
+            target_id=str(USER_ID),
+            target_owner_id=str(USER_ID),
         )
         assert entry.details == {"sessions_revoked": 2}
         audit.assert_audited(account_security_audit_actions.IDENTITY_LINK_UNLINK.id)
@@ -611,17 +645,17 @@ class TestIdentityUnlinkAudit:
             patch.object(identity_link_service.identity_provider_links_integration, "end_idp_sessions", return_value=0),
             jasil_testing.capture_audit() as audit,
         ):
-            account_security_integration.admin_delete_identity_provider_link(7, IDP_ID, mock_db)
+            account_security_integration.admin_delete_identity_provider_link(USER_ID, IDP_ID, mock_db)
 
         audit.assert_not_audited(sessions_audit_actions.SESSION_REVOKE.id)
 
     def test_admin_unlink(self, mock_db, published):
         p = self._patches()
         with p[0], p[1], p[2], p[3], p[4], jasil_testing.capture_audit() as audit:
-            account_security_integration.admin_delete_identity_provider_link(7, IDP_ID, mock_db)
+            account_security_integration.admin_delete_identity_provider_link(USER_ID, IDP_ID, mock_db)
 
         entry = audit.assert_audited(
-            account_security_audit_actions.IDENTITY_LINK_UNLINK.id, target_type="user", target_id="7"
+            account_security_audit_actions.IDENTITY_LINK_UNLINK.id, target_type="user", target_id=str(USER_ID)
         )
         assert entry.details == {"idp_id": str(IDP_ID)}
         assert_event(published, Change.IDENTITY_PROVIDER_UNLINKED, idp_id=IDP_ID)
@@ -641,7 +675,9 @@ class TestStepUpAudit:
             ),
             patch.object(step_up_service.lockout_integration, "report_lockout_applied"),
         ):
-            step_up_service.verify_step_up_credentials(7, password, mfa_code, store, MagicMock(), session_id="sid-7")
+            step_up_service.verify_step_up_credentials(
+                USER_ID, password, mfa_code, store, MagicMock(), session_id="sid-7"
+            )
 
     def _store(self, *, locked=False):
         store = MagicMock()
@@ -659,8 +695,8 @@ class TestStepUpAudit:
             login_audit_actions.STEP_UP_VERIFY.id,
             outcome="failure",
             target_type="user",
-            target_id="7",
-            target_owner_id="7",
+            target_id=str(USER_ID),
+            target_owner_id=str(USER_ID),
         )
         assert entry.details == {"method": Method.PASSWORD.value, "reason": Reason.INVALID_CREDENTIALS.value}
 

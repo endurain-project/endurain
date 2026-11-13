@@ -12,14 +12,19 @@ import modules.notifications.constants as notifications_constants
 import modules.notifications.service as notifications_service
 import modules.notifications.subscribers as notification_subscribers
 
+_ID_2 = uuid.uuid4()
+_ID_9 = uuid.uuid4()
+
 
 def _event():
-    return new_event(sign_up_events.SIGN_UP_APPROVAL_REQUESTED, {"user_id": 9, "admin_user_id": 2}, source="test")
+    return new_event(
+        sign_up_events.SIGN_UP_APPROVAL_REQUESTED, {"user_id": str(_ID_9), "admin_user_id": str(_ID_2)}, source="test"
+    )
 
 
 class TestCreateAdminSignUpApprovalNotification:
     def test_names_the_new_user_and_belongs_to_the_admin(self, mock_db):
-        user = MagicMock(id=9)
+        user = MagicMock(id=_ID_9)
         user.name = "New"
         user.username = "new"
         with (
@@ -30,14 +35,14 @@ class TestCreateAdminSignUpApprovalNotification:
             ) as create_once,
         ):
             _, ws_message, created = notifications_service.create_admin_sign_up_approval_notification(
-                9, 2, "event-1", mock_db
+                _ID_9, _ID_2, "event-1", mock_db
             )
 
         data = create_once.call_args.args[0]
-        assert data.user_id == 2
+        assert data.user_id == _ID_2
         assert data.type == notifications_constants.NotificationType.ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST
         assert data.source_event_id == "event-1"
-        assert data.options == {"user_id": 9, "user_name": "New", "user_username": "new"}
+        assert data.options == {"user_id": str(_ID_9), "user_name": "New", "user_username": "new"}
         assert ws_message == notifications_constants.ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST_WS_MESSAGE
         assert created is True
         mock_db.commit.assert_called_once()
@@ -47,7 +52,7 @@ class TestCreateAdminSignUpApprovalNotification:
             patch("modules.notifications.service.users_integration.get_user", return_value=None),
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            notifications_service.create_admin_sign_up_approval_notification(9, 2, "event-1", mock_db)
+            notifications_service.create_admin_sign_up_approval_notification(_ID_9, _ID_2, "event-1", mock_db)
 
 
 class TestNotifyAdminSignUpApprovalForEvent:
@@ -64,9 +69,13 @@ class TestNotifyAdminSignUpApprovalForEvent:
 
         notification_subscribers.notify_admin_sign_up_approval_for_event(event)
 
-        assert mock_notif.create_admin_sign_up_approval_notification.call_args.args[:3] == (9, 2, event.event_id)
+        assert mock_notif.create_admin_sign_up_approval_notification.call_args.args[:3] == (
+            _ID_9,
+            _ID_2,
+            event.event_id,
+        )
         mock_ws.push_to_user.assert_called_once()
-        assert mock_ws.push_to_user.call_args.args[0] == 2
+        assert mock_ws.push_to_user.call_args.args[0] == _ID_2
 
     @patch("modules.notifications.integration_service.websocket_integration")
     @patch("modules.notifications.subscribers.core_database")

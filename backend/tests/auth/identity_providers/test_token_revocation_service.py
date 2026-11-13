@@ -14,6 +14,7 @@ import core.exceptions as core_exceptions
 import modules.auth.identity_provider_links.crud as identity_links_crud
 import modules.auth.identity_provider_links.service as identity_links_service
 import modules.auth.identity_providers.token_revocation_service as revocation_module
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 from tests._helpers.db import create_sqlite_session_factory
 
 IDP_ID = uuid.uuid4()
@@ -47,7 +48,7 @@ def oidc():
     return oidc
 
 
-def _store(factory, session_id, *, refresh="plain", user_id=7, idp_id=IDP_ID):
+def _store(factory, session_id, *, refresh="plain", user_id=MOCK_USER_ID, idp_id=IDP_ID):
     encrypted = core_cryptography.encrypt_token_fernet(refresh) if refresh is not None else None
     with factory() as db:
         identity_links_crud.create_idp_session_token(session_id, user_id, idp_id, encrypted, None, db)
@@ -104,17 +105,17 @@ class TestRevokeEndedSessions:
         oidc.create_oauth_client.return_value.revoke_token.assert_called_once()
 
     def test_only_the_named_users_sessions_are_handled(self, oidc, factory):
-        _store(factory, "mine", user_id=7)
-        _store(factory, "theirs", user_id=8)
+        _store(factory, "mine", user_id=MOCK_USER_ID)
+        _store(factory, "theirs", user_id=OTHER_USER_ID)
 
-        _run(oidc, factory, user_id=7)
+        _run(oidc, factory, user_id=MOCK_USER_ID)
 
         assert set(_rows(factory)) == {"theirs"}
 
     def test_an_orphan_from_the_sweep_is_handled_without_an_event(self, oidc, factory):
         """The sweep names no user: it covers sessions that expired or were purged with no event."""
-        _store(factory, "expired", user_id=7)
-        _store(factory, "purged", user_id=8)
+        _store(factory, "expired", user_id=MOCK_USER_ID)
+        _store(factory, "purged", user_id=OTHER_USER_ID)
 
         assert _run(oidc, factory) == 2
         assert _rows(factory) == {}
@@ -138,7 +139,7 @@ class TestRevokeEndedSessions:
 
     def test_a_token_no_key_decrypts_is_deleted_without_a_provider_call(self, oidc, factory):
         with factory() as db:
-            identity_links_crud.create_idp_session_token("gone", 7, IDP_ID, "not-a-fernet-token", None, db)
+            identity_links_crud.create_idp_session_token("gone", MOCK_USER_ID, IDP_ID, "not-a-fernet-token", None, db)
             db.commit()
 
         assert _run(oidc, factory) == 1

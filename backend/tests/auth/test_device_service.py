@@ -13,22 +13,23 @@ import modules.auth.account_security.device_service as device_service
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.known_devices.schema as known_devices_schema
 import modules.auth.schema as auth_schema
+from tests._helpers.auth import MOCK_USER_ID
 
 _ROW_ID = uuid.UUID("00000000-0000-4000-8000-000000000005")
 _STEP_UP = auth_schema.StepUpVerification(current_password="pw")
 
 
 def _forget(mock_db):
-    device_service.forget_user_device(_ROW_ID, 7, "sid", "device-id", _STEP_UP, MagicMock(), mock_db)
+    device_service.forget_user_device(_ROW_ID, MOCK_USER_ID, "sid", "device-id", _STEP_UP, MagicMock(), mock_db)
 
 
 def test_the_list_marks_the_device_the_request_names(mock_db):
     page = core_pagination.PageParams(1, 25)
     expected = known_devices_schema.KnownDevicePage.build([], 0, 1, 25)
     with patch.object(device_service.known_devices_integration, "list_devices", return_value=expected) as listing:
-        assert device_service.list_user_devices(7, "device-id", page, mock_db) is expected
+        assert device_service.list_user_devices(MOCK_USER_ID, "device-id", page, mock_db) is expected
 
-    listing.assert_called_once_with(7, "device-id", page, mock_db)
+    listing.assert_called_once_with(MOCK_USER_ID, "device-id", page, mock_db)
 
 
 class TestForget:
@@ -46,7 +47,7 @@ class TestForget:
             calls.verify.call_args.kwargs["action"] == identity_providers_constants.StepUpAction.PROFILE_DEVICE_FORGET
         )
         assert calls.verify.call_args.kwargs["session_id"] == "sid"
-        calls.forget.assert_called_once_with(_ROW_ID, 7, "device-id", mock_db)
+        calls.forget.assert_called_once_with(_ROW_ID, MOCK_USER_ID, "device-id", mock_db)
 
     def test_a_forgotten_device_is_audited_and_committed(self, mock_db):
         with (
@@ -60,7 +61,7 @@ class TestForget:
             account_security_audit_actions.DEVICE_FORGET.id,
             target_type="device",
             target_id=str(_ROW_ID),
-            target_owner_id="7",
+            target_owner_id=str(MOCK_USER_ID),
         )
         assert row.details == {"sessions_revoked": 3}
         mock_db.commit.assert_called_once()
@@ -101,7 +102,7 @@ class TestForget:
 
 class TestForgetOthers:
     def _forget_others(self, mock_db):
-        device_service.forget_other_user_devices(7, "sid", "device-id", _STEP_UP, MagicMock(), mock_db)
+        device_service.forget_other_user_devices(MOCK_USER_ID, "sid", "device-id", _STEP_UP, MagicMock(), mock_db)
 
     def test_step_up_is_verified_for_its_own_action_before_any_device_is_touched(self, mock_db):
         calls = MagicMock()
@@ -118,7 +119,7 @@ class TestForgetOthers:
             == identity_providers_constants.StepUpAction.PROFILE_DEVICES_FORGET_OTHERS
         )
         assert calls.verify.call_args.kwargs["session_id"] == "sid"
-        calls.forget.assert_called_once_with(7, "device-id", mock_db)
+        calls.forget.assert_called_once_with(MOCK_USER_ID, "device-id", mock_db)
 
     def test_the_change_is_audited_with_the_sessions_ended_and_committed(self, mock_db):
         with (
@@ -131,8 +132,8 @@ class TestForgetOthers:
         row = audit.assert_audited(
             account_security_audit_actions.DEVICES_FORGET_OTHERS.id,
             target_type="user",
-            target_id="7",
-            target_owner_id="7",
+            target_id=str(MOCK_USER_ID),
+            target_owner_id=str(MOCK_USER_ID),
         )
         assert row.details == {"sessions_revoked": 4}
         mock_db.commit.assert_called_once()
@@ -157,7 +158,7 @@ class TestForgetOthers:
 
 class TestForgetAll:
     def _forget_all(self, mock_db):
-        device_service.forget_all_user_devices(7, "sid", _STEP_UP, MagicMock(), mock_db)
+        device_service.forget_all_user_devices(MOCK_USER_ID, "sid", _STEP_UP, MagicMock(), mock_db)
 
     def test_step_up_is_verified_for_its_own_action_before_any_device_is_touched(self, mock_db):
         calls = MagicMock()
@@ -174,7 +175,7 @@ class TestForgetAll:
             == identity_providers_constants.StepUpAction.PROFILE_DEVICES_FORGET_ALL
         )
         assert calls.verify.call_args.kwargs["session_id"] == "sid"
-        calls.forget.assert_called_once_with(7, None, mock_db)
+        calls.forget.assert_called_once_with(MOCK_USER_ID, None, mock_db)
 
     def test_the_change_is_audited_with_the_sessions_ended_and_committed(self, mock_db):
         with (
@@ -187,8 +188,8 @@ class TestForgetAll:
         row = audit.assert_audited(
             account_security_audit_actions.DEVICES_FORGET_ALL.id,
             target_type="user",
-            target_id="7",
-            target_owner_id="7",
+            target_id=str(MOCK_USER_ID),
+            target_owner_id=str(MOCK_USER_ID),
         )
         assert row.details == {"sessions_revoked": 5}
         mock_db.commit.assert_called_once()

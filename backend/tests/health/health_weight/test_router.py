@@ -2,6 +2,8 @@ import uuid
 from datetime import date as datetime_date
 from unittest.mock import ANY, patch
 
+from tests._helpers.auth import MOCK_USER_ID
+
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
 import modules.health.health_weight.schema as health_weight_schema
@@ -11,11 +13,14 @@ _ID = uuid.uuid4()
 _OTHER_ID = uuid.uuid4()
 
 
+_USER_ID = MOCK_USER_ID
+
+
 def _record(record_id: uuid.UUID, day: int, weight: float) -> health_weight_schema.HealthWeightRead:
     return health_weight_schema.HealthWeightRead(
         updated_at="2024-01-01T00:00:00Z",
         id=record_id,
-        user_id=1,
+        user_id=_USER_ID,
         date=datetime_date(2024, 1, day),
         weight_kg=weight,
         bmi=24.5,
@@ -56,7 +61,7 @@ class TestReadHealthWeightAll:
 
         assert response.status_code == 200
         args = mock_list.call_args
-        assert args.args[0] == 1
+        assert args.args[0] == _USER_ID
         assert (args.kwargs["page_number"], args.kwargs["num_records"]) == (2, 10)
         assert args.kwargs["interval"].value == "last_30_days"
 
@@ -80,7 +85,7 @@ class TestCreateHealthWeight:
         created_weight = health_weight_schema.HealthWeightRead(
             updated_at="2024-01-01T00:00:00Z",
             id=_ID,
-            user_id=1,
+            user_id=_USER_ID,
             date=datetime_date(2024, 1, 15),
             weight_kg=75.5,
             bmi=24.5,
@@ -117,7 +122,7 @@ class TestEditHealthWeight:
         updated_weight = health_weight_schema.HealthWeightRead(
             updated_at="2024-01-01T00:00:00Z",
             id=_ID,
-            user_id=1,
+            user_id=_USER_ID,
             date=datetime_date(2024, 1, 15),
             weight_kg=76.0,
             bmi=24.7,
@@ -182,7 +187,7 @@ class TestDeleteHealthWeight:
 
         # Assert
         assert response.status_code == 204
-        mock_delete.assert_called_once_with(1, _ID, ANY, if_match='"1"')
+        mock_delete.assert_called_once_with(_USER_ID, _ID, ANY, if_match='"1"')
 
     @patch("modules.health.health_weight.router.health_weight_service.delete_health_weight")
     def test_delete_health_weight_not_found(self, mock_delete, fast_api_client, fast_api_app):
@@ -214,7 +219,7 @@ class TestReadHealthWeightById:
 
         assert response.status_code == 200
         assert response.headers["ETag"] == '"1"'
-        assert mock_get.call_args.args[:2] == (1, _ID)
+        assert mock_get.call_args.args[:2] == (_USER_ID, _ID)
 
     @patch(_GET)
     def test_a_record_the_user_does_not_have_is_404(self, mock_get, fast_api_client, fast_api_app):

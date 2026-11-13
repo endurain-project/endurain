@@ -1,5 +1,6 @@
 """Tests for the public first-run onboarding endpoints."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -15,6 +16,8 @@ import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.onboarding.public_router as onboarding_public_router
 import modules.auth.onboarding.schema as onboarding_schema
 import modules.users.users.schema as users_schema
+
+_USER_ID = uuid.UUID(int=1)
 
 _SERVICE = "modules.auth.onboarding.public_router.onboarding_service"
 _BODY = {
@@ -38,7 +41,7 @@ def client() -> TestClient:
 
 def _admin() -> users_schema.UserRead:
     return users_schema.UserRead(
-        id=1, name="Owner", username="owner", email="owner@example.com", active=True, access_type="admin"
+        id=_USER_ID, name="Owner", username="owner", email="owner@example.com", active=True, access_type="admin"
     )
 
 

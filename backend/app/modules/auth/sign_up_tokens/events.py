@@ -4,6 +4,7 @@ Payloads carry user ids only: events are persisted, so neither a verification to
 nor an email address may be put in one.
 """
 
+import uuid
 from typing import ClassVar
 
 from jasil.event_versioning import VersionedPayload
@@ -48,7 +49,7 @@ class SignUpUserPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    user_id: int
+    user_id: uuid.UUID
 
 
 class SignUpApprovalRequestedPayload(VersionedPayload):
@@ -63,8 +64,8 @@ class SignUpApprovalRequestedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    user_id: int
-    admin_user_id: int
+    user_id: uuid.UUID
+    admin_user_id: uuid.UUID
 
 
 class EmailChangedPayload(VersionedPayload):
@@ -79,5 +80,5 @@ class EmailChangedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    user_id: int
+    user_id: uuid.UUID
     token_id: str

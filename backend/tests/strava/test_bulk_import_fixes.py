@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from unittest.mock import Mock
 
 import modules.strava.bulk_import_service as strava_bulk
+from tests._helpers.auth import MOCK_USER_ID
 
 _GEAR = uuid.uuid4()
 
@@ -45,7 +46,7 @@ def test_an_activity_without_gear_resolves_to_none():
 
 def test_an_unreadable_start_date_imports_the_activity_rather_than_dropping_it():
     source = strava_bulk.StravaBulkImportSource(
-        import_initiated_time="2026-01-01T00:00:00", user_id=1, strava_activities={"a.fit": _row()}
+        import_initiated_time="2026-01-01T00:00:00", user_id=MOCK_USER_ID, strava_activities={"a.fit": _row()}
     )
     activity = Mock(start_time=datetime(2023, 10, 21, 7, 41, 47, tzinfo=UTC))
 
@@ -61,7 +62,7 @@ def test_an_unreadable_start_date_imports_the_activity_rather_than_dropping_it()
 
 def test_a_multi_activity_file_still_skips_listings_that_do_not_match():
     source = strava_bulk.StravaBulkImportSource(
-        import_initiated_time="2026-01-01T00:00:00", user_id=1, strava_activities={"a.fit": _row()}
+        import_initiated_time="2026-01-01T00:00:00", user_id=MOCK_USER_ID, strava_activities={"a.fit": _row()}
     )
     activity = Mock(start_time=datetime(2023, 10, 21, 7, 41, 47, tzinfo=UTC))
 

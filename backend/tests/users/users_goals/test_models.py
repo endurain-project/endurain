@@ -92,7 +92,7 @@ class TestUserGoalModel:
 
         # Assert
         assert model.id.type.python_type is uuid.UUID
-        assert model.user_id.type.python_type is int
+        assert model.user_id.type.python_type is uuid.UUID
         assert model.interval.type.python_type is str
         assert model.activity_type.type.python_type is str
         assert model.goal_type.type.python_type is str

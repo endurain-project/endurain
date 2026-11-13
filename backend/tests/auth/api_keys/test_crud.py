@@ -10,12 +10,13 @@ import core.exceptions as core_exceptions
 import modules.auth.api_keys.crud as api_keys_crud
 import modules.auth.api_keys.models as api_keys_models
 import modules.auth.api_keys.schema as api_keys_schema
+from tests._helpers.auth import MOCK_USER_ID
 
 
 def _row(**overrides):
     values = {
         "id": "api-key-id",
-        "user_id": 1,
+        "user_id": MOCK_USER_ID,
         "name": "CLI",
         "key_prefix": "12345678",
         "key_hash": "h" * 64,
@@ -34,7 +35,7 @@ def test_get_api_keys_page_returns_read_dtos(mock_db):
     row = _row()
     mock_db.execute.return_value.scalars.return_value = [row]
 
-    result = api_keys_crud.get_api_keys_page(1, mock_db, limit=25, offset=0)
+    result = api_keys_crud.get_api_keys_page(MOCK_USER_ID, mock_db, limit=25, offset=0)
 
     assert result == [api_keys_schema.UserApiKeyRead.model_validate(row)]
 
@@ -42,7 +43,7 @@ def test_get_api_keys_page_returns_read_dtos(mock_db):
 def test_count_api_keys_returns_owner_total(mock_db):
     mock_db.execute.return_value.scalar_one.return_value = 3
 
-    assert api_keys_crud.count_api_keys(1, mock_db) == 3
+    assert api_keys_crud.count_api_keys(MOCK_USER_ID, mock_db) == 3
 
 
 def test_get_api_key_by_id_and_hash_return_read_dtos(mock_db):
@@ -64,7 +65,9 @@ def test_create_api_key_stages_hashed_key(mock_db):
         patch.object(api_keys_models, "UsersApiKeys", return_value=row) as constructor,
         patch("modules.auth.api_keys.crud.uuid.uuid4", return_value="api-key-id"),
     ):
-        result = api_keys_crud.create_api_key(1, data, raw_key, "h" * 64, '["activities:upload"]', expires_at, mock_db)
+        result = api_keys_crud.create_api_key(
+            MOCK_USER_ID, data, raw_key, "h" * 64, '["activities:upload"]', expires_at, mock_db
+        )
 
     constructor.assert_called_once()
     assert result.id == row.id

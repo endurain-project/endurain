@@ -11,6 +11,7 @@ import core.hashing as core_hashing
 import modules.auth.identity_providers.contracts as identity_provider_contracts
 import modules.auth.oauth_state.constants as oauth_state_constants
 from modules.auth.identity_providers import authorization_service, integration_service
+from tests._helpers.auth import MOCK_USER_ID
 
 IDP_ID = uuid.uuid4()
 
@@ -64,7 +65,14 @@ def _stage(*, redirect=None, provider=_UNSET, session_id="sid", ends_other_sessi
         patch.object(authorization_service.oauth_state_integration, "create_oauth_state") as create_state,
     ):
         staged = integration_service.stage_browser_link(
-            7, IDP_ID, redirect, "10.0.0.1", session_id, ends_other_sessions, db, security_generation=generation
+            MOCK_USER_ID,
+            IDP_ID,
+            redirect,
+            "10.0.0.1",
+            session_id,
+            ends_other_sessions,
+            db,
+            security_generation=generation,
         )
     return staged, service, create_state
 
@@ -75,7 +83,7 @@ def test_stage_browser_link_stages_a_link_state_for_the_claimed_user():
     assert staged.purpose == oauth_state_constants.OAuthStatePurpose.LINK
     assert staged.state_id == "state"
     assert staged.nonce == "nonce"
-    assert create_state.call_args.kwargs["user_id"] == 7
+    assert create_state.call_args.kwargs["user_id"] == MOCK_USER_ID
     assert create_state.call_args.kwargs["purpose"] == oauth_state_constants.OAuthStatePurpose.LINK
 
 
@@ -123,7 +131,7 @@ def test_a_link_state_always_records_its_starting_session_and_whether_it_ends_th
 
 
 def test_a_link_state_records_the_generation_the_caller_read(security_generations):
-    security_generations.generations[7] = 9
+    security_generations.generations[MOCK_USER_ID] = 9
 
     _, _, create_state = _stage(generation=4)
 

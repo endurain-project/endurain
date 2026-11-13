@@ -24,9 +24,10 @@ import modules.activities.activity_ingestion.constants as ingestion_constants
 import modules.activities.activity_ingestion.crud as ingestion_crud
 import modules.activities.activity_ingestion.models as ingestion_models
 import modules.activities.activity_thumbnail.service as thumbnail_service
+from tests._helpers.auth import MOCK_USER_ID
 from tests._helpers.db import ensure_user
 
-_USER_ID = 1
+_USER_ID = MOCK_USER_ID
 _LEASE = timedelta(seconds=300)
 _PRIVACY_FLAGS = (
     "hide_start_time",

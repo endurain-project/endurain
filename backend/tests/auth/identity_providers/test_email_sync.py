@@ -12,6 +12,7 @@ import modules.auth.password_reset_tokens.models as password_reset_models
 import modules.auth.sign_up_tokens.models as sign_up_models
 import modules.users.users.audit_actions as users_audit_actions
 import modules.users.users.integration_service as users_integration
+from tests._helpers.auth import MOCK_USER_ID
 from tests._helpers.db import create_sqlite_session, ensure_user
 
 _PUBLISH = "modules.auth.sign_up_tokens.event_publishers.platform_publisher.publish_on_commit"
@@ -20,7 +21,7 @@ _PUBLISH = "modules.auth.sign_up_tokens.event_publishers.platform_publisher.publ
 @pytest.fixture
 def db():
     session = create_sqlite_session()
-    ensure_user(sessionmaker(bind=session.get_bind()), 7)
+    ensure_user(sessionmaker(bind=session.get_bind()), MOCK_USER_ID)
     yield session
     session.close()
 
@@ -35,7 +36,7 @@ def _add_reset_token(db):
     db.add(
         password_reset_models.PasswordResetToken(
             id="reset-1",
-            user_id=7,
+            user_id=MOCK_USER_ID,
             token_hash="hash",
             created_at=datetime.now(UTC),
             expires_at=datetime.now(UTC) + timedelta(hours=1),
@@ -46,7 +47,7 @@ def _add_reset_token(db):
 
 
 def test_a_synced_email_is_applied_audited_and_told_to_the_previous_address(db):
-    user = users_integration.get_user(7, db)
+    user = users_integration.get_user(MOCK_USER_ID, db)
     previous = user.email
     _add_reset_token(db)
 
@@ -58,17 +59,19 @@ def test_a_synced_email_is_applied_audited_and_told_to_the_previous_address(db):
 
     assert updated.email == "new@example.com"
     assert updated.email_verified is True
-    entry = audit.assert_audited(users_audit_actions.USER_EMAIL_CHANGE.id, target_type="user", target_id="7")
+    entry = audit.assert_audited(
+        users_audit_actions.USER_EMAIL_CHANGE.id, target_type="user", target_id=str(MOCK_USER_ID)
+    )
     assert entry.details is None
-    notice = db.query(sign_up_models.SignUpToken).filter_by(user_id=7).one()
+    notice = db.query(sign_up_models.SignUpToken).filter_by(user_id=MOCK_USER_ID).one()
     assert (notice.previous_email, notice.email, notice.used) == (previous, "new@example.com", True)
     assert publish.call_args.args[0] == "auth.email_changed"
-    assert publish.call_args.args[1] == {"user_id": 7, "token_id": notice.id}
+    assert publish.call_args.args[1] == {"user_id": str(MOCK_USER_ID), "token_id": notice.id}
     assert db.get(password_reset_models.PasswordResetToken, "reset-1").used is True
 
 
 def test_sync_email_off_keeps_the_email_while_the_name_syncs(db):
-    user = users_integration.get_user(7, db)
+    user = users_integration.get_user(MOCK_USER_ID, db)
 
     with jasil_testing.capture_audit() as audit, patch(_PUBLISH) as publish:
         updated = provisioning.update_user_from_idp(

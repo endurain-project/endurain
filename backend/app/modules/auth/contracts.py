@@ -12,6 +12,7 @@ session and performs no I/O.
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -138,7 +139,7 @@ class Principal:
             the account may only make the requests enrolment needs.
     """
 
-    user_id: int
+    user_id: uuid.UUID
     username: str
     email: str
     is_active: bool

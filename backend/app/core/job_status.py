@@ -6,6 +6,7 @@ so a client reads one id, one ``status`` vocabulary, one failure field and one s
 only its own fields on a subclass.
 """
 
+import uuid
 from datetime import datetime
 from enum import StrEnum
 
@@ -70,14 +71,14 @@ class JobRef(BaseModel):
         id: The job's identifier, a UUIDv4 string.
         kind: What the job does, e.g. ``garmin_link``; one value per kind of work across the application.
         owner_id: The user who started the job and may read it.
-        subject: Whose record it is in the owning feature's store, e.g. ``"7:gear"``.
+        subject: Whose record it is in the owning feature's store, e.g. ``"<user id>:gear"``.
         created_at: When the job was accepted.
         finished_at: When the job reached ``succeeded`` or ``failed``.
     """
 
     id: str
     kind: str
-    owner_id: int
+    owner_id: uuid.UUID
     subject: str
     created_at: datetime
     finished_at: datetime | None = None

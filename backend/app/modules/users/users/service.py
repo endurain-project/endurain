@@ -45,7 +45,7 @@ import modules.users.users_privacy_settings.integration_service as users_privacy
 logger = core_logger.get_logger(__name__)
 
 
-def require_user(user_id: int, db: Session) -> users_schema.UserRead:
+def require_user(user_id: uuid.UUID, db: Session) -> users_schema.UserRead:
     """Return a user by id, which must exist.
 
     Args:
@@ -110,7 +110,7 @@ def _is_publicly_visible(user: users_schema.UserRead) -> bool:
     return user.active and not user.pending_admin_approval
 
 
-def get_public_profile(user_id: int, db: Session) -> users_schema.UserPublicRead:
+def get_public_profile(user_id: uuid.UUID, db: Session) -> users_schema.UserPublicRead:
     """Return a user's public projection for a signed-in viewer.
 
     Args:
@@ -130,7 +130,7 @@ def get_public_profile(user_id: int, db: Session) -> users_schema.UserPublicRead
     return users_schema.UserPublicRead.model_validate(user)
 
 
-def list_public_profiles(user_ids: Collection[int], db: Session) -> dict[int, users_schema.UserPublicRead]:
+def list_public_profiles(user_ids: Collection[uuid.UUID], db: Session) -> dict[uuid.UUID, users_schema.UserPublicRead]:
     """Return the public projection of several users in one read, keyed by user ID.
 
     Applies the same visibility rule as :func:`get_public_profile`, but a user who is missing,
@@ -150,7 +150,7 @@ def list_public_profiles(user_ids: Collection[int], db: Session) -> dict[int, us
     }
 
 
-def get_public_user(user_id: int, db: Session) -> users_schema.UserPublicRead:
+def get_public_user(user_id: uuid.UUID, db: Session) -> users_schema.UserPublicRead:
     """Return a user's public projection for an unauthenticated viewer, when sharing allows it.
 
     Args:
@@ -232,7 +232,7 @@ def _set_pending_email_changes(users: Collection[users_schema.UserRead], db: Ses
         user.pending_email_expires_at = change.expires_at if change else None
 
 
-def require_user_with_pending_email(user_id: int, db: Session) -> users_schema.UserRead:
+def require_user_with_pending_email(user_id: uuid.UUID, db: Session) -> users_schema.UserRead:
     """Return a user by id with their unconfirmed email change, who must exist.
 
     Args:
@@ -318,7 +318,7 @@ def list_users(
     return core_pagination.Page[users_schema.UserRead].build(records, total, page_number, num_records)
 
 
-def _stage_default_data(user_id: int, db: Session) -> None:
+def _stage_default_data(user_id: uuid.UUID, db: Session) -> None:
     """Stage the rows every new account starts with.
 
     Args:
@@ -406,7 +406,7 @@ def _stage_user(
 def create_user(
     user: users_schema.UserCreate,
     step_up: auth_schema.StepUpVerification | None,
-    actor_id: int,
+    actor_id: uuid.UUID,
     session_id: str,
     step_up_store: account_security_integration.StepUpStore,
     db: Session,
@@ -684,7 +684,9 @@ def _refuse_to_remove_last_admin(user: users_schema.UserRead, action: str, db: S
         raise core_exceptions.LastAdministratorError(f"The only administrator cannot be {action}")
 
 
-def stage_user_edit(user_id: int, user: users_schema.UserEdit, db: Session, *, if_match: str) -> users_schema.UserRead:
+def stage_user_edit(
+    user_id: uuid.UUID, user: users_schema.UserEdit, db: Session, *, if_match: str
+) -> users_schema.UserRead:
     """Stage an administrative edit of a user.
 
     Intended for admin endpoints that legitimately set fields like ``access_type`` or ``active``.
@@ -822,7 +824,7 @@ def _stage_access_change_notices(before: users_schema.UserRead, after: users_sch
         _stage_admin_promotion_notices(after.id, db)
 
 
-def _stage_admin_promotion_notices(user_id: int, db: Session) -> None:
+def _stage_admin_promotion_notices(user_id: uuid.UUID, db: Session) -> None:
     """Stage the promotion notice of a new administrator for every other active administrator; the caller commits.
 
     Args:
@@ -906,10 +908,10 @@ def _stage_edit_with_email_change(
 
 
 def edit_user(
-    user_id: int,
+    user_id: uuid.UUID,
     user: users_schema.UserEdit,
     step_up: auth_schema.StepUpVerification | None,
-    actor_id: int,
+    actor_id: uuid.UUID,
     session_id: str,
     step_up_store: account_security_integration.StepUpStore,
     db: Session,
@@ -997,7 +999,7 @@ def edit_user(
 
 
 def stage_profile_edit(
-    user_id: int, profile: users_schema.ProfileUpdate, db: Session, *, if_match: str
+    user_id: uuid.UUID, profile: users_schema.ProfileUpdate, db: Session, *, if_match: str
 ) -> users_schema.UserRead:
     """Stage a self-service profile update, keeping only the allow-listed fields.
 
@@ -1029,7 +1031,7 @@ def stage_profile_edit(
     return updated
 
 
-def stage_username_change(user_id: int, username: str, db: Session) -> bool:
+def stage_username_change(user_id: uuid.UUID, username: str, db: Session) -> bool:
     """Stage a new username for a user, stored in lower case.
 
     Does nothing when the username is the one the user already has. The security generation is not bumped: a
@@ -1054,7 +1056,7 @@ def stage_username_change(user_id: int, username: str, db: Session) -> bool:
     return True
 
 
-def stage_email_change(user_id: int, email: str, db: Session) -> bool:
+def stage_email_change(user_id: uuid.UUID, email: str, db: Session) -> bool:
     """Stage a new email address for a user and mark it unverified.
 
     A changed address also voids the user's unused verification and password-reset tokens. Does nothing
@@ -1087,7 +1089,7 @@ def stage_email_change(user_id: int, email: str, db: Session) -> bool:
     return True
 
 
-def is_email_available(user_id: int | None, email: str, db: Session) -> bool:
+def is_email_available(user_id: uuid.UUID | None, email: str, db: Session) -> bool:
     """Tell whether an address can be given to a user: no other account uses it or has it reserved.
 
     An address a confirmed email change left behind is reserved for that account while the change can still be
@@ -1107,7 +1109,7 @@ def is_email_available(user_id: int | None, email: str, db: Session) -> bool:
     return sign_up_tokens_integration.get_email_reserver_id(email, user_id, db) is None
 
 
-def require_email_available(user_id: int | None, email: str, db: Session) -> None:
+def require_email_available(user_id: uuid.UUID | None, email: str, db: Session) -> None:
     """Refuse an address that another account uses or has reserved.
 
     The unique index refuses a held address on a write to the user's own row; this also refuses a reserved one,
@@ -1125,7 +1127,7 @@ def require_email_available(user_id: int | None, email: str, db: Session) -> Non
         raise core_exceptions.ConflictError("Email is already in use.")
 
 
-def stage_confirmed_email_change(user_id: int, email: str, db: Session) -> None:
+def stage_confirmed_email_change(user_id: uuid.UUID, email: str, db: Session) -> None:
     """Stage a confirmed email address for a user, mark it verified and void their unused password-reset tokens.
 
     Args:
@@ -1153,7 +1155,7 @@ def stage_confirmed_email_change(user_id: int, email: str, db: Session) -> None:
     )
 
 
-def stage_synced_email_change(user_id: int, email: str, db: Session) -> None:
+def stage_synced_email_change(user_id: uuid.UUID, email: str, db: Session) -> None:
     """Stage an email address that a sign-in provider verified as the user's, and tell the previous address.
 
     The address is applied as a confirmed one: marked verified, with the user's unused password-reset tokens
@@ -1174,7 +1176,7 @@ def stage_synced_email_change(user_id: int, email: str, db: Session) -> None:
     sign_up_tokens_integration.stage_email_changed_notice(user_id, email.lower(), previous_email, db)
 
 
-def approve_user(user_id: int, db: Session) -> None:
+def approve_user(user_id: uuid.UUID, db: Session) -> None:
     """Approve a user awaiting approval, staging the notice event in the same transaction.
 
     A user who is not awaiting approval, is deactivated or is queued for deletion is refused and left as it was,
@@ -1218,7 +1220,7 @@ def approve_user(user_id: int, db: Session) -> None:
     logger.info("User approved", extra=core_logger.context(user_id=user_id, notified=notified))
 
 
-def is_deactivated(user_id: int, db: Session) -> bool:
+def is_deactivated(user_id: uuid.UUID, db: Session) -> bool:
     """Tell whether an administrator or a deletion request deactivated a user.
 
     Args:
@@ -1236,7 +1238,7 @@ def is_deactivated(user_id: int, db: Session) -> bool:
 
 
 def stage_email_verification(
-    user_id: int,
+    user_id: uuid.UUID,
     server_settings: server_settings_schema.ServerSettingsRead,
     db: Session,
 ) -> None:
@@ -1259,7 +1261,7 @@ def stage_email_verification(
     users_crud.update_user(user_id, changes, db)
 
 
-def require_deletable_user(user_id: int, db: Session, *, if_match: str) -> None:
+def require_deletable_user(user_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Require a user to exist at the version the caller read and not be the only active administrator.
 
     Args:
@@ -1292,7 +1294,7 @@ def timezone_or_default(timezone: str | None) -> str:
     return core_timezone.or_default(timezone)
 
 
-def resolve_user_timezone(user_id: int, db: Session) -> str:
+def resolve_user_timezone(user_id: uuid.UUID, db: Session) -> str:
     """Return the athlete's IANA timezone, falling back to the server's.
 
     Args:
@@ -1306,7 +1308,7 @@ def resolve_user_timezone(user_id: int, db: Session) -> str:
     return timezone_or_default(user.timezone if user is not None else None)
 
 
-def user_local_today(user_id: int, db: Session) -> datetime_date:
+def user_local_today(user_id: uuid.UUID, db: Session) -> datetime_date:
     """Return today's calendar date in the athlete's own timezone.
 
     Everything that answers "what did I do *today*?" must use this rather than ``date.today()``
@@ -1323,7 +1325,7 @@ def user_local_today(user_id: int, db: Session) -> datetime_date:
     return core_timezone.today_in(resolve_user_timezone(user_id, db))
 
 
-def require_other_user(user_id: int, actor_id: int, action: str) -> None:
+def require_other_user(user_id: uuid.UUID, actor_id: uuid.UUID, action: str) -> None:
     """Refuse an administrative action that an administrator aims at their own account.
 
     The self-service endpoints verify the caller's password and MFA code before the same change, so
@@ -1346,9 +1348,9 @@ def require_other_user(user_id: int, actor_id: int, action: str) -> None:
 
 
 def change_user_password(
-    user_id: int,
+    user_id: uuid.UUID,
     attributes: users_schema.UserAdminEditPassword,
-    actor_id: int,
+    actor_id: uuid.UUID,
     session_id: str,
     step_up_store: account_security_integration.StepUpStore,
     db: Session,
@@ -1389,9 +1391,9 @@ def change_user_password(
 
 
 def reset_user_mfa(
-    user_id: int,
+    user_id: uuid.UUID,
     attributes: auth_schema.StepUpRequest,
-    actor_id: int,
+    actor_id: uuid.UUID,
     session_id: str,
     step_up_store: account_security_integration.StepUpStore,
     db: Session,
@@ -1427,9 +1429,9 @@ def reset_user_mfa(
 
 
 def require_user_password_change(
-    user_id: int,
+    user_id: uuid.UUID,
     attributes: auth_schema.StepUpRequest,
-    actor_id: int,
+    actor_id: uuid.UUID,
     session_id: str,
     step_up_store: account_security_integration.StepUpStore,
     db: Session,
@@ -1465,9 +1467,9 @@ def require_user_password_change(
 
 
 def unlink_identity_provider(
-    user_id: int,
+    user_id: uuid.UUID,
     idp_id: uuid.UUID,
-    actor_id: int,
+    actor_id: uuid.UUID,
     session_id: str,
     step_up: auth_schema.StepUpVerification,
     step_up_store: account_security_integration.StepUpStore,

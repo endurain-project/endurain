@@ -29,7 +29,7 @@ class KnownDevice(Base):
     __table_args__ = (UniqueConstraint("user_id", "device_hash", name="uq_auth_known_devices_user_id_device_hash"),)
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[int] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         comment="User who signed in from the device",

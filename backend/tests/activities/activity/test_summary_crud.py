@@ -10,6 +10,8 @@ from tests._helpers.models import mock_model
 
 from modules.activities.activity.constants import ActivityType
 
+_USER_1 = uuid.UUID(int=1)
+
 
 @pytest.fixture
 def sqlite_session():
@@ -31,9 +33,9 @@ class TestGetWeeklySummary:
         import modules.activities.activity.models as am
         import modules.activities.activity.summary_crud as crud
 
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=uuid.uuid4(), user_id=1)])
+        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=uuid.uuid4(), user_id=_USER_1)])
         r = crud.get_weekly_summary(
-            user_id=1,
+            user_id=_USER_1,
             target_date=datetime(2024, 1, 15),
             first_day_of_week="monday",
             db=mock_db,
@@ -47,7 +49,7 @@ class TestGetWeeklySummary:
 
         setup_mock_execute(mock_db, return_scalars_all=[])
         r = crud.get_weekly_summary(
-            user_id=1,
+            user_id=_USER_1,
             target_date=datetime(2024, 1, 15),
             first_day_of_week="monday",
             db=mock_db,
@@ -75,7 +77,7 @@ class TestGetWeeklySummary:
             [],
         ]
         r = crud.get_weekly_summary(
-            user_id=1,
+            user_id=_USER_1,
             target_date=datetime(2024, 1, 15),
             first_day_of_week="monday",
             db=mock_db,
@@ -89,7 +91,7 @@ class TestGetWeeklySummary:
         mock_db.execute.return_value.all.side_effect = [[], []]
 
         result = crud.get_weekly_summary(
-            user_id=1,
+            user_id=_USER_1,
             target_date=date(2024, 1, 15),
             first_day_of_week="sunday",
             db=mock_db,
@@ -114,7 +116,7 @@ class TestGetWeeklySummary:
             [],
         ]
         r = crud.get_weekly_summary(
-            user_id=1,
+            user_id=_USER_1,
             target_date=datetime(2024, 1, 15),
             first_day_of_week="monday",
             activity_type=ActivityType.RUN,
@@ -141,7 +143,7 @@ class TestGetMonthlySummary:
             [],
         ]
         r = crud.get_monthly_summary(
-            user_id=1,
+            user_id=_USER_1,
             target_date=datetime(2024, 1, 15),
             first_day_of_week="monday",
             db=mock_db,
@@ -158,7 +160,7 @@ class TestGetMonthlySummary:
             [],
         ]
         r = crud.get_monthly_summary(
-            user_id=1,
+            user_id=_USER_1,
             target_date=datetime(2024, 1, 15),
             first_day_of_week="monday",
             db=mock_db,
@@ -171,7 +173,7 @@ class TestGetMonthlySummary:
         import modules.activities.activity.summary_crud as crud
 
         base_values = {
-            "user_id": 1,
+            "user_id": _USER_1,
             "distance": 1000,
             "activity_type": 1,
             "end_time": datetime(2024, 1, 6, 9, tzinfo=UTC),
@@ -212,7 +214,7 @@ class TestGetMonthlySummary:
 
         result = crud.get_monthly_summary(
             db=sqlite_session,
-            user_id=1,
+            user_id=_USER_1,
             target_date=date(2024, 1, 15),
             first_day_of_week="sunday",
         )
@@ -235,7 +237,7 @@ class TestGetYearlySummary:
             [row],
             [],
         ]
-        r = crud.get_yearly_summary(user_id=1, year=2024, db=mock_db)
+        r = crud.get_yearly_summary(user_id=_USER_1, year=2024, db=mock_db)
         assert r.activity_count == 5
         assert len(r.breakdown) == 12
 
@@ -246,7 +248,7 @@ class TestGetYearlySummary:
             [],
             [],
         ]
-        r = crud.get_yearly_summary(user_id=1, year=2024, db=mock_db)
+        r = crud.get_yearly_summary(user_id=_USER_1, year=2024, db=mock_db)
         assert r.activity_count == 0
 
     def test_with_type_filter(self, mock_db):
@@ -263,7 +265,7 @@ class TestGetYearlySummary:
             [row],
             [],
         ]
-        r = crud.get_yearly_summary(user_id=1, year=2024, activity_type=ActivityType.RIDE, db=mock_db)
+        r = crud.get_yearly_summary(user_id=_USER_1, year=2024, activity_type=ActivityType.RIDE, db=mock_db)
         assert r.activity_count == 1
 
 
@@ -291,7 +293,7 @@ class TestGetLifetimeSummary:
             [yearly_row],
             [],
         ]
-        r = crud.get_lifetime_summary(user_id=1, db=mock_db)
+        r = crud.get_lifetime_summary(user_id=_USER_1, db=mock_db)
         assert r.activity_count == 10
         assert len(r.breakdown) == 1
 
@@ -299,7 +301,7 @@ class TestGetLifetimeSummary:
         import modules.activities.activity.summary_crud as crud
 
         mock_db.execute.return_value.one_or_none.return_value = None
-        r = crud.get_lifetime_summary(user_id=1, db=mock_db)
+        r = crud.get_lifetime_summary(user_id=_USER_1, db=mock_db)
         assert r.activity_count == 0
         assert r.total_distance == 0.0
         assert r.breakdown == []
@@ -327,7 +329,7 @@ class TestGetLifetimeSummary:
             [yearly_row],
             [],
         ]
-        r = crud.get_lifetime_summary(user_id=1, activity_type=ActivityType.RUN, db=mock_db)
+        r = crud.get_lifetime_summary(user_id=_USER_1, activity_type=ActivityType.RUN, db=mock_db)
         assert r.activity_count == 5
 
 
@@ -432,7 +434,7 @@ class TestLocalTimeBuckets:
         db = self._mock_db()
         crud.get_weekly_summary(
             db=db,
-            user_id=1,
+            user_id=_USER_1,
             target_date=date(2024, 1, 15),
             first_day_of_week="monday",
         )
@@ -447,7 +449,7 @@ class TestLocalTimeBuckets:
         db = self._mock_db()
         crud.get_monthly_summary(
             db=db,
-            user_id=1,
+            user_id=_USER_1,
             target_date=date(2024, 1, 1),
             first_day_of_week="monday",
         )
@@ -458,7 +460,7 @@ class TestLocalTimeBuckets:
         import modules.activities.activity.summary_crud as crud
 
         db = self._mock_db()
-        crud.get_yearly_summary(db=db, user_id=1, year=2024)
+        crud.get_yearly_summary(db=db, user_id=_USER_1, year=2024)
 
         assert "coalesce(activities.timezone, 'UTC')" in self._emitted_sql(db)
 
@@ -466,7 +468,7 @@ class TestLocalTimeBuckets:
         import modules.activities.activity.summary_crud as crud
 
         db = self._mock_db()
-        crud.get_lifetime_summary(db=db, user_id=1)
+        crud.get_lifetime_summary(db=db, user_id=_USER_1)
 
         assert "coalesce(activities.timezone, 'UTC')" in self._emitted_sql(db)
 
@@ -475,6 +477,6 @@ class TestLocalTimeBuckets:
         import modules.activities.activity.summary_crud as crud
 
         db = self._mock_db()
-        crud.get_lifetime_summary(db=db, user_id=1)
+        crud.get_lifetime_summary(db=db, user_id=_USER_1)
 
         assert "9999" not in self._emitted_sql(db)

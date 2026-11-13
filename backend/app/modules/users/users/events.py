@@ -1,5 +1,6 @@
 """Domain event channel names owned by users."""
 
+import uuid
 from typing import ClassVar
 
 from jasil.event_versioning import VersionedPayload
@@ -25,7 +26,7 @@ class DeletionRequestedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    user_id: int
+    user_id: uuid.UUID
 
 
 class AdminPromotedPayload(VersionedPayload):
@@ -40,5 +41,5 @@ class AdminPromotedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    user_id: int
-    admin_user_id: int
+    user_id: uuid.UUID
+    admin_user_id: uuid.UUID

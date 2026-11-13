@@ -26,7 +26,7 @@ SPEC = health_record_crud.RecordSpec(
 
 
 def get_health_weight_number_by_user_id(
-    user_id: int, db: Session, since: date_type | None = None, until: date_type | None = None
+    user_id: uuid.UUID, db: Session, since: date_type | None = None, until: date_type | None = None
 ) -> int:
     """Count a user's weight records.
 
@@ -42,7 +42,7 @@ def get_health_weight_number_by_user_id(
     return health_record_crud.count(SPEC, user_id, health_weight_models.HealthWeight.date, since, until, db)
 
 
-def get_all_health_weight_by_user_id(user_id: int, db: Session) -> list[health_weight_schema.HealthWeightRead]:
+def get_all_health_weight_by_user_id(user_id: uuid.UUID, db: Session) -> list[health_weight_schema.HealthWeightRead]:
     """Retrieve all of a user's weight records.
 
     Args:
@@ -63,7 +63,7 @@ def get_all_health_weight_by_user_id(user_id: int, db: Session) -> list[health_w
 
 
 def get_health_weight_by_user_id(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     page_number: int | None = None,
     num_records: int | None = None,
@@ -97,7 +97,7 @@ def get_health_weight_by_user_id(
 
 
 def get_health_weight_by_date_and_user_id(
-    user_id: int, date: str, db: Session
+    user_id: uuid.UUID, date: str, db: Session
 ) -> health_weight_schema.HealthWeightRead | None:
     """Retrieve a user's weight record for a date.
 
@@ -113,7 +113,7 @@ def get_health_weight_by_date_and_user_id(
 
 
 def get_latest_weight_by_user_id(
-    user_id: int, on_or_before: date_type, db: Session
+    user_id: uuid.UUID, on_or_before: date_type, db: Session
 ) -> health_weight_schema.HealthWeightRead | None:
     """Retrieve a user's most recent weight record dated no later than a day.
 
@@ -146,7 +146,7 @@ def get_latest_weight_by_user_id(
 
 
 def create_health_weight(
-    user_id: int, health_weight: health_weight_schema.HealthWeightCreate, db: Session
+    user_id: uuid.UUID, health_weight: health_weight_schema.HealthWeightCreate, db: Session
 ) -> health_weight_schema.HealthWeightRead:
     """Stage a new weight record for a user.
 
@@ -167,7 +167,7 @@ def create_health_weight(
 
 
 def edit_health_weight(
-    user_id: int,
+    user_id: uuid.UUID,
     health_weight_id: uuid.UUID,
     health_weight: health_weight_schema.HealthWeightUpdate,
     db: Session,
@@ -202,7 +202,7 @@ def edit_health_weight(
     )
 
 
-def recalculate_bmi_for_user(user_id: int, height_cm: float | None, db: Session) -> None:
+def recalculate_bmi_for_user(user_id: uuid.UUID, height_cm: float | None, db: Session) -> None:
     """Stage a BMI recalculation for a user's manually entered weight records in one statement.
 
     A single bulk UPDATE keeps the work to a constant number of round trips
@@ -234,7 +234,7 @@ def recalculate_bmi_for_user(user_id: int, height_cm: float | None, db: Session)
     db.flush()
 
 
-def delete_health_weight(user_id: int, health_weight_id: uuid.UUID, db: Session, *, if_match: str) -> None:
+def delete_health_weight(user_id: uuid.UUID, health_weight_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Stage the deletion of a user's weight record.
 
     Args:
@@ -251,7 +251,7 @@ def delete_health_weight(user_id: int, health_weight_id: uuid.UUID, db: Session,
 
 
 def get_health_weight_chart(
-    user_id: int, since: date_type, until: date_type | None, bucket: health_constants.ChartBucket, db: Session
+    user_id: uuid.UUID, since: date_type, until: date_type | None, bucket: health_constants.ChartBucket, db: Session
 ) -> list[health_schema.HealthChartPoint]:
     """Average a user's weight per chart bucket.
 
@@ -281,7 +281,7 @@ def get_health_weight_chart(
 
 
 def list_changed(
-    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[health_weight_schema.HealthWeightRead]:
     """Retrieve a user's records changed after a position, oldest change first.
 

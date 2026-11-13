@@ -19,7 +19,7 @@ import modules.gears.gear.service as gears_service
 import modules.users.users_profile.contracts as users_profile_contracts
 
 
-def get_gear_user(user_id: int, db: Session) -> list[gears_schema.GearRead]:
+def get_gear_user(user_id: uuid.UUID, db: Session) -> list[gears_schema.GearRead]:
     """Return all of a user's gears.
 
     Args:
@@ -32,7 +32,7 @@ def get_gear_user(user_id: int, db: Session) -> list[gears_schema.GearRead]:
     return gears_crud.get_gear_user(user_id, db)
 
 
-def get_gear_user_by_id(user_id: int, gear_id: uuid.UUID, db: Session) -> gears_schema.GearRead | None:
+def get_gear_user_by_id(user_id: uuid.UUID, gear_id: uuid.UUID, db: Session) -> gears_schema.GearRead | None:
     """Return a user's gear by ID.
 
     Args:
@@ -46,7 +46,7 @@ def get_gear_user_by_id(user_id: int, gear_id: uuid.UUID, db: Session) -> gears_
     return gears_crud.get_gear_user_by_id(user_id, gear_id, db)
 
 
-def lock_gear(gear_id: uuid.UUID, user_id: int, db: Session) -> None:
+def lock_gear(gear_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> None:
     """Lock a user's gear row until the transaction ends.
 
     Args:
@@ -60,7 +60,7 @@ def lock_gear(gear_id: uuid.UUID, user_id: int, db: Session) -> None:
     gears_crud.lock_gear(gear_id, user_id, db)
 
 
-def get_gear_by_strava_id(strava_gear_id: str, user_id: int, db: Session) -> gears_schema.GearRead | None:
+def get_gear_by_strava_id(strava_gear_id: str, user_id: uuid.UUID, db: Session) -> gears_schema.GearRead | None:
     """Return the user's gear imported from the given Strava gear.
 
     Args:
@@ -74,7 +74,9 @@ def get_gear_by_strava_id(strava_gear_id: str, user_id: int, db: Session) -> gea
     return gears_crud.get_gear_by_strava_id_from_user_id(strava_gear_id, user_id, db)
 
 
-def get_gear_by_garminconnect_id(garminconnect_gear_id: str, user_id: int, db: Session) -> gears_schema.GearRead | None:
+def get_gear_by_garminconnect_id(
+    garminconnect_gear_id: str, user_id: uuid.UUID, db: Session
+) -> gears_schema.GearRead | None:
     """Return the user's gear imported from the given Garmin Connect gear.
 
     Args:
@@ -89,7 +91,7 @@ def get_gear_by_garminconnect_id(garminconnect_gear_id: str, user_id: int, db: S
 
 
 def restore_profile_gears(
-    records: list[dict[str, Any]], user_id: int, ids: users_profile_contracts.ProfileIdMaps, db: Session
+    records: list[dict[str, Any]], user_id: uuid.UUID, ids: users_profile_contracts.ProfileIdMaps, db: Session
 ) -> int:
     """Stage the gears of a profile archive; the caller commits.
 
@@ -105,7 +107,7 @@ def restore_profile_gears(
     return gears_service.restore_profile_gears(records, user_id, ids, db)
 
 
-def create_multiple_gears(gears: Iterable[gears_schema.GearCreate | None], user_id: int, db: Session) -> None:
+def create_multiple_gears(gears: Iterable[gears_schema.GearCreate | None], user_id: uuid.UUID, db: Session) -> None:
     """Stage the gears a user does not have yet; the caller commits.
 
     Entries without a nickname and nicknames the user already has are skipped.
@@ -121,7 +123,7 @@ def create_multiple_gears(gears: Iterable[gears_schema.GearCreate | None], user_
     gears_service.stage_gears(gears, user_id, db)
 
 
-def delete_all_strava_gear_for_user(user_id: int, db: Session) -> None:
+def delete_all_strava_gear_for_user(user_id: uuid.UUID, db: Session) -> None:
     """Stage the deletion of every Strava-linked gear a user has; the caller commits.
 
     Args:
@@ -131,7 +133,7 @@ def delete_all_strava_gear_for_user(user_id: int, db: Session) -> None:
     gears_service.delete_all_strava_gear_for_user(user_id, db)
 
 
-def require_owned_gears(user_id: int, gear_ids: Iterable[uuid.UUID | None], db: Session) -> None:
+def require_owned_gears(user_id: uuid.UUID, gear_ids: Iterable[uuid.UUID | None], db: Session) -> None:
     """Require every given gear to belong to the user.
 
     Args:
@@ -146,7 +148,7 @@ def require_owned_gears(user_id: int, gear_ids: Iterable[uuid.UUID | None], db: 
 
 
 def list_changed_gears(
-    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[gears_schema.GearDetailRead]:
     """Return a page of a user's gears changed after a position, oldest change first.
 
@@ -168,7 +170,7 @@ def list_changed_gears(
 
 
 def list_gear_deletions(
-    user_id: int, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
 ) -> list[core_sync.Deletion[uuid.UUID]]:
     """Return a page of a user's deleted gears after a position, oldest deletion first.
 

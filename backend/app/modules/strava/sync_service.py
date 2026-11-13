@@ -6,6 +6,7 @@ pool that is not the request threadpool. Either way the sync is recorded in the 
 state, which the client polls and which stops a user queueing the same sync twice.
 """
 
+import uuid
 from datetime import date
 
 import jasil.audit as jasil_audit
@@ -116,7 +117,7 @@ def close_dead_lettered_sync(
 
 
 def _queue(
-    user_id: int,
+    user_id: uuid.UUID,
     kind: strava_constants.SyncKind,
     states: strava_sync_state_store.StravaSyncStateStore,
     rate_limits: strava_rate_limit_store.StravaRateLimitStore,
@@ -179,7 +180,7 @@ def _queue(
 
 
 def request_gear_sync(
-    user_id: int,
+    user_id: uuid.UUID,
     states: strava_sync_state_store.StravaSyncStateStore,
     rate_limits: strava_rate_limit_store.StravaRateLimitStore,
     db: Session,
@@ -199,7 +200,7 @@ def request_gear_sync(
 
 
 def request_unlink(
-    user_id: int,
+    user_id: uuid.UUID,
     states: strava_sync_state_store.StravaSyncStateStore,
     rate_limits: strava_rate_limit_store.StravaRateLimitStore,
     db: Session,
@@ -228,7 +229,7 @@ def request_unlink(
 
 
 def request_activities_sync(
-    user_id: int,
+    user_id: uuid.UUID,
     start_date: date,
     end_date: date,
     storage: platform_providers.StorageProvider,

@@ -15,6 +15,7 @@ lives in :mod:`modules.followers.integration_service`.
 """
 
 import operator
+import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
 
@@ -36,7 +37,7 @@ import modules.users.users.schema as users_schema
 logger = core_logger.get_logger(__name__)
 
 
-def _requester_may_view_network(target_user_id: int, requester_user_id: int, db: Session) -> bool:
+def _requester_may_view_network(target_user_id: uuid.UUID, requester_user_id: uuid.UUID, db: Session) -> bool:
     """Return whether the requester may view the target's follower/following graph.
 
     A user's social graph is visible only to the user themselves and to their
@@ -59,7 +60,7 @@ def _requester_may_view_network(target_user_id: int, requester_user_id: int, db:
     return relationship is not None and relationship.status == followers_constants.FollowStatus.ACCEPTED
 
 
-def _ensure_may_view_network(target_user_id: int, requester_user_id: int, db: Session) -> None:
+def _ensure_may_view_network(target_user_id: uuid.UUID, requester_user_id: uuid.UUID, db: Session) -> None:
     """Raise :class:`AccessConcealedError` unless the requester may view the target's network.
 
     Args:
@@ -81,7 +82,7 @@ def _ensure_may_view_network(target_user_id: int, requester_user_id: int, db: Se
 
 def _with_profiles(
     page: followers_schema.FollowRelationshipPage,
-    other_user_id: Callable[[followers_schema.FollowRelationshipRead], int],
+    other_user_id: Callable[[followers_schema.FollowRelationshipRead], uuid.UUID],
     db: Session,
 ) -> followers_schema.FollowRelationshipPage:
     """Attach the public profile of the user on the other side of every row, in one read.
@@ -99,11 +100,11 @@ def _with_profiles(
 
 
 def _list_network(
-    target_user_id: int,
-    requester_user_id: int,
+    target_user_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     list_page: Callable[..., list[followers_schema.FollowRelationshipRead]],
     count: Callable[..., int],
-    other_user_id: Callable[[followers_schema.FollowRelationshipRead], int],
+    other_user_id: Callable[[followers_schema.FollowRelationshipRead], uuid.UUID],
     db: Session,
     *,
     page_number: int,
@@ -147,8 +148,8 @@ def _list_network(
 
 
 def list_followers(
-    target_user_id: int,
-    requester_user_id: int,
+    target_user_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -187,8 +188,8 @@ def list_followers(
 
 
 def list_following(
-    target_user_id: int,
-    requester_user_id: int,
+    target_user_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -227,8 +228,8 @@ def list_following(
 
 
 def get_profile_follow_counts(
-    target_user_id: int,
-    requester_user_id: int,
+    target_user_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     db: Session,
 ) -> followers_contracts.ProfileFollowCounts | None:
     """Return accepted network counts, or None when the viewer cannot see the network.
@@ -250,7 +251,7 @@ def get_profile_follow_counts(
 
 
 def list_pending_requests(
-    requester_user_id: int,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -278,7 +279,7 @@ def list_pending_requests(
     return _with_profiles(page, operator.attrgetter("follower_id"), db)
 
 
-def reject_follow_request(requester_user_id: int, follower_id: int, db: Session) -> None:
+def reject_follow_request(requester_user_id: uuid.UUID, follower_id: uuid.UUID, db: Session) -> None:
     """Decline a pending follow request addressed to the caller and publish ``follower.request_removed``.
 
     Records the decline, so the requester cannot ask the caller again for
@@ -309,7 +310,9 @@ def reject_follow_request(requester_user_id: int, follower_id: int, db: Session)
     )
 
 
-def delete_relationship(followee_id: int, follower_id: int, requester_user_id: int, db: Session) -> None:
+def delete_relationship(
+    followee_id: uuid.UUID, follower_id: uuid.UUID, requester_user_id: uuid.UUID, db: Session
+) -> None:
     """Delete a follow relationship on behalf of either party.
 
     One operation serves unfollow and remove-follower: the row is the same and
@@ -366,7 +369,9 @@ def delete_relationship(followee_id: int, follower_id: int, requester_user_id: i
     )
 
 
-def get_user_relationship(other_user_id: int, requester_user_id: int, db: Session) -> followers_schema.RelationshipRead:
+def get_user_relationship(
+    other_user_id: uuid.UUID, requester_user_id: uuid.UUID, db: Session
+) -> followers_schema.RelationshipRead:
     """Return the authenticated user's relationship with another user (both directions).
 
     Only ever reports relationships the requester is part of — their outgoing
@@ -391,7 +396,7 @@ def get_user_relationship(other_user_id: int, requester_user_id: int, db: Sessio
     )
 
 
-def _ensure_cooldown_over(requester_user_id: int, target_user_id: int, db: Session) -> None:
+def _ensure_cooldown_over(requester_user_id: uuid.UUID, target_user_id: uuid.UUID, db: Session) -> None:
     """Refuse a request while the target's decline of the requester is recent.
 
     Args:
@@ -416,7 +421,9 @@ def _ensure_cooldown_over(requester_user_id: int, target_user_id: int, db: Sessi
         )
 
 
-def follow_user(requester_user_id: int, target_user_id: int, db: Session) -> followers_schema.FollowRelationshipRead:
+def follow_user(
+    requester_user_id: uuid.UUID, target_user_id: uuid.UUID, db: Session
+) -> followers_schema.FollowRelationshipRead:
     """Create a follow request and publish ``follower.requested``.
 
     The CRUD row write is the source of truth; the notification is produced by the
@@ -474,8 +481,8 @@ def follow_user(requester_user_id: int, target_user_id: int, db: Session) -> fol
 
 
 def accept_follow_request(
-    requester_user_id: int,
-    follower_id: int,
+    requester_user_id: uuid.UUID,
+    follower_id: uuid.UUID,
     db: Session,
 ) -> followers_schema.FollowRelationshipRead:
     """Accept a pending follow request and publish ``follower.accepted``.
@@ -518,7 +525,7 @@ def accept_follow_request(
     return relationship
 
 
-def block_user(blocker_id: int, blocked_id: int, db: Session) -> None:
+def block_user(blocker_id: uuid.UUID, blocked_id: uuid.UUID, db: Session) -> None:
     """Block a user: end every follow between the two and refuse the blocked user's future requests.
 
     The answer is the same for a user that does not exist, so the route cannot be used to look users up.
@@ -555,7 +562,7 @@ def block_user(blocker_id: int, blocked_id: int, db: Session) -> None:
     )
 
 
-def unblock_user(blocker_id: int, blocked_id: int, db: Session) -> None:
+def unblock_user(blocker_id: uuid.UUID, blocked_id: uuid.UUID, db: Session) -> None:
     """Remove a block.
 
     Args:
@@ -579,7 +586,7 @@ def unblock_user(blocker_id: int, blocked_id: int, db: Session) -> None:
 
 
 def list_blocked_users(
-    blocker_id: int,
+    blocker_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,

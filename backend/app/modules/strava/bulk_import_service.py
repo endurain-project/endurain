@@ -120,7 +120,7 @@ def parse_activities_manifest(manifest_path: str) -> StravaActivitiesManifest | 
         return None
 
 
-def create_gear_dictionary_for_bulk_import(user_id: int, db: Session) -> dict[str, list[uuid.UUID]]:
+def create_gear_dictionary_for_bulk_import(user_id: uuid.UUID, db: Session) -> dict[str, list[uuid.UUID]]:
     """Creates a dictionary that links gear nicknames in Endurain to their Endurain gear IDs.
 
     The dictionary includes both base Endurain gear nickname and the gear name smoosh
@@ -523,7 +523,7 @@ def _is_export_member(member_name: str) -> bool:
 
 
 def _build_source(
-    user_id: int,
+    user_id: uuid.UUID,
     import_initiated_time: str,
     read_member: activity_ingestion_integration.ArchiveMemberReader,
 ) -> StravaBulkImportSource:
@@ -563,18 +563,18 @@ def _build_source(
     )
 
 
-def drop_directory_for(user_id: int) -> str:
+def drop_directory_for(user_id: uuid.UUID) -> str:
     """Return the directory one user drops their Strava export in.
 
     Per user, so an import never ingests another user's export and attributes it to whoever started it.
 
     Args:
-        user_id: The owning user's id. Coerced to ``int`` so the value can only ever be a single path segment.
+        user_id: The owning user's id. A UUID, so the value can only ever be a single path segment.
 
     Returns:
         Absolute path of that user's Strava-export directory.
     """
-    return f"{core_config.settings.FILES_DIR}/{strava_constants.BULK_IMPORT_DIR_NAME}/{int(user_id)}"
+    return f"{core_config.settings.FILES_DIR}/{strava_constants.BULK_IMPORT_DIR_NAME}/{user_id}"
 
 
 def register_bulk_import_format() -> None:

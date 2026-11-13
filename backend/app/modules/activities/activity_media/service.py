@@ -70,7 +70,7 @@ def media_key(activity_id: uuid.UUID, suffix: str) -> str:
     return f"{_key_prefix(activity_id)}{suffix}"
 
 
-def _require_owned_activity(activity_id: uuid.UUID, requester_user_id: int, db: Session) -> None:
+def _require_owned_activity(activity_id: uuid.UUID, requester_user_id: uuid.UUID, db: Session) -> None:
     """Raise :class:`NotFoundError` unless ``requester_user_id`` owns ``activity_id``.
 
     "Not found" rather than "forbidden" so a caller cannot use the media endpoints
@@ -295,7 +295,7 @@ def list_media_for_activities(
 
 def list_activity_media(
     activity_id: uuid.UUID,
-    requester_user_id: int,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -395,7 +395,7 @@ def read_activity_media_blob(
 
 def store_activity_media(
     activity_id: uuid.UUID,
-    requester_user_id: int,
+    requester_user_id: uuid.UUID,
     original_filename: str | None,
     read_data: Callable[[], bytes],
     storage: platform_providers.StorageProvider,
@@ -484,7 +484,7 @@ def store_activity_media_bytes(
 def delete_activity_media(
     activity_id: uuid.UUID,
     media_id: uuid.UUID,
-    requester_user_id: int,
+    requester_user_id: uuid.UUID,
     storage: platform_providers.StorageProvider,
     db: Session,
 ) -> None:
@@ -628,21 +628,19 @@ def store_media_blob(
     return key
 
 
-def rekey_media_path(old_key: str, archived_activity_key: str, new_activity_id: uuid.UUID) -> str | None:
+def rekey_media_path(old_key: str, archived_activity_id: uuid.UUID, new_activity_id: uuid.UUID) -> str | None:
     """Return an exported media key re-addressed to a restored activity.
-
-    The archived key is matched by its text, whatever the archive's id looks like.
 
     Args:
         old_key: The ``media_path`` recorded in a profile archive.
-        archived_activity_key: The archive-local key of the activity the record was exported under.
+        archived_activity_id: The id of the activity the record was exported under.
         new_activity_id: The activity the record is being restored onto.
 
     Returns:
         The key under the new activity, or ``None`` when ``old_key`` is not a
-        flat ``{archived_activity_key}_{suffix}`` key (the archive is untrusted).
+        flat ``{archived_activity_id}_{suffix}`` key (the archive is untrusted).
     """
-    suffix = old_key.removeprefix(f"{archived_activity_key}_")
+    suffix = old_key.removeprefix(f"{archived_activity_id}_")
     if suffix == old_key or _FLAT_SUFFIX_PATTERN.fullmatch(suffix) is None:
         return None
     return media_key(new_activity_id, suffix)

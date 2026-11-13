@@ -12,6 +12,9 @@ import modules.health.health_targets.schema as health_targets_schema
 _ID = uuid.uuid4()
 
 
+_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
+
+
 class TestGetHealthTargetsByUserId:
     """
     Test suite for get_health_targets_by_user_id function.
@@ -22,7 +25,7 @@ class TestGetHealthTargetsByUserId:
         Test successful retrieval of health targets for a user.
         """
         # Arrange
-        user_id = 1
+        user_id = _USER_ID
         mock_targets = MagicMock(spec=health_targets_models.HealthTargets)
         mock_targets.id = _ID
         mock_targets.user_id = user_id
@@ -50,7 +53,7 @@ class TestGetHealthTargetsByUserId:
         Test retrieval when no health targets exist for user.
         """
         # Arrange
-        user_id = 1
+        user_id = _USER_ID
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
         mock_db.execute.return_value = mock_result
@@ -72,7 +75,7 @@ class TestCreateHealthTargets:
         Test successful creation of health targets entry.
         """
         # Arrange
-        user_id = 1
+        user_id = _USER_ID
 
         mock_db_targets = MagicMock(spec=health_targets_models.HealthTargets)
         mock_db_targets.id = _ID
@@ -108,7 +111,7 @@ class TestCreateHealthTargets:
         Test creation with duplicate entry raises conflict error.
         """
         # Arrange
-        user_id = 1
+        user_id = _USER_ID
 
         mock_db_targets = MagicMock()
         mock_db.add.return_value = None
@@ -131,13 +134,13 @@ class TestEditHealthTarget:
         Test successful edit of health target entry.
         """
         # Arrange
-        user_id = 1
+        user_id = _USER_ID
         health_target = health_targets_schema.HealthTargetsUpdate(weight_kg=75.0, steps=10000, sleep_seconds=28800)
 
         mock_db_target = MagicMock(spec=health_targets_models.HealthTargets)
         mock_db_target.version = 1
         mock_db_target.id = _ID
-        mock_db_target.user_id = 1
+        mock_db_target.user_id = _USER_ID
         mock_db_target.fasting_seconds = None
         mock_db_target.water_ml = None
         mock_db_target.poop_count = None
@@ -157,7 +160,7 @@ class TestEditHealthTarget:
         Test edit when health target record not found.
         """
         # Arrange
-        user_id = 1
+        user_id = _USER_ID
         health_target = health_targets_schema.HealthTargetsUpdate(weight_kg=75.0, steps=10000)
 
         mock_result = MagicMock()
@@ -173,7 +176,7 @@ class TestEditHealthTarget:
         Test edit updates multiple fields correctly.
         """
         # Arrange
-        user_id = 1
+        user_id = _USER_ID
         health_target = health_targets_schema.HealthTargetsUpdate(
             weight_kg=80.0,
             steps=12000,
@@ -183,7 +186,7 @@ class TestEditHealthTarget:
         mock_db_target = MagicMock(spec=health_targets_models.HealthTargets)
         mock_db_target.version = 1
         mock_db_target.id = _ID
-        mock_db_target.user_id = 1
+        mock_db_target.user_id = _USER_ID
         mock_db_target.fasting_seconds = None
         mock_db_target.water_ml = None
         mock_db_target.poop_count = None
@@ -202,13 +205,13 @@ class TestEditHealthTarget:
         Test edit with partial field updates.
         """
         # Arrange
-        user_id = 1
+        user_id = _USER_ID
         health_target = health_targets_schema.HealthTargetsUpdate(weight_kg=75.0)
 
         mock_db_target = MagicMock(spec=health_targets_models.HealthTargets)
         mock_db_target.version = 1
         mock_db_target.id = _ID
-        mock_db_target.user_id = 1
+        mock_db_target.user_id = _USER_ID
         mock_db_target.steps = None
         mock_db_target.sleep_seconds = None
         mock_db_target.fasting_seconds = None
@@ -229,13 +232,13 @@ class TestEditHealthTarget:
         Test edit can clear optional fields by setting to None.
         """
         # Arrange
-        user_id = 1
+        user_id = _USER_ID
         health_target = health_targets_schema.HealthTargetsUpdate(weight_kg=None, steps=None)
 
         mock_db_target = MagicMock(spec=health_targets_models.HealthTargets)
         mock_db_target.version = 1
         mock_db_target.id = _ID
-        mock_db_target.user_id = 1
+        mock_db_target.user_id = _USER_ID
         mock_db_target.sleep_seconds = None
         mock_db_target.fasting_seconds = None
         mock_db_target.water_ml = None

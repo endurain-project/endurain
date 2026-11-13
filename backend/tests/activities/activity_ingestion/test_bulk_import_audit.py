@@ -7,6 +7,7 @@ from unittest.mock import patch
 import jasil.testing as jasil_testing
 import pytest
 from jasil.backends.storage_local import LocalStorage
+from tests._helpers.auth import MOCK_USER_ID
 from tests._helpers.db import create_sqlite_session_factory, ensure_user
 
 import core.exceptions as core_exceptions
@@ -16,7 +17,7 @@ import modules.activities.activity_ingestion.models as ingestion_models
 
 from .test_bulk_import_archive import _commit_through, _saver, _zip
 
-_USER = 7
+_USER = MOCK_USER_ID
 
 
 @pytest.fixture

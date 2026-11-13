@@ -1,6 +1,7 @@
 """Strava account linking: the OAuth state and client, the code exchange and unlinking."""
 
 import secrets
+import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
@@ -27,7 +28,9 @@ import modules.users.users_integrations.integration_service as user_integrations
 logger = core_logger.get_logger(__name__)
 
 
-def set_client(user_id: int, credentials: strava_schema.StravaClientCredentials, db: Session, *, if_match: str) -> int:
+def set_client(
+    user_id: uuid.UUID, credentials: strava_schema.StravaClientCredentials, db: Session, *, if_match: str
+) -> int:
     """Store the user's Strava API client id and secret, and commit.
 
     Args:
@@ -65,7 +68,7 @@ def set_client(user_id: int, credentials: strava_schema.StravaClientCredentials,
     return integrations.version if integrations is not None else 1
 
 
-def begin_state(user_id: int, oauth_states: strava_oauth_state_store.StravaOAuthStateStore) -> str:
+def begin_state(user_id: uuid.UUID, oauth_states: strava_oauth_state_store.StravaOAuthStateStore) -> str:
     """Issue the one-time state that correlates the OAuth callback with the user.
 
     Args:
@@ -81,7 +84,7 @@ def begin_state(user_id: int, oauth_states: strava_oauth_state_store.StravaOAuth
     return state
 
 
-def unlink_account(user_id: int) -> bool:
+def unlink_account(user_id: uuid.UUID) -> bool:
     """Disconnect the user's Strava account and delete what was imported from it.
 
     Runs on a worker, never a request. Strava is asked to revoke the authorization
@@ -122,7 +125,7 @@ def unlink_account(user_id: int) -> bool:
     return True
 
 
-def _delete_strava_data[T](user_id: int, finish: Callable[[int, Session], T]) -> tuple[int, T]:
+def _delete_strava_data[T](user_id: uuid.UUID, finish: Callable[[int, Session], T]) -> tuple[int, T]:
     """Delete the activities and gear imported from Strava, then run ``finish`` in the last transaction.
 
     The activities go in batches, one transaction each. The gear and what ``finish`` stages commit together
@@ -145,7 +148,7 @@ def _delete_strava_data[T](user_id: int, finish: Callable[[int, Session], T]) ->
     return deleted, result
 
 
-def delete_revoked_data(user_id: int) -> bool:
+def delete_revoked_data(user_id: uuid.UUID) -> bool:
     """Delete a user's Strava data once the grace period after a revocation has passed.
 
     Runs on a worker. Nothing is asked of Strava: the access is already gone. The user's own Strava export
@@ -190,7 +193,7 @@ def delete_revoked_data(user_id: int) -> bool:
     return True
 
 
-def _delete_imported_activities(user_id: int) -> int:
+def _delete_imported_activities(user_id: uuid.UUID) -> int:
     """Delete the activities imported from Strava, one batch per transaction.
 
     Args:
@@ -214,7 +217,7 @@ def _delete_imported_activities(user_id: int) -> int:
             return total
 
 
-def revoked_user_ids_due(after_id: int, limit: int) -> list[int]:
+def revoked_user_ids_due(after_id: uuid.UUID | None, limit: int) -> list[uuid.UUID]:
     """Page through the users whose Strava data is due for deletion, in a short session of its own.
 
     Args:
@@ -229,7 +232,7 @@ def revoked_user_ids_due(after_id: int, limit: int) -> list[int]:
         return user_integrations_integration.list_user_ids_with_strava_revoked_before(cutoff, after_id, limit, db)
 
 
-def linked_user_ids(after_id: int, limit: int) -> list[int]:
+def linked_user_ids(after_id: uuid.UUID | None, limit: int) -> list[uuid.UUID]:
     """Page through the users who have linked Strava, in a short session of its own.
 
     Args:

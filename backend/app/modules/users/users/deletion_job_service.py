@@ -14,6 +14,7 @@ that can fail runs while the row still marks the deletion, so the stalled-deleti
 """
 
 import time
+import uuid
 from collections.abc import Sequence
 from datetime import datetime, timedelta
 
@@ -92,8 +93,8 @@ def shutdown_deletion_pool(*, wait: bool = False) -> None:
 
 
 def request_deletion(
-    user_id: int,
-    owner_id: int,
+    user_id: uuid.UUID,
+    owner_id: uuid.UUID,
     states: users_deletion_state_store.UserDeletionStateStore,
     storage: platform_providers.StorageProvider,
     mail: platform_providers.MailProvider,
@@ -155,8 +156,8 @@ def request_deletion(
 
 
 def request_deletion_by_administrator(
-    user_id: int,
-    actor_id: int,
+    user_id: uuid.UUID,
+    actor_id: uuid.UUID,
     session_id: str,
     step_up: auth_schema.StepUpVerification,
     step_up_store: account_security_integration.StepUpStore,
@@ -204,7 +205,7 @@ def request_deletion_by_administrator(
 
 
 def _dispatch(
-    user_id: int,
+    user_id: uuid.UUID,
     states: users_deletion_state_store.UserDeletionStateStore,
     storage: platform_providers.StorageProvider,
     mail: platform_providers.MailProvider,
@@ -331,7 +332,7 @@ def run_deletion(
     return False
 
 
-def _send_deletion_notice(user_id: int, mail: platform_providers.MailProvider) -> None:
+def _send_deletion_notice(user_id: uuid.UUID, mail: platform_providers.MailProvider) -> None:
     """Mail the owner, at the address on the row about to be erased, that the account's erasure starts.
 
     Nothing is sent when the sweep has queued the deletion again, since an earlier pass already sent it, or when
@@ -359,7 +360,7 @@ def _send_deletion_notice(user_id: int, mail: platform_providers.MailProvider) -
         )
 
 
-def _erase_activities(user_id: int, time_budget: float | None) -> tuple[int, bool]:
+def _erase_activities(user_id: uuid.UUID, time_budget: float | None) -> tuple[int, bool]:
     """Delete a user's activities one batch per transaction, until none are left or the time budget is spent.
 
     At least one batch runs, so every pass makes progress.
@@ -393,7 +394,7 @@ def _erase_activities(user_id: int, time_budget: float | None) -> tuple[int, boo
             return total, True
 
 
-def _require_not_cancelled(user_id: int, db: Session) -> None:
+def _require_not_cancelled(user_id: uuid.UUID, db: Session) -> None:
     """Stop the deletion when the account was reactivated; the row stays locked for the caller's transaction.
 
     Args:
@@ -407,7 +408,7 @@ def _require_not_cancelled(user_id: int, db: Session) -> None:
         raise _DeletionCancelledError
 
 
-def _erase_photo(user_id: int, storage: platform_providers.StorageProvider) -> None:
+def _erase_photo(user_id: uuid.UUID, storage: platform_providers.StorageProvider) -> None:
     """Clear the user's photo reference, then delete every photo blob under their prefix.
 
     The reference goes first, so a reactivation that stops the deletion afterwards leaves no row naming
@@ -429,7 +430,7 @@ def _erase_photo(user_id: int, storage: platform_providers.StorageProvider) -> N
     logger.debug("Erased the user's photo", extra=core_logger.context(user_id=user_id))
 
 
-def _delete_user_row(user_id: int) -> None:
+def _delete_user_row(user_id: uuid.UUID) -> None:
     """Delete the user row, which removes everything else that references it through the database cascade.
 
     The notifications other users hold that name the user go in the same transaction, so a committed
@@ -453,7 +454,7 @@ def _delete_user_row(user_id: int) -> None:
     logger.debug("Deleted the user row", extra=core_logger.context(user_id=user_id))
 
 
-def _stage_user_row_deletion(user_id: int, db: Session) -> None:
+def _stage_user_row_deletion(user_id: uuid.UUID, db: Session) -> None:
     """Stage the deletion of the user row and of the notifications other users hold that name the user.
 
     Args:
@@ -465,7 +466,7 @@ def _stage_user_row_deletion(user_id: int, db: Session) -> None:
 
 
 def stage_unverified_sign_up_purge(
-    created_before: datetime, held_user_ids: Sequence[Select[tuple[int]]], limit: int, db: Session
+    created_before: datetime, held_user_ids: Sequence[Select[tuple[uuid.UUID]]], limit: int, db: Session
 ) -> int:
     """Stage the deletion of up to ``limit`` unverified self sign-ups created before ``created_before``.
 
@@ -536,7 +537,7 @@ def requeue_stalled_deletions(
     """
     cutoff = clock.now() - timedelta(seconds=users_constants.DELETION_STALL_AFTER_SECONDS)
     queued = 0
-    after_id = 0
+    after_id = None
     while True:
         with core_database.SessionLocal() as db:
             user_ids = users_crud.list_stalled_deletion_ids(
@@ -563,7 +564,7 @@ def requeue_stalled_deletions(
 
 
 def _requeue(
-    user_id: int,
+    user_id: uuid.UUID,
     states: users_deletion_state_store.UserDeletionStateStore,
     storage: platform_providers.StorageProvider,
     mail: platform_providers.MailProvider,

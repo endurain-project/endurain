@@ -1,6 +1,7 @@
 """Tests for the emails of a backup code use, a refresh-token reuse, an administrator's change to an account and an
 administrator promotion."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import jasil.events as platform_events
@@ -17,10 +18,13 @@ import modules.users.users.events as users_events
 HOST = "https://endurain.example.com"
 SERVICE = "modules.auth.account_security.account_security_service"
 SUBSCRIBERS = "modules.auth.account_security.subscribers"
+USER_ID = uuid.UUID(int=4)
+PROMOTED_ID = uuid.UUID(int=3)
+ADMIN_ID = uuid.UUID(int=8)
 _Change = account_security_events.AccountSecurityChange
 
 
-def _user(active=True, user_id=4, email="alice@example.test", name="Alice"):
+def _user(active=True, user_id=USER_ID, email="alice@example.test", name="Alice"):
     user = MagicMock()
     user.id = user_id
     user.name = name
@@ -137,7 +141,7 @@ class TestPrepareForInactiveRecipients:
             patch(f"{SERVICE}.users_integration.get_user", return_value=_user(active=False)),
             patch(f"{SERVICE}.users_integration.is_deactivated", return_value=True),
         ):
-            message = account_security_service.prepare_security_change_email(4, change.value, None, HOST, mock_db)
+            message = account_security_service.prepare_security_change_email(USER_ID, change.value, None, HOST, mock_db)
 
         assert message is not None
         assert message[0] == "alice@example.test"
@@ -149,7 +153,7 @@ class TestPrepareForInactiveRecipients:
         ):
             assert (
                 account_security_service.prepare_security_change_email(
-                    4, _Change.ACCOUNT_DEACTIVATED_BY_ADMIN.value, None, HOST, mock_db
+                    USER_ID, _Change.ACCOUNT_DEACTIVATED_BY_ADMIN.value, None, HOST, mock_db
                 )
                 is None
             )
@@ -158,7 +162,7 @@ class TestPrepareForInactiveRecipients:
         with patch(f"{SERVICE}.users_integration.get_user", return_value=_user(active=False)):
             assert (
                 account_security_service.prepare_security_change_email(
-                    4, _Change.BACKUP_CODE_USED.value, None, HOST, mock_db, backup_codes_remaining=2
+                    USER_ID, _Change.BACKUP_CODE_USED.value, None, HOST, mock_db, backup_codes_remaining=2
                 )
                 is None
             )
@@ -166,7 +170,7 @@ class TestPrepareForInactiveRecipients:
     def test_the_extras_reach_the_message(self, mock_db):
         with patch(f"{SERVICE}.users_integration.get_user", return_value=_user()):
             message = account_security_service.prepare_security_change_email(
-                4, _Change.BACKUP_CODE_USED.value, None, HOST, mock_db, backup_codes_remaining=7
+                USER_ID, _Change.BACKUP_CODE_USED.value, None, HOST, mock_db, backup_codes_remaining=7
             )
 
         assert message is not None
@@ -176,7 +180,7 @@ class TestPrepareForInactiveRecipients:
 class TestPrepareAccountDeletionEmail:
     def test_goes_to_the_address_on_the_row_even_though_the_account_is_inactive(self, mock_db):
         with patch(f"{SERVICE}.users_integration.get_user", return_value=_user(active=False)):
-            message = account_security_service.prepare_account_deletion_email(4, HOST, mock_db)
+            message = account_security_service.prepare_account_deletion_email(USER_ID, HOST, mock_db)
 
         assert message is not None
         assert message[0] == "alice@example.test"
@@ -184,7 +188,7 @@ class TestPrepareAccountDeletionEmail:
 
     def test_a_missing_user_sends_nothing(self, mock_db):
         with patch(f"{SERVICE}.users_integration.get_user", return_value=None):
-            assert account_security_service.prepare_account_deletion_email(4, HOST, mock_db) is None
+            assert account_security_service.prepare_account_deletion_email(USER_ID, HOST, mock_db) is None
 
     def test_an_event_for_a_deletion_is_not_prepared_as_a_security_change_for_an_inactive_account(self, mock_db):
         with (
@@ -193,7 +197,7 @@ class TestPrepareAccountDeletionEmail:
         ):
             assert (
                 account_security_service.prepare_security_change_email(
-                    4, _Change.ACCOUNT_DELETION_REQUESTED.value, None, HOST, mock_db
+                    USER_ID, _Change.ACCOUNT_DELETION_REQUESTED.value, None, HOST, mock_db
                 )
                 is None
             )
@@ -201,29 +205,30 @@ class TestPrepareAccountDeletionEmail:
 
 class TestPrepareAdminPromotedEmail:
     def test_goes_to_the_admin_and_names_the_promoted_user(self, mock_db):
-        admin = _user(user_id=8, email="bob@example.test", name="Bob")
-        promoted = _user(user_id=3, email="ada@example.test", name="Ada")
+        admin = _user(user_id=ADMIN_ID, email="bob@example.test", name="Bob")
+        promoted = _user(user_id=PROMOTED_ID, email="ada@example.test", name="Ada")
         with patch(
-            f"{SERVICE}.users_integration.get_user", side_effect=lambda user_id, db: {8: admin, 3: promoted}[user_id]
+            f"{SERVICE}.users_integration.get_user",
+            side_effect=lambda user_id, db: {ADMIN_ID: admin, PROMOTED_ID: promoted}[user_id],
         ):
-            message = account_security_service.prepare_admin_promoted_email(3, 8, HOST, mock_db)
+            message = account_security_service.prepare_admin_promoted_email(PROMOTED_ID, ADMIN_ID, HOST, mock_db)
 
         assert message is not None
         assert message[0] == "bob@example.test"
         assert "Ada" in message[2]
         assert "ada@example.test" not in message[2] + message[3]
 
-    @pytest.mark.parametrize("missing", [3, 8])
+    @pytest.mark.parametrize("missing", [PROMOTED_ID, ADMIN_ID])
     def test_a_missing_user_sends_nothing(self, missing, mock_db):
-        users = {8: _user(user_id=8), 3: _user(user_id=3)}
+        users = {ADMIN_ID: _user(user_id=ADMIN_ID), PROMOTED_ID: _user(user_id=PROMOTED_ID)}
         users[missing] = None
         with patch(f"{SERVICE}.users_integration.get_user", side_effect=lambda user_id, db: users[user_id]):
-            assert account_security_service.prepare_admin_promoted_email(3, 8, HOST, mock_db) is None
+            assert account_security_service.prepare_admin_promoted_email(PROMOTED_ID, ADMIN_ID, HOST, mock_db) is None
 
     def test_an_inactive_admin_is_not_told(self, mock_db):
-        users = {8: _user(user_id=8, active=False), 3: _user(user_id=3)}
+        users = {ADMIN_ID: _user(user_id=ADMIN_ID, active=False), PROMOTED_ID: _user(user_id=PROMOTED_ID)}
         with patch(f"{SERVICE}.users_integration.get_user", side_effect=lambda user_id, db: users[user_id]):
-            assert account_security_service.prepare_admin_promoted_email(3, 8, HOST, mock_db) is None
+            assert account_security_service.prepare_admin_promoted_email(PROMOTED_ID, ADMIN_ID, HOST, mock_db) is None
 
 
 def _handle(handler, event, prepare_target):
@@ -241,7 +246,7 @@ def _handle(handler, event, prepare_target):
 class TestHandlers:
     def test_the_backup_code_email_carries_the_codes_left(self):
         event = platform_events.new_event(
-            backup_codes_events.BACKUP_CODE_USED, {"user_id": 4, "backup_codes_remaining": 2}, source="test"
+            backup_codes_events.BACKUP_CODE_USED, {"user_id": str(USER_ID), "backup_codes_remaining": 2}, source="test"
         )
 
         prepare, send_email, get_platform, session_local = _handle(
@@ -250,7 +255,7 @@ class TestHandlers:
 
         db = session_local.return_value.__enter__.return_value
         prepare.assert_called_once_with(
-            4,
+            USER_ID,
             _Change.BACKUP_CODE_USED.value,
             None,
             account_security_subscribers.core_config.settings.ENDURAIN_HOST,
@@ -262,7 +267,9 @@ class TestHandlers:
         )
 
     def test_the_refresh_reuse_email_goes_to_the_session_owner(self):
-        event = platform_events.new_event(authentication_events.REFRESH_REUSE_DETECTED, {"user_id": 4}, source="test")
+        event = platform_events.new_event(
+            authentication_events.REFRESH_REUSE_DETECTED, {"user_id": str(USER_ID)}, source="test"
+        )
 
         prepare, send_email, _, session_local = _handle(
             account_security_subscribers.send_refresh_reuse_email_for_event, event, "prepare_security_change_email"
@@ -270,7 +277,7 @@ class TestHandlers:
 
         db = session_local.return_value.__enter__.return_value
         prepare.assert_called_once_with(
-            4,
+            USER_ID,
             _Change.REFRESH_TOKEN_REUSE_DETECTED.value,
             None,
             account_security_subscribers.core_config.settings.ENDURAIN_HOST,
@@ -281,7 +288,7 @@ class TestHandlers:
     def test_the_security_changed_email_carries_the_new_access_type(self):
         event = platform_events.new_event(
             account_security_events.ACCOUNT_SECURITY_CHANGED,
-            {"user_id": 4, "change": "role_changed_by_admin", "access_type": "admin"},
+            {"user_id": str(USER_ID), "change": "role_changed_by_admin", "access_type": "admin"},
             source="test",
         )
 
@@ -291,7 +298,7 @@ class TestHandlers:
 
         db = session_local.return_value.__enter__.return_value
         prepare.assert_called_once_with(
-            4,
+            USER_ID,
             "role_changed_by_admin",
             None,
             account_security_subscribers.core_config.settings.ENDURAIN_HOST,
@@ -301,7 +308,9 @@ class TestHandlers:
 
     def test_the_admin_promoted_email_goes_to_the_admin_the_event_names(self):
         event = platform_events.new_event(
-            users_events.USERS_ADMIN_PROMOTED, {"user_id": 3, "admin_user_id": 8}, source="test"
+            users_events.USERS_ADMIN_PROMOTED,
+            {"user_id": str(PROMOTED_ID), "admin_user_id": str(ADMIN_ID)},
+            source="test",
         )
 
         prepare, send_email, _, session_local = _handle(
@@ -309,7 +318,9 @@ class TestHandlers:
         )
 
         db = session_local.return_value.__enter__.return_value
-        prepare.assert_called_once_with(3, 8, account_security_subscribers.core_config.settings.ENDURAIN_HOST, db)
+        prepare.assert_called_once_with(
+            PROMOTED_ID, ADMIN_ID, account_security_subscribers.core_config.settings.ENDURAIN_HOST, db
+        )
         send_email.assert_called_once()
 
     def test_each_is_registered_on_the_bus_and_as_a_durable_handler(self):

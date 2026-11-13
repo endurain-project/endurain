@@ -29,7 +29,7 @@ def read_health_targets_all(
     access token. It requires the 'health-targets:read' scope for authorization.
 
     Args:
-        token_user_id (int): The user ID extracted from the JWT access token, automatically
+        token_user_id (uuid.UUID): The user ID extracted from the JWT access token, automatically
             injected by the authentication dependency.
         db (Session): SQLAlchemy database session dependency for executing database queries.
         response: The response, which carries the targets' ETag.
@@ -68,7 +68,7 @@ def update_health_targets(
         request: The incoming request, read by the rate limiter.
         health_targets: The health targets to update, containing the new values for
             the health metrics.
-        token_user_id (int): The authenticated user's ID
+        token_user_id (uuid.UUID): The authenticated user's ID
             extracted from the access token.
         db (Session): Database session dependency for database
             operations.

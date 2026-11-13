@@ -1,5 +1,6 @@
 """Domain constants for activity ingestion jobs."""
 
+import uuid
 from enum import StrEnum
 from typing import Literal, Self
 
@@ -7,6 +8,21 @@ import core.job_status as core_job_status
 
 #: Storage area holding the files a bulk import could not read, for the operator.
 BULK_IMPORT_ERROR_STORAGE_AREA = "bulk_import_errors"
+
+
+def bulk_import_error_prefix(user_id: uuid.UUID) -> str:
+    """Return the storage prefix under which one user's failed bulk-import files live.
+
+    The trailing slash keeps a prefix delete of one user from reaching another user's keys.
+
+    Args:
+        user_id: The user the failed files belong to.
+
+    Returns:
+        The prefix, ``"<user_id>/"``.
+    """
+    return f"{user_id}/"
+
 
 #: The job kinds a client reads for an ingestion job, as ``GET /jobs/{job_id}`` names them.
 JobKindName = Literal["activity_upload", "activity_refresh", "activity_bulk_import"]

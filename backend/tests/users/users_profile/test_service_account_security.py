@@ -1,11 +1,14 @@
 """The profile service commits what the account-security surface only stages."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 import modules.users.users.schema as users_schema
 import modules.users.users_profile.service as profile_service
+
+_USER_ID = uuid.UUID(int=1)
 
 _ACCOUNT_SECURITY = "modules.users.users_profile.service.account_security_integration"
 
@@ -25,7 +28,7 @@ def test_changing_the_password_stages_through_account_security_then_commits(mock
     )
     store = MagicMock()
     with patch(_ACCOUNT_SECURITY) as account_security:
-        profile_service.change_password(5, change, "sid", store, mock_db)
+        profile_service.change_password(_USER_ID, change, "sid", store, mock_db)
 
     account_security.change_own_password.assert_called_once()
     assert account_security.change_own_password.call_args.kwargs["current_session_id"] == "sid"
@@ -35,6 +38,6 @@ def test_changing_the_password_stages_through_account_security_then_commits(mock
 def test_changing_the_password_revokes_other_sessions_unless_the_client_opts_out(mock_db):
     change = users_schema.UserEditPassword(password="new-password-1", step_up={"current_password": "old-password"})
     with patch(_ACCOUNT_SECURITY) as account_security:
-        profile_service.change_password(5, change, "sid", MagicMock(), mock_db)
+        profile_service.change_password(_USER_ID, change, "sid", MagicMock(), mock_db)
 
     assert account_security.change_own_password.call_args.kwargs["revoke_other_sessions"] is True

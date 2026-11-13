@@ -1,5 +1,6 @@
 """Tests for websocket.dependencies module."""
 
+import uuid
 from types import SimpleNamespace
 
 import pytest
@@ -9,13 +10,15 @@ from jasil.testing import FixedClock
 
 import modules.websocket.dependencies as websocket_dependencies
 
+USER = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
+
 
 def test_the_ticket_store_runs_over_the_given_state():
     state = MemoryState()
 
-    ticket = websocket_dependencies.get_ws_ticket_store(state, FixedClock()).create_ticket(7, "s1")
+    ticket = websocket_dependencies.get_ws_ticket_store(state, FixedClock()).create_ticket(USER, "s1")
 
-    assert websocket_dependencies.get_ws_ticket_store(state, FixedClock()).consume_ticket(ticket).user_id == 7
+    assert websocket_dependencies.get_ws_ticket_store(state, FixedClock()).consume_ticket(ticket).user_id == USER
 
 
 def _websocket(origin, allowed):

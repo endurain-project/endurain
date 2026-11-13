@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 import modules.health.health_sleep.schema as health_sleep_schema
 
+_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
 _ID = uuid.uuid4()
 
 
@@ -23,7 +24,7 @@ class TestHealthSleepSchema:
         health_sleep = health_sleep_schema.HealthSleepRead(
             updated_at="2024-01-01T00:00:00Z",
             id=_ID,
-            user_id=1,
+            user_id=_USER_ID,
             date=datetime_date(2024, 1, 15),
             sleep_start_time_gmt=datetime(2024, 1, 14, 22, 0, 0),
             sleep_end_time_gmt=datetime(2024, 1, 15, 6, 0, 0),
@@ -40,7 +41,7 @@ class TestHealthSleepSchema:
 
         # Assert
         assert health_sleep.id == _ID
-        assert health_sleep.user_id == 1
+        assert health_sleep.user_id == _USER_ID
         assert health_sleep.date == datetime_date(2024, 1, 15)
         assert health_sleep.total_sleep_seconds == 28800
         assert health_sleep.sleep_score_overall == 85
@@ -65,7 +66,7 @@ class TestHealthSleepSchema:
         health_sleep = health_sleep_schema.HealthSleepRead(
             updated_at="2024-01-01T00:00:00Z",
             id=_ID,
-            user_id=1,
+            user_id=_USER_ID,
             date=datetime_date(2024, 1, 15),
             total_sleep_seconds=28800,
             deep_sleep_seconds=None,
@@ -98,7 +99,7 @@ class TestHealthSleepSchema:
             """Mock ORM model for testing."""
 
             id = _ID
-            user_id = 1
+            user_id = _USER_ID
             updated_at = "2024-01-01T00:00:00Z"
             date = datetime_date(2024, 1, 15)
             sleep_start_time_gmt = datetime(2024, 1, 14, 22, 0, 0)
@@ -283,7 +284,7 @@ class TestSourceEnum:
         """
         # Arrange & Act
         health_sleep = health_sleep_schema.HealthSleepRead(
-            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, source=health_sleep_schema.Source.GARMIN
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, source=health_sleep_schema.Source.GARMIN
         )
 
         # Assert
@@ -365,7 +366,7 @@ class TestHealthSleepListItem:
     def test_the_flag_is_derived_from_a_rows_stages(self):
         class Row:
             id = _ID
-            user_id = 1
+            user_id = _USER_ID
             updated_at = "2024-01-01T00:00:00Z"
 
             def __init__(self, sleep_stages):
@@ -382,7 +383,7 @@ class TestHealthSleepListItem:
 
     def test_it_carries_no_stages_and_forbids_them_as_a_field(self):
         item = health_sleep_schema.HealthSleepListItem(
-            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, has_sleep_stages=True
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, has_sleep_stages=True
         )
 
         assert "sleep_stages" not in item.model_dump()
@@ -391,7 +392,7 @@ class TestHealthSleepListItem:
     def test_it_forbids_extra_fields(self):
         with pytest.raises(ValidationError):
             health_sleep_schema.HealthSleepListItem(
-                updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=1, has_sleep_stages=False, extra_field=1
+                updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, has_sleep_stages=False, extra_field=1
             )
 
     def test_it_has_every_read_field_but_the_stages(self):

@@ -1,6 +1,7 @@
 """Strava API access: the client, its token refresh and the rate-limit checks."""
 
 import calendar
+import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, NamedTuple
@@ -167,7 +168,9 @@ def _refresh_grant_refused(err: Exception) -> bool:
     return isinstance(err, AccessUnauthorized) or _fault_status(err) in (400, 401)
 
 
-def handle_rejected_token(user_id: int, refresh_token: str | None, err: Exception, *, revoked: bool = False) -> None:
+def handle_rejected_token(
+    user_id: uuid.UUID, refresh_token: str | None, err: Exception, *, revoked: bool = False
+) -> None:
     """Unlink an account whose token Strava rejected during a sync, and tell the user.
 
     The tokens are cleared and the notification row committed together; the live push is
@@ -224,7 +227,7 @@ def handle_rejected_token(user_id: int, refresh_token: str | None, err: Exceptio
 def call_strava[T](
     call: Callable[[StravaClient], T],
     strava_client: StravaClient,
-    user_id: int,
+    user_id: uuid.UUID,
     user_integrations: user_integrations_schema.UserIntegrationsRead,
     rate_limits: strava_rate_limit_store.StravaRateLimitStore,
 ) -> T:
@@ -328,7 +331,7 @@ def raise_if_rate_limited(
 
 
 def raise_if_rate_limit_active(
-    client_id: str, user_id: int, rate_limits: strava_rate_limit_store.StravaRateLimitStore
+    client_id: str, user_id: uuid.UUID, rate_limits: strava_rate_limit_store.StravaRateLimitStore
 ) -> None:
     """Refuse a Strava call while the application's rate limit is active.
 
@@ -484,7 +487,7 @@ def _token_expired(token: _LinkedToken) -> bool:
 
 
 def refresh_user_strava_token(
-    user_id: int,
+    user_id: uuid.UUID,
     rate_limits: strava_rate_limit_store.StravaRateLimitStore,
     *,
     rejected_refresh_token: str | None = None,
@@ -574,7 +577,7 @@ def _refresh_wanted(linked: _LinkedToken, rejected_refresh_token: str | None) ->
 
 
 def _refresh_under_claim(
-    user_id: int,
+    user_id: uuid.UUID,
     client_id: str,
     rate_limits: strava_rate_limit_store.StravaRateLimitStore,
     rejected_refresh_token: str | None,
@@ -652,7 +655,7 @@ def _refresh_under_claim(
 
 
 def fetch_user_integrations_and_validate_token(
-    user_id: int, db: Session
+    user_id: uuid.UUID, db: Session
 ) -> user_integrations_schema.UserIntegrationsRead | None:
     """Return a user's integrations when Strava is linked.
 

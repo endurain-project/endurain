@@ -1,5 +1,6 @@
 """The sync walk over every source against real PostgreSQL: stamps, tombstones and row-value keyset paging."""
 
+import uuid
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
@@ -18,14 +19,15 @@ from tests._helpers.db import ensure_user
 from tests._helpers.gears import component_create, gear_create
 from tests.postgres.test_transaction_ownership import _add_activity
 
-_USER = 1
+_USER = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
+_OTHER_USER = uuid.UUID("7b1c93e4-5d28-4f6a-8e03-a94d2c6f1b57")
 _SCOPES = {"activities:read", "health:read", "health-targets:read", "gears:read"}
 
 
 @pytest.fixture
 def factory(pg_factory):
     configure_gear_contributors()
-    ensure_user(pg_factory, _USER + 1)
+    ensure_user(pg_factory, _OTHER_USER)
     return pg_factory
 
 
@@ -48,7 +50,7 @@ def _walk(factory, cursor=None, size=100):
 def test_a_walk_reports_records_of_every_owning_module_and_their_deletions(factory):
     kept = _add_activity(factory, user_id=_USER)
     gone = _add_activity(factory, user_id=_USER)
-    _add_activity(factory, user_id=_USER + 1)
+    _add_activity(factory, user_id=_OTHER_USER)
     with factory() as db:
         gear = gear_service.create_gear(gear_create("Road"), _USER, db)
         component = gear_components_service.create_gear_component(component_create(gear.id), _USER, db)

@@ -132,7 +132,7 @@ def create_health_weight(
         request: The incoming request, read by the rate limiter.
         health_weight (health_weight_schema.HealthWeightCreate): The health weight data to create.
             Must include a date field.
-        token_user_id (int): The ID of the authenticated user extracted from the access token.
+        token_user_id (uuid.UUID): The ID of the authenticated user extracted from the access token.
         db (Session): Database session dependency for performing database operations.
         response: The response, whose ``Location`` names where the record is read.
 
@@ -171,7 +171,7 @@ def edit_health_weight(
         health_weight_id: ID of the record to change.
         health_weight (health_weight_schema.HealthWeight): The health weight data
             to be updated, containing the weight information and associated metadata.
-        token_user_id (int): The ID of the authenticated user extracted from the
+        token_user_id (uuid.UUID): The ID of the authenticated user extracted from the
             access token.
         db (Session): Database session dependency for executing database operations.
         response: The response, which carries the new ETag.
@@ -212,8 +212,8 @@ def delete_health_weight(
 
     Args:
         request: The incoming request, read by the rate limiter.
-        health_weight_id (int): The unique identifier of the health weight entry to delete.
-        token_user_id (int): The user ID extracted from the access token, used to ensure
+        health_weight_id (uuid.UUID): The unique identifier of the health weight entry to delete.
+        token_user_id (uuid.UUID): The user ID extracted from the access token, used to ensure
             users can only delete their own weight entries.
         if_match: The ``If-Match`` precondition.
         db (Session): Database session dependency for performing database operations.

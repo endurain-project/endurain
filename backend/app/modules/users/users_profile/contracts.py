@@ -15,25 +15,31 @@ import jasil.providers as platform_providers
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-#: Archived id as text to stored id, per section, keyed by the key of the section that published the ids.
-type ProfileIdMaps = dict[str, dict[str, uuid.UUID]]
+#: Archived id (the exporting account's UUID) to stored id, per section, keyed by the key of the section that published the ids.
+type ProfileIdMaps = dict[str, dict[uuid.UUID, uuid.UUID]]
 
 #: What an archive carries of a row's identity: the exporting account's id, owner and version, none of which an import writes.
 ARCHIVE_ROW_IDENTITY = frozenset({"id", "user_id", "version", "updated_at"})
 
 
-def archived_id(value: object) -> str | None:
-    """Return the text an archived id is keyed by in :data:`ProfileIdMaps`.
+def archived_id(value: object) -> uuid.UUID | None:
+    """Return the id an archived id is keyed by in :data:`ProfileIdMaps`.
+
+    Archived ids are the exporting account's UUIDs, written as text.
 
     Args:
         value: An id as an archive carries it.
 
     Returns:
-        ``str(value)`` for an integer (not a boolean) or a string, otherwise ``None``.
+        The parsed UUID, or ``None`` for anything that is not a UUID string (a boolean, an integer, a
+        malformed string).
     """
-    if isinstance(value, bool) or not isinstance(value, (int, str)):
+    if not isinstance(value, str):
         return None
-    return str(value)
+    try:
+        return uuid.UUID(value)
+    except ValueError:
+        return None
 
 
 def without_row_identity(row: dict[str, Any]) -> dict[str, Any]:
@@ -152,7 +158,7 @@ class ProfileExportContext:
         check_timeout: Raises when the export is out of time.
     """
 
-    user_id: int
+    user_id: uuid.UUID
     db: Session
     storage: platform_providers.StorageProvider
     archive: ProfileArchiveWriter
@@ -179,7 +185,7 @@ class ProfileImportContext:
         check_activity_count: Raises when an archive lists more activities than an import allows.
     """
 
-    user_id: int
+    user_id: uuid.UUID
     db: Session
     storage: platform_providers.StorageProvider
     archive: ProfileArchiveReader
@@ -213,8 +219,8 @@ class ProfileRecordsSection:
     """
 
     key: str
-    export: Callable[[int, Session], Sequence[BaseModel]]
-    restore: Callable[[list[dict[str, Any]], int, ProfileIdMaps, Session], int]
+    export: Callable[[uuid.UUID, Session], Sequence[BaseModel]]
+    restore: Callable[[list[dict[str, Any]], uuid.UUID, ProfileIdMaps, Session], int]
 
 
 @dataclass(frozen=True, kw_only=True)

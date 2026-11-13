@@ -60,7 +60,7 @@ def _require_type_for_gear(gear: gears_schema.GearRead, component_type: str) -> 
 
 
 def count_components_outside_gear_type(
-    gear_id: uuid.UUID, user_id: int, gear_type: gears_schema.GearType, db: Session
+    gear_id: uuid.UUID, user_id: uuid.UUID, gear_type: gears_schema.GearType, db: Session
 ) -> int:
     """Count a gear's components whose type is not valid for a gear type.
 
@@ -94,7 +94,7 @@ def read_component_types() -> gear_components_schema.GearComponentTypesRead:
 
 
 def list_gear_components(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -120,7 +120,7 @@ def list_gear_components(
 
 def list_components_for_gear(
     gear_id: uuid.UUID,
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     active: bool | None = None,
@@ -170,7 +170,7 @@ def list_components_for_gear(
 
 def create_gear_component(
     gear_component: gear_components_schema.GearComponentCreate,
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
 ) -> gear_components_schema.GearComponentRead:
     """Create a component on one of the user's gears.
@@ -204,11 +204,11 @@ def create_gear_component(
 
 
 def restore_profile_gear_components(
-    records: list[dict[str, Any]], user_id: int, ids: users_profile_contracts.ProfileIdMaps, db: Session
+    records: list[dict[str, Any]], user_id: uuid.UUID, ids: users_profile_contracts.ProfileIdMaps, db: Session
 ) -> int:
     """Stage the gear components of a profile archive; the caller commits.
 
-    Each component moves onto the stored gear its archived gear (an integer or UUID id) was restored as; one whose gear is not
+    Each component moves onto the stored gear its archived gear id was restored as; one whose gear is not
     in ``ids["gears"]`` is skipped. An archive exported before the rename carries ``expected_kms``, read as
     ``expected_usage``.
 
@@ -263,7 +263,7 @@ def restore_profile_gear_components(
 
 
 def get_gear_component(
-    user_id: int, gear_component_id: uuid.UUID, db: Session
+    user_id: uuid.UUID, gear_component_id: uuid.UUID, db: Session
 ) -> gear_components_schema.GearComponentRead:
     """Return one of the user's components.
 
@@ -287,7 +287,7 @@ def get_gear_component(
 def edit_gear_component(
     gear_component_id: uuid.UUID,
     gear_component: gear_components_schema.GearComponentUpdate,
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     if_match: str,
@@ -341,7 +341,7 @@ def edit_gear_component(
     return updated
 
 
-def delete_gear_component(user_id: int, gear_component_id: uuid.UUID, db: Session, *, if_match: str) -> None:
+def delete_gear_component(user_id: uuid.UUID, gear_component_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Delete one of the user's components.
 
     Args:

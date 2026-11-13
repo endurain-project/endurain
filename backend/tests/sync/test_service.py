@@ -20,7 +20,8 @@ import modules.sync.service as sync_service
 from tests._helpers.db import create_sqlite_session
 from tests.activities.activity.test_sync import _activity
 
-USER = 1
+USER = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
+OTHER_USER = uuid.UUID("7b1c93e4-5d28-4f6a-8e03-a94d2c6f1b57")
 NOW = datetime(2026, 11, 11, 12, 0, tzinfo=UTC)
 T1 = datetime(2026, 1, 1, tzinfo=UTC)
 T2 = datetime(2026, 2, 1, tzinfo=UTC)
@@ -35,7 +36,7 @@ def db():
     session.close()
 
 
-def _weight(db, day: int, stamp: datetime, user_id: int = USER) -> uuid.UUID:
+def _weight(db, day: int, stamp: datetime, user_id: uuid.UUID = USER) -> uuid.UUID:
     row = weight_models.HealthWeight(user_id=user_id, date=date(2026, 1, day), weight_kg=Decimal("70"))
     db.add(row)
     db.flush()
@@ -73,7 +74,7 @@ def _keys(page):
 def test_a_first_sync_reports_every_record_oldest_first_across_types(db):
     steps = _steps(db, 1, T1)
     weight = _weight(db, 1, T2)
-    _weight(db, 2, T1, user_id=2)
+    _weight(db, 2, T1, user_id=OTHER_USER)
 
     page = _sync(db)
 
@@ -176,7 +177,7 @@ def test_paging_across_sources_misses_and_repeats_nothing(db):
     """Activities and health records both have UUID ids; a cursor holds the id of either."""
     expected = set()
     for day in range(1, 5):
-        activity = _activity(start_time=datetime(2026, 1, day, tzinfo=UTC))
+        activity = _activity(user_id=USER, start_time=datetime(2026, 1, day, tzinfo=UTC))
         db.add(activity)
         db.flush()
         db.execute(

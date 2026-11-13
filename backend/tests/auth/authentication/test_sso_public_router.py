@@ -15,6 +15,8 @@ import modules.auth.mfa.dependencies as mfa_dependencies
 import modules.auth.mfa.pending_login_store as pending_login_store
 import modules.auth.oauth_state.constants as oauth_state_constants
 
+_USER_ID = uuid.UUID(int=42)
+
 IDP_ID = uuid.uuid4()
 
 _VERIFIER = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
@@ -50,7 +52,7 @@ def _client(mock_db, pending_mfa_store: MagicMock | None = None) -> TestClient:
 
 def _session_and_state(client_type: str = "mobile", idp_id: uuid.UUID | None = IDP_ID) -> tuple[MagicMock, MagicMock]:
     session = MagicMock()
-    session.user_id = 42
+    session.user_id = _USER_ID
     session.tokens_exchanged = False
     session.expires_at = datetime.now(UTC) + timedelta(days=30)
     oauth_state = MagicMock()
@@ -97,6 +99,7 @@ class TestTokenExchange:
     ):
         mock_get_session.return_value = _session_and_state()
         user = MagicMock()
+        user.id = _USER_ID
         user.username = "testuser"
         mock_require_user.return_value = user
         mock_create_tokens.return_value = (
@@ -116,7 +119,7 @@ class TestTokenExchange:
 
         assert response.status_code == 200
         mock_validate_pkce.assert_called_once()
-        mock_require_user.assert_called_once_with(42, mock_db)
+        mock_require_user.assert_called_once_with(_USER_ID, mock_db)
         mock_check_active.assert_called_once_with(user)
         mock_claim_session.assert_called_once()
         mock_db.commit.assert_called_once()
@@ -151,6 +154,7 @@ class TestTokenExchange:
     def test_the_exchange_extends_the_session_and_tells_the_client_its_new_expiry(
         self, mock_get_session, _validate, mock_claim, mock_create_tokens, _active, _require_user, mock_db
     ):
+        _require_user.return_value.id = _USER_ID
         _require_user.return_value.username = "testuser"
         session, state = _session_and_state()
         session.expires_at = datetime.now(UTC) + timedelta(minutes=10)
@@ -230,7 +234,7 @@ class TestTokenExchangeMfa:
     @pytest.fixture
     def exchange(self, mock_db):
         user = MagicMock()
-        user.id = 42
+        user.id = _USER_ID
         user.username = "testuser"
         tokens = (
             None,
@@ -274,7 +278,7 @@ class TestTokenExchangeMfa:
 
         assert response.status_code == 400
         assert response.json()["type"] == "urn:endurain:error:invalid-mfa-code"
-        store.record_failed_attempt.assert_called_once_with("testuser", "testclient", user_id=42)
+        store.record_failed_attempt.assert_called_once_with("testuser", "testclient", user_id=_USER_ID)
         exchange.claim.assert_not_called()
 
     def test_a_locked_out_account_is_refused_before_the_code_is_checked(self, mock_db, exchange):
@@ -293,9 +297,9 @@ class TestTokenExchangeMfa:
         response = self._post(mock_db, store, mfa_code="123456")
 
         assert response.status_code == 200
-        assert exchange.verify.call_args.args[:2] == (42, "123456")
+        assert exchange.verify.call_args.args[:2] == (_USER_ID, "123456")
         assert exchange.verify.call_args.kwargs["replay_guard"] is store
-        store.reset_attempts.assert_called_once_with("testuser", "testclient", user_id=42)
+        store.reset_attempts.assert_called_once_with("testuser", "testclient", user_id=_USER_ID)
         exchange.claim.assert_called_once()
 
     def test_the_pkce_check_comes_before_the_code_is_checked(self, mock_db, exchange):

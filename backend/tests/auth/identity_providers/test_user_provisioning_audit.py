@@ -9,6 +9,7 @@ import pytest
 import core.exceptions as core_exceptions
 import modules.auth.identity_providers.audit_actions as idp_audit_actions
 import modules.auth.identity_providers.user_provisioning_service as provisioning
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
 IDP_ID = uuid.uuid4()
 
@@ -25,7 +26,7 @@ def _idp() -> MagicMock:
 
 
 def _existing_user(*, email_verified: bool = True) -> MagicMock:
-    user = MagicMock(id=7, email_verified=email_verified)
+    user = MagicMock(id=MOCK_USER_ID, email_verified=email_verified)
     user.username = "alice"
     return user
 
@@ -47,8 +48,8 @@ def test_linking_an_existing_account_by_email_is_audited(mock_db):
         idp_audit_actions.IDENTITY_LINK_LINK.id,
         outcome="success",
         target_type="user",
-        target_id="7",
-        target_owner_id="7",
+        target_id=str(MOCK_USER_ID),
+        target_owner_id=str(MOCK_USER_ID),
     )
     assert entry.details == {"idp_id": str(IDP_ID), "reason": None}
     assert entry.actor_type != "user"
@@ -57,7 +58,9 @@ def test_linking_an_existing_account_by_email_is_audited(mock_db):
 
 def test_a_sign_in_through_an_existing_link_writes_no_link_row(mock_db):
     with (
-        patch(f"{_LINKS}.get_user_identity_provider_by_subject_and_idp_id", return_value=MagicMock(user_id=7)),
+        patch(
+            f"{_LINKS}.get_user_identity_provider_by_subject_and_idp_id", return_value=MagicMock(user_id=MOCK_USER_ID)
+        ),
         patch(f"{_LINKS}.update_user_identity_provider_last_login"),
         patch(f"{_USERS}.get_user", return_value=_existing_user()),
         jasil_testing.capture_audit() as audit,
@@ -86,8 +89,8 @@ def test_a_refused_email_link_is_recorded_as_denied_with_its_reason(mock_db, use
         idp_audit_actions.IDENTITY_LINK_LINK.id,
         outcome="denied",
         target_type="user",
-        target_id="7",
-        target_owner_id="7",
+        target_id=str(MOCK_USER_ID),
+        target_owner_id=str(MOCK_USER_ID),
     )
     assert entry.details == {"idp_id": str(IDP_ID), "reason": reason}
     assert entry.actor_type != "user"
@@ -113,8 +116,8 @@ def test_a_provider_that_does_not_link_by_email_records_a_denied_link_with_its_r
         idp_audit_actions.IDENTITY_LINK_LINK.id,
         outcome="denied",
         target_type="user",
-        target_id="7",
-        target_owner_id="7",
+        target_id=str(MOCK_USER_ID),
+        target_owner_id=str(MOCK_USER_ID),
     )
     assert entry.details == {"idp_id": str(IDP_ID), "reason": "link_by_email_disabled"}
 
@@ -122,7 +125,7 @@ def test_a_provider_that_does_not_link_by_email_records_a_denied_link_with_its_r
 def test_creating_an_account_from_a_provider_audits_its_link(mock_db):
     with (
         patch(f"{_USERS}.get_user_by_username", return_value=None),
-        patch(f"{_USERS}.create_sso_user", return_value=MagicMock(id=9, username="new")),
+        patch(f"{_USERS}.create_sso_user", return_value=MagicMock(id=OTHER_USER_ID, username="new")),
         patch.object(provisioning.server_settings_integration, "get_server_settings"),
         patch(f"{_LINKS}.create_user_identity_provider"),
         jasil_testing.capture_audit() as audit,
@@ -132,7 +135,7 @@ def test_creating_an_account_from_a_provider_audits_its_link(mock_db):
         )
 
     entry = audit.assert_audited(
-        idp_audit_actions.IDENTITY_LINK_LINK.id, outcome="success", target_type="user", target_id="9"
+        idp_audit_actions.IDENTITY_LINK_LINK.id, outcome="success", target_type="user", target_id=str(OTHER_USER_ID)
     )
     assert entry.details == {"idp_id": str(IDP_ID), "reason": None}
 
@@ -141,7 +144,9 @@ def test_an_inactive_account_found_by_its_link_is_refused_before_any_write(mock_
     inactive = _existing_user()
     inactive.active = False
     with (
-        patch(f"{_LINKS}.get_user_identity_provider_by_subject_and_idp_id", return_value=MagicMock(user_id=7)),
+        patch(
+            f"{_LINKS}.get_user_identity_provider_by_subject_and_idp_id", return_value=MagicMock(user_id=MOCK_USER_ID)
+        ),
         patch(f"{_LINKS}.update_user_identity_provider_last_login") as last_login,
         patch(f"{_USERS}.get_user", return_value=inactive),
         pytest.raises(core_exceptions.PermissionDeniedError),

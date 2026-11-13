@@ -97,7 +97,7 @@ class HealthWaterRead(HealthWaterBase):
         ...,
         description=("Unique identifier for the water intake record"),
     )
-    user_id: StrictInt = Field(
+    user_id: uuid.UUID = Field(
         ...,
         description="Foreign key reference to the user",
     )

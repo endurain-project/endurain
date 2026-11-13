@@ -6,6 +6,7 @@ shared state store, closes that across every replica.
 """
 
 import hmac
+import uuid
 from datetime import datetime
 
 import pyotp
@@ -40,7 +41,7 @@ def matching_totp_step(secret: str, token: str, now: datetime) -> int | None:
     return matched
 
 
-def claim_totp_step(state: StateProvider, user_id: int, step: int) -> bool:
+def claim_totp_step(state: StateProvider, user_id: uuid.UUID, step: int) -> bool:
     """Record a user's TOTP time step as used, once.
 
     Args:
@@ -56,6 +57,6 @@ def claim_totp_step(state: StateProvider, user_id: int, step: int) -> bool:
             accepted without the replay check.
     """
     try:
-        return state.set_if_absent(f"{_KEY_PREFIX}:{user_id}:{step}", b"1", _CLAIM_TTL_SECONDS)
+        return state.set_if_absent(f"{_KEY_PREFIX}:{user_id!s}:{step}", b"1", _CLAIM_TTL_SECONDS)
     except StateBackendUnavailableError as err:
         raise core_exceptions.ServiceUnavailableError("MFA verification temporarily unavailable") from err

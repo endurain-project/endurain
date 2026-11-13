@@ -1,5 +1,6 @@
 """A manually entered weight never carries a client-sent BMI; a provider's own BMI is kept."""
 
+import uuid
 from datetime import date
 
 import pytest
@@ -14,8 +15,11 @@ import modules.users.users.models as users_models
 _DAY = date(2024, 1, 15)
 
 
+_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
+
+
 def _set_height(db, height):
-    user = db.get(users_models.Users, 1)
+    user = db.get(users_models.Users, _USER_ID)
     user.height = height
     db.commit()
 
@@ -23,7 +27,7 @@ def _set_height(db, height):
 @pytest.fixture
 def db():
     session = create_sqlite_session()
-    ensure_user(sessionmaker(bind=session.get_bind()), 1)
+    ensure_user(sessionmaker(bind=session.get_bind()), _USER_ID)
     _set_height(session, 175)
     yield session
     session.close()
@@ -31,7 +35,7 @@ def db():
 
 def _create(db, bmi=None, weight=75.0, day=_DAY):
     return weight_service.create_health_weight(
-        1, weight_schema.HealthWeightCreate(date=day, weight_kg=weight, bmi=bmi), db
+        _USER_ID, weight_schema.HealthWeightCreate(date=day, weight_kg=weight, bmi=bmi), db
     )
 
 
@@ -53,7 +57,7 @@ class TestManualCreate:
 class TestManualEdit:
     def _edit(self, db, record, **changes):
         return weight_service.edit_health_weight(
-            1, record.id, weight_schema.HealthWeightUpdate(**changes), db, if_match=str(record.version)
+            _USER_ID, record.id, weight_schema.HealthWeightUpdate(**changes), db, if_match=str(record.version)
         )
 
     def test_a_client_bmi_sent_with_a_weight_is_replaced_by_the_derived_one(self, db):
@@ -89,7 +93,7 @@ class TestManualEdit:
 class TestProviderUpsert:
     def _upsert(self, db, bmi):
         record = weight_schema.HealthWeightImport(date=_DAY, weight_kg=75.0, bmi=bmi, source="garmin")
-        return weight_integration.upsert_health_weight(1, record, db)
+        return weight_integration.upsert_health_weight(_USER_ID, record, db)
 
     def test_a_new_record_keeps_the_provider_bmi(self, db):
         assert self._upsert(db, 19.5).bmi == 19.5

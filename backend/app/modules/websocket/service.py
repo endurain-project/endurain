@@ -1,6 +1,7 @@
 """Serving websocket connections and delivering hints to them."""
 
 import asyncio
+import uuid
 from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect, status
@@ -18,7 +19,9 @@ logger = core_logger.get_logger(__name__)
 MAX_CONNECTION_SECONDS = 900
 
 
-async def deliver_hint(user_id: int, message: dict[str, Any], manager: websocket_manager.WebSocketManager) -> bool:
+async def deliver_hint(
+    user_id: uuid.UUID, message: dict[str, Any], manager: websocket_manager.WebSocketManager
+) -> bool:
     """Send a hint to each of a user's websockets held by this process.
 
     A connection that fails is dropped from the registry, and the others still get
@@ -47,7 +50,7 @@ async def deliver_hint(user_id: int, message: dict[str, Any], manager: websocket
     return len(failures) < len(connections)
 
 
-def has_live_session(user_id: int, session_id: str) -> bool:
+def has_live_session(user_id: uuid.UUID, session_id: str) -> bool:
     """Say whether a user's session still exists and has not expired.
 
     Opens its own short-lived database session, so nothing is held while the socket lives. It blocks on the
@@ -66,7 +69,7 @@ def has_live_session(user_id: int, session_id: str) -> bool:
 
 
 async def close_revoked_connections(
-    user_id: int,
+    user_id: uuid.UUID,
     session_id: str | None,
     except_session_id: str | None,
     manager: websocket_manager.WebSocketManager,
@@ -85,7 +88,7 @@ async def close_revoked_connections(
 
 
 async def serve_connection(
-    websocket: WebSocket, user_id: int, session_id: str, manager: websocket_manager.WebSocketManager
+    websocket: WebSocket, user_id: uuid.UUID, session_id: str, manager: websocket_manager.WebSocketManager
 ) -> None:
     """Register an authenticated connection and keep it open until the client leaves.
 

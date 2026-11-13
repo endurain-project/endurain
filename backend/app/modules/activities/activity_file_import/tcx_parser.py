@@ -1,5 +1,6 @@
 """Utilities for parsing TCX files into activity data."""
 
+import uuid
 from collections.abc import Mapping, Sequence
 from datetime import datetime
 from pathlib import Path
@@ -376,7 +377,7 @@ def _extract_waypoints(
 
 def _build_activity(
     tcx_file: TCXExercise,
-    user_id: int,
+    user_id: uuid.UUID,
     activity_name: str,
     activity_type: int,
     distance: int,
@@ -484,7 +485,7 @@ def _read_tcx(file: str) -> Any:
 
 def parse_tcx_file(
     file: str,
-    user_id: int,
+    user_id: uuid.UUID,
     *,
     activity_name_input: str | None = None,
     default_timezone: str,

@@ -13,7 +13,7 @@ import modules.auth.mfa_backup_codes.models as mfa_backup_codes_models
 import modules.auth.mfa_backup_codes.serializers as mfa_backup_codes_serializers
 
 
-def get_user_backup_codes(user_id: int, db: Session) -> list[mfa_backup_codes_contracts.BackupCodeRead]:
+def get_user_backup_codes(user_id: uuid.UUID, db: Session) -> list[mfa_backup_codes_contracts.BackupCodeRead]:
     """Return stored backup codes for a user."""
     rows = db.execute(
         select(mfa_backup_codes_models.MFABackupCode).where(mfa_backup_codes_models.MFABackupCode.user_id == user_id)
@@ -21,7 +21,7 @@ def get_user_backup_codes(user_id: int, db: Session) -> list[mfa_backup_codes_co
     return [mfa_backup_codes_serializers.to_read_schema(row) for row in rows]
 
 
-def get_user_unused_backup_codes(user_id: int, db: Session) -> list[mfa_backup_codes_contracts.BackupCodeRead]:
+def get_user_unused_backup_codes(user_id: uuid.UUID, db: Session) -> list[mfa_backup_codes_contracts.BackupCodeRead]:
     """Return live, unused backup codes for a user."""
     now = datetime.now(UTC)
     stmt = select(mfa_backup_codes_models.MFABackupCode).where(
@@ -36,7 +36,7 @@ def get_user_unused_backup_codes(user_id: int, db: Session) -> list[mfa_backup_c
     return [mfa_backup_codes_serializers.to_read_schema(row) for row in rows]
 
 
-def create_backup_codes(user_id: int, code_hashes: list[str], db: Session) -> None:
+def create_backup_codes(user_id: uuid.UUID, code_hashes: list[str], db: Session) -> None:
     """Replace a user's backup codes with already-hashed values."""
     db.execute(
         delete(mfa_backup_codes_models.MFABackupCode).where(mfa_backup_codes_models.MFABackupCode.user_id == user_id)
@@ -54,7 +54,7 @@ def create_backup_codes(user_id: int, code_hashes: list[str], db: Session) -> No
     db.flush()
 
 
-def mark_backup_code_as_used(code_id: uuid.UUID, user_id: int, db: Session) -> None:
+def mark_backup_code_as_used(code_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> None:
     """Stage consumption of one unused backup code.
 
     The code is claimed by a single conditional ``UPDATE``, so of two concurrent requests presenting the
@@ -83,7 +83,7 @@ def mark_backup_code_as_used(code_id: uuid.UUID, user_id: int, db: Session) -> N
         raise core_exceptions.NotFoundError("Backup code not found or already used")
 
 
-def delete_user_backup_codes(user_id: int, db: Session) -> int:
+def delete_user_backup_codes(user_id: uuid.UUID, db: Session) -> int:
     """Stage deletion of all backup codes for a user."""
     matched = core_database.rowcount(
         db,

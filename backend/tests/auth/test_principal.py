@@ -4,6 +4,7 @@ Covers all Principal helper methods, credential variant
 construction, and the discriminated-union round-trip.
 """
 
+import uuid
 from datetime import UTC, datetime
 
 import pytest
@@ -17,6 +18,7 @@ from modules.auth.contracts import (
     Principal,
     SessionCookieCred,
 )
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -33,7 +35,7 @@ def _make_principal(credential: AnyCredential) -> Principal:
         Principal: Fully populated, frozen principal.
     """
     return Principal(
-        user_id=1,
+        user_id=MOCK_USER_ID,
         username="testuser",
         email="test@example.com",
         is_active=True,
@@ -110,7 +112,7 @@ class TestPrincipalConstruction:
         """All Principal fields are stored correctly."""
         cred = AccessTokenCred(session_id="sid-1")
         p = Principal(
-            user_id=7,
+            user_id=OTHER_USER_ID,
             username="alice",
             email="alice@example.com",
             is_active=True,
@@ -118,7 +120,7 @@ class TestPrincipalConstruction:
             scopes=frozenset({"account"}),
             credential=cred,
         )
-        assert p.user_id == 7
+        assert p.user_id == OTHER_USER_ID
         assert p.username == "alice"
         assert p.email == "alice@example.com"
         assert p.is_active is True
@@ -130,7 +132,7 @@ class TestPrincipalConstruction:
         """Principal is immutable after creation."""
         p = _make_principal(PasswordCred(username="alice"))
         with pytest.raises((AttributeError, TypeError)):
-            p.user_id = 999  # type: ignore[misc]
+            p.user_id = uuid.uuid4()  # type: ignore[misc]
 
     def test_scopes_is_frozenset(self):
         """Principal.scopes is a frozenset."""

@@ -13,6 +13,7 @@ import modules.activities.activity.contracts as activity_contracts
 import modules.users.users_goals.models as user_goals_models
 import modules.users.users_goals.progress_service as user_goals_progress_service
 import modules.users.users_goals.schema as user_goals_schema
+from tests._helpers.auth import MOCK_USER_ID
 
 GOAL_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
 
@@ -42,7 +43,7 @@ class TestCalculateUserGoals:
     def test_calculate_user_goals_success(self, mock_calc_progress, mock_count, mock_get_goals):
         """Test successful calculation of user goals."""
         # Arrange
-        user_id = 1
+        user_id = MOCK_USER_ID
         date = "2024-01-15"
         mock_db = MagicMock(spec=Session)
 
@@ -73,7 +74,7 @@ class TestCalculateUserGoals:
     def test_calculate_user_goals_no_goals(self, mock_get_goals, mock_count):
         """Test calculation returns an empty list when no goals exist."""
         # Arrange
-        user_id = 1
+        user_id = MOCK_USER_ID
         date = "2024-01-15"
         mock_db = MagicMock(spec=Session)
         mock_get_goals.return_value = []
@@ -93,7 +94,7 @@ class TestCalculateUserGoals:
         # Arrange
         from datetime import date as date_type
 
-        user_id = 1
+        user_id = MOCK_USER_ID
         mock_db = MagicMock(spec=Session)
         mock_get_goals.return_value = []
         mock_today.return_value = date_type(2024, 1, 15)
@@ -111,7 +112,7 @@ class TestCalculateUserGoals:
     def test_calculate_user_goals_value_error(self, mock_get_goals):
         """Test ValueError handling."""
         # Arrange
-        user_id = 1
+        user_id = MOCK_USER_ID
         date = "2024-01-15"
         mock_db = MagicMock(spec=Session)
         mock_get_goals.side_effect = ValueError("Invalid value")
@@ -136,7 +137,7 @@ class TestCalculateGoalProgressByActivityType:
         mock_db = MagicMock(spec=Session)
         mock_goal = MagicMock(spec=user_goals_models.UsersGoal)
         mock_goal.id = GOAL_ID
-        mock_goal.user_id = 1
+        mock_goal.user_id = MOCK_USER_ID
         mock_goal.interval = "weekly"
         mock_goal.activity_type = user_goals_schema.GoalActivityType.RUN
         mock_goal.goal_type = user_goals_schema.GoalType.CALORIES
@@ -175,7 +176,7 @@ class TestCalculateGoalProgressByActivityType:
         mock_db = MagicMock(spec=Session)
         mock_goal = MagicMock(spec=user_goals_models.UsersGoal)
         mock_goal.id = GOAL_ID
-        mock_goal.user_id = 1
+        mock_goal.user_id = MOCK_USER_ID
         mock_goal.interval = "weekly"
         mock_goal.activity_type = user_goals_schema.GoalActivityType.RUN
         mock_goal.goal_type = user_goals_schema.GoalType.DISTANCE
@@ -213,7 +214,7 @@ class TestCalculateGoalProgressByActivityType:
         mock_db = MagicMock(spec=Session)
         mock_goal = MagicMock(spec=user_goals_models.UsersGoal)
         mock_goal.id = GOAL_ID
-        mock_goal.user_id = 1
+        mock_goal.user_id = MOCK_USER_ID
         mock_goal.interval = "weekly"
         mock_goal.activity_type = user_goals_schema.GoalActivityType.RUN
         mock_goal.goal_type = user_goals_schema.GoalType.ACTIVITIES
@@ -251,7 +252,7 @@ class TestCalculateGoalProgressByActivityType:
         mock_db = MagicMock(spec=Session)
         mock_goal = MagicMock(spec=user_goals_models.UsersGoal)
         mock_goal.id = GOAL_ID
-        mock_goal.user_id = 1
+        mock_goal.user_id = MOCK_USER_ID
         mock_goal.interval = "weekly"
         mock_goal.activity_type = user_goals_schema.GoalActivityType.RUN
         mock_goal.goal_type = user_goals_schema.GoalType.CALORIES
@@ -288,7 +289,7 @@ class TestCalculateGoalProgressByActivityType:
         mock_db = MagicMock(spec=Session)
         mock_goal = MagicMock(spec=user_goals_models.UsersGoal)
         mock_goal.id = GOAL_ID
-        mock_goal.user_id = 1
+        mock_goal.user_id = MOCK_USER_ID
         mock_goal.interval = "weekly"
         mock_goal.activity_type = user_goals_schema.GoalActivityType.RUN
         mock_goal.goal_type = user_goals_schema.GoalType.ACTIVITIES
@@ -347,7 +348,7 @@ class TestCalculateGoalProgressByActivityType:
     ):
         mock_goal = MagicMock(spec=user_goals_models.UsersGoal)
         mock_goal.id = GOAL_ID
-        mock_goal.user_id = 1
+        mock_goal.user_id = MOCK_USER_ID
         mock_goal.interval = "weekly"
         mock_goal.activity_type = user_goals_schema.GoalActivityType.RUN
         mock_goal.goal_type = goal_type
@@ -371,7 +372,7 @@ class TestCalculateGoalProgressByActivityType:
     def test_no_matching_activities_is_zero_progress(self, mock_get_dates, mock_get_totals):
         mock_goal = MagicMock(spec=user_goals_models.UsersGoal)
         mock_goal.id = GOAL_ID
-        mock_goal.user_id = 1
+        mock_goal.user_id = MOCK_USER_ID
         mock_goal.interval = "weekly"
         mock_goal.activity_type = user_goals_schema.GoalActivityType.RUN
         mock_goal.goal_type = user_goals_schema.GoalType.CALORIES
@@ -441,14 +442,14 @@ class TestGetGoalsProgress:
         mock_users.get_user.return_value.first_day_of_week = "sunday"
         mock_today.return_value = date_type(2026, 3, 12)
 
-        result = user_goals_progress_service.get_goals_progress(1, _PAGE, mock_db)
+        result = user_goals_progress_service.get_goals_progress(MOCK_USER_ID, _PAGE, mock_db)
 
         assert result == mock_calculate.return_value
-        mock_calculate.assert_called_once_with(1, "2026-03-12", "sunday", _PAGE, mock_db)
+        mock_calculate.assert_called_once_with(MOCK_USER_ID, "2026-03-12", "sunday", _PAGE, mock_db)
 
     @patch("modules.users.users_goals.progress_service.users_integration")
     def test_unknown_user_is_not_found(self, mock_users):
         mock_users.get_user.return_value = None
 
         with pytest.raises(core_exceptions.NotFoundError):
-            user_goals_progress_service.get_goals_progress(1, _PAGE, MagicMock(spec=Session))
+            user_goals_progress_service.get_goals_progress(MOCK_USER_ID, _PAGE, MagicMock(spec=Session))

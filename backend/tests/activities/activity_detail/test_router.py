@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from tests._helpers.auth import MOCK_USER_ID
 
 import core.exceptions as core_exceptions
 from modules.activities.activity.schema import ActivityRead
@@ -29,7 +30,7 @@ def _build_app(mock_db):
     app.include_router(router.router, prefix="/activities/{activity_id}")
     app.include_router(public_router.router, prefix="/public/activities/{activity_id}")
     app.dependency_overrides[auth_deps.check_scopes] = lambda: None
-    app.dependency_overrides[auth_deps.get_current_user_id] = lambda: 1
+    app.dependency_overrides[auth_deps.get_current_user_id] = lambda: MOCK_USER_ID
     app.dependency_overrides[core_db.get_db] = lambda: mock_db
     return app
 
@@ -37,7 +38,7 @@ def _build_app(mock_db):
 def _detail() -> ActivityDetailRead:
     activity = ActivityRead(
         id=_ACTIVITY_ID,
-        user_id=1,
+        user_id=MOCK_USER_ID,
         name="Run",
         activity_type=1,
         start_time=datetime(2024, 1, 15, 8, tzinfo=UTC),
@@ -72,7 +73,7 @@ class TestAuthenticatedDetail:
         assert set(body) == {"activity", "owner", "laps", "sets", "workout_steps"}
         assert body["laps"]["total"] == 0
         assert body["owner"] is None
-        mock_get.assert_called_once_with(_ACTIVITY_ID, 1, mock_db)
+        mock_get.assert_called_once_with(_ACTIVITY_ID, MOCK_USER_ID, mock_db)
 
     @patch("modules.activities.activity_detail.router.activity_detail_service.get_activity_detail")
     def test_carries_the_activitys_etag_for_a_later_save(self, mock_get, mock_db):

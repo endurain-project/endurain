@@ -9,6 +9,9 @@ from pydantic import ValidationError
 
 import modules.notifications.schema as notifications_schema
 
+_ID_1 = uuid.uuid4()
+_ID_2 = uuid.uuid4()
+
 IDP_ID = uuid.UUID(int=4)
 
 
@@ -19,7 +22,7 @@ class TestNotificationReadCreatedAt:
         return notifications_schema.NOTIFICATION_READ_ADAPTER.validate_python(
             {
                 "id": uuid.UUID(int=1),
-                "user_id": 1,
+                "user_id": str(_ID_1),
                 "type": "new_activity",
                 "options": {"activity_id": "11111111-1111-4111-8111-111111111111"},
                 "read": False,
@@ -65,7 +68,7 @@ class TestTypedOptions:
         return notifications_schema.NOTIFICATION_READ_ADAPTER.validate_python(
             {
                 "id": uuid.UUID(int=1),
-                "user_id": 1,
+                "user_id": str(_ID_1),
                 "type": notification_type,
                 "options": options,
                 "created_at": datetime(2026, 7, 16, tzinfo=UTC),
@@ -77,9 +80,9 @@ class TestTypedOptions:
         [
             ("new_activity", {"activity_id": "11111111-1111-4111-8111-111111111111"}),
             ("duplicate_activity", {"activity_id": "11111111-1111-4111-8111-111111111111"}),
-            ("new_follower_request", {"user_id": 2, "user_name": "A", "user_username": "a"}),
-            ("new_follower_request_accepted", {"user_id": 2, "user_name": "A", "user_username": "a"}),
-            ("admin_new_sign_up_approval_request", {"user_id": 2, "user_name": "A", "user_username": "a"}),
+            ("new_follower_request", {"user_id": str(_ID_2), "user_name": "A", "user_username": "a"}),
+            ("new_follower_request_accepted", {"user_id": str(_ID_2), "user_name": "A", "user_username": "a"}),
+            ("admin_new_sign_up_approval_request", {"user_id": str(_ID_2), "user_name": "A", "user_username": "a"}),
             ("garmin_token_expired", {}),
             ("strava_token_expired", {}),
             ("strava_token_expired", {"delete_on": "2026-12-01"}),
@@ -111,7 +114,7 @@ class TestTypedOptions:
             ("new_activity", {}),
             ("new_activity", {"activity_id": "x"}),
             ("new_activity", {"activity_id": 3}),
-            ("new_follower_request", {"user_id": 2}),
+            ("new_follower_request", {"user_id": str(_ID_2)}),
         ],
     )
     def test_options_of_the_wrong_shape_are_refused(self, notification_type, options):

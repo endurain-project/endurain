@@ -20,7 +20,7 @@ Weight, steps, sleep, water, poop and fasting are written the same way. All path
 | Fasting | `target_duration_seconds`, `actual_duration_seconds` |
 | Targets (`/health/targets`) | `weight_kg`, `sleep_seconds`, `fasting_seconds`, `water_ml`; `steps` and `poop_count` are counts |
 
-A profile export writes these names. Importing an archive from an earlier release still works: its old field names (`weight`, `body_fat`, `sleep`, `fasting`, `avg_spo2` and the like) are read as the new ones.
+A profile export writes these names. An archive exported by an Endurain version before v0.21.0 is refused (`older_version`) and nothing is imported.
 
 ## Health lists and charts
 

@@ -10,6 +10,9 @@ import modules.health.health_targets.schema as health_targets_schema
 _ID = uuid.uuid4()
 
 
+_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
+
+
 def _build_app(mock_db, scopes=frozenset({"health:read", "health-targets:read"})):
     import core.database as core_db
     import modules.auth.dependencies as auth_deps
@@ -22,7 +25,7 @@ def _build_app(mock_db, scopes=frozenset({"health:read", "health-targets:read"})
         return None
 
     def _uid():
-        return 1
+        return _USER_ID
 
     app.dependency_overrides[auth_deps.check_scopes] = _mock
     app.dependency_overrides[auth_deps.get_current_user_id] = _uid
@@ -40,7 +43,7 @@ class TestReadHealthDailyStats:
             targets=health_targets_schema.HealthTargetsRead(
                 updated_at="2024-01-01T00:00:00Z",
                 id=_ID,
-                user_id=1,
+                user_id=_USER_ID,
                 version=3,
                 sleep_seconds=28800,
                 steps=8000,
@@ -59,7 +62,7 @@ class TestReadHealthDailyStats:
         assert data["poop"] == {"count": 1}
         assert data["targets"]["steps"] == 8000
         assert data["sleep"] is None
-        assert mock_stats.call_args.args[0] == 1
+        assert mock_stats.call_args.args[0] == _USER_ID
         assert mock_stats.call_args.kwargs == {"include_targets": True}
 
     @patch("modules.health.health_dashboard.router.health_dashboard_service.get_daily_stats")

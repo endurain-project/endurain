@@ -1,6 +1,7 @@
 """Integration tests for auth.router endpoints."""
 
 import secrets
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -24,6 +25,9 @@ import modules.auth.lockout.contracts as lockout_contracts
 import modules.auth.mfa.dependencies as auth_mfa_dependencies
 import modules.auth.mfa.pending_login_store as pending_login_store
 from tests._helpers.auth import pending_login
+
+_USER_ID_1 = uuid.UUID(int=1)
+_USER_ID_999 = uuid.UUID(int=999)
 
 
 @pytest.fixture(autouse=True)
@@ -49,21 +53,25 @@ class FakeFailedLoginStore:
         self._locked = False
         self._lockout_time = None
 
-    def is_locked_out(self, username: str, ip_address: str, *, user_id: int | None, known_device: bool = False) -> bool:
+    def is_locked_out(
+        self, username: str, ip_address: str, *, user_id: uuid.UUID | None, known_device: bool = False
+    ) -> bool:
         """Return locked state."""
         return self._locked
 
-    def get_lockout_time(self, username: str, ip_address: str, *, user_id: int | None, known_device: bool = False):
+    def get_lockout_time(
+        self, username: str, ip_address: str, *, user_id: uuid.UUID | None, known_device: bool = False
+    ):
         """Return lockout time."""
         return self._lockout_time
 
     def record_failed_attempt(
-        self, username: str, ip_address: str, *, user_id: int | None
+        self, username: str, ip_address: str, *, user_id: uuid.UUID | None
     ) -> failed_login_store.FailedLoginRecord:
         """Record a failed attempt."""
         return failed_login_store.FailedLoginRecord(client_count=1, account_locked_now=False)
 
-    def reset_attempts(self, username: str, ip_address: str, *, user_id: int) -> None:
+    def reset_attempts(self, username: str, ip_address: str, *, user_id: uuid.UUID) -> None:
         """Reset attempts."""
         pass
 
@@ -81,11 +89,15 @@ class FakePendingMFAStore:
         self._locked = False
         self._lockout_time = None
 
-    def is_locked_out(self, username: str, ip_address: str, *, user_id: int | None, known_device: bool = False) -> bool:
+    def is_locked_out(
+        self, username: str, ip_address: str, *, user_id: uuid.UUID | None, known_device: bool = False
+    ) -> bool:
         """Return locked state."""
         return self._locked
 
-    def get_lockout_time(self, username: str, ip_address: str, *, user_id: int | None, known_device: bool = False):
+    def get_lockout_time(
+        self, username: str, ip_address: str, *, user_id: uuid.UUID | None, known_device: bool = False
+    ):
         """Return lockout time."""
         return self._lockout_time
 
@@ -108,12 +120,12 @@ class FakePendingMFAStore:
         return False
 
     def record_failed_attempt(
-        self, username: str, ip_address: str, *, user_id: int | None
+        self, username: str, ip_address: str, *, user_id: uuid.UUID | None
     ) -> pending_login_store.FailedMfaRecord:
         """Record failed MFA attempt."""
         return pending_login_store.FailedMfaRecord(count=1, account_locked_now=False)
 
-    def reset_attempts(self, username: str, ip_address: str, *, user_id: int) -> None:
+    def reset_attempts(self, username: str, ip_address: str, *, user_id: uuid.UUID) -> None:
         """Reset MFA failed attempts."""
         pass
 
@@ -210,7 +222,7 @@ class TestLoginEndpoint:
     ):
         """Web login returns access_token and csrf_token."""
         mock_user = MagicMock()
-        mock_user.id = 1
+        mock_user.id = _USER_ID_1
         mock_auth.return_value = mock_user
         mock_check_active.return_value = None
         mock_mfa_check.return_value = False
@@ -303,7 +315,7 @@ class TestLoginEndpoint:
     ):
         """MFA required answers 200, like every other login outcome."""
         mock_user = MagicMock()
-        mock_user.id = 1
+        mock_user.id = _USER_ID_1
         mock_auth.return_value = mock_user
         mock_check_active.return_value = None
         mock_mfa_check.return_value = True
@@ -318,7 +330,7 @@ class TestLoginEndpoint:
         assert data["next_step"] == "mfa"
         assert set(data) == {"next_step", "mfa_challenge"}
         # The only handle /auth/mfa/verify accepts, so nobody who did not sign in can submit codes.
-        assert fake_pending_mfa_store.get_pending_login(data["mfa_challenge"]).user_id == 1
+        assert fake_pending_mfa_store.get_pending_login(data["mfa_challenge"]).user_id == _USER_ID_1
 
     def test_login_partial_pkce_returns_422(self, auth_client, auth_app):
         """A mobile login with only one PKCE field is refused as a validation failure."""
@@ -352,7 +364,7 @@ class TestLoginEndpoint:
         """Mobile with PKCE returns session_id for exchange."""
         auth_app.state._client_type = "mobile"
         mock_user = MagicMock()
-        mock_user.id = 1
+        mock_user.id = _USER_ID_1
         mock_auth.return_value = mock_user
         mock_check_active.return_value = None
         mock_mfa_check.return_value = False
@@ -456,7 +468,7 @@ class TestLoginEndpoint:
     ):
         """503 when reset_attempts raises after successful login with no MFA."""
         mock_user = MagicMock()
-        mock_user.id = 1
+        mock_user.id = _USER_ID_1
         mock_auth.return_value = mock_user
         mock_check_active.return_value = None
         mock_mfa_check.return_value = False
@@ -485,7 +497,7 @@ class TestLoginEndpoint:
         fake_pending_mfa_store,
     ):
         mock_user = MagicMock()
-        mock_user.id = 1
+        mock_user.id = _USER_ID_1
         mock_auth.return_value = mock_user
         mock_check_active.return_value = None
         mock_mfa_check.return_value = True
@@ -511,7 +523,7 @@ class TestLoginEndpoint:
     ):
         auth_app.state._client_type = "mobile"
         mock_user = MagicMock()
-        mock_user.id = 1
+        mock_user.id = _USER_ID_1
         mock_auth.return_value = mock_user
         mock_check_active.return_value = None
         mock_mfa_check.return_value = True
@@ -547,7 +559,7 @@ class TestMFAVerifyEndpoint:
                 return_value=False,
             ),
         ):
-            get_user.return_value = MagicMock(id=1, username="testuser", active=True)
+            get_user.return_value = MagicMock(id=_USER_ID_1, username="testuser", active=True)
             yield get_user
 
     @patch("modules.auth.authentication.service.complete_login")
@@ -565,10 +577,10 @@ class TestMFAVerifyEndpoint:
         fake_pending_mfa_store,
     ):
         """Valid MFA code completes login."""
-        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1, client_network="testclient"))
+        challenge = fake_pending_mfa_store.add_pending_login(pending_login(_USER_ID_1, client_network="testclient"))
         mock_verify_mfa.return_value = True
         mock_user = MagicMock()
-        mock_user.id = 1
+        mock_user.id = _USER_ID_1
         mock_user.username = "testuser"
         mock_get_user.return_value = mock_user
         mock_check_active.return_value = None
@@ -606,7 +618,7 @@ class TestMFAVerifyEndpoint:
         fake_pending_mfa_store,
     ):
         """Invalid MFA code returns 400."""
-        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1, client_network="testclient"))
+        challenge = fake_pending_mfa_store.add_pending_login(pending_login(_USER_ID_1, client_network="testclient"))
         mock_verify_mfa.return_value = False
 
         response = auth_client.post(
@@ -637,12 +649,12 @@ class TestMFAVerifyEndpoint:
         mock_db,
     ):
         """Backup-code MFA login calls mfa_backup_codes.utils directly (through the credentials integration)."""
-        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1, client_network="testclient"))
+        challenge = fake_pending_mfa_store.add_pending_login(pending_login(_USER_ID_1, client_network="testclient"))
         mock_mfa = MagicMock()
         mock_mfa.mfa_enabled = True
         mock_mfa.mfa_secret = "encrypted-secret"
         mock_user = MagicMock()
-        mock_user.id = 1
+        mock_user.id = _USER_ID_1
         mock_user.username = "testuser"
         mock_user.auth_mfa = mock_mfa
         mock_get_user.return_value = mock_user
@@ -663,7 +675,7 @@ class TestMFAVerifyEndpoint:
         with (
             patch(
                 "modules.auth.mfa.service.auth_mfa_crud.get_totp_factor",
-                return_value=MagicMock(id=1, credential="encrypted-secret"),
+                return_value=MagicMock(id=_USER_ID_1, credential="encrypted-secret"),
             ),
             patch(
                 "modules.auth.mfa.service.mfa_backup_codes_integration.verify_and_consume_backup_code",
@@ -681,7 +693,7 @@ class TestMFAVerifyEndpoint:
         assert response.status_code == 200
         assert response.json()["access_token"] == "at-backup"
         mock_backup_verify.assert_called_once_with(
-            1,
+            _USER_ID_1,
             "A3K9-7BDF",
             auth_credentials_crud.get_password_hasher(),
             mock_db,
@@ -721,7 +733,7 @@ class TestMFAVerifyEndpoint:
         """MFA lockout returns 429."""
         from datetime import datetime, timedelta
 
-        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1, client_network="testclient"))
+        challenge = fake_pending_mfa_store.add_pending_login(pending_login(_USER_ID_1, client_network="testclient"))
         fake_pending_mfa_store._locked = True
         fake_pending_mfa_store._lockout_time = datetime.now(UTC) + timedelta(minutes=5)
 
@@ -774,7 +786,7 @@ class TestMFAVerifyEndpoint:
         fake_pending_mfa_store,
     ):
         """503 when is_locked_out raises AuthSecurityStoreUnavailableError."""
-        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1, client_network="testclient"))
+        challenge = fake_pending_mfa_store.add_pending_login(pending_login(_USER_ID_1, client_network="testclient"))
         fake_pending_mfa_store.is_locked_out = MagicMock(
             side_effect=lockout_contracts.AuthSecurityStoreUnavailableError("Redis down"),
         )
@@ -794,7 +806,7 @@ class TestMFAVerifyEndpoint:
         fake_pending_mfa_store,
     ):
         """503 when record_failed_attempt raises after invalid MFA code."""
-        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1, client_network="testclient"))
+        challenge = fake_pending_mfa_store.add_pending_login(pending_login(_USER_ID_1, client_network="testclient"))
         mock_verify_mfa.return_value = False
         fake_pending_mfa_store.record_failed_attempt = MagicMock(
             side_effect=lockout_contracts.AuthSecurityStoreUnavailableError("Redis down"),
@@ -815,7 +827,7 @@ class TestMFAVerifyEndpoint:
         fake_pending_mfa_store,
     ):
         """503 when claim_pending_login raises after valid MFA code."""
-        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1, client_network="testclient"))
+        challenge = fake_pending_mfa_store.add_pending_login(pending_login(_USER_ID_1, client_network="testclient"))
         mock_verify_mfa.return_value = True
         fake_pending_mfa_store.claim_pending_login = MagicMock(
             side_effect=lockout_contracts.AuthSecurityStoreUnavailableError("Redis down"),
@@ -838,7 +850,7 @@ class TestMFAVerifyEndpoint:
         fake_pending_mfa_store,
     ):
         """401 when user is not found after MFA verification."""
-        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1, client_network="testclient"))
+        challenge = fake_pending_mfa_store.add_pending_login(pending_login(_USER_ID_1, client_network="testclient"))
         mock_verify_mfa.return_value = True
         mock_get_user.return_value = None
         response = auth_client.post(
@@ -861,10 +873,10 @@ class TestMFAVerifyEndpoint:
         fake_pending_mfa_store,
     ):
         """503 when reset_attempts raises after successful MFA."""
-        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1, client_network="testclient"))
+        challenge = fake_pending_mfa_store.add_pending_login(pending_login(_USER_ID_1, client_network="testclient"))
         mock_verify_mfa.return_value = True
         mock_user = MagicMock()
-        mock_user.id = 1
+        mock_user.id = _USER_ID_1
         mock_user.username = "testuser"
         mock_get_user.return_value = mock_user
         mock_check_active.return_value = None
@@ -896,11 +908,13 @@ class TestMFAVerifyEndpoint:
         auth_app.state._client_type = "mobile"
         pkce_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
         challenge = fake_pending_mfa_store.add_pending_login(
-            pending_login(1, auth_constants.ClientType.MOBILE, pkce_challenge, "S256", client_network="testclient")
+            pending_login(
+                _USER_ID_1, auth_constants.ClientType.MOBILE, pkce_challenge, "S256", client_network="testclient"
+            )
         )
         mock_verify_mfa.return_value = True
         mock_user = MagicMock()
-        mock_user.id = 1
+        mock_user.id = _USER_ID_1
         mock_user.username = "testuser"
         mock_get_user.return_value = mock_user
         mock_check_active.return_value = None
@@ -952,7 +966,7 @@ class TestRefreshEndpoint:
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-1"
-        mock_session.user_id = 1
+        mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = password_hasher.hash_password("mock_refresh_token")
         mock_session.csrf_token_hash = None
@@ -963,7 +977,7 @@ class TestRefreshEndpoint:
         mock_check_reuse.return_value = (False, False)
 
         mock_user = MagicMock()
-        mock_user.id = 1
+        mock_user.id = _USER_ID_1
         mock_get_user.return_value = mock_user
         mock_check_active.return_value = None
 
@@ -981,7 +995,7 @@ class TestRefreshEndpoint:
         # Need to override refresh-specific dependencies
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
+        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-1"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: (
             "mock_refresh_token"
@@ -1003,7 +1017,7 @@ class TestRefreshEndpoint:
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
+        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "nonexistent"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
@@ -1028,12 +1042,12 @@ class TestRefreshEndpoint:
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-1"
         # Session belongs to user 999, but the refresh token's sub is 1.
-        mock_session.user_id = 999
+        mock_session.user_id = _USER_ID_999
         mock_get_session.return_value = mock_session
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
+        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-1"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
@@ -1060,13 +1074,13 @@ class TestRefreshEndpoint:
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-1"
-        mock_session.user_id = 1
+        mock_session.user_id = _USER_ID_1
         mock_session.client_type = "mobile"
         mock_get_session.return_value = mock_session
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
+        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-1"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
@@ -1096,7 +1110,7 @@ class TestRefreshEndpoint:
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-1"
-        mock_session.user_id = 1
+        mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = "hashed-rt"
         mock_session.csrf_token_hash = None
@@ -1107,7 +1121,7 @@ class TestRefreshEndpoint:
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
+        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-1"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "reused-token"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
@@ -1179,7 +1193,7 @@ class TestRefreshEndpoint:
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-csrf-1"
-        mock_session.user_id = 1
+        mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
         mock_session.csrf_token_hash = "stored-hmac"
@@ -1189,7 +1203,7 @@ class TestRefreshEndpoint:
         mock_validate_timeout.return_value = None
         mock_verify_csrf.return_value = True
         mock_check_reuse.return_value = (False, False)
-        mock_get_user.return_value = MagicMock(id=1)
+        mock_get_user.return_value = MagicMock(id=_USER_ID_1)
         mock_check_active.return_value = None
         mock_create_tokens.return_value = (
             "sid-csrf-1",
@@ -1204,7 +1218,7 @@ class TestRefreshEndpoint:
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
+        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-csrf-1"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "mock_rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: "valid-csrf"
@@ -1250,7 +1264,7 @@ class TestRefreshEndpoint:
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-bad-csrf"
-        mock_session.user_id = 1
+        mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = "some-hashed-token"
         mock_session.csrf_token_hash = "stored-hmac"
@@ -1260,7 +1274,7 @@ class TestRefreshEndpoint:
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
+        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-bad-csrf"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "any-rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: "wrong-csrf"
@@ -1328,7 +1342,7 @@ class TestRefreshEndpoint:
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-reload"
-        mock_session.user_id = 1
+        mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
         mock_session.csrf_token_hash = "stored-hmac"
@@ -1337,7 +1351,7 @@ class TestRefreshEndpoint:
         mock_get_session.return_value = mock_session
         mock_validate_timeout.return_value = None
         mock_check_reuse.return_value = (False, False)
-        mock_get_user.return_value = MagicMock(id=1)
+        mock_get_user.return_value = MagicMock(id=_USER_ID_1)
         mock_check_active.return_value = None
         mock_create_tokens.return_value = (
             "sid-reload",
@@ -1352,7 +1366,7 @@ class TestRefreshEndpoint:
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
+        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-reload"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "mock_rt"
         # No CSRF header: simulates page reload bootstrap
@@ -1423,7 +1437,7 @@ class TestRefreshEndpoint:
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-mob-csrf"
-        mock_session.user_id = 1
+        mock_session.user_id = _USER_ID_1
         mock_session.client_type = "mobile"
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
         mock_session.csrf_token_hash = "stored-hmac"
@@ -1432,7 +1446,7 @@ class TestRefreshEndpoint:
         mock_get_session.return_value = mock_session
         mock_validate_timeout.return_value = None
         mock_check_reuse.return_value = (False, False)
-        mock_get_user.return_value = MagicMock(id=1)
+        mock_get_user.return_value = MagicMock(id=_USER_ID_1)
         mock_check_active.return_value = None
         mock_create_tokens.return_value = (
             "sid-mob-csrf",
@@ -1447,7 +1461,7 @@ class TestRefreshEndpoint:
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
+        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-mob-csrf"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "mock_rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: "any-csrf-value"
@@ -1486,7 +1500,7 @@ class TestRefreshEndpoint:
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-pkce"
-        mock_session.user_id = 1
+        mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = None
         mock_session.csrf_token_hash = None
@@ -1495,7 +1509,7 @@ class TestRefreshEndpoint:
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
+        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-pkce"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
@@ -1543,7 +1557,7 @@ class TestRefreshEndpoint:
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-bad-rt"
-        mock_session.user_id = 1
+        mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = password_hasher.hash_password("real_token")
         mock_session.csrf_token_hash = None
@@ -1555,7 +1569,7 @@ class TestRefreshEndpoint:
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
+        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-bad-rt"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "wrong_token"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
@@ -1611,7 +1625,7 @@ class TestRefreshEndpoint:
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-no-user"
-        mock_session.user_id = 1
+        mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
         mock_session.csrf_token_hash = None
@@ -1624,7 +1638,7 @@ class TestRefreshEndpoint:
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
+        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-no-user"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "mock_rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
@@ -1691,7 +1705,7 @@ class TestRefreshEndpoint:
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-mob"
-        mock_session.user_id = 1
+        mock_session.user_id = _USER_ID_1
         mock_session.client_type = "mobile"
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
         mock_session.csrf_token_hash = None
@@ -1700,7 +1714,7 @@ class TestRefreshEndpoint:
         mock_get_session.return_value = mock_session
         mock_validate_timeout.return_value = None
         mock_check_reuse.return_value = (False, False)
-        mock_get_user.return_value = MagicMock(id=1)
+        mock_get_user.return_value = MagicMock(id=_USER_ID_1)
         mock_check_active.return_value = None
         mock_create_tokens.return_value = (
             "sid-mob",
@@ -1715,7 +1729,7 @@ class TestRefreshEndpoint:
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
+        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-mob"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "mock_rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
@@ -1762,7 +1776,7 @@ class TestRefreshEndpoint:
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-replay-mob"
-        mock_session.user_id = 1
+        mock_session.user_id = _USER_ID_1
         mock_session.client_type = "mobile"
         mock_session.refresh_token = password_hasher.hash_password("current_rt")
         mock_session.csrf_token_hash = None
@@ -1773,13 +1787,13 @@ class TestRefreshEndpoint:
         # Presented token was already rotated but is still within grace.
         mock_check_reuse.return_value = (True, True)
         mock_get_replay.return_value = ("replayed-rt", now + timedelta(days=7))
-        mock_get_user.return_value = MagicMock(id=1)
+        mock_get_user.return_value = MagicMock(id=_USER_ID_1)
         mock_check_active.return_value = None
         mock_mint_access.return_value = (now + timedelta(minutes=15), "replayed-at")
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
+        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-replay-mob"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "old_rotated_rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
@@ -1830,7 +1844,7 @@ class TestRefreshEndpoint:
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-race"
-        mock_session.user_id = 1
+        mock_session.user_id = _USER_ID_1
         mock_session.client_type = "mobile"
         mock_session.refresh_token = password_hasher.hash_password("old_rt")
         mock_session.csrf_token_hash = None
@@ -1844,13 +1858,13 @@ class TestRefreshEndpoint:
         mock_create_tokens.return_value = ("sid-race", now, "loser-at", now, "loser-rt", None)
         mock_store_rotated.side_effect = core_exceptions.ConflictError("already rotated")
         mock_get_replay.return_value = ("winner-rt", now + timedelta(days=7))
-        mock_get_user.return_value = MagicMock(id=1)
+        mock_get_user.return_value = MagicMock(id=_USER_ID_1)
         mock_check_active.return_value = None
         mock_mint_access.return_value = (now + timedelta(minutes=15), "replayed-at")
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
+        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-race"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "old_rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
@@ -1899,7 +1913,7 @@ class TestRefreshEndpoint:
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-replay-web"
-        mock_session.user_id = 1
+        mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = password_hasher.hash_password("current_rt")
         mock_session.csrf_token_hash = "stored-hmac"
@@ -1909,7 +1923,7 @@ class TestRefreshEndpoint:
         mock_validate_timeout.return_value = None
         mock_check_reuse.return_value = (True, True)
         mock_get_replay.return_value = ("replayed-rt", now + timedelta(days=7))
-        mock_get_user.return_value = MagicMock(id=1)
+        mock_get_user.return_value = MagicMock(id=_USER_ID_1)
         mock_check_active.return_value = None
         mock_mint_access.return_value = (now + timedelta(minutes=15), "replayed-at")
         mock_set_cookie.return_value = None
@@ -1917,7 +1931,7 @@ class TestRefreshEndpoint:
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
+        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-replay-web"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "old_rotated_rt"
         # No CSRF header: page-reload bootstrap / lost rotation response.
@@ -1960,7 +1974,7 @@ class TestRefreshEndpoint:
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-replay-none"
-        mock_session.user_id = 1
+        mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = password_hasher.hash_password("current_rt")
         mock_session.csrf_token_hash = None
@@ -1973,7 +1987,7 @@ class TestRefreshEndpoint:
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
+        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-replay-none"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "old_rotated_rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None

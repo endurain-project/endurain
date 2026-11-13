@@ -19,6 +19,8 @@ import modules.activities.activity_laps.crud as activity_laps_crud
 import modules.activities.activity_laps.schema as activity_laps_schema
 import modules.activities.activity_laps.service as service
 
+_OWNER_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
+_OTHER_ID = uuid.UUID("00000000-0000-4000-8000-000000000002")
 _ACTIVITY_ID = uuid.UUID("00000000-0000-4000-8000-000000000005")
 _ROW_ID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
 
@@ -41,10 +43,10 @@ class TestDelegation:
         mock_gate.resolve_readable_parent.return_value = None
         db = MagicMock()
 
-        page = service.list_activity_laps(_ACTIVITY_ID, 1, db)
+        page = service.list_activity_laps(_ACTIVITY_ID, _OWNER_ID, db)
 
         assert (page.items, page.total) == ([], 0)
-        mock_gate.resolve_readable_parent.assert_called_once_with(_ACTIVITY_ID, 1, db)
+        mock_gate.resolve_readable_parent.assert_called_once_with(_ACTIVITY_ID, _OWNER_ID, db)
 
     @patch("modules.activities.activity.child_collection_service.activity_child_access_service")
     def test_the_public_read_goes_through_the_public_gate(self, mock_gate):
@@ -104,7 +106,9 @@ def _lap(**fields) -> activity_laps_schema.ActivityLapsRead:
 
 
 def _parent(**flags) -> SimpleNamespace:
-    return SimpleNamespace(id=_ACTIVITY_ID, user_id=1, hide_laps=False, **dict.fromkeys(_EVERY_FLAG, False) | flags)
+    return SimpleNamespace(
+        id=_ACTIVITY_ID, user_id=_OWNER_ID, hide_laps=False, **dict.fromkeys(_EVERY_FLAG, False) | flags
+    )
 
 
 def _reading(*laps):
@@ -140,7 +144,7 @@ class TestViewerMask:
         lap = _lap()
 
         with patch.object(service, "_COLLECTION", _reading(lap)):
-            [masked] = service.list_for_activity(_parent(**{flag: True}), 2, MagicMock()).items
+            [masked] = service.list_for_activity(_parent(**{flag: True}), _OTHER_ID, MagicMock()).items
 
         assert service._COLLECTION.fields_by_hide_flag[flag] == tuple(fields)
 
@@ -152,19 +156,19 @@ class TestViewerMask:
         laps = [_lap()]
 
         with patch.object(service, "_COLLECTION", _reading(*laps)):
-            page = service.list_for_activity(_parent(), 2, MagicMock())
+            page = service.list_for_activity(_parent(), _OTHER_ID, MagicMock())
 
         assert page.items == laps
 
     def test_a_non_owner_reads_the_masked_laps(self):
         with patch.object(service, "_COLLECTION", _reading(_lap())):
-            page = service.list_for_activity(_parent(hide_map=True, hide_hr=True), 2, MagicMock())
+            page = service.list_for_activity(_parent(hide_map=True, hide_hr=True), _OTHER_ID, MagicMock())
 
         assert (page.items[0].start_position_lat, page.items[0].avg_heart_rate) == (None, None)
         assert page.items[0].total_distance == 1000.0
 
     def test_the_owner_reads_the_laps_unmasked(self):
         with patch.object(service, "_COLLECTION", _reading(_lap())):
-            page = service.list_for_activity(_parent(hide_map=True, hide_hr=True), 1, MagicMock())
+            page = service.list_for_activity(_parent(hide_map=True, hide_hr=True), _OWNER_ID, MagicMock())
 
         assert page.items == [_lap()]

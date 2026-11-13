@@ -161,7 +161,7 @@ def _end_sessions(idp_id: uuid.UUID, claims: dict[str, Any], db: Session) -> Non
     """
     sid: str | None = claims.get("sid")
     subject: str | None = claims.get("sub")
-    user_id: int | None = None
+    user_id: uuid.UUID | None = None
     if subject is not None:
         link = identity_provider_links_integration.get_user_identity_provider_by_subject_and_idp_id(idp_id, subject, db)
         if link is None:
@@ -171,7 +171,7 @@ def _end_sessions(idp_id: uuid.UUID, claims: dict[str, Any], db: Session) -> Non
             )
             return
         user_id = link.user_id
-    ended: dict[int, int] = {}
+    ended: dict[uuid.UUID, int] = {}
     if sid is not None:
         ended = identity_provider_links_integration.end_idp_sessions_by_sid(idp_id, sid, db, user_id=user_id)
     elif user_id is not None:
