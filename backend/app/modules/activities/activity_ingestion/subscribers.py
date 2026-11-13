@@ -43,7 +43,7 @@ def process_uploaded_file_for_event(event: Event) -> None:
     """Durable handler: import one uploaded file; raises so the runner retries.
 
     Args:
-        event: The ``activity.file_uploaded`` event (payload ``{"job_id": str}``).
+        event: The ``activity.file_uploaded`` event (payload ``{"job_id": UUID text}``).
     """
     payload = platform_event_versioning.parse_payload(activity_ingestion_events.UploadedFilePayload, event)
     storage = platform_runtime.get_active_platform().storage
@@ -60,7 +60,7 @@ def process_refresh_requested_for_event(event: Event) -> None:
 
     Args:
         event: The ``activity.refresh_requested`` event (payload
-            ``{"job_id": str}``).
+            ``{"job_id": UUID text}``).
     """
     payload = platform_event_versioning.parse_payload(activity_ingestion_events.RefreshRequestedPayload, event)
     storage = platform_runtime.get_active_platform().storage
@@ -77,7 +77,7 @@ def process_bulk_import_for_event(event: Event) -> None:
 
     Args:
         event: The ``activity.bulk_import_continue`` event (payload
-            ``{"job_id": str}``).
+            ``{"job_id": UUID text}``).
     """
     payload = platform_event_versioning.parse_payload(activity_ingestion_events.BulkImportContinuePayload, event)
     storage = platform_runtime.get_active_platform().storage

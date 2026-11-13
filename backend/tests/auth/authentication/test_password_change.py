@@ -1,5 +1,6 @@
 """An administrator-set password must be changed at the next sign-in, before any session exists."""
 
+import uuid
 from unittest.mock import patch
 
 import jasil.publisher as platform_publisher
@@ -155,7 +156,7 @@ class TestWhoFlagsTheAccount:
                 step_up_store.StepUpAttempts(MemoryState()),
                 db,
                 revoke_other_sessions=False,
-                current_session_id="session-1",
+                current_session_id=uuid.UUID("00000000-0000-4000-8000-0000000000a3"),
             )
             db.commit()
 

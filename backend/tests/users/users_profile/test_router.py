@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import HTTPException
 from tests._helpers.auth import MOCK_USER_ID
+from tests.users.users_profile.conftest import MOCK_SESSION_ID
 
 import core.config as core_config
 import core.dependencies as core_dependencies
@@ -29,6 +30,9 @@ IDP_ID = uuid.UUID(int=1)
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+_JOB_ID = uuid.UUID(int=501)
 
 
 def _make_user_mock() -> users_schema.UserRead:
@@ -88,7 +92,7 @@ def _make_privacy_mock() -> MagicMock:
     return p
 
 
-def _make_session_mock(session_id: str = "session-1") -> MagicMock:
+def _make_session_mock(session_id: uuid.UUID = MOCK_SESSION_ID) -> MagicMock:
     s = MagicMock()
     s.id = session_id
     s.ip_address = "127.0.0.1"
@@ -282,7 +286,7 @@ class TestReadSessionsMe:
 
         assert response.status_code == 200
         data = response.json()
-        assert [item["id"] for item in data["items"]] == ["session-1"]
+        assert [item["id"] for item in data["items"]] == [str(MOCK_SESSION_ID)]
         assert (data["total"], data["page"], data["num_records"], data["next"]) == (3, 2, 1, 3)
         assert mock_auth_services.list_user_sessions.call_args.args == (MOCK_USER_ID, core_pagination.PageParams(2, 1))
 
@@ -632,7 +636,7 @@ class TestDeleteProfileSession:
 
     def test_success(self, profile_client):
         """Happy path: delete session."""
-        response = profile_client.delete(PREFIX + "/sessions/session-1")
+        response = profile_client.delete(PREFIX + f"/sessions/{MOCK_SESSION_ID}")
 
         assert response.status_code == 204
 
@@ -665,7 +669,7 @@ class TestRevokeProfileSessions:
         response = profile_client.post(PREFIX + "/sessions/revoke?keep_current=true")
 
         assert response.status_code == 204
-        mock_auth_services.delete_other_user_sessions.assert_called_once_with(MOCK_USER_ID, "session-1")
+        mock_auth_services.delete_other_user_sessions.assert_called_once_with(MOCK_USER_ID, MOCK_SESSION_ID)
         mock_auth_services.sign_out_everywhere.assert_not_called()
         assert "set-cookie" not in response.headers
 
@@ -714,7 +718,7 @@ class TestExportProfileData:
         assert step_up.mfa_code == "123456"
         assert (user_id, session_id, action) == (
             MOCK_USER_ID,
-            "session-1",
+            MOCK_SESSION_ID,
             identity_providers_constants.StepUpAction.PROFILE_EXPORT,
         )
 
@@ -1311,7 +1315,7 @@ class TestDeleteMyAccount:
     @patch("modules.users.users_profile.router.authentication_dependencies.clear_refresh_token_cookies")
     def test_success(self, mock_clear_cookies, mock_delete, profile_client, mock_auth_services):
         mock_delete.return_value = users_schema.UserDeletionStatus(
-            id="job-1", kind="user_deletion", created_at=datetime(2026, 1, 1, tzinfo=UTC), status="queued"
+            id=_JOB_ID, kind="user_deletion", created_at=datetime(2026, 1, 1, tzinfo=UTC), status="queued"
         )
         response = profile_client.post(
             PREFIX + "/delete-account",
@@ -1321,7 +1325,7 @@ class TestDeleteMyAccount:
         assert response.status_code == 202
         assert "Content-Location" not in response.headers
         assert response.json() == {
-            "id": "job-1",
+            "id": str(_JOB_ID),
             "kind": "user_deletion",
             "created_at": "2026-01-01T00:00:00Z",
             "finished_at": None,
@@ -1329,7 +1333,7 @@ class TestDeleteMyAccount:
             "status": "queued",
         }
         assert mock_delete.call_args.args[0] == MOCK_USER_ID
-        assert mock_delete.call_args.args[1] == "session-1"
+        assert mock_delete.call_args.args[1] == MOCK_SESSION_ID
         assert mock_delete.call_args.args[2].current_password == "secret-password"
         mock_clear_cookies.assert_called_once()
 

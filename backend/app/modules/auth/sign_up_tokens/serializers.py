@@ -13,7 +13,9 @@ def to_state(row: sign_up_models.SignUpToken) -> sign_up_contracts.SignUpTokenSt
     return sign_up_contracts.SignUpTokenState.model_validate(row)
 
 
-def to_claim(row: Row[tuple[str, uuid.UUID, str | None, str | None, int | None]]) -> sign_up_contracts.SignUpTokenClaim:
+def to_claim(
+    row: Row[tuple[uuid.UUID, uuid.UUID, str | None, str | None, int | None]],
+) -> sign_up_contracts.SignUpTokenClaim:
     """Return the claim contract for the columns a token claim returned.
 
     A token that replaces an address is an email change, which must also name the address it confirms.

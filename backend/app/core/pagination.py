@@ -207,7 +207,7 @@ class CursorPage[ItemT](BaseModel):
     next_cursor: str | None = None
 
 
-def encode_cursor(sort_value: datetime, tiebreak_id: uuid.UUID | str) -> str:
+def encode_cursor(sort_value: datetime, tiebreak_id: uuid.UUID) -> str:
     """Encode a keyset position into an opaque cursor.
 
     The cursor is ``{sort_value}|{id}`` encrypted with the server key. It is encrypted, not merely
@@ -239,30 +239,11 @@ def decode_uuid_cursor(cursor: str) -> tuple[datetime, uuid.UUID]:
     Raises:
         InvalidInputError: When the cursor is not one this server issued.
     """
-    sort_value, tiebreak_id = decode_text_cursor(cursor)
-    try:
-        return sort_value, uuid.UUID(tiebreak_id)
-    except ValueError as err:
-        raise core_exceptions.InvalidInputError("Invalid pagination cursor") from err
-
-
-def decode_text_cursor(cursor: str) -> tuple[datetime, str]:
-    """Decode an opaque cursor back into a keyset position whose id is text, such as a UUID.
-
-    Args:
-        cursor: A cursor previously produced by :func:`encode_cursor`.
-
-    Returns:
-        The ``(sort_value, id)`` pair the cursor encodes.
-
-    Raises:
-        InvalidInputError: When the cursor is not one this server issued.
-    """
     try:
         raw = core_cryptography.decrypt_token_fernet(cursor)
         sort_value, separator, tiebreak_id = (raw or "").rpartition(_CURSOR_SEPARATOR)
         if not separator or not tiebreak_id:
             raise ValueError("The cursor has no id")
-        return datetime.fromisoformat(sort_value), tiebreak_id
+        return datetime.fromisoformat(sort_value), uuid.UUID(tiebreak_id)
     except (ValueError, core_exceptions.UndecryptableError) as err:
         raise core_exceptions.InvalidInputError("Invalid pagination cursor") from err

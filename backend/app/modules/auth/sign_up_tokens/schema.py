@@ -27,10 +27,9 @@ class SignUpToken(BaseModel):
         confirmed_at: When the token was confirmed, or the email change it records was applied.
     """
 
-    id: StrictStr = Field(
+    id: uuid.UUID = Field(
         ...,
         description="Unique identifier for the token",
-        max_length=64,
     )
     user_id: uuid.UUID = Field(
         ...,
@@ -67,10 +66,9 @@ class SignUpToken(BaseModel):
         default=None,
         description="Account security generation a pending email change was requested under",
     )
-    change_id: StrictStr | None = Field(
+    change_id: uuid.UUID | None = Field(
         default=None,
         description="Identifier of the email change the token belongs to",
-        max_length=64,
     )
     revert_until: datetime | None = Field(
         default=None,

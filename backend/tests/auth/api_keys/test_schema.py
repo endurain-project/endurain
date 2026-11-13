@@ -1,5 +1,6 @@
 """Tests for users_api_keys Pydantic schemas."""
 
+import uuid
 from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
@@ -45,6 +46,8 @@ _EXCLUDED = {
     "users:read-all",
     "users:write",
 }
+
+KEY_ID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
 
 
 class TestUsersApiKeyCreate:
@@ -207,7 +210,7 @@ class TestUsersApiKeyRead:
         """Test UserApiKeyRead instantiation with all fields."""
         now = datetime.now(UTC)
         data = users_api_keys_schema.UserApiKeyRead(
-            id="some-uuid",
+            id=KEY_ID,
             user_id=MOCK_USER_ID,
             name="My Key",
             key_prefix="abcdefgh",
@@ -217,7 +220,7 @@ class TestUsersApiKeyRead:
             created_at=now,
             is_active=True,
         )
-        assert data.id == "some-uuid"
+        assert data.id == KEY_ID
         assert data.user_id == MOCK_USER_ID
         assert data.is_active is True
         assert data.scopes == ["activities:upload"]
@@ -225,7 +228,7 @@ class TestUsersApiKeyRead:
     def test_read_schema_scopes_survive_a_created_read_round_trip(self):
         """The scopes stay a list when a read dump builds the creation response."""
         read = users_api_keys_schema.UserApiKeyRead(
-            id="some-uuid",
+            id=KEY_ID,
             user_id=MOCK_USER_ID,
             name="My Key",
             key_prefix="abcdefgh",
@@ -246,8 +249,24 @@ class TestUsersApiKeyRead:
         now = datetime.now(UTC)
         with pytest.raises(ValidationError):
             users_api_keys_schema.UserApiKeyRead(
-                id="some-uuid",
+                id=KEY_ID,
                 user_id=0,
+                name="My Key",
+                key_prefix="abcdefgh",
+                scopes='["activities:upload"]',
+                expires_at=now + timedelta(days=30),
+                last_used_at=None,
+                created_at=now,
+                is_active=True,
+            )
+
+    def test_read_schema_id_not_a_uuid_fails(self):
+        """Test that an id that is not a UUID fails validation."""
+        now = datetime.now(UTC)
+        with pytest.raises(ValidationError):
+            users_api_keys_schema.UserApiKeyRead(
+                id="some-uuid",
+                user_id=MOCK_USER_ID,
                 name="My Key",
                 key_prefix="abcdefgh",
                 scopes='["activities:upload"]',
@@ -271,7 +290,7 @@ class TestUsersApiKeyCreated:
         """Test that UserApiKeyCreatedRead includes the raw 'key' field."""
         now = datetime.now(UTC)
         data = users_api_keys_schema.UserApiKeyCreatedRead(
-            id="some-uuid",
+            id=KEY_ID,
             user_id=MOCK_USER_ID,
             name="My Key",
             key_prefix="abcdefgh",
@@ -284,12 +303,29 @@ class TestUsersApiKeyCreated:
         )
         assert data.key == "endurain_secrettoken"
 
+    def test_created_schema_id_not_a_uuid_fails(self):
+        """Test that an id that is not a UUID fails validation."""
+        now = datetime.now(UTC)
+        with pytest.raises(ValidationError):
+            users_api_keys_schema.UserApiKeyCreatedRead(
+                id="some-uuid",
+                user_id=MOCK_USER_ID,
+                name="My Key",
+                key_prefix="abcdefgh",
+                scopes='["activities:upload"]',
+                expires_at=now + timedelta(days=30),
+                last_used_at=None,
+                created_at=now,
+                is_active=True,
+                key="endurain_secrettoken",
+            )
+
     def test_created_schema_extra_forbid(self):
         """Test that extra fields are forbidden on UserApiKeyCreatedRead."""
         now = datetime.now(UTC)
         with pytest.raises(ValidationError):
             users_api_keys_schema.UserApiKeyCreatedRead(
-                id="some-uuid",
+                id=KEY_ID,
                 user_id=MOCK_USER_ID,
                 name="My Key",
                 key_prefix="abcdefgh",

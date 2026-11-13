@@ -21,6 +21,9 @@ import modules.auth.mfa.pending_login_store as pending_login_store
 import modules.server_settings.contracts as server_settings_contracts
 from tests._helpers.auth import pending_login
 
+_SESSION_ID = uuid.UUID(int=7)
+_FAMILY_ID = uuid.UUID(int=8)
+
 _USER_ID_5 = uuid.UUID(int=5)
 _USER_ID_9 = uuid.UUID(int=9)
 
@@ -29,13 +32,14 @@ _PRINCIPAL = "modules.auth.authentication.principal_service"
 _API_KEY = authentication_audit_actions.API_KEY_AUTHENTICATE.id
 _REFRESH = authentication_audit_actions.REFRESH.id
 _LOGIN = login_audit_actions.LOGIN.id
+_KEY_ID = uuid.UUID(int=11)
 _KEY_HASH = "a" * 64
 _USER = SimpleNamespace(id=_USER_ID_5, username="alice", email="a@example.com", active=True, access_type="regular")
 
 
 def _db_key(**overrides):
     values = {
-        "id": "key-1",
+        "id": _KEY_ID,
         "user_id": _USER_ID_5,
         "name": "CLI",
         "key_prefix": "abcd1234",
@@ -76,7 +80,7 @@ class TestApiKeyRefusal:
             _resolve(_db_key(is_active=False))
 
         entry = audit.assert_audited(
-            _API_KEY, outcome="failure", target_type="api_key", target_id="key-1", target_owner_id=str(_USER_ID_5)
+            _API_KEY, outcome="failure", target_type="api_key", target_id=str(_KEY_ID), target_owner_id=str(_USER_ID_5)
         )
         assert entry.details == {"reason": "revoked"}
         assert "abcd1234" not in repr(entry)
@@ -87,7 +91,7 @@ class TestApiKeyRefusal:
             _resolve(expired)
 
         entry = audit.assert_audited(
-            _API_KEY, outcome="failure", target_type="api_key", target_id="key-1", target_owner_id=str(_USER_ID_5)
+            _API_KEY, outcome="failure", target_type="api_key", target_id=str(_KEY_ID), target_owner_id=str(_USER_ID_5)
         )
         assert entry.details == {"reason": "expired"}
 
@@ -97,7 +101,7 @@ class TestApiKeyRefusal:
             _resolve(_db_key(), user=inactive)
 
         entry = audit.assert_audited(
-            _API_KEY, outcome="denied", target_type="api_key", target_id="key-1", target_owner_id=str(_USER_ID_5)
+            _API_KEY, outcome="denied", target_type="api_key", target_id=str(_KEY_ID), target_owner_id=str(_USER_ID_5)
         )
         assert entry.details == {"reason": "owner_inactive"}
 
@@ -113,9 +117,9 @@ class TestApiKeyRefusal:
 
 def _session(**overrides):
     values = {
-        "id": "sid",
+        "id": _SESSION_ID,
         "user_id": _USER_ID_5,
-        "token_family_id": "family",
+        "token_family_id": _FAMILY_ID,
         "refresh_token": "hash",
         "csrf_token_hash": None,
         "rotation_count": 0,
@@ -133,7 +137,7 @@ def _refresh(db, *, session, x_csrf_token=None, hasher=None, token_user_id=_USER
             "127.0.0.1",
             "agent",
             token_user_id,
-            "sid",
+            _SESSION_ID,
             "old-token",
             datetime(2999, 1, 1, tzinfo=UTC),
             hasher or MagicMock(),
@@ -322,7 +326,7 @@ class TestRefreshRefusal:
     def _rotate_losing_the_race(self, db, *, reuse_after_conflict):
         hasher = MagicMock()
         hasher.verify_password.return_value = True
-        tokens = ("sid", datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
+        tokens = (_SESSION_ID, datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
         integration = "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration"
         with (
             patch(f"{_SERVICE}.sessions_integration.validate_session_timeout"),
@@ -343,7 +347,7 @@ class TestRefreshRefusal:
             self._rotate_losing_the_race(mock_db, reuse_after_conflict=(True, False))
 
         audit.assert_audited(authentication_audit_actions.REFRESH_TOKEN_REUSE.id, outcome="denied")
-        self.invalidate.assert_called_once_with("family", mock_db)
+        self.invalidate.assert_called_once_with(_FAMILY_ID, mock_db)
         mock_db.rollback.assert_called_once()
         mock_db.commit.assert_called_once()
         self.replay.assert_not_called()
@@ -373,7 +377,7 @@ class TestRefreshRefusal:
             _refresh(mock_db, session=_session())
 
         audit.assert_audited(authentication_audit_actions.REFRESH_TOKEN_REUSE.id, outcome="denied")
-        invalidate.assert_called_once_with("family", mock_db)
+        invalidate.assert_called_once_with(_FAMILY_ID, mock_db)
         assert check.call_args.kwargs == {"ip_address": "127.0.0.1", "user_agent": "agent"}
 
     def test_a_retry_in_the_grace_window_from_the_same_client_is_replayed(self, mock_db):

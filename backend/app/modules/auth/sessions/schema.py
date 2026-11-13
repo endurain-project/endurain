@@ -33,7 +33,7 @@ class UserSessionsBase(BaseModel):
         app_redirect_uri: The native-app redirect address the session was handed to, or null.
     """
 
-    id: StrictStr = Field(..., description="Unique session identifier")
+    id: uuid.UUID = Field(..., description="Unique session identifier")
     ip_address: StrictStr = Field(..., max_length=45, description="Client IP address")
     device_type: StrictStr = Field(..., max_length=45, description="Device type")
     operating_system: StrictStr = Field(..., max_length=45, description="Operating system")
@@ -103,7 +103,7 @@ class UserSessionsInternal(UserSessionsBase):
         default=False,
         description="Prevents duplicate token exchange for mobile",
     )
-    token_family_id: StrictStr = Field(
+    token_family_id: uuid.UUID = Field(
         ...,
         description="UUID identifying token family for reuse detection",
     )

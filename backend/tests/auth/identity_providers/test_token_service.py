@@ -24,7 +24,7 @@ def _service():
     return token_service_module.IdpTokenService(MagicMock())
 
 
-SESSION = "11111111-1111-1111-1111-111111111111"
+SESSION = uuid.UUID("11111111-1111-1111-1111-111111111111")
 
 
 def _row(**overrides):
@@ -348,7 +348,7 @@ class TestRefreshIdpSession:
         entry = audit.assert_audited(
             sessions_audit_actions.SESSION_REVOKE.id,
             target_type="session",
-            target_id=SESSION,
+            target_id=str(SESSION),
             target_owner_id=str(MOCK_USER_ID),
         )
         assert entry.details == {"sessions_revoked": 1}

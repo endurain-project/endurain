@@ -61,7 +61,7 @@ class LogoutTarget:
     """
 
     user_id: uuid.UUID
-    session_id: str
+    session_id: uuid.UUID
     refresh_token: str
 
 
@@ -447,15 +447,18 @@ def get_sid_from_refresh_token(
         access_tokens_integration.TokenManager,
         Depends(access_tokens_integration.get_token_manager),
     ],
-) -> str:
+) -> uuid.UUID:
     """Return the session identifier claim from a refresh token.
 
     Precondition: ``validate_refresh_token`` ran first; this reader checks only the signature.
     """
     sid = token_manager.get_token_claim(refresh_token, "sid", access_tokens_integration.TokenType.REFRESH)
-    if not isinstance(sid, str):
-        raise core_exceptions.InvalidTokenError("Invalid token: 'sid' claim must be a string")
-    return sid
+    try:
+        if isinstance(sid, str):
+            return uuid.UUID(sid)
+    except ValueError:
+        pass
+    raise core_exceptions.InvalidTokenError("Invalid token: 'sid' claim must be a session id")
 
 
 def get_exp_from_refresh_token(

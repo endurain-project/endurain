@@ -17,6 +17,7 @@ import modules.auth.sign_up_tokens.schema as sign_up_schema
 import modules.auth.sign_up_tokens.service as sign_up_service
 import modules.users.users.schema as users_schema
 from tests._helpers.auth import MOCK_USER_ID
+from tests.auth.sign_up_tokens.ids import tid
 
 _USER_3 = uuid.UUID("00000000-0000-4000-8000-000000000003")
 _USER_4 = uuid.UUID("00000000-0000-4000-8000-000000000004")
@@ -423,7 +424,7 @@ class TestSignupPasswordPolicy:
 
 
 def _claim(*, previous_email=None):
-    return MagicMock(id="t1", user_id=MOCK_USER_ID, email="u@example.com", previous_email=previous_email)
+    return MagicMock(id=tid("t1"), user_id=MOCK_USER_ID, email="u@example.com", previous_email=previous_email)
 
 
 class TestConfirmSignUp:
@@ -668,7 +669,7 @@ class TestConfirmEmailChange:
         deps["users_integration"].stage_confirmed_email_change.assert_called_once_with(
             MOCK_USER_ID, "u@example.com", mock_db
         )
-        deps["publishers"].publish_email_changed.assert_called_once_with(MOCK_USER_ID, "t1", mock_db)
+        deps["publishers"].publish_email_changed.assert_called_once_with(MOCK_USER_ID, tid("t1"), mock_db)
         deps["users_integration"].stage_email_verification.assert_called_once()
         deps["credentials_integration"].set_local_password_hash.assert_not_called()
         deps["sessions_integration"].delete_sessions_by_user.assert_not_called()
@@ -682,13 +683,13 @@ class TestVerifySignUpTokenBump:
     @staticmethod
     def _plain():
         return sign_up_contracts.SignUpTokenClaim(
-            id="t", user_id=MOCK_USER_ID, email="u@example.com", previous_email=None
+            id=tid("t"), user_id=MOCK_USER_ID, email="u@example.com", previous_email=None
         )
 
     @staticmethod
     def _change(generation=0):
         return sign_up_contracts.EmailChangeClaim(
-            id="t",
+            id=tid("t"),
             user_id=MOCK_USER_ID,
             email="new@example.com",
             previous_email="old@example.com",

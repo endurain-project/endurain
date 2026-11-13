@@ -115,7 +115,7 @@ with jasil_testing.capture_audit() as audit:
     users_service.create_user(...)
 
 entry = audit.assert_audited(
-    users_audit_actions.USER_CREATE.id, target_type="user", target_id="7", target_owner_id="7"
+    users_audit_actions.USER_CREATE.id, target_type="user", target_id=str(user.id), target_owner_id=str(user.id)
 )
 assert entry.details == {"access_type": "regular"}
 ```

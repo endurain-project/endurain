@@ -201,7 +201,7 @@ def edit_profile(
 def change_username(
     user_id: uuid.UUID,
     change: users_schema.UsernameChange,
-    session_id: str,
+    session_id: uuid.UUID,
     step_up_store: "auth_dependencies.StepUpStore",
     db: Session,
 ) -> users_schema.UserMe:
@@ -265,7 +265,7 @@ def change_username(
 def change_email(
     user_id: uuid.UUID,
     change: users_schema.EmailChange,
-    session_id: str,
+    session_id: uuid.UUID,
     step_up_store: "auth_dependencies.StepUpStore",
     state: platform_providers.StateProvider,
     db: Session,
@@ -447,7 +447,7 @@ def edit_privacy_settings(
 
 def delete_account(
     user_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     step_up: auth_schema.StepUpVerification,
     step_up_store: "auth_dependencies.StepUpStore",
     state: platform_providers.StateProvider,
@@ -533,7 +533,7 @@ def stage_export(user_id: uuid.UUID, storage: platform_providers.StorageProvider
 def change_password(
     user_id: uuid.UUID,
     change: users_schema.UserEditPassword,
-    session_id: str,
+    session_id: uuid.UUID,
     step_up_store: account_security_integration.StepUpStore,
     db: Session,
 ) -> None:

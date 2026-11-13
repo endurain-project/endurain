@@ -48,6 +48,9 @@ class FakeMFASecretStore:
         self._store.pop(user_id, None)
 
 
+MOCK_SESSION_ID = uuid.UUID(int=601)
+
+
 @pytest.fixture
 def local_mock_db() -> MagicMock:
     return MagicMock(spec=Session)
@@ -103,7 +106,7 @@ def profile_app(
     app.dependency_overrides[core_database.get_db] = lambda: local_mock_db
     app.dependency_overrides[core_dependencies.get_storage] = lambda: MagicMock()
     app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: MOCK_USER_ID
-    app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = lambda: "session-1"
+    app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = lambda: MOCK_SESSION_ID
     app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
     app.dependency_overrides[auth_mfa_dependencies.get_mfa_secret_store] = lambda: fake_mfa_secret_store
     app.dependency_overrides[profile_dependencies.get_profile_import_state_store] = lambda: import_states

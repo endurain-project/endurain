@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request, Response, Security, status
+from fastapi import APIRouter, Query, Request, Response, Security, status
 
 import core.config as core_config
 import core.dependencies as core_dependencies
@@ -50,10 +50,7 @@ def revoke_profile_sessions(
     request: Request,
     response: Response,
     token_user_id: auth_dependencies.CurrentUserId,
-    token_session_id: Annotated[
-        str,
-        Depends(auth_dependencies.get_sid_from_access_token),
-    ],
+    token_session_id: auth_dependencies.CurrentSessionId,
     db: core_dependencies.DbSession,
     keep_current: Annotated[
         bool,

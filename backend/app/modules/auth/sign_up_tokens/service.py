@@ -5,7 +5,6 @@ import uuid
 from collections.abc import Callable, Collection
 from datetime import UTC, datetime, timedelta
 from typing import Literal, NoReturn, overload
-from uuid import uuid4
 
 import jasil.audit as jasil_audit
 from jasil.providers import StateBackendUnavailableError, StateProvider
@@ -64,7 +63,7 @@ def _stage_sign_up_token(
     used: bool = False,
     security_generation: int | None = None,
     revertible: bool = False,
-    change_id: str | None = None,
+    change_id: uuid.UUID | None = None,
     revert_until: datetime | None = None,
 ) -> sign_up_contracts.SignUpTokenState:
     """Stage a user's new verification token, using up their earlier ones, and return its row.
@@ -91,7 +90,7 @@ def _stage_sign_up_token(
     else:
         token_hash = token_hashing.sha256_hex(token)
     now = datetime.now(UTC)
-    token_id = str(uuid4())
+    token_id = uuid.uuid4()
     if revertible:
         change_id = token_id
         revert_until = now + EMAIL_CHANGE_REVERT_WINDOW
@@ -120,7 +119,7 @@ def create_sign_up_token(
     db: Session,
     previous_email: str | None = None,
     security_generation: int | None = None,
-    change_id: str | None = None,
+    change_id: uuid.UUID | None = None,
     revert_until: datetime | None = None,
 ) -> str:
     """Return the verification token for a mail event, replacing the user's earlier tokens and committing it.
@@ -602,7 +601,7 @@ def prepare_email_change_verification_email(
 
 def prepare_email_changed_email(
     user_id: uuid.UUID,
-    token_id: str,
+    token_id: uuid.UUID,
     frontend_host: str,
     db: Session,
 ) -> tuple[str, str, str, str] | None:
@@ -696,14 +695,14 @@ def prepare_sign_up_existing_account_email(
     )
 
 
-def _revert_mac(change_id: str, revert_until: datetime) -> str:
+def _revert_mac(change_id: uuid.UUID, revert_until: datetime) -> str:
     """Return the proof, bound to an email change and the end of its revert window, that a link was issued by this server."""
     return access_tokens_integration.derive_email_token(
         f"email-change-revert:{change_id}:{int(revert_until.timestamp())}"
     )
 
 
-def _revert_link(change_id: str, revert_until: datetime, frontend_host: str) -> str:
+def _revert_link(change_id: uuid.UUID, revert_until: datetime, frontend_host: str) -> str:
     """Return the "this wasn't me" link of an email change; it works until ``revert_until``."""
     return f"{frontend_host}/cancel-email-change?token={change_id}.{_revert_mac(change_id, revert_until)}"
 
@@ -765,7 +764,7 @@ def _refuse_revert(db: Session) -> NoReturn:
     raise core_exceptions.InvalidInputError("Invalid or expired link")
 
 
-def _email_change_of_link(token: str, now: datetime, db: Session) -> tuple[str, uuid.UUID] | None:
+def _email_change_of_link(token: str, now: datetime, db: Session) -> tuple[uuid.UUID, uuid.UUID] | None:
     """Return the change a link names and its owner when the link is genuine and inside its revert window.
 
     Args:
@@ -777,8 +776,12 @@ def _email_change_of_link(token: str, now: datetime, db: Session) -> tuple[str, 
         The change's identifier and the user it belongs to, or None when the link is malformed, forged, expired or
         names no change.
     """
-    change_id, _, mac = token.partition(".")
-    if not change_id or not mac or not token.isascii():
+    change_id_text, _, mac = token.partition(".")
+    if not change_id_text or not mac or not token.isascii():
+        return None
+    try:
+        change_id = uuid.UUID(change_id_text)
+    except ValueError:
         return None
     rows = sign_up_crud.get_email_change_tokens(change_id, now, db)
     if not rows or rows[0].revert_until is None:

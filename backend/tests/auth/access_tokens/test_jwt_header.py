@@ -15,6 +15,7 @@ from modules.auth.constants import ClientType
 from modules.users.users.schema import UserAccessType, UserRead
 
 _USER_ID = uuid.UUID(int=1)
+_SESSION_ID = uuid.UUID(int=0x5E55)
 
 _NEW = "new-secret-key-for-testing-only-min-32-chars"
 _OLD = "old-secret-key-for-testing-only-min-32-chars"
@@ -42,7 +43,7 @@ def _manager(access: list[str], refresh: list[str] | None = None) -> auth_token_
 
 
 def _token(manager: auth_token_manager.TokenManager, user: UserRead, token_type=_ACCESS) -> str:
-    return manager.create_token("sid", user, ClientType.WEB, token_type, timedelta(minutes=5))[1]
+    return manager.create_token(_SESSION_ID, user, ClientType.WEB, token_type, timedelta(minutes=5))[1]
 
 
 def _resign(manager, token: str, token_type, *, key: str, typ: str) -> str:

@@ -11,12 +11,13 @@ from jasil.testing import FixedClock
 import modules.websocket.dependencies as websocket_dependencies
 
 USER = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
+SESSION_1 = uuid.UUID("5b0f6c1e-2d3a-4b7c-8e91-3a4d5c6b7e01")
 
 
 def test_the_ticket_store_runs_over_the_given_state():
     state = MemoryState()
 
-    ticket = websocket_dependencies.get_ws_ticket_store(state, FixedClock()).create_ticket(USER, "s1")
+    ticket = websocket_dependencies.get_ws_ticket_store(state, FixedClock()).create_ticket(USER, SESSION_1)
 
     assert websocket_dependencies.get_ws_ticket_store(state, FixedClock()).consume_ticket(ticket).user_id == USER
 

@@ -1,5 +1,6 @@
 """A synced email change is applied, audited and told to the previous address, against a real database."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -27,15 +28,18 @@ def db():
 
 
 def _idp(**overrides):
-    values = {"id": 3, "name": "Pocket", "user_mapping": None, "sync_user_info": False, "sync_email": True}
+    values = {"id": uuid.uuid4(), "name": "Pocket", "user_mapping": None, "sync_user_info": False, "sync_email": True}
     values.update(overrides)
     return MagicMock(**values)
+
+
+RESET_TOKEN_ID = uuid.uuid4()
 
 
 def _add_reset_token(db):
     db.add(
         password_reset_models.PasswordResetToken(
-            id="reset-1",
+            id=RESET_TOKEN_ID,
             user_id=MOCK_USER_ID,
             token_hash="hash",
             created_at=datetime.now(UTC),
@@ -66,8 +70,8 @@ def test_a_synced_email_is_applied_audited_and_told_to_the_previous_address(db):
     notice = db.query(sign_up_models.SignUpToken).filter_by(user_id=MOCK_USER_ID).one()
     assert (notice.previous_email, notice.email, notice.used) == (previous, "new@example.com", True)
     assert publish.call_args.args[0] == "auth.email_changed"
-    assert publish.call_args.args[1] == {"user_id": str(MOCK_USER_ID), "token_id": notice.id}
-    assert db.get(password_reset_models.PasswordResetToken, "reset-1").used is True
+    assert publish.call_args.args[1] == {"user_id": str(MOCK_USER_ID), "token_id": str(notice.id)}
+    assert db.get(password_reset_models.PasswordResetToken, RESET_TOKEN_ID).used is True
 
 
 def test_sync_email_off_keeps_the_email_while_the_name_syncs(db):

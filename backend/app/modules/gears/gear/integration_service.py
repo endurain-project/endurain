@@ -148,7 +148,7 @@ def require_owned_gears(user_id: uuid.UUID, gear_ids: Iterable[uuid.UUID | None]
 
 
 def list_changed_gears(
-    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position | None, until: datetime, limit: int, db: Session
 ) -> list[gears_schema.GearDetailRead]:
     """Return a page of a user's gears changed after a position, oldest change first.
 
@@ -170,8 +170,8 @@ def list_changed_gears(
 
 
 def list_gear_deletions(
-    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
-) -> list[core_sync.Deletion[uuid.UUID]]:
+    user_id: uuid.UUID, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[core_sync.Deletion]:
     """Return a page of a user's deleted gears after a position, oldest deletion first.
 
     Args:

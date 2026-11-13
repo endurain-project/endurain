@@ -50,7 +50,7 @@ async def deliver_hint(
     return len(failures) < len(connections)
 
 
-def has_live_session(user_id: uuid.UUID, session_id: str) -> bool:
+def has_live_session(user_id: uuid.UUID, session_id: uuid.UUID) -> bool:
     """Say whether a user's session still exists and has not expired.
 
     Opens its own short-lived database session, so nothing is held while the socket lives. It blocks on the
@@ -70,8 +70,8 @@ def has_live_session(user_id: uuid.UUID, session_id: str) -> bool:
 
 async def close_revoked_connections(
     user_id: uuid.UUID,
-    session_id: str | None,
-    except_session_id: str | None,
+    session_id: uuid.UUID | None,
+    except_session_id: uuid.UUID | None,
     manager: websocket_manager.WebSocketManager,
 ) -> None:
     """Close the websockets of a user's revoked sessions that this process holds.
@@ -88,7 +88,7 @@ async def close_revoked_connections(
 
 
 async def serve_connection(
-    websocket: WebSocket, user_id: uuid.UUID, session_id: str, manager: websocket_manager.WebSocketManager
+    websocket: WebSocket, user_id: uuid.UUID, session_id: uuid.UUID, manager: websocket_manager.WebSocketManager
 ) -> None:
     """Register an authenticated connection and keep it open until the client leaves.
 

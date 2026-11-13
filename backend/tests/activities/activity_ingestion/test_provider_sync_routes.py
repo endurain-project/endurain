@@ -1,5 +1,6 @@
 """The providers' own "retrieve activities" routes queue a job instead of working in the API."""
 
+import uuid
 from datetime import UTC, date, datetime
 from unittest.mock import MagicMock, patch
 
@@ -15,6 +16,8 @@ import modules.garmin.sync_service as garmin_sync_service
 import modules.strava.constants as strava_constants
 import modules.strava.router as strava_router
 import modules.strava.sync_service as strava_sync_service
+
+_JOB_1 = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
 
 _CASES = [
     pytest.param(
@@ -35,7 +38,7 @@ _CASES = [
 def _refresh_job():
     now = datetime(2026, 1, 8, tzinfo=UTC)
     return activity_ingestion_schema.ActivityIngestionJobRead(
-        id="job-1",
+        id=_JOB_1,
         kind="activity_refresh",
         status=core_job_status.JobState.QUEUED,
         created_at=now,

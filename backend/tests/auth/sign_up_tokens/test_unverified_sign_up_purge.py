@@ -68,7 +68,7 @@ def _token(db: Session, user_id: uuid.UUID, *, used: bool = False, expires_in: t
     now = datetime.now(UTC)
     db.add(
         sign_up_models.SignUpToken(
-            id=f"token-{user_id}-{used}-{expires_in}",
+            id=uuid.uuid5(user_id, f"{used}-{expires_in}"),
             user_id=user_id,
             token_hash=f"hash-{user_id}-{used}-{expires_in}",
             created_at=now,

@@ -31,7 +31,7 @@ import modules.users.users.integration_service as users_integration
 logger = core_logger.get_logger(__name__)
 
 
-def _end_session_on_reuse(token_user_id: uuid.UUID, token_family_id: str, db: Session) -> NoReturn:
+def _end_session_on_reuse(token_user_id: uuid.UUID, token_family_id: uuid.UUID, db: Session) -> NoReturn:
     """End the session of a refresh token that was reused outside its rotating client or its grace window, and tell its owner.
 
     Args:
@@ -165,7 +165,7 @@ def refresh_token(
     ip_address: str,
     user_agent: str,
     token_user_id: uuid.UUID,
-    token_session_id: str,
+    token_session_id: uuid.UUID,
     refresh_token_value: str,
     refresh_token_exp: datetime,
     password_hasher: credentials_integration.PasswordHasher,

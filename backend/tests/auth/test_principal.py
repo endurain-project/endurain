@@ -20,6 +20,9 @@ from modules.auth.contracts import (
 )
 from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
+_SESSION_ID = uuid.UUID(int=7)
+_KEY_ID = uuid.UUID(int=11)
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -60,8 +63,8 @@ class TestCredentialVariants:
 
     def test_access_token_cred_required_field(self):
         """AccessTokenCred requires session_id."""
-        cred = AccessTokenCred(session_id="sid-123")
-        assert cred.session_id == "sid-123"
+        cred = AccessTokenCred(session_id=_SESSION_ID)
+        assert cred.session_id == _SESSION_ID
         assert cred.jti is None
         assert cred.issued_at is None
 
@@ -69,7 +72,7 @@ class TestCredentialVariants:
         """AccessTokenCred stores optional jti and issued_at."""
         now = datetime.now(UTC)
         cred = AccessTokenCred(
-            session_id="sid-456",
+            session_id=_SESSION_ID,
             jti="jti-abc",
             issued_at=now,
         )
@@ -78,14 +81,14 @@ class TestCredentialVariants:
 
     def test_api_key_cred_stores_id_and_prefix(self):
         """ApiKeyCred preserves api_key_id and key_prefix."""
-        cred = ApiKeyCred(api_key_id=42, key_prefix="endurain")
-        assert cred.api_key_id == 42
+        cred = ApiKeyCred(api_key_id=_KEY_ID, key_prefix="endurain")
+        assert cred.api_key_id == _KEY_ID
         assert cred.key_prefix == "endurain"
 
     def test_session_cookie_cred_stores_session_id(self):
         """SessionCookieCred preserves session_id."""
-        cred = SessionCookieCred(session_id="sess-789")
-        assert cred.session_id == "sess-789"
+        cred = SessionCookieCred(session_id=_SESSION_ID)
+        assert cred.session_id == _SESSION_ID
 
     def test_oauth_cred_stores_provider_and_external_id(self):
         """OAuthCred preserves provider and external_id."""
@@ -110,7 +113,7 @@ class TestPrincipalConstruction:
 
     def test_fields_are_stored(self):
         """All Principal fields are stored correctly."""
-        cred = AccessTokenCred(session_id="sid-1")
+        cred = AccessTokenCred(session_id=_SESSION_ID)
         p = Principal(
             user_id=OTHER_USER_ID,
             username="alice",
@@ -150,13 +153,13 @@ class TestIsApiKey:
 
     def test_returns_true_for_api_key_cred(self):
         """is_api_key() returns True when credential is ApiKeyCred."""
-        cred = ApiKeyCred(api_key_id=1, key_prefix="abc")
+        cred = ApiKeyCred(api_key_id=_KEY_ID, key_prefix="abc")
         p = _make_principal(cred)
         assert p.is_api_key() is True
 
     def test_returns_false_for_access_token_cred(self):
         """is_api_key() returns False for AccessTokenCred."""
-        p = _make_principal(AccessTokenCred(session_id="s"))
+        p = _make_principal(AccessTokenCred(session_id=_SESSION_ID))
         assert p.is_api_key() is False
 
     def test_returns_false_for_password_cred(self):
@@ -166,7 +169,7 @@ class TestIsApiKey:
 
     def test_returns_false_for_session_cookie_cred(self):
         """is_api_key() returns False for SessionCookieCred."""
-        p = _make_principal(SessionCookieCred(session_id="s"))
+        p = _make_principal(SessionCookieCred(session_id=_SESSION_ID))
         assert p.is_api_key() is False
 
     def test_returns_false_for_oauth_cred(self):
@@ -185,20 +188,20 @@ class TestCredentialId:
 
     def test_access_token_cred_returns_session_id(self):
         """credential_id() returns session_id for AccessTokenCred."""
-        p = _make_principal(AccessTokenCred(session_id="sid-abc"))
-        assert p.credential_id() == "sid-abc"
+        p = _make_principal(AccessTokenCred(session_id=_SESSION_ID))
+        assert p.credential_id() == str(_SESSION_ID)
 
     def test_session_cookie_cred_returns_session_id(self):
         """credential_id() returns session_id for SessionCookieCred."""
-        p = _make_principal(SessionCookieCred(session_id="sess-xyz"))
-        assert p.credential_id() == "sess-xyz"
+        p = _make_principal(SessionCookieCred(session_id=_SESSION_ID))
+        assert p.credential_id() == str(_SESSION_ID)
 
-    def test_api_key_cred_returns_integer_id(self):
-        """credential_id() returns api_key_id (int) for ApiKeyCred."""
-        p = _make_principal(ApiKeyCred(api_key_id=99, key_prefix="pre"))
+    def test_api_key_cred_returns_the_key_id_as_text(self):
+        """credential_id() returns api_key_id as text for ApiKeyCred."""
+        p = _make_principal(ApiKeyCred(api_key_id=_KEY_ID, key_prefix="pre"))
         result = p.credential_id()
-        assert result == 99
-        assert isinstance(result, int)
+        assert result == str(_KEY_ID)
+        assert isinstance(result, str)
 
     def test_oauth_cred_returns_composite_string(self):
         """credential_id() returns 'provider:external_id' for OAuthCred."""
@@ -222,9 +225,9 @@ class TestCredentialType:
     @pytest.mark.parametrize(
         ("credential", "expected"),
         [
-            (AccessTokenCred(session_id="sid-abc"), "access_token"),
-            (SessionCookieCred(session_id="sess-xyz"), "session_cookie"),
-            (ApiKeyCred(api_key_id=99, key_prefix="pre"), "api_key"),
+            (AccessTokenCred(session_id=_SESSION_ID), "access_token"),
+            (SessionCookieCred(session_id=_SESSION_ID), "session_cookie"),
+            (ApiKeyCred(api_key_id=_KEY_ID, key_prefix="pre"), "api_key"),
             (OAuthCred(provider="google", external_id="uid-001"), "oauth"),
             (PasswordCred(username="alice"), "password"),
         ],

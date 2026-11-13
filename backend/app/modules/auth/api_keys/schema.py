@@ -98,7 +98,7 @@ class UserApiKeyRead(BaseModel):
         is_active: Whether the key is currently active.
     """
 
-    id: StrictStr = Field(..., description="Unique key identifier (UUID)")
+    id: uuid.UUID = Field(..., description="Unique key identifier (UUID)")
     user_id: uuid.UUID = Field(..., description="Owner's user ID")
     name: StrictStr = Field(..., description="User-friendly label")
     key_prefix: StrictStr = Field(..., description="First 8 chars of the random part")

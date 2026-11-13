@@ -53,9 +53,8 @@ class OAuthStateCreate(BaseModel):
         None, min_length=43, max_length=128, description="PKCE verifier sent to the identity provider"
     )
     purpose: oauth_state_constants.OAuthStatePurpose = Field(..., description="Flow the state belongs to")
-    session_id: StrictStr | None = Field(
+    session_id: uuid.UUID | None = Field(
         None,
-        max_length=36,
         description="Session that started a link or step-up flow",
     )
     ends_other_sessions: StrictBool = Field(
@@ -90,7 +89,7 @@ class OAuthStateRead(BaseModel):
     browser_binding_hash: StrictStr | None = Field(None, description="SHA-256 of the browser binding")
     idp_code_verifier: StrictStr | None = Field(None, description="PKCE verifier sent to the identity provider")
     purpose: oauth_state_constants.OAuthStatePurpose = Field(..., description="Flow the state belongs to")
-    session_id: StrictStr | None = Field(None, description="Session that started a link or step-up flow")
+    session_id: uuid.UUID | None = Field(None, description="Session that started a link or step-up flow")
     ends_other_sessions: StrictBool = Field(
         False, description="Whether the callback of a link ends the user's other sessions"
     )
@@ -104,5 +103,5 @@ class StepUpOAuthStateRead(OAuthStateRead):
     """An OAuth state of a step-up flow, which is always stored with its session, challenge and action."""
 
     code_challenge: StrictStr = Field(..., description="PKCE challenge")
-    session_id: StrictStr = Field(..., description="Session that started a step-up flow")
+    session_id: uuid.UUID = Field(..., description="Session that started a step-up flow")
     action: StrictStr = Field(..., description="Operation a step-up flow authorises")

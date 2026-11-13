@@ -19,7 +19,7 @@ import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.activities.activity_ingestion.serializers as activity_ingestion_serializers
 
 
-def _get_open_job_for_update(job_id: str, db: Session) -> activity_ingestion_models.ActivityIngestionJob | None:
+def _get_open_job_for_update(job_id: uuid.UUID, db: Session) -> activity_ingestion_models.ActivityIngestionJob | None:
     """Load a job row under a row lock, unless it is unknown or already terminal.
 
     The lock serializes concurrent writers of the same job across processes, and
@@ -41,7 +41,7 @@ def _get_open_job_for_update(job_id: str, db: Session) -> activity_ingestion_mod
 
 
 def create_ingestion_job(
-    job_id: str,
+    job_id: uuid.UUID,
     user_id: uuid.UUID,
     kind: activity_ingestion_constants.IngestionJobKind,
     db: Session,
@@ -59,7 +59,7 @@ def create_ingestion_job(
     """Stage an accepted ingestion request in the pending state (not committed).
 
     Args:
-        job_id: Caller-generated job identifier (UUIDv4 string).
+        job_id: Caller-generated job identifier (UUIDv4).
         user_id: Owner of the request.
         kind: Whether this job imports an upload or syncs from providers.
         db: Database session.
@@ -108,7 +108,7 @@ def create_ingestion_job(
 
 
 def get_ingestion_job(
-    job_id: str,
+    job_id: uuid.UUID,
     user_id: uuid.UUID,
     db: Session,
 ) -> activity_ingestion_schema.ActivityIngestionJobRead | None:
@@ -138,7 +138,7 @@ def list_ingestion_jobs(
     user_id: uuid.UUID,
     kinds: Collection[activity_ingestion_constants.IngestionJobKind],
     statuses: Collection[activity_ingestion_constants.IngestionJobStatus] | None,
-    before: tuple[datetime, str] | None,
+    before: tuple[datetime, uuid.UUID] | None,
     limit: int,
     db: Session,
 ) -> list[activity_ingestion_schema.ActivityIngestionJobRead]:
@@ -165,7 +165,7 @@ def list_ingestion_jobs(
     return [activity_ingestion_serializers.to_read_schema(orm_job) for orm_job in db.scalars(stmt)]
 
 
-def get_job_work_item(job_id: str, db: Session) -> tuple[uuid.UUID, str] | None:
+def get_job_work_item(job_id: uuid.UUID, db: Session) -> tuple[uuid.UUID, str] | None:
     """Read the owner and staged key of a job, for the background executor.
 
     Not user-scoped, unlike :func:`get_ingestion_job`: the caller here is the
@@ -222,7 +222,7 @@ def get_job_for_idempotency(
     return (activity_ingestion_serializers.to_read_schema(orm_job), orm_job.request_fingerprint) if orm_job else None
 
 
-def release_idempotency_key(job_id: str, db: Session) -> None:
+def release_idempotency_key(job_id: uuid.UUID, db: Session) -> None:
     """Stage freeing a job's idempotency key so a new request can use it (not committed).
 
     The job row stays, so its history is intact; only the key (and the fingerprint
@@ -237,7 +237,7 @@ def release_idempotency_key(job_id: str, db: Session) -> None:
     db.flush()
 
 
-def get_job_owner(job_id: str, db: Session) -> uuid.UUID | None:
+def get_job_owner(job_id: uuid.UUID, db: Session) -> uuid.UUID | None:
     """Read the owner of a job, for the background executor.
 
     Not user-scoped, unlike :func:`get_ingestion_job`: the caller is the worker
@@ -257,7 +257,7 @@ def get_job_owner(job_id: str, db: Session) -> uuid.UUID | None:
 
 
 def get_refresh_scope(
-    job_id: str, db: Session
+    job_id: uuid.UUID, db: Session
 ) -> tuple[uuid.UUID, str | None, datetime | None, datetime | None] | None:
     """Read what a refresh job was asked to sync, for the background executor.
 
@@ -303,7 +303,7 @@ def get_user_ids_with_active_refresh(user_ids: Sequence[uuid.UUID], db: Session)
     return set(db.scalars(stmt).all())
 
 
-def get_active_bulk_import_job_id(user_id: uuid.UUID, db: Session) -> str | None:
+def get_active_bulk_import_job_id(user_id: uuid.UUID, db: Session) -> uuid.UUID | None:
     """Return the id of the user's bulk import that has not finished, if any.
 
     Args:
@@ -322,7 +322,7 @@ def get_active_bulk_import_job_id(user_id: uuid.UUID, db: Session) -> str | None
     return db.scalars(stmt).first()
 
 
-def get_bulk_import_state(job_id: str, db: Session) -> activity_ingestion_contracts.BulkImportState | None:
+def get_bulk_import_state(job_id: uuid.UUID, db: Session) -> activity_ingestion_contracts.BulkImportState | None:
     """Read a bulk-import job's resume state, for the background executor.
 
     Not user-scoped, for the same reason as :func:`get_job_owner`.
@@ -350,7 +350,7 @@ def get_bulk_import_state(job_id: str, db: Session) -> activity_ingestion_contra
     )
 
 
-def attach_bulk_archive(job_id: str, staged_key: str, files_total: int, db: Session) -> bool:
+def attach_bulk_archive(job_id: uuid.UUID, staged_key: str, files_total: int, db: Session) -> bool:
     """Stage recording the archive a bulk import will read (not committed).
 
     Args:
@@ -373,7 +373,7 @@ def attach_bulk_archive(job_id: str, staged_key: str, files_total: int, db: Sess
     return True
 
 
-def touch_job(job_id: str, db: Session) -> None:
+def touch_job(job_id: uuid.UUID, db: Session) -> None:
     """Stage a sign of life on a job that has not finished (not committed).
 
     Args:
@@ -387,7 +387,7 @@ def touch_job(job_id: str, db: Session) -> None:
 
 
 def record_bulk_progress(
-    job_id: str,
+    job_id: uuid.UUID,
     cursor: str | None,
     files_done: int,
     files_failed: int,
@@ -421,7 +421,7 @@ def record_bulk_progress(
     db.flush()
 
 
-def mark_bulk_completed(job_id: str, cursor: str | None, files_done: int, files_failed: int, db: Session) -> None:
+def mark_bulk_completed(job_id: uuid.UUID, cursor: str | None, files_done: int, files_failed: int, db: Session) -> None:
     """Stage a bulk import as finished (not committed).
 
     A finished import with failed files is still ``completed``: the counters say
@@ -449,7 +449,7 @@ def mark_bulk_completed(job_id: str, cursor: str | None, files_done: int, files_
     db.flush()
 
 
-def mark_processing(job_id: str, db: Session, *, lease: timedelta) -> bool:
+def mark_processing(job_id: uuid.UUID, db: Session, *, lease: timedelta) -> bool:
     """Stage the claim of a job for execution (not committed).
 
     One conditional ``UPDATE``, so of two concurrent deliveries of the same job
@@ -492,7 +492,7 @@ def mark_processing(job_id: str, db: Session, *, lease: timedelta) -> bool:
     return matched == 1
 
 
-def release_job(job_id: str, db: Session) -> None:
+def release_job(job_id: uuid.UUID, db: Session) -> None:
     """Stage returning a claimed job to ``pending`` so a retry can claim it (not committed).
 
     Args:
@@ -513,7 +513,7 @@ def release_job(job_id: str, db: Session) -> None:
     db.flush()
 
 
-def mark_deferred(job_id: str, retry_after: datetime, db: Session) -> None:
+def mark_deferred(job_id: uuid.UUID, retry_after: datetime, db: Session) -> None:
     """Stage a claimed refresh waiting until a provider's rate limit clears (not committed).
 
     Args:
@@ -539,7 +539,7 @@ def mark_deferred(job_id: str, retry_after: datetime, db: Session) -> None:
     db.flush()
 
 
-def release_due_deferred_jobs(limit: int, db: Session) -> list[tuple[str, uuid.UUID]]:
+def release_due_deferred_jobs(limit: int, db: Session) -> list[tuple[uuid.UUID, uuid.UUID]]:
     """Stage returning deferred refreshes whose wait is over to ``pending`` (not committed).
 
     The due test uses the database clock, like :func:`mark_processing`, so replicas with skewed
@@ -564,7 +564,7 @@ def release_due_deferred_jobs(limit: int, db: Session) -> list[tuple[str, uuid.U
         .limit(limit)
         .with_for_update(skip_locked=True)
     )
-    released: list[tuple[str, uuid.UUID]] = []
+    released: list[tuple[uuid.UUID, uuid.UUID]] = []
     for orm_job in db.scalars(stmt).all():
         orm_job.status = activity_ingestion_constants.IngestionJobStatus.PENDING.value
         orm_job.retry_after = None
@@ -574,7 +574,7 @@ def release_due_deferred_jobs(limit: int, db: Session) -> list[tuple[str, uuid.U
     return released
 
 
-def mark_completed(job_id: str, activity_ids: list[uuid.UUID], db: Session) -> None:
+def mark_completed(job_id: uuid.UUID, activity_ids: list[uuid.UUID], db: Session) -> None:
     """Stage a move of a job to the completed state and record what it created.
 
     Args:
@@ -609,7 +609,7 @@ def _fail(
 
 
 def mark_failed(
-    job_id: str,
+    job_id: uuid.UUID,
     error_code: activity_ingestion_constants.IngestionJobErrorCode,
     db: Session,
 ) -> tuple[uuid.UUID, activity_ingestion_constants.IngestionJobKind] | None:
@@ -639,7 +639,7 @@ def fail_jobs_idle_since(
     db: Session,
     *,
     unstaged_bulk_cutoff: datetime | None = None,
-) -> list[tuple[str, str | None]]:
+) -> list[tuple[uuid.UUID, str | None]]:
     """Stage the failure of up to ``limit`` non-terminal jobs that have not changed state since a cutoff.
 
     Args:
@@ -678,7 +678,7 @@ def fail_jobs_idle_since(
     # failing them would overwrite the outcome the worker is about to commit.
     stmt = stmt.limit(limit).with_for_update(skip_locked=True)
     now = datetime.now(UTC)
-    failed: list[tuple[str, str | None]] = []
+    failed: list[tuple[uuid.UUID, str | None]] = []
     for orm_job in db.scalars(stmt).all():
         failed.append((orm_job.id, orm_job.staged_key))
         _fail(orm_job, error_code, now)

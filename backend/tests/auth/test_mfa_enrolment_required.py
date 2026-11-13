@@ -1,5 +1,6 @@
 """The "Require MFA" setting: who it covers, how a principal carries it and which requests it still lets through."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -22,6 +23,8 @@ import modules.server_settings.contracts as server_settings_contracts
 from modules.auth.access_tokens.contracts import TokenType
 from modules.auth.contracts import AccessTokenCred, Principal
 from tests._helpers.auth import MOCK_USER_ID
+
+_SID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
 
 _MODULE = "modules.auth.authentication.principal_service"
 _ENROLMENT_REQUIRED = "urn:endurain:error:mfa-enrolment-required"
@@ -46,7 +49,7 @@ def _user(access_type: str):
 
 
 def _token_manager():
-    claims = {"sub": str(MOCK_USER_ID), "sid": "session-1", "scope": " ".join(auth_constants.ADMIN_ACCESS_SCOPE)}
+    claims = {"sub": str(MOCK_USER_ID), "sid": str(_SID), "scope": " ".join(auth_constants.ADMIN_ACCESS_SCOPE)}
     manager = MagicMock()
 
     def claim(_token, name, token_type):
@@ -125,7 +128,7 @@ def _principal(*, enrolment_required: bool) -> Principal:
         is_active=True,
         is_superuser=True,
         scopes=frozenset(auth_constants.ADMIN_ACCESS_SCOPE),
-        credential=AccessTokenCred(session_id="s"),
+        credential=AccessTokenCred(session_id=_SID),
         mfa_enrolment_required=enrolment_required,
     )
 
@@ -227,7 +230,7 @@ class TestTheRefusalIsAudited:
             is_active=True,
             is_superuser=True,
             scopes=frozenset(auth_constants.ADMIN_ACCESS_SCOPE),
-            credential=AccessTokenCred(session_id="other"),
+            credential=AccessTokenCred(session_id=uuid.UUID("00000000-0000-4000-8000-0000000000a2")),
             mfa_enrolment_required=True,
         )
 

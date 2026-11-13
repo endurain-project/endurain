@@ -19,6 +19,8 @@ from modules.users.users.schema import UserAccessType, UserRead
 
 _USER_ID_1 = uuid.UUID(int=1)
 _USER_ID_2 = uuid.UUID(int=2)
+_SESSION_ID = uuid.UUID(int=0x5E55)
+_OTHER_SESSION_ID = uuid.UUID(int=0x5E56)
 
 
 class TestTokenManagerSecurity:
@@ -47,7 +49,7 @@ class TestTokenManagerSecurity:
         - The "sub" claim matches the user's ID.
         - The "sid" claim matches the session ID.
         """
-        session_id = "test-session-123"
+        session_id = _SESSION_ID
         _, token = token_manager.create_token(
             session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
@@ -56,14 +58,25 @@ class TestTokenManagerSecurity:
         sid_claim = token_manager.get_token_claim(token, "sid", auth_token_manager.TokenType.ACCESS)
 
         assert sub_claim == str(sample_user_read.id), "sub claim should match user ID as a decimal string"
-        assert sid_claim == session_id, "sid claim should match session ID"
+        assert sid_claim == str(session_id), "sid claim should be the session ID text"
+
+    def test_the_sid_claim_is_the_canonical_uuid_text(self, token_manager, sample_user_read):
+        """The sid claim of a minted token is the session id's canonical UUID text."""
+        _, token = token_manager.create_token(
+            _SESSION_ID, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+        )
+
+        sid_claim = token_manager.get_token_claim(token, "sid", auth_token_manager.TokenType.ACCESS)
+
+        assert sid_claim == str(_SESSION_ID)
+        assert uuid.UUID(sid_claim) == _SESSION_ID
 
     def test_get_token_claim_with_missing_claim(self, token_manager, sample_user_read):
         """
         Test that get_token_claim raises an core_exceptions.UnauthenticatedError with status code 401 when attempting to retrieve a claim
         that does not exist in the token. Verifies that the exception detail message indicates the claim is missing.
         """
-        session_id = "test-session-id"
+        session_id = _SESSION_ID
         _, token = token_manager.create_token(
             session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
@@ -87,7 +100,7 @@ class TestTokenManagerSecurity:
             token_manager: The token manager instance used to create and decode tokens.
             sample_user_read: A sample user object used for token creation.
         """
-        session_id = "test-session-id"
+        session_id = _SESSION_ID
         _, token = token_manager.create_token(
             session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
@@ -116,7 +129,7 @@ class TestTokenManagerSecurity:
             - The 'sid' claim is present in the token payload.
             - The 'exp' claim is present in the token payload.
         """
-        session_id = "test-session-id"
+        session_id = _SESSION_ID
         _, token = token_manager.create_token(
             session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
@@ -165,7 +178,7 @@ class TestTokenManagerSecurity:
             refresh_keys=["refresh-secret-key-one-min-32-characters-long"],
         )
         _, token = manager1.create_token(
-            "session-id", sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            _SESSION_ID, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
         # Try to decode with different manager
@@ -185,7 +198,7 @@ class TestTokenManagerSecurity:
         `validate_token_expiration` with this token does not raise an `core_exceptions.UnauthenticatedError`. If an exception is raised,
         the test fails, indicating that valid tokens are incorrectly being marked as expired.
         """
-        session_id = "test-session-id"
+        session_id = _SESSION_ID
         _, token = token_manager.create_token(
             session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
@@ -230,7 +243,7 @@ class TestTokenManagerSecurity:
             token_manager: The token manager instance used to create tokens.
             sample_user_read: A sample user object for whom the token is created.
         """
-        session_id = "test-session-id"
+        session_id = _SESSION_ID
         exp_time, token = token_manager.create_token(
             session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
@@ -259,7 +272,7 @@ class TestTokenManagerSecurity:
             - The token is a string and not empty.
             - The expiration time is a `datetime` object and is set in the future.
         """
-        session_id = "test-session-id"
+        session_id = _SESSION_ID
         exp_time, token = token_manager.create_token(
             session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.REFRESH, timedelta(days=7)
         )
@@ -277,7 +290,7 @@ class TestTokenManagerSecurity:
         This test verifies that when creating both an access token and a refresh token for the same session and user,
         the expiration time of the access token is less than that of the refresh token, ensuring correct token lifetimes.
         """
-        session_id = "test-session-id"
+        session_id = _SESSION_ID
         access_exp, _ = token_manager.create_token(
             session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
@@ -291,7 +304,7 @@ class TestTokenManagerSecurity:
         """The expiry and the exp claim both come from the ttl argument, not from configuration."""
         before = datetime.now(UTC)
         exp_time, token = token_manager.create_token(
-            "session-id", sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=45)
+            _SESSION_ID, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=45)
         )
 
         assert timedelta(minutes=44, seconds=59) < exp_time - before < timedelta(minutes=45, seconds=1)
@@ -344,7 +357,7 @@ class TestTokenManagerSecurity:
         Asserts:
             The two generated tokens are not equal, confirming token uniqueness.
         """
-        session_id = "test-session-id"
+        session_id = _SESSION_ID
         _, token1 = token_manager.create_token(
             session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
@@ -370,7 +383,7 @@ class TestTokenManagerSecurity:
         Raises:
             core_exceptions.UnauthenticatedError: If the tampered token is detected as invalid, with status code 401.
         """
-        session_id = "test-session-id"
+        session_id = _SESSION_ID
         _, token = token_manager.create_token(
             session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
@@ -425,10 +438,14 @@ class TestTokenManagerSecurity:
             The tokens generated for different session IDs are not equal.
         """
         _, token1 = token_manager.create_token(
-            "session-id-1", sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            _SESSION_ID, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
         _, token2 = token_manager.create_token(
-            "session-id-2", sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            _OTHER_SESSION_ID,
+            sample_user_read,
+            ClientType.WEB,
+            auth_token_manager.TokenType.ACCESS,
+            timedelta(minutes=15),
         )
 
         assert token1 != token2, "Different session IDs should produce different tokens"
@@ -440,7 +457,7 @@ class TestTokenManagerSecurity:
         This test verifies that when a token is created using the token manager, the returned expiration time (`exp_time`)
         has its `tzinfo` attribute set to `timezone.utc`, ensuring that all expiration times are consistently in UTC.
         """
-        session_id = "test-session-id"
+        session_id = _SESSION_ID
         exp_time, _ = token_manager.create_token(
             session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
@@ -453,7 +470,7 @@ class TestTokenManagerSecurity:
         """
         # Create a token
         _, token = token_manager.create_token(
-            "session-id", sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            _SESSION_ID, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
         # Mock decode_token to raise a generic exception
@@ -479,7 +496,7 @@ class TestTokenManagerSecurity:
         Test InsecureClaimError handling in validate_token_expiration.
         """
         _, token = token_manager.create_token(
-            "session-id", sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            _SESSION_ID, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
         # Mock the validation to raise InsecureClaimError
@@ -499,7 +516,7 @@ class TestTokenManagerSecurity:
         Test generic exception handling in validate_token_expiration.
         """
         _, token = token_manager.create_token(
-            "session-id", sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            _SESSION_ID, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
         with patch.object(token_manager, "decode_token", side_effect=RuntimeError("Test error")):
@@ -513,7 +530,7 @@ class TestTokenManagerSecurity:
         Test MissingClaimError handling in validate_token_expiration.
         """
         _, token = token_manager.create_token(
-            "session-id", sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            _SESSION_ID, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
         # Mock to raise MissingClaimError
@@ -539,7 +556,7 @@ class TestTokenManagerSecurity:
     def test_validate_token_expiration_invalid_claim_error(self, token_manager, sample_user_read, error, detail):
         """A not-before or issued-at in the future reads as not valid yet; any other invalid claim as invalid claims."""
         _, token = token_manager.create_token(
-            "session-id", sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            _SESSION_ID, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
         with patch("modules.auth.access_tokens.service.jwt.JWTClaimsRegistry") as mock_registry:
@@ -594,7 +611,7 @@ class TestTokenManagerSecurity:
         )
 
         _, token = token_manager.create_token(
-            "session-id", regular_user, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            _SESSION_ID, regular_user, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
         scope = token_manager.get_token_claim(token, "scope", auth_token_manager.TokenType.ACCESS)
@@ -617,7 +634,7 @@ class TestRefreshIssuesAccountScopes:
         policy.access_token_ttl = timedelta(minutes=15)
 
         _, token = auth_token_service.mint_access_token(
-            sample_user_read, ClientType.WEB, token_manager, "session-id", policy
+            sample_user_read, ClientType.WEB, token_manager, _SESSION_ID, policy
         )
 
         scopes = set(token_manager.get_token_claim(token, "scope", auth_token_manager.TokenType.ACCESS).split())
@@ -640,7 +657,7 @@ class TestAdminTokenScopeNames:
         policy = MagicMock()
         policy.access_token_ttl = timedelta(minutes=15)
 
-        _, token = auth_token_service.mint_access_token(admin, ClientType.WEB, token_manager, "session-id", policy)
+        _, token = auth_token_service.mint_access_token(admin, ClientType.WEB, token_manager, _SESSION_ID, policy)
 
         scopes = set(token_manager.get_token_claim(token, "scope", auth_token_manager.TokenType.ACCESS).split())
         assert {

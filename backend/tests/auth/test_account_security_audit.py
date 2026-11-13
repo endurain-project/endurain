@@ -24,6 +24,11 @@ import modules.auth.mfa.schema as mfa_schema
 import modules.auth.schema as auth_schema
 import modules.auth.sessions.audit_actions as sessions_audit_actions
 
+_KEY_1 = uuid.UUID("00000000-0000-4000-8000-0000000000b1")
+_KEY_2 = uuid.UUID("00000000-0000-4000-8000-0000000000b2")
+_SID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+_SID_2 = uuid.UUID("00000000-0000-4000-8000-0000000000a2")
+
 USER_ID = uuid.UUID(int=7)
 IDP_ID = uuid.UUID(int=3)
 Change = account_security_events.AccountSecurityChange
@@ -121,7 +126,7 @@ class TestPasswordAudit:
                 MagicMock(),
                 mock_db,
                 revoke_other_sessions=revoke,
-                current_session_id="s",
+                current_session_id=_SID,
             )
         return clear_lock
 
@@ -291,7 +296,7 @@ class TestMfaAudit:
             jasil_testing.capture_audit() as audit,
         ):
             require_user.return_value.username = "alice"
-            mfa_workflow.enable_mfa(request, USER_ID, "sid", MagicMock(), store, mock_db)
+            mfa_workflow.enable_mfa(request, USER_ID, _SID, MagicMock(), store, mock_db)
         self.cleared = clear_lock
         return audit
 
@@ -305,7 +310,7 @@ class TestMfaAudit:
             jasil_testing.capture_audit() as audit,
         ):
             require_user.return_value.username = "alice"
-            mfa_workflow.disable_mfa(request, USER_ID, "sid", MagicMock(), mock_db, revoke_other_sessions=revoke)
+            mfa_workflow.disable_mfa(request, USER_ID, _SID, MagicMock(), mock_db, revoke_other_sessions=revoke)
         self.cleared = clear_lock
         return audit
 
@@ -319,7 +324,7 @@ class TestMfaAudit:
             jasil_testing.capture_audit() as audit,
         ):
             mfa_workflow.generate_backup_codes(
-                step_up, USER_ID, "sid", MagicMock(), mock_db, revoke_other_sessions=revoke
+                step_up, USER_ID, _SID, MagicMock(), mock_db, revoke_other_sessions=revoke
             )
         return audit
 
@@ -327,7 +332,7 @@ class TestMfaAudit:
         with self._revoker(3) as delete:
             audit = self._enable(mock_db)
 
-        delete.assert_called_once_with(USER_ID, mock_db, exclude_session_id="sid")
+        delete.assert_called_once_with(USER_ID, mock_db, exclude_session_id=_SID)
         entry = audit.assert_audited(
             account_security_audit_actions.MFA_ENABLE.id,
             target_type="user",
@@ -356,7 +361,7 @@ class TestMfaAudit:
         with self._revoker(2) as delete:
             audit = self._disable(mock_db)
 
-        delete.assert_called_once_with(USER_ID, mock_db, exclude_session_id="sid")
+        delete.assert_called_once_with(USER_ID, mock_db, exclude_session_id=_SID)
         entry = audit.assert_audited(
             account_security_audit_actions.MFA_DISABLE.id,
             target_type="user",
@@ -386,7 +391,7 @@ class TestMfaAudit:
             patch.object(mfa_workflow.mfa_integration, "disable_user_mfa"),
             pytest.raises(core_exceptions.UnauthenticatedError),
         ):
-            mfa_workflow.disable_mfa(request, USER_ID, "sid", MagicMock(), mock_db, revoke_other_sessions=True)
+            mfa_workflow.disable_mfa(request, USER_ID, _SID, MagicMock(), mock_db, revoke_other_sessions=True)
 
         delete.assert_not_called()
         mock_db.commit.assert_not_called()
@@ -395,7 +400,7 @@ class TestMfaAudit:
         with self._revoker(4) as delete:
             audit = self._backup_codes(mock_db)
 
-        delete.assert_called_once_with(USER_ID, mock_db, exclude_session_id="sid")
+        delete.assert_called_once_with(USER_ID, mock_db, exclude_session_id=_SID)
         entry = audit.assert_audited(
             account_security_audit_actions.BACKUP_CODES_GENERATE.id, target_type="user", target_id=str(USER_ID)
         )
@@ -423,9 +428,7 @@ class TestMfaAudit:
             ),
             pytest.raises(core_exceptions.UnauthenticatedError),
         ):
-            mfa_workflow.generate_backup_codes(
-                step_up, USER_ID, "sid", MagicMock(), mock_db, revoke_other_sessions=True
-            )
+            mfa_workflow.generate_backup_codes(step_up, USER_ID, _SID, MagicMock(), mock_db, revoke_other_sessions=True)
 
         delete.assert_not_called()
         mock_db.commit.assert_not_called()
@@ -436,9 +439,9 @@ class TestApiKeyAudit:
         data = api_keys_schema.UserApiKeyCreate(
             name="k", scopes=["activities:upload"], step_up={"current_password": "pw"}
         )
-        created = MagicMock(id="key-1")
+        created = MagicMock(id=_KEY_1)
         created.model_dump.return_value = {
-            "id": "key-1",
+            "id": _KEY_1,
             "name": "k",
             "scopes": ["activities:upload"],
             "created_at": "2026-01-01T00:00:00Z",
@@ -456,12 +459,12 @@ class TestApiKeyAudit:
             patch.object(api_keys_schema, "UserApiKeyCreatedRead"),
             jasil_testing.capture_audit() as audit,
         ):
-            api_key_service.create_user_api_key(USER_ID, "sid", data, datetime.now(UTC), MagicMock(), mock_db)
+            api_key_service.create_user_api_key(USER_ID, _SID, data, datetime.now(UTC), MagicMock(), mock_db)
 
         entry = audit.assert_audited(
             account_security_audit_actions.API_KEY_CREATE.id,
             target_type="api_key",
-            target_id="key-1",
+            target_id=str(_KEY_1),
             target_owner_id=str(USER_ID),
         )
         assert entry.details == {"scopes": ["activities:upload"]}
@@ -473,19 +476,19 @@ class TestApiKeyAudit:
             patch.object(api_key_service.api_keys_integration, "delete_api_key"),
             jasil_testing.capture_audit() as audit,
         ):
-            api_key_service.revoke_user_api_key("key-1", USER_ID, mock_db)
-            api_key_service.delete_user_api_key("key-2", USER_ID, mock_db)
+            api_key_service.revoke_user_api_key(_KEY_1, USER_ID, mock_db)
+            api_key_service.delete_user_api_key(_KEY_2, USER_ID, mock_db)
 
         audit.assert_audited(
             account_security_audit_actions.API_KEY_REVOKE.id,
             target_type="api_key",
-            target_id="key-1",
+            target_id=str(_KEY_1),
             target_owner_id=str(USER_ID),
         )
         audit.assert_audited(
             account_security_audit_actions.API_KEY_DELETE.id,
             target_type="api_key",
-            target_id="key-2",
+            target_id=str(_KEY_2),
             target_owner_id=str(USER_ID),
         )
 
@@ -496,12 +499,12 @@ class TestSessionAudit:
             patch.object(account_security_service.sessions_integration, "delete_session"),
             jasil_testing.capture_audit() as audit,
         ):
-            account_security_service.delete_user_session("sess-1", USER_ID, mock_db)
+            account_security_service.delete_user_session(_SID_2, USER_ID, mock_db)
 
         entry = audit.assert_audited(
             sessions_audit_actions.SESSION_REVOKE.id,
             target_type="session",
-            target_id="sess-1",
+            target_id=str(_SID_2),
             target_owner_id=str(USER_ID),
         )
         assert entry.details == {"sessions_revoked": 1}
@@ -511,7 +514,7 @@ class TestSessionAudit:
             patch.object(account_security_service.sessions_integration, "delete_sessions_by_user", return_value=4),
             jasil_testing.capture_audit() as audit,
         ):
-            account_security_service.delete_other_user_sessions(USER_ID, "sess-1", mock_db)
+            account_security_service.delete_other_user_sessions(USER_ID, _SID_2, mock_db)
 
         entry = audit.assert_audited(
             sessions_audit_actions.SESSION_REVOKE.id,
@@ -590,7 +593,7 @@ class TestIdentityUnlinkAudit:
             patch.object(identity_link_service.step_up_service, "verify_step_up_credentials"),
             jasil_testing.capture_audit() as audit,
         ):
-            identity_link_service.delete_identity_provider_link(IDP_ID, step_up, USER_ID, "sid", MagicMock(), mock_db)
+            identity_link_service.delete_identity_provider_link(IDP_ID, step_up, USER_ID, _SID, MagicMock(), mock_db)
 
         entry = audit.assert_audited(
             account_security_audit_actions.IDENTITY_LINK_UNLINK.id,
@@ -621,7 +624,7 @@ class TestIdentityUnlinkAudit:
             else:
                 step_up = auth_schema.StepUpVerification(current_password="pw")
                 identity_link_service.delete_identity_provider_link(
-                    IDP_ID, step_up, USER_ID, "sid", MagicMock(), mock_db
+                    IDP_ID, step_up, USER_ID, _SID, MagicMock(), mock_db
                 )
 
         end_sessions.assert_called_once_with(USER_ID, IDP_ID, mock_db)
@@ -675,9 +678,7 @@ class TestStepUpAudit:
             ),
             patch.object(step_up_service.lockout_integration, "report_lockout_applied"),
         ):
-            step_up_service.verify_step_up_credentials(
-                USER_ID, password, mfa_code, store, MagicMock(), session_id="sid-7"
-            )
+            step_up_service.verify_step_up_credentials(USER_ID, password, mfa_code, store, MagicMock(), session_id=_SID)
 
     def _store(self, *, locked=False):
         store = MagicMock()

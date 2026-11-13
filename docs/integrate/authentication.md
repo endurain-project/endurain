@@ -167,7 +167,7 @@ Cookie: __Host-endurain_refresh_token={refresh_token}
 ```json
 {
   "next_step": "tokens",
-  "session_id": "uuid",
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
   "access_token": "eyJ...",
   "csrf_token": "new_csrf_token",
   "token_type": "bearer",
@@ -181,7 +181,7 @@ Cookie: __Host-endurain_refresh_token={refresh_token}
 ```json
 {
   "next_step": "tokens",
-  "session_id": "uuid",
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
   "access_token": "eyJ...",
   "refresh_token": "eyJ...",
   "token_type": "bearer",

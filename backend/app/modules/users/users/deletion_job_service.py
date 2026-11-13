@@ -158,7 +158,7 @@ def request_deletion(
 def request_deletion_by_administrator(
     user_id: uuid.UUID,
     actor_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     step_up: auth_schema.StepUpVerification,
     step_up_store: account_security_integration.StepUpStore,
     states: users_deletion_state_store.UserDeletionStateStore,

@@ -1,5 +1,7 @@
 """The OpenAPI document describes an operation by its docstring prose and names it by its handler."""
 
+import uuid
+
 import core.problem_details as core_problem_details
 
 
@@ -7,7 +9,7 @@ def _document() -> dict:
     app = core_problem_details.ProblemDetailsFastAPI()
 
     @app.get("/sectioned")
-    def read_sectioned(user_id: int) -> dict:
+    def read_sectioned(user_id: uuid.UUID) -> dict:
         """Return the thing for a client.
 
         It answers the same thing every time.
@@ -21,7 +23,7 @@ def _document() -> dict:
         Raises:
             NotFoundError: When it is missing.
         """
-        return {"user_id": user_id}
+        return {"user_id": str(user_id)}
 
     @app.post("/prose")
     def create_prose() -> dict:

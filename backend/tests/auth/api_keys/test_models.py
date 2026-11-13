@@ -1,5 +1,7 @@
 """Tests for users_api_keys database models."""
 
+import uuid
+
 import modules.auth.api_keys.models as users_api_keys_models
 
 
@@ -37,9 +39,9 @@ class TestUsersApiKeysModel:
         assert id_column.nullable is False
 
     def test_users_api_keys_model_id_type(self):
-        """Test id column is a String type."""
+        """Test id column is a UUID type."""
         id_column = users_api_keys_models.UsersApiKeys.id
-        assert id_column.type.python_type is str
+        assert id_column.type.python_type is uuid.UUID
 
     def test_users_api_keys_model_user_id_not_nullable(self):
         """Test user_id column is not nullable."""

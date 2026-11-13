@@ -39,8 +39,7 @@ class RotatedRefreshToken(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    token_family_id: Mapped[str] = mapped_column(
-        String(36),
+    token_family_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users_sessions.token_family_id", ondelete="CASCADE"),
         nullable=False,
         index=True,

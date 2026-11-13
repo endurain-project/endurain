@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict
 class SignUpTokenState(BaseModel):
     """Database state used by sign-up workflows."""
 
-    id: str
+    id: uuid.UUID
     user_id: uuid.UUID
     token_hash: str
     created_at: datetime
@@ -18,7 +18,7 @@ class SignUpTokenState(BaseModel):
     email: str | None
     previous_email: str | None
     security_generation: int | None
-    change_id: str | None
+    change_id: uuid.UUID | None
     revert_until: datetime | None
     confirmed_at: datetime | None
     reverted_at: datetime | None
@@ -33,7 +33,7 @@ class SignUpTokenClaim(BaseModel):
     token.
     """
 
-    id: str
+    id: uuid.UUID
     user_id: uuid.UUID
     email: str | None
     previous_email: str | None

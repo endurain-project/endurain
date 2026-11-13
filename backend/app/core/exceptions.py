@@ -29,6 +29,7 @@ Every error leaves the API as an RFC 9457 problem document — see
 
 import http
 import math
+import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 
@@ -364,7 +365,7 @@ class JobAlreadyRunningError(ConflictError):
         job_id: The id of the running job, or None when it cannot be named.
     """
 
-    def __init__(self, detail: str | None = None, *, job_id: str | None) -> None:
+    def __init__(self, detail: str | None = None, *, job_id: uuid.UUID | None) -> None:
         """Initialise the error with the job in progress.
 
         Args:
@@ -375,7 +376,7 @@ class JobAlreadyRunningError(ConflictError):
         super().__init__(detail)
         self.job_id = job_id
         if job_id is not None:
-            self.extensions = {"job_id": job_id}
+            self.extensions = {"job_id": str(job_id)}
 
 
 class PreconditionFailedError(DomainError):
@@ -608,7 +609,7 @@ async def domain_error_handler(request: Request, exc: DomainError) -> JSONRespon
         seconds = max(0, math.ceil((exc.retry_at - datetime.now(UTC)).total_seconds()))
         headers = {**(headers or {}), "Retry-After": str(seconds)}
     if isinstance(exc, JobAlreadyRunningError) and exc.job_id is not None:
-        location = request.url_for(core_job_status.JOB_ROUTE, job_id=exc.job_id).path
+        location = request.url_for(core_job_status.JOB_ROUTE, job_id=str(exc.job_id)).path
         headers = {**(headers or {}), "Content-Location": location}
 
     return build_problem_response(

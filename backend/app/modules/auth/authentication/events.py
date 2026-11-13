@@ -31,7 +31,7 @@ class ApiKeyUsedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    api_key_id: str
+    api_key_id: uuid.UUID
 
 
 class AccountLockedPayload(VersionedPayload):

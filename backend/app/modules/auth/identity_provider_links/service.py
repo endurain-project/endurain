@@ -93,7 +93,7 @@ def end_idp_sessions_by_sid(
     return _end_live_sessions(owners, db)
 
 
-def _end_live_sessions(owners: list[tuple[str, uuid.UUID]], db: Session) -> dict[uuid.UUID, int]:
+def _end_live_sessions(owners: list[tuple[uuid.UUID, uuid.UUID]], db: Session) -> dict[uuid.UUID, int]:
     """Stage the end of the sessions that still exist among the given ones.
 
     A sign-in row outlives its session, and a session can end between the lookup and here, so a session that is

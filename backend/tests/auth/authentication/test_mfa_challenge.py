@@ -22,6 +22,8 @@ import modules.auth.sessions.models as sessions_models
 import modules.auth.sessions.service as sessions_service
 from tests.auth.authentication.conftest import BACKUP_CODE, MOBILE, PASSWORD, USER_ID, USERNAME, WEB
 
+_SESSION_ID = uuid.UUID(int=7)
+
 IDP_ID = uuid.uuid4()
 
 _LOGIN = "auth.session.login"
@@ -164,7 +166,7 @@ class TestSecurityGeneration:
                 MagicMock(),
                 db,
                 revoke_other_sessions=False,
-                current_session_id="session-1",
+                current_session_id=uuid.UUID("00000000-0000-4000-8000-0000000000a3"),
             )
             db.commit()
 
@@ -307,7 +309,7 @@ def _exchange(stack, *, claimed: bool):
         client_type="web",
         amr=["fed"],
     )
-    tokens = ("sid", datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
+    tokens = (_SESSION_ID, datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
     with (
         patch(f"{_SSO}.sessions_integration.get_session_with_oauth_state", return_value=(session, oauth_state)),
         patch(f"{_SSO}.auth_computation.validate_pkce_verifier"),
@@ -326,7 +328,7 @@ def _exchange(stack, *, claimed: bool):
     ):
         try:
             sso_exchange_service.exchange_tokens_for_session(
-                "sid",
+                _SESSION_ID,
                 "verifier",
                 BACKUP_CODE,
                 "web",

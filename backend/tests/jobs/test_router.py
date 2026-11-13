@@ -48,7 +48,7 @@ def _client(state, scopes=("account",), user_id=USER) -> TestClient:
         is_active=True,
         is_superuser=False,
         scopes=frozenset(scopes),
-        credential=auth_contracts.AccessTokenCred(session_id="sid"),
+        credential=auth_contracts.AccessTokenCred(session_id=uuid.UUID("00000000-0000-4000-8000-0000000000a1")),
     )
     app.dependency_overrides[core_dependencies.get_platform_state] = lambda: state
     app.dependency_overrides[core_database.get_db] = lambda: MagicMock()
@@ -69,7 +69,7 @@ class TestReadJob:
 
         assert response.status_code == 200
         body = response.json()
-        assert (body["id"], body["kind"], body["status"]) == (job.id, "strava_gear", "queued")
+        assert (body["id"], body["kind"], body["status"]) == (str(job.id), "strava_gear", "queued")
         assert response.headers["Retry-After"] == str(
             strava_constants.SYNC_POLL_SECONDS[strava_constants.SyncKind.GEAR]
         )
@@ -96,7 +96,10 @@ class TestReadJob:
 
         with patch(_INGESTION_READ, return_value=None):
             assert _client(state).get(f"/jobs/{job.id}").status_code == 404
-            assert _client(state).get("/jobs/missing").status_code == 404
+            assert _client(state).get(f"/jobs/{uuid.uuid4()}").status_code == 404
+
+    def test_an_id_that_is_not_a_uuid_is_refused(self, state):
+        assert _client(state).get("/jobs/not-a-uuid").status_code == 422
 
 
 class TestListJobs:
@@ -106,7 +109,7 @@ class TestListJobs:
         response = _client(state).get("/jobs", params={"kind": "strava_gear", "status": "queued"})
 
         assert response.status_code == 200
-        assert [item["id"] for item in response.json()["items"]] == [job.id]
+        assert [item["id"] for item in response.json()["items"]] == [str(job.id)]
         assert response.json()["next_cursor"] is None
 
     def test_an_unknown_kind_is_refused(self, state):

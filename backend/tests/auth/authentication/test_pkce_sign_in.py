@@ -2,6 +2,7 @@
 
 import base64
 import hashlib
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -214,7 +215,7 @@ class TestSecurityGeneration:
     @staticmethod
     def _state(stack, session_id):
         with stack.factory() as db:
-            return sessions_integration.get_session_with_oauth_state(session_id, db)[1]
+            return sessions_integration.get_session_with_oauth_state(uuid.UUID(session_id), db)[1]
 
     @staticmethod
     def _exchange(stack, session_id):
@@ -261,7 +262,7 @@ class TestSecurityGeneration:
                 MagicMock(),
                 db,
                 revoke_other_sessions=False,
-                current_session_id="session-1",
+                current_session_id=uuid.UUID("00000000-0000-4000-8000-0000000000a3"),
             )
             db.commit()
 
@@ -280,9 +281,9 @@ class TestSecurityGeneration:
 
 
 class TestWebExchange:
-    def _web_session(self, stack, client_type=ClientType.WEB, security_generation=0) -> str:
+    def _web_session(self, stack, client_type=ClientType.WEB, security_generation=0) -> uuid.UUID:
         """Create the session an identity-provider callback leaves for a client, stamped as the callback stamps it."""
-        session_id = str(uuid4())
+        session_id = uuid4()
         state_id, nonce = oauth_state_integration.create_state_id_and_nonce()
         with stack.factory() as db:
             state = oauth_state_integration.create_oauth_state(

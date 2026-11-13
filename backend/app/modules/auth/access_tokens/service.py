@@ -307,7 +307,7 @@ class TokenManager:
 
     def create_token(
         self,
-        session_id: str,
+        session_id: uuid.UUID,
         user: users_schema.UserRead,
         client_type: auth_constants.ClientType,
         token_type: TokenType,
@@ -320,7 +320,7 @@ class TokenManager:
         behind the issuer's still accepts it within the clock leeway.
 
         Args:
-            session_id (str): The unique identifier for the session.
+            session_id (uuid.UUID): The unique identifier for the session.
             user (users_schema.UserRead): The user object containing user
                 details.
             client_type: The client type the session was created for.
@@ -343,7 +343,7 @@ class TokenManager:
         now = int(datetime.now(UTC).timestamp())
 
         scope_dict = {
-            "sid": session_id,
+            "sid": str(session_id),
             "iss": core_config.settings.ENDURAIN_HOST,
             "aud": token_audience(token_type),
             "sub": str(user.id),

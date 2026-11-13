@@ -57,12 +57,10 @@ class _Changed(Protocol):
 
 
 #: Reads a type's changed records after a position: ``(user_id, after, until, limit, db)``.
-_ChangedReader = Callable[[uuid.UUID, core_sync.Position[uuid.UUID] | None, datetime, int, Session], Sequence[_Changed]]
+_ChangedReader = Callable[[uuid.UUID, core_sync.Position | None, datetime, int, Session], Sequence[_Changed]]
 
 #: Reads a type's tombstones after a position: ``(user_id, after, until, limit, db)``.
-_DeletedReader = Callable[
-    [uuid.UUID, core_sync.Position[uuid.UUID] | None, datetime, int, Session], Sequence[core_sync.Deletion[uuid.UUID]]
-]
+_DeletedReader = Callable[[uuid.UUID, core_sync.Position | None, datetime, int, Session], Sequence[core_sync.Deletion]]
 
 
 @dataclass(frozen=True)
@@ -225,7 +223,7 @@ def _decode(cursor: str) -> _Cursor:
     return _Cursor((raw.s, raw.r, row_id), raw.t)
 
 
-def _after(rank: int, position: _Order | None) -> core_sync.Position[uuid.UUID] | None:
+def _after(rank: int, position: _Order | None) -> core_sync.Position | None:
     # A source ranked before the cursor's has reported everything at the cursor's stamp, the cursor's own source
     # continues after its id, and a source ranked after it has reported nothing at that stamp yet.
     if position is None:
@@ -255,9 +253,7 @@ def _record_entries(source: _TypeSources, rank: int, records: Sequence[_Changed]
     return entries
 
 
-def _deletion_entries(
-    source: _TypeSources, rank: int, deletions: Sequence[core_sync.Deletion[uuid.UUID]]
-) -> list[_Entry]:
+def _deletion_entries(source: _TypeSources, rank: int, deletions: Sequence[core_sync.Deletion]) -> list[_Entry]:
     entries = []
     for deletion in deletions:
         change = source.change.model_validate({"id": deletion.record_id, "changed_at": deletion.deleted_at})

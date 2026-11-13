@@ -58,7 +58,7 @@ class IdpSessionTokenRead(BaseModel):
     """Persisted identity-provider sign-in of one Endurain session, including its encrypted refresh and ID tokens."""
 
     id: uuid.UUID
-    session_id: str
+    session_id: uuid.UUID
     user_id: uuid.UUID
     idp_id: uuid.UUID
     refresh_token: str | None

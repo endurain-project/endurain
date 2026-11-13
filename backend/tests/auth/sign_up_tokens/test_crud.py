@@ -11,12 +11,13 @@ import modules.auth.sign_up_tokens.crud as sign_up_crud
 import modules.auth.sign_up_tokens.schema as sign_up_schema
 from tests._helpers.auth import MOCK_USER_ID
 from tests._helpers.db import create_sqlite_session, ensure_user
+from tests.auth.sign_up_tokens.ids import tid
 
 
 def test_create_token_stages_row_without_committing(mock_db):
     now = datetime.now(UTC)
     token = sign_up_schema.SignUpToken(
-        id="token-id",
+        id=tid("token-id"),
         user_id=MOCK_USER_ID,
         token_hash="hash",
         created_at=now,
@@ -59,7 +60,7 @@ class TestClaimSignUpToken:
         now = datetime.now(UTC)
         sign_up_crud.create_sign_up_token(
             sign_up_schema.SignUpToken(
-                id="token-1",
+                id=tid("token-1"),
                 user_id=MOCK_USER_ID,
                 token_hash="hash",
                 created_at=now,
@@ -78,7 +79,7 @@ class TestClaimSignUpToken:
         claim = sign_up_crud.claim_sign_up_token("hash", db)
 
         assert claim is not None
-        assert (claim.id, claim.user_id) == ("token-1", MOCK_USER_ID)
+        assert (claim.id, claim.user_id) == (tid("token-1"), MOCK_USER_ID)
         assert sign_up_crud.claim_sign_up_token("hash", db) is None
 
     def test_the_claim_carries_the_tokens_addresses(self):

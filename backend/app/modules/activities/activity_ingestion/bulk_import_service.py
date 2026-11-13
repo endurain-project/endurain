@@ -97,7 +97,7 @@ _HEARTBEAT_SECONDS = 60.0
 
 
 @contextlib.contextmanager
-def _heartbeat(job_id: str) -> Iterator[None]:
+def _heartbeat(job_id: uuid.UUID) -> Iterator[None]:
     """Keep a job's ``updated_at`` fresh on a background thread while the body runs.
 
     A folder import has no batch checkpoints while it is packed, so this is what tells the stale-job
@@ -185,7 +185,7 @@ def resolve_format(name: str) -> activity_ingestion_contracts.BulkImportFormat:
     return found
 
 
-def _archive_key(job_id: str) -> str:
+def _archive_key(job_id: uuid.UUID) -> str:
     """Return the staged-upload key a job's archive is held under.
 
     Args:
@@ -198,7 +198,7 @@ def _archive_key(job_id: str) -> str:
     return f"{_ARCHIVE_KEY_PREFIX}{job_id}.zip"
 
 
-def _already_running(running_id: str | None) -> core_exceptions.ConflictError:
+def _already_running(running_id: uuid.UUID | None) -> core_exceptions.ConflictError:
     """Build the refusal of a second bulk import, naming the one that is running.
 
     Args:
@@ -229,7 +229,7 @@ def _ensure_none_running(user_id: uuid.UUID, db: Session) -> None:
 
 
 def _stage_import_request(
-    job_id: str,
+    job_id: uuid.UUID,
     user_id: uuid.UUID,
     source: activity_ingestion_audit_actions.ImportSource,
     file_count: int | None,
@@ -248,7 +248,7 @@ def _stage_import_request(
         db,
         activity_ingestion_audit_actions.IMPORT_REQUEST,
         target_type="activity_ingestion_job",
-        target_id=job_id,
+        target_id=str(job_id),
         target_owner_id=str(user_id),
         details=activity_ingestion_audit_actions.ImportRequestDetails(source=source, file_count=file_count),
     )
@@ -333,7 +333,7 @@ def accept_archive(
         upload_dir=core_config.FILES_UPLOAD_INCOMING_DIR,
         filename=f"{uuid.uuid4().hex}.zip",
     )
-    job_id = str(uuid.uuid4())
+    job_id = uuid.uuid4()
     key = _archive_key(job_id)
     try:
         fingerprint = _request_fingerprint(incoming_path, bulk_format.name) if idempotency_key else None
@@ -440,7 +440,7 @@ def start_from_directory(
     if not _folder_has_importable_file(directory, bulk_format):
         raise core_exceptions.InvalidInputError("There is nothing to import in your import folder")
 
-    job_id = str(uuid.uuid4())
+    job_id = uuid.uuid4()
     try:
         activity_ingestion_crud.create_ingestion_job(
             job_id,
@@ -490,7 +490,7 @@ def _folder_has_importable_file(directory: str, bulk_format: activity_ingestion_
 
 
 def feed_archive_from_directory(
-    job_id: str,
+    job_id: uuid.UUID,
     user_id: uuid.UUID,
     source: str,
     directory: str,
@@ -613,7 +613,7 @@ def _pack_directory(
     return importable
 
 
-def _job_view(job_id: str, user_id: uuid.UUID, db: Session) -> activity_ingestion_schema.ActivityIngestionJobRead:
+def _job_view(job_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> activity_ingestion_schema.ActivityIngestionJobRead:
     """Read an accepted job back for the response.
 
     Args:
@@ -630,7 +630,7 @@ def _job_view(job_id: str, user_id: uuid.UUID, db: Session) -> activity_ingestio
     return job
 
 
-def run_bulk_import_job(job_id: str, storage: platform_providers.StorageProvider) -> bool:
+def run_bulk_import_job(job_id: uuid.UUID, storage: platform_providers.StorageProvider) -> bool:
     """Work one batch of a bulk import, recording the outcome on the job row.
 
     The job body for both executors. On the durable profile a batch that leaves
@@ -673,7 +673,7 @@ def _batch_budget() -> tuple[int, float | None]:
     return _BATCH_MAX_FILES, float(max(_MIN_BATCH_SECONDS, lease // _LEASE_FRACTION))
 
 
-def _run_batch(job_id: str, storage: platform_providers.StorageProvider) -> bool:
+def _run_batch(job_id: uuid.UUID, storage: platform_providers.StorageProvider) -> bool:
     """Import files from the job's archive until the batch budget is spent.
 
     Args:
@@ -830,7 +830,7 @@ def _import_member(
     member_name: str,
     user_id: uuid.UUID,
     source: activity_ingestion_contracts.BulkImportSource,
-    job_id: str,
+    job_id: uuid.UUID,
     storage: platform_providers.StorageProvider,
 ) -> bool:
     """Import one archive member; a bad file is counted failed, an outage is raised.
@@ -882,7 +882,7 @@ def _keep_failed_member(
     archive: zipfile.ZipFile,
     member_name: str,
     user_id: uuid.UUID,
-    job_id: str,
+    job_id: uuid.UUID,
     storage: platform_providers.StorageProvider,
 ) -> None:
     """Keep a failed file's bytes where the operator can recover them.
@@ -918,7 +918,7 @@ def _keep_failed_member(
         )
 
 
-def _save_progress(job_id: str, cursor: str | None, done: int, failed: int) -> None:
+def _save_progress(job_id: uuid.UUID, cursor: str | None, done: int, failed: int) -> None:
     """Record a bulk import's resume point in its own short transaction.
 
     Args:
@@ -933,7 +933,7 @@ def _save_progress(job_id: str, cursor: str | None, done: int, failed: int) -> N
     logger.debug("Bulk import progress saved", extra=core_logger.context(job_id=job_id, done=done, failed=failed))
 
 
-def _checkpoint(job_id: str, cursor: str | None, done: int, failed: int) -> None:
+def _checkpoint(job_id: uuid.UUID, cursor: str | None, done: int, failed: int) -> None:
     """End a batch that left files over: record progress and release the job's claim.
 
     Releasing returns the job to ``pending`` so the next batch can claim it. Without

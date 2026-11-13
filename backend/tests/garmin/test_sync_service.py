@@ -276,7 +276,7 @@ class TestRunSync:
             )
 
         push.assert_called_once_with(
-            MOCK_USER_ID, {"message": "JOB_STATUS_CHANGED", "job_id": job.id, "kind": "garmin_sync_gear"}
+            MOCK_USER_ID, {"message": "JOB_STATUS_CHANGED", "job_id": str(job.id), "kind": "garmin_sync_gear"}
         )
 
     def test_a_failure_nothing_retries_is_recorded_released_and_raised(self, rate_limits, states):

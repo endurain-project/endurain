@@ -414,7 +414,7 @@ def list_changed[RowT: core_sync.UpdatedAtMixin, ReadT: BaseModel](
     row_id: InstrumentedAttribute[uuid.UUID],
     read_schema: type[ReadT],
     user_id: uuid.UUID,
-    after: core_sync.Position[uuid.UUID] | None,
+    after: core_sync.Position | None,
     until: datetime,
     limit: int,
     db: Session,
@@ -443,11 +443,11 @@ def list_changed[RowT: core_sync.UpdatedAtMixin, ReadT: BaseModel](
 def list_deletions(
     sync_type: str,
     user_id: uuid.UUID,
-    after: core_sync.Position[uuid.UUID] | None,
+    after: core_sync.Position | None,
     until: datetime,
     limit: int,
     db: Session,
-) -> list[core_sync.Deletion[uuid.UUID]]:
+) -> list[core_sync.Deletion]:
     """Retrieve a user's deleted records of one type after a position, oldest deletion first.
 
     Args:

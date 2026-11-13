@@ -12,6 +12,8 @@ import modules.websocket.service as websocket_service
 
 USER = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
 OTHER_USER = uuid.UUID("7b1c93e4-5d28-4f6a-8e03-a94d2c6f1b57")
+SESSION_1 = uuid.UUID("5b0f6c1e-2d3a-4b7c-8e91-3a4d5c6b7e01")
+SESSION_2 = uuid.UUID("5b0f6c1e-2d3a-4b7c-8e91-3a4d5c6b7e02")
 
 
 class TestWebSocketManager:
@@ -39,7 +41,7 @@ class TestWebSocketManager:
         """Test connecting a WebSocket."""
         user_id = USER
 
-        await manager.connect(user_id, "s1", mock_websocket)
+        await manager.connect(user_id, SESSION_1, mock_websocket)
 
         # Verify websocket.accept was called
         mock_websocket.accept.assert_awaited_once()
@@ -57,8 +59,8 @@ class TestWebSocketManager:
         ws2 = AsyncMock()
         ws2.accept = AsyncMock()
 
-        await manager.connect(USER, "s1", ws1)
-        await manager.connect(OTHER_USER, "s1", ws2)
+        await manager.connect(USER, SESSION_1, ws1)
+        await manager.connect(OTHER_USER, SESSION_1, ws2)
 
         assert len(manager.active_connections) == 2
         assert manager.active_connections[USER] == [ws1]
@@ -68,7 +70,7 @@ class TestWebSocketManager:
     async def test_disconnect(self, mock_log, manager, mock_websocket):
         """Test disconnecting a WebSocket."""
         user_id = USER
-        await manager.connect(user_id, "s1", mock_websocket)
+        await manager.connect(user_id, SESSION_1, mock_websocket)
 
         manager.disconnect(user_id, mock_websocket)
 
@@ -93,7 +95,7 @@ class TestWebSocketManager:
     async def test_get_connections(self, manager, mock_websocket):
         """Test retrieving a user's WebSocket connection."""
         user_id = USER
-        await manager.connect(user_id, "s1", mock_websocket)
+        await manager.connect(user_id, SESSION_1, mock_websocket)
 
         assert manager.get_connections(user_id) == [mock_websocket]
 
@@ -105,16 +107,16 @@ class TestWebSocketManager:
         """Two tabs of one user are both registered."""
         first, second = AsyncMock(), AsyncMock()
 
-        await manager.connect(USER, "s1", first)
-        await manager.connect(USER, "s1", second)
+        await manager.connect(USER, SESSION_1, first)
+        await manager.connect(USER, SESSION_1, second)
 
         assert manager.get_connections(USER) == [first, second]
 
     async def test_closing_one_tab_keeps_the_other_registered(self, manager):
         """Disconnecting by connection identity leaves the user's other tab receiving pushes."""
         first, second = AsyncMock(), AsyncMock()
-        await manager.connect(USER, "s1", first)
-        await manager.connect(USER, "s1", second)
+        await manager.connect(USER, SESSION_1, first)
+        await manager.connect(USER, SESSION_1, second)
 
         manager.disconnect(USER, first)
 
@@ -126,7 +128,7 @@ class TestWebSocketManager:
     async def test_the_last_disconnect_drops_the_user(self, manager):
         """A user with no connections left is not kept in the registry."""
         ws = AsyncMock()
-        await manager.connect(USER, "s1", ws)
+        await manager.connect(USER, SESSION_1, ws)
 
         manager.disconnect(USER, ws)
         manager.disconnect(USER, ws)
@@ -136,8 +138,8 @@ class TestWebSocketManager:
     async def test_deliver_hint_reaches_every_connection(self, manager):
         """A message to a user goes to each of their tabs."""
         first, second = AsyncMock(), AsyncMock()
-        await manager.connect(USER, "s1", first)
-        await manager.connect(USER, "s1", second)
+        await manager.connect(USER, SESSION_1, first)
+        await manager.connect(USER, SESSION_1, second)
 
         await websocket_service.deliver_hint(USER, {"k": "v"}, manager)
 
@@ -153,9 +155,9 @@ class TestEviction:
         return websocket_manager.WebSocketManager()
 
     async def _fill(self, manager, oldest):
-        await manager.connect(USER, "s1", oldest)
+        await manager.connect(USER, SESSION_1, oldest)
         for _ in range(websocket_manager.MAX_CONNECTIONS_PER_USER):
-            await manager.connect(USER, "s1", AsyncMock())
+            await manager.connect(USER, SESSION_1, AsyncMock())
 
     @pytest.mark.parametrize("failure", [WebSocketDisconnect(code=1006), RuntimeError("closed")])
     async def test_a_close_that_fails_does_not_block_the_new_connection(self, manager, failure):
@@ -229,8 +231,8 @@ class TestSendIsolation:
     async def test_deliver_hint_skips_a_broken_connection(self, manager):
         broken, healthy = AsyncMock(), AsyncMock()
         broken.send_json.side_effect = RuntimeError("closed")
-        await manager.connect(USER, "s1", broken)
-        await manager.connect(USER, "s1", healthy)
+        await manager.connect(USER, SESSION_1, broken)
+        await manager.connect(USER, SESSION_1, healthy)
 
         await websocket_service.deliver_hint(USER, {"k": "v"}, manager)
 
@@ -242,8 +244,8 @@ class TestSendIsolation:
 
         stalled, healthy = AsyncMock(), AsyncMock()
         stalled.send_json.side_effect = never
-        await manager.connect(USER, "s1", stalled)
-        await manager.connect(USER, "s1", healthy)
+        await manager.connect(USER, SESSION_1, stalled)
+        await manager.connect(USER, SESSION_1, healthy)
 
         with patch.object(websocket_manager, "SEND_TIMEOUT_SECONDS", 0.01):
             failures = await websocket_manager.send_json_to_all(manager.get_connections(USER), {"k": "v"})
@@ -257,8 +259,8 @@ class TestSendIsolation:
 
         stalled, healthy = AsyncMock(), AsyncMock()
         stalled.send_json.side_effect = never
-        await manager.connect(USER, "s1", stalled)
-        await manager.connect(USER, "s1", healthy)
+        await manager.connect(USER, SESSION_1, stalled)
+        await manager.connect(USER, SESSION_1, healthy)
 
         with patch.object(websocket_manager, "SEND_TIMEOUT_SECONDS", 0.01):
             await websocket_service.deliver_hint(USER, {"k": "v"}, manager)
@@ -268,7 +270,7 @@ class TestSendIsolation:
     async def test_an_unserializable_payload_keeps_the_connection(self, manager):
         socket = AsyncMock()
         socket.send_json.side_effect = TypeError("not serializable")
-        await manager.connect(USER, "s1", socket)
+        await manager.connect(USER, SESSION_1, socket)
 
         await websocket_service.deliver_hint(USER, {"k": object()}, manager)
 
@@ -280,8 +282,8 @@ class TestSessionTracking:
         manager = websocket_manager.WebSocketManager()
         ws = AsyncMock()
 
-        await manager.connect(USER, "s1", ws)
-        assert manager.session_ids == {ws: "s1"}
+        await manager.connect(USER, SESSION_1, ws)
+        assert manager.session_ids == {ws: SESSION_1}
 
         manager.disconnect(USER, ws)
         assert manager.session_ids == {}
@@ -289,8 +291,8 @@ class TestSessionTracking:
     async def test_an_evicted_connection_is_forgotten(self):
         manager = websocket_manager.WebSocketManager()
         oldest = AsyncMock()
-        await manager.connect(USER, "s1", oldest)
+        await manager.connect(USER, SESSION_1, oldest)
         for _ in range(websocket_manager.MAX_CONNECTIONS_PER_USER):
-            await manager.connect(USER, "s2", AsyncMock())
+            await manager.connect(USER, SESSION_2, AsyncMock())
 
         assert oldest not in manager.session_ids

@@ -2,6 +2,7 @@
 
 import io
 import json
+import uuid
 import zipfile
 from datetime import date
 from decimal import Decimal
@@ -400,8 +401,11 @@ def _reader(z, **overrides) -> profile_utils.ZipArchiveReader:
     return profile_utils.ZipArchiveReader(z, **{**limits, **overrides})
 
 
+_ROW_A, _ROW_B, _ROW_C = (uuid.UUID(int=n) for n in (1, 2, 3))
+
+
 class _Row(BaseModel):
-    id: int
+    id: uuid.UUID
 
 
 class TestZipArchiveWriter:
@@ -409,10 +413,10 @@ class TestZipArchiveWriter:
         buf = io.BytesIO()
         counts: dict[str, int] = {}
         with zipfile.ZipFile(buf, "w") as z:
-            profile_utils.ZipArchiveWriter(z, counts).write_json("data/gears.json", [_Row(id=1), _Row(id=2)])
+            profile_utils.ZipArchiveWriter(z, counts).write_json("data/gears.json", [_Row(id=_ROW_A), _Row(id=_ROW_B)])
 
         with zipfile.ZipFile(buf) as z:
-            assert json.loads(z.read("data/gears.json")) == [{"id": 1}, {"id": 2}]
+            assert json.loads(z.read("data/gears.json")) == [{"id": str(_ROW_A)}, {"id": str(_ROW_B)}]
         assert counts == {"gears": 2}
 
     def test_an_empty_write_counts_zero(self):
@@ -427,8 +431,10 @@ class TestZipArchiveWriter:
         counts: dict[str, int] = {}
         with zipfile.ZipFile(buf, "w") as z:
             writer = profile_utils.ZipArchiveWriter(z, counts)
-            writer.write_json_stream("data/streamed.json", iter([[_Row(id=1)], [], [_Row(id=2), _Row(id=3)]]))
-            writer.write_json("data/whole.json", [_Row(id=1), _Row(id=2), _Row(id=3)])
+            writer.write_json_stream(
+                "data/streamed.json", iter([[_Row(id=_ROW_A)], [], [_Row(id=_ROW_B), _Row(id=_ROW_C)]])
+            )
+            writer.write_json("data/whole.json", [_Row(id=_ROW_A), _Row(id=_ROW_B), _Row(id=_ROW_C)])
 
         with zipfile.ZipFile(buf) as z:
             assert z.read("data/streamed.json") == z.read("data/whole.json")

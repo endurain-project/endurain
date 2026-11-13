@@ -16,6 +16,7 @@ import modules.auth.mfa.pending_login_store as pending_login_store
 import modules.auth.oauth_state.constants as oauth_state_constants
 
 _USER_ID = uuid.UUID(int=42)
+_SESSION_ID = uuid.UUID(int=7)
 
 IDP_ID = uuid.uuid4()
 
@@ -67,9 +68,16 @@ def _session_and_state(client_type: str = "mobile", idp_id: uuid.UUID | None = I
 
 
 class TestTokenExchange:
+    def test_a_session_id_that_is_not_a_uuid_is_refused(self, mock_db):
+        response = _client(mock_db).post("/api/v1/auth/sessions/not-a-uuid/tokens", json={"code_verifier": _VERIFIER})
+
+        assert response.status_code == 422
+
     @patch(f"{_SERVICE}.sessions_integration.get_session_with_oauth_state", return_value=None)
     def test_session_not_found(self, _mock_get_session, mock_db):
-        response = _client(mock_db).post("/api/v1/auth/sessions/unknown/tokens", json={"code_verifier": _VERIFIER})
+        response = _client(mock_db).post(
+            f"/api/v1/auth/sessions/{_SESSION_ID}/tokens", json={"code_verifier": _VERIFIER}
+        )
 
         assert response.status_code == 404
 
@@ -77,7 +85,9 @@ class TestTokenExchange:
     def test_a_session_without_oauth_state_is_not_eligible(self, mock_get_session, mock_db):
         mock_get_session.return_value = (_session_and_state()[0], None)
 
-        response = _client(mock_db).post("/api/v1/auth/sessions/s/tokens", json={"code_verifier": _VERIFIER})
+        response = _client(mock_db).post(
+            f"/api/v1/auth/sessions/{_SESSION_ID}/tokens", json={"code_verifier": _VERIFIER}
+        )
 
         assert response.status_code == 404
 
@@ -112,7 +122,7 @@ class TestTokenExchange:
         )
 
         response = _client(mock_db).post(
-            "/api/v1/auth/sessions/session-id/tokens",
+            f"/api/v1/auth/sessions/{_SESSION_ID}/tokens",
             json={"code_verifier": _VERIFIER},
             headers={"X-Client-Type": "mobile"},
         )
@@ -135,7 +145,7 @@ class TestTokenExchange:
         mock_get_session.return_value = _session_and_state("mobile")
 
         response = _client(mock_db).post(
-            "/api/v1/auth/sessions/session-id/tokens",
+            f"/api/v1/auth/sessions/{_SESSION_ID}/tokens",
             json={"code_verifier": _VERIFIER},
             headers={"X-Client-Type": "web"},
         )
@@ -172,7 +182,7 @@ class TestTokenExchange:
         mock_claim.return_value = datetime.now(UTC) + timedelta(hours=2)
 
         response = _client(mock_db).post(
-            "/api/v1/auth/sessions/session-id/tokens",
+            f"/api/v1/auth/sessions/{_SESSION_ID}/tokens",
             json={"code_verifier": _VERIFIER},
             headers={"X-Client-Type": "mobile"},
         )
@@ -200,7 +210,9 @@ class TestTokenExchange:
             "c",
         )
 
-        response = _client(mock_db).post("/api/v1/auth/sessions/s/tokens", json={"code_verifier": _VERIFIER})
+        response = _client(mock_db).post(
+            f"/api/v1/auth/sessions/{_SESSION_ID}/tokens", json={"code_verifier": _VERIFIER}
+        )
 
         assert response.status_code == 404
         mock_db.commit.assert_not_called()
@@ -211,12 +223,14 @@ class TestTokenExchangeHeader:
         client = _client(mock_db)
         client.headers.pop("X-Client-Type")
 
-        response = client.post("/api/v1/auth/sessions/s/tokens", json={"code_verifier": _VERIFIER})
+        response = client.post(f"/api/v1/auth/sessions/{_SESSION_ID}/tokens", json={"code_verifier": _VERIFIER})
 
         assert response.status_code == 422
 
     def test_the_old_path_is_gone(self, mock_db):
-        response = _client(mock_db).post("/api/v1/public/idp/session/s/tokens", json={"code_verifier": _VERIFIER})
+        response = _client(mock_db).post(
+            f"/api/v1/public/idp/session/{_SESSION_ID}/tokens", json={"code_verifier": _VERIFIER}
+        )
 
         assert response.status_code == 404
 
@@ -226,7 +240,7 @@ class TestTokenExchangeMfa:
 
     def _post(self, mock_db, store, **body):
         return _client(mock_db, store).post(
-            "/api/v1/auth/sessions/session-id/tokens",
+            f"/api/v1/auth/sessions/{_SESSION_ID}/tokens",
             json={"code_verifier": _VERIFIER, **body},
             headers={"X-Client-Type": "mobile"},
         )

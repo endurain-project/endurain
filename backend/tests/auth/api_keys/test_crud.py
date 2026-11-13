@@ -1,5 +1,6 @@
 """Tests for staged API-key persistence operations."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -12,10 +13,13 @@ import modules.auth.api_keys.models as api_keys_models
 import modules.auth.api_keys.schema as api_keys_schema
 from tests._helpers.auth import MOCK_USER_ID
 
+KEY_ID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+MISSING_KEY_ID = uuid.UUID("00000000-0000-4000-8000-0000000000a2")
+
 
 def _row(**overrides):
     values = {
-        "id": "api-key-id",
+        "id": KEY_ID,
         "user_id": MOCK_USER_ID,
         "name": "CLI",
         "key_prefix": "12345678",
@@ -63,7 +67,6 @@ def test_create_api_key_stages_hashed_key(mock_db):
     expires_at = datetime.now(UTC) + timedelta(days=30)
     with (
         patch.object(api_keys_models, "UsersApiKeys", return_value=row) as constructor,
-        patch("modules.auth.api_keys.crud.uuid.uuid4", return_value="api-key-id"),
     ):
         result = api_keys_crud.create_api_key(
             MOCK_USER_ID, data, raw_key, "h" * 64, '["activities:upload"]', expires_at, mock_db
@@ -90,7 +93,7 @@ def test_update_last_used_stages_timestamp(mock_db):
 def test_update_last_used_missing_key_raises_not_found(mock_db):
     mock_db.get.return_value = None
     with pytest.raises(core_exceptions.NotFoundError):
-        api_keys_crud.update_last_used("missing", mock_db)
+        api_keys_crud.update_last_used(MISSING_KEY_ID, mock_db)
 
 
 def test_revoke_and_delete_stage_owned_key(mock_db):
@@ -109,7 +112,7 @@ def test_revoke_and_delete_stage_owned_key(mock_db):
 def test_revoke_missing_key_raises_not_found(mock_db):
     mock_db.execute.return_value.scalar_one_or_none.return_value = None
     with pytest.raises(core_exceptions.NotFoundError):
-        api_keys_crud.revoke_api_key("missing", 1, mock_db)
+        api_keys_crud.revoke_api_key(MISSING_KEY_ID, MOCK_USER_ID, mock_db)
 
 
 def test_revoking_a_revoked_key_keeps_its_first_revocation_time(mock_db):

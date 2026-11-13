@@ -19,6 +19,7 @@ import modules.garmin.schema as garmin_schema
 import modules.garmin.sync_state_store as sync_state_store
 from tests._helpers.auth import MOCK_USER_ID
 
+_JOB_ID = uuid.UUID("a1000000-0000-4000-8000-000000000021")
 _BODY = {"username": "me@example.com", "password": "pw", "is_cn": False}
 
 
@@ -66,7 +67,7 @@ def test_link_returns_running_at_once_and_starts_the_login(mock_start):
         False,
     )
     assert response.headers["Content-Location"] == f"/jobs/{body['id']}"
-    assert link_states.current_job(MOCK_USER_ID).id == body["id"]
+    assert link_states.current_job(MOCK_USER_ID).id == uuid.UUID(body["id"])
     assert link_states.get(MOCK_USER_ID).status == core_job_status.JobState.RUNNING
     assert mock_start.submit.call_args.args[1:3] == (MOCK_USER_ID, "me@example.com")
 
@@ -120,7 +121,7 @@ def test_a_gear_sync_is_queued_not_run_on_the_request():
     client, _ = _client()
     with patch("modules.garmin.sync_service._queue") as queue:
         queue.return_value = garmin_schema.GarminSyncStatus(
-            id="job-1",
+            id=_JOB_ID,
             kind="garmin_sync_gear",
             created_at=datetime(2026, 1, 1, tzinfo=UTC),
             status=garmin_constants.SyncStatus.QUEUED,
@@ -128,7 +129,7 @@ def test_a_gear_sync_is_queued_not_run_on_the_request():
         response = client.post("/garmin/gear")
 
     assert response.status_code == 202
-    assert response.headers["Content-Location"] == "/jobs/job-1"
+    assert response.headers["Content-Location"] == f"/jobs/{_JOB_ID}"
     assert response.json()["kind"] == "garmin_sync_gear"
     assert response.json()["status"] == "queued"
     queue.assert_called_once()

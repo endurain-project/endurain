@@ -407,7 +407,7 @@ def create_user(
     user: users_schema.UserCreate,
     step_up: auth_schema.StepUpVerification | None,
     actor_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     step_up_store: account_security_integration.StepUpStore,
     db: Session,
 ) -> users_schema.UserRead:
@@ -912,7 +912,7 @@ def edit_user(
     user: users_schema.UserEdit,
     step_up: auth_schema.StepUpVerification | None,
     actor_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     step_up_store: account_security_integration.StepUpStore,
     db: Session,
     *,
@@ -1351,7 +1351,7 @@ def change_user_password(
     user_id: uuid.UUID,
     attributes: users_schema.UserAdminEditPassword,
     actor_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     step_up_store: account_security_integration.StepUpStore,
     db: Session,
 ) -> None:
@@ -1394,7 +1394,7 @@ def reset_user_mfa(
     user_id: uuid.UUID,
     attributes: auth_schema.StepUpRequest,
     actor_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     step_up_store: account_security_integration.StepUpStore,
     db: Session,
 ) -> None:
@@ -1432,7 +1432,7 @@ def require_user_password_change(
     user_id: uuid.UUID,
     attributes: auth_schema.StepUpRequest,
     actor_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     step_up_store: account_security_integration.StepUpStore,
     db: Session,
 ) -> None:
@@ -1470,7 +1470,7 @@ def unlink_identity_provider(
     user_id: uuid.UUID,
     idp_id: uuid.UUID,
     actor_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     step_up: auth_schema.StepUpVerification,
     step_up_store: account_security_integration.StepUpStore,
     db: Session,

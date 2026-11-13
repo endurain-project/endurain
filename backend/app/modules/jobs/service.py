@@ -119,7 +119,7 @@ class JobView:
     poll_seconds: int
 
 
-def _position(job: jobs_schema.JobRead) -> tuple[datetime, str]:
+def _position(job: jobs_schema.JobRead) -> tuple[datetime, uuid.UUID]:
     return job.created_at, job.id
 
 
@@ -137,7 +137,9 @@ def _read_indexed(ref: core_job_status.JobRef, state: StateProvider) -> jobs_sch
     return read(ref, state) if read is not None else None
 
 
-def get_job(job_id: str, caller_id: uuid.UUID, scopes: Collection[str], state: StateProvider, db: Session) -> JobView:
+def get_job(
+    job_id: uuid.UUID, caller_id: uuid.UUID, scopes: Collection[str], state: StateProvider, db: Session
+) -> JobView:
     """Read a job the caller may see.
 
     Args:
@@ -203,7 +205,7 @@ def list_jobs(
         InvalidInputError: When the cursor is not one this server issued.
         StateUnavailableError: When the state store is unavailable.
     """
-    before = core_pagination.decode_text_cursor(cursor) if cursor else None
+    before = core_pagination.decode_uuid_cursor(cursor) if cursor else None
     kinds = {listed for listed, rule in _RULES.items() if rule.scope in scopes and (kind is None or listed == kind)}
     jobs: list[jobs_schema.JobRead] = []
     for ref in core_attempt_state.JobIndex(state).list_owned(caller_id):

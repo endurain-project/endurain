@@ -13,7 +13,7 @@ class PasswordResetToken(Base):
     """Password reset token database model.
 
     Attributes:
-        id: Unique token identifier (string, 64 chars).
+        id: Unique token identifier (a random UUID).
         user_id: ID of the user who owns the token.
         token_hash: Hashed password reset token.
         created_at: Token creation date.
@@ -23,7 +23,7 @@ class PasswordResetToken(Base):
 
     __tablename__ = "password_reset_tokens"
 
-    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,

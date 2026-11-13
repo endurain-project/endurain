@@ -1,6 +1,7 @@
 """Tests for password-reset workflows after their move to service.py."""
 
 import hashlib
+import uuid
 from contextlib import ExitStack
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
@@ -297,7 +298,7 @@ class TestValidateToken:
         with factory() as db:
             password_reset_crud.create_password_reset_token(
                 password_reset_schema.PasswordResetToken(
-                    id=token,
+                    id=uuid.uuid4(),
                     user_id=MOCK_USER_ID,
                     token_hash=token_hashing.sha256_hex(token),
                     created_at=now,

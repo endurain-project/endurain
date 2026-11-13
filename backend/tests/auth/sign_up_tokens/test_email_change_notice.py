@@ -16,6 +16,7 @@ import modules.auth.sign_up_tokens.service as sign_up_service
 import modules.users.users.models as users_models
 from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 from tests._helpers.db import create_sqlite_session, ensure_user
+from tests.auth.sign_up_tokens.ids import tid
 
 _OWNER_EMAIL = f"user{MOCK_USER_ID.hex}@example.com"
 
@@ -49,7 +50,7 @@ def _pending(db, *, security_generation=0, expires_in=timedelta(hours=24), email
     now = datetime.now(UTC)
     db.add(
         sign_up_models.SignUpToken(
-            id="t1",
+            id=tid("t1"),
             user_id=MOCK_USER_ID,
             token_hash="hash",
             created_at=now,
@@ -58,7 +59,7 @@ def _pending(db, *, security_generation=0, expires_in=timedelta(hours=24), email
             email=email,
             previous_email=_OWNER_EMAIL,
             security_generation=security_generation,
-            change_id="t1",
+            change_id=tid("t1"),
             revert_until=now + timedelta(days=7),
         )
     )
@@ -69,7 +70,7 @@ def _pending_by_admin(db, *, security_generation=0):
     now = datetime.now(UTC)
     db.add(
         sign_up_models.SignUpToken(
-            id="t2",
+            id=tid("t2"),
             user_id=MOCK_USER_ID,
             token_hash="hash",
             created_at=now,

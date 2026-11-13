@@ -27,7 +27,7 @@ logger = core_logger.get_logger(__name__)
 
 def _stage_key_audit(
     action: jasil_audit.AuditAction,
-    api_key_id: str,
+    api_key_id: uuid.UUID,
     user_id: uuid.UUID,
     db: Session,
     *,
@@ -56,7 +56,7 @@ def list_user_api_keys(
 
 def create_user_api_key(
     user_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     data: api_keys_schema.UserApiKeyCreate,
     expires_at: datetime,
     step_up_store: step_up_store_module.StepUpStore,
@@ -100,7 +100,7 @@ def create_user_api_key(
     return api_keys_schema.UserApiKeyCreatedRead(**api_key.model_dump(), key=raw_key)
 
 
-def revoke_user_api_key(api_key_id: str, user_id: uuid.UUID, db: Session) -> None:
+def revoke_user_api_key(api_key_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> None:
     """Revoke an API key owned by the user."""
     api_keys_integration.revoke_api_key(api_key_id, user_id, db)
     _stage_key_audit(account_security_audit_actions.API_KEY_REVOKE, api_key_id, user_id, db)
@@ -108,7 +108,7 @@ def revoke_user_api_key(api_key_id: str, user_id: uuid.UUID, db: Session) -> Non
     logger.info("API key revoked", extra=core_logger.context(api_key_id=api_key_id, user_id=user_id))
 
 
-def delete_user_api_key(api_key_id: str, user_id: uuid.UUID, db: Session) -> None:
+def delete_user_api_key(api_key_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> None:
     """Delete an API key owned by the user."""
     api_keys_integration.delete_api_key(api_key_id, user_id, db)
     _stage_key_audit(account_security_audit_actions.API_KEY_DELETE, api_key_id, user_id, db)
@@ -130,7 +130,7 @@ def list_api_keys_of_user(
 
 def _verify_admin_step_up(
     admin_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     step_up: auth_schema.StepUpVerification,
     step_up_store: step_up_store_module.StepUpStore,
     db: Session,
@@ -149,10 +149,10 @@ def _verify_admin_step_up(
 
 
 def revoke_api_key_of_user(
-    api_key_id: str,
+    api_key_id: uuid.UUID,
     user_id: uuid.UUID,
     admin_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     step_up: auth_schema.StepUpVerification,
     step_up_store: step_up_store_module.StepUpStore,
     db: Session,
@@ -186,7 +186,7 @@ def revoke_api_key_of_user(
 def revoke_api_keys_of_user(
     user_id: uuid.UUID,
     admin_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     step_up: auth_schema.StepUpVerification,
     step_up_store: step_up_store_module.StepUpStore,
     db: Session,

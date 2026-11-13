@@ -27,12 +27,13 @@ _SERVICE = "modules.users.users_profile.service"
 _EXPORT = "modules.users.users_profile.export_job_service"
 _IMPORT = "modules.users.users_profile.import_job_service"
 _USER_ID = uuid.UUID(int=7)
+_SESSION_ID = uuid.UUID(int=601)
 _TARGET = {"target_type": "user", "target_id": str(_USER_ID), "target_owner_id": str(_USER_ID)}
 
 
 def _request_export(states, db):
     return export_job_service.request_export(
-        _USER_ID, "session-1", auth_schema.StepUpVerification(current_password="pw"), MagicMock(), states, db
+        _USER_ID, _SESSION_ID, auth_schema.StepUpVerification(current_password="pw"), MagicMock(), states, db
     )
 
 

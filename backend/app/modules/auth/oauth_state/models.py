@@ -132,8 +132,7 @@ class OAuthState(Base):
         comment="Flow the state belongs to: login, link or step_up",
     )
 
-    session_id: Mapped[str | None] = mapped_column(
-        String(36),
+    session_id: Mapped[uuid.UUID | None] = mapped_column(
         nullable=True,
         comment="Session that started a link or step-up flow",
     )

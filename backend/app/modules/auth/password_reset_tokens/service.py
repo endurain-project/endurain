@@ -2,7 +2,6 @@
 
 import uuid
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
 
 import jasil.audit as jasil_audit
 from jasil.providers import StateBackendUnavailableError, StateProvider
@@ -47,7 +46,7 @@ def _stage_password_reset_token(user_id: uuid.UUID, token_hash: str, db: Session
     """
     now = datetime.now(UTC)
     reset_token = password_reset_schema.PasswordResetToken(
-        id=str(uuid4()),
+        id=uuid.uuid4(),
         user_id=user_id,
         token_hash=token_hash,
         created_at=now,

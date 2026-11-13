@@ -8,6 +8,8 @@ import modules.users.users.router as users_router
 import modules.users.users.schema as users_schema
 import modules.users.users.service as users_service
 
+_SID_7 = uuid.UUID(int=107)
+
 
 class TestEditUserPassword:
     """
@@ -36,7 +38,7 @@ class TestEditUserPassword:
                 user_id=user_id,
                 user_attributes=user_attributes,
                 token_user_id=uuid.UUID(int=7),
-                token_session_id="sid-7",
+                token_session_id=_SID_7,
                 step_up_store=MagicMock(),
                 db=db,
             )

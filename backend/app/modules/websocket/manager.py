@@ -86,9 +86,9 @@ class WebSocketManager:
     def __init__(self) -> None:
         """Initialize the WebSocket manager with empty connections."""
         self.active_connections: dict[uuid.UUID, list[WebSocket]] = {}
-        self.session_ids: dict[WebSocket, str] = {}
+        self.session_ids: dict[WebSocket, uuid.UUID] = {}
 
-    async def connect(self, user_id: uuid.UUID, session_id: str, websocket: WebSocket) -> None:
+    async def connect(self, user_id: uuid.UUID, session_id: uuid.UUID, websocket: WebSocket) -> None:
         """Accept and register a new WebSocket connection.
 
         Args:
@@ -141,7 +141,7 @@ class WebSocketManager:
                     self.disconnect(user_id, websocket)
 
     def get_session_connections(
-        self, user_id: uuid.UUID, session_id: str | None, except_session_id: str | None
+        self, user_id: uuid.UUID, session_id: uuid.UUID | None, except_session_id: uuid.UUID | None
     ) -> list[WebSocket]:
         """Retrieve the connections a session revocation ends.
 

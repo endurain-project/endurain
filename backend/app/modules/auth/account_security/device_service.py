@@ -29,7 +29,7 @@ def list_user_devices(
 def forget_user_device(
     device_id: uuid.UUID,
     user_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     current_device_id: str | None,
     step_up: auth_schema.StepUpVerification,
     step_up_store: step_up_store_module.StepUpStore,
@@ -75,7 +75,7 @@ def forget_user_device(
 
 def forget_other_user_devices(
     user_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     device_id: str | None,
     step_up: auth_schema.StepUpVerification,
     step_up_store: step_up_store_module.StepUpStore,
@@ -116,7 +116,7 @@ def forget_other_user_devices(
 
 def forget_all_user_devices(
     user_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     step_up: auth_schema.StepUpVerification,
     step_up_store: step_up_store_module.StepUpStore,
     db: Session,

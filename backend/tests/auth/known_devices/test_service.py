@@ -107,6 +107,10 @@ def _session(db, session_id, user_id, device_hash):
     db.flush()
 
 
+def _sid(name):
+    return uuid.uuid5(uuid.NAMESPACE_URL, name)
+
+
 def _session_ids(db):
     return set(db.execute(select(sessions_models.UsersSessions.id)).scalars())
 
@@ -424,11 +428,11 @@ class TestListAndForget:
         _record(db, device_id=_DEVICE_ID)
         _record(db, device_id=_OTHER_DEVICE_ID)
         device_hash = core_hashing.sha256_hex(_DEVICE_ID)
-        _session(db, "on-device-1", MOCK_USER_ID, device_hash)
-        _session(db, "on-device-2", MOCK_USER_ID, device_hash)
-        _session(db, "on-other-device", MOCK_USER_ID, core_hashing.sha256_hex(_OTHER_DEVICE_ID))
-        _session(db, "before-the-migration", MOCK_USER_ID, None)
-        _session(db, "another-user", OTHER_USER_ID, device_hash)
+        _session(db, _sid("on-device-1"), MOCK_USER_ID, device_hash)
+        _session(db, _sid("on-device-2"), MOCK_USER_ID, device_hash)
+        _session(db, _sid("on-other-device"), MOCK_USER_ID, core_hashing.sha256_hex(_OTHER_DEVICE_ID))
+        _session(db, _sid("before-the-migration"), MOCK_USER_ID, None)
+        _session(db, _sid("another-user"), OTHER_USER_ID, device_hash)
         device_id = known_devices_service.list_devices(MOCK_USER_ID, _DEVICE_ID, core_pagination.PageParams(1, 10), db)
         device_id = next(item.id for item in device_id.items if item.current)
 
@@ -436,7 +440,7 @@ class TestListAndForget:
             ended = known_devices_service.forget_device(device_id, MOCK_USER_ID, _OTHER_DEVICE_ID, db)
 
         assert ended == 2
-        assert _session_ids(db) == {"on-other-device", "before-the-migration", "another-user"}
+        assert _session_ids(db) == {_sid("on-other-device"), _sid("before-the-migration"), _sid("another-user")}
         assert revoked.call_count == 2
 
     def test_forgetting_the_other_devices_keeps_the_current_one_and_ends_only_the_sessions_of_the_rest(
@@ -447,11 +451,11 @@ class TestListAndForget:
         _record(db, device_id=_DEVICE_ID)
         _record(db, device_id=_OTHER_DEVICE_ID)
         current_hash, other_hash = core_hashing.sha256_hex(_DEVICE_ID), core_hashing.sha256_hex(_OTHER_DEVICE_ID)
-        _session(db, "on-current", MOCK_USER_ID, current_hash)
-        _session(db, "on-other-1", MOCK_USER_ID, other_hash)
-        _session(db, "on-other-2", MOCK_USER_ID, other_hash)
-        _session(db, "before-the-migration", MOCK_USER_ID, None)
-        _session(db, "another-user", OTHER_USER_ID, other_hash)
+        _session(db, _sid("on-current"), MOCK_USER_ID, current_hash)
+        _session(db, _sid("on-other-1"), MOCK_USER_ID, other_hash)
+        _session(db, _sid("on-other-2"), MOCK_USER_ID, other_hash)
+        _session(db, _sid("before-the-migration"), MOCK_USER_ID, None)
+        _session(db, _sid("another-user"), OTHER_USER_ID, other_hash)
 
         with patch(_PUBLISH_REVOKED):
             ended = known_devices_service.forget_other_devices(MOCK_USER_ID, _DEVICE_ID, db)
@@ -459,7 +463,7 @@ class TestListAndForget:
         assert ended == 2
         assert known_devices_service.is_known_device(MOCK_USER_ID, _DEVICE_ID, db) is True
         assert known_devices_service.is_known_device(MOCK_USER_ID, _OTHER_DEVICE_ID, db) is False
-        assert _session_ids(db) == {"on-current", "before-the-migration", "another-user"}
+        assert _session_ids(db) == {_sid("on-current"), _sid("before-the-migration"), _sid("another-user")}
 
     def test_forgetting_the_other_devices_without_a_current_device_forgets_them_all(self, db, publish):
         _account(db, age=timedelta(days=30))
@@ -491,12 +495,12 @@ class TestListAndForget:
     def test_a_missing_device_ends_no_session(self, db, publish):
         _account(db, age=timedelta(days=30))
         _record(db, device_id=_DEVICE_ID)
-        _session(db, "kept", MOCK_USER_ID, core_hashing.sha256_hex(_DEVICE_ID))
+        _session(db, _sid("kept"), MOCK_USER_ID, core_hashing.sha256_hex(_DEVICE_ID))
 
         with pytest.raises(core_exceptions.NotFoundError):
             known_devices_service.forget_device(uuid.uuid4(), MOCK_USER_ID, None, db)
 
-        assert _session_ids(db) == {"kept"}
+        assert _session_ids(db) == {_sid("kept")}
 
     def test_a_device_of_an_older_generation_cannot_be_forgotten_through_the_api(self, db, publish):
         _account(db, age=timedelta(days=30))

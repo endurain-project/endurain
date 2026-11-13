@@ -1,5 +1,6 @@
 """Every flow that sets a password refuses a breached one when the check is on, before it stages any write."""
 
+import uuid
 from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
@@ -90,7 +91,9 @@ def _admin_create(settings, db):
         patch.object(users_service.server_settings_integration, "get_server_settings", return_value=settings),
         patch.object(users_service.account_security_integration, "verify_step_up", side_effect=_ReachedError),
     ):
-        users_service.create_user(user, None, OTHER_USER_ID, "sid-9", MagicMock(), db)
+        users_service.create_user(
+            user, None, OTHER_USER_ID, uuid.UUID("00000000-0000-4000-8000-0000000000a9"), MagicMock(), db
+        )
 
 
 def _admin_set_password(settings, db):
@@ -99,7 +102,9 @@ def _admin_set_password(settings, db):
         patch.object(users_service.server_settings_integration, "get_server_settings", return_value=settings),
         patch.object(users_service.account_security_integration, "verify_step_up", side_effect=_ReachedError),
     ):
-        users_service.change_user_password(MOCK_USER_ID, attributes, OTHER_USER_ID, "sid-9", MagicMock(), db)
+        users_service.change_user_password(
+            MOCK_USER_ID, attributes, OTHER_USER_ID, uuid.UUID("00000000-0000-4000-8000-0000000000a9"), MagicMock(), db
+        )
 
 
 def _own_change(settings, db):

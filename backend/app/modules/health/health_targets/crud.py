@@ -111,7 +111,7 @@ def health_targets_exists(user_id: uuid.UUID, db: Session) -> bool:
 
 
 def list_changed(
-    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position | None, until: datetime, limit: int, db: Session
 ) -> list[health_targets_schema.HealthTargetsRead]:
     """Retrieve a user's records changed after a position, oldest change first.
 

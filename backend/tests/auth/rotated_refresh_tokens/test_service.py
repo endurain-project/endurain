@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -9,6 +10,7 @@ import modules.auth.rotated_refresh_tokens.models as rotated_token_models
 import modules.auth.rotated_refresh_tokens.scheduled_jobs as rotated_token_jobs
 import modules.auth.rotated_refresh_tokens.service as rotated_token_utils
 
+_FAMILY_ID = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
 _IP = "203.0.113.7"
 _UA = "Endurain/1.0"
 _FINGERPRINT = hashing.sha256_hex(f"{_IP}\n{_UA}")
@@ -71,7 +73,7 @@ class TestStoreRotatedToken:
         # Act
         rotated_token_utils.store_rotated_token(
             "raw-token",
-            "family-id",
+            _FAMILY_ID,
             0,
             mock_db,
             ip_address=_IP,
@@ -129,7 +131,7 @@ class TestCheckTokenReuse:
         mock_rotated_token = MagicMock(spec=rotated_token_models.RotatedRefreshToken)
         mock_rotated_token.expires_at = now + timedelta(seconds=30)
         mock_rotated_token.client_fingerprint = _FINGERPRINT
-        mock_rotated_token.token_family_id = "family-id"
+        mock_rotated_token.token_family_id = _FAMILY_ID
         mock_rotated_token.rotation_count = 1
         mock_crud.get_rotated_token_by_hashes.return_value = mock_rotated_token
         mock_db = MagicMock()
@@ -154,7 +156,7 @@ class TestCheckTokenReuse:
         now = datetime.now(UTC)
         mock_rotated_token = MagicMock(spec=rotated_token_models.RotatedRefreshToken)
         mock_rotated_token.expires_at = now - timedelta(seconds=30)
-        mock_rotated_token.token_family_id = "family-id"
+        mock_rotated_token.token_family_id = _FAMILY_ID
         mock_rotated_token.rotation_count = 1
         mock_rotated_token.rotated_at = now - timedelta(seconds=90)
         mock_crud.get_rotated_token_by_hashes.return_value = mock_rotated_token
@@ -183,7 +185,7 @@ class TestReuseLogsNoSessionId:
     def test_the_family_id_is_logged_as_a_fingerprint(self, mock_hash, mock_crud, expires_in, same_client, caplog):
         import logging
 
-        family_id = "9f2c1d7e-session-handle-0001"
+        family_id = uuid.UUID("9f2c1d7e-0000-4000-8000-000000000001")
         now = datetime.now(UTC)
         token = MagicMock(spec=rotated_token_models.RotatedRefreshToken)
         token.expires_at = now + timedelta(seconds=expires_in)
@@ -198,9 +200,9 @@ class TestReuseLogsNoSessionId:
 
         assert caplog.records
         for record in caplog.records:
-            assert family_id not in record.getMessage()
-            assert family_id not in str(record.__dict__)
-        assert any(hashing.log_fingerprint(family_id) in str(record.__dict__) for record in caplog.records)
+            assert str(family_id) not in record.getMessage()
+            assert str(family_id) not in str(record.__dict__)
+        assert any(hashing.log_fingerprint(str(family_id)) in str(record.__dict__) for record in caplog.records)
 
 
 class TestGetGraceReplayToken:
@@ -301,7 +303,7 @@ class TestGetGraceReplayToken:
 def _record(**overrides):
     values = {
         "expires_at": datetime.now(UTC) + timedelta(seconds=30),
-        "token_family_id": "family-id",
+        "token_family_id": _FAMILY_ID,
         "rotation_count": 1,
         "rotated_at": datetime.now(UTC),
         "client_fingerprint": _FINGERPRINT,
@@ -385,8 +387,8 @@ class TestDeleteTokenFamily:
 
     @patch("modules.auth.rotated_refresh_tokens.service.rotated_token_crud.delete_by_family", return_value=5)
     def test_delete_by_family_stages_records(self, mock_delete, mock_db):
-        assert rotated_token_utils.delete_by_family("family-id", mock_db) == 5
-        mock_delete.assert_called_once_with("family-id", mock_db)
+        assert rotated_token_utils.delete_by_family(_FAMILY_ID, mock_db) == 5
+        mock_delete.assert_called_once_with(_FAMILY_ID, mock_db)
 
 
 class TestCleanupExpiredRotatedTokens:
@@ -478,7 +480,7 @@ class TestGraceWindowTiming:
         _FixedClock.current = self.ROTATED_AT
         rotated_token_utils.store_rotated_token(
             "raw-token",
-            "family-id",
+            _FAMILY_ID,
             0,
             MagicMock(),
             ip_address=_IP,
@@ -491,7 +493,7 @@ class TestGraceWindowTiming:
         record = MagicMock(spec=rotated_token_models.RotatedRefreshToken)
         record.expires_at = stored.expires_at
         record.rotated_at = stored.rotated_at
-        record.token_family_id = "family-id"
+        record.token_family_id = _FAMILY_ID
         record.rotation_count = 0
         record.client_fingerprint = stored.client_fingerprint
         record.replacement_refresh_token = "encrypted-replacement"
@@ -572,7 +574,7 @@ class TestKeyRotation:
         ):
             rotated_token_utils.store_rotated_token(
                 "old-token",
-                "f" * 36,
+                _FAMILY_ID,
                 1,
                 db,
                 ip_address=_IP,
@@ -611,7 +613,7 @@ class TestReplayAfterReplacementCleared:
         with patch.object(rotated_token_utils.core_cryptography, "encrypt_token_fernet", return_value="x"):
             rotated_token_utils.store_rotated_token(
                 "old-token",
-                "f" * 36,
+                _FAMILY_ID,
                 1,
                 db,
                 ip_address=_IP,

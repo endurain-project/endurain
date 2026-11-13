@@ -53,6 +53,7 @@ def visible_owner():
 _ACTIVITY_ID = uuid.uuid4()
 _OTHER_ID = uuid.uuid4()
 _FEED_ID = uuid.uuid4()
+_JOB_ID = uuid.UUID("a1000000-0000-4000-8000-000000000021")
 
 
 def _valid_activity(**kw):
@@ -576,7 +577,7 @@ class TestEditVisibility:
     def test_success_queues_the_edit_and_answers_202(self, mock_db):
         with patch("modules.activities.activity.router.activity_bulk_edit_job_service.request_visibility_edit") as m:
             m.return_value = activity_schema.ActivitiesBulkEditStatus(
-                id="job-1",
+                id=_JOB_ID,
                 kind="activities_bulk_edit",
                 status="queued",
                 created_at=datetime(2026, 1, 1, tzinfo=UTC),
@@ -586,14 +587,14 @@ class TestEditVisibility:
             )
             assert resp.status_code == 202
             assert resp.json() == {
-                "id": "job-1",
+                "id": str(_JOB_ID),
                 "kind": "activities_bulk_edit",
                 "created_at": "2026-01-01T00:00:00Z",
                 "finished_at": None,
                 "error_code": None,
                 "status": "queued",
             }
-            assert resp.headers["Content-Location"] == "/jobs/job-1"
+            assert resp.headers["Content-Location"] == f"/jobs/{_JOB_ID}"
             assert m.call_args.args[1] == 1
 
     def test_an_empty_patch_is_invalid_input(self, mock_db):

@@ -82,7 +82,7 @@ def clear_expired_replacements(now: datetime, limit: int, db: Session) -> int:
     return matched
 
 
-def delete_by_family(token_family_id: str, db: Session) -> int:
+def delete_by_family(token_family_id: uuid.UUID, db: Session) -> int:
     """Stage deletion of rotated tokens in a family."""
     matched = core_database.rowcount(
         db,

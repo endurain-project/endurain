@@ -14,11 +14,12 @@ import modules.server_settings.contracts as server_settings_contracts
 from modules.auth.access_tokens.contracts import TokenType
 from tests._helpers.auth import MOCK_USER_ID
 
+_SESSION_ID = uuid.UUID(int=7)
 _MODULE = "modules.auth.authentication.principal_service"
 
 
-def _token_manager(scope=None, sub=str(MOCK_USER_ID)):
-    claims = {"sub": sub, "sid": "session-1", "scope": scope or " ".join(auth_constants.ADMIN_ACCESS_SCOPE)}
+def _token_manager(scope=None, sub=str(MOCK_USER_ID), sid=str(_SESSION_ID)):
+    claims = {"sub": sub, "sid": sid, "scope": scope or " ".join(auth_constants.ADMIN_ACCESS_SCOPE)}
     manager = MagicMock()
 
     def claim(_token, name, token_type):
@@ -80,11 +81,20 @@ def test_a_sub_that_is_not_a_user_id_is_refused(sub):
         _resolve(session=_session(), user=_user(), sub=sub)
 
 
+@pytest.mark.parametrize("sid", ["session-1", "", "../1", 7, None])
+def test_a_sid_that_is_not_a_session_id_is_refused(sid):
+    with (
+        patch(f"{_MODULE}.users_integration.get_user", return_value=_user()),
+        pytest.raises(core_exceptions.InvalidTokenError),
+    ):
+        principal_service.resolve_from_access_token("token", _token_manager(sid=sid), MagicMock())
+
+
 def test_a_token_of_a_live_session_is_accepted():
     principal, lookup = _resolve(session=_session(), user=_user())
 
     assert principal.user_id == MOCK_USER_ID
-    assert lookup.call_args.args[0] == "session-1"
+    assert lookup.call_args.args[0] == _SESSION_ID
 
 
 def test_a_token_of_a_deleted_user_is_an_invalid_token():

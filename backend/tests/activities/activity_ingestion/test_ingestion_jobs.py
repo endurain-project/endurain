@@ -14,6 +14,8 @@ import modules.activities.activity_ingestion.events as ingestion_events
 import modules.activities.activity_ingestion.service as ingestion_jobs
 import modules.activities.activity_ingestion.upload_entry_service as upload_entry_service
 
+_JOB_1 = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+
 _ID_A = uuid.UUID("00000000-0000-4000-8000-00000000000a")
 _ID_B = uuid.UUID("00000000-0000-4000-8000-00000000000b")
 
@@ -59,7 +61,7 @@ class TestAcceptUpload:
         publish.assert_called_once()
         assert publish.call_args.kwargs["commit"] == db.commit
         # The payload carries only the job id: the key and owner are columns.
-        assert publish.call_args.args[1] == {"job_id": create.call_args.args[0]}
+        assert publish.call_args.args[1] == {"job_id": str(create.call_args.args[0])}
         assert publish.call_args.kwargs["schema_version"] == ingestion_events.UploadedFilePayload.SCHEMA_VERSION
         submit.assert_not_called()
 
@@ -145,10 +147,10 @@ class TestRunUploadJob:
             ),
         ):
             session_local.return_value.__enter__.return_value = MagicMock()
-            ingestion_jobs.run_upload_job("job-1", MagicMock())
+            ingestion_jobs.run_upload_job(_JOB_1, MagicMock())
 
         processing.assert_called_once()
-        assert completed.call_args.args[0] == "job-1"
+        assert completed.call_args.args[0] == _JOB_1
         assert completed.call_args.args[1] == [_ID_A, _ID_B]
 
     def test_the_owner_is_told_when_the_import_completes(self):
@@ -167,9 +169,9 @@ class TestRunUploadJob:
             patch.object(ingestion_jobs.websocket_integration, "push_job_changed") as push,
         ):
             session_local.return_value.__enter__.return_value = MagicMock()
-            ingestion_jobs.run_upload_job("job-1", MagicMock())
+            ingestion_jobs.run_upload_job(_JOB_1, MagicMock())
 
-        push.assert_called_once_with(MOCK_USER_ID, "job-1", "activity_upload")
+        push.assert_called_once_with(MOCK_USER_ID, _JOB_1, "activity_upload")
 
     def test_the_owner_is_told_when_nothing_could_be_parsed(self):
         with (
@@ -185,9 +187,9 @@ class TestRunUploadJob:
             patch.object(ingestion_jobs.websocket_integration, "push_job_changed") as push,
         ):
             session_local.return_value.__enter__.return_value = MagicMock()
-            ingestion_jobs.run_upload_job("job-1", MagicMock())
+            ingestion_jobs.run_upload_job(_JOB_1, MagicMock())
 
-        push.assert_called_once_with(MOCK_USER_ID, "job-1", "activity_upload")
+        push.assert_called_once_with(MOCK_USER_ID, _JOB_1, "activity_upload")
 
     @pytest.mark.parametrize("created", [[MagicMock(id=_ID_A)], []], ids=["imported", "nothing_parsed"])
     def test_the_blob_is_discarded_only_after_the_outcome_is_committed(self, created):
@@ -213,7 +215,7 @@ class TestRunUploadJob:
             ),
         ):
             session_local.return_value.__enter__.return_value = db
-            ingestion_jobs.run_upload_job("job-1", MagicMock())
+            ingestion_jobs.run_upload_job(_JOB_1, MagicMock())
 
         # The first commit is ``processing``; the outcome's commit must precede the discard.
         assert events == ["commit", "commit", "discard"]
@@ -237,7 +239,7 @@ class TestRunUploadJob:
             pytest.raises(RuntimeError),
         ):
             session_local.return_value.__enter__.return_value = db
-            ingestion_jobs.run_upload_job("job-1", MagicMock())
+            ingestion_jobs.run_upload_job(_JOB_1, MagicMock())
 
         discard.assert_not_called()
 
@@ -249,7 +251,7 @@ class TestRunUploadJob:
             patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "process_staged_upload") as process,
         ):
             session_local.return_value.__enter__.return_value = MagicMock()
-            ingestion_jobs.run_upload_job("job-1", MagicMock())
+            ingestion_jobs.run_upload_job(_JOB_1, MagicMock())
 
         process.assert_not_called()
 
@@ -266,7 +268,7 @@ class TestRunUploadJob:
             ),
         ):
             session_local.return_value.__enter__.return_value = MagicMock()
-            ingestion_jobs.run_upload_job("job-1", MagicMock())
+            ingestion_jobs.run_upload_job(_JOB_1, MagicMock())
 
         assert failed.call_args.args[1] == activity_ingestion_constants.IngestionJobErrorCode.NO_ACTIVITIES_FOUND
 
@@ -289,7 +291,7 @@ class TestRunUploadJob:
             session_local.return_value.__enter__.return_value = MagicMock()
             # Recorded as terminal and returned, not raised: raising would hand the
             # runner a job it would retry and then find already finished.
-            ingestion_jobs.run_upload_job("job-1", "storage")
+            ingestion_jobs.run_upload_job(_JOB_1, "storage")
 
         assert fail.call_args.args[1] == activity_ingestion_constants.IngestionJobErrorCode.INVALID_FILE
         assert fail.call_args.args[2] == "storage"
@@ -313,7 +315,7 @@ class TestRunUploadJob:
             pytest.raises(core_exceptions.ProcessingError),
         ):
             session_local.return_value.__enter__.return_value = MagicMock()
-            ingestion_jobs.run_upload_job("job-1", MagicMock())
+            ingestion_jobs.run_upload_job(_JOB_1, MagicMock())
 
         fail.assert_not_called()
 
@@ -335,7 +337,7 @@ class TestRunUploadJob:
             pytest.raises(core_exceptions.ProcessingError),
         ):
             session_local.return_value.__enter__.return_value = MagicMock()
-            ingestion_jobs.run_upload_job("job-1", MagicMock())
+            ingestion_jobs.run_upload_job(_JOB_1, MagicMock())
 
         assert fail.call_args.args[1] == activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED
 
@@ -349,7 +351,7 @@ class TestFailUploadJob:
         ):
             session_local.return_value.__enter__.return_value = MagicMock()
             ingestion_jobs.fail_ingestion_job(
-                "job-1",
+                _JOB_1,
                 activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED,
                 "storage",
                 "abc.gpx",
@@ -370,7 +372,7 @@ class TestFailUploadJob:
         ):
             session_local.return_value.__enter__.return_value = MagicMock()
             ingestion_jobs.fail_ingestion_job(
-                "job-1", activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED, "storage"
+                _JOB_1, activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED, "storage"
             )
 
         discard.assert_called_once_with("abc.gpx", "storage")
@@ -386,7 +388,7 @@ class TestFailUploadJob:
             patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_staged_upload") as discard,
         ):
             ingestion_jobs.fail_ingestion_job(
-                "job-1",
+                _JOB_1,
                 activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED,
                 "storage",
                 "abc.gpx",
@@ -404,7 +406,7 @@ class TestFailUploadJob:
                 "stmt", {}, Exception("down")
             )
             ingestion_jobs.fail_ingestion_job(
-                "job-1",
+                _JOB_1,
                 activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED,
                 "storage",
                 "abc.gpx",
@@ -418,14 +420,14 @@ class TestReleaseIngestionJob:
         with patch.object(
             ingestion_jobs.core_database, "SessionLocal", side_effect=OperationalError("stmt", {}, Exception("down"))
         ):
-            ingestion_jobs.release_ingestion_job("job-1")
+            ingestion_jobs.release_ingestion_job(_JOB_1)
 
     def test_an_unexpected_error_propagates(self):
         with (
             patch.object(ingestion_jobs.core_database, "SessionLocal", side_effect=RuntimeError("bug")),
             pytest.raises(RuntimeError),
         ):
-            ingestion_jobs.release_ingestion_job("job-1")
+            ingestion_jobs.release_ingestion_job(_JOB_1)
 
 
 class TestPruneExpiredUploadJobs:
@@ -527,13 +529,13 @@ class TestFailIngestionJobTellsTheOwner:
             patch.object(ingestion_jobs.websocket_integration, "push_job_changed") as push,
         ):
             ingestion_jobs.fail_ingestion_job(
-                "job-1", activity_ingestion_constants.IngestionJobErrorCode.INVALID_FILE, "storage", "abc.gpx"
+                _JOB_1, activity_ingestion_constants.IngestionJobErrorCode.INVALID_FILE, "storage", "abc.gpx"
             )
         return push
 
     def test_the_owner_of_the_failed_job_is_told(self):
         self._fail((MOCK_USER_ID, activity_ingestion_constants.IngestionJobKind.BULK_IMPORT)).assert_called_once_with(
-            MOCK_USER_ID, "job-1", "activity_bulk_import"
+            MOCK_USER_ID, _JOB_1, "activity_bulk_import"
         )
 
     def test_nobody_is_told_when_the_job_was_already_terminal(self):

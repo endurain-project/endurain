@@ -119,9 +119,13 @@ def resolve_from_access_token(
         raise core_exceptions.InvalidTokenError("Invalid token: 'sub' claim must be a user id")
 
     sid = token_manager.get_token_claim(access_token, "sid", access_tokens_integration.TokenType.ACCESS)
-    if not isinstance(sid, str):
+    try:
+        session_id = uuid.UUID(sid) if isinstance(sid, str) else None
+    except ValueError:
+        session_id = None
+    if session_id is None:
         logger.warning("Access token refused: malformed 'sid' claim")
-        raise core_exceptions.InvalidTokenError("Invalid token: 'sid' claim must be a string")
+        raise core_exceptions.InvalidTokenError("Invalid token: 'sid' claim must be a session id")
 
     # A token of a deleted or deactivated user is a dead credential, not a refusal the caller may learn about.
     user = users_integration.get_user(user_id, db)
@@ -131,7 +135,7 @@ def resolve_from_access_token(
 
     # The token outlives its session unless it is checked: logging out, revoking sessions or a detected
     # refresh-token theft delete the session, and that must end the access token as well.
-    session = sessions_integration.get_session_by_id_not_expired(sid, db)
+    session = sessions_integration.get_session_by_id_not_expired(session_id, db)
     if session is None or session.user_id != user.id:
         logger.warning(
             "Access token refused: its session is no longer valid for user <user_id>",
@@ -159,7 +163,7 @@ def resolve_from_access_token(
             _token_scopes(token_manager, access_token)
             & set(access_tokens_integration.scopes_for_access_type(user.access_type))
         ),
-        AccessTokenCred(session_id=sid),
+        AccessTokenCred(session_id=session_id),
         mfa_enrolment_required=_must_enrol_mfa(user, policy.require_mfa, db),
     )
 
@@ -188,7 +192,7 @@ def _refuse_api_key(
     reason: authentication_audit_actions.ApiKeyRefusalReason,
     outcome: jasil_audit.Outcome,
     *,
-    api_key_id: str | None = None,
+    api_key_id: uuid.UUID | None = None,
     owner_id: uuid.UUID | None = None,
 ) -> None:
     """Record a refused API key on a transaction of its own, since the request answers with an error.
@@ -204,7 +208,7 @@ def _refuse_api_key(
     target = (
         {}
         if api_key_id is None
-        else {"target_type": "api_key", "target_id": api_key_id, "target_owner_id": str(owner_id)}
+        else {"target_type": "api_key", "target_id": str(api_key_id), "target_owner_id": str(owner_id)}
     )
     jasil_audit.record_detached(
         authentication_audit_actions.API_KEY_AUTHENTICATE,

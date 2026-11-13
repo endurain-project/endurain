@@ -18,6 +18,9 @@ import modules.auth.account_security.step_up_store as step_up_store_module
 import modules.auth.lockout.contracts as lockout_contracts
 import modules.auth.lockout.integration_service as lockout_integration
 
+_SID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+_SID_2 = uuid.UUID("00000000-0000-4000-8000-0000000000a2")
+
 _SERVICE = "modules.auth.account_security.step_up_service"
 _PUBLISH = "modules.auth.account_security.event_publishers.platform_publisher"
 _LAST_TIER = lockout_contracts.STEP_UP_LOCKOUT_TIERS[-1][0]
@@ -42,7 +45,7 @@ def _spend_account_failures(store: step_up_store_module.StepUpAttempts, count: i
         store.record_account_failure(_USER_ID)
 
 
-def _verify(store, session_id="sid-1", *, password_valid=False, db=None, session_present=True):
+def _verify(store, session_id=_SID, *, password_valid=False, db=None, session_present=True):
     """Run one step-up with a wrong (or right) password."""
     db = db or MagicMock(spec=Session)
     with ExitStack() as stack:
@@ -58,7 +61,7 @@ def _verify(store, session_id="sid-1", *, password_valid=False, db=None, session
         step_up_service.verify_step_up_credentials(_USER_ID, "pw", None, store, db, session_id=session_id)
 
 
-def _fail(store, session_id="sid-1", *, db=None, session_present=True):
+def _fail(store, session_id=_SID, *, db=None, session_present=True):
     with pytest.raises(core_exceptions.StepUpFailedError):
         _verify(store, session_id, db=db, session_present=session_present)
 
@@ -125,7 +128,7 @@ class TestSessionCounterLifetime:
 class TestLastPerSessionTier:
     def test_the_last_tier_ends_the_session_audits_why_and_tells_the_owner(self):
         store = _store()
-        _spend_session_failures(store, "sid-1", _LAST_TIER - 1)
+        _spend_session_failures(store, _SID, _LAST_TIER - 1)
         db = MagicMock(spec=Session)
 
         with _Spy() as spy, jasil_testing.capture_audit() as audit:
@@ -145,7 +148,7 @@ class TestLastPerSessionTier:
 
     def test_the_callers_staged_work_is_discarded_before_the_session_end_commits(self):
         store = _store()
-        _spend_session_failures(store, "sid-1", _LAST_TIER - 1)
+        _spend_session_failures(store, _SID, _LAST_TIER - 1)
         db = MagicMock(spec=Session)
         order = MagicMock()
         order.attach_mock(db.rollback, "rollback")
@@ -159,7 +162,7 @@ class TestLastPerSessionTier:
 
     def test_the_session_deleted_is_the_callers_own(self):
         store = _store()
-        _spend_session_failures(store, "sid-9", _LAST_TIER - 1)
+        _spend_session_failures(store, _SID_2, _LAST_TIER - 1)
 
         with (
             _Spy(),
@@ -171,15 +174,15 @@ class TestLastPerSessionTier:
             pytest.raises(core_exceptions.StepUpFailedError),
         ):
             step_up_service.verify_step_up_credentials(
-                _USER_ID, "x", None, store, MagicMock(spec=Session), session_id="sid-9"
+                _USER_ID, "x", None, store, MagicMock(spec=Session), session_id=_SID_2
             )
 
         delete.assert_called_once()
-        assert delete.call_args.args[:2] == ("sid-9", _USER_ID)
+        assert delete.call_args.args[:2] == (_SID_2, _USER_ID)
 
     def test_the_failure_before_the_last_tier_keeps_the_session(self):
         store = _store()
-        _spend_session_failures(store, "sid-1", _LAST_TIER - 2)
+        _spend_session_failures(store, _SID, _LAST_TIER - 2)
 
         with _Spy() as spy, jasil_testing.capture_audit() as audit:
             _fail(store)
@@ -189,7 +192,7 @@ class TestLastPerSessionTier:
 
     def test_a_session_that_is_already_gone_stages_nothing(self):
         store = _store()
-        _spend_session_failures(store, "sid-1", _LAST_TIER - 1)
+        _spend_session_failures(store, _SID, _LAST_TIER - 1)
 
         with _Spy() as spy, jasil_testing.capture_audit() as audit:
             _fail(store, session_present=False)
@@ -205,7 +208,7 @@ class TestAccountWideCap:
             for session in range(25):
                 for _ in range(4):
                     if store.get_account_lockout_time(_USER_ID) is None:
-                        _fail(store, f"sid-{session}")
+                        _fail(store, uuid.UUID(int=session))
             locked_until = store.get_account_lockout_time(_USER_ID)
 
         assert locked_until is not None
@@ -255,7 +258,7 @@ class TestAccountWideCap:
             jasil_testing.capture_audit() as audit,
             pytest.raises(core_exceptions.TooManyRequestsError) as refused,
         ):
-            _verify(store, "sid-never-failed", password_valid=True)
+            _verify(store, uuid.UUID(int=999), password_valid=True)
 
         assert refused.value.retry_at is not None
         assert refused.value.retry_at - datetime.now(UTC) > timedelta(days=29)
@@ -266,7 +269,7 @@ class TestAccountWideCap:
         store = _store()
         _spend_account_failures(store, _ACCOUNT_CAP)
         with pytest.raises(core_exceptions.TooManyRequestsError):
-            step_up_service.require_not_locked_out(_USER_ID, "sid-1", store)
+            step_up_service.require_not_locked_out(_USER_ID, _SID, store)
 
     def test_another_account_is_not_locked(self):
         store = _store()
@@ -280,7 +283,7 @@ class TestAccountCounterReset:
         store = _store()
         _spend_account_failures(store, _ACCOUNT_CAP - 1)
 
-        _verify(store, "sid-1", password_valid=True)
+        _verify(store, _SID, password_valid=True)
         with _Spy() as spy:
             _fail(store)
 
@@ -338,7 +341,7 @@ class TestStoreUnavailable:
             pytest.raises(core_exceptions.ServiceUnavailableError),
         ):
             step_up_service.verify_step_up_credentials(
-                _USER_ID, "pw", None, store, MagicMock(spec=Session), session_id="sid-1"
+                _USER_ID, "pw", None, store, MagicMock(spec=Session), session_id=_SID
             )
 
         verify.assert_not_called()

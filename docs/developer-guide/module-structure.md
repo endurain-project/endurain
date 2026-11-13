@@ -70,7 +70,7 @@ rather than that its name is on a list. Ending a transaction (`commit`,
 | `serializers.py` | persistence | ORM ↔ schema transformation, both directions. Called by `crud` at its edges. |
 | `service.py` | application | Decides access, orchestrates, publishes events, owns transaction boundaries. |
 | `router.py` / `public_router.py` | transport | Validate, delegate to `service`, return. No domain rule. |
-| `dependencies.py` | transport | FastAPI DI and typed request-parameter aliases (`Annotated[int, Path(gt=0)]`, enums); validation is declared on the type, not raised by hand. |
+| `dependencies.py` | transport | FastAPI DI and typed request-parameter aliases (`Annotated[uuid.UUID, Path()]`, enums); validation is declared on the type, not raised by hand. |
 | `schema.py` | contract | Pydantic request/response shapes. Serialized to clients. |
 | `contracts.py` | contract | Inter-module DTOs and typed seams. Never serialized. |
 | `constants.py` | contract | Domain constants and mapping tables. |

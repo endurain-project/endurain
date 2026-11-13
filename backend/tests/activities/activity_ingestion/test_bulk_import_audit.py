@@ -62,7 +62,7 @@ class TestArchiveImportRequest:
         entry = audit.assert_audited(
             ingestion_audit_actions.IMPORT_REQUEST.id,
             target_type="activity_ingestion_job",
-            target_id=job.id,
+            target_id=str(job.id),
             target_owner_id=str(_USER),
         )
         assert entry.details == {"source": "archive", "file_count": 2}
@@ -104,7 +104,7 @@ class TestFolderImportRequest:
         entry = audit.assert_audited(
             ingestion_audit_actions.IMPORT_REQUEST.id,
             target_type="activity_ingestion_job",
-            target_id=job.id,
+            target_id=str(job.id),
             target_owner_id=str(_USER),
         )
         assert entry.details == {"source": "server_directory", "file_count": None}

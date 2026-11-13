@@ -11,6 +11,7 @@ behaviour: delegation arguments, step-up enforcement, the pending-secret
 store lifecycle, error propagation, and response/schema shaping.
 """
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -25,6 +26,8 @@ import modules.auth.mfa.schema as mfa_schema
 import modules.auth.mfa_backup_codes.schema as mfa_backup_codes_schema
 import modules.auth.schema as auth_schema
 from tests._helpers.auth import MOCK_USER_ID
+
+_SID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
 
 
 @pytest.fixture
@@ -162,7 +165,7 @@ class TestEnableMfa:
             result = mfa_workflow.enable_mfa(
                 self._request(),
                 MOCK_USER_ID,
-                "sid",
+                _SID,
                 step_up_store,
                 mfa_secret_store,
                 mock_db,
@@ -175,7 +178,7 @@ class TestEnableMfa:
             step_up_store,
             mock_db,
             idp_reauth=None,
-            session_id="sid",
+            session_id=_SID,
             action=identity_providers_constants.StepUpAction.MFA_ENABLE,
         )
         mock_enable.assert_called_once_with(
@@ -206,7 +209,7 @@ class TestEnableMfa:
             mfa_workflow.enable_mfa(
                 self._request(),
                 MOCK_USER_ID,
-                "sid",
+                _SID,
                 step_up_store,
                 mfa_secret_store,
                 mock_db,
@@ -228,7 +231,7 @@ class TestEnableMfa:
             mfa_workflow.enable_mfa(
                 self._request(),
                 MOCK_USER_ID,
-                "sid",
+                _SID,
                 step_up_store,
                 mfa_secret_store,
                 mock_db,
@@ -254,7 +257,7 @@ class TestEnableMfa:
             mfa_workflow.enable_mfa(
                 self._request(),
                 MOCK_USER_ID,
-                "sid",
+                _SID,
                 step_up_store,
                 mfa_secret_store,
                 mock_db,
@@ -277,7 +280,7 @@ class TestEnableMfa:
             mfa_workflow.enable_mfa(
                 self._request(),
                 MOCK_USER_ID,
-                "sid",
+                _SID,
                 step_up_store,
                 mfa_secret_store,
                 mock_db,
@@ -300,7 +303,7 @@ class TestEnableMfa:
             mfa_workflow.enable_mfa(
                 self._request(),
                 MOCK_USER_ID,
-                "sid",
+                _SID,
                 step_up_store,
                 mfa_secret_store,
                 mock_db,
@@ -335,7 +338,7 @@ class TestDisableMfa:
             result = mfa_workflow.disable_mfa(
                 self._request(),
                 MOCK_USER_ID,
-                "sid",
+                _SID,
                 step_up_store,
                 mock_db,
                 revoke_other_sessions=False,
@@ -348,7 +351,7 @@ class TestDisableMfa:
             step_up_store,
             mock_db,
             idp_reauth=None,
-            session_id="sid",
+            session_id=_SID,
             action=identity_providers_constants.StepUpAction.MFA_DISABLE,
         )
         mock_disable.assert_called_once_with(MOCK_USER_ID, mock_db)
@@ -369,7 +372,7 @@ class TestDisableMfa:
             mfa_workflow.disable_mfa(
                 self._request(),
                 MOCK_USER_ID,
-                "sid",
+                _SID,
                 step_up_store,
                 mock_db,
                 revoke_other_sessions=False,
@@ -411,7 +414,7 @@ class TestGenerateBackupCodes:
             result = mfa_workflow.generate_backup_codes(
                 self._step_up(),
                 MOCK_USER_ID,
-                "sid",
+                _SID,
                 step_up_store,
                 mock_db,
                 revoke_other_sessions=False,
@@ -424,7 +427,7 @@ class TestGenerateBackupCodes:
             step_up_store,
             mock_db,
             idp_reauth=None,
-            session_id="sid",
+            session_id=_SID,
             action=identity_providers_constants.StepUpAction.MFA_BACKUP_CODES,
         )
         mock_create.assert_called_once_with(MOCK_USER_ID, credentials_integration.get_password_hasher(), mock_db)
@@ -442,7 +445,7 @@ class TestGenerateBackupCodes:
             patch("modules.auth.security_generation.crud.bump") as bump,
         ):
             mfa_workflow.generate_backup_codes(
-                self._step_up(), MOCK_USER_ID, "sid", step_up_store, mock_db, revoke_other_sessions=False
+                self._step_up(), MOCK_USER_ID, _SID, step_up_store, mock_db, revoke_other_sessions=False
             )
 
         bump.assert_not_called()
@@ -458,7 +461,7 @@ class TestGenerateBackupCodes:
             mfa_workflow.generate_backup_codes(
                 self._step_up(),
                 MOCK_USER_ID,
-                "sid",
+                _SID,
                 step_up_store,
                 mock_db,
                 revoke_other_sessions=False,
@@ -483,7 +486,7 @@ class TestGenerateBackupCodes:
             mfa_workflow.generate_backup_codes(
                 self._step_up(),
                 MOCK_USER_ID,
-                "sid",
+                _SID,
                 step_up_store,
                 mock_db,
                 revoke_other_sessions=False,
@@ -514,7 +517,7 @@ class TestGenerateBackupCodes:
             mfa_workflow.generate_backup_codes(
                 self._step_up(),
                 MOCK_USER_ID,
-                "sid",
+                _SID,
                 step_up_store,
                 mock_db,
                 revoke_other_sessions=False,

@@ -9,7 +9,7 @@ import core.event_metadata as core_event_metadata
 import modules.auth.authentication.events as authentication_events
 
 
-def publish_api_key_used(api_key_id: str, db: Session) -> None:
+def publish_api_key_used(api_key_id: uuid.UUID, db: Session) -> None:
     """Publish ``auth.api_key_used`` for a key that authenticated a request.
 
     The stamp it triggers is advisory: the subscriber is best-effort and has no durable handler, so a lost event is

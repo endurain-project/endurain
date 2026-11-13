@@ -1,5 +1,6 @@
 """An API key reaches every route whose scopes it holds, and never one that needs a signed-in session."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -11,6 +12,9 @@ import core.exceptions as core_exceptions
 import modules.auth.dependencies as auth_dependencies
 from modules.auth.contracts import AccessTokenCred, ApiKeyCred, Principal
 from tests._helpers.auth import MOCK_USER_ID
+
+_KEY_1 = uuid.UUID("00000000-0000-4000-8000-0000000000b1")
+_SID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
 
 _RESOLVE_KEY = "modules.auth.dependencies.authentication_integration.resolve_from_api_key"
 _RESOLVE_TOKEN = "modules.auth.dependencies.authentication_integration.resolve_from_access_token"
@@ -29,11 +33,11 @@ def _principal(credential, scopes: set[str]) -> Principal:
 
 
 def _key(scopes: set[str]) -> Principal:
-    return _principal(ApiKeyCred(api_key_id="key-1", key_prefix="abcd1234"), scopes)
+    return _principal(ApiKeyCred(api_key_id=_KEY_1, key_prefix="abcd1234"), scopes)
 
 
 def _token(scopes: set[str]) -> Principal:
-    return _principal(AccessTokenCred(session_id="sid-1"), scopes)
+    return _principal(AccessTokenCred(session_id=_SID), scopes)
 
 
 @pytest.fixture
@@ -108,4 +112,4 @@ class TestSessionOnlyRoutes:
         with patch(_RESOLVE_TOKEN, return_value=_token({"notifications:read"})):
             response = client.get("/ticket", headers={"Authorization": "Bearer token"})
 
-        assert response.json() == {"session_id": "sid-1"}
+        assert response.json() == {"session_id": str(_SID)}

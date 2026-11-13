@@ -81,4 +81,4 @@ class EmailChangedPayload(VersionedPayload):
     SCHEMA_VERSION: ClassVar[int] = 1
 
     user_id: uuid.UUID
-    token_id: str
+    token_id: uuid.UUID

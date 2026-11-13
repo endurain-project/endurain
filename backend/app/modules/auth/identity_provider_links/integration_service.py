@@ -66,7 +66,7 @@ def update_user_identity_provider_last_login(
 
 
 def create_idp_session_token(
-    session_id: str,
+    session_id: uuid.UUID,
     user_id: uuid.UUID,
     idp_id: uuid.UUID,
     encrypted_refresh_token: str | None,
@@ -89,13 +89,13 @@ def create_idp_session_token(
     )
 
 
-def get_idp_session_token(session_id: str, db: Session) -> identity_link_contracts.IdpSessionTokenRead | None:
+def get_idp_session_token(session_id: uuid.UUID, db: Session) -> identity_link_contracts.IdpSessionTokenRead | None:
     """Return the identity-provider sign-in behind a session, if it signed in through one."""
     return identity_link_crud.get_idp_session_token(session_id, db)
 
 
 def replace_idp_session_token_if_unchanged(
-    session_id: str,
+    session_id: uuid.UUID,
     expected_refresh_token: str,
     encrypted_refresh_token: str,
     access_token_expires_at: datetime,
@@ -114,12 +114,16 @@ def replace_idp_session_token_if_unchanged(
     )
 
 
-def clear_idp_session_refresh_token_if_unchanged(session_id: str, expected_refresh_token: str, db: Session) -> bool:
+def clear_idp_session_refresh_token_if_unchanged(
+    session_id: uuid.UUID, expected_refresh_token: str, db: Session
+) -> bool:
     """Stage removal of a session's provider-token metadata only while it still holds the token that was read."""
     return identity_link_crud.clear_refresh_token_if_unchanged(session_id, expected_refresh_token, db)
 
 
-def delete_idp_session_token_if_unchanged(session_id: str, expected_refresh_token: str | None, db: Session) -> bool:
+def delete_idp_session_token_if_unchanged(
+    session_id: uuid.UUID, expected_refresh_token: str | None, db: Session
+) -> bool:
     """Stage deletion of a session's sign-in only while it still holds the token that was read."""
     return identity_link_crud.delete_idp_session_token_if_unchanged(session_id, expected_refresh_token, db)
 

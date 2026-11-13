@@ -42,9 +42,9 @@ def test_token_and_session_packages_publish_cleanup_jobs():
     assert all(module.recurring_jobs() for module in modules)
 
 
-def _oauth_state(key: str, expires_at: datetime) -> Any:
+def _oauth_state(key: uuid.UUID, expires_at: datetime) -> Any:
     return oauth_state_models.OAuthState(
-        id=key,
+        id=str(key),
         nonce="n",
         client_type="web",
         expires_at=expires_at,
@@ -52,19 +52,19 @@ def _oauth_state(key: str, expires_at: datetime) -> Any:
     )
 
 
-def _password_reset(key: str, expires_at: datetime) -> Any:
+def _password_reset(key: uuid.UUID, expires_at: datetime) -> Any:
     return password_reset_models.PasswordResetToken(
-        id=key, user_id=_USER_ID, token_hash=key, created_at=expires_at, expires_at=expires_at
+        id=key, user_id=_USER_ID, token_hash=str(key), created_at=expires_at, expires_at=expires_at
     )
 
 
-def _sign_up(key: str, expires_at: datetime) -> Any:
+def _sign_up(key: uuid.UUID, expires_at: datetime) -> Any:
     return sign_up_models.SignUpToken(
-        id=key, user_id=_USER_ID, token_hash=key, created_at=expires_at, expires_at=expires_at
+        id=key, user_id=_USER_ID, token_hash=str(key), created_at=expires_at, expires_at=expires_at
     )
 
 
-def _session(key: str, at: datetime, *, column: str) -> Any:
+def _session(key: uuid.UUID, at: datetime, *, column: str) -> Any:
     fresh = datetime.now(UTC) + timedelta(days=1)
     times = {"last_activity_at": fresh, "expires_at": fresh, column: at}
     return sessions_models.UsersSessions(
@@ -85,10 +85,10 @@ def _session(key: str, at: datetime, *, column: str) -> Any:
     )
 
 
-def _rotated(key: str, refresh_token_exp: datetime) -> Any:
+def _rotated(key: uuid.UUID, refresh_token_exp: datetime) -> Any:
     return rotated_token_models.RotatedRefreshToken(
         token_family_id=key,
-        hashed_token=key,
+        hashed_token=str(key),
         client_fingerprint="c" * 64,
         rotation_count=0,
         rotated_at=refresh_token_exp,
@@ -134,9 +134,9 @@ def test_a_purge_deletes_at_most_one_batch_of_past_rows(model, row, purge):
     now = datetime.now(UTC)
     db.add_all(
         [
-            row("past-1", now - timedelta(hours=1)),
-            row("past-2", now - timedelta(hours=2)),
-            row("live", now + timedelta(hours=1)),
+            row(uuid.UUID(int=1), now - timedelta(hours=1)),
+            row(uuid.UUID(int=2), now - timedelta(hours=2)),
+            row(uuid.UUID(int=3), now + timedelta(hours=1)),
         ]
     )
     db.commit()

@@ -5,6 +5,7 @@ stood in for.
 """
 
 import os
+import uuid
 import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
@@ -160,7 +161,7 @@ class TestIdempotencyKey:
         with factory() as db:
             db.add(
                 ingestion_models.ActivityIngestionJob(
-                    id="6d9d2f4a-0000-4000-8000-000000000001",
+                    id=uuid.UUID("6d9d2f4a-0000-4000-8000-000000000001"),
                     user_id=_USER,
                     kind="upload",
                     idempotency_key="key-1",
@@ -202,7 +203,7 @@ class TestTheRefusalNamesTheRunningJob:
             _accept(factory, storage, archive)
 
         assert refused.value.job_id == first.id
-        assert refused.value.extensions == {"job_id": first.id}
+        assert refused.value.extensions == {"job_id": str(first.id)}
         assert refused.value.status_code == 409 and refused.value.code == "conflict"
 
     def test_a_folder_import_conflict_carries_the_running_job(self, tmp_path, factory, storage):
@@ -214,7 +215,7 @@ class TestTheRefusalNamesTheRunningJob:
             with pytest.raises(core_exceptions.JobAlreadyRunningError) as refused:
                 bulk.start_from_directory(_USER, "generic", storage, factory())
 
-        assert refused.value.extensions == {"job_id": first.id}
+        assert refused.value.extensions == {"job_id": str(first.id)}
 
     def test_a_race_lost_at_the_index_names_the_winner(self, tmp_path, factory, storage):
         archive = _zip(tmp_path, {"a.fit": b"x"})
@@ -223,7 +224,7 @@ class TestTheRefusalNamesTheRunningJob:
         with patch.object(bulk, "_ensure_none_running"), pytest.raises(core_exceptions.JobAlreadyRunningError) as lost:
             _accept(factory, storage, archive)
 
-        assert lost.value.extensions == {"job_id": first.id}
+        assert lost.value.extensions == {"job_id": str(first.id)}
 
     def test_an_import_that_finished_in_between_is_a_plain_conflict(self):
         refusal = bulk._already_running(None)

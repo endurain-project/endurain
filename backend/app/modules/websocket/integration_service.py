@@ -47,7 +47,7 @@ def push_to_user(user_id: uuid.UUID, message: dict[str, str | int]) -> None:
         )
 
 
-def push_job_changed(user_id: uuid.UUID, job_id: str, kind: str) -> None:
+def push_job_changed(user_id: uuid.UUID, job_id: uuid.UUID, kind: str) -> None:
     """Tell a user's browser that a background job it may be waiting on changed state.
 
     The client reads the job at ``GET /jobs/{job_id}``; the hint only saves it waiting for its next poll.
@@ -58,7 +58,9 @@ def push_job_changed(user_id: uuid.UUID, job_id: str, kind: str) -> None:
         job_id: The job's identifier.
         kind: What the job does, e.g. ``garmin_link``.
     """
-    push_to_user(user_id, {"message": websocket_constants.JOB_STATUS_CHANGED_MESSAGE, "job_id": job_id, "kind": kind})
+    push_to_user(
+        user_id, {"message": websocket_constants.JOB_STATUS_CHANGED_MESSAGE, "job_id": str(job_id), "kind": kind}
+    )
 
 
 def announce_job(job: core_job_status.JobRef) -> None:

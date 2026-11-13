@@ -13,7 +13,7 @@ class SignUpToken(Base):
     """Sign-up token database model.
 
     Attributes:
-        id: Unique token identifier (string, 64 chars).
+        id: Unique token identifier (a random UUID).
         user_id: ID of the user who owns the token.
         token_hash: Hashed sign-up token.
         created_at: Token creation date.
@@ -33,7 +33,7 @@ class SignUpToken(Base):
 
     __tablename__ = "sign_up_tokens"
 
-    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
@@ -78,8 +78,7 @@ class SignUpToken(Base):
         nullable=True,
         comment="Account security generation an email-change token was issued under (email-change tokens only)",
     )
-    change_id: Mapped[str | None] = mapped_column(
-        String(64),
+    change_id: Mapped[uuid.UUID | None] = mapped_column(
         nullable=True,
         index=True,
         comment="Identifier of the email change the token belongs to (email-change tokens only)",

@@ -20,6 +20,9 @@ import modules.auth.login_audit.audit_actions as login_audit_actions
 import modules.auth.mfa.pending_login_store as pending_login_store
 from tests._helpers.auth import pending_login
 
+_SESSION_ID = uuid.UUID(int=7)
+_FAMILY_ID = uuid.UUID(int=8)
+
 _USER_ID_1 = uuid.UUID(int=1)
 _USER_ID_5 = uuid.UUID(int=5)
 
@@ -169,7 +172,7 @@ class TestRefusedPasswordSignIn:
 
 class TestSuccessfulSignIn:
     def _login_without_mfa(self, db, **kwargs):
-        tokens = ("sid", datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
+        tokens = (_SESSION_ID, datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
         with (
             patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=_USER),
             patch(f"{_SERVICE}.authenticate_user", return_value=_USER),
@@ -231,7 +234,7 @@ class TestMfaSignIn:
         )
         store.record_wrong_code.return_value = False
         request = SimpleNamespace(mfa_challenge="challenge", mfa_code="123456")
-        tokens = ("sid", datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
+        tokens = (_SESSION_ID, datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
         with (
             patch(f"{_SERVICE}.users_integration.get_user", return_value=_USER),
             patch(f"{_SERVICE}.users_integration.require_active_user"),
@@ -309,9 +312,9 @@ class TestMfaSignIn:
 class TestLogoutAndReuse:
     def _session(self):
         return SimpleNamespace(
-            id="sid",
+            id=_SESSION_ID,
             user_id=_USER_ID_1,
-            token_family_id="family",
+            token_family_id=_FAMILY_ID,
             refresh_token="hash",
             csrf_token_hash=None,
             rotation_count=0,
@@ -327,7 +330,7 @@ class TestLogoutAndReuse:
             patch(f"{_SERVICE}.identity_providers_integration.read_end_session", return_value=None),
             jasil_testing.capture_audit() as audit,
         ):
-            authentication_service.logout("sid", "rt", _USER_ID_1, hasher, auth_constants.ClientType.WEB, mock_db)
+            authentication_service.logout(_SESSION_ID, "rt", _USER_ID_1, hasher, auth_constants.ClientType.WEB, mock_db)
 
         audit.assert_audited(
             authentication_audit_actions.LOGOUT.id,
@@ -343,7 +346,9 @@ class TestLogoutAndReuse:
             patch(f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired", return_value=None),
             jasil_testing.capture_audit() as audit,
         ):
-            authentication_service.logout("sid", "rt", 1, MagicMock(), auth_constants.ClientType.WEB, mock_db)
+            authentication_service.logout(
+                _SESSION_ID, "rt", _USER_ID_1, MagicMock(), auth_constants.ClientType.WEB, mock_db
+            )
 
         audit.assert_not_audited(authentication_audit_actions.LOGOUT.id)
 
@@ -364,7 +369,7 @@ class TestLogoutAndReuse:
                 "127.0.0.1",
                 "agent",
                 _USER_ID_1,
-                "sid",
+                _SESSION_ID,
                 "old",
                 datetime(2999, 1, 1, tzinfo=UTC),
                 MagicMock(),
@@ -398,7 +403,7 @@ class TestLogoutAndReuse:
                 "127.0.0.1",
                 "agent",
                 _USER_ID_1,
-                "sid",
+                _SESSION_ID,
                 "old",
                 datetime(2999, 1, 1, tzinfo=UTC),
                 MagicMock(),
@@ -428,7 +433,7 @@ class TestSsoSignIn:
             client_type="web",
             amr=["fed"],
         )
-        tokens = ("sid", datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
+        tokens = (_SESSION_ID, datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
         hasher = MagicMock()
         with (
             patch(f"{_SERVICE}.sessions_integration.get_session_with_oauth_state", return_value=(session, oauth_state)),
@@ -443,7 +448,7 @@ class TestSsoSignIn:
             patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=_CLAIMED_EXPIRY),
         ):
             return authentication_service_sso_exchange_service.exchange_tokens_for_session(
-                "sid",
+                _SESSION_ID,
                 "verifier",
                 mfa_code,
                 "web",

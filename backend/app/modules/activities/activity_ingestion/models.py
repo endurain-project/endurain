@@ -40,7 +40,7 @@ class ActivityIngestionJob(Base):
     worker or on the in-process fallback.
 
     Attributes:
-        id: Job identifier (UUIDv4 string), returned to the client.
+        id: Job identifier (UUID), returned to the client.
         user_id: Owner of the request; every read is filtered by it.
         kind: ``upload``, ``refresh`` or ``bulk_import``.
         idempotency_key: Client-supplied ``Idempotency-Key`` for an upload, unique
@@ -97,10 +97,10 @@ class ActivityIngestionJob(Base):
         ),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(36),
+    id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True,
-        comment="Ingestion job identifier (UUIDv4 string)",
+        default=uuid.uuid4,
+        comment="Ingestion job identifier (UUIDv4)",
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),

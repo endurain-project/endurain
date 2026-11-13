@@ -1,4 +1,5 @@
 import contextlib
+import uuid
 from datetime import UTC, datetime, timedelta
 from importlib import import_module
 from unittest.mock import MagicMock
@@ -23,6 +24,9 @@ import modules.server_settings.contracts as server_settings_contracts
 import modules.users.users.schema as user_schema
 from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 from tests._helpers.security_generation import FakeSecurityGenerations
+
+#: The id of the session the test app's overridden principal and token overrides carry.
+MOCK_SESSION_ID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
 
 # Variables and constants
 DEFAULT_ROUTER_MODULES = [
@@ -398,7 +402,7 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
     app.state.mock_access_token = "mock_access_token"
     app.state.mock_refresh_token = "mock_refresh_token"
     app.state.mock_user_id = MOCK_USER_ID
-    app.state.mock_session_id = "mock_session_id"
+    app.state.mock_session_id = MOCK_SESSION_ID
 
     # Security dependency overrides for testing authenticated endpoints
     def _mock_validate_access_token():

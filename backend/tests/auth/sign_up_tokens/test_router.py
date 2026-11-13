@@ -16,6 +16,7 @@ import modules.auth.credentials.password_hasher as auth_password_hasher
 import modules.auth.sign_up_tokens.public_router as sign_up_tokens_router
 import modules.auth.sign_up_tokens.schema as sign_up_schema
 from tests._helpers.auth import MOCK_USER_ID
+from tests.auth.sign_up_tokens.ids import tid
 
 _USER_1 = uuid.UUID("00000000-0000-4000-8000-000000000001")
 _USER_2 = uuid.UUID("00000000-0000-4000-8000-000000000002")
@@ -661,7 +662,7 @@ class TestConfirmEmailChangeEndpoint:
             signup_require_email_verification=False, signup_require_admin_approval=True
         )
         mock_use_token.return_value = MagicMock(
-            id="t", user_id=_USER_10, email="new@example.com", previous_email="old@example.com"
+            id=tid("t"), user_id=_USER_10, email="new@example.com", previous_email="old@example.com"
         )
         mock_users.get_user.return_value = MagicMock(id=_USER_10, active=True)
 
@@ -760,7 +761,7 @@ class TestSignUpOffEndpoints:
     @patch("modules.auth.sign_up_tokens.service.verify_sign_up_token")
     def test_an_email_change_is_still_confirmed(self, mock_use_token, mock_users, _publishers, signup_client) -> None:
         mock_use_token.return_value = MagicMock(
-            id="t", user_id=_USER_10, email="new@example.com", previous_email="old@example.com"
+            id=tid("t"), user_id=_USER_10, email="new@example.com", previous_email="old@example.com"
         )
         mock_users.get_user.return_value = MagicMock(id=_USER_10, active=True)
 

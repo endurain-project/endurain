@@ -281,7 +281,7 @@ def get_health_weight_chart(
 
 
 def list_changed(
-    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position | None, until: datetime, limit: int, db: Session
 ) -> list[health_weight_schema.HealthWeightRead]:
     """Retrieve a user's records changed after a position, oldest change first.
 

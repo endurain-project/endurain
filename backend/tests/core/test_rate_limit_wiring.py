@@ -20,6 +20,7 @@ So this module asserts three things:
 import ast
 import pathlib
 import time
+import uuid
 from collections.abc import Iterator
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -612,12 +613,12 @@ def test_job_polling_has_its_own_tier(enabled_limiter, real_app):
     cap = parse_limit(core_rate_limit.JOB_POLL).amount
     assert cap > 121
     real_app.dependency_overrides[auth_dependencies.get_principal] = lambda: SimpleNamespace(
-        user_id=1, scopes=frozenset()
+        user_id=uuid.uuid4(), scopes=frozenset()
     )
     try:
         client = TestClient(real_app, raise_server_exceptions=False)
 
-        statuses = _statuses(client, f"{core_config.ROOT_PATH}/jobs/some-job", cap + 1)
+        statuses = _statuses(client, f"{core_config.ROOT_PATH}/jobs/{uuid.uuid4()}", cap + 1)
     finally:
         real_app.dependency_overrides.pop(auth_dependencies.get_principal)
 

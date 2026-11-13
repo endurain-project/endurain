@@ -54,7 +54,7 @@ class AccessTokenCred:
         issued_at: Token issue time (``iat`` claim).
     """
 
-    session_id: str
+    session_id: uuid.UUID
     jti: str | None = None
     issued_at: datetime | None = None
 
@@ -70,7 +70,7 @@ class ApiKeyCred:
             audit logs.
     """
 
-    api_key_id: str
+    api_key_id: uuid.UUID
     key_prefix: str
 
 
@@ -83,7 +83,7 @@ class SessionCookieCred:
             the cookie.
     """
 
-    session_id: str
+    session_id: uuid.UUID
 
 
 @dataclass(frozen=True)
@@ -168,9 +168,9 @@ class Principal:
         idempotency checks.  Its type depends on the credential
         variant:
 
-        - :class:`AccessTokenCred` → ``session_id`` (str)
-        - :class:`SessionCookieCred` → ``session_id`` (str)
-        - :class:`ApiKeyCred` → ``api_key_id`` (str)
+        - :class:`AccessTokenCred` → ``str(session_id)``
+        - :class:`SessionCookieCred` → ``str(session_id)``
+        - :class:`ApiKeyCred` → ``str(api_key_id)``
         - :class:`OAuthCred` → ``"<provider>:<external_id>"`` (str)
         - :class:`PasswordCred` → ``None``
 
@@ -179,11 +179,11 @@ class Principal:
                 ``None`` when not applicable.
         """
         if isinstance(self.credential, AccessTokenCred):
-            return self.credential.session_id
+            return str(self.credential.session_id)
         if isinstance(self.credential, SessionCookieCred):
-            return self.credential.session_id
+            return str(self.credential.session_id)
         if isinstance(self.credential, ApiKeyCred):
-            return self.credential.api_key_id
+            return str(self.credential.api_key_id)
         if isinstance(self.credential, OAuthCred):
             return f"{self.credential.provider}:{self.credential.external_id}"
         return None

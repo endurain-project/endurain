@@ -63,7 +63,7 @@ A resource has a collection and an item:
 | --- | --- | --- |
 | `200` | A read, an edit that returns the resource, an action answered at once | `ETag` for a versioned resource |
 | `201` | A resource was created | The resource, `Location` and `ETag` when it can be read by id **(test)** |
-| `202` | Work was accepted for a background job | The job (a `core.job_status.JobStatus`: `id`, `kind`, `status` `queued`, `running`, `succeeded` or `failed`, `error_code`, `created_at`, `finished_at`), `Content-Location: /jobs/{job_id}` and `Retry-After` **(test)**. Every job is read at `GET /jobs/{job_id}`, `404` for an unknown, expired or foreign id, and listed at `GET /jobs`; there is no per-operation status route. A refused second start is `409` naming the running job in `job_id` and `Content-Location` |
+| `202` | Work was accepted for a background job | The job (a `core.job_status.JobStatus`: `id`, `kind`, `status` `queued`, `running`, `succeeded` or `failed`, `error_code`, `created_at`, `finished_at`), `Content-Location: /jobs/{job_id}` and `Retry-After` **(test)**. Every job is read at `GET /jobs/{job_id}`, `422` for an id that is not a UUID, `404` for an unknown, expired or foreign id, and listed at `GET /jobs`; there is no per-operation status route. A refused second start is `409` naming the running job in `job_id` and `Content-Location` |
 | `204` | A write with nothing to return | No body. A body that only carries a message is a `204` **(test)** |
 | `400` | Input the schema accepted but the domain refuses | Problem document |
 | `401` | The credential is missing, invalid or no longer valid (expired session, deleted or deactivated user) | `WWW-Authenticate` |

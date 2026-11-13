@@ -39,7 +39,7 @@ class IdpTokenService:
         """Initialize the service with the client that reaches the providers."""
         self._oidc = oidc
 
-    def request_idp_token_refresh(self, user_id: uuid.UUID, session_id: str, db: Session) -> None:
+    def request_idp_token_refresh(self, user_id: uuid.UUID, session_id: uuid.UUID, db: Session) -> None:
         """Clear the session's identity-provider token if policy retires it, or queue its refresh if it is expiring.
 
         Runs inside a request, so it makes no provider call: the refresh itself is an event handled by
@@ -62,7 +62,7 @@ class IdpTokenService:
             )
 
     def refresh_idp_tokens(
-        self, user_id: uuid.UUID, session_id: str, claims: idp_refresh_claim_store.IdpRefreshClaimStore
+        self, user_id: uuid.UUID, session_id: uuid.UUID, claims: idp_refresh_claim_store.IdpRefreshClaimStore
     ) -> None:
         """Refresh the session's identity-provider token if it is about to expire. Blocking; run it on a worker.
 
@@ -91,7 +91,7 @@ class IdpTokenService:
 
     @staticmethod
     def store_session_tokens(
-        session_id: str,
+        session_id: uuid.UUID,
         user_id: uuid.UUID,
         idp_id: uuid.UUID,
         token_response: dict[str, Any],
@@ -202,7 +202,7 @@ class IdpTokenService:
 
     def _store_refreshed_token(
         self,
-        session_id: str,
+        session_id: uuid.UUID,
         user_id: uuid.UUID,
         idp_id: uuid.UUID,
         token_response: dict[str, Any],
@@ -249,7 +249,7 @@ class IdpTokenService:
 
     def refresh_idp_session(
         self,
-        session_id: str,
+        session_id: uuid.UUID,
         claims: idp_refresh_claim_store.IdpRefreshClaimStore,
     ) -> dict[str, Any] | None:
         """Refresh one session's IdP token unless another refresh of that session is running.
@@ -271,7 +271,7 @@ class IdpTokenService:
         if not claims.claim(session_id):
             logger.debug(
                 "Skipped an IdP refresh another worker is running for session <session>",
-                extra=core_logger.context(session=core_hashing.log_fingerprint(session_id)),
+                extra=core_logger.context(session=core_hashing.log_fingerprint(str(session_id))),
             )
             return None
         try:
@@ -279,7 +279,7 @@ class IdpTokenService:
         finally:
             claims.release(session_id)
 
-    def _refresh_claimed_session(self, session_id: str) -> dict[str, Any] | None:
+    def _refresh_claimed_session(self, session_id: uuid.UUID) -> dict[str, Any] | None:
         """Exchange a session's stored refresh token with the IdP for new tokens and store them.
 
         The provider is called with no database session open: the stored token is read in one
@@ -482,7 +482,7 @@ class IdpTokenService:
 
     @staticmethod
     def _clear_refresh_token(
-        session_id: str, user_id: uuid.UUID, idp_id: uuid.UUID, expected_refresh_token: str
+        session_id: uuid.UUID, user_id: uuid.UUID, idp_id: uuid.UUID, expected_refresh_token: str
     ) -> bool:
         """Clear the refresh token a refresh read, in a session of its own, unless the session holds another now.
 
@@ -513,7 +513,7 @@ class IdpTokenService:
         return True
 
     def _end_refused_session(
-        self, session_id: str, user_id: uuid.UUID, idp_id: uuid.UUID, expected_refresh_token: str
+        self, session_id: uuid.UUID, user_id: uuid.UUID, idp_id: uuid.UUID, expected_refresh_token: str
     ) -> None:
         """End the Endurain session whose refresh token the provider refused, and audit it.
 
@@ -541,7 +541,7 @@ class IdpTokenService:
                 db,
                 sessions_audit_actions.SESSION_REVOKE,
                 target_type="session",
-                target_id=session_id,
+                target_id=str(session_id),
                 target_owner_id=str(user_id),
                 details=sessions_audit_actions.SessionsRevokedDetails(sessions_revoked=1),
             )

@@ -83,7 +83,7 @@ def list_user_sessions(
 
 
 def delete_user_session(
-    session_id: str,
+    session_id: uuid.UUID,
     token_user_id: uuid.UUID,
     db: Session,
 ) -> None:
@@ -93,7 +93,7 @@ def delete_user_session(
         db,
         sessions_audit_actions.SESSION_REVOKE,
         target_type="session",
-        target_id=session_id,
+        target_id=str(session_id),
         target_owner_id=str(token_user_id),
         details=sessions_audit_actions.SessionsRevokedDetails(sessions_revoked=1),
     )
@@ -101,7 +101,7 @@ def delete_user_session(
     # The session id is the handle exchanged for tokens, so only a one-way fingerprint is logged.
     logger.info(
         "Deleted a user's session",
-        extra=core_logger.context(user_id=token_user_id, session=core_hashing.log_fingerprint(session_id)),
+        extra=core_logger.context(user_id=token_user_id, session=core_hashing.log_fingerprint(str(session_id))),
     )
 
 
@@ -136,7 +136,7 @@ def sign_out_everywhere(token_user_id: uuid.UUID, db: Session) -> int:
 
 def stage_delete_other_user_sessions(
     token_user_id: uuid.UUID,
-    current_session_id: str,
+    current_session_id: uuid.UUID,
     db: Session,
 ) -> int:
     """Stage the revocation of all of the user's sessions except their current one; the caller commits.
@@ -165,7 +165,7 @@ def stage_delete_other_user_sessions(
 
 def delete_other_user_sessions(
     token_user_id: uuid.UUID,
-    current_session_id: str,
+    current_session_id: uuid.UUID,
     db: Session,
 ) -> int:
     """Revoke all of the user's sessions except their current one and commit.
@@ -207,7 +207,7 @@ def stage_account_change_notice(
     account_security_event_publishers.publish_account_security_changed(user_id, change, db, access_type=access_type)
 
 
-def end_other_sessions(user_id: uuid.UUID, current_session_id: str | None, db: Session) -> int:
+def end_other_sessions(user_id: uuid.UUID, current_session_id: uuid.UUID | None, db: Session) -> int:
     """Stage the end of the user's sessions except the caller's, after a change of an authentication factor.
 
     The caller stages the audit row that reports the count, in the transaction that commits the change.
@@ -322,7 +322,7 @@ def stage_change_own_password(
     db: Session,
     *,
     revoke_other_sessions: bool,
-    current_session_id: str,
+    current_session_id: uuid.UUID,
 ) -> None:
     """Stage a change of a user's own password after step-up verification; the caller commits.
 

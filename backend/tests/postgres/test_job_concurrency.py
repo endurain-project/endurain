@@ -29,6 +29,8 @@ from tests._helpers.db import ensure_user
 
 _USER_ID = MOCK_USER_ID
 _LEASE = timedelta(seconds=300)
+_ACTIVITY_ID_1 = uuid.UUID("00000000-0000-4000-8000-0000000000c1")
+_ACTIVITY_ID_2 = uuid.UUID("00000000-0000-4000-8000-0000000000c2")
 _PRIVACY_FLAGS = (
     "hide_start_time",
     "hide_location",
@@ -51,10 +53,12 @@ def factory(pg_factory):
     return pg_factory
 
 
-def _add_job(factory, kind=ingestion_constants.IngestionJobKind.UPLOAD, *, idle_hours: int = 0, **extra) -> str:
-    job_id = str(uuid.uuid4())
+def _add_job(factory, kind=ingestion_constants.IngestionJobKind.UPLOAD, *, idle_hours: int = 0, **extra) -> uuid.UUID:
+    job_id = uuid.uuid4()
     with factory() as db:
-        ingestion_crud.create_ingestion_job(job_id, _USER_ID, kind, db, filename="ride.gpx", staged_key=job_id, **extra)
+        ingestion_crud.create_ingestion_job(
+            job_id, _USER_ID, kind, db, filename="ride.gpx", staged_key=str(job_id), **extra
+        )
         db.commit()
     if idle_hours:
         with factory() as db:
@@ -68,7 +72,7 @@ def _add_job(factory, kind=ingestion_constants.IngestionJobKind.UPLOAD, *, idle_
     return job_id
 
 
-def _state(factory, job_id: str) -> tuple[str, str | None]:
+def _state(factory, job_id: uuid.UUID) -> tuple[str, str | None]:
     """Read a job through a fresh session: ``(status, error_code)``."""
     with factory() as db:
         row = db.get(ingestion_models.ActivityIngestionJob, job_id)
@@ -81,7 +85,7 @@ class TestTerminalJobsAreFinal:
         """A worker that lost its lease finishing after the replacement worker did."""
         job_id = _add_job(factory)
         with factory() as db:
-            ingestion_crud.mark_completed(job_id, [1], db)
+            ingestion_crud.mark_completed(job_id, [_ACTIVITY_ID_1], db)
             db.commit()
 
         with factory() as db:
@@ -93,7 +97,7 @@ class TestTerminalJobsAreFinal:
     def test_two_writers_of_one_job_serialize_on_the_row_lock(self, factory):
         job_id = _add_job(factory)
         first = factory()
-        ingestion_crud.mark_completed(job_id, [1], first)  # holds the row lock, uncommitted
+        ingestion_crud.mark_completed(job_id, [_ACTIVITY_ID_1], first)  # holds the row lock, uncommitted
         second_done = threading.Event()
 
         def second_writer() -> None:
@@ -127,14 +131,14 @@ class TestStaleJobReaper:
             )
             db.commit()
 
-        assert failed == [(idle, idle)]
+        assert failed == [(idle, str(idle))]
         assert _state(factory, idle) == ("failed", "processing_failed")
 
     def test_it_skips_a_row_a_worker_is_writing_without_blocking(self, factory):
         busy = _add_job(factory, idle_hours=48)
         idle = _add_job(factory, idle_hours=48)
         worker = factory()
-        ingestion_crud.mark_completed(busy, [2], worker)  # the worker's uncommitted outcome
+        ingestion_crud.mark_completed(busy, [_ACTIVITY_ID_2], worker)  # the worker's uncommitted outcome
         result: dict = {}
 
         def reap() -> None:

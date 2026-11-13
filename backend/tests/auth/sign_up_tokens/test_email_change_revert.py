@@ -1,5 +1,6 @@
 """The "this wasn't me" link of an email change: valid for 7 days, before and after the change is confirmed."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -9,6 +10,7 @@ from jasil.backends.state_memory import MemoryState
 from sqlalchemy.orm import sessionmaker
 
 import core.exceptions as core_exceptions
+import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.sign_up_tokens.models as sign_up_models
 import modules.auth.sign_up_tokens.service as sign_up_service
 import modules.users.users.integration_service as users_integration
@@ -73,14 +75,14 @@ def _request(db, new=_NEW, previous=_OLD) -> str:
     return _extract(message[2])
 
 
-def _confirm(db, event="event-1") -> str:
+def _confirm(db, event="event-1") -> uuid.UUID:
     """Deliver the confirmation mail and open its link; return the id of the notice's token."""
     message = sign_up_service.prepare_email_change_verification_email(MOCK_USER_ID, event, _HOST, db)
     assert message is not None
     raw = message[2].split("?token=")[1].split('"')[0].split("<")[0].split("&")[0]
     with patch(_PUBLISH) as publish:
         sign_up_service.confirm_email_change(raw, db)
-    return publish.call_args.args[1]["token_id"]
+    return uuid.UUID(publish.call_args.args[1]["token_id"])
 
 
 def _revert(db, token):
@@ -507,7 +509,7 @@ class TestChangesTheOwnerDidNotRequest:
             sign_up_service.confirm_email_change(raw, db)
 
         notice = sign_up_service.prepare_email_changed_email(
-            MOCK_USER_ID, publish.call_args.args[1]["token_id"], _HOST, db
+            MOCK_USER_ID, uuid.UUID(publish.call_args.args[1]["token_id"]), _HOST, db
         )
 
         assert notice is not None
@@ -544,6 +546,32 @@ class TestRefusals:
         assert db.query(sign_up_models.SignUpToken).filter_by(used=False).count() == 1
         platform.sessions.assert_not_called()
         audit.assert_audited(_ACTION, outcome="failure")
+
+    def test_a_link_minted_from_the_canonical_text_of_the_id_still_resolves(self, db, platform):
+        _request(db)
+        row = db.query(sign_up_models.SignUpToken).filter(sign_up_models.SignUpToken.change_id.is_not(None)).one()
+        mac = access_tokens_integration.derive_email_token(
+            f"email-change-revert:{row.change_id!s}:{int(row.revert_until.timestamp())}"
+        )
+
+        result = _revert(db, f"{row.change_id}.{mac}")
+
+        assert result.change_applied is False
+        assert db.query(sign_up_models.SignUpToken).filter_by(used=False).count() == 0
+
+    def test_a_link_whose_id_part_is_not_a_uuid_is_refused_like_a_bad_proof(self, db, platform):
+        _request(db)
+        row = db.query(sign_up_models.SignUpToken).filter(sign_up_models.SignUpToken.change_id.is_not(None)).one()
+        mac = sign_up_service._revert_mac(row.change_id, row.revert_until)
+
+        with pytest.raises(core_exceptions.InvalidInputError) as refused:
+            _revert(db, f"not-a-uuid.{mac}")
+
+        with pytest.raises(core_exceptions.InvalidInputError) as forged:
+            _revert(db, f"{row.change_id}.forged")
+        assert str(refused.value) == str(forged.value)
+        assert db.query(sign_up_models.SignUpToken).filter_by(used=False).count() == 1
+        platform.sessions.assert_not_called()
 
     def test_a_link_with_a_forged_proof_is_refused(self, db, platform):
         link = _request(db)

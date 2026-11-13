@@ -1,6 +1,7 @@
 """Tests for pure auth-session helpers."""
 
 import dataclasses
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -11,6 +12,8 @@ import modules.auth.sessions.utils as sessions_utils
 import modules.server_settings.contracts as server_settings_contracts
 from tests._helpers.auth import MOCK_USER_ID
 
+SESSION_ID = uuid.UUID("00000000-0000-4000-8000-0000000005e1")
+FAMILY_ID = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
 _POLICY = server_settings_contracts.SessionPolicy(
     access_token_ttl=timedelta(minutes=15),
     refresh_token_ttl=timedelta(days=7),
@@ -23,7 +26,7 @@ _NO_IDLE_POLICY = dataclasses.replace(_POLICY, idle_timeout=None)
 
 def _session(*, last_activity_at: datetime, created_at: datetime) -> sessions_contracts.SessionRead:
     return sessions_contracts.SessionRead(
-        id="session-id",
+        id=SESSION_ID,
         user_id=MOCK_USER_ID,
         refresh_token=None,
         ip_address="127.0.0.1",
@@ -37,7 +40,7 @@ def _session(*, last_activity_at: datetime, created_at: datetime) -> sessions_co
         expires_at=datetime.now(UTC) + timedelta(days=1),
         oauth_state_id=None,
         tokens_exchanged=False,
-        token_family_id="family-id",
+        token_family_id=FAMILY_ID,
         rotation_count=0,
         last_rotation_at=None,
         csrf_token_hash=None,

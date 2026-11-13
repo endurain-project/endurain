@@ -236,7 +236,9 @@ def set_job_location(
     core_location.set_job_location(response, request, job.id, activity_ingestion_constants.JOB_POLL_SECONDS[kind])
 
 
-def read_job(job_id: str, user_id: uuid.UUID, db: Session) -> activity_ingestion_schema.ActivityIngestionJobRead | None:
+def read_job(
+    job_id: uuid.UUID, user_id: uuid.UUID, db: Session
+) -> activity_ingestion_schema.ActivityIngestionJobRead | None:
     """Return one of a user's ingestion jobs.
 
     Args:
@@ -256,7 +258,7 @@ def list_jobs(
     *,
     kinds: Collection[str],
     status: core_job_status.JobState | None,
-    before: tuple[datetime, str] | None,
+    before: tuple[datetime, uuid.UUID] | None,
     limit: int,
 ) -> list[activity_ingestion_schema.ActivityIngestionJobRead]:
     """List a user's ingestion jobs, newest first.

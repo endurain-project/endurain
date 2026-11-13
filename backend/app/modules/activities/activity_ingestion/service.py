@@ -196,7 +196,7 @@ def accept_upload(
         # upload can be 200 MiB. A staged key release stays pending: it commits with the new job.
         db.rollback()
     staged_key = activity_ingestion_upload_entry_service.store_received_upload(received, storage)
-    job_id = str(uuid.uuid4())
+    job_id = uuid.uuid4()
 
     try:
         activity_ingestion_crud.create_ingestion_job(
@@ -258,7 +258,7 @@ def accept_upload(
 
 
 def _pending_view(
-    job_id: str,
+    job_id: uuid.UUID,
     kind: activity_ingestion_constants.IngestionJobKind,
     filename: str | None = None,
 ) -> activity_ingestion_schema.ActivityIngestionJobRead:
@@ -292,7 +292,7 @@ def list_jobs(
     *,
     kinds: Collection[str],
     status: core_job_status.JobState | None,
-    before: tuple[datetime, str] | None,
+    before: tuple[datetime, uuid.UUID] | None,
     limit: int,
 ) -> list[activity_ingestion_schema.ActivityIngestionJobRead]:
     """List a user's ingestion jobs, newest first.
@@ -346,7 +346,7 @@ def accept_refresh(
         PoolFullError: On the local profile, when the in-process pool is full.
     """
     activity_ingestion_dispatch_service.require_capacity()
-    job_id = str(uuid.uuid4())
+    job_id = uuid.uuid4()
 
     activity_ingestion_crud.create_ingestion_job(
         job_id,
@@ -374,7 +374,7 @@ def accept_refresh(
     )
 
 
-def run_refresh_job(job_id: str, storage: platform_providers.StorageProvider) -> None:
+def run_refresh_job(job_id: uuid.UUID, storage: platform_providers.StorageProvider) -> None:
     """Pull the job's window from the linked providers, recording the outcome.
 
     The job body for both executors. It is synchronous and runs on a worker
@@ -496,7 +496,7 @@ def _queue_refresh_batch(user_ids: list[uuid.UUID], storage: platform_providers.
     """
     with core_database.SessionLocal() as db:
         busy = activity_ingestion_crud.get_user_ids_with_active_refresh(user_ids, db)
-        jobs = [(str(uuid.uuid4()), user_id) for user_id in user_ids if user_id not in busy]
+        jobs = [(uuid.uuid4(), user_id) for user_id in user_ids if user_id not in busy]
         if not jobs:
             return 0
         for job_id, user_id in jobs:
@@ -509,7 +509,7 @@ def _queue_refresh_batch(user_ids: list[uuid.UUID], storage: platform_providers.
 
 
 def _dispatch_refresh_jobs(
-    jobs: list[tuple[str, uuid.UUID]], storage: platform_providers.StorageProvider, db: Session
+    jobs: list[tuple[uuid.UUID, uuid.UUID]], storage: platform_providers.StorageProvider, db: Session
 ) -> None:
     """Make staged refresh jobs durable and start them: a worker event, or the in-process pool.
 
@@ -568,7 +568,7 @@ def redispatch_deferred_refreshes(
     return released
 
 
-def run_upload_job(job_id: str, storage: platform_providers.StorageProvider) -> None:
+def run_upload_job(job_id: uuid.UUID, storage: platform_providers.StorageProvider) -> None:
     """Import a staged upload, recording the outcome on the job row.
 
     The job body for both executors. Opens its own session because neither the
@@ -673,7 +673,7 @@ def run_upload_job(job_id: str, storage: platform_providers.StorageProvider) -> 
         )
 
 
-def release_ingestion_job(job_id: str) -> None:
+def release_ingestion_job(job_id: uuid.UUID) -> None:
     """Return a failed attempt's job to ``pending`` so the runner's retry can claim it.
 
     Separate session because the caller's may be in a failed transaction. A
@@ -694,7 +694,7 @@ def release_ingestion_job(job_id: str) -> None:
         )
 
 
-def defer_ingestion_job(job_id: str, retry_at: datetime) -> None:
+def defer_ingestion_job(job_id: uuid.UUID, retry_at: datetime) -> None:
     """Record that a claimed refresh waits for a provider's rate limit to clear.
 
     Args:
@@ -711,8 +711,8 @@ def defer_ingestion_job(job_id: str, retry_at: datetime) -> None:
 
 
 def run_in_background_or_fail(
-    run: Callable[[str, platform_providers.StorageProvider], object],
-    job_id: str,
+    run: Callable[[uuid.UUID, platform_providers.StorageProvider], object],
+    job_id: uuid.UUID,
     storage: platform_providers.StorageProvider,
 ) -> None:
     """Run a committed job on the in-process pool, closing it when the pool turns it away.
@@ -733,7 +733,7 @@ def run_in_background_or_fail(
         raise
 
 
-def announce_job(user_id: uuid.UUID, job_id: str, kind: activity_ingestion_constants.IngestionJobKind) -> None:
+def announce_job(user_id: uuid.UUID, job_id: uuid.UUID, kind: activity_ingestion_constants.IngestionJobKind) -> None:
     """Tell the job's owner it reached a terminal state, so their client stops waiting for its poll.
 
     Call it after the state is committed.
@@ -747,7 +747,7 @@ def announce_job(user_id: uuid.UUID, job_id: str, kind: activity_ingestion_const
 
 
 def fail_ingestion_job(
-    job_id: str,
+    job_id: uuid.UUID,
     error_code: activity_ingestion_constants.IngestionJobErrorCode,
     storage: platform_providers.StorageProvider,
     staged_key: str | None = None,
@@ -895,7 +895,7 @@ def fail_stale_ingestion_jobs(
         storage: The blob-storage provider the uploads were staged in.
     """
     failed_count = 0
-    failed_ids: list[str] = []
+    failed_ids: list[uuid.UUID] = []
     now = clock.now()
     cutoff = now - _STALE_JOB_AGE
     unstaged_bulk_cutoff = now - _STALE_UNSTAGED_BULK_AGE
@@ -925,7 +925,7 @@ def fail_stale_ingestion_jobs(
             "Failed ingestion jobs that stopped progressing",
             extra=core_logger.context(
                 failed=failed_count,
-                job_ids=failed_ids,
+                job_ids=[str(failed_id) for failed_id in failed_ids],
                 idle_hours=_STALE_JOB_AGE.total_seconds() / 3600,
             ),
         )

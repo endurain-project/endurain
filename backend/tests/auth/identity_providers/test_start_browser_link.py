@@ -14,6 +14,7 @@ from modules.auth.identity_providers import authorization_service, integration_s
 from tests._helpers.auth import MOCK_USER_ID
 
 IDP_ID = uuid.uuid4()
+SESSION_ID = uuid.UUID("11111111-2222-3333-4444-555555555555")
 
 _UNSET = object()
 
@@ -46,7 +47,7 @@ def _idp(enabled: bool = True) -> identity_provider_contracts.IdentityProviderSt
     )
 
 
-def _stage(*, redirect=None, provider=_UNSET, session_id="sid", ends_other_sessions=False, generation=0):
+def _stage(*, redirect=None, provider=_UNSET, session_id=SESSION_ID, ends_other_sessions=False, generation=0):
     if provider is _UNSET:
         provider = _idp()
     db = MagicMock()
@@ -124,9 +125,9 @@ def test_a_link_state_keeps_a_fresh_pkce_verifier_for_the_provider():
 
 @pytest.mark.parametrize("ends_other_sessions", [True, False])
 def test_a_link_state_always_records_its_starting_session_and_whether_it_ends_the_others(ends_other_sessions):
-    _, _, create_state = _stage(session_id="sid", ends_other_sessions=ends_other_sessions)
+    _, _, create_state = _stage(session_id=SESSION_ID, ends_other_sessions=ends_other_sessions)
 
-    assert create_state.call_args.kwargs["session_id"] == "sid"
+    assert create_state.call_args.kwargs["session_id"] == SESSION_ID
     assert create_state.call_args.kwargs["ends_other_sessions"] is ends_other_sessions
 
 

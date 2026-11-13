@@ -39,7 +39,7 @@ class ActivityIngestionJobRead(core_job_status.JobStatus):
         finished_at: When the job reached a terminal state.
     """
 
-    id: str
+    id: uuid.UUID
     kind: activity_ingestion_constants.JobKindName
     filename: str | None = None
     import_source: str | None = None

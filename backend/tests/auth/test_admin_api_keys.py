@@ -16,6 +16,9 @@ import modules.auth.api_keys.schema as api_keys_schema
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.schema as auth_schema
 
+_KEY_1 = uuid.UUID("00000000-0000-4000-8000-0000000000b1")
+_SID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+
 USER_ID = uuid.UUID(int=7)
 ADMIN_ID = uuid.UUID(int=1)
 _STEP_UP = auth_schema.StepUpVerification(current_password="pw")
@@ -62,7 +65,7 @@ class TestListService:
 
 class TestRevokeOne:
     def _revoke(self, mock_db):
-        api_key_service.revoke_api_key_of_user("key-1", USER_ID, ADMIN_ID, "sid", _STEP_UP, MagicMock(), mock_db)
+        api_key_service.revoke_api_key_of_user(_KEY_1, USER_ID, ADMIN_ID, _SID, _STEP_UP, MagicMock(), mock_db)
 
     def test_the_admins_step_up_is_verified_for_the_admin_action_before_the_key_is_revoked(self, mock_db, published):
         calls = MagicMock()
@@ -77,8 +80,8 @@ class TestRevokeOne:
         assert (
             calls.verify.call_args.kwargs["action"] == identity_providers_constants.StepUpAction.ADMIN_API_KEYS_REVOKE
         )
-        assert calls.verify.call_args.kwargs["session_id"] == "sid"
-        calls.revoke.assert_called_once_with("key-1", USER_ID, mock_db)
+        assert calls.verify.call_args.kwargs["session_id"] == _SID
+        calls.revoke.assert_called_once_with(_KEY_1, USER_ID, mock_db)
 
     def test_the_revocation_is_audited_without_a_secret_the_owner_is_notified_and_it_commits(self, mock_db, published):
         with (
@@ -91,7 +94,7 @@ class TestRevokeOne:
         row = audit.assert_audited(
             account_security_audit_actions.API_KEY_REVOKE.id,
             target_type="api_key",
-            target_id="key-1",
+            target_id=str(_KEY_1),
             target_owner_id=str(USER_ID),
         )
         assert not row.details
@@ -131,7 +134,7 @@ class TestRevokeOne:
 
 class TestRevokeAll:
     def _revoke_all(self, mock_db):
-        api_key_service.revoke_api_keys_of_user(USER_ID, ADMIN_ID, "sid", _STEP_UP, MagicMock(), mock_db)
+        api_key_service.revoke_api_keys_of_user(USER_ID, ADMIN_ID, _SID, _STEP_UP, MagicMock(), mock_db)
 
     def test_the_count_is_audited_the_owner_is_notified_and_it_commits(self, mock_db, published):
         with (
@@ -212,14 +215,14 @@ class TestRoutes:
 
     def test_revoking_one_answers_204_and_names_the_key_user_and_admin(self, fast_api_client):
         with patch(f"{_SERVICE}.revoke_api_key_of_user") as revoke:
-            response = fast_api_client.post(f"/users/{USER_ID}/api-keys/key-1/revoke", json=_BODY, headers=_HEADERS)
+            response = fast_api_client.post(f"/users/{USER_ID}/api-keys/{_KEY_1}/revoke", json=_BODY, headers=_HEADERS)
 
         assert response.status_code == 204
-        assert revoke.call_args.args[:2] == ("key-1", USER_ID)
+        assert revoke.call_args.args[:2] == (_KEY_1, USER_ID)
 
     def test_a_key_of_another_user_is_404(self, fast_api_client):
         with patch(f"{_SERVICE}.revoke_api_key_of_user", side_effect=core_exceptions.NotFoundError("x")):
-            response = fast_api_client.post(f"/users/{USER_ID}/api-keys/key-1/revoke", json=_BODY, headers=_HEADERS)
+            response = fast_api_client.post(f"/users/{USER_ID}/api-keys/{_KEY_1}/revoke", json=_BODY, headers=_HEADERS)
 
         assert response.status_code == 404
 
@@ -230,7 +233,9 @@ class TestRoutes:
         assert response.status_code == 204
         assert revoke.call_args.args[0] == USER_ID
 
-    @pytest.mark.parametrize("path", [f"/users/{USER_ID}/api-keys/key-1/revoke", f"/users/{USER_ID}/api-keys/revoke"])
+    @pytest.mark.parametrize(
+        "path", [f"/users/{USER_ID}/api-keys/{_KEY_1}/revoke", f"/users/{USER_ID}/api-keys/revoke"]
+    )
     def test_a_body_without_step_up_is_refused(self, fast_api_client, path):
         assert fast_api_client.post(path, json={}, headers=_HEADERS).status_code == 422
 
@@ -238,7 +243,7 @@ class TestRoutes:
         ("method", "path"),
         [
             ("get", "/users/7/api-keys"),
-            ("post", "/users/7/api-keys/key-1/revoke"),
+            ("post", f"/users/7/api-keys/{_KEY_1}/revoke"),
             ("post", "/users/7/api-keys/revoke"),
         ],
     )

@@ -321,7 +321,7 @@ The challenge lives 5 minutes. The server accepts it only from the network of th
 ```json
 {
   "next_step": "tokens",
-  "session_id": "unique_session_id",
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
   "access_token": "eyJ...",
   "csrf_token": "abc123...",
   "token_type": "bearer",
@@ -335,7 +335,7 @@ The challenge lives 5 minutes. The server accepts it only from the network of th
 ```json
 {
   "next_step": "tokens",
-  "session_id": "unique_session_id",
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
   "access_token": "eyJ...",
   "refresh_token": "eyJ...",
   "token_type": "bearer",

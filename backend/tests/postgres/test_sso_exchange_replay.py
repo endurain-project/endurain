@@ -19,7 +19,7 @@ from modules.auth.constants import ClientType
 from tests._helpers.db import ensure_user
 
 _USER_ID = uuid.UUID(int=7)
-_SESSION_ID = "5" * 36
+_SESSION_ID = uuid.UUID(int=9)
 _STATE_ID = "a" * 32
 _VERIFIER = "v" * 43
 _CHALLENGE = base64.urlsafe_b64encode(hashlib.sha256(_VERIFIER.encode()).digest()).decode().rstrip("=")

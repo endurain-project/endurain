@@ -11,6 +11,8 @@ import modules.websocket.integration_service as websocket_integration
 
 USER = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
 OTHER_USER = uuid.UUID("7b1c93e4-5d28-4f6a-8e03-a94d2c6f1b57")
+JOB_1 = uuid.UUID("a1000000-0000-4000-8000-000000000011")
+JOB_2 = uuid.UUID("a1000000-0000-4000-8000-000000000012")
 
 
 @pytest.fixture
@@ -41,14 +43,14 @@ def test_an_oversized_push_is_dropped_not_raised(hints):
 
 
 def test_a_job_hint_names_the_job_and_reaches_the_users_key(hints):
-    websocket_integration.push_job_changed(USER, "job-1", "garmin_link")
+    websocket_integration.push_job_changed(USER, JOB_1, "garmin_link")
 
-    assert hints == [(f"user:{USER}", {"message": "JOB_STATUS_CHANGED", "job_id": "job-1", "kind": "garmin_link"})]
+    assert hints == [(f"user:{USER}", {"message": "JOB_STATUS_CHANGED", "job_id": str(JOB_1), "kind": "garmin_link"})]
 
 
 def test_a_job_is_announced_to_the_user_who_started_it(hints):
     job = core_job_status.JobRef(
-        id="job-2",
+        id=JOB_2,
         kind="user_deletion",
         owner_id=OTHER_USER,
         subject="9:account",
@@ -58,5 +60,5 @@ def test_a_job_is_announced_to_the_user_who_started_it(hints):
     websocket_integration.announce_job(job)
 
     assert hints == [
-        (f"user:{OTHER_USER}", {"message": "JOB_STATUS_CHANGED", "job_id": "job-2", "kind": "user_deletion"})
+        (f"user:{OTHER_USER}", {"message": "JOB_STATUS_CHANGED", "job_id": str(JOB_2), "kind": "user_deletion"})
     ]

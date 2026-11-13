@@ -83,6 +83,8 @@ import modules.users.users_profile.export_service as profile_export_service
 import modules.users.users_profile.import_service as profile_import_service
 import modules.users.users_profile.service as profile_service
 
+_SID_1 = uuid.UUID(int=101)
+
 #: The checked-in archive of an export written by a UUID-era release, which the import accepts.
 _FIXTURE = Path(__file__).parent / "fixtures" / "profile_export_archive_v0_21.json"
 
@@ -187,7 +189,7 @@ def _create_account(factory: sessionmaker[Session]) -> uuid.UUID:
             ),
             None,
             uuid.UUID(int=1),
-            "sid-1",
+            _SID_1,
             MagicMock(),
             db,
         )

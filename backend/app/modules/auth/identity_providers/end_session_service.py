@@ -1,5 +1,6 @@
 """RP-initiated logout: end an identity-provider sign-in at the provider when its Endurain session ends."""
 
+import uuid
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from sqlalchemy.orm import Session
@@ -23,7 +24,7 @@ class EndSessionService:
         self._oidc = oidc
 
     @staticmethod
-    def read_end_session(session_id: str, db: Session) -> identity_provider_contracts.EndSessionRequest | None:
+    def read_end_session(session_id: uuid.UUID, db: Session) -> identity_provider_contracts.EndSessionRequest | None:
         """Read the provider and ID token of the sign-in behind a session, before the session ends.
 
         Args:

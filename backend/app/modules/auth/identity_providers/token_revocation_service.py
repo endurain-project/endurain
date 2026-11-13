@@ -203,7 +203,7 @@ class IdpTokenRevocationService:
             logger.debug(
                 "Revoked an identity-provider token at idp <idp_id> for session <session>",
                 extra=core_logger.context(
-                    idp_id=idp.id, session=core_hashing.log_fingerprint(session_token.session_id)
+                    idp_id=idp.id, session=core_hashing.log_fingerprint(str(session_token.session_id))
                 ),
             )
         return _Outcome.DELETE

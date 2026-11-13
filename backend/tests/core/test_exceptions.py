@@ -172,3 +172,30 @@ class TestProblemHeadersAndExtensions:
         error.extensions = {"missing_scopes": ["a", "b"]}
 
         assert self._client(error).get("/raises").json()["missing_scopes"] == ["a", "b"]
+
+    def test_a_running_job_is_named_by_its_uuid_in_the_header_and_the_member(self):
+        import uuid
+
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        import core.exceptions as core_exceptions
+        import core.job_status as core_job_status
+
+        job_id = uuid.uuid4()
+        app = FastAPI()
+        core_exceptions.register_exception_handlers(app)
+
+        @app.get("/raises")
+        def raises() -> None:
+            raise core_exceptions.JobAlreadyRunningError("busy", job_id=job_id)
+
+        @app.get("/jobs/{job_id}", name=core_job_status.JOB_ROUTE)
+        def read_job(job_id: uuid.UUID) -> None:
+            return None
+
+        response = TestClient(app).get("/raises")
+
+        assert response.status_code == 409
+        assert response.json()["job_id"] == str(job_id)
+        assert response.headers["Content-Location"] == f"/jobs/{job_id}"

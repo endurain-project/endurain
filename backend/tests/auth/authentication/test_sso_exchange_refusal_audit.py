@@ -10,6 +10,8 @@ import jasil.testing as jasil_testing
 import core.exceptions as core_exceptions
 import modules.auth.authentication.sso_exchange_service as sso_exchange_service
 
+_SESSION_ID = uuid.UUID(int=7)
+
 _USER_ID = uuid.UUID(int=5)
 
 IDP_ID = uuid.uuid4()
@@ -37,7 +39,7 @@ def _exchange(db, *, pkce_error=None, inactive=False, claimed=True, header="web"
         amr=["fed"],
     )
     inactive_error = core_exceptions.PermissionDeniedError("Inactive user") if inactive else None
-    tokens = ("sid", datetime(2026, 11, 1, tzinfo=UTC), "at", datetime(2026, 12, 1, tzinfo=UTC), "rt", "csrf")
+    tokens = (_SESSION_ID, datetime(2026, 11, 1, tzinfo=UTC), "at", datetime(2026, 12, 1, tzinfo=UTC), "rt", "csrf")
     with (
         patch(
             f"{_SERVICE}.sessions_integration.get_session_with_oauth_state",
@@ -63,7 +65,7 @@ def _exchange(db, *, pkce_error=None, inactive=False, claimed=True, header="web"
             between()
         try:
             sso_exchange_service.exchange_tokens_for_session(
-                "sid",
+                _SESSION_ID,
                 "verifier",
                 None,
                 header,

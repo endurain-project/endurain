@@ -20,10 +20,9 @@ class PasswordResetToken(BaseModel):
         used: Whether the token has already been used.
     """
 
-    id: StrictStr = Field(
+    id: uuid.UUID = Field(
         ...,
         description="Unique identifier for the token",
-        max_length=64,
     )
     user_id: uuid.UUID = Field(
         ...,

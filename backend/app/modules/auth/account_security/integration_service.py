@@ -28,7 +28,7 @@ def get_step_up_attempts(state: core_dependencies.PlatformState) -> StepUpStore:
 def verify_step_up(
     step_up: auth_schema.StepUpVerification,
     user_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     action: identity_providers_constants.StepUpAction,
     step_up_store: step_up_store_module.StepUpStore,
     db: Session,
@@ -55,7 +55,7 @@ def change_own_password(
     db: Session,
     *,
     revoke_other_sessions: bool,
-    current_session_id: str,
+    current_session_id: uuid.UUID,
 ) -> None:
     """Stage a change of a user's password after step-up verification."""
     account_security_service.stage_change_own_password(
@@ -112,7 +112,7 @@ def delete_all_user_sessions(user_id: uuid.UUID, db: Session) -> None:
     account_security_service.delete_all_user_sessions(user_id, db)
 
 
-def delete_other_user_sessions(user_id: uuid.UUID, current_session_id: str, db: Session) -> int:
+def delete_other_user_sessions(user_id: uuid.UUID, current_session_id: uuid.UUID, db: Session) -> int:
     """Stage the revocation of a user's sessions except the current one."""
     return account_security_service.stage_delete_other_user_sessions(user_id, current_session_id, db)
 

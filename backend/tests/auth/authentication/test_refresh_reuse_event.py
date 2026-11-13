@@ -13,6 +13,9 @@ import modules.auth.authentication.event_publishers as authentication_event_publ
 import modules.auth.authentication.events as authentication_events
 import modules.auth.authentication.refresh_service as refresh_service
 
+_SESSION_ID = uuid.UUID(int=7)
+_FAMILY_ID = uuid.UUID(int=8)
+
 _USER_ID_5 = uuid.UUID(int=5)
 
 _USER_ID = uuid.UUID(int=1)
@@ -22,9 +25,9 @@ _REFRESH = "modules.auth.authentication.refresh_service"
 
 def _session():
     return SimpleNamespace(
-        id="sid",
+        id=_SESSION_ID,
         user_id=_USER_ID,
-        token_family_id="family",
+        token_family_id=_FAMILY_ID,
         refresh_token="hash",
         csrf_token_hash=None,
         rotation_count=0,
@@ -47,7 +50,7 @@ def _refresh(mock_db, reuse):
             "127.0.0.1",
             "agent",
             _USER_ID,
-            "sid",
+            _SESSION_ID,
             "old",
             datetime(2999, 1, 1, tzinfo=UTC),
             MagicMock(),
@@ -75,7 +78,7 @@ def test_the_event_is_staged_before_the_commit(mock_db):
         ),
         pytest.raises(core_exceptions.InvalidTokenError),
     ):
-        refresh_service._end_session_on_reuse(_USER_ID, "family", mock_db)
+        refresh_service._end_session_on_reuse(_USER_ID, _FAMILY_ID, mock_db)
 
     assert calls == ["publish", "commit"]
 

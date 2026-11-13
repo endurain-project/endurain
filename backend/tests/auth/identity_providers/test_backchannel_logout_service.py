@@ -29,6 +29,7 @@ from tests._helpers.db import create_sqlite_session
 
 IDP_ID = uuid.uuid4()
 OTHER_IDP_ID = uuid.uuid4()
+S1, S2, S3, S4, S5, S6 = (uuid.UUID(f"00000000-0000-4000-8000-00000000000{n}") for n in range(1, 7))
 ISS = "https://idp.example.com"
 CLIENT_ID = "endurain-client"
 JWKS_URI = "https://idp.example.com/jwks"
@@ -36,12 +37,12 @@ EVENT = "http://schemas.openid.net/event/backchannel-logout"
 
 #: (session_id, user_id, idp_id, sid) of each stored sign-in.
 _SIGN_INS = (
-    ("s1", MOCK_USER_ID, IDP_ID, "sid-a"),
-    ("s2", MOCK_USER_ID, IDP_ID, "sid-a"),
-    ("s3", OTHER_USER_ID, IDP_ID, "sid-a"),
-    ("s4", MOCK_USER_ID, IDP_ID, "sid-b"),
-    ("s5", MOCK_USER_ID, IDP_ID, None),
-    ("s6", MOCK_USER_ID, OTHER_IDP_ID, "sid-a"),
+    (S1, MOCK_USER_ID, IDP_ID, "sid-a"),
+    (S2, MOCK_USER_ID, IDP_ID, "sid-a"),
+    (S3, OTHER_USER_ID, IDP_ID, "sid-a"),
+    (S4, MOCK_USER_ID, IDP_ID, "sid-b"),
+    (S5, MOCK_USER_ID, IDP_ID, None),
+    (S6, MOCK_USER_ID, OTHER_IDP_ID, "sid-a"),
 )
 
 
@@ -108,7 +109,7 @@ def _token(key: RSAKey, **overrides) -> str:
 class _Run:
     """One logout request, with the sessions that are still live and what the sessions surface was asked to end."""
 
-    def __init__(self, service, db, *, idp=None, live=("s1", "s2", "s3", "s4", "s5", "s6")):
+    def __init__(self, service, db, *, idp=None, live=(S1, S2, S3, S4, S5, S6)):
         self.service = service
         self.db = db
         self.idp = idp if idp is not None else _idp()
@@ -156,14 +157,14 @@ class TestProviderResolution:
 
         run(_token(rsa_key, sid="sid-b"))
 
-        assert run.deleted == [("s4", MOCK_USER_ID)]
+        assert run.deleted == [(S4, MOCK_USER_ID)]
 
     def test_an_oauth2_provider_asked_for_openid_has_back_channel_logout(self, service, db, rsa_key):
         run = _Run(service, db, idp=_idp(provider_type="oauth2", scopes="openid profile"))
 
         run(_token(rsa_key, sid="sid-b"))
 
-        assert run.deleted == [("s4", MOCK_USER_ID)]
+        assert run.deleted == [(S4, MOCK_USER_ID)]
 
     def test_the_read_transaction_ends_before_the_provider_is_reached(self, service, oidc, rsa_key):
         db = MagicMock()
@@ -179,18 +180,18 @@ class TestProviderResolution:
 
 class TestMatching:
     def test_a_sid_ends_the_live_sessions_of_that_provider_session(self, service, db, rsa_key):
-        run = _Run(service, db, live=("s1", "s3", "s4", "s6"))
+        run = _Run(service, db, live=(S1, S3, S4, S6))
 
         run(_token(rsa_key, sid="sid-a"))
 
-        assert sorted(run.deleted) == [("s1", MOCK_USER_ID), ("s3", OTHER_USER_ID)]
+        assert sorted(run.deleted) == [(S1, MOCK_USER_ID), (S3, OTHER_USER_ID)]
 
     def test_a_sid_with_a_sub_ends_only_the_linked_users_sessions(self, service, db, rsa_key):
         run = _Run(service, db)
 
         run(_token(rsa_key, sid="sid-a", sub="subject-8"))
 
-        assert run.deleted == [("s3", OTHER_USER_ID)]
+        assert run.deleted == [(S3, OTHER_USER_ID)]
 
     def test_a_sid_with_a_sub_of_another_user_ends_nothing(self, service, db, rsa_key):
         run = _Run(service, db)
@@ -200,15 +201,15 @@ class TestMatching:
         assert run.deleted == []
 
     def test_a_sub_alone_ends_every_live_session_the_user_signed_in_to_through_the_provider(self, service, db, rsa_key):
-        run = _Run(service, db, live=("s1", "s2", "s4", "s5", "s6"))
+        run = _Run(service, db, live=(S1, S2, S4, S5, S6))
 
         run(_token(rsa_key, sub="subject-7"))
 
         assert sorted(run.deleted) == [
-            ("s1", MOCK_USER_ID),
-            ("s2", MOCK_USER_ID),
-            ("s4", MOCK_USER_ID),
-            ("s5", MOCK_USER_ID),
+            (S1, MOCK_USER_ID),
+            (S2, MOCK_USER_ID),
+            (S4, MOCK_USER_ID),
+            (S5, MOCK_USER_ID),
         ]
 
     @pytest.mark.parametrize("claims", [{"sid": "sid-unknown"}, {"sub": "unlinked"}, {"sid": "sid-a", "sub": "x"}])
@@ -235,12 +236,12 @@ class TestSessionsThatVanish:
     def test_a_session_gone_by_the_time_it_is_ended_is_skipped_and_the_audit_counts_the_ended_ones(
         self, service, db, rsa_key
     ):
-        run = _Run(service, db, live=("s1", "s3"))
+        run = _Run(service, db, live=(S1, S3))
 
         with jasil_testing.capture_audit() as audit:
             run(_token(rsa_key, sid="sid-a"))
 
-        assert sorted(run.deleted) == [("s1", MOCK_USER_ID), ("s3", OTHER_USER_ID)]
+        assert sorted(run.deleted) == [(S1, MOCK_USER_ID), (S3, OTHER_USER_ID)]
         rows = {entry.target_id: entry.details for entry in audit.matching(sessions_audit_actions.SESSION_REVOKE.id)}
         assert rows == {str(MOCK_USER_ID): {"sessions_revoked": 1}, str(OTHER_USER_ID): {"sessions_revoked": 1}}
 
@@ -261,7 +262,7 @@ class TestFailureWhileEndingSessions:
         run(token)
 
         assert raised.value is error
-        assert sorted(run.deleted) == [("s1", MOCK_USER_ID), ("s2", MOCK_USER_ID), ("s3", OTHER_USER_ID)]
+        assert sorted(run.deleted) == [(S1, MOCK_USER_ID), (S2, MOCK_USER_ID), (S3, OTHER_USER_ID)]
 
     def test_a_release_that_fails_is_logged_and_the_original_error_is_raised(self, service, state, db, rsa_key):
         error = OperationalError("COMMIT", {}, Exception("db down"))
@@ -340,7 +341,7 @@ class TestRefusals:
 
         run(_token(rsa_key, sid="sid-b"))
 
-        assert run.deleted == [("s4", MOCK_USER_ID)]
+        assert run.deleted == [(S4, MOCK_USER_ID)]
 
     def test_the_replay_claim_lasts_until_the_token_can_no_longer_pass_the_expiry_check(self, service, db, rsa_key):
         state = MagicMock()

@@ -1,5 +1,6 @@
 """Refresh-token reuse operations exposed to auth peers."""
 
+import uuid
 from datetime import datetime
 
 from sqlalchemy.orm import Session
@@ -9,7 +10,7 @@ import modules.auth.rotated_refresh_tokens.service as rotated_token_service
 
 def store_rotated_token(
     raw_token: str,
-    token_family_id: str,
+    token_family_id: uuid.UUID,
     rotation_count: int,
     db: Session,
     *,
@@ -45,6 +46,6 @@ def get_grace_replay_token(
     return rotated_token_service.get_grace_replay_token(raw_token, db, ip_address=ip_address, user_agent=user_agent)
 
 
-def delete_by_family(token_family_id: str, db: Session) -> int:
+def delete_by_family(token_family_id: uuid.UUID, db: Session) -> int:
     """Stage deletion of rotated-token records in a family."""
     return rotated_token_service.delete_by_family(token_family_id, db)

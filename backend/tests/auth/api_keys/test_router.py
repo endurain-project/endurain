@@ -1,5 +1,6 @@
 """Tests for users_api_keys API endpoints."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -11,6 +12,10 @@ import modules.auth.api_keys.constants as api_keys_constants
 import modules.auth.api_keys.models as users_api_keys_models
 import modules.auth.api_keys.schema as api_keys_schema
 from tests._helpers.auth import MOCK_USER_ID
+
+KEY_ID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+MISSING_KEY_ID = uuid.UUID("00000000-0000-4000-8000-0000000000a2")
+NEW_KEY_ID = uuid.UUID("00000000-0000-4000-8000-0000000000a3")
 
 
 @pytest.fixture(autouse=True)
@@ -33,7 +38,7 @@ class TestGetUserApiKeys:
         # Arrange
         now = datetime.now(UTC)
         mock_key = MagicMock(spec=users_api_keys_models.UsersApiKeys)
-        mock_key.id = "some-uuid"
+        mock_key.id = KEY_ID
         mock_key.user_id = MOCK_USER_ID
         mock_key.name = "FitoTrack"
         mock_key.key_prefix = "abcdefgh"
@@ -113,7 +118,7 @@ class TestCreateUserApiKey:
         # Arrange
         now = datetime.now(UTC)
         mock_orm_key = MagicMock(spec=users_api_keys_models.UsersApiKeys)
-        mock_orm_key.id = "new-uuid"
+        mock_orm_key.id = NEW_KEY_ID
         mock_orm_key.user_id = MOCK_USER_ID
         mock_orm_key.name = "FitoTrack"
         mock_orm_key.key_prefix = "abcdefgh"
@@ -537,7 +542,7 @@ class TestApiKeyResponseSafety:
         """
         now = datetime.now(UTC)
         mock_key = MagicMock(spec=users_api_keys_models.UsersApiKeys)
-        mock_key.id = "some-uuid"
+        mock_key.id = KEY_ID
         mock_key.user_id = MOCK_USER_ID
         mock_key.name = "FitoTrack"
         mock_key.key_prefix = "abcdefgh"
@@ -578,7 +583,7 @@ class TestApiKeyResponseSafety:
         """
         now = datetime.now(UTC)
         mock_orm_key = MagicMock(spec=users_api_keys_models.UsersApiKeys)
-        mock_orm_key.id = "new-uuid"
+        mock_orm_key.id = NEW_KEY_ID
         mock_orm_key.user_id = MOCK_USER_ID
         mock_orm_key.name = "FitoTrack"
         mock_orm_key.key_prefix = "abcdefgh"
@@ -635,7 +640,7 @@ class TestApiKeyResponseSafety:
         """
         now = datetime.now(UTC)
         mock_orm_key = MagicMock(spec=users_api_keys_models.UsersApiKeys)
-        mock_orm_key.id = "new-uuid"
+        mock_orm_key.id = NEW_KEY_ID
         mock_orm_key.user_id = MOCK_USER_ID
         mock_orm_key.name = "FitoTrack"
         mock_orm_key.key_prefix = "abcdefgh"
@@ -688,7 +693,7 @@ class TestRevokeUserApiKey:
 
         # Act
         response = fast_api_client.post(
-            "/api-keys/some-uuid/revoke",
+            f"/api-keys/{KEY_ID}/revoke",
             headers={"Authorization": "Bearer mock_token"},
         )
 
@@ -706,7 +711,7 @@ class TestRevokeUserApiKey:
 
         # Act
         response = fast_api_client.post(
-            "/api-keys/nonexistent-uuid/revoke",
+            f"/api-keys/{MISSING_KEY_ID}/revoke",
             headers={"Authorization": "Bearer mock_token"},
         )
 
@@ -727,7 +732,7 @@ class TestDeleteUserApiKey:
 
         # Act
         response = fast_api_client.delete(
-            "/api-keys/some-uuid",
+            f"/api-keys/{KEY_ID}",
             headers={"Authorization": "Bearer mock_token"},
         )
 
@@ -745,7 +750,7 @@ class TestDeleteUserApiKey:
 
         # Act
         response = fast_api_client.delete(
-            "/api-keys/nonexistent-uuid",
+            f"/api-keys/{MISSING_KEY_ID}",
             headers={"Authorization": "Bearer mock_token"},
         )
 

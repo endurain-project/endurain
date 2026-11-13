@@ -1,5 +1,6 @@
 """The Strava routes sit behind scope checks, and the long-running ones answer 202."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -9,6 +10,8 @@ import modules.gears.gear.schema as gears_schema
 import modules.strava.router as strava_router
 import modules.strava.schema as strava_schema
 from tests._helpers.auth import MOCK_USER_ID
+
+_JOB_ID = uuid.UUID("a1000000-0000-4000-8000-000000000021")
 
 
 def _routes():
@@ -183,7 +186,7 @@ def test_setting_the_client_requires_the_version_that_was_read():
 )
 def test_a_queued_sync_names_its_job_in_content_location(call, queued, kind):
     status = strava_schema.StravaSyncStatus.model_validate(
-        {"id": "job-1", "kind": kind, "created_at": "2026-01-01T00:00:00Z", "status": "queued"}
+        {"id": str(_JOB_ID), "kind": kind, "created_at": "2026-01-01T00:00:00Z", "status": "queued"}
     )
     response = Response()
     kwargs = {"request": MagicMock(), "response": response, "token_user_id": MOCK_USER_ID, "sync_states": MagicMock()}
@@ -201,7 +204,7 @@ def test_a_queued_sync_names_its_job_in_content_location(call, queued, kind):
 
     assert result is status
     assert set_location.call_args.args[:1] == (response,)
-    assert set_location.call_args.args[2] == "job-1"
+    assert set_location.call_args.args[2] == _JOB_ID
 
 
 def test_the_per_kind_status_route_is_gone():

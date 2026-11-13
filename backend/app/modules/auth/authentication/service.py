@@ -5,7 +5,6 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 from typing import NoReturn
-from uuid import uuid4
 
 import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
@@ -325,7 +324,7 @@ def create_mobile_pkce_session_response(
         raise core_exceptions.InvalidInputError("A mobile sign-in needs code_challenge and code_challenge_method")
     auth_computation.validate_pkce_challenge(code_challenge, code_challenge_method)
 
-    session_id = str(uuid4())
+    session_id = uuid.uuid4()
 
     # The OAuth state record holds the PKCE challenge the exchange checks the verifier against.
     state_id, nonce = oauth_state_integration.create_state_id_and_nonce()
@@ -1065,7 +1064,7 @@ def verify_mfa_and_login(
 
 
 def logout(
-    token_session_id: str,
+    token_session_id: uuid.UUID,
     refresh_token_value: str,
     token_user_id: uuid.UUID,
     password_hasher: credentials_integration.PasswordHasher,

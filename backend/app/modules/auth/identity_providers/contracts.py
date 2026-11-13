@@ -110,7 +110,7 @@ class StepUpTicket(BaseModel):
     """
 
     user_id: uuid.UUID
-    session_id: str
+    session_id: uuid.UUID
     idp_id: uuid.UUID
     code_challenge: str
     action: str

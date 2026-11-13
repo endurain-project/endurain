@@ -19,6 +19,8 @@ import modules.auth.schema as auth_schema
 import modules.users.users.dependencies as users_dependencies
 import modules.users.users.schema as users_schema
 
+_SID_9 = uuid.UUID(int=109)
+_JOB_ID = uuid.UUID(int=501)
 _SERVICE = "modules.users.users.router.users_service"
 _PHOTO = "modules.users.users.router.users_photo_service"
 _STEP_UP_STORE = MagicMock()
@@ -41,7 +43,7 @@ def _app_client(mock_db, scopes: frozenset[str]) -> TestClient:
     core_exceptions.register_exception_handlers(app)
     app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
     app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: _U9
-    app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = lambda: "sid-9"
+    app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = lambda: _SID_9
     app.dependency_overrides[auth_dependencies.get_step_up_attempts] = lambda: _STEP_UP_STORE
     app.dependency_overrides[auth_dependencies.get_current_scopes] = lambda: scopes
     app.dependency_overrides[core_database.get_db] = lambda: mock_db
@@ -308,7 +310,7 @@ class TestCreateUser:
         assert response.json()["username"] == "newuser"
         assert response.headers["Location"] == f"/users/{_U1}"
         assert response.headers["ETag"] == '"1"'
-        assert mock_create.call_args.args[1:] == (None, _U9, "sid-9", _STEP_UP_STORE, mock_db)
+        assert mock_create.call_args.args[1:] == (None, _U9, _SID_9, _STEP_UP_STORE, mock_db)
 
     @patch(f"{_SERVICE}.create_user")
     def test_the_step_up_travels_apart_from_the_user_fields(self, mock_create, client):
@@ -445,7 +447,7 @@ class TestEditUser:
         assert response.status_code == 200
         assert response.json()["external_auth_count"] == 2
         assert mock_edit.call_args.args[0] == _U1
-        assert mock_edit.call_args.args[2:] == (None, _U9, "sid-9", _STEP_UP_STORE, mock_db)
+        assert mock_edit.call_args.args[2:] == (None, _U9, _SID_9, _STEP_UP_STORE, mock_db)
 
     @patch(f"{_SERVICE}.edit_user")
     def test_the_step_up_travels_apart_from_the_user_fields(self, mock_edit, client):
@@ -503,7 +505,7 @@ class TestEditUserPassword:
         args = change_password.call_args.args
         assert args[0] == _U1
         assert (args[1].password, args[1].step_up.current_password) == ("newpassword123", "admin-password")
-        assert args[2:] == (_U9, "sid-9", _STEP_UP_STORE, mock_db)
+        assert args[2:] == (_U9, _SID_9, _STEP_UP_STORE, mock_db)
 
     @patch(f"{_SERVICE}.change_user_password")
     def test_a_refused_step_up_is_the_services_answer(self, change_password, client):
@@ -531,7 +533,7 @@ class TestAdministratorCredentialActions:
         args = service.call_args.args
         assert args[0] == _U1
         assert args[1].step_up.current_password == "admin-password"
-        assert args[2:] == (_U9, "sid-9", _STEP_UP_STORE, mock_db)
+        assert args[2:] == (_U9, _SID_9, _STEP_UP_STORE, mock_db)
 
     @pytest.mark.parametrize(
         ("path", "service_function", "error", "status_code"),
@@ -572,15 +574,15 @@ class TestDeleteUser:
     @patch("modules.users.users.router.users_deletion_job_service.request_deletion_by_administrator")
     def test_queues_the_deletion(self, mock_request, client, mock_db):
         mock_request.return_value = users_schema.UserDeletionStatus(
-            id="job-1", kind="user_deletion", created_at=datetime(2026, 1, 1, tzinfo=UTC), status="queued"
+            id=_JOB_ID, kind="user_deletion", created_at=datetime(2026, 1, 1, tzinfo=UTC), status="queued"
         )
 
         response = client.post(f"/users/{_U1}/delete", json={"step_up": _STEP_UP}, headers={"If-Match": '"3"'})
 
         assert response.status_code == 202
-        assert response.headers["Content-Location"] == "/jobs/job-1"
+        assert response.headers["Content-Location"] == f"/jobs/{_JOB_ID}"
         assert response.json() == {
-            "id": "job-1",
+            "id": str(_JOB_ID),
             "kind": "user_deletion",
             "created_at": "2026-01-01T00:00:00Z",
             "finished_at": None,
@@ -588,7 +590,7 @@ class TestDeleteUser:
             "status": "queued",
         }
         args = mock_request.call_args.args
-        assert args[:3] == (_U1, _U9, "sid-9")
+        assert args[:3] == (_U1, _U9, _SID_9)
         assert args[3] == auth_schema.StepUpVerification(current_password="admin-password")
         assert args[4] is _STEP_UP_STORE
         assert args[5] is not None
@@ -655,7 +657,7 @@ class TestUnlinkUserIdentityProvider:
             _U4,
             _IDP_ID,
             _U9,
-            "sid-9",
+            _SID_9,
             auth_schema.StepUpVerification(current_password="admin-password"),
             _STEP_UP_STORE,
             mock_db,

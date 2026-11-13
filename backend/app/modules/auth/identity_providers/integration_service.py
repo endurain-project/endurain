@@ -58,7 +58,7 @@ def stage_browser_link(
     idp_id: uuid.UUID,
     redirect: str | None,
     client_ip: str | None,
-    session_id: str,
+    session_id: uuid.UUID,
     ends_other_sessions: bool,
     db: Session,
     *,
@@ -85,7 +85,7 @@ def stage_browser_link(
 
 def stage_step_up(
     user_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     idp_id: uuid.UUID,
     action: identity_providers_constants.StepUpAction,
     code_challenge: str,
@@ -127,12 +127,12 @@ def redeem_step_up_ticket(state: StateProvider, ticket: str) -> identity_provide
     return identity_providers_step_up_tickets.StepUpTicketStore(state).redeem(ticket)
 
 
-def request_idp_token_refresh(user_id: uuid.UUID, session_id: str, db: Session) -> None:
+def request_idp_token_refresh(user_id: uuid.UUID, session_id: uuid.UUID, db: Session) -> None:
     """Clear the session's retired IdP token now and queue its refresh if it is expiring, with the caller's commit."""
     identity_providers_tokens.IdpTokenService(_oidc_client()).request_idp_token_refresh(user_id, session_id, db)
 
 
-def read_end_session(session_id: str, db: Session) -> identity_providers_contracts.EndSessionRequest | None:
+def read_end_session(session_id: uuid.UUID, db: Session) -> identity_providers_contracts.EndSessionRequest | None:
     """Read the provider and ID token a session signed in with, before the session ends; None if it used none."""
     return identity_providers_end_session.EndSessionService.read_end_session(session_id, db)
 

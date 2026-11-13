@@ -22,6 +22,7 @@ import modules.auth.sign_up_tokens.service as sign_up_service
 import modules.users.users.models as users_models
 from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 from tests._helpers.db import create_sqlite_session, ensure_user
+from tests.auth.sign_up_tokens.ids import tid
 
 _OWNER_EMAIL = f"user{MOCK_USER_ID.hex}@example.com"
 _OTHER_EMAIL = f"user{OTHER_USER_ID.hex}@example.com"
@@ -92,15 +93,15 @@ def _add_token(
 
 class TestCreateSignUpTokenStoresAddresses:
     def test_a_pending_change_stores_both_addresses_and_uses_up_earlier_tokens(self, db):
-        _add_token(db, token_id="old", token="old", email=_OWNER_EMAIL, previous_email=None)
+        _add_token(db, token_id=tid("old"), token="old", email=_OWNER_EMAIL, previous_email=None)
 
         token = sign_up_service.create_sign_up_token(
             MOCK_USER_ID, "new@example.com", "event-1", db, previous_email=_OWNER_EMAIL
         )
 
         rows = {row.id: row for row in _tokens(db)}
-        assert rows["old"].used is True
-        fresh = next(row for row in rows.values() if row.id != "old")
+        assert rows[tid("old")].used is True
+        fresh = next(row for row in rows.values() if row.id != tid("old"))
         assert fresh.used is False
         assert (fresh.email, fresh.previous_email) == ("new@example.com", _OWNER_EMAIL)
         assert fresh.token_hash == token_hashing.sha256_hex(token)
@@ -124,13 +125,13 @@ class TestRequestEmailChange:
         publish.assert_not_called()
 
     def test_with_mail_the_pending_token_and_event_are_staged_without_committing(self, db, mail_configured):
-        _add_token(db, token_id="old", token="old", email=_OWNER_EMAIL, previous_email=None)
+        _add_token(db, token_id=tid("old"), token="old", email=_OWNER_EMAIL, previous_email=None)
 
         with patch(_PUBLISH) as publish:
             assert sign_up_service.request_email_change(MOCK_USER_ID, "new@example.com", _OWNER_EMAIL, db) is True
         db.rollback()
 
-        assert [row.id for row in _tokens(db)] == ["old"]
+        assert [row.id for row in _tokens(db)] == [tid("old")]
         assert _tokens(db).one().used is False
         assert [call.args[:2] for call in publish.call_args_list] == [
             ("auth.email_change_requested", {"user_id": str(MOCK_USER_ID)}),
@@ -138,7 +139,7 @@ class TestRequestEmailChange:
         ]
 
     def test_the_staged_token_replaces_the_earlier_one_once_committed(self, db, mail_configured):
-        _add_token(db, token_id="old", token="old", email=_OWNER_EMAIL, previous_email=None)
+        _add_token(db, token_id=tid("old"), token="old", email=_OWNER_EMAIL, previous_email=None)
 
         with patch(_PUBLISH):
             sign_up_service.request_email_change(MOCK_USER_ID, "new@example.com", _OWNER_EMAIL, db)
@@ -158,7 +159,7 @@ class TestPrepareEmailChangeVerificationEmail:
         assert sign_up_service.prepare_email_change_verification_email(_USER_99, "event-1", _HOST, db) is None
 
     def test_the_pending_token_is_reissued_to_the_pending_address(self, db):
-        _add_token(db, token_id="pending", token="p", email="new@example.com", previous_email=_OWNER_EMAIL)
+        _add_token(db, token_id=tid("pending"), token="p", email="new@example.com", previous_email=_OWNER_EMAIL)
 
         message = sign_up_service.prepare_email_change_verification_email(MOCK_USER_ID, "event-1", _HOST, db)
 
@@ -166,8 +167,8 @@ class TestPrepareEmailChangeVerificationEmail:
         recipient, _subject, html_content, _text = message
         assert recipient == "new@example.com"
         rows = {row.id: row for row in _tokens(db)}
-        assert rows["pending"].used is True
-        fresh = next(row for row in rows.values() if row.id != "pending")
+        assert rows[tid("pending")].used is True
+        fresh = next(row for row in rows.values() if row.id != tid("pending"))
         assert fresh.used is False
         assert (fresh.email, fresh.previous_email) == ("new@example.com", _OWNER_EMAIL)
         assert f"{_HOST}/confirm-email-change?token=" in html_content
@@ -175,7 +176,7 @@ class TestPrepareEmailChangeVerificationEmail:
     def test_an_expired_pending_change_is_not_reissued(self, db):
         _add_token(
             db,
-            token_id="gone",
+            token_id=tid("gone"),
             token="g",
             email="new@example.com",
             previous_email=_OWNER_EMAIL,
@@ -198,7 +199,7 @@ class TestRetriedMailEvent:
         return claimed
 
     def test_a_retried_email_change_mails_the_same_link_and_it_still_works(self, db):
-        _add_token(db, token_id="pending", token="p", email="new@example.com", previous_email=_OWNER_EMAIL)
+        _add_token(db, token_id=tid("pending"), token="p", email="new@example.com", previous_email=_OWNER_EMAIL)
 
         first = _link_token(sign_up_service.prepare_email_change_verification_email(MOCK_USER_ID, "event-1", _HOST, db))
         second = _link_token(
@@ -248,7 +249,7 @@ class TestVerifyEmailOfAPendingChange:
 
     def test_the_address_is_switched_and_verified_and_the_notice_carries_ids_only(self, db):
         self._activate(db)
-        _add_token(db, token_id="t1", token="plain", email="New@Example.com", previous_email=_OWNER_EMAIL)
+        _add_token(db, token_id=tid("t1"), token="plain", email="New@Example.com", previous_email=_OWNER_EMAIL)
 
         with patch(_PUBLISH) as publish:
             result = sign_up_service.confirm_email_change("plain", db)
@@ -259,11 +260,11 @@ class TestVerifyEmailOfAPendingChange:
         assert (user.email, user.email_verified) == ("new@example.com", True)
         publish.assert_called_once()
         assert publish.call_args.args[0] == "auth.email_changed"
-        assert publish.call_args.args[1] == {"user_id": str(MOCK_USER_ID), "token_id": "t1"}
+        assert publish.call_args.args[1] == {"user_id": str(MOCK_USER_ID), "token_id": str(tid("t1"))}
 
     def test_an_address_claimed_by_another_account_conflicts_and_the_claim_is_rolled_back(self, db):
         self._activate(db)
-        _add_token(db, token_id="t1", token="plain", email=_OTHER_EMAIL, previous_email=_OWNER_EMAIL)
+        _add_token(db, token_id=tid("t1"), token="plain", email=_OTHER_EMAIL, previous_email=_OWNER_EMAIL)
 
         with patch(_PUBLISH) as publish, pytest.raises(core_exceptions.ConflictError):
             sign_up_service.confirm_email_change("plain", db)
@@ -278,7 +279,7 @@ class TestVerifyEmailOfAPendingChange:
         self._activate(db)
         _add_token(
             db,
-            token_id="t1",
+            token_id=tid("t1"),
             token="plain",
             email="new@example.com",
             previous_email=_OWNER_EMAIL,
@@ -293,7 +294,7 @@ class TestVerifyEmailOfAPendingChange:
 
     def test_a_sign_up_token_is_refused_and_left_usable(self, db):
         self._activate(db)
-        _add_token(db, token_id="t1", token="plain", email=_OWNER_EMAIL, previous_email=None)
+        _add_token(db, token_id=tid("t1"), token="plain", email=_OWNER_EMAIL, previous_email=None)
 
         with patch(_PUBLISH) as publish, pytest.raises(core_exceptions.InvalidInputError):
             sign_up_service.confirm_email_change("plain", db)
@@ -333,7 +334,7 @@ class TestVerifyEmailOnAnInactiveAccount:
         self, db, mail_configured, verification, approval
     ):
         self._make_inactive(db, deactivated=True, email_verified=True)
-        _add_token(db, token_id="t1", token="plain", email="New@Example.com", previous_email=_OWNER_EMAIL)
+        _add_token(db, token_id=tid("t1"), token="plain", email="New@Example.com", previous_email=_OWNER_EMAIL)
 
         with (
             self._settings(verification=verification, approval=approval),
@@ -350,7 +351,7 @@ class TestVerifyEmailOnAnInactiveAccount:
 
     def test_a_sign_up_link_of_a_deactivated_account_is_refused_and_leaves_the_account_alone(self, db, mail_configured):
         self._make_inactive(db, deactivated=True)
-        _add_token(db, token_id="t1", token="plain", email=_OWNER_EMAIL, previous_email=None)
+        _add_token(db, token_id=tid("t1"), token="plain", email=_OWNER_EMAIL, previous_email=None)
 
         with (
             self._settings(verification=True, approval=False),
@@ -367,7 +368,7 @@ class TestVerifyEmailOnAnInactiveAccount:
 
     def test_a_sign_up_awaiting_verification_is_activated_without_admin_approval(self, db, mail_configured):
         self._make_inactive(db, deactivated=False)
-        _add_token(db, token_id="t1", token="plain", email=_OWNER_EMAIL, previous_email=None)
+        _add_token(db, token_id=tid("t1"), token="plain", email=_OWNER_EMAIL, previous_email=None)
 
         with (
             self._settings(verification=True, approval=False),
@@ -383,7 +384,7 @@ class TestVerifyEmailOnAnInactiveAccount:
 
     def test_a_sign_up_awaiting_verification_goes_to_admin_approval_when_required(self, db, mail_configured):
         self._make_inactive(db, deactivated=False, pending_approval=True)
-        _add_token(db, token_id="t1", token="plain", email=_OWNER_EMAIL, previous_email=None)
+        _add_token(db, token_id=tid("t1"), token="plain", email=_OWNER_EMAIL, previous_email=None)
 
         with (
             self._settings(verification=True, approval=True),
@@ -404,7 +405,7 @@ class TestVerifyEmailVoidsPasswordResetTokens:
         now = datetime.now(UTC)
         db.add(
             password_reset_models.PasswordResetToken(
-                id="reset-1",
+                id=tid("reset-1"),
                 user_id=user_id,
                 token_hash="reset-hash",
                 created_at=now,
@@ -417,7 +418,7 @@ class TestVerifyEmailVoidsPasswordResetTokens:
     @staticmethod
     def _reset_used(db):
         db.expire_all()
-        return db.get(password_reset_models.PasswordResetToken, "reset-1").used
+        return db.get(password_reset_models.PasswordResetToken, tid("reset-1")).used
 
     def test_a_sign_up_confirmation_that_sets_a_password_voids_the_reset_token(self, db, mail_configured):
         user = db.get(users_models.Users, MOCK_USER_ID)
@@ -425,7 +426,7 @@ class TestVerifyEmailVoidsPasswordResetTokens:
         user.email_verified = False
         db.commit()
         self._reset_token(db)
-        _add_token(db, token_id="t1", token="plain", email=_OWNER_EMAIL, previous_email=None)
+        _add_token(db, token_id=tid("t1"), token="plain", email=_OWNER_EMAIL, previous_email=None)
         settings = MagicMock(
             signup_require_email_verification=True,
             signup_require_admin_approval=False,
@@ -447,7 +448,7 @@ class TestVerifyEmailVoidsPasswordResetTokens:
         user.email_verified = False
         db.commit()
         self._reset_token(db)
-        _add_token(db, token_id="t1", token="plain", email=_OWNER_EMAIL, previous_email="old@example.com")
+        _add_token(db, token_id=tid("t1"), token="plain", email=_OWNER_EMAIL, previous_email="old@example.com")
         settings = MagicMock(signup_require_email_verification=False, signup_require_admin_approval=False)
 
         with (
@@ -463,13 +464,13 @@ class TestGetPendingEmailChanges:
     def test_returns_each_users_unexpired_pending_address(self, db):
         _add_token(
             db,
-            token_id="a",
+            token_id=tid("a"),
             token="a",
             user_id=MOCK_USER_ID,
             email="n7@example.com",
             previous_email=_OWNER_EMAIL,
         )
-        _add_token(db, token_id="b", token="b", user_id=OTHER_USER_ID, email=_OTHER_EMAIL, previous_email=None)
+        _add_token(db, token_id=tid("b"), token="b", user_id=OTHER_USER_ID, email=_OTHER_EMAIL, previous_email=None)
 
         pending = sign_up_service.get_pending_email_changes([MOCK_USER_ID, OTHER_USER_ID], db)
 
@@ -480,7 +481,7 @@ class TestGetPendingEmailChanges:
     def test_an_expired_or_used_token_is_not_pending(self, db):
         _add_token(
             db,
-            token_id="a",
+            token_id=tid("a"),
             token="a",
             user_id=MOCK_USER_ID,
             email="n@example.com",
@@ -489,7 +490,7 @@ class TestGetPendingEmailChanges:
         )
         _add_token(
             db,
-            token_id="b",
+            token_id=tid("b"),
             token="b",
             user_id=OTHER_USER_ID,
             email="n@example.com",
@@ -506,7 +507,7 @@ class TestGetPendingEmailChanges:
 class TestRequestEmailChangeResend:
     @pytest.fixture
     def pending(self, db):
-        _add_token(db, token_id="a", token="a", email="new@example.com", previous_email=_OWNER_EMAIL)
+        _add_token(db, token_id=tid("a"), token="a", email="new@example.com", previous_email=_OWNER_EMAIL)
 
     def test_stages_the_verification_event_once_per_cooldown(self, db, pending, mail_configured):
         state = MemoryState()
@@ -523,7 +524,7 @@ class TestRequestEmailChangeResend:
         with patch(_PUBLISH) as publish:
             sign_up_service.request_email_change_resend(MOCK_USER_ID, state, db)
             # The cooldown was not spent, so a later pending change can still be resent.
-            _add_token(db, token_id="a", token="a", email="new@example.com", previous_email=_OWNER_EMAIL)
+            _add_token(db, token_id=tid("a"), token="a", email="new@example.com", previous_email=_OWNER_EMAIL)
             sign_up_service.request_email_change_resend(MOCK_USER_ID, state, db)
 
         publish.assert_called_once()
@@ -550,14 +551,14 @@ class TestPrepareEmailChangedEmail:
     def test_goes_to_the_previous_address_and_masks_the_new_one(self, db):
         _add_token(
             db,
-            token_id="t1",
+            token_id=tid("t1"),
             token="t",
             email="alice@example.org",
             previous_email=_OWNER_EMAIL,
             used=True,
         )
 
-        message = sign_up_service.prepare_email_changed_email(MOCK_USER_ID, "t1", _HOST, db)
+        message = sign_up_service.prepare_email_changed_email(MOCK_USER_ID, tid("t1"), _HOST, db)
 
         assert message is not None
         recipient, _subject, html_content, text_content = message
@@ -567,14 +568,14 @@ class TestPrepareEmailChangedEmail:
         assert "alice@example.org" not in html_content + text_content
 
     def test_a_missing_token_or_user_is_skipped(self, db):
-        assert sign_up_service.prepare_email_changed_email(MOCK_USER_ID, "missing", _HOST, db) is None
-        _add_token(db, token_id="t1", token="t", email="a@example.org", previous_email=_OWNER_EMAIL, used=True)
-        assert sign_up_service.prepare_email_changed_email(_USER_99, "t1", _HOST, db) is None
+        assert sign_up_service.prepare_email_changed_email(MOCK_USER_ID, tid("missing"), _HOST, db) is None
+        _add_token(db, token_id=tid("t1"), token="t", email="a@example.org", previous_email=_OWNER_EMAIL, used=True)
+        assert sign_up_service.prepare_email_changed_email(_USER_99, tid("t1"), _HOST, db) is None
 
     def test_a_token_that_replaced_no_address_is_skipped(self, db):
-        _add_token(db, token_id="t1", token="t", email=_OWNER_EMAIL, previous_email=None, used=True)
+        _add_token(db, token_id=tid("t1"), token="t", email=_OWNER_EMAIL, previous_email=None, used=True)
 
-        assert sign_up_service.prepare_email_changed_email(MOCK_USER_ID, "t1", _HOST, db) is None
+        assert sign_up_service.prepare_email_changed_email(MOCK_USER_ID, tid("t1"), _HOST, db) is None
 
 
 class TestIntegrationService:
@@ -595,10 +596,10 @@ class TestIntegrationService:
 
 
 def test_get_sign_up_token_by_id(db):
-    _add_token(db, token_id="t1", token="t", email="a@example.org", previous_email=_OWNER_EMAIL, used=True)
+    _add_token(db, token_id=tid("t1"), token="t", email="a@example.org", previous_email=_OWNER_EMAIL, used=True)
 
-    assert sign_up_crud.get_sign_up_token_by_id("t1", db).previous_email == _OWNER_EMAIL
-    assert sign_up_crud.get_sign_up_token_by_id("nope", db) is None
+    assert sign_up_crud.get_sign_up_token_by_id(tid("t1"), db).previous_email == _OWNER_EMAIL
+    assert sign_up_crud.get_sign_up_token_by_id(tid("nope"), db) is None
 
 
 class TestATokenServesOnlyItsOwnKind:
@@ -618,7 +619,7 @@ class TestATokenServesOnlyItsOwnKind:
         ids=["change-token-on-sign-up", "sign-up-token-on-change"],
     )
     def test_the_refusal_is_the_unknown_token_problem_and_nothing_is_consumed(self, db, previous_email, confirm):
-        _add_token(db, token_id="t", token="raw", email="new@example.com", previous_email=previous_email)
+        _add_token(db, token_id=tid("t"), token="raw", email="new@example.com", previous_email=previous_email)
         settings = MagicMock(signup_require_email_verification=True, signup_require_admin_approval=False)
 
         with (
@@ -656,7 +657,7 @@ class TestSignUpPrehijack:
             db,
             change_required=False,
         )
-        _add_token(db, token_id="t1", token="plain", email=_OWNER_EMAIL, previous_email=None)
+        _add_token(db, token_id=tid("t1"), token="plain", email=_OWNER_EMAIL, previous_email=None)
         db.commit()
         settings = MagicMock(
             signup_require_email_verification=True,
@@ -754,7 +755,7 @@ class TestSelfServiceEmailChange:
         publish.assert_not_called()
 
     def test_resending_a_held_address_tells_the_holder_and_never_mails_a_link(self, db, mail_configured):
-        _add_token(db, token_id="a", token="a", email=_OTHER_EMAIL, previous_email=_OWNER_EMAIL)
+        _add_token(db, token_id=tid("a"), token="a", email=_OTHER_EMAIL, previous_email=_OWNER_EMAIL)
         state = MemoryState()
         with patch(_PUBLISH) as publish:
             sign_up_service.request_email_change_resend(MOCK_USER_ID, state, db)
@@ -771,12 +772,12 @@ class TestSelfServiceEmailChange:
         publish.assert_not_called()
 
     def test_no_confirmation_link_is_made_for_an_address_another_account_holds(self, db):
-        _add_token(db, token_id="a", token="a", email=_OTHER_EMAIL, previous_email=_OWNER_EMAIL)
+        _add_token(db, token_id=tid("a"), token="a", email=_OTHER_EMAIL, previous_email=_OWNER_EMAIL)
 
         assert sign_up_service.prepare_email_change_verification_email(MOCK_USER_ID, "event-1", _HOST, db) is None
 
     def test_a_link_is_still_made_for_a_free_address(self, db):
-        _add_token(db, token_id="a", token="a", email="free@example.com", previous_email=_OWNER_EMAIL)
+        _add_token(db, token_id=tid("a"), token="a", email="free@example.com", previous_email=_OWNER_EMAIL)
 
         message = sign_up_service.prepare_email_change_verification_email(MOCK_USER_ID, "event-1", _HOST, db)
 
@@ -806,7 +807,7 @@ class TestEmailChangeSecurityGeneration:
     def _pending(db, *, security_generation):
         _add_token(
             db,
-            token_id="t1",
+            token_id=tid("t1"),
             token="plain",
             email="new@example.com",
             previous_email=_OWNER_EMAIL,

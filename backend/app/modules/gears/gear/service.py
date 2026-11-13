@@ -110,7 +110,7 @@ def _with_totals(gear: gears_schema.GearRead, user_id: uuid.UUID, db: Session) -
 
 
 def list_changed_gears(
-    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position | None, until: datetime, limit: int, db: Session
 ) -> list[gears_schema.GearDetailRead]:
     """Return a page of a user's gears changed after a position, each with its totals.
 

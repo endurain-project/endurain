@@ -33,13 +33,13 @@ def parse_user_agent(user_agent: str) -> sessions_contracts.DeviceInfo:
     return sessions_utils.parse_user_agent(user_agent)
 
 
-def get_session_by_id_not_expired(session_id: str, db: Session) -> sessions_contracts.SessionRead | None:
+def get_session_by_id_not_expired(session_id: uuid.UUID, db: Session) -> sessions_contracts.SessionRead | None:
     """Return an unexpired session by ID."""
     return sessions_crud.get_session_by_id_not_expired(session_id, db)
 
 
 def lock_live_session(
-    session_id: str, db: Session, *, exclusive: bool = False
+    session_id: uuid.UUID, db: Session, *, exclusive: bool = False
 ) -> sessions_contracts.SessionRead | None:
     """Return an unexpired session by ID, holding a row lock until the caller's transaction ends.
 
@@ -48,13 +48,13 @@ def lock_live_session(
     return sessions_crud.lock_live_session(session_id, db, exclusive=exclusive)
 
 
-def get_existing_session_ids(session_ids: Sequence[str], db: Session) -> set[str]:
+def get_existing_session_ids(session_ids: Sequence[uuid.UUID], db: Session) -> set[uuid.UUID]:
     """Return which of the given session ids still name a session."""
     return sessions_crud.get_existing_session_ids(session_ids, db)
 
 
 def get_session_with_oauth_state(
-    session_id: str,
+    session_id: uuid.UUID,
     db: Session,
 ) -> tuple[sessions_contracts.SessionRead, oauth_state_schema.OAuthStateRead | None] | None:
     """Return an unexpired session and its optional OAuth state."""
@@ -62,7 +62,7 @@ def get_session_with_oauth_state(
 
 
 def create_session(
-    session_id: str,
+    session_id: uuid.UUID,
     user: users_schema.UserRead,
     client_type: auth_constants.ClientType,
     ip_address: str,
@@ -120,27 +120,27 @@ def edit_session(
     )
 
 
-def update_session_csrf_token(session_id: str, new_csrf_token: str, db: Session) -> None:
+def update_session_csrf_token(session_id: uuid.UUID, new_csrf_token: str, db: Session) -> None:
     """Stage a new CSRF token for a session."""
     sessions_service.update_session_csrf_token(session_id, new_csrf_token, db)
 
 
-def delete_session(session_id: str, user_id: uuid.UUID, db: Session) -> None:
+def delete_session(session_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> None:
     """Stage deletion of a session owned by a user."""
     sessions_service.stage_delete_session(session_id, user_id, db)
 
 
-def delete_session_if_present(session_id: str, user_id: uuid.UUID, db: Session) -> bool:
+def delete_session_if_present(session_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> bool:
     """Stage deletion of a session owned by a user; returns False when it was already gone."""
     return sessions_service.stage_delete_session_if_present(session_id, user_id, db)
 
 
-def delete_sessions_by_user(user_id: uuid.UUID, db: Session, exclude_session_id: str | None = None) -> int:
+def delete_sessions_by_user(user_id: uuid.UUID, db: Session, exclude_session_id: uuid.UUID | None = None) -> int:
     """Stage deletion of a user's sessions."""
     return sessions_service.delete_sessions_by_user(user_id, db, exclude_session_id)
 
 
-def set_session_device_hash(session_id: str, device_hash: str, db: Session) -> None:
+def set_session_device_hash(session_id: uuid.UUID, device_hash: str, db: Session) -> None:
     """Stage the known device a session signed in from."""
     sessions_service.set_session_device_hash(session_id, device_hash, db)
 
@@ -151,7 +151,7 @@ def delete_sessions_by_device(user_id: uuid.UUID, device_hash: str, db: Session)
 
 
 def claim_session_for_token_exchange(
-    session_id: str, hashed_refresh_token: str, expires_at: datetime, amr: Sequence[str], db: Session
+    session_id: uuid.UUID, hashed_refresh_token: str, expires_at: datetime, amr: Sequence[str], db: Session
 ) -> datetime | None:
     """Atomically claim a session for its token exchange; returns its new expiry, or ``None`` if not claimed."""
     return sessions_service.claim_session_for_token_exchange(session_id, hashed_refresh_token, expires_at, amr, db)
@@ -170,6 +170,6 @@ def verify_csrf_token(candidate: str, stored_hmac: str) -> bool:
     return sessions_service.verify_csrf_token(candidate, stored_hmac)
 
 
-def invalidate_token_family(token_family_id: str, db: Session) -> int:
+def invalidate_token_family(token_family_id: uuid.UUID, db: Session) -> int:
     """Stage deletion of the sessions and rotated tokens of a token family."""
     return sessions_service.invalidate_token_family(token_family_id, db)

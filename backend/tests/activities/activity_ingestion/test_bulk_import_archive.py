@@ -34,6 +34,8 @@ import modules.activities.activity_ingestion.provider_registry as provider_regis
 import modules.activities.activity_ingestion.service as ingestion_service
 import modules.activities.activity_ingestion.upload_entry_service as upload_entry_service
 
+_JOB_1 = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+
 _USER = MOCK_USER_ID
 
 
@@ -86,14 +88,14 @@ def _saver(archive: Path):
     return save
 
 
-def _job(factory, job_id: str):
+def _job(factory, job_id: uuid.UUID):
     with factory() as db:
         row = db.get(ingestion_models.ActivityIngestionJob, job_id)
         db.expunge(row)
         return row
 
 
-def _only_job_id(factory) -> str:
+def _only_job_id(factory) -> uuid.UUID:
     with factory() as db:
         return db.query(ingestion_models.ActivityIngestionJob).one().id
 
@@ -219,7 +221,7 @@ class TestRunLocally:
         job_id = self._accept(tmp_path, factory, storage, {"a.fit": b"1"})
         seen: list[str] = []
 
-        def announce(user_id: uuid.UUID, announced_job: str, kind) -> None:
+        def announce(user_id: uuid.UUID, announced_job: uuid.UUID, kind) -> None:
             seen.append(_job(factory, job_id).status)
             assert (user_id, announced_job, kind) == (_USER, job_id, ingestion_constants.IngestionJobKind.BULK_IMPORT)
 
@@ -671,7 +673,7 @@ class TestFailureLogLevels:
             ),
             patch.object(bulk, "_keep_failed_member"),
         ):
-            assert bulk._import_member(archive, "a.fit", _USER, MagicMock(), "job-1", MagicMock()) is False
+            assert bulk._import_member(archive, "a.fit", _USER, MagicMock(), _JOB_1, MagicMock()) is False
         return [record for record in caplog.records if record.levelno >= logging.WARNING]
 
     @pytest.mark.parametrize(
@@ -708,7 +710,7 @@ class TestFailureLogLevels:
             patch.object(bulk, "_pack_directory", side_effect=error),
             patch.object(bulk.activity_ingestion_service, "fail_ingestion_job"),
         ):
-            bulk.feed_archive_from_directory("job-1", _USER, "strava", "/nowhere", MagicMock())
+            bulk.feed_archive_from_directory(_JOB_1, _USER, "strava", "/nowhere", MagicMock())
         return [record for record in caplog.records if record.levelno >= logging.WARNING]
 
     def test_a_folder_the_user_filled_wrongly_is_a_warning(self, caplog):
@@ -738,7 +740,7 @@ class TestImportMemberOutage:
             ),
             patch.object(bulk, "_keep_failed_member") as keep,
         ):
-            return bulk._import_member(archive, "a.fit", _USER, MagicMock(), "job-1", MagicMock()), keep
+            return bulk._import_member(archive, "a.fit", _USER, MagicMock(), _JOB_1, MagicMock()), keep
 
     @pytest.mark.parametrize(
         "error",
@@ -761,7 +763,7 @@ class TestImportMemberOutage:
             patch.object(bulk, "_keep_failed_member") as keep,
             pytest.raises(type(error)),
         ):
-            bulk._import_member(archive, "a.fit", _USER, MagicMock(), "job-1", MagicMock())
+            bulk._import_member(archive, "a.fit", _USER, MagicMock(), _JOB_1, MagicMock())
 
         keep.assert_not_called()
 
@@ -789,7 +791,7 @@ class TestKeepFailedMember:
             zipfile.ZipFile(path) as archive,
             patch.object(bulk.core_file_uploads, "copy_zip_member", side_effect=copy_error),
         ):
-            bulk._keep_failed_member(archive, "a.fit", _USER, "job-1", storage)
+            bulk._keep_failed_member(archive, "a.fit", _USER, _JOB_1, storage)
 
     @pytest.mark.parametrize(
         "error",
@@ -835,7 +837,7 @@ class TestHeartbeatFailure:
         with (
             patch.object(bulk, "_HEARTBEAT_SECONDS", 0.01),
             patch.object(bulk.activity_ingestion_crud, "touch_job", side_effect=touch),
-            bulk._heartbeat("job-1"),
+            bulk._heartbeat(_JOB_1),
         ):
             deadline = time.monotonic() + 5
             while len(calls) < 2 and time.monotonic() < deadline:

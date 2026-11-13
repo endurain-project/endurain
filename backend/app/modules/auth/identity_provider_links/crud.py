@@ -159,7 +159,7 @@ def get_identity_link_counts_for_users(user_ids: list[uuid.UUID], db: Session) -
 
 
 def create_idp_session_token(
-    session_id: str,
+    session_id: uuid.UUID,
     user_id: uuid.UUID,
     idp_id: uuid.UUID,
     encrypted_refresh_token: str | None,
@@ -200,20 +200,20 @@ def create_idp_session_token(
     return identity_link_serializers.to_session_token_read_schema(row)
 
 
-def get_idp_session_token(session_id: str, db: Session) -> identity_link_contracts.IdpSessionTokenRead | None:
+def get_idp_session_token(session_id: uuid.UUID, db: Session) -> identity_link_contracts.IdpSessionTokenRead | None:
     """Return the identity-provider sign-in behind a session, if it signed in through one."""
     model = identity_link_models.IdpSessionToken
     row = db.execute(select(model).where(model.session_id == session_id)).scalar_one_or_none()
     return identity_link_serializers.to_session_token_read_schema(row) if row is not None else None
 
 
-def get_idp_session_token_ids_by_user_and_idp(user_id: uuid.UUID, idp_id: uuid.UUID, db: Session) -> list[str]:
+def get_idp_session_token_ids_by_user_and_idp(user_id: uuid.UUID, idp_id: uuid.UUID, db: Session) -> list[uuid.UUID]:
     """Return the ids of the sessions the user signed in to through the provider."""
     model = identity_link_models.IdpSessionToken
     return list(db.execute(select(model.session_id).where(model.user_id == user_id, model.idp_id == idp_id)).scalars())
 
 
-def get_idp_session_owners(idp_id: uuid.UUID, db: Session) -> list[tuple[str, uuid.UUID]]:
+def get_idp_session_owners(idp_id: uuid.UUID, db: Session) -> list[tuple[uuid.UUID, uuid.UUID]]:
     """Return the session id and user of every sign-in through the provider."""
     model = identity_link_models.IdpSessionToken
     return [
@@ -224,7 +224,7 @@ def get_idp_session_owners(idp_id: uuid.UUID, db: Session) -> list[tuple[str, uu
 
 def get_idp_session_owners_by_sid(
     idp_id: uuid.UUID, idp_sid: str, db: Session, *, user_id: uuid.UUID | None = None
-) -> list[tuple[str, uuid.UUID]]:
+) -> list[tuple[uuid.UUID, uuid.UUID]]:
     """Return the session id and user of each sign-in through the provider that holds a provider session id.
 
     Args:
@@ -257,7 +257,7 @@ def get_idp_session_tokens_page(
 
 
 def _lock_session_token_holding(
-    session_id: str, expected_refresh_token: str | None, db: Session
+    session_id: uuid.UUID, expected_refresh_token: str | None, db: Session
 ) -> identity_link_models.IdpSessionToken | None:
     """Lock a session's sign-in and return it only while its refresh token is the one the caller read.
 
@@ -284,7 +284,7 @@ def _lock_session_token_holding(
 
 
 def replace_refresh_token_if_unchanged(
-    session_id: str,
+    session_id: uuid.UUID,
     expected_refresh_token: str,
     encrypted_refresh_token: str,
     access_token_expires_at: datetime,
@@ -317,7 +317,7 @@ def replace_refresh_token_if_unchanged(
     return True
 
 
-def clear_refresh_token_if_unchanged(session_id: str, expected_refresh_token: str, db: Session) -> bool:
+def clear_refresh_token_if_unchanged(session_id: uuid.UUID, expected_refresh_token: str, db: Session) -> bool:
     """Stage removal of provider-token metadata only while the session still holds the token that was read.
 
     Args:
@@ -338,7 +338,9 @@ def clear_refresh_token_if_unchanged(session_id: str, expected_refresh_token: st
     return True
 
 
-def delete_idp_session_token_if_unchanged(session_id: str, expected_refresh_token: str | None, db: Session) -> bool:
+def delete_idp_session_token_if_unchanged(
+    session_id: uuid.UUID, expected_refresh_token: str | None, db: Session
+) -> bool:
     """Stage deletion of a session's sign-in only while it still holds the token that was read.
 
     Args:

@@ -88,7 +88,9 @@ def get_pending_email_change_tokens(
     return [sign_up_serializers.to_state(row) for row in db.execute(stmt).scalars().all()]
 
 
-def get_email_change_tokens(change_id: str, now: datetime, db: Session) -> list[sign_up_contracts.SignUpTokenState]:
+def get_email_change_tokens(
+    change_id: uuid.UUID, now: datetime, db: Session
+) -> list[sign_up_contracts.SignUpTokenState]:
     """Return the rows of an email change whose revert window is still open.
 
     Args:
@@ -106,8 +108,8 @@ def get_email_change_tokens(change_id: str, now: datetime, db: Session) -> list[
 
 
 def get_later_email_change_ids(
-    user_id: uuid.UUID, change_id: str, since: datetime, now: datetime, db: Session
-) -> list[str]:
+    user_id: uuid.UUID, change_id: uuid.UUID, since: datetime, now: datetime, db: Session
+) -> list[uuid.UUID]:
     """Return the other email changes of the user that began after ``since`` and can still be reverted.
 
     Args:
@@ -133,7 +135,7 @@ def get_later_email_change_ids(
     return sorted({row for row in db.execute(stmt).scalars().all() if row is not None})
 
 
-def mark_email_changes_reverted(change_ids: Collection[str], db: Session) -> int:
+def mark_email_changes_reverted(change_ids: Collection[uuid.UUID], db: Session) -> int:
     """Stage the revert of email changes, once each, and return how many rows it marked.
 
     One conditional ``UPDATE`` sets ``reverted_at``, so of two requests presenting the same link only one matches rows.
@@ -186,7 +188,7 @@ def get_email_reserver_id(email: str, except_user_id: uuid.UUID | None, now: dat
     return db.execute(stmt).scalar_one_or_none()
 
 
-def get_sign_up_token_by_id(token_id: str, db: Session) -> sign_up_contracts.SignUpTokenState | None:
+def get_sign_up_token_by_id(token_id: uuid.UUID, db: Session) -> sign_up_contracts.SignUpTokenState | None:
     """Return a token by id, whether or not it has been used, or None when there is none."""
     row = db.get(sign_up_models.SignUpToken, token_id)
     return sign_up_serializers.to_state(row) if row is not None else None

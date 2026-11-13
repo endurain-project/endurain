@@ -171,8 +171,8 @@ This is the mobile token body that `/auth/refresh` answers. Send the device id t
 | Status | Error | Description |
 | ------ | ----- | ----------- |
 | 400 | `invalid-input` (Invalid code_verifier) | Verifier doesn't match the challenge, or `X-Client-Type` differs from the client type that started the sign-in (the same answer for both) |
-| 404 | Session not found | Invalid session_id, or the tokens were already exchanged |
-| 422 | Missing or unknown `X-Client-Type` | The header is required |
+| 404 | Session not found | Unknown `session_id`, or the tokens were already exchanged |
+| 422 | `session_id` is not a UUID, or missing or unknown `X-Client-Type` | The header is required |
 | 429 | Rate limit exceeded | Max 10 requests/minute per IP |
 
 #### Step 4: Store Tokens Securely
@@ -376,7 +376,7 @@ A web client gets the web token body instead (`csrf_token`, no `refresh_token`, 
 | Status | Error | Description |
 | ------ | ----- | ----------- |
 | 400 | `invalid-input` (Invalid code_verifier) | Verifier doesn't match the challenge, or `X-Client-Type` differs from the value stored on the PKCE/OAuth state (the same answer for both) |
-| 404 | Session not found | Invalid session_id, not a PKCE flow, or the tokens were already exchanged |
+| 404 | Session not found | Unknown session_id, not a PKCE flow, or the tokens were already exchanged |
 | 422 | Missing or unknown `X-Client-Type` | The header is required |
 | 403 | `mfa-required` | The account has MFA enabled and the request had no `mfa_code`; see below |
 | 400 | `invalid-mfa-code` | The `mfa_code` was wrong, expired or an already used backup code |

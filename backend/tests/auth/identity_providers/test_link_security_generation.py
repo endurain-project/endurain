@@ -26,7 +26,7 @@ IDP_ID = uuid.uuid4()
 
 HOST = "https://app.example.com"
 USER_ID = MOCK_USER_ID
-SESSION_ID = "sid"
+SESSION_ID = uuid.UUID("11111111-2222-3333-4444-555555555555")
 _ACCOUNT_SECURITY = "modules.auth.account_security.account_security_service."
 _LINK_AUDIT = "auth.identity_link.link"
 _FAILED_LINK_URL = f"{HOST}/settings?idp_link=error"

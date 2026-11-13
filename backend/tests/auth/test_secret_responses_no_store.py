@@ -1,5 +1,6 @@
 """Responses that carry a one-time secret are not cacheable."""
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
@@ -12,6 +13,8 @@ import modules.auth.dependencies as auth_dependencies
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.mfa_backup_codes.schema as mfa_backup_codes_schema
 
+_SID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+
 _WORKFLOW = "modules.auth.account_security.mfa_router.mfa_workflow_service"
 
 
@@ -20,8 +23,8 @@ def mfa_client() -> TestClient:
     app = FastAPI()
     app.include_router(mfa_router.router, prefix="/profile/mfa")
     app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
-    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: 1
-    app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = lambda: "sid"
+    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: uuid.UUID(int=1)
+    app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = lambda: _SID
     app.dependency_overrides[auth_dependencies.get_step_up_attempts] = lambda: MagicMock()
     app.dependency_overrides[auth_dependencies.get_mfa_secret_store] = lambda: MagicMock()
     return TestClient(app)

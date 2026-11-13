@@ -28,6 +28,8 @@ import modules.auth.mfa.schema as mfa_schema
 import modules.auth.schema as auth_schema
 from tests.auth.authentication.conftest import BACKUP_CODE, USER_ID, USERNAME, WEB
 
+_SESSION_ID = uuid.UUID(int=7)
+
 _USER_ID_5 = uuid.UUID(int=5)
 
 IDP_ID = uuid.uuid4()
@@ -250,7 +252,7 @@ def _exchange(stack, store, *, device_id=None, code=BACKUP_CODE, claims=None):
         client_type="web",
         amr=["fed"],
     )
-    tokens = ("sid", datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
+    tokens = (_SESSION_ID, datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
     with (
         patch(f"{_SSO}.sessions_integration.get_session_with_oauth_state", return_value=(session, oauth_state)),
         patch(f"{_SSO}.auth_computation.validate_pkce_verifier"),
@@ -271,7 +273,7 @@ def _exchange(stack, store, *, device_id=None, code=BACKUP_CODE, claims=None):
     ):
         try:
             sso_exchange_service.exchange_tokens_for_session(
-                "sid",
+                _SESSION_ID,
                 "verifier",
                 code,
                 "web",
@@ -349,7 +351,7 @@ class TestLiftingTheLock:
             patch.object(mfa_workflow.account_security_event_publishers, "publish_account_security_changed"),
             mfa_plain_signin.factory() as db,
         ):
-            mfa_workflow.enable_mfa(request, USER_ID, "sid", MagicMock(), secrets, db)
+            mfa_workflow.enable_mfa(request, USER_ID, _SESSION_ID, MagicMock(), secrets, db)
 
         assert _store().is_locked_out(USERNAME, _IP, user_id=USER_ID) is False
 
@@ -363,7 +365,7 @@ class TestLiftingTheLock:
             mfa_workflow.disable_mfa(
                 auth_schema.StepUpVerification(current_password="pw", mfa_code="123456"),
                 USER_ID,
-                "sid",
+                _SESSION_ID,
                 MagicMock(),
                 db,
                 revoke_other_sessions=False,

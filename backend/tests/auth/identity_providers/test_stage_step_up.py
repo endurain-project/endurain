@@ -19,7 +19,7 @@ IDP_ID = uuid.uuid4()
 
 HOST = "https://app.example.com"
 CHALLENGE = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
-SESSION_ID = "11111111-2222-3333-4444-555555555555"
+SESSION_ID = uuid.UUID("11111111-2222-3333-4444-555555555555")
 
 
 def _idp(**overrides):
@@ -103,7 +103,15 @@ class TestStageStepUp:
             patch.object(authorization_service.oauth_state_integration, "create_oauth_state"),
         ):
             service.stage_step_up(
-                7, SESSION_ID, IDP_ID, StepUpAction.ACCOUNT_DELETE, CHALLENGE, "/", None, db, security_generation=0
+                MOCK_USER_ID,
+                SESSION_ID,
+                IDP_ID,
+                StepUpAction.ACCOUNT_DELETE,
+                CHALLENGE,
+                "/",
+                None,
+                db,
+                security_generation=0,
             )
 
         db.commit.assert_not_called()

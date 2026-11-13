@@ -18,6 +18,7 @@ from modules.auth.constants import ClientType
 from modules.users.users.schema import UserAccessType, UserRead
 
 _USER_ID = uuid.UUID(int=1)
+_SESSION_ID = uuid.UUID(int=0x5E55)
 
 _ACCESS_KEY = "claims-access-key-for-testing-only-min-32-chars"
 _REFRESH_KEY = "claims-refresh-key-for-testing-only-min-32-chars"
@@ -45,7 +46,7 @@ def user() -> UserRead:
 
 
 def _claims(manager, user, token_type, client_type=ClientType.WEB) -> dict:
-    _, token = manager.create_token("sid", user, client_type, token_type, timedelta(minutes=5))
+    _, token = manager.create_token(_SESSION_ID, user, client_type, token_type, timedelta(minutes=5))
     return dict(manager.decode_token(token, token_type).claims)
 
 

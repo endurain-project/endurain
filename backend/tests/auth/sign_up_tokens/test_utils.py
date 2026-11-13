@@ -155,7 +155,7 @@ class TestEmailPreparation:
                 email="new@example.test",
                 previous_email="old@example.test",
                 security_generation=0,
-                change_id="change-1",
+                change_id=uuid.UUID("00000000-0000-4000-8000-0000000000c1"),
                 revert_until="window-end",
             )
         ]
@@ -174,6 +174,6 @@ class TestEmailPreparation:
             mock_db,
             previous_email="old@example.test",
             security_generation=0,
-            change_id="change-1",
+            change_id=uuid.UUID("00000000-0000-4000-8000-0000000000c1"),
             revert_until="window-end",
         )

@@ -39,9 +39,9 @@ _MFA_ENROLMENT_AUDIT_WINDOW_SECONDS = 24 * 60 * 60
 
 get_bearer_token = authentication_dependencies.get_bearer_token
 header_api_key_scheme = APIKeyHeader(name="X-API-Key", scheme_name="ApiKey", auto_error=False)
-ApiKeyId = Annotated[str, Path(min_length=1)]
+ApiKeyId = core_dependencies.UuidId
 IdentityProviderSlug = Annotated[str, Path(min_length=1)]
-AuthSessionId = Annotated[str, Path(min_length=1)]
+AuthSessionId = core_dependencies.UuidId
 set_idp_browser_binding_cookie = identity_providers_dependencies.set_browser_binding_cookie
 
 
@@ -257,7 +257,7 @@ def get_current_scopes(principal: CurrentPrincipal) -> frozenset[str]:
     return principal.scopes
 
 
-def get_sid_from_access_token(principal: CurrentPrincipal) -> str:
+def get_sid_from_access_token(principal: CurrentPrincipal) -> uuid.UUID:
     """Return the session id carried by the caller's access token.
 
     Args:
@@ -315,7 +315,7 @@ CurrentUserId = Annotated[uuid.UUID, Depends(get_current_user_id)]
 #: Scopes granted to the authenticated caller.
 CurrentScopes = Annotated[frozenset[str], Depends(get_current_scopes)]
 #: Session id carried by the caller's access token; an API key is refused.
-CurrentSessionId = Annotated[str, Depends(get_sid_from_access_token)]
+CurrentSessionId = Annotated[uuid.UUID, Depends(get_sid_from_access_token)]
 StepUpStore = account_security_integration.StepUpStore
 get_step_up_attempts = account_security_integration.get_step_up_attempts
 MFASecretStoreBackend = auth_mfa_dependencies.MFASecretStoreBackend

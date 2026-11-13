@@ -48,6 +48,11 @@ def oidc():
     return oidc
 
 
+def _session(name: str) -> uuid.UUID:
+    """Return the session id a test names."""
+    return uuid.uuid5(uuid.NAMESPACE_URL, name)
+
+
 def _store(factory, session_id, *, refresh="plain", user_id=MOCK_USER_ID, idp_id=IDP_ID):
     encrypted = core_cryptography.encrypt_token_fernet(refresh) if refresh is not None else None
     with factory() as db:
@@ -78,7 +83,7 @@ def _run(oidc, factory, *, alive=(), user_id=None, idp=True):
 
 class TestRevokeEndedSessions:
     def test_the_refresh_token_is_posted_to_the_revocation_endpoint_and_the_row_is_deleted(self, oidc, factory):
-        _store(factory, "gone", refresh="plain-refresh")
+        _store(factory, _session("gone"), refresh="plain-refresh")
 
         deleted = _run(oidc, factory)
 
@@ -89,40 +94,40 @@ class TestRevokeEndedSessions:
         assert _rows(factory) == {}
 
     def test_the_client_authenticates_with_the_providers_credentials(self, oidc, factory):
-        _store(factory, "gone")
+        _store(factory, _session("gone"))
 
         _run(oidc, factory)
 
         oidc.create_oauth_client.assert_called_once_with(client_id="cid", client_secret="secret")
 
     def test_a_session_that_still_exists_is_left_alone(self, oidc, factory):
-        _store(factory, "alive")
-        _store(factory, "gone")
+        _store(factory, _session("alive"))
+        _store(factory, _session("gone"))
 
-        _run(oidc, factory, alive=("alive",))
+        _run(oidc, factory, alive=(_session("alive"),))
 
-        assert set(_rows(factory)) == {"alive"}
+        assert set(_rows(factory)) == {_session("alive")}
         oidc.create_oauth_client.return_value.revoke_token.assert_called_once()
 
     def test_only_the_named_users_sessions_are_handled(self, oidc, factory):
-        _store(factory, "mine", user_id=MOCK_USER_ID)
-        _store(factory, "theirs", user_id=OTHER_USER_ID)
+        _store(factory, _session("mine"), user_id=MOCK_USER_ID)
+        _store(factory, _session("theirs"), user_id=OTHER_USER_ID)
 
         _run(oidc, factory, user_id=MOCK_USER_ID)
 
-        assert set(_rows(factory)) == {"theirs"}
+        assert set(_rows(factory)) == {_session("theirs")}
 
     def test_an_orphan_from_the_sweep_is_handled_without_an_event(self, oidc, factory):
         """The sweep names no user: it covers sessions that expired or were purged with no event."""
-        _store(factory, "expired", user_id=MOCK_USER_ID)
-        _store(factory, "purged", user_id=OTHER_USER_ID)
+        _store(factory, _session("expired"), user_id=MOCK_USER_ID)
+        _store(factory, _session("purged"), user_id=OTHER_USER_ID)
 
         assert _run(oidc, factory) == 2
         assert _rows(factory) == {}
 
     def test_a_provider_without_a_revocation_endpoint_only_forgets_the_row(self, oidc, factory):
         oidc.resolve_revocation_endpoint.return_value = None
-        _store(factory, "gone")
+        _store(factory, _session("gone"))
 
         assert _run(oidc, factory) == 1
 
@@ -130,7 +135,7 @@ class TestRevokeEndedSessions:
         assert _rows(factory) == {}
 
     def test_a_sign_in_that_holds_no_token_is_deleted_without_a_provider_call(self, oidc, factory):
-        _store(factory, "gone", refresh=None)
+        _store(factory, _session("gone"), refresh=None)
 
         assert _run(oidc, factory) == 1
 
@@ -139,7 +144,9 @@ class TestRevokeEndedSessions:
 
     def test_a_token_no_key_decrypts_is_deleted_without_a_provider_call(self, oidc, factory):
         with factory() as db:
-            identity_links_crud.create_idp_session_token("gone", MOCK_USER_ID, IDP_ID, "not-a-fernet-token", None, db)
+            identity_links_crud.create_idp_session_token(
+                _session("gone"), MOCK_USER_ID, IDP_ID, "not-a-fernet-token", None, db
+            )
             db.commit()
 
         assert _run(oidc, factory) == 1
@@ -148,16 +155,16 @@ class TestRevokeEndedSessions:
         assert _rows(factory) == {}
 
     def test_a_key_that_cannot_be_loaded_keeps_the_row(self, oidc, factory):
-        _store(factory, "gone")
+        _store(factory, _session("gone"))
         with patch.object(
             revocation_module.core_cryptography, "decrypt_token_fernet", side_effect=core_exceptions.CryptographyError()
         ):
             assert _run(oidc, factory) == 0
 
-        assert set(_rows(factory)) == {"gone"}
+        assert set(_rows(factory)) == {_session("gone")}
 
     def test_a_provider_that_no_longer_exists_only_forgets_the_row(self, oidc, factory):
-        _store(factory, "gone")
+        _store(factory, _session("gone"))
 
         assert _run(oidc, factory, idp=False) == 1
 
@@ -168,7 +175,7 @@ class TestRevokeEndedSessions:
     def test_an_answer_that_settles_the_request_deletes_the_row(self, oidc, factory, status_code):
         """A 2xx revoked it; any other answer below 500 refuses it for good, which a retry would not change."""
         oidc.create_oauth_client.return_value.revoke_token.return_value = MagicMock(status_code=status_code)
-        _store(factory, "gone")
+        _store(factory, _session("gone"))
 
         assert _run(oidc, factory) == 1
         assert _rows(factory) == {}
@@ -176,52 +183,52 @@ class TestRevokeEndedSessions:
     @pytest.mark.parametrize("status_code", [408, 429, 500, 502, 503])
     def test_a_server_error_or_a_retryable_answer_keeps_the_row_for_a_retry(self, oidc, factory, status_code):
         oidc.create_oauth_client.return_value.revoke_token.return_value = MagicMock(status_code=status_code)
-        _store(factory, "gone")
+        _store(factory, _session("gone"))
 
         assert _run(oidc, factory) == 0
-        assert set(_rows(factory)) == {"gone"}
+        assert set(_rows(factory)) == {_session("gone")}
 
     @pytest.mark.parametrize("error", [httpx2.ConnectError("down"), httpx2.ReadTimeout("slow")])
     def test_a_network_error_keeps_the_row_for_a_retry(self, oidc, factory, error):
         oidc.create_oauth_client.return_value.revoke_token.side_effect = error
-        _store(factory, "gone")
+        _store(factory, _session("gone"))
 
         assert _run(oidc, factory) == 0
 
-        assert set(_rows(factory)) == {"gone"}
+        assert set(_rows(factory)) == {_session("gone")}
         oidc.create_oauth_client.return_value.close.assert_called_once()
 
     def test_an_unreachable_discovery_document_keeps_the_row_for_a_retry(self, oidc, factory):
         oidc.resolve_revocation_endpoint.side_effect = core_exceptions.UpstreamError("unavailable")
-        _store(factory, "gone")
+        _store(factory, _session("gone"))
 
         assert _run(oidc, factory) == 0
-        assert set(_rows(factory)) == {"gone"}
+        assert set(_rows(factory)) == {_session("gone")}
 
     def test_an_endpoint_the_ssrf_guard_refuses_only_forgets_the_row(self, oidc, factory):
         oidc.resolve_revocation_endpoint.side_effect = core_exceptions.InvalidInputError("private address")
-        _store(factory, "gone")
+        _store(factory, _session("gone"))
 
         assert _run(oidc, factory) == 1
         assert _rows(factory) == {}
 
     def test_an_unreachable_provider_is_not_called_again_for_its_other_sessions(self, oidc, factory):
         oidc.create_oauth_client.return_value.revoke_token.side_effect = httpx2.ConnectError("down")
-        for session_id in ("a", "b", "c"):
+        for session_id in (_session("a"), _session("b"), _session("c")):
             _store(factory, session_id)
 
         _run(oidc, factory)
 
         oidc.create_oauth_client.return_value.revoke_token.assert_called_once()
-        assert set(_rows(factory)) == {"a", "b", "c"}
+        assert set(_rows(factory)) == {_session("a"), _session("b"), _session("c")}
 
     def test_an_unreachable_provider_does_not_stop_another_providers_sessions(self, oidc, factory):
         oidc.create_oauth_client.return_value.revoke_token.side_effect = [
             httpx2.ConnectError("down"),
             MagicMock(status_code=200),
         ]
-        _store(factory, "slow-idp", idp_id=IDP_ID)
-        _store(factory, "other-idp", idp_id=OTHER_IDP_ID)
+        _store(factory, _session("slow-idp"), idp_id=IDP_ID)
+        _store(factory, _session("other-idp"), idp_id=OTHER_IDP_ID)
         first_by_id = next(iter(_rows(factory)))
 
         assert _run(oidc, factory) == 1
@@ -229,8 +236,8 @@ class TestRevokeEndedSessions:
 
     def test_a_provider_error_for_one_session_does_not_stop_the_others(self, oidc, factory):
         oidc.decrypt_client_secret.side_effect = [core_exceptions.ProcessingError("bad secret"), "secret"]
-        _store(factory, "a")
-        _store(factory, "b")
+        _store(factory, _session("a"))
+        _store(factory, _session("b"))
         first_by_id = next(iter(_rows(factory)))
 
         assert _run(oidc, factory) == 1
@@ -238,12 +245,12 @@ class TestRevokeEndedSessions:
 
     def test_a_token_another_refresh_stored_meanwhile_is_not_deleted(self, oidc, factory):
         """The row holds the token that was read when the provider was called, or it is kept for the next pass."""
-        _store(factory, "gone", refresh="old")
+        _store(factory, _session("gone"), refresh="old")
 
         def refresh_meanwhile(*_args, **_kwargs):
             with factory() as db:
                 identity_links_crud.replace_refresh_token_if_unchanged(
-                    "gone",
+                    _session("gone"),
                     core_cryptography.encrypt_token_fernet("old"),
                     core_cryptography.encrypt_token_fernet("new"),
                     datetime.now(UTC),
@@ -255,11 +262,11 @@ class TestRevokeEndedSessions:
         oidc.create_oauth_client.return_value.revoke_token.side_effect = refresh_meanwhile
 
         assert _run(oidc, factory) == 0
-        assert core_cryptography.decrypt_token_fernet(_rows(factory)["gone"].refresh_token) == "new"
+        assert core_cryptography.decrypt_token_fernet(_rows(factory)[_session("gone")].refresh_token) == "new"
 
     def test_a_large_table_is_walked_in_windows(self, oidc, factory):
         for index in range(5):
-            _store(factory, f"gone-{index}")
+            _store(factory, _session(f"gone-{index}"))
 
         with patch.object(revocation_module, "BATCH_SIZE", 2):
             assert _run(oidc, factory) == 5
@@ -267,7 +274,7 @@ class TestRevokeEndedSessions:
 
     def test_the_token_is_never_logged(self, oidc, factory, caplog):
         oidc.create_oauth_client.return_value.revoke_token.return_value = MagicMock(status_code=400)
-        _store(factory, "gone", refresh="secret-refresh-value")
+        _store(factory, _session("gone"), refresh="secret-refresh-value")
 
         with caplog.at_level(logging.DEBUG):
             _run(oidc, factory)
@@ -275,7 +282,7 @@ class TestRevokeEndedSessions:
         assert "secret-refresh-value" not in caplog.text
 
     def test_no_database_session_is_open_during_the_provider_call(self, oidc, factory):
-        _store(factory, "gone")
+        _store(factory, _session("gone"))
         open_sessions = 0
         open_during_call = []
         real_factory = factory

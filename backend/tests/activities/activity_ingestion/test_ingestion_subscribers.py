@@ -1,5 +1,6 @@
 """Tests for the durable uploaded-file subscriber."""
 
+import uuid
 from unittest.mock import patch
 
 import pytest
@@ -10,6 +11,8 @@ from pydantic import ValidationError
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.events as ingestion_events
 import modules.activities.activity_ingestion.subscribers as ingestion_subscribers
+
+_JOB_1 = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
 
 
 def _event(payload: dict, retry_count: int = 1) -> Event:
@@ -34,8 +37,8 @@ def platform():
 class TestProcessUploadedFileForEvent:
     def test_runs_the_upload_job(self, platform):
         with patch.object(ingestion_subscribers.activity_ingestion_service, "run_upload_job") as run:
-            ingestion_subscribers.process_uploaded_file_for_event(_event({"job_id": "job-1"}))
-        run.assert_called_once_with("job-1", platform.storage)
+            ingestion_subscribers.process_uploaded_file_for_event(_event({"job_id": _JOB_1}))
+        run.assert_called_once_with(_JOB_1, platform.storage)
 
     def test_raises_on_a_malformed_payload(self):
         """A bad payload must surface via retry/dead-letter, not silently complete."""
@@ -51,7 +54,7 @@ class TestProcessUploadedFileForEvent:
             patch.object(ingestion_subscribers.activity_ingestion_service, "fail_ingestion_job") as fail,
             pytest.raises(RuntimeError),
         ):
-            ingestion_subscribers.process_uploaded_file_for_event(_event({"job_id": "job-1"}, retry_count=5))
+            ingestion_subscribers.process_uploaded_file_for_event(_event({"job_id": _JOB_1}, retry_count=5))
 
         fail.assert_not_called()
 
@@ -85,7 +88,7 @@ class TestDeadLetterCallbacks:
             event_type=event_type,
             source="test",
             timestamp="2026-07-28T00:00:00+00:00",
-            payload={"job_id": "job-1"},
+            payload={"job_id": _JOB_1},
             retry_count=5,
             max_attempts=5,
         )
@@ -93,7 +96,7 @@ class TestDeadLetterCallbacks:
         with patch.object(ingestion_subscribers.activity_ingestion_service, "fail_ingestion_job") as fail:
             getattr(ingestion_subscribers, callback)(event, "lease expired")
 
-        fail.assert_called_once_with("job-1", code, platform.storage)
+        fail.assert_called_once_with(_JOB_1, code, platform.storage)
 
     def test_every_handler_is_registered_with_its_callback(self):
         registry = JobHandlerRegistry()
@@ -125,7 +128,7 @@ class TestBulkImportHandler:
             event_type=ingestion_events.ACTIVITY_BULK_IMPORT_CONTINUE,
             source="api:bulk_import",
             timestamp="2026-10-15T00:00:00+00:00",
-            payload={"job_id": "job-1"},
+            payload={"job_id": _JOB_1},
             metadata={},
             retry_count=retry_count,
         )
@@ -144,7 +147,7 @@ class TestBulkImportHandler:
             platform.return_value = MagicMock(storage="storage")
             subscribers.process_bulk_import_for_event(self._event())
 
-        run.assert_called_once_with("job-1", "storage")
+        run.assert_called_once_with(_JOB_1, "storage")
 
     def test_a_batch_that_leaves_files_continues_the_same_job(self):
         from unittest.mock import MagicMock, patch

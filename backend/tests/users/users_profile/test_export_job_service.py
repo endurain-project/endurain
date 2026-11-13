@@ -24,6 +24,7 @@ _Status = profile_constants.ExportStatus
 _Failure = profile_constants.ExportFailure
 _AREA = profile_constants.EXPORT_STAGING_AREA
 _USER_ID = uuid.UUID(int=1)
+_SESSION_ID = uuid.UUID(int=601)
 
 
 @pytest.fixture
@@ -39,7 +40,7 @@ def verify_step_up():
 
 def _request(states, db):
     return job_service.request_export(
-        _USER_ID, "session-1", auth_schema.StepUpVerification(current_password="pw"), MagicMock(), states, db
+        _USER_ID, _SESSION_ID, auth_schema.StepUpVerification(current_password="pw"), MagicMock(), states, db
     )
 
 
@@ -123,7 +124,7 @@ class TestRequestExport:
         assert states.get(_USER_ID) is None
         assert verify_step_up.call_args.args[1:4] == (
             _USER_ID,
-            "session-1",
+            _SESSION_ID,
             identity_providers_constants.StepUpAction.PROFILE_EXPORT,
         )
 

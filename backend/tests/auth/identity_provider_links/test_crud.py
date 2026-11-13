@@ -95,7 +95,9 @@ def test_delete_link_stages_deletion(mock_db):
     mock_db.commit.assert_not_called()
 
 
-SESSION = "11111111-1111-1111-1111-111111111111"
+SESSION = uuid.uuid4()
+OTHER_SESSION = uuid.uuid4()
+S1, S2, S3, S4 = (uuid.uuid4() for _ in range(4))
 
 
 class TestSessionTokens:
@@ -147,28 +149,27 @@ class TestSessionTokens:
     def test_a_session_that_signed_in_through_no_provider_has_no_row(self):
         db = self._db_with_token("encrypted")
 
-        assert self._stored(db, "another-session") is None
+        assert self._stored(db, OTHER_SESSION) is None
         db.close()
 
     def test_the_sessions_of_one_user_and_provider_are_listed(self):
-        db = self._db_with_token("a", "s1")
+        db = self._db_with_token("a", S1)
         for session_id, user_id, idp_id in (
-            ("s2", MOCK_USER_ID, IDP_3),
-            ("s3", MOCK_USER_ID, IDP_4),
-            ("s4", OTHER_USER_ID, IDP_3),
+            (S2, MOCK_USER_ID, IDP_3),
+            (S3, MOCK_USER_ID, IDP_4),
+            (S4, OTHER_USER_ID, IDP_3),
         ):
             identity_links_crud.create_idp_session_token(session_id, user_id, idp_id, None, None, db)
         db.commit()
 
-        assert sorted(identity_links_crud.get_idp_session_token_ids_by_user_and_idp(MOCK_USER_ID, IDP_3, db)) == [
-            "s1",
-            "s2",
-        ]
+        assert sorted(identity_links_crud.get_idp_session_token_ids_by_user_and_idp(MOCK_USER_ID, IDP_3, db)) == sorted(
+            [S1, S2]
+        )
         db.close()
 
     def test_a_page_walks_the_rows_in_id_order_and_can_be_one_users(self):
-        db = self._db_with_token("a", "s1")
-        for session_id, user_id in (("s2", OTHER_USER_ID), ("s3", MOCK_USER_ID)):
+        db = self._db_with_token("a", S1)
+        for session_id, user_id in ((S2, OTHER_USER_ID), (S3, MOCK_USER_ID)):
             identity_links_crud.create_idp_session_token(session_id, user_id, IDP_3, None, None, db)
         db.commit()
 
@@ -241,11 +242,11 @@ class TestSessionTokens:
         db.close()
 
     def test_a_replace_of_another_sessions_token_changes_nothing(self):
-        db = self._db_with_token("mine", "s1")
-        identity_links_crud.create_idp_session_token("s2", MOCK_USER_ID, IDP_3, "theirs", None, db)
+        db = self._db_with_token("mine", S1)
+        identity_links_crud.create_idp_session_token(S2, MOCK_USER_ID, IDP_3, "theirs", None, db)
 
-        assert identity_links_crud.replace_refresh_token_if_unchanged("s1", "mine", "new", datetime.now(UTC), db)
-        assert self._stored(db, "s2").refresh_token == "theirs"
+        assert identity_links_crud.replace_refresh_token_if_unchanged(S1, "mine", "new", datetime.now(UTC), db)
+        assert self._stored(db, S2).refresh_token == "theirs"
         db.close()
 
     def test_a_clear_of_the_token_read_is_applied(self):

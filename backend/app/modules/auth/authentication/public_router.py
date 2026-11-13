@@ -246,7 +246,7 @@ def refresh_token(
         Depends(authentication_dependencies.get_sub_from_refresh_token),
     ],
     token_session_id: Annotated[
-        str,
+        uuid.UUID,
         Depends(authentication_dependencies.get_sid_from_refresh_token),
     ],
     refresh_token_value: Annotated[

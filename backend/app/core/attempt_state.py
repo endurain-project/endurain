@@ -76,8 +76,8 @@ class JobIndex:
         self._state = state
 
     @staticmethod
-    def _ref_key(job_id: str) -> str:
-        return key("jobs", "ref", job_id)
+    def _ref_key(job_id: uuid.UUID) -> str:
+        return key("jobs", "ref", str(job_id))
 
     @staticmethod
     def _owner_prefix(owner_id: uuid.UUID) -> str:
@@ -95,7 +95,7 @@ class JobIndex:
         """
         value = job.model_dump_json().encode()
         self._state.set(self._ref_key(job.id), value, ttl_seconds=ttl_seconds)
-        self._state.set(self._owner_prefix(job.owner_id) + job.id, value, ttl_seconds=ttl_seconds)
+        self._state.set(self._owner_prefix(job.owner_id) + str(job.id), value, ttl_seconds=ttl_seconds)
 
     def remove(self, job: core_job_status.JobRef) -> None:
         """Drop a job's entries.
@@ -107,9 +107,9 @@ class JobIndex:
             StateBackendUnavailableError: When storage is unavailable.
         """
         self._state.delete(self._ref_key(job.id))
-        self._state.delete(self._owner_prefix(job.owner_id) + job.id)
+        self._state.delete(self._owner_prefix(job.owner_id) + str(job.id))
 
-    def get(self, job_id: str) -> core_job_status.JobRef | None:
+    def get(self, job_id: uuid.UUID) -> core_job_status.JobRef | None:
         """Read the reference a job id names.
 
         Args:
@@ -232,12 +232,11 @@ class AttemptStateStore:
             # A state the previous release wrote carries no job; it reads as none, and its claim still expires.
             return None
 
-    def _running_job_id(self, subject: str) -> str | None:
+    def _running_job_id(self, subject: str) -> uuid.UUID | None:
         value = self._state.get(self._claim_key(subject))
         if value is None:
             return None
-        job_id = value.decode()
-        # A claim the previous release took holds a placeholder, not a job id.
+        job_id = uuid.UUID(value.decode())
         return job_id if self._index.get(job_id) is not None else None
 
     def begin(
@@ -263,10 +262,10 @@ class AttemptStateStore:
             StateUnavailableError: When storage is unavailable.
         """
         job = core_job_status.JobRef(
-            id=str(uuid.uuid4()), kind=kind, owner_id=owner_id, subject=subject, created_at=datetime.now(UTC)
+            id=uuid.uuid4(), kind=kind, owner_id=owner_id, subject=subject, created_at=datetime.now(UTC)
         )
         try:
-            if not self._state.set_if_absent(self._claim_key(subject), job.id.encode(), self._ttl_seconds):
+            if not self._state.set_if_absent(self._claim_key(subject), str(job.id).encode(), self._ttl_seconds):
                 raise core_exceptions.JobAlreadyRunningError(conflict, job_id=self._running_job_id(subject))
             try:
                 self._write(StoredJob(job=job, state=initial.model_dump(mode="json")))
@@ -347,7 +346,7 @@ class AttemptStateStore:
             if finished:
                 self._state.delete(self._claim_key(subject))
             elif job is not None:
-                self._state.set(self._claim_key(subject), job.id.encode(), ttl_seconds=self._ttl_seconds)
+                self._state.set(self._claim_key(subject), str(job.id).encode(), ttl_seconds=self._ttl_seconds)
         except StateBackendUnavailableError as err:
             if strict:
                 raise_unavailable(f"record {self._namespace}:{self._name}", err)

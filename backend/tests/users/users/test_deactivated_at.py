@@ -16,6 +16,7 @@ import modules.users.users.models as users_models
 import modules.users.users.schema as users_schema
 import modules.users.users.service as users_service
 
+_SID_9 = uuid.UUID(int=109)
 _U1, _U7, _U9 = (uuid.UUID(int=n) for n in (1, 7, 9))
 
 _SERVICE = "modules.users.users.service"
@@ -176,7 +177,7 @@ class TestCreation:
         ):
             credentials.validate_and_hash_password_for_user.return_value = "hash"
             crud.create_user.return_value = MagicMock(id=_U1)
-            users_service.create_user(user, None, _U9, "sid-9", MagicMock(), MagicMock())
+            users_service.create_user(user, None, _U9, _SID_9, MagicMock(), MagicMock())
         return crud.create_user.call_args.args[0]
 
     @pytest.mark.usefixtures("email_available")

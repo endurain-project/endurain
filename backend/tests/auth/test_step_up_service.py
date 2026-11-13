@@ -12,9 +12,13 @@ import core.exceptions as core_exceptions
 import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.account_security.step_up_store as step_up_store_module
 
+_SID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+_SID_2 = uuid.UUID("00000000-0000-4000-8000-0000000000a2")
+_SID_3 = uuid.UUID("00000000-0000-4000-8000-0000000000a3")
+
 USER_ID = uuid.UUID(int=1)
 OTHER_USER_ID = uuid.UUID(int=2)
-KEY = f"user:{USER_ID}:session:sid-1"
+KEY = f"user:{USER_ID}:session:{_SID_2}"
 
 
 class FakeStepUpStore:
@@ -82,13 +86,13 @@ class TestStepUpKey:
     """_step_up_key: key format for user-based lockout."""
 
     def test_format(self):
-        assert step_up_service._step_up_key(OTHER_USER_ID, "sid-a") == f"user:{OTHER_USER_ID}:session:sid-a"
+        assert step_up_service._step_up_key(OTHER_USER_ID, _SID_2) == f"user:{OTHER_USER_ID}:session:{_SID_2}"
 
     def test_unique_per_user(self):
-        assert step_up_service._step_up_key(USER_ID, "sid") != step_up_service._step_up_key(OTHER_USER_ID, "sid")
+        assert step_up_service._step_up_key(USER_ID, _SID) != step_up_service._step_up_key(OTHER_USER_ID, _SID)
 
     def test_unique_per_session(self):
-        assert step_up_service._step_up_key(USER_ID, "sid-a") != step_up_service._step_up_key(USER_ID, "sid-b")
+        assert step_up_service._step_up_key(USER_ID, _SID_2) != step_up_service._step_up_key(USER_ID, _SID_3)
 
 
 class TestVerifyStepUpCredentials:
@@ -105,7 +109,7 @@ class TestVerifyStepUpCredentials:
         mock_user=None,
         mfa_enabled=False,
         mfa_valid=True,
-        session_id="sid-1",
+        session_id=_SID_2,
     ):
         if step_up_store is None:
             step_up_store = FakeStepUpStore()
@@ -183,7 +187,7 @@ class TestVerifyStepUpCredentials:
         mock_user.password = "hashed"
         mock_user.has_local_password = True
 
-        self._call(user_id=USER_ID, session_id="sid-2", step_up_store=store, mock_user=mock_user, current_password="x")
+        self._call(user_id=USER_ID, session_id=_SID_3, step_up_store=store, mock_user=mock_user, current_password="x")
 
     def test_a_lockout_does_not_lock_another_user_on_the_same_session_id(self):
         store = FakeStepUpStore()
@@ -193,7 +197,7 @@ class TestVerifyStepUpCredentials:
         mock_user.has_local_password = True
 
         self._call(
-            user_id=OTHER_USER_ID, session_id="sid-1", step_up_store=store, mock_user=mock_user, current_password="x"
+            user_id=OTHER_USER_ID, session_id=_SID_2, step_up_store=store, mock_user=mock_user, current_password="x"
         )
 
     def test_failures_count_against_the_callers_session_only(self):
@@ -205,7 +209,7 @@ class TestVerifyStepUpCredentials:
         for _ in range(5):
             with pytest.raises(core_exceptions.StepUpFailedError):
                 self._call(
-                    session_id="sid-thief",
+                    session_id=_SID_2,
                     step_up_store=store,
                     mock_user=mock_user,
                     current_password="wrong",
@@ -213,8 +217,8 @@ class TestVerifyStepUpCredentials:
                 )
 
         with pytest.raises(core_exceptions.TooManyRequestsError):
-            self._call(session_id="sid-thief", step_up_store=store, mock_user=mock_user, current_password="x")
-        self._call(session_id="sid-owner", step_up_store=store, mock_user=mock_user, current_password="x")
+            self._call(session_id=_SID_2, step_up_store=store, mock_user=mock_user, current_password="x")
+        self._call(session_id=_SID_3, step_up_store=store, mock_user=mock_user, current_password="x")
 
     def test_lockout_not_applied_when_not_locked(self):
         # Should not raise 429
@@ -339,7 +343,7 @@ class TestVerifyStepUpCredentials:
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
             step_up_service.verify_step_up_credentials(
-                USER_ID, "x" * 100, None, store, MagicMock(spec=Session), session_id="sid-1"
+                USER_ID, "x" * 100, None, store, MagicMock(spec=Session), session_id=_SID_2
             )
 
         assert exc.value.status_code == 403
@@ -566,7 +570,7 @@ class TestStepUpPasswordNormalisation:
             patch(prefix + "mfa_integration.is_mfa_enabled_for_user", return_value=False),
         ):
             step_up_service.verify_step_up_credentials(
-                1, typed, None, FakeStepUpStore(), MagicMock(spec=Session), session_id="sid-1"
+                1, typed, None, FakeStepUpStore(), MagicMock(spec=Session), session_id=_SID_2
             )
 
     @pytest.fixture

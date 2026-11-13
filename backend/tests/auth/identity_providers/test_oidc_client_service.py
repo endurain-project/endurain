@@ -356,7 +356,7 @@ class TestDiscoveryIssuer:
 class TestResolveTokenEndpoint:
     @staticmethod
     def _idp(**overrides):
-        values = {"id": 5, "issuer_url": "https://idp.example.com", "token_endpoint": None}
+        values = {"id": uuid.uuid4(), "issuer_url": "https://idp.example.com", "token_endpoint": None}
         values.update(overrides)
         idp = MagicMock(**values)
         idp.name = "Test IdP"
@@ -390,7 +390,7 @@ class TestResolveTokenEndpoint:
 class TestResolveRevocationEndpoint:
     @staticmethod
     def _idp(**overrides):
-        values = {"id": 5, "issuer_url": "https://idp.example.com"}
+        values = {"id": uuid.uuid4(), "issuer_url": "https://idp.example.com"}
         values.update(overrides)
         idp = MagicMock(**values)
         idp.name = "Test IdP"
@@ -440,7 +440,7 @@ class TestResolveRevocationEndpoint:
 class TestResolveEndSessionEndpoint:
     @staticmethod
     def _idp(**overrides):
-        values = {"id": 5, "issuer_url": "https://idp.example.com"}
+        values = {"id": uuid.uuid4(), "issuer_url": "https://idp.example.com"}
         values.update(overrides)
         idp = MagicMock(**values)
         idp.name = "Test IdP"

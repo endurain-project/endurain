@@ -9,7 +9,7 @@ import core.event_metadata as core_event_metadata
 import modules.auth.identity_providers.events as idp_events
 
 
-def publish_idp_token_refresh_requested(user_id: uuid.UUID, session_id: str, db: Session) -> None:
+def publish_idp_token_refresh_requested(user_id: uuid.UUID, session_id: uuid.UUID, db: Session) -> None:
     """Stage ``auth.idp_token_refresh_requested`` in the caller's transaction.
 
     Args:

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime
-from uuid import uuid4
 
 import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as access_tokens_integration
@@ -20,8 +20,8 @@ def create_tokens(
     client_type: auth_constants.ClientType,
     token_manager: access_tokens_integration.TokenManager,
     policy: server_settings_contracts.SessionPolicy,
-    session_id: str | None = None,
-) -> tuple[str, datetime, str, datetime, str, str]:
+    session_id: uuid.UUID | None = None,
+) -> tuple[uuid.UUID, datetime, str, datetime, str, str]:
     """Generates session tokens for a user, including access token, refresh token, and CSRF token.
 
     Args:
@@ -29,12 +29,12 @@ def create_tokens(
         client_type: The client type of the session, carried by both tokens as ``client_id``.
         token_manager (access_tokens_integration.TokenManager): The token manager responsible for token creation.
         policy (server_settings_contracts.SessionPolicy): The token lifetimes to apply.
-        session_id (str | None, optional): An optional session ID. If not provided, a new unique session ID is generated.
+        session_id (uuid.UUID | None, optional): An optional session ID. If not provided, a new unique session ID is generated.
 
     Returns:
-        tuple[str, datetime, str, datetime, str, str]:
+        tuple[uuid.UUID, datetime, str, datetime, str, str]:
             A tuple containing:
-                - session_id (str): The session identifier.
+                - session_id (uuid.UUID): The session identifier.
                 - access_token_exp (datetime): Expiration datetime of the access token.
                 - access_token (str): The access token string.
                 - refresh_token_exp (datetime): Expiration datetime of the refresh token.
@@ -43,7 +43,7 @@ def create_tokens(
     """
     if session_id is None:
         # Generate a unique session ID
-        session_id = str(uuid4())
+        session_id = uuid.uuid4()
 
     # Create the access, refresh tokens and csrf token
     access_token_exp, access_token = token_manager.create_token(
@@ -70,7 +70,7 @@ def mint_access_token(
     user: users_schema.UserRead,
     client_type: auth_constants.ClientType,
     token_manager: access_tokens_integration.TokenManager,
-    session_id: str,
+    session_id: uuid.UUID,
     policy: server_settings_contracts.SessionPolicy,
 ) -> tuple[datetime, str]:
     """Mint a single fresh access token for an existing session.
@@ -111,7 +111,7 @@ def cap_refresh_expiry(refresh_token_exp: datetime, session_expires_at: datetime
 
 
 def build_web_token_response(
-    session_id: str,
+    session_id: uuid.UUID,
     access_token: str,
     access_token_exp: datetime,
     refresh_token: str,
@@ -154,7 +154,7 @@ def build_web_token_response(
 
 
 def build_mobile_token_response(
-    session_id: str,
+    session_id: uuid.UUID,
     access_token: str,
     access_token_exp: datetime,
     refresh_token: str,
@@ -193,7 +193,7 @@ def build_mobile_token_response(
 
 def build_token_response(
     client_type: auth_constants.ClientType,
-    session_id: str,
+    session_id: uuid.UUID,
     access_token: str,
     access_token_exp: datetime,
     refresh_token: str,

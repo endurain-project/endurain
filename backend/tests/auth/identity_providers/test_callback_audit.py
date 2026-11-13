@@ -15,6 +15,7 @@ import modules.auth.sessions.audit_actions as sessions_audit_actions
 from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
 IDP_ID = uuid.uuid4()
+SESSION_ID = uuid.UUID("11111111-2222-3333-4444-555555555555")
 
 _SESSION = SimpleNamespace(user_id=MOCK_USER_ID)
 
@@ -37,7 +38,7 @@ def test_linking_a_provider_is_audited_with_the_provider_id(mock_db):
         nonce="n",
         redirect_path="/",
         client_type="web",
-        session_id="sid",
+        session_id=SESSION_ID,
         ends_other_sessions=False,
         security_generation=0,
     )
@@ -85,7 +86,7 @@ def test_linking_an_identity_that_belongs_to_another_account_is_denied(mock_db):
         nonce="n",
         redirect_path="/",
         client_type="web",
-        session_id="sid",
+        session_id=SESSION_ID,
         security_generation=0,
     )
     oauth_client = MagicMock()
@@ -133,7 +134,7 @@ def _complete_link(mock_db, *, ends_other_sessions, ended=2):
         nonce="n",
         redirect_path="/",
         client_type="web",
-        session_id="sid",
+        session_id=SESSION_ID,
         ends_other_sessions=ends_other_sessions,
         security_generation=0,
     )
@@ -165,7 +166,7 @@ def _complete_link(mock_db, *, ends_other_sessions, ended=2):
 def test_a_link_ends_the_other_sessions_except_the_one_that_started_it(mock_db):
     audit, delete = _complete_link(mock_db, ends_other_sessions=True)
 
-    delete.assert_called_once_with(MOCK_USER_ID, mock_db, exclude_session_id="sid")
+    delete.assert_called_once_with(MOCK_USER_ID, mock_db, exclude_session_id=SESSION_ID)
     entry = audit.assert_audited(
         sessions_audit_actions.SESSION_REVOKE.id,
         target_type="user",

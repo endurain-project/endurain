@@ -15,6 +15,7 @@ import modules.users.users.deletion_state_store as deletion_state_store
 import modules.users.users.schema as users_schema
 import modules.users.users.service as users_service
 
+_SID_9 = uuid.UUID(int=109)
 _U1, _U2, _U4, _U7, _U8, _U9 = (uuid.UUID(int=n) for n in (1, 2, 4, 7, 8, 9))
 
 _CRUD = "modules.users.users.service.users_crud"
@@ -74,7 +75,7 @@ class TestAccountCreation:
                 ),
                 None,
                 _U9,
-                "sid-9",
+                _SID_9,
                 MagicMock(),
                 mock_db,
             )
@@ -99,7 +100,7 @@ class TestAccountCreation:
                 ),
                 None,
                 _U9,
-                "sid-9",
+                _SID_9,
                 MagicMock(),
                 mock_db,
             )
@@ -162,7 +163,7 @@ class TestAdminEdit:
                 users_schema.UserEdit.from_read(requested),
                 None,
                 _U9,
-                "sid-9",
+                _SID_9,
                 MagicMock(),
                 mock_db,
                 if_match="*",

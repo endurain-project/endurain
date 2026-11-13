@@ -17,7 +17,7 @@ import core.event_metadata as core_event_metadata
 import modules.activities.activity_ingestion.events as activity_ingestion_events
 
 
-def publish_file_uploaded(job_id: str, user_id: uuid.UUID, db: Session, *, commit: Callable[[], None]) -> None:
+def publish_file_uploaded(job_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, commit: Callable[[], None]) -> None:
     """Publish ``activity.file_uploaded`` so a durable worker imports the staged upload.
 
     Staged in the transactional outbox on ``db`` and committed with the job row,
@@ -41,7 +41,9 @@ def publish_file_uploaded(job_id: str, user_id: uuid.UUID, db: Session, *, commi
     )
 
 
-def publish_refresh_requested(job_id: str, user_id: uuid.UUID, db: Session, *, commit: Callable[[], None]) -> None:
+def publish_refresh_requested(
+    job_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, commit: Callable[[], None]
+) -> None:
     """Publish ``activity.refresh_requested`` so a durable worker syncs the providers.
 
     Args:
@@ -63,7 +65,7 @@ def publish_refresh_requested(job_id: str, user_id: uuid.UUID, db: Session, *, c
 
 
 def publish_refresh_requests(
-    jobs: list[tuple[str, uuid.UUID]],
+    jobs: list[tuple[uuid.UUID, uuid.UUID]],
     db: Session,
     *,
     commit: Callable[[], None],
@@ -79,7 +81,7 @@ def publish_refresh_requests(
         db: The session the job rows were created on.
         commit: Zero-arg commit callable that ends the caller's transaction.
     """
-    owner_of = dict(jobs)
+    owner_of = {str(job_id): user_id for job_id, user_id in jobs}
     platform_publisher.publish_many_committing(
         activity_ingestion_events.ACTIVITY_REFRESH_REQUESTED,
         [
@@ -94,7 +96,9 @@ def publish_refresh_requests(
     )
 
 
-def publish_bulk_import_continue(job_id: str, user_id: uuid.UUID, db: Session, *, commit: Callable[[], None]) -> None:
+def publish_bulk_import_continue(
+    job_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, commit: Callable[[], None]
+) -> None:
     """Publish ``activity.bulk_import_continue`` so a worker runs the next batch.
 
     Staged in the transactional outbox on ``db`` and committed with whatever the

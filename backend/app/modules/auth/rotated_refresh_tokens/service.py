@@ -1,6 +1,7 @@
 """Utility functions for refresh token reuse detection."""
 
 import hmac
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
@@ -81,7 +82,7 @@ def _is_rotating_client(
 
 def store_rotated_token(
     raw_token: str,
-    token_family_id: str,
+    token_family_id: uuid.UUID,
     rotation_count: int,
     db: Session,
     *,
@@ -168,7 +169,7 @@ def check_token_reuse(raw_token: str, db: Session, *, ip_address: str, user_agen
         return (False, False)
 
     # The family id is the session id, the handle exchanged for tokens, so only a one-way fingerprint is logged.
-    family = core_hashing.log_fingerprint(rotated_token.token_family_id)
+    family = core_hashing.log_fingerprint(str(rotated_token.token_family_id))
 
     # Token was already rotated - check grace period
     now = datetime.now(UTC)
@@ -249,7 +250,7 @@ def get_grace_replay_token(
     return (replacement, rotated_token.replacement_refresh_token_exp)
 
 
-def delete_by_family(token_family_id: str, db: Session) -> int:
+def delete_by_family(token_family_id: uuid.UUID, db: Session) -> int:
     """Stage deletion of rotated-token records in a family."""
     return rotated_token_crud.delete_by_family(token_family_id, db)
 

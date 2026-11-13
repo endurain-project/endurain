@@ -54,7 +54,7 @@ class SessionRead(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: str
+    id: uuid.UUID
     user_id: uuid.UUID
     refresh_token: str | None
     ip_address: str
@@ -68,7 +68,7 @@ class SessionRead(BaseModel):
     expires_at: datetime
     oauth_state_id: str | None
     tokens_exchanged: bool
-    token_family_id: str
+    token_family_id: uuid.UUID
     rotation_count: int
     last_rotation_at: datetime | None
     csrf_token_hash: str | None

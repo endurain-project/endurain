@@ -20,16 +20,16 @@ def _nid(number: int) -> uuid.UUID:
     return uuid.UUID(int=number)
 
 
-def _read(notification_id: int):
+def _read(number: int):
     import modules.notifications.schema as notifications_schema
 
     return notifications_schema.NOTIFICATION_READ_ADAPTER.validate_python(
         {
-            "id": _nid(notification_id),
+            "id": _nid(number),
             "user_id": str(_ID_1),
             "type": "new_activity",
-            "options": {"activity_id": str(_nid(notification_id))},
-            "created_at": datetime(2024, 1, notification_id, tzinfo=UTC),
+            "options": {"activity_id": str(_nid(number))},
+            "created_at": datetime(2024, 1, number, tzinfo=UTC),
         }
     )
 

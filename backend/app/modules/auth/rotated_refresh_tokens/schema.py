@@ -25,9 +25,8 @@ class RotatedRefreshTokenCreate(BaseModel):
             replacement refresh token.
     """
 
-    token_family_id: StrictStr = Field(
+    token_family_id: uuid.UUID = Field(
         ...,
-        max_length=36,
         description="UUID of the token family",
     )
     hashed_token: StrictStr = Field(

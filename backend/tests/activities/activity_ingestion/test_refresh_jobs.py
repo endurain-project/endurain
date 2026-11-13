@@ -13,6 +13,8 @@ import modules.activities.activity_ingestion.events as ingestion_events
 import modules.activities.activity_ingestion.provider_registry as provider_registry
 import modules.activities.activity_ingestion.service as ingestion_jobs
 
+_JOB_1 = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+
 _ID_A = uuid.UUID("00000000-0000-4000-8000-00000000000a")
 _ID_B = uuid.UUID("00000000-0000-4000-8000-00000000000b")
 
@@ -39,7 +41,7 @@ class TestAcceptRefresh:
         # leave a job nobody will run.
         assert "commit" not in create.call_args.kwargs
         assert publish.call_args.kwargs["commit"] == db.commit
-        assert publish.call_args.args[1] == {"job_id": create.call_args.args[0]}
+        assert publish.call_args.args[1] == {"job_id": str(create.call_args.args[0])}
         assert publish.call_args.kwargs["schema_version"] == ingestion_events.RefreshRequestedPayload.SCHEMA_VERSION
         submit.assert_not_called()
 
@@ -137,9 +139,9 @@ class TestRunRefreshJob:
             ) as push,
         ):
             session_local.return_value.__enter__.return_value = session
-            ingestion_jobs.run_refresh_job("job-1", "storage")
+            ingestion_jobs.run_refresh_job(_JOB_1, "storage")
 
-        push.assert_called_once_with(MOCK_USER_ID, "job-1", "activity_refresh")
+        push.assert_called_once_with(MOCK_USER_ID, _JOB_1, "activity_refresh")
         assert events.index("push") > events.index("commit")
 
     def _patches(self, scope=_SCOPE):
@@ -161,7 +163,7 @@ class TestRunRefreshJob:
                 ingestion_jobs.activity_ingestion_refresh_entry_service, "sync_linked_providers", return_value=synced
             ),
         ):
-            ingestion_jobs.run_refresh_job("job-1", "storage")
+            ingestion_jobs.run_refresh_job(_JOB_1, "storage")
 
         processing.assert_called_once()
         assert completed.call_args.args[1] == [_ID_A, _ID_B]
@@ -183,7 +185,7 @@ class TestRunRefreshJob:
                 ingestion_jobs.activity_ingestion_refresh_entry_service, "sync_linked_providers", return_value=[]
             ) as sync,
         ):
-            ingestion_jobs.run_refresh_job("job-1", "storage")
+            ingestion_jobs.run_refresh_job(_JOB_1, "storage")
 
         sync.assert_called_once_with(42, start, end, provider="strava")
 
@@ -216,7 +218,7 @@ class TestRunRefreshJob:
                 ingestion_jobs.activity_ingestion_refresh_entry_service, "sync_linked_providers", side_effect=_sync
             ),
         ):
-            ingestion_jobs.run_refresh_job("job-1", "storage")
+            ingestion_jobs.run_refresh_job(_JOB_1, "storage")
 
         assert seen_during_sync == [0]
 
@@ -226,7 +228,7 @@ class TestRunRefreshJob:
             patch.object(ingestion_jobs.activity_ingestion_crud, "get_refresh_scope", return_value=None),
             patch.object(ingestion_jobs.activity_ingestion_refresh_entry_service, "sync_linked_providers") as sync,
         ):
-            ingestion_jobs.run_refresh_job("job-1", "storage")
+            ingestion_jobs.run_refresh_job(_JOB_1, "storage")
 
         sync.assert_not_called()
 
@@ -245,7 +247,7 @@ class TestRunRefreshJob:
             ),
             pytest.raises(RuntimeError),
         ):
-            ingestion_jobs.run_refresh_job("job-1", "storage")
+            ingestion_jobs.run_refresh_job(_JOB_1, "storage")
 
         fail.assert_not_called()
 
@@ -267,9 +269,9 @@ class TestRunRefreshJob:
                 side_effect=ingestion_jobs.activity_ingestion_refresh_entry_service.RefreshDeferredError(retry_at),
             ),
         ):
-            ingestion_jobs.run_refresh_job("job-1", "storage")
+            ingestion_jobs.run_refresh_job(_JOB_1, "storage")
 
-        assert deferred.call_args.args[:2] == ("job-1", retry_at)
+        assert deferred.call_args.args[:2] == (_JOB_1, retry_at)
         completed.assert_not_called()
         fail.assert_not_called()
         release.assert_not_called()
@@ -288,7 +290,7 @@ class TestRunRefreshJob:
             ),
             pytest.raises(RuntimeError),
         ):
-            ingestion_jobs.run_refresh_job("job-1", "storage")
+            ingestion_jobs.run_refresh_job(_JOB_1, "storage")
 
         assert fail.call_args.args[1] == activity_ingestion_constants.IngestionJobErrorCode.PROVIDER_UNAVAILABLE
 
@@ -304,7 +306,7 @@ class TestRunRefreshJob:
                 ingestion_jobs.activity_ingestion_refresh_entry_service, "sync_linked_providers", return_value=[]
             ),
         ):
-            ingestion_jobs.run_refresh_job("job-1", "storage")
+            ingestion_jobs.run_refresh_job(_JOB_1, "storage")
 
         assert completed.call_args.args[1] == []
         failed.assert_not_called()

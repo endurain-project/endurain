@@ -19,13 +19,15 @@ import modules.auth.authentication.service as authentication_service
 import modules.auth.known_devices.contracts as known_devices_contracts
 import modules.auth.lockout.audit_actions as lockout_audit_actions
 
+_SESSION_ID = uuid.UUID(int=7)
+
 _USER_ID = uuid.UUID(int=5)
 
 _SERVICE = "modules.auth.authentication.service"
 _USER = SimpleNamespace(id=_USER_ID, username="alice", active=True, access_type="regular")
 _DEVICE_ID = "d" * 43
 _IP = "203.0.113.7"
-_TOKENS = ("sid", datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
+_TOKENS = (_SESSION_ID, datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
 
 
 def _store_locked_by_100_failures():
@@ -104,7 +106,7 @@ class TestKnownDeviceBypass:
             outcome = _login(mock_db, store)
 
         known.assert_called_once_with(_USER_ID, _DEVICE_ID, mock_db)
-        assert outcome.body.session_id == "sid"
+        assert outcome.body.session_id == _SESSION_ID
         assert store.is_locked_out("alice", _IP, user_id=_USER_ID) is False
 
     def test_a_known_device_is_still_refused_by_the_client_lock(self, mock_db, password_sign_in):

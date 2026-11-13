@@ -1,5 +1,6 @@
 """The MFA routes read ``revoke_other_sessions`` from the body, default it to true and refuse a bare step-up body."""
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
@@ -13,6 +14,8 @@ import modules.auth.account_security.mfa_router as mfa_router
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.mfa_backup_codes.schema as mfa_backup_codes_schema
 
+_SID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+
 _WORKFLOW = "modules.auth.account_security.mfa_router.mfa_workflow_service"
 _STEP_UP = {"step_up": {"current_password": "pw", "mfa_code": "123456"}}
 
@@ -24,8 +27,8 @@ def client() -> TestClient:
     core_exceptions.register_exception_handlers(app)
     app.dependency_overrides[core_database.get_db] = lambda: MagicMock()
     app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
-    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: 1
-    app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = lambda: "sid"
+    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: uuid.UUID(int=1)
+    app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = lambda: _SID
     app.dependency_overrides[auth_dependencies.get_step_up_attempts] = lambda: MagicMock()
     app.dependency_overrides[auth_dependencies.get_mfa_secret_store] = lambda: MagicMock()
     return TestClient(app)

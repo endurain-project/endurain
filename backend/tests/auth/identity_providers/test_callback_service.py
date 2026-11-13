@@ -20,6 +20,7 @@ _LOGIN = oauth_state_constants.OAuthStatePurpose.LOGIN
 _LINK = oauth_state_constants.OAuthStatePurpose.LINK
 
 IDP_ID = uuid.uuid4()
+SESSION_ID = uuid.UUID("11111111-2222-3333-4444-555555555555")
 OTHER_IDP_ID = uuid.uuid4()
 HOST = "https://app.example.com"
 AUD = "client-id-123"
@@ -134,7 +135,7 @@ def _login(redirect_path=None):
 
 
 class TestCompleteCallback:
-    def _complete(self, service, result, oauth_state, *, session_id="session-1", error=None):
+    def _complete(self, service, result, oauth_state, *, session_id=SESSION_ID, error=None):
         with (
             patch.object(service, "handle_callback", side_effect=error, return_value=result),
             patch.object(service, "create_callback_session", return_value=session_id) as create_session,
@@ -181,7 +182,7 @@ class TestCompleteCallback:
     def test_a_login_returns_the_session_id_for_the_token_exchange(self, service):
         url, _ = self._complete(service, _login(), self._state())
 
-        assert url == f"{HOST}/login?sso=success&session_id=session-1"
+        assert url == f"{HOST}/login?sso=success&session_id={SESSION_ID}"
 
     def test_a_login_passes_the_provider_and_its_tokens_to_the_session(self, service):
         result = callback_service.CallbackResult(
@@ -227,10 +228,11 @@ class TestCompleteCallback:
         assert "external_redirect" not in url
 
     def test_the_session_id_is_not_logged_in_the_clear(self, service, caplog):
+        session_id = uuid.uuid4()
         with caplog.at_level(logging.DEBUG):
-            self._complete(service, _login(), self._state(), session_id="secret-session")
+            self._complete(service, _login(), self._state(), session_id=session_id)
 
-        assert "secret-session" not in caplog.text
+        assert str(session_id) not in caplog.text
 
     def test_a_refused_sign_in_returns_to_the_login_page_with_its_reason(self, service, caplog):
         refusal = callback_service.user_provisioning_service.SsoSignInRefusedError(
@@ -437,7 +439,7 @@ class TestHandleCallback:
             nonce="nonce",
             redirect_path="/",
             client_type="web",
-            session_id="sid",
+            session_id=SESSION_ID,
             ends_other_sessions=False,
             security_generation=0,
         )
@@ -881,7 +883,7 @@ class TestOauth2WithOpenidScopeRequiresIdToken:
             nonce="nonce",
             redirect_path="/",
             client_type="web",
-            session_id="sid",
+            session_id=SESSION_ID,
             ends_other_sessions=False,
             security_generation=0,
         )

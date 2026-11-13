@@ -24,7 +24,7 @@ ACTIVITY_CREATED = "activity.created"
 class ActivityCreatedPayload(VersionedPayload):
     SCHEMA_VERSION: ClassVar[int] = 1
     activity_id: uuid.UUID
-    user_id: int | None = None
+    user_id: uuid.UUID | None = None
 ```
 
 Publish it from the service, in the same transaction as the change, through your `event_publishers.py`:

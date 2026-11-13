@@ -96,7 +96,7 @@ for index in range(count):
         job = ingestion_service.accept_upload(
             user_id, f"{tag}_{index}.gpx", save_upload, platform.storage, db, idempotency_key=f"{tag}-{index}"
         )
-        job_ids.append(job.id)
+        job_ids.append(str(job.id))
 
 print("JOBS " + json.dumps(job_ids))
 lifecycle.shutdown()

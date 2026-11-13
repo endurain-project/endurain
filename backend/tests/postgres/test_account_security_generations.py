@@ -1,5 +1,6 @@
 """Account security generations, against real PostgreSQL."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
@@ -111,13 +112,16 @@ def _add_session(db, session_id, user_id=MOCK_USER_ID):
             created_at=now,
             last_activity_at=now,
             expires_at=now + timedelta(days=1),
-            token_family_id=f"family-{session_id}",
+            token_family_id=session_id,
             client_type=auth_constants.ClientType.WEB,
             auth_time=now,
             amr=["pwd"],
         )
     )
     db.flush()
+
+
+_OLD_SESSION, _NEW_SESSION, _START_SESSION, _S1_SESSION = (uuid.uuid4() for _ in range(4))
 
 
 def _session_ids(pg_factory):
@@ -142,7 +146,7 @@ def test_a_redeem_waits_on_an_uncommitted_bump_and_then_sees_the_new_generation(
 def test_a_bump_then_delete_leaves_no_session_a_concurrent_redeem_could_add(pg_factory):
     ensure_user(pg_factory, MOCK_USER_ID)
     with pg_factory() as db:
-        _add_session(db, "old")
+        _add_session(db, _OLD_SESSION)
         db.commit()
 
     # The change takes the generation lock first and ends the sessions; the redeem waits and is then refused.
@@ -163,7 +167,7 @@ def test_a_bump_then_delete_leaves_no_session_a_concurrent_redeem_could_add(pg_f
     with pg_factory() as redeem, pg_factory() as change:
         generation = security_generation_integration.current_generation(MOCK_USER_ID, redeem)
         assert security_generation_integration.matches_locked(MOCK_USER_ID, generation, redeem) is True
-        _add_session(redeem, "new")
+        _add_session(redeem, _NEW_SESSION)
         change.execute(text("SET lock_timeout = '200ms'"))
         with pytest.raises(OperationalError):
             security_generation_integration.stage_bump(MOCK_USER_ID, change)
@@ -181,21 +185,21 @@ def test_a_locked_live_session_cannot_be_revoked_until_the_transaction_ends(pg_f
 
     ensure_user(pg_factory, MOCK_USER_ID)
     with pg_factory() as db:
-        _add_session(db, "start")
+        _add_session(db, _START_SESSION)
         db.commit()
 
     with pg_factory() as link, pg_factory() as revoke:
-        assert sessions_integration.lock_live_session("start", link) is not None
+        assert sessions_integration.lock_live_session(_START_SESSION, link) is not None
         revoke.execute(text("SET lock_timeout = '200ms'"))
         with pytest.raises(OperationalError):
-            revoke.execute(text("DELETE FROM users_sessions WHERE id = 'start'"))
+            revoke.execute(text("DELETE FROM users_sessions WHERE id = :i"), {"i": _START_SESSION})
         revoke.rollback()
         link.commit()
     with pg_factory() as revoke:
-        revoke.execute(text("DELETE FROM users_sessions WHERE id = 'start'"))
+        revoke.execute(text("DELETE FROM users_sessions WHERE id = :i"), {"i": _START_SESSION})
         revoke.commit()
     with pg_factory() as db:
-        assert sessions_integration.lock_live_session("start", db) is None
+        assert sessions_integration.lock_live_session(_START_SESSION, db) is None
 
 
 def test_a_revoke_waits_for_a_refresh_holding_the_session_and_a_refresh_after_it_finds_none(pg_factory):
@@ -203,20 +207,20 @@ def test_a_revoke_waits_for_a_refresh_holding_the_session_and_a_refresh_after_it
 
     ensure_user(pg_factory, MOCK_USER_ID)
     with pg_factory() as db:
-        _add_session(db, "s1")
+        _add_session(db, _S1_SESSION)
         db.commit()
     with pg_factory() as refresh, pg_factory() as revoke:
-        assert sessions_integration.lock_live_session("s1", refresh, exclusive=True) is not None
+        assert sessions_integration.lock_live_session(_S1_SESSION, refresh, exclusive=True) is not None
         revoke.execute(text("SET lock_timeout = '200ms'"))
         with pytest.raises(OperationalError):
-            sessions_integration.delete_session_if_present("s1", MOCK_USER_ID, revoke)
+            sessions_integration.delete_session_if_present(_S1_SESSION, MOCK_USER_ID, revoke)
         revoke.rollback()
         refresh.commit()
     with pg_factory() as revoke:
-        sessions_integration.delete_session_if_present("s1", MOCK_USER_ID, revoke)
+        sessions_integration.delete_session_if_present(_S1_SESSION, MOCK_USER_ID, revoke)
         revoke.commit()
     with pg_factory() as refresh:
-        assert sessions_integration.lock_live_session("s1", refresh, exclusive=True) is None
+        assert sessions_integration.lock_live_session(_S1_SESSION, refresh, exclusive=True) is None
 
 
 def _web_sign_in(db, user_id, stamp, password_hasher, token_manager, session_policy):

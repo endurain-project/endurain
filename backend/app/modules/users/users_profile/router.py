@@ -11,6 +11,7 @@ served under the same ``/profile`` prefix by the auth module (``modules.auth.ses
 ``modules.auth.mfa`` and ``modules.auth.identity_providers``, each in a ``profile_router``).
 """
 
+import uuid
 from functools import partial
 from typing import Annotated
 
@@ -161,7 +162,7 @@ def edit_profile_username(
     username_change: users_schema.UsernameChange,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: Annotated[
-        str,
+        uuid.UUID,
         Depends(auth_dependencies.get_sid_from_access_token),
     ],
     step_up_store: Annotated[
@@ -194,7 +195,7 @@ def edit_profile_email(
     email_change: users_schema.EmailChange,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: Annotated[
-        str,
+        uuid.UUID,
         Depends(auth_dependencies.get_sid_from_access_token),
     ],
     step_up_store: Annotated[
@@ -350,7 +351,7 @@ def edit_profile_password(
     user_attributtes: users_schema.UserEditPassword,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: Annotated[
-        str,
+        uuid.UUID,
         Depends(auth_dependencies.get_sid_from_access_token),
     ],
     step_up_store: Annotated[

@@ -68,7 +68,7 @@ class JobRef(BaseModel):
     knowing the feature that owns it.
 
     Attributes:
-        id: The job's identifier, a UUIDv4 string.
+        id: The job's identifier, a UUID.
         kind: What the job does, e.g. ``garmin_link``; one value per kind of work across the application.
         owner_id: The user who started the job and may read it.
         subject: Whose record it is in the owning feature's store, e.g. ``"<user id>:gear"``.
@@ -76,7 +76,7 @@ class JobRef(BaseModel):
         finished_at: When the job reached ``succeeded`` or ``failed``.
     """
 
-    id: str
+    id: uuid.UUID
     kind: str
     owner_id: uuid.UUID
     subject: str
@@ -110,7 +110,7 @@ class JobStatus(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    id: str = Field(..., description="The job's identifier")
+    id: uuid.UUID = Field(..., description="The job's identifier")
     kind: str = Field(..., description="What the job does")
     status: JobState = Field(..., description="Where the job is")
     error_code: str | None = Field(default=None, description="Why the job failed; null unless it failed")

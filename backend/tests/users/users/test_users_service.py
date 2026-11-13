@@ -24,6 +24,7 @@ import modules.users.users.router as users_router
 import modules.users.users.schema as users_schema
 import modules.users.users.service as users_service
 
+_SID_9 = uuid.UUID(int=109)
 _U1, _U2, _U3, _U4, _U5, _U7, _U8, _U9 = (uuid.UUID(int=n) for n in (1, 2, 3, 4, 5, 7, 8, 9))
 
 _CRUD = "modules.users.users.service.users_crud"
@@ -68,12 +69,12 @@ _verify_step_up_mock: MagicMock
 
 def _admin_edit(user_id, edit, actor_id, db, *, step_up=None, store=None):
     """Edit as an administrator whose session is ``sid-9``."""
-    return users_service.edit_user(user_id, edit, step_up, actor_id, "sid-9", store or MagicMock(), db, if_match="*")
+    return users_service.edit_user(user_id, edit, step_up, actor_id, _SID_9, store or MagicMock(), db, if_match="*")
 
 
 def _admin_create(user, db, *, step_up=None, store=None):
     """Create as an administrator whose session is ``sid-9``."""
-    return users_service.create_user(user, step_up, _U9, "sid-9", store or MagicMock(), db)
+    return users_service.create_user(user, step_up, _U9, _SID_9, store or MagicMock(), db)
 
 
 def _identity() -> MagicMock:
@@ -585,7 +586,7 @@ class TestCreateUserStepUp:
 
         assert [call[0] for call in order.mock_calls] == ["step_up", "insert"]
         _verify_step_up_mock.assert_called_once_with(
-            step_up, _U9, "sid-9", identity_providers_constants.StepUpAction.ADMIN_USER_CREATE, store, mock_db
+            step_up, _U9, _SID_9, identity_providers_constants.StepUpAction.ADMIN_USER_CREATE, store, mock_db
         )
 
     @patch("modules.users.users.service._stage_default_data")
@@ -1301,7 +1302,7 @@ class TestEdits:
 
         assert [call[0] for call in order.mock_calls] == ["step_up", "edit"]
         _verify_step_up_mock.assert_called_once_with(
-            step_up, _U9, "sid-9", identity_providers_constants.StepUpAction.ADMIN_USER_EDIT, store, mock_db
+            step_up, _U9, _SID_9, identity_providers_constants.StepUpAction.ADMIN_USER_EDIT, store, mock_db
         )
 
     def test_a_missing_step_up_is_verified_as_empty_credentials(self, mock_crud, mock_weight, mock_db):

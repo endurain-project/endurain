@@ -1,5 +1,6 @@
 """Admin API endpoints for auth sessions, served under ``/users/{user_id}/sessions``."""
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Request, Security, status
@@ -93,7 +94,7 @@ def revoke_sessions_user(
     db: core_dependencies.DbSession,
     verify_step_up: auth_dependencies.SessionRevokeVerifierDep,
     exclude_session_id: Annotated[
-        str | None,
+        uuid.UUID | None,
         Query(description="Session to keep intact (e.g. the caller's current session)"),
     ] = None,
 ) -> Response:

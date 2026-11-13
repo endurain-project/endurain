@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime
 
 import pytest
@@ -5,6 +6,9 @@ from pydantic import ValidationError
 
 import modules.auth.sessions.schema as users_session_schema
 from tests._helpers.auth import MOCK_USER_ID
+
+SESSION_ID = uuid.UUID("00000000-0000-4000-8000-0000000005e1")
+FAMILY_ID = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
 
 
 class TestUsersSessionsBaseSchema:
@@ -21,7 +25,7 @@ class TestUsersSessionsBaseSchema:
 
         # Act
         session = users_session_schema.UserSessionsBase(
-            id="test-session-id",
+            id=SESSION_ID,
             ip_address="192.168.1.1",
             device_type="PC",
             operating_system="Windows",
@@ -34,7 +38,7 @@ class TestUsersSessionsBaseSchema:
         )
 
         # Assert
-        assert session.id == "test-session-id"
+        assert session.id == SESSION_ID
         assert session.ip_address == "192.168.1.1"
         assert session.device_type == "PC"
         assert session.operating_system == "Windows"
@@ -79,7 +83,7 @@ class TestUsersSessionsBaseSchema:
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
             users_session_schema.UserSessionsBase(
-                id="test-session-id",
+                id=SESSION_ID,
                 ip_address=long_ip,
                 device_type="PC",
                 operating_system="Windows",
@@ -104,7 +108,7 @@ class TestUsersSessionsBaseSchema:
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
             users_session_schema.UserSessionsBase(
-                id="test-session-id",
+                id=SESSION_ID,
                 ip_address="192.168.1.1",
                 device_type=long_device,
                 operating_system="Windows",
@@ -118,9 +122,9 @@ class TestUsersSessionsBaseSchema:
 
         assert "device_type" in str(exc_info.value)
 
-    def test_base_schema_strict_string_validation(self):
+    def test_base_schema_requires_a_uuid_id(self):
         """
-        Test UserSessionsBase schema enforces strict string types.
+        Test UserSessionsBase schema rejects an id that is not a UUID.
         """
         # Arrange
         now = datetime.now(UTC)
@@ -128,7 +132,7 @@ class TestUsersSessionsBaseSchema:
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
             users_session_schema.UserSessionsBase(
-                id=12345,  # Should be string
+                id="not-a-uuid",
                 ip_address="192.168.1.1",
                 device_type="PC",
                 operating_system="Windows",
@@ -164,7 +168,7 @@ class TestUsersSessionsReadSchema:
 
         # Act
         session = users_session_schema.UserSessionsRead(
-            id="test-session-id",
+            id=SESSION_ID,
             ip_address="192.168.1.1",
             device_type="PC",
             operating_system="Windows",
@@ -190,7 +194,7 @@ class TestUsersSessionsReadSchema:
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
             users_session_schema.UserSessionsRead(
-                id="test-session-id",
+                id=SESSION_ID,
                 ip_address="192.168.1.1",
                 device_type="PC",
                 operating_system="Windows",
@@ -214,7 +218,7 @@ class TestUsersSessionsReadSchema:
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
             users_session_schema.UserSessionsRead(
-                id="test-session-id",
+                id=SESSION_ID,
                 ip_address="192.168.1.1",
                 device_type="PC",
                 operating_system="Windows",
@@ -254,7 +258,7 @@ class TestUsersSessionsInternalSchema:
 
         # Act
         session = users_session_schema.UserSessionsInternal(
-            id="test-session-id",
+            id=SESSION_ID,
             ip_address="192.168.1.1",
             device_type="PC",
             operating_system="Windows",
@@ -268,7 +272,7 @@ class TestUsersSessionsInternalSchema:
             refresh_token="hashed-token",
             oauth_state_id=None,
             tokens_exchanged=False,
-            token_family_id="family-id",
+            token_family_id=FAMILY_ID,
             client_type="web",
             auth_time=now,
             amr=["pwd"],
@@ -281,7 +285,7 @@ class TestUsersSessionsInternalSchema:
         assert session.refresh_token == "hashed-token"
         assert session.oauth_state_id is None
         assert session.tokens_exchanged is False
-        assert session.token_family_id == "family-id"
+        assert session.token_family_id == FAMILY_ID
         assert session.rotation_count == 0
         assert session.last_rotation_at is None
         assert session.csrf_token_hash is None
@@ -295,7 +299,7 @@ class TestUsersSessionsInternalSchema:
 
         # Act
         session = users_session_schema.UserSessionsInternal(
-            id="test-session-id",
+            id=SESSION_ID,
             ip_address="192.168.1.1",
             device_type="PC",
             operating_system="Windows",
@@ -307,7 +311,7 @@ class TestUsersSessionsInternalSchema:
             expires_at=now,
             user_id=MOCK_USER_ID,
             tokens_exchanged=False,
-            token_family_id="family-id",
+            token_family_id=FAMILY_ID,
             client_type="web",
             auth_time=now,
             amr=["pwd"],
@@ -326,7 +330,7 @@ class TestUsersSessionsInternalSchema:
 
         # Act
         session = users_session_schema.UserSessionsInternal(
-            id="test-session-id",
+            id=SESSION_ID,
             ip_address="192.168.1.1",
             device_type="PC",
             operating_system="Windows",
@@ -338,7 +342,7 @@ class TestUsersSessionsInternalSchema:
             expires_at=now,
             user_id=MOCK_USER_ID,
             refresh_token="hashed-token",
-            token_family_id="family-id",
+            token_family_id=FAMILY_ID,
             client_type="web",
             auth_time=now,
             amr=["pwd"],
@@ -358,7 +362,7 @@ class TestUsersSessionsInternalSchema:
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
             users_session_schema.UserSessionsInternal(
-                id="test-session-id",
+                id=SESSION_ID,
                 ip_address="192.168.1.1",
                 device_type="PC",
                 operating_system="Windows",
@@ -370,7 +374,7 @@ class TestUsersSessionsInternalSchema:
                 expires_at=now,
                 user_id=MOCK_USER_ID,
                 refresh_token="hashed-token",
-                token_family_id="family-id",
+                token_family_id=FAMILY_ID,
                 client_type="web",
                 auth_time=now,
                 amr=["pwd"],
@@ -387,7 +391,7 @@ class TestUsersSessionsInternalSchema:
 
         with pytest.raises(ValidationError) as exc_info:
             users_session_schema.UserSessionsInternal(
-                id="test-session-id",
+                id=SESSION_ID,
                 ip_address="192.168.1.1",
                 device_type="PC",
                 operating_system="Windows",
@@ -398,7 +402,7 @@ class TestUsersSessionsInternalSchema:
                 last_activity_at=now,
                 expires_at=now,
                 user_id=MOCK_USER_ID,
-                token_family_id="family-id",
+                token_family_id=FAMILY_ID,
                 **values,
             )
 
@@ -415,7 +419,7 @@ class TestUsersSessionsInternalSchema:
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
             users_session_schema.UserSessionsInternal(
-                id="test-session-id",
+                id=SESSION_ID,
                 ip_address="192.168.1.1",
                 device_type="PC",
                 operating_system="Windows",
@@ -428,7 +432,7 @@ class TestUsersSessionsInternalSchema:
                 user_id=MOCK_USER_ID,
                 refresh_token="hashed-token",
                 oauth_state_id=long_oauth_state,
-                token_family_id="family-id",
+                token_family_id=FAMILY_ID,
                 client_type="web",
                 auth_time=now,
                 amr=["pwd"],
@@ -456,7 +460,7 @@ class TestUsersSessionsInternalSchema:
 
         # Act
         session = users_session_schema.UserSessionsInternal(
-            id="test-session-id",
+            id=SESSION_ID,
             ip_address="192.168.1.1",
             device_type="PC",
             operating_system="Windows",
@@ -470,7 +474,7 @@ class TestUsersSessionsInternalSchema:
             refresh_token="hashed-token",
             oauth_state_id="oauth-state-123",
             tokens_exchanged=True,
-            token_family_id="family-id",
+            token_family_id=FAMILY_ID,
             client_type="web",
             auth_time=now,
             amr=["pwd"],

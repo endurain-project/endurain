@@ -1,5 +1,6 @@
 """Tests for the operations the password-reset-token module publishes to other packages."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -21,13 +22,17 @@ def db():
     session.close()
 
 
+_MINE = uuid.UUID(int=1)
+_OTHER = uuid.UUID(int=2)
+
+
 def _add_token(db, token_id, user_id, *, used=False):
     now = datetime.now(UTC)
     db.add(
         password_reset_models.PasswordResetToken(
             id=token_id,
             user_id=user_id,
-            token_hash=f"hash-{token_id}",
+            token_hash=f"hash-{token_id.hex}",
             created_at=now,
             expires_at=now + timedelta(hours=1),
             used=used,
@@ -42,11 +47,11 @@ def _used(db, token_id):
 
 
 def test_revoke_unused_tokens_voids_only_that_users_tokens(db):
-    _add_token(db, "mine", MOCK_USER_ID)
-    _add_token(db, "other", OTHER_USER_ID)
+    _add_token(db, _MINE, MOCK_USER_ID)
+    _add_token(db, _OTHER, OTHER_USER_ID)
 
     password_reset_integration.revoke_unused_tokens(MOCK_USER_ID, db)
     db.commit()
 
-    assert _used(db, "mine") is True
-    assert _used(db, "other") is False
+    assert _used(db, _MINE) is True
+    assert _used(db, _OTHER) is False

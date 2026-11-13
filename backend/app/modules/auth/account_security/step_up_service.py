@@ -53,7 +53,7 @@ def _record_refusal(
     )
 
 
-def _end_session(user_id: uuid.UUID, session_id: str, db: Session) -> None:
+def _end_session(user_id: uuid.UUID, session_id: uuid.UUID, db: Session) -> None:
     """End the session that spent its last tier of failed step-ups, audit why and tell its owner.
 
     The session stays ended although the request is refused, so the change is committed here.
@@ -84,7 +84,7 @@ def _record_failure(
     step_up_store: account_security_step_up_store.StepUpStore,
     key: str,
     user_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     db: Session,
 ) -> None:
     """Record a failed step-up attempt, report the lockouts it applies and end the session on its last tier.
@@ -123,7 +123,7 @@ def _refuse_step_up(
     step_up_store: account_security_step_up_store.StepUpStore,
     key: str,
     user_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     method: login_audit_actions.StepUpMethod,
     reason: str,
     db: Session,
@@ -150,7 +150,7 @@ def _refuse_step_up(
     raise core_exceptions.StepUpFailedError()
 
 
-def _step_up_key(user_id: uuid.UUID, session_id: str) -> str:
+def _step_up_key(user_id: uuid.UUID, session_id: uuid.UUID) -> str:
     """Build the lockout key for the step-up attempts of one session of a user.
 
     The key names the session, so failures made with one session never lock the user's other sessions out.
@@ -194,7 +194,7 @@ def _raise_if_locked_out(
 
 
 def require_not_locked_out(
-    user_id: uuid.UUID, session_id: str, step_up_store: account_security_step_up_store.StepUpStore
+    user_id: uuid.UUID, session_id: uuid.UUID, step_up_store: account_security_step_up_store.StepUpStore
 ) -> None:
     """Refuse to start a step-up while the session is locked out of step-up attempts.
 
@@ -218,7 +218,7 @@ def verify_step_up_credentials(
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
     *,
-    session_id: str,
+    session_id: uuid.UUID,
     idp_reauth: auth_schema.IdpReauthProof | None = None,
     action: identity_providers_constants.StepUpAction | None = None,
 ) -> None:
@@ -362,7 +362,7 @@ def _ticket_matches(
     ticket: identity_providers_contracts.StepUpTicket | None,
     code_verifier: str,
     user_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     action: identity_providers_constants.StepUpAction | None,
     db: Session,
 ) -> bool:

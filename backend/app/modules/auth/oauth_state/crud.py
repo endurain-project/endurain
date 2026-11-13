@@ -49,7 +49,7 @@ def create_oauth_state(
     browser_binding_hash: str | None = None,
     idp_code_verifier: str | None = None,
     purpose: oauth_state_constants.OAuthStatePurpose,
-    session_id: str | None = None,
+    session_id: uuid.UUID | None = None,
     action: str | None = None,
     ends_other_sessions: bool = False,
     security_generation: int | None = None,

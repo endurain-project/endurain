@@ -11,6 +11,7 @@ import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.users.users_profile.exceptions as profile_exceptions
 import modules.users.users_profile.service as profile_service
 
+_SID_1 = uuid.UUID(int=101)
 _MODULE = "modules.users.users_profile.service"
 _USER_ID = uuid.UUID(int=1)
 
@@ -75,7 +76,7 @@ class TestChangeEmail:
             ),
             patch(f"{_MODULE}.get_profile"),
         ):
-            profile_service.change_email(_USER_ID, change, "sid-1", store, state or MagicMock(), mock_db)
+            profile_service.change_email(_USER_ID, change, _SID_1, store, state or MagicMock(), mock_db)
 
     @staticmethod
     def _users(mock_users, *, current="user1@example.com"):
@@ -99,10 +100,10 @@ class TestChangeEmail:
             self._change(identity, store, mock_db)
 
         assert [call[0] for call in order.mock_calls] == ["step_up", "request", "revoke", "commit"]
-        identity.delete_other_user_sessions.assert_called_once_with(_USER_ID, "sid-1")
+        identity.delete_other_user_sessions.assert_called_once_with(_USER_ID, _SID_1)
         verification = identity.verify_step_up.call_args.args
         assert (verification[0].current_password, verification[0].mfa_code) == ("pw", "123456")
-        assert verification[1:] == (_USER_ID, "sid-1", identity_providers_constants.StepUpAction.EMAIL_CHANGE, store)
+        assert verification[1:] == (_USER_ID, _SID_1, identity_providers_constants.StepUpAction.EMAIL_CHANGE, store)
         sign_up.request_self_service_email_change.assert_called_once()
         assert sign_up.request_self_service_email_change.call_args.args[:3] == (
             _USER_ID,
@@ -130,7 +131,7 @@ class TestChangeEmail:
         with patch(f"{_MODULE}.sign_up_tokens_integration", MagicMock()):
             self._change(identity, MagicMock(), mock_db)
 
-        identity.delete_other_user_sessions.assert_called_once_with(_USER_ID, "sid-1")
+        identity.delete_other_user_sessions.assert_called_once_with(_USER_ID, _SID_1)
 
     @patch(f"{_MODULE}.users_integration")
     def test_other_sessions_stay_signed_in_when_the_client_sends_false(self, mock_users, mock_db):
@@ -265,11 +266,11 @@ class TestDeleteAccount:
                 value, user_id, session_id, action, step_up_store
             ),
         ):
-            result = profile_service.delete_account(_USER_ID, "sid-1", step_up, store, state, storage, mail, mock_db)
+            result = profile_service.delete_account(_USER_ID, _SID_1, step_up, store, state, storage, mail, mock_db)
 
         assert [call[0] for call in order.mock_calls] == ["step_up", "delete"]
         identity.verify_step_up.assert_called_once_with(
-            step_up, _USER_ID, "sid-1", identity_providers_constants.StepUpAction.ACCOUNT_DELETE, store
+            step_up, _USER_ID, _SID_1, identity_providers_constants.StepUpAction.ACCOUNT_DELETE, store
         )
         mock_users.request_user_deletion.assert_called_once_with(_USER_ID, state, storage, mail, mock_db)
         assert result is mock_users.request_user_deletion.return_value
@@ -289,7 +290,7 @@ class TestDeleteAccount:
             ),
         ):
             profile_service.delete_account(
-                _USER_ID, "sid-1", MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock(), mock_db
+                _USER_ID, _SID_1, MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock(), mock_db
             )
 
         mock_users.request_user_deletion.assert_not_called()

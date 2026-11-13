@@ -13,8 +13,8 @@ def publish_sessions_revoked(
     user_id: uuid.UUID,
     db: Session,
     *,
-    session_id: str | None = None,
-    except_session_id: str | None = None,
+    session_id: uuid.UUID | None = None,
+    except_session_id: uuid.UUID | None = None,
 ) -> None:
     """Stage ``auth.sessions_revoked`` in the caller's transaction.
 

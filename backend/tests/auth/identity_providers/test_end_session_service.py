@@ -16,7 +16,7 @@ import modules.auth.identity_providers.end_session_service as end_session_module
 
 IDP_ID = uuid.uuid4()
 
-SESSION = "11111111-1111-1111-1111-111111111111"
+SESSION = uuid.UUID("11111111-1111-1111-1111-111111111111")
 LOGIN = "https://endurain.example.com/login"
 
 

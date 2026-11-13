@@ -35,7 +35,7 @@ def start_idp_link(
     link: users_schema.IdentityProviderLinkStart,
     client_ip: str,
     token_user_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
 ) -> identity_providers_contracts.BrowserFlowStart:
@@ -117,7 +117,7 @@ def start_idp_step_up(
     start: identity_providers_schema.StepUpStartRequest,
     client_ip: str,
     token_user_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
 ) -> identity_providers_contracts.BrowserFlowStart:
@@ -209,7 +209,7 @@ def delete_identity_provider_link(
     idp_id: uuid.UUID,
     step_up: auth_schema.StepUpVerification,
     token_user_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
 ) -> None:

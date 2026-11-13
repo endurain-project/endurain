@@ -1,5 +1,6 @@
 """Pydantic schemas for the authentication module."""
 
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Annotated, Literal
@@ -88,7 +89,7 @@ class MobileSessionRead(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     next_step: Literal["exchange"]
-    session_id: StrictStr
+    session_id: uuid.UUID
     device_id: StrictStr | None = None
 
 
@@ -127,7 +128,7 @@ class TokenWebRead(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     next_step: Literal["tokens"]
-    session_id: StrictStr
+    session_id: uuid.UUID
     access_token: StrictStr
     csrf_token: StrictStr
     token_type: Literal["bearer"] = "bearer"
@@ -153,7 +154,7 @@ class TokenMobileRead(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     next_step: Literal["tokens"]
-    session_id: StrictStr
+    session_id: uuid.UUID
     access_token: StrictStr
     refresh_token: StrictStr
     token_type: Literal["bearer"] = "bearer"

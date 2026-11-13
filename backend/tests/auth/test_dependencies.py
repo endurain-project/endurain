@@ -29,6 +29,9 @@ from modules.auth.dependencies import (
 from modules.auth.identity_providers.constants import StepUpAction
 from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
+_SESSION_ID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+_KEY_ID = uuid.UUID("00000000-0000-4000-8000-0000000000b1")
+
 THIRD = uuid.uuid4()
 FOURTH = uuid.uuid4()
 
@@ -83,7 +86,7 @@ class TestGetPrincipal:
     def test_an_api_key_header_resolves_via_integration(self, mock_resolve):
         request = _request()
         db = MagicMock()
-        mock_resolve.return_value = _principal(ApiKeyCred(api_key_id="2", key_prefix="sk"), user_id=THIRD)
+        mock_resolve.return_value = _principal(ApiKeyCred(api_key_id=_KEY_ID, key_prefix="sk"), user_id=THIRD)
 
         result = get_principal(request, db, None, "sk-123", MagicMock())
 
@@ -107,7 +110,7 @@ class TestGetPrincipal:
     def test_the_api_key_query_string_is_accepted_when_enabled(self, mock_resolve):
         request = _request({"api_key": "qk-456"})
         db = MagicMock()
-        mock_resolve.return_value = _principal(ApiKeyCred(api_key_id="3", key_prefix="qk"), user_id=FOURTH)
+        mock_resolve.return_value = _principal(ApiKeyCred(api_key_id=_KEY_ID, key_prefix="qk"), user_id=FOURTH)
         mock_settings = MagicMock()
         mock_settings.ALLOW_API_KEY_QUERY_PARAM = True
         with patch("modules.auth.dependencies.core_config.settings", mock_settings):
@@ -125,7 +128,7 @@ class TestCallerDependencies:
     """The dependencies a route reads its caller through all take it from the resolved principal."""
 
     def test_authenticate_accepts_any_resolved_caller(self):
-        assert authenticate(_principal(ApiKeyCred(api_key_id="1", key_prefix="k"))) is None
+        assert authenticate(_principal(ApiKeyCred(api_key_id=_KEY_ID, key_prefix="k"))) is None
 
     def test_get_current_user_id_returns_the_callers_id(self):
         assert get_current_user_id(_principal(user_id=MOCK_USER_ID)) == MOCK_USER_ID
@@ -134,11 +137,11 @@ class TestCallerDependencies:
         assert get_current_scopes(_principal(scopes=frozenset({"gears:read"}))) == frozenset({"gears:read"})
 
     def test_the_session_id_of_an_access_token_is_returned(self):
-        assert get_sid_from_access_token(_principal(AccessTokenCred(session_id="sid-1"))) == "sid-1"
+        assert get_sid_from_access_token(_principal(AccessTokenCred(session_id=_SESSION_ID))) == _SESSION_ID
 
     def test_an_api_key_has_no_session_and_is_refused_with_403(self):
         with pytest.raises(core_exceptions.PermissionDeniedError) as exc_info:
-            get_sid_from_access_token(_principal(ApiKeyCred(api_key_id="1", key_prefix="k")))
+            get_sid_from_access_token(_principal(ApiKeyCred(api_key_id=_KEY_ID, key_prefix="k")))
         assert exc_info.value.status_code == 403
         assert "signed-in session" in exc_info.value.detail
 
@@ -221,22 +224,22 @@ class TestAuditContextFromRequest:
 
         from modules.auth.contracts import AccessTokenCred
 
-        context = self._context(self._request(self._principal(AccessTokenCred(session_id="sid-1"))))
+        context = self._context(self._request(self._principal(AccessTokenCred(session_id=_SESSION_ID))))
 
         assert context.actor_type is jasil_audit.ActorType.USER
         assert context.actor_id == str(MOCK_USER_ID)
         assert context.credential_type == "access_token"
-        assert context.credential_id == "sid-1"
+        assert context.credential_id == str(_SESSION_ID)
 
     def test_an_api_key_principal_names_the_key_not_its_value(self):
         import jasil.audit as jasil_audit
 
-        context = self._context(self._request(self._principal(ApiKeyCred(api_key_id=7, key_prefix="end_abc"))))
+        context = self._context(self._request(self._principal(ApiKeyCred(api_key_id=_KEY_ID, key_prefix="end_abc"))))
 
         assert context.actor_type is jasil_audit.ActorType.API_KEY
         assert context.actor_id == str(MOCK_USER_ID)
         assert context.credential_type == "api_key"
-        assert context.credential_id == "7"
+        assert context.credential_id == str(_KEY_ID)
 
     def test_an_unknown_client_and_missing_user_agent_are_left_empty(self):
         from starlette.requests import Request
@@ -274,10 +277,10 @@ class TestStepUpVerifier:
     def test_it_verifies_with_the_administrators_id_session_and_store(self):
         store, db, step_up = MagicMock(), MagicMock(), auth_schema.StepUpVerification(current_password="pw")
         with patch.object(auth_dependencies.account_security_integration, "verify_step_up") as verify:
-            verifier = auth_dependencies.get_step_up_verifier(9, "sid-9", store, db)
+            verifier = auth_dependencies.get_step_up_verifier(9, _SESSION_ID, store, db)
             verifier(step_up, StepUpAction.ADMIN_IDP_CREATE)
 
-        verify.assert_called_once_with(step_up, 9, "sid-9", StepUpAction.ADMIN_IDP_CREATE, store, db)
+        verify.assert_called_once_with(step_up, 9, _SESSION_ID, StepUpAction.ADMIN_IDP_CREATE, store, db)
 
     def test_a_refusal_propagates(self):
         with patch.object(
@@ -285,13 +288,13 @@ class TestStepUpVerifier:
             "verify_step_up",
             side_effect=core_exceptions.StepUpFailedError(),
         ):
-            verifier = auth_dependencies.get_step_up_verifier(9, "sid-9", MagicMock(), MagicMock())
+            verifier = auth_dependencies.get_step_up_verifier(9, _SESSION_ID, MagicMock(), MagicMock())
             with pytest.raises(core_exceptions.StepUpFailedError):
                 verifier(auth_schema.StepUpVerification(), StepUpAction.ADMIN_IDP_EDIT)
 
     def test_it_satisfies_the_identity_provider_contract(self):
         verifier: idp_contracts.StepUpVerifier = auth_dependencies.get_step_up_verifier(
-            9, "sid-9", MagicMock(), MagicMock()
+            9, _SESSION_ID, MagicMock(), MagicMock()
         )
 
         assert callable(verifier)

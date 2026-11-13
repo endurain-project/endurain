@@ -8,7 +8,6 @@ from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Any, Literal
 from urllib.parse import quote
-from uuid import uuid4
 
 import httpx2
 import jasil.audit as jasil_audit
@@ -280,7 +279,7 @@ class CallbackService:
                 extra=core_logger.context(
                     username_log_id=lockout_integration.username_log_identifier(user.username),
                     name=idp.name,
-                    value_3=core_hashing.log_fingerprint(session_id),
+                    value_3=core_hashing.log_fingerprint(str(session_id)),
                 ),
             )
             return redirect_url
@@ -875,7 +874,7 @@ class CallbackService:
         db: Session,
         *,
         idp_sid: str | None,
-    ) -> str:
+    ) -> uuid.UUID:
         """Create the token-exchange session for a successful SSO login, with the provider tokens it signed in with.
 
         The session is for the client type the OAuth state recorded when the sign-in started, and a native-app
@@ -909,7 +908,7 @@ class CallbackService:
             )
             raise _inactive_account_refusal(user, db) from err
         user_read = users_schema.UserRead.model_validate(user)
-        session_id = str(uuid4())
+        session_id = uuid.uuid4()
         # The exchange redeems the session only while the account's security generation is still this one.
         oauth_state_integration.stamp_security_generation(
             oauth_state.id, security_generation_integration.current_generation(user_read.id, db), db
@@ -1040,7 +1039,7 @@ def _stale_flow(
     return None
 
 
-def _stage_other_sessions_ended(user_id: uuid.UUID, keep_session_id: str, db: Session) -> None:
+def _stage_other_sessions_ended(user_id: uuid.UUID, keep_session_id: uuid.UUID, db: Session) -> None:
     """Stage the end of the user's sessions except the one that started a link, with its audit row.
 
     Args:

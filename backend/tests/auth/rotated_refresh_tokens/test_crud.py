@@ -13,11 +13,13 @@ import modules.auth.rotated_refresh_tokens.models as rotated_token_models
 import modules.auth.rotated_refresh_tokens.schema as rotated_token_schema
 from tests._helpers.db import create_sqlite_session
 
+_FAMILY_ID = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
+
 
 def _token(**overrides):
     values = {
         "id": uuid.UUID("00000000-0000-4000-8000-000000000003"),
-        "token_family_id": "f" * 36,
+        "token_family_id": _FAMILY_ID,
         "hashed_token": "a" * 64,
         "client_fingerprint": "c" * 64,
         "rotation_count": 1,
@@ -69,7 +71,7 @@ def test_rotating_the_same_token_twice_is_a_conflict():
 def test_delete_operations_stage_and_return_row_counts(mock_db):
     mock_db.execute.return_value.rowcount = 2
     assert rotated_token_crud.delete_expired_tokens(datetime.now(UTC), 100, mock_db) == 2
-    assert rotated_token_crud.delete_by_family("f" * 36, mock_db) == 2
+    assert rotated_token_crud.delete_by_family(_FAMILY_ID, mock_db) == 2
     assert mock_db.flush.call_count == 2
     mock_db.commit.assert_not_called()
 

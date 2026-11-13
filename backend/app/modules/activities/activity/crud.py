@@ -1701,7 +1701,7 @@ def touch_activity(activity_id: uuid.UUID, db: Session) -> None:
 
 
 def get_changed_activities(
-    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position | None, until: datetime, limit: int, db: Session
 ) -> list[activity_schema.ActivityRead]:
     """Read a user's activities changed after a position, oldest change first.
 
@@ -1729,8 +1729,8 @@ def get_changed_activities(
 
 
 def get_activity_deletions(
-    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
-) -> list[core_sync.Deletion[uuid.UUID]]:
+    user_id: uuid.UUID, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[core_sync.Deletion]:
     """Read a user's activity tombstones after a position, oldest deletion first.
 
     Args:

@@ -1,5 +1,6 @@
 """Who may use a local password: accounts that have one, and only administrators while local sign-in is off."""
 
+import uuid
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -15,6 +16,9 @@ import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.password_reset_tokens.events as password_reset_events
 import modules.auth.password_reset_tokens.service as password_reset_service
 from tests._helpers.auth import MOCK_USER_ID
+
+_SID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+_SID_2 = uuid.UUID("00000000-0000-4000-8000-0000000000a2")
 
 
 def _settings(local_login_enabled: bool) -> SimpleNamespace:
@@ -186,7 +190,7 @@ class TestFirstPassword:
                 MagicMock(),
                 MagicMock(),
                 revoke_other_sessions=True,
-                current_session_id="sid",
+                current_session_id=_SID,
             )
 
         step_up.assert_not_called()
@@ -211,7 +215,7 @@ class TestTokenExchange:
             pytest.raises(core_exceptions.NotFoundError),
         ):
             authentication_service_sso_exchange_service.exchange_tokens_for_session(
-                "session-id",
+                _SID_2,
                 "v" * 43,
                 None,
                 None,

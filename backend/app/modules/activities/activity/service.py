@@ -425,7 +425,7 @@ def with_media(
 
 
 def list_changed_activities(
-    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position | None, until: datetime, limit: int, db: Session
 ) -> list[activity_schema.ActivityRead]:
     """List the owner's activities changed after a position, each as the owner's own list reads it.
 

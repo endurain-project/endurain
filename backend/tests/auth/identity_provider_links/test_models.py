@@ -2,7 +2,7 @@
 
 import uuid
 
-from sqlalchemy import inspect
+from sqlalchemy import Uuid, inspect
 
 from modules.auth.identity_provider_links.models import IdentityLink, IdpSessionToken
 
@@ -119,6 +119,7 @@ class TestIdpSessionTokenModel:
     def test_the_session_is_unique_and_has_no_foreign_key_so_the_token_outlives_the_session_row(self):
         columns = {col.name: col for col in inspect(IdpSessionToken).columns}
 
+        assert isinstance(columns["session_id"].type, Uuid)
         assert columns["session_id"].unique is True
         assert columns["session_id"].nullable is False
         assert not columns["session_id"].foreign_keys

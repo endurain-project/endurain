@@ -9,6 +9,7 @@ import core.exceptions as core_exceptions
 import modules.auth.sign_up_tokens.audit_actions as sign_up_audit_actions
 import modules.auth.sign_up_tokens.service as sign_up_service
 from tests._helpers.auth import MOCK_USER_ID
+from tests.auth.sign_up_tokens.ids import tid
 
 _MODULE = "modules.auth.sign_up_tokens.service"
 _ACTION = sign_up_audit_actions.SIGN_UP_CONFIRM.id
@@ -19,7 +20,7 @@ def _settings(*, approval=False):
 
 
 def _claim(*, previous_email=None):
-    return MagicMock(id="t1", user_id=MOCK_USER_ID, email="u@example.com", previous_email=previous_email)
+    return MagicMock(id=tid("t1"), user_id=MOCK_USER_ID, email="u@example.com", previous_email=previous_email)
 
 
 @pytest.fixture
@@ -111,7 +112,7 @@ def test_an_invalid_token_is_recorded_as_a_failure_without_a_target(mock_db):
 
 
 def test_a_token_of_the_other_kind_is_recorded_as_the_same_failure(mock_db):
-    usable = MagicMock(id="t1", user_id=MOCK_USER_ID, email="u@example.com", previous_email=None)
+    usable = MagicMock(id=tid("t1"), user_id=MOCK_USER_ID, email="u@example.com", previous_email=None)
     with (
         patch(f"{_MODULE}.server_settings_integration.get_server_settings", return_value=_settings()),
         patch(f"{_MODULE}.sign_up_crud.get_usable_sign_up_token", return_value=usable),

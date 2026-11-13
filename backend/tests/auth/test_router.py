@@ -24,7 +24,28 @@ import modules.auth.credentials.password_hasher as auth_password_hasher
 import modules.auth.lockout.contracts as lockout_contracts
 import modules.auth.mfa.dependencies as auth_mfa_dependencies
 import modules.auth.mfa.pending_login_store as pending_login_store
-from tests._helpers.auth import pending_login
+from tests._helpers.auth import MOCK_USER_ID, pending_login
+
+_SID_SID_1 = uuid.UUID("a103482d-8b28-53a0-bbde-23e8bbcd7815")
+_SID_PKCE_SID = uuid.UUID("88129621-7a82-59f4-9585-8abda4f2ea89")
+_SID_PKCE_SID_MFA = uuid.UUID("fdea084b-2b5b-582c-8c67-0910f0f406d9")
+_SID_SID_MFA = uuid.UUID("a9460394-e2e9-5af5-9f85-8a65c9a4295c")
+_SID_SID_BACKUP = uuid.UUID("d36bd6fe-f9ce-5417-927c-59728d5bba33")
+_SID_SID_CSRF_1 = uuid.UUID("81ef82fa-b164-5935-87d6-c65fb448d481")
+_SID_SID_MOB = uuid.UUID("3ec4c6e3-f70f-5426-b682-aa226cf02cf0")
+_SID_SID_MOB_CSRF = uuid.UUID("4435a82f-adaf-5d3d-a9cd-1181ca9c3693")
+_SID_SID_RACE = uuid.UUID("02c86fa9-ad90-53b8-b4b2-0be6f8651d57")
+_SID_SID_RELOAD = uuid.UUID("b0221cba-7fc7-5fce-8ebf-aa96f2e5da03")
+_SID_SID_REPLAY_MOB = uuid.UUID("3f6a95fa-9890-5972-b0e6-4ec968d2d95e")
+_SID_SID_REPLAY_WEB = uuid.UUID("b0d3c0b9-294a-58bb-a488-7538aaa92ceb")
+_SID_SID_IDP = uuid.UUID("5e0f16b8-1bcd-56cb-bdf3-a70f82306bd5")
+_SID_SID_BAD_CSRF = uuid.UUID("134d9066-73aa-55c6-bf5c-3e31b6e69fd5")
+_SID_SID_BAD_RT = uuid.UUID("dfce86e1-c357-534b-8fc1-38a5373a4d16")
+_SID_SID_NO_USER = uuid.UUID("f0e70a5d-4306-5767-ac4a-ff1757c4e326")
+_SID_SID_PKCE = uuid.UUID("1af5f8bb-ab0c-5341-9a74-5c76bbb43819")
+_SID_SID_REPLAY_NONE = uuid.UUID("656509db-3136-535b-b795-43005ef2ee3d")
+_SID_SID_WEB = uuid.UUID("084838ff-00f5-5479-adb5-952a097e95d9")
+_SID_NONEXISTENT = uuid.UUID("0634f0c1-9773-5f79-b235-1e474984e00a")
 
 _USER_ID_1 = uuid.UUID(int=1)
 _USER_ID_999 = uuid.UUID(int=999)
@@ -229,7 +250,7 @@ class TestLoginEndpoint:
         mock_complete_login.return_value = auth_schema.AuthOutcome(
             {
                 "next_step": "tokens",
-                "session_id": "sid-1",
+                "session_id": _SID_SID_1,
                 "access_token": "at-1",
                 "csrf_token": "csrf-1",
                 "token_type": "bearer",
@@ -368,7 +389,7 @@ class TestLoginEndpoint:
         mock_auth.return_value = mock_user
         mock_check_active.return_value = None
         mock_mfa_check.return_value = False
-        mock_pkce.return_value = auth_schema.MobileSessionRead(next_step="exchange", session_id="pkce-sid")
+        mock_pkce.return_value = auth_schema.MobileSessionRead(next_step="exchange", session_id=_SID_PKCE_SID)
 
         challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
         response = auth_client.post(
@@ -382,7 +403,7 @@ class TestLoginEndpoint:
         )
 
         assert response.status_code == 200
-        assert response.json()["session_id"] == "pkce-sid"
+        assert response.json()["session_id"] == str(_SID_PKCE_SID)
 
     def test_login_store_unavailable_on_is_locked_out_returns_503(
         self,
@@ -587,7 +608,7 @@ class TestMFAVerifyEndpoint:
         mock_complete_login.return_value = auth_schema.AuthOutcome(
             {
                 "next_step": "tokens",
-                "session_id": "sid-mfa",
+                "session_id": _SID_SID_MFA,
                 "access_token": "at-mfa",
                 "csrf_token": "csrf-mfa",
                 "token_type": "bearer",
@@ -663,7 +684,7 @@ class TestMFAVerifyEndpoint:
         mock_complete_login.return_value = auth_schema.AuthOutcome(
             {
                 "next_step": "tokens",
-                "session_id": "sid-backup",
+                "session_id": _SID_SID_BACKUP,
                 "access_token": "at-backup",
                 "csrf_token": "csrf-backup",
                 "token_type": "bearer",
@@ -918,10 +939,10 @@ class TestMFAVerifyEndpoint:
         mock_user.username = "testuser"
         mock_get_user.return_value = mock_user
         mock_check_active.return_value = None
-        mock_pkce.return_value = auth_schema.MobileSessionRead(next_step="exchange", session_id="pkce-sid-mfa")
+        mock_pkce.return_value = auth_schema.MobileSessionRead(next_step="exchange", session_id=_SID_PKCE_SID_MFA)
         response = auth_client.post("/auth/mfa/verify", json={"mfa_challenge": challenge, "mfa_code": "123456"})
         assert response.status_code == 200
-        assert response.json()["session_id"] == "pkce-sid-mfa"
+        assert response.json()["session_id"] == str(_SID_PKCE_SID_MFA)
         assert mock_pkce.call_args.args[3:5] == (pkce_challenge, "S256")
 
 
@@ -965,12 +986,12 @@ class TestRefreshEndpoint:
         now = datetime.now(UTC)
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = "sid-1"
+        mock_session.id = _SID_SID_1
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = password_hasher.hash_password("mock_refresh_token")
         mock_session.csrf_token_hash = None
-        mock_session.token_family_id = "fam-1"
+        mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 0
         mock_get_session.return_value = mock_session
         mock_validate_timeout.return_value = None
@@ -982,7 +1003,7 @@ class TestRefreshEndpoint:
         mock_check_active.return_value = None
 
         mock_create_tokens.return_value = (
-            "sid-1",
+            _SID_SID_1,
             now + timedelta(minutes=15),
             "new-at",
             now + timedelta(days=7),
@@ -996,7 +1017,7 @@ class TestRefreshEndpoint:
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-1"
+        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_1
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: (
             "mock_refresh_token"
         )
@@ -1018,7 +1039,7 @@ class TestRefreshEndpoint:
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "nonexistent"
+        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_NONEXISTENT
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
@@ -1040,7 +1061,7 @@ class TestRefreshEndpoint:
         """Session owned by a different user than the token sub returns 401."""
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = "sid-1"
+        mock_session.id = _SID_SID_1
         # Session belongs to user 999, but the refresh token's sub is 1.
         mock_session.user_id = _USER_ID_999
         mock_get_session.return_value = mock_session
@@ -1048,7 +1069,7 @@ class TestRefreshEndpoint:
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-1"
+        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_1
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
@@ -1073,7 +1094,7 @@ class TestRefreshEndpoint:
         """A web request presenting a mobile session's refresh token is refused like any invalid token."""
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = "sid-1"
+        mock_session.id = _SID_SID_1
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "mobile"
         mock_get_session.return_value = mock_session
@@ -1081,7 +1102,7 @@ class TestRefreshEndpoint:
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-1"
+        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_1
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
@@ -1109,12 +1130,12 @@ class TestRefreshEndpoint:
         """Token reuse detected invalidates family and returns 401."""
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = "sid-1"
+        mock_session.id = _SID_SID_1
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = "hashed-rt"
         mock_session.csrf_token_hash = None
-        mock_session.token_family_id = "fam-1"
+        mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_get_session.return_value = mock_session
         mock_validate_timeout.return_value = None
         mock_check_reuse.return_value = (True, False)
@@ -1122,7 +1143,7 @@ class TestRefreshEndpoint:
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-1"
+        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_1
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "reused-token"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
@@ -1192,12 +1213,12 @@ class TestRefreshEndpoint:
         now = datetime.now(UTC)
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = "sid-csrf-1"
+        mock_session.id = _SID_SID_CSRF_1
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
         mock_session.csrf_token_hash = "stored-hmac"
-        mock_session.token_family_id = "fam-1"
+        mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 0
         mock_get_session.return_value = mock_session
         mock_validate_timeout.return_value = None
@@ -1206,7 +1227,7 @@ class TestRefreshEndpoint:
         mock_get_user.return_value = MagicMock(id=_USER_ID_1)
         mock_check_active.return_value = None
         mock_create_tokens.return_value = (
-            "sid-csrf-1",
+            _SID_SID_CSRF_1,
             now + timedelta(minutes=15),
             "new-at",
             now + timedelta(days=7),
@@ -1219,7 +1240,7 @@ class TestRefreshEndpoint:
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-csrf-1"
+        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_CSRF_1
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "mock_rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: "valid-csrf"
 
@@ -1263,7 +1284,7 @@ class TestRefreshEndpoint:
         """
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = "sid-bad-csrf"
+        mock_session.id = _SID_SID_BAD_CSRF
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = "some-hashed-token"
@@ -1275,7 +1296,7 @@ class TestRefreshEndpoint:
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-bad-csrf"
+        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_BAD_CSRF
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "any-rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: "wrong-csrf"
 
@@ -1341,12 +1362,12 @@ class TestRefreshEndpoint:
         now = datetime.now(UTC)
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = "sid-reload"
+        mock_session.id = _SID_SID_RELOAD
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
         mock_session.csrf_token_hash = "stored-hmac"
-        mock_session.token_family_id = "fam-1"
+        mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 0
         mock_get_session.return_value = mock_session
         mock_validate_timeout.return_value = None
@@ -1354,7 +1375,7 @@ class TestRefreshEndpoint:
         mock_get_user.return_value = MagicMock(id=_USER_ID_1)
         mock_check_active.return_value = None
         mock_create_tokens.return_value = (
-            "sid-reload",
+            _SID_SID_RELOAD,
             now + timedelta(minutes=15),
             "new-at",
             now + timedelta(days=7),
@@ -1367,7 +1388,7 @@ class TestRefreshEndpoint:
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-reload"
+        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_RELOAD
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "mock_rt"
         # No CSRF header: simulates page reload bootstrap
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
@@ -1436,12 +1457,12 @@ class TestRefreshEndpoint:
         now = datetime.now(UTC)
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = "sid-mob-csrf"
+        mock_session.id = _SID_SID_MOB_CSRF
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "mobile"
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
         mock_session.csrf_token_hash = "stored-hmac"
-        mock_session.token_family_id = "fam-1"
+        mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 0
         mock_get_session.return_value = mock_session
         mock_validate_timeout.return_value = None
@@ -1449,7 +1470,7 @@ class TestRefreshEndpoint:
         mock_get_user.return_value = MagicMock(id=_USER_ID_1)
         mock_check_active.return_value = None
         mock_create_tokens.return_value = (
-            "sid-mob-csrf",
+            _SID_SID_MOB_CSRF,
             now + timedelta(minutes=15),
             "new-at",
             now + timedelta(days=7),
@@ -1462,7 +1483,7 @@ class TestRefreshEndpoint:
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-mob-csrf"
+        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_MOB_CSRF
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "mock_rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: "any-csrf-value"
 
@@ -1499,7 +1520,7 @@ class TestRefreshEndpoint:
         """
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = "sid-pkce"
+        mock_session.id = _SID_SID_PKCE
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = None
@@ -1510,7 +1531,7 @@ class TestRefreshEndpoint:
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-pkce"
+        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_PKCE
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
@@ -1556,12 +1577,12 @@ class TestRefreshEndpoint:
         """
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = "sid-bad-rt"
+        mock_session.id = _SID_SID_BAD_RT
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = password_hasher.hash_password("real_token")
         mock_session.csrf_token_hash = None
-        mock_session.token_family_id = "fam-1"
+        mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 0
         mock_get_session.return_value = mock_session
         mock_validate_timeout.return_value = None
@@ -1570,7 +1591,7 @@ class TestRefreshEndpoint:
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-bad-rt"
+        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_BAD_RT
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "wrong_token"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
@@ -1624,12 +1645,12 @@ class TestRefreshEndpoint:
         """
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = "sid-no-user"
+        mock_session.id = _SID_SID_NO_USER
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
         mock_session.csrf_token_hash = None
-        mock_session.token_family_id = "fam-1"
+        mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 0
         mock_get_session.return_value = mock_session
         mock_validate_timeout.return_value = None
@@ -1639,7 +1660,7 @@ class TestRefreshEndpoint:
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-no-user"
+        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_NO_USER
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "mock_rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
@@ -1704,12 +1725,12 @@ class TestRefreshEndpoint:
         now = datetime.now(UTC)
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = "sid-mob"
+        mock_session.id = _SID_SID_MOB
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "mobile"
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
         mock_session.csrf_token_hash = None
-        mock_session.token_family_id = "fam-1"
+        mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 0
         mock_get_session.return_value = mock_session
         mock_validate_timeout.return_value = None
@@ -1717,7 +1738,7 @@ class TestRefreshEndpoint:
         mock_get_user.return_value = MagicMock(id=_USER_ID_1)
         mock_check_active.return_value = None
         mock_create_tokens.return_value = (
-            "sid-mob",
+            _SID_SID_MOB,
             now + timedelta(minutes=15),
             "new-at",
             now + timedelta(days=7),
@@ -1730,7 +1751,7 @@ class TestRefreshEndpoint:
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-mob"
+        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_MOB
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "mock_rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
@@ -1775,12 +1796,12 @@ class TestRefreshEndpoint:
         now = datetime.now(UTC)
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = "sid-replay-mob"
+        mock_session.id = _SID_SID_REPLAY_MOB
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "mobile"
         mock_session.refresh_token = password_hasher.hash_password("current_rt")
         mock_session.csrf_token_hash = None
-        mock_session.token_family_id = "fam-1"
+        mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 1
         mock_get_session.return_value = mock_session
         mock_validate_timeout.return_value = None
@@ -1794,7 +1815,7 @@ class TestRefreshEndpoint:
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-replay-mob"
+        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_REPLAY_MOB
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "old_rotated_rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
@@ -1843,19 +1864,19 @@ class TestRefreshEndpoint:
         now = datetime.now(UTC)
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = "sid-race"
+        mock_session.id = _SID_SID_RACE
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "mobile"
         mock_session.refresh_token = password_hasher.hash_password("old_rt")
         mock_session.csrf_token_hash = None
-        mock_session.token_family_id = "fam-1"
+        mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 1
         mock_get_session.return_value = mock_session
         mock_validate_timeout.return_value = None
         # Nothing is recorded when this request first checks, because the winner has not committed yet; once
         # it has, the same client is inside the grace window.
         mock_check_reuse.side_effect = [(False, False), (True, True)]
-        mock_create_tokens.return_value = ("sid-race", now, "loser-at", now, "loser-rt", None)
+        mock_create_tokens.return_value = (_SID_SID_RACE, now, "loser-at", now, "loser-rt", None)
         mock_store_rotated.side_effect = core_exceptions.ConflictError("already rotated")
         mock_get_replay.return_value = ("winner-rt", now + timedelta(days=7))
         mock_get_user.return_value = MagicMock(id=_USER_ID_1)
@@ -1865,7 +1886,7 @@ class TestRefreshEndpoint:
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-race"
+        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_RACE
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "old_rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
@@ -1912,12 +1933,12 @@ class TestRefreshEndpoint:
         now = datetime.now(UTC)
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = "sid-replay-web"
+        mock_session.id = _SID_SID_REPLAY_WEB
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = password_hasher.hash_password("current_rt")
         mock_session.csrf_token_hash = "stored-hmac"
-        mock_session.token_family_id = "fam-1"
+        mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 1
         mock_get_session.return_value = mock_session
         mock_validate_timeout.return_value = None
@@ -1932,7 +1953,7 @@ class TestRefreshEndpoint:
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-replay-web"
+        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_REPLAY_WEB
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "old_rotated_rt"
         # No CSRF header: page-reload bootstrap / lost rotation response.
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
@@ -1945,7 +1966,7 @@ class TestRefreshEndpoint:
         # A fresh CSRF token is minted and bound to the session.
         assert data["csrf_token"]
         mock_update_csrf.assert_called_once()
-        assert mock_update_csrf.call_args.args[0] == "sid-replay-web"
+        assert mock_update_csrf.call_args.args[0] == _SID_SID_REPLAY_WEB
         # Refresh token is unchanged: delivered via cookie, no re-rotation.
         mock_set_cookie.assert_called_once()
         mock_store_rotated.assert_not_called()
@@ -1973,12 +1994,12 @@ class TestRefreshEndpoint:
         """In-grace replay with no stored replacement returns 401."""
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = "sid-replay-none"
+        mock_session.id = _SID_SID_REPLAY_NONE
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = password_hasher.hash_password("current_rt")
         mock_session.csrf_token_hash = None
-        mock_session.token_family_id = "fam-1"
+        mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 1
         mock_get_session.return_value = mock_session
         mock_validate_timeout.return_value = None
@@ -1988,7 +2009,7 @@ class TestRefreshEndpoint:
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-replay-none"
+        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_REPLAY_NONE
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "old_rotated_rt"
         app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
@@ -2028,14 +2049,14 @@ class TestLogoutEndpoint:
         """Successful logout deletes session."""
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = "sid-1"
+        mock_session.id = _SID_SID_1
         mock_session.refresh_token = password_hasher.hash_password("mock_refresh_token")
         mock_get_session.return_value = mock_session
         mock_delete_session.return_value = None
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.get_logout_target] = lambda: (
-            authentication_dependencies.LogoutTarget(1, "sid-1", "mock_refresh_token")
+            authentication_dependencies.LogoutTarget(MOCK_USER_ID, _SID_SID_1, "mock_refresh_token")
         )
 
         response = auth_client.post("/auth/logout")
@@ -2058,13 +2079,13 @@ class TestLogoutEndpoint:
         """A token that is not the session's stored one answers 200 and the session stays."""
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = "sid-1"
+        mock_session.id = _SID_SID_1
         mock_session.refresh_token = password_hasher.hash_password("real_token")
         mock_get_session.return_value = mock_session
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.get_logout_target] = lambda: (
-            authentication_dependencies.LogoutTarget(1, "sid-1", "wrong_token")
+            authentication_dependencies.LogoutTarget(MOCK_USER_ID, _SID_SID_1, "wrong_token")
         )
 
         response = auth_client.post("/auth/logout")
@@ -2104,7 +2125,7 @@ class TestLogoutEndpoint:
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.get_logout_target] = lambda: (
-            authentication_dependencies.LogoutTarget(1, "nonexistent", "rt")
+            authentication_dependencies.LogoutTarget(MOCK_USER_ID, uuid.uuid4(), "rt")
         )
 
         response = auth_client.post("/auth/logout")
@@ -2139,13 +2160,13 @@ class TestLogoutEndpoint:
         """
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = "sid-pkce"
+        mock_session.id = _SID_SID_PKCE
         mock_session.refresh_token = None
         mock_get_session.return_value = mock_session
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.get_logout_target] = lambda: (
-            authentication_dependencies.LogoutTarget(1, "sid-pkce", "rt")
+            authentication_dependencies.LogoutTarget(MOCK_USER_ID, _SID_SID_PKCE, "rt")
         )
 
         response = auth_client.post("/auth/logout")
@@ -2185,14 +2206,14 @@ class TestLogoutEndpoint:
         """
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = "sid-web"
+        mock_session.id = _SID_SID_WEB
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
         mock_get_session.return_value = mock_session
         mock_delete_session.return_value = None
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.get_logout_target] = lambda: (
-            authentication_dependencies.LogoutTarget(1, "sid-web", "mock_rt")
+            authentication_dependencies.LogoutTarget(MOCK_USER_ID, _SID_SID_WEB, "mock_rt")
         )
 
         response = auth_client.post("/auth/logout")
@@ -2233,14 +2254,14 @@ class TestLogoutEndpoint:
         auth_app.state._client_type = "mobile"
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = "sid-mob"
+        mock_session.id = _SID_SID_MOB
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
         mock_get_session.return_value = mock_session
         mock_delete_session.return_value = None
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.get_logout_target] = lambda: (
-            authentication_dependencies.LogoutTarget(1, "sid-mob", "mock_rt")
+            authentication_dependencies.LogoutTarget(MOCK_USER_ID, _SID_SID_MOB, "mock_rt")
         )
 
         response = auth_client.post("/auth/logout")
@@ -2265,7 +2286,7 @@ class TestLogoutEndpoint:
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.get_logout_target] = lambda: (
-            authentication_dependencies.LogoutTarget(1, "nonexistent", "rt")
+            authentication_dependencies.LogoutTarget(MOCK_USER_ID, uuid.uuid4(), "rt")
         )
 
         response = auth_client.post("/auth/logout")
@@ -2275,13 +2296,13 @@ class TestLogoutEndpoint:
         mock_clear_cookies.assert_not_called()
 
     @staticmethod
-    def _signed_in_session(auth_app, password_hasher, session_id="sid-idp"):
+    def _signed_in_session(auth_app, password_hasher, session_id=_SID_SID_IDP):
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = session_id
         mock_session.refresh_token = password_hasher.hash_password("rt")
         auth_app.dependency_overrides[authentication_dependencies.get_logout_target] = lambda: (
-            authentication_dependencies.LogoutTarget(1, session_id, "rt")
+            authentication_dependencies.LogoutTarget(MOCK_USER_ID, session_id, "rt")
         )
         return mock_session
 
@@ -2308,7 +2329,7 @@ class TestLogoutEndpoint:
         assert response.status_code == 200
         assert response.json() == {"idp_logout_url": "https://idp.example.com/out?id_token_hint=abc"}
         assert response.headers["cache-control"] == "no-store"
-        assert mock_read.call_args.args[0] == "sid-idp"
+        assert mock_read.call_args.args[0] == _SID_SID_IDP
         assert mock_url.call_args.args[0] == "end-session-request"
         assert mock_url.call_args.args[1] == f"{core_config.settings.ENDURAIN_HOST}/login"
 
@@ -2344,7 +2365,7 @@ class TestLogoutEndpoint:
     ):
         mock_get_session.return_value = None
         auth_app.dependency_overrides[authentication_dependencies.get_logout_target] = lambda: (
-            authentication_dependencies.LogoutTarget(1, "gone", "rt")
+            authentication_dependencies.LogoutTarget(MOCK_USER_ID, uuid.uuid4(), "rt")
         )
 
         response = auth_client.post("/auth/logout")
@@ -2358,7 +2379,7 @@ class TestLogoutEndpoint:
     @staticmethod
     def _refresh_token(token_manager, sample_user_read, *, ttl=timedelta(days=1)):
         return token_manager.create_token(
-            "sid-1",
+            _SID_SID_1,
             sample_user_read,
             auth_constants.ClientType.WEB,
             auth_token_manager.TokenType.REFRESH,
@@ -2385,7 +2406,7 @@ class TestLogoutEndpoint:
             "malformed": "not-a-jwt",
             "expired": self._refresh_token(token_manager, sample_user_read, ttl=timedelta(seconds=-120)),
             "wrong_audience": token_manager.create_token(
-                "sid-1",
+                _SID_SID_1,
                 sample_user_read,
                 auth_constants.ClientType.WEB,
                 auth_token_manager.TokenType.ACCESS,
@@ -2410,7 +2431,7 @@ class TestLogoutEndpoint:
     def test_web_logout_of_a_revoked_token_succeeds_and_clears_the_cookie(
         self, mock_get_session, mock_delete_session, auth_client, token_manager, sample_user_read, password_hasher
     ):
-        session = MagicMock(id="sid-1", refresh_token=password_hasher.hash_password("a-newer-token"))
+        session = MagicMock(id=_SID_SID_1, refresh_token=password_hasher.hash_password("a-newer-token"))
         mock_get_session.return_value = session
         token = self._refresh_token(token_manager, sample_user_read)
 
@@ -2454,7 +2475,7 @@ class TestLogoutEndpoint:
         auth_app.state._client_type = "mobile"
         auth_app.dependency_overrides[access_tokens_integration.get_token_manager] = lambda: token_manager
         token = self._mobile_refresh_token(token_manager, sample_user_read)
-        mock_get_session.return_value = MagicMock(id="sid-1", refresh_token=password_hasher.hash_password(token))
+        mock_get_session.return_value = MagicMock(id=_SID_SID_1, refresh_token=password_hasher.hash_password(token))
 
         response = auth_client.post("/auth/logout", json={"refresh_token": token})
 
@@ -2508,7 +2529,7 @@ class TestLogoutEndpoint:
     @staticmethod
     def _mobile_refresh_token(token_manager, sample_user_read):
         return token_manager.create_token(
-            "sid-1",
+            _SID_SID_1,
             sample_user_read,
             auth_constants.ClientType.MOBILE,
             auth_token_manager.TokenType.REFRESH,
@@ -2527,7 +2548,7 @@ class TestRefreshTokenSource:
     @staticmethod
     def _token(token_manager, sample_user_read, client_type):
         return token_manager.create_token(
-            "sid-1", sample_user_read, client_type, auth_token_manager.TokenType.REFRESH, timedelta(days=1)
+            _SID_SID_1, sample_user_read, client_type, auth_token_manager.TokenType.REFRESH, timedelta(days=1)
         )[1]
 
     def test_mobile_refresh_without_a_body_token_is_refused_as_a_missing_token(self, auth_client, auth_app):

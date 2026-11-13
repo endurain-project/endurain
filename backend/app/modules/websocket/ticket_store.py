@@ -40,7 +40,7 @@ class WsTicketOwner:
     """
 
     user_id: uuid.UUID
-    session_id: str
+    session_id: uuid.UUID
 
 
 def _handshake_key(network: str, window: int) -> str:
@@ -98,7 +98,7 @@ class WsTicketStore:
             core_attempt_state.raise_unavailable("allow_handshake", err)
         return attempts <= MAX_HANDSHAKES_PER_WINDOW
 
-    def create_ticket(self, user_id: uuid.UUID, session_id: str) -> str:
+    def create_ticket(self, user_id: uuid.UUID, session_id: uuid.UUID) -> str:
         """Issue a new short-lived ticket for a user's session.
 
         Args:
@@ -142,13 +142,11 @@ class WsTicketStore:
             core_attempt_state.raise_unavailable("consume_ticket", err)
         if value is None:
             return None
-        raw_user_id, _, session_id = value.decode().partition(":")
+        raw_user_id, _, raw_session_id = value.decode().partition(":")
         try:
             user_id = uuid.UUID(raw_user_id)
+            session_id = uuid.UUID(raw_session_id)
         except ValueError:
-            logger.warning("Unexpected value in WS ticket store")
-            return None
-        if not session_id:
             logger.warning("Unexpected value in WS ticket store")
             return None
         return WsTicketOwner(user_id=user_id, session_id=session_id)

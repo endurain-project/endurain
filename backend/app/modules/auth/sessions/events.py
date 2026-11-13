@@ -29,5 +29,5 @@ class SessionsRevokedPayload(VersionedPayload):
     SCHEMA_VERSION: ClassVar[int] = 1
 
     user_id: uuid.UUID
-    session_id: str | None = None
-    except_session_id: str | None = None
+    session_id: uuid.UUID | None = None
+    except_session_id: uuid.UUID | None = None

@@ -1,5 +1,6 @@
 """HTTP-level tests that only bearer-token failures answer 401 with the ``invalid-token`` problem type."""
 
+import uuid
 from unittest.mock import MagicMock
 
 import pytest
@@ -12,6 +13,8 @@ import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.login_audit.audit_actions as login_audit_actions
 
+_USER_ID = uuid.UUID(int=1)
+_SESSION_ID = uuid.UUID(int=7)
 INVALID_TOKEN = "urn:endurain:error:invalid-token"
 STEP_UP_FAILED = "urn:endurain:error:step-up-failed"
 # Three-part JWT signed with a different secret and already expired.
@@ -48,7 +51,13 @@ def client():
     @app.post("/step-up")
     def _step_up():
         step_up_service._refuse_step_up(
-            _Store(), "user:1", 1, "sid", login_audit_actions.StepUpMethod.PASSWORD, "wrong password", MagicMock()
+            _Store(),
+            f"user:{_USER_ID}",
+            _USER_ID,
+            _SESSION_ID,
+            login_audit_actions.StepUpMethod.PASSWORD,
+            "wrong password",
+            MagicMock(),
         )
 
     return TestClient(app, headers={"X-Client-Type": "web"})

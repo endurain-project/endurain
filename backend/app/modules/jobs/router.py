@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Path, Query, Request, Response, Security
+from fastapi import APIRouter, Query, Request, Response, Security
 
 import core.dependencies as core_dependencies
 import core.job_status as core_job_status
@@ -60,7 +60,7 @@ def list_jobs(
 @core_rate_limit.limiter.limit(core_rate_limit.JOB_POLL)
 def read_job(
     request: Request,
-    job_id: Annotated[str, Path(min_length=1, max_length=64)],
+    job_id: core_dependencies.UuidId,
     caller: auth_dependencies.CurrentPrincipal,
     state: core_dependencies.PlatformState,
     db: core_dependencies.DbSession,

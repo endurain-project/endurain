@@ -83,8 +83,7 @@ class IdpSessionToken(Base):
     __table_args__ = (Index("ix_idp_session_tokens_idp_id_idp_sid", "idp_id", "idp_sid"),)
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    session_id: Mapped[str] = mapped_column(
-        String(length=36),
+    session_id: Mapped[uuid.UUID] = mapped_column(
         nullable=False,
         unique=True,
         comment="Endurain session the sign-in created; no foreign key, so the token outlives the session row",

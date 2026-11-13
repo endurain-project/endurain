@@ -43,7 +43,7 @@ def profile_section() -> users_profile_contracts.ProfileRecordsSection:
 
 
 def list_changed_health_fasting(
-    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position | None, until: datetime, limit: int, db: Session
 ) -> list[health_fasting_schema.HealthFastingRead]:
     """Return a user's fasting records changed after a position, oldest change first.
 
@@ -61,8 +61,8 @@ def list_changed_health_fasting(
 
 
 def list_health_fasting_deletions(
-    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
-) -> list[core_sync.Deletion[uuid.UUID]]:
+    user_id: uuid.UUID, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[core_sync.Deletion]:
     """Return a user's deleted fasting records after a position, oldest deletion first.
 
     Args:

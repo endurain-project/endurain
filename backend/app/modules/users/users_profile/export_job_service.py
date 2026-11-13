@@ -45,7 +45,7 @@ _STREAM_CHUNK_BYTES = 64 * 1024
 
 def request_export(
     user_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     step_up: auth_schema.StepUpVerification,
     step_up_store: account_security_integration.StepUpStore,
     states: profile_export_state_store.ProfileExportStateStore,

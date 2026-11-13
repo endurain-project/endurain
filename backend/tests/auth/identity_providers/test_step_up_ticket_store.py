@@ -15,9 +15,10 @@ from modules.auth.identity_providers.step_up_ticket_store import StepUpTicketSto
 from tests._helpers.auth import MOCK_USER_ID
 
 IDP_ID = uuid.uuid4()
+SESSION_ID = uuid.uuid4()
 
 _TICKET = idp_contracts.StepUpTicket(
-    user_id=MOCK_USER_ID, session_id="s" * 36, idp_id=IDP_ID, code_challenge="c" * 43, action="api_key_create"
+    user_id=MOCK_USER_ID, session_id=SESSION_ID, idp_id=IDP_ID, code_challenge="c" * 43, action="api_key_create"
 )
 
 

@@ -56,7 +56,7 @@ def _record_refusal(
 
 
 def exchange_tokens_for_session(
-    session_id: str,
+    session_id: uuid.UUID,
     code_verifier: str,
     mfa_code: str | None,
     client_type: auth_constants.ClientType,
@@ -109,7 +109,7 @@ def exchange_tokens_for_session(
         InvalidMfaCodeError: If the code does not verify.
         TooManyRequestsError: If the account is locked out from too many failed MFA codes.
     """
-    fingerprint = core_hashing.log_fingerprint(session_id)
+    fingerprint = core_hashing.log_fingerprint(str(session_id))
     session_with_state = sessions_integration.get_session_with_oauth_state(session_id, db)
     if not session_with_state:
         logger.warning(

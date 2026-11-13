@@ -1,5 +1,6 @@
 """Regression tests for principal resolution and caching in public dependencies."""
 
+import uuid
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -11,6 +12,8 @@ import modules.auth.dependencies as auth_dependencies
 from modules.auth.contracts import AccessTokenCred, Principal
 from tests._helpers.auth import MOCK_USER_ID
 
+_SESSION_ID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+
 
 def _principal(scopes: frozenset[str] = frozenset({"account"})) -> Principal:
     return Principal(
@@ -20,7 +23,7 @@ def _principal(scopes: frozenset[str] = frozenset({"account"})) -> Principal:
         is_active=True,
         is_superuser=False,
         scopes=scopes,
-        credential=AccessTokenCred(session_id="sid-1"),
+        credential=AccessTokenCred(session_id=_SESSION_ID),
     )
 
 
@@ -38,7 +41,7 @@ def test_resolver_caches_principal_for_request():
 
 
 def test_sid_dependency_returns_the_session_of_an_access_token():
-    assert auth_dependencies.get_sid_from_access_token(_principal()) == "sid-1"
+    assert auth_dependencies.get_sid_from_access_token(_principal()) == _SESSION_ID
 
 
 def test_scope_dependency_rejects_missing_scope():

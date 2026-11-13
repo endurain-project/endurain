@@ -1,5 +1,7 @@
 """A backup code completes an MFA sign-in and a step-up, and is consumed by it."""
 
+import uuid
+
 import pyotp
 import pytest
 from jasil.backends.state_memory import MemoryState
@@ -15,6 +17,8 @@ import modules.auth.mfa.pending_login_store as pending_login_store
 import modules.auth.mfa_backup_codes.crud as backup_codes_crud
 from tests._helpers.auth import MOCK_USER_ID
 from tests._helpers.db import create_sqlite_session_factory, ensure_user
+
+_SID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
 
 _USER_ID = MOCK_USER_ID
 _PASSWORD = "correct horse battery staple"
@@ -65,7 +69,7 @@ class TestBackupCodeAtStepUp:
     def test_a_backup_code_passes_step_up_with_the_password(self, session_factory):
         store = step_up_store.StepUpAttempts(MemoryState())
         with session_factory() as db:
-            step_up_service.verify_step_up_credentials(_USER_ID, _PASSWORD, _BACKUP_CODE, store, db, session_id="sid")
+            step_up_service.verify_step_up_credentials(_USER_ID, _PASSWORD, _BACKUP_CODE, store, db, session_id=_SID)
             db.commit()
 
         assert _unused_codes(session_factory) == 0

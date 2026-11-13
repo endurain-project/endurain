@@ -17,7 +17,7 @@ def get_api_key_by_hash(key_hash: str, db: Session) -> api_keys_schema.UserApiKe
     return api_keys_service.get_api_key_by_hash(key_hash, db)
 
 
-def update_last_used(api_key_id: str, db: Session) -> None:
+def update_last_used(api_key_id: uuid.UUID, db: Session) -> None:
     """Update the timestamp of an API key used for authentication."""
     api_keys_service.update_last_used(api_key_id, db)
 
@@ -63,7 +63,7 @@ def count_active_api_keys(user_id: uuid.UUID, db: Session) -> int:
     return api_keys_crud.count_active_api_keys(user_id, datetime.now(UTC), db)
 
 
-def revoke_api_key(api_key_id: str, user_id: uuid.UUID, db: Session) -> None:
+def revoke_api_key(api_key_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> None:
     """Stage revocation of a user's API key."""
     api_keys_crud.revoke_api_key(api_key_id, user_id, db)
 
@@ -73,6 +73,6 @@ def revoke_user_api_keys(user_id: uuid.UUID, db: Session) -> int:
     return api_keys_crud.revoke_all_api_keys_for_user(user_id, db)
 
 
-def delete_api_key(api_key_id: str, user_id: uuid.UUID, db: Session) -> None:
+def delete_api_key(api_key_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> None:
     """Stage deletion of a user's API key."""
     api_keys_crud.delete_api_key(api_key_id, user_id, db)

@@ -7,6 +7,7 @@ from pydantic import ValidationError
 import modules.auth.rotated_refresh_tokens.schema as rotated_token_schema
 
 _ID = uuid.UUID("00000000-0000-4000-8000-000000000003")
+_FAMILY_ID = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
 
 
 class TestRotatedRefreshTokenCreateSchema:
@@ -23,7 +24,7 @@ class TestRotatedRefreshTokenCreateSchema:
 
         # Act
         token = rotated_token_schema.RotatedRefreshTokenCreate(
-            token_family_id="test-family-id",
+            token_family_id=_FAMILY_ID,
             hashed_token="hashed-token-value",
             client_fingerprint="c" * 64,
             rotation_count=0,
@@ -33,7 +34,7 @@ class TestRotatedRefreshTokenCreateSchema:
         )
 
         # Assert
-        assert token.token_family_id == "test-family-id"
+        assert token.token_family_id == _FAMILY_ID
         assert token.hashed_token == "hashed-token-value"
         assert token.rotation_count == 0
         assert token.rotated_at == now
@@ -70,7 +71,7 @@ class TestRotatedRefreshTokenCreateSchema:
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
             rotated_token_schema.RotatedRefreshTokenCreate(
-                token_family_id="test-family-id",
+                token_family_id=_FAMILY_ID,
                 rotation_count=0,
                 rotated_at=now,
                 expires_at=now,
@@ -89,7 +90,7 @@ class TestRotatedRefreshTokenCreateSchema:
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
             rotated_token_schema.RotatedRefreshTokenCreate(
-                token_family_id="test-family-id",
+                token_family_id=_FAMILY_ID,
                 hashed_token="hashed-token-value",
                 client_fingerprint="c" * 64,
                 rotation_count=-1,
@@ -100,18 +101,18 @@ class TestRotatedRefreshTokenCreateSchema:
 
         assert "rotation_count" in str(exc_info.value)
 
-    def test_create_schema_token_family_id_max_length(self):
+    def test_create_schema_token_family_id_must_be_a_uuid(self):
         """
-        Test RotatedRefreshTokenCreate token_family_id max length.
+        Test RotatedRefreshTokenCreate rejects a token_family_id that is not a UUID.
         """
         # Arrange
         now = datetime.now(UTC)
-        long_family_id = "a" * 40  # Exceeds 36 character limit
+        not_a_uuid = "a" * 40
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
             rotated_token_schema.RotatedRefreshTokenCreate(
-                token_family_id=long_family_id,
+                token_family_id=not_a_uuid,
                 hashed_token="hashed-token-value",
                 client_fingerprint="c" * 64,
                 rotation_count=0,
@@ -133,7 +134,7 @@ class TestRotatedRefreshTokenCreateSchema:
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
             rotated_token_schema.RotatedRefreshTokenCreate(
-                token_family_id="test-family-id",
+                token_family_id=_FAMILY_ID,
                 hashed_token=long_token,
                 client_fingerprint="c" * 64,
                 rotation_count=0,
@@ -154,7 +155,7 @@ class TestRotatedRefreshTokenCreateSchema:
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
             rotated_token_schema.RotatedRefreshTokenCreate(
-                token_family_id="test-family-id",
+                token_family_id=_FAMILY_ID,
                 hashed_token="hashed-token-value",
                 client_fingerprint="c" * 64,
                 rotation_count=0,
@@ -183,7 +184,7 @@ class TestRotatedRefreshTokenCreateSchema:
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
             rotated_token_schema.RotatedRefreshTokenCreate(
-                token_family_id="test-family-id",
+                token_family_id=_FAMILY_ID,
                 hashed_token="hashed-token-value",
                 client_fingerprint="c" * 64,
                 rotation_count="not-an-int",
@@ -210,7 +211,7 @@ class TestRotatedRefreshTokenReadSchema:
         # Act
         token = rotated_token_schema.RotatedRefreshTokenRead(
             id=_ID,
-            token_family_id="test-family-id",
+            token_family_id=_FAMILY_ID,
             hashed_token="hashed-token-value",
             client_fingerprint="c" * 64,
             rotation_count=0,
@@ -232,7 +233,7 @@ class TestRotatedRefreshTokenReadSchema:
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
             rotated_token_schema.RotatedRefreshTokenRead(
-                token_family_id="test-family-id",
+                token_family_id=_FAMILY_ID,
                 hashed_token="hashed-token-value",
                 client_fingerprint="c" * 64,
                 rotation_count=0,
@@ -254,7 +255,7 @@ class TestRotatedRefreshTokenReadSchema:
         with pytest.raises(ValidationError) as exc_info:
             rotated_token_schema.RotatedRefreshTokenRead(
                 id=1,
-                token_family_id="test-family-id",
+                token_family_id=_FAMILY_ID,
                 hashed_token="hashed-token-value",
                 client_fingerprint="c" * 64,
                 rotation_count=0,

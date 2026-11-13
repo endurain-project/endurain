@@ -637,7 +637,7 @@ def touch_activity(activity_id: uuid.UUID, db: Session) -> None:
 
 
 def list_changed_activities(
-    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position | None, until: datetime, limit: int, db: Session
 ) -> list[activity_schema.ActivityRead]:
     """List the user's activities changed after a position, as the owner reads them.
 
@@ -655,8 +655,8 @@ def list_changed_activities(
 
 
 def list_activity_deletions(
-    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
-) -> list[core_sync.Deletion[uuid.UUID]]:
+    user_id: uuid.UUID, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[core_sync.Deletion]:
     """List the user's deleted activities after a position.
 
     Args:

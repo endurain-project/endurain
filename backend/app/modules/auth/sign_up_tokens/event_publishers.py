@@ -63,7 +63,7 @@ def publish_email_change_verification_requested(user_id: uuid.UUID, db: Session)
     )
 
 
-def publish_email_changed(user_id: uuid.UUID, token_id: str, db: Session) -> None:
+def publish_email_changed(user_id: uuid.UUID, token_id: uuid.UUID, db: Session) -> None:
     """Stage ``auth.email_changed`` in the caller's transaction.
 
     Args:

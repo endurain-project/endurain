@@ -15,26 +15,27 @@ import modules.auth.identity_providers.subscribers as idp_subscribers
 import modules.auth.sessions.events as sessions_events
 from tests._helpers.auth import MOCK_USER_ID
 
+SESSION_ID = uuid.uuid4()
 _MODULE = "modules.auth.identity_providers.subscribers"
 
 
-def _event(user_id: uuid.UUID = MOCK_USER_ID, session_id: str | None = "session-1") -> Event:
+def _event(user_id: uuid.UUID = MOCK_USER_ID, session_id: uuid.UUID | None = SESSION_ID) -> Event:
     return new_event(
         idp_events.IDP_TOKEN_REFRESH_REQUESTED, {"user_id": user_id, "session_id": session_id}, source="test"
     )
 
 
 def _revoked_event(user_id: uuid.UUID = MOCK_USER_ID) -> Event:
-    return new_event(sessions_events.SESSIONS_REVOKED, {"user_id": user_id, "session_id": "session-1"}, source="test")
+    return new_event(sessions_events.SESSIONS_REVOKED, {"user_id": user_id, "session_id": SESSION_ID}, source="test")
 
 
 class TestPublisher:
     def test_the_event_is_staged_in_the_callers_transaction_with_the_ids_only(self, mock_db):
         with patch.object(platform_publisher, "publish_on_commit") as publish:
-            idp_event_publishers.publish_idp_token_refresh_requested(MOCK_USER_ID, "session-1", mock_db)
+            idp_event_publishers.publish_idp_token_refresh_requested(MOCK_USER_ID, SESSION_ID, mock_db)
 
         assert publish.call_args.args[0] == idp_events.IDP_TOKEN_REFRESH_REQUESTED
-        assert publish.call_args.args[1] == {"user_id": str(MOCK_USER_ID), "session_id": "session-1"}
+        assert publish.call_args.args[1] == {"user_id": str(MOCK_USER_ID), "session_id": str(SESSION_ID)}
         assert publish.call_args.kwargs["db"] is mock_db
 
 
@@ -50,7 +51,7 @@ class TestSubscriber:
             idp_subscribers.refresh_idp_tokens_for_event(_event(MOCK_USER_ID))
 
         claim_store.assert_called_once_with(get_state.return_value)
-        service.refresh_idp_tokens.assert_called_once_with(MOCK_USER_ID, "session-1", claim_store.return_value)
+        service.refresh_idp_tokens.assert_called_once_with(MOCK_USER_ID, SESSION_ID, claim_store.return_value)
 
     def test_an_event_queued_before_tokens_were_per_session_is_dropped(self):
         with (

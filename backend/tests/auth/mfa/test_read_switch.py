@@ -23,7 +23,7 @@ from tests._helpers.auth import MOCK_USER_ID
 
 
 def _make_user(
-    user_id: int = 1,
+    user_id: uuid.UUID = MOCK_USER_ID,
     mfa_enabled: bool = False,
     mfa_secret: str | None = None,
 ) -> MagicMock:

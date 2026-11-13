@@ -47,7 +47,7 @@ def count_active_api_keys(user_id: uuid.UUID, now: datetime, db: Session) -> int
     ).scalar_one()
 
 
-def get_api_key_by_id(api_key_id: str, user_id: uuid.UUID, db: Session) -> api_keys_schema.UserApiKeyRead | None:
+def get_api_key_by_id(api_key_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> api_keys_schema.UserApiKeyRead | None:
     """Return an API key by ID and owner."""
     stmt = select(api_keys_models.UsersApiKeys).where(
         api_keys_models.UsersApiKeys.id == api_key_id,
@@ -75,7 +75,6 @@ def create_api_key(
 ) -> api_keys_schema.UserApiKeyRead:
     """Stage a new API key and return its raw value and safe representation."""
     db_api_key = api_keys_models.UsersApiKeys(
-        id=str(uuid.uuid4()),
         user_id=user_id,
         name=data.name,
         key_prefix=raw_key[9:17],
@@ -91,7 +90,7 @@ def create_api_key(
     return api_keys_serializers.to_read_schema(db_api_key)
 
 
-def update_last_used(api_key_id: str, db: Session) -> None:
+def update_last_used(api_key_id: uuid.UUID, db: Session) -> None:
     """Stage the last-used timestamp for an API key."""
     row = db.get(api_keys_models.UsersApiKeys, api_key_id)
     if row is None:
@@ -100,7 +99,7 @@ def update_last_used(api_key_id: str, db: Session) -> None:
     db.flush()
 
 
-def revoke_api_key(api_key_id: str, user_id: uuid.UUID, db: Session) -> None:
+def revoke_api_key(api_key_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> None:
     """Stage revocation of an API key owned by the user."""
     row = db.execute(
         select(api_keys_models.UsersApiKeys).where(
@@ -136,7 +135,7 @@ def delete_stale_api_keys(cutoff: datetime, limit: int, db: Session) -> int:
     return matched
 
 
-def delete_api_key(api_key_id: str, user_id: uuid.UUID, db: Session) -> None:
+def delete_api_key(api_key_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> None:
     """Stage deletion of an API key owned by the user."""
     matched = core_database.rowcount(
         db,

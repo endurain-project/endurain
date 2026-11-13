@@ -1,5 +1,6 @@
 """Tests for the activity-ingestion bulk-import route branching."""
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import ANY, MagicMock, patch
 
@@ -11,12 +12,14 @@ import core.job_status as core_job_status
 import modules.activities.activity_ingestion.router as router
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 
+_JOB_1 = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+
 
 def _upload_job(**overrides):
     """Build a pending upload job for the route tests."""
     now = datetime(2026, 7, 28, 10, 0, 0, tzinfo=UTC)
     defaults = {
-        "id": "job-1",
+        "id": _JOB_1,
         "kind": "activity_upload",
         "filename": "ride.gpx",
         "status": core_job_status.JobState.QUEUED,
@@ -100,10 +103,10 @@ class TestUploadRoute:
         # 202, not 201: the parse has been queued, not performed.
         assert response.status_code == 202
         body = response.json()
-        assert body["id"] == "job-1"
+        assert body["id"] == str(_JOB_1)
         assert body["status"] == "queued"
         assert body["kind"] == "activity_upload"
-        assert response.headers["Content-Location"] == "/jobs/job-1"
+        assert response.headers["Content-Location"] == f"/jobs/{_JOB_1}"
         assert response.headers["Retry-After"] == "2"
         # The activity is attributed to the authenticated user, not any body field.
         assert accept.call_args.args[0] == MOCK_USER_ID

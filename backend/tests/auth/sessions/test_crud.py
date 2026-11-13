@@ -1,5 +1,6 @@
 """Tests for staged auth-session persistence."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -16,10 +17,18 @@ import modules.auth.sessions.schema as sessions_schema
 from modules.auth.constants import ClientType
 from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
+SESSION_ID = uuid.UUID("00000000-0000-4000-8000-0000000005e1")
+FAMILY_ID = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
+
+
+def _id(name: str) -> uuid.UUID:
+    """Return the stable session id named ``name``."""
+    return uuid.uuid5(uuid.NAMESPACE_URL, f"session:{name}")
+
 
 def _row(**updates):
     values = {
-        "id": "session-id",
+        "id": SESSION_ID,
         "user_id": MOCK_USER_ID,
         "refresh_token": "hashed-refresh",
         "ip_address": "127.0.0.1",
@@ -33,7 +42,7 @@ def _row(**updates):
         "expires_at": datetime.now(UTC) + timedelta(days=1),
         "oauth_state_id": None,
         "tokens_exchanged": False,
-        "token_family_id": "family-id",
+        "token_family_id": FAMILY_ID,
         "rotation_count": 0,
         "last_rotation_at": None,
         "csrf_token_hash": None,
@@ -54,9 +63,9 @@ def _result(value=None, *, rowcount=1):
 
 
 def test_get_user_sessions_page_pushes_the_window_into_the_query(mock_db):
-    mock_db.execute.return_value.scalars.return_value = [_row(id="one")]
+    mock_db.execute.return_value.scalars.return_value = [_row(id=_id("one"))]
     result = sessions_crud.get_user_sessions_page(MOCK_USER_ID, mock_db, limit=5, offset=10)
-    assert [row.id for row in result] == ["one"]
+    assert [row.id for row in result] == [_id("one")]
     compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
     assert "ORDER BY users_sessions.created_at DESC, users_sessions.id" in compiled
     assert "LIMIT 5" in compiled and "OFFSET 10" in compiled
@@ -71,18 +80,18 @@ def test_count_user_sessions_counts_the_users_rows(mock_db):
 @pytest.mark.parametrize("lookup", [sessions_crud.get_session_by_id, sessions_crud.get_session_by_id_not_expired])
 def test_session_lookup_returns_dto_and_none(lookup, mock_db):
     mock_db.execute.return_value = _result(_row())
-    result = lookup("session-id", mock_db)
+    result = lookup(SESSION_ID, mock_db)
     assert result is not None
-    assert result.id == "session-id"
+    assert result.id == SESSION_ID
     mock_db.execute.return_value = _result()
     assert lookup("missing", mock_db) is None
 
 
 def test_lock_live_session_returns_dto_and_none(mock_db):
     mock_db.execute.return_value = _result(_row())
-    result = sessions_crud.lock_live_session("session-id", mock_db)
+    result = sessions_crud.lock_live_session(SESSION_ID, mock_db)
     assert result is not None
-    assert result.id == "session-id"
+    assert result.id == SESSION_ID
     mock_db.execute.return_value = _result()
     assert sessions_crud.lock_live_session("missing", mock_db) is None
 
@@ -90,7 +99,7 @@ def test_lock_live_session_returns_dto_and_none(mock_db):
 def test_lock_live_session_takes_a_shared_row_lock_on_the_unexpired_session(mock_db):
     mock_db.execute.return_value = _result(_row())
 
-    sessions_crud.lock_live_session("session-id", mock_db)
+    sessions_crud.lock_live_session(SESSION_ID, mock_db)
 
     statement = str(mock_db.execute.call_args.args[0].compile(dialect=postgresql.dialect()))
     assert "FOR SHARE" in statement
@@ -100,7 +109,7 @@ def test_lock_live_session_takes_a_shared_row_lock_on_the_unexpired_session(mock
 def test_lock_live_session_takes_an_exclusive_row_lock_when_the_caller_will_write_the_session(mock_db):
     mock_db.execute.return_value = _result(_row())
 
-    sessions_crud.lock_live_session("session-id", mock_db, exclusive=True)
+    sessions_crud.lock_live_session(SESSION_ID, mock_db, exclusive=True)
 
     statement = str(mock_db.execute.call_args.args[0].compile(dialect=postgresql.dialect()))
     assert "FOR UPDATE" in statement
@@ -110,7 +119,7 @@ def test_lock_live_session_takes_an_exclusive_row_lock_when_the_caller_will_writ
 def test_session_lookup_lets_database_errors_reach_the_global_handler(mock_db):
     mock_db.execute.side_effect = SQLAlchemyError("database unavailable")
     with pytest.raises(SQLAlchemyError):
-        sessions_crud.get_session_by_id("session-id", mock_db)
+        sessions_crud.get_session_by_id(SESSION_ID, mock_db)
 
 
 def test_create_session_stages_row_and_returns_dto(mock_db):
@@ -118,7 +127,7 @@ def test_create_session_stages_row_and_returns_dto(mock_db):
     row = _row()
     with patch.object(sessions_models, "UsersSessions", return_value=row):
         result = sessions_crud.create_session(session, mock_db)
-    assert result.id == "session-id"
+    assert result.id == SESSION_ID
     mock_db.add.assert_called_once_with(row)
     mock_db.flush.assert_called_once()
     mock_db.commit.assert_not_called()
@@ -145,17 +154,17 @@ def test_token_exchange_claim_is_conditional_and_staged(mock_db):
         return sessions_crud.claim_session_for_token_exchange(sid, "hashed", datetime.now(UTC), ["fed"], db)
 
     mock_db.execute.return_value = _result(rowcount=1)
-    assert operation("session-id", mock_db) is True
+    assert operation(SESSION_ID, mock_db) is True
     mock_db.execute.return_value = _result(rowcount=0)
-    assert operation("session-id", mock_db) is False
+    assert operation(SESSION_ID, mock_db) is False
     assert mock_db.commit.call_count == 0
 
 
 def test_delete_session_stages_owned_session_deletion(mock_db):
     row = _row()
     mock_db.execute.return_value = _result(row)
-    result = sessions_crud.delete_session("session-id", MOCK_USER_ID, mock_db)
-    assert result.id == "session-id"
+    result = sessions_crud.delete_session(SESSION_ID, MOCK_USER_ID, mock_db)
+    assert result.id == SESSION_ID
     mock_db.delete.assert_called_once_with(row)
     mock_db.flush.assert_called_once()
     mock_db.commit.assert_not_called()
@@ -164,13 +173,13 @@ def test_delete_session_stages_owned_session_deletion(mock_db):
 def test_delete_session_hides_missing_or_unowned_row(mock_db):
     mock_db.execute.return_value = _result()
     with pytest.raises(core_exceptions.NotFoundError):
-        sessions_crud.delete_session("session-id", OTHER_USER_ID, mock_db)
+        sessions_crud.delete_session(SESSION_ID, OTHER_USER_ID, mock_db)
 
 
 @pytest.mark.parametrize(
     "operation,args",
     [
-        (sessions_crud.delete_sessions_by_family, ("family-id",)),
+        (sessions_crud.delete_sessions_by_family, (FAMILY_ID,)),
         (sessions_crud.delete_sessions_by_user, (MOCK_USER_ID,)),
     ],
 )
@@ -182,18 +191,18 @@ def test_bulk_deletes_stage_and_return_count(operation, args, mock_db):
 
 @pytest.mark.parametrize("purge", [sessions_crud.delete_idle_sessions, sessions_crud.delete_expired_sessions])
 def test_a_purge_stages_the_delete_and_names_the_ended_sessions(purge, mock_db):
-    mock_db.execute.return_value.all.return_value = [(MOCK_USER_ID, "a"), (OTHER_USER_ID, "b")]
+    mock_db.execute.return_value.all.return_value = [(MOCK_USER_ID, _id("a")), (OTHER_USER_ID, _id("b"))]
 
-    assert purge(datetime.now(UTC), 100, mock_db) == [(MOCK_USER_ID, "a"), (OTHER_USER_ID, "b")]
+    assert purge(datetime.now(UTC), 100, mock_db) == [(MOCK_USER_ID, _id("a")), (OTHER_USER_ID, _id("b"))]
     assert "RETURNING" in str(mock_db.execute.call_args.args[0].compile(dialect=postgresql.dialect()))
     mock_db.commit.assert_not_called()
 
 
 def test_csrf_hash_and_oauth_reference_updates_are_staged(mock_db):
     mock_db.execute.return_value = _result()
-    sessions_crud.clear_oauth_state_reference("session-id", mock_db)
+    sessions_crud.clear_oauth_state_reference(SESSION_ID, mock_db)
     mock_db.execute.return_value = _result(rowcount=1)
-    sessions_crud.update_session_csrf_hash("session-id", "csrf-hash", mock_db)
+    sessions_crud.update_session_csrf_hash(SESSION_ID, "csrf-hash", mock_db)
     assert mock_db.execute.call_count == 2
     mock_db.commit.assert_not_called()
 
@@ -203,7 +212,7 @@ def test_existing_session_ids_names_only_the_sessions_that_still_exist():
 
     db = create_sqlite_session()
     now = datetime.now(UTC)
-    for session_id in ("s1", "s2"):
+    for session_id in (_id("s1"), _id("s2")):
         db.add(
             sessions_models.UsersSessions(
                 id=session_id,
@@ -228,7 +237,7 @@ def test_existing_session_ids_names_only_the_sessions_that_still_exist():
         )
     db.commit()
 
-    assert sessions_crud.get_existing_session_ids(["s1", "gone"], db) == {"s1"}
+    assert sessions_crud.get_existing_session_ids([_id("s1"), _id("gone")], db) == {_id("s1")}
     assert sessions_crud.get_existing_session_ids([], db) == set()
     db.close()
 
@@ -240,7 +249,7 @@ def test_a_stored_session_reads_back_with_its_client_type():
     sessions_crud.create_session(sessions_schema.UserSessionsInternal(**vars(_row(client_type="mobile"))), db)
     db.commit()
 
-    assert sessions_crud.get_session_by_id("session-id", db).client_type is ClientType.MOBILE
+    assert sessions_crud.get_session_by_id(SESSION_ID, db).client_type is ClientType.MOBILE
     db.close()
 
 
@@ -254,7 +263,7 @@ def test_a_stored_session_reads_back_its_auth_time_and_methods():
     )
     db.commit()
 
-    stored = sessions_crud.get_session_by_id("session-id", db)
+    stored = sessions_crud.get_session_by_id(SESSION_ID, db)
     assert stored.auth_time.replace(tzinfo=UTC) == auth_time
     assert stored.amr == ["pwd", "otp", "mfa"]
     db.close()
@@ -285,34 +294,34 @@ class TestUnexchangedSessions:
         session.close()
 
     def test_lists_and_counts_hide_unexchanged_sessions(self, db):
-        self._add(db, "exchanged", tokens_exchanged=True)
-        self._add(db, "pending", tokens_exchanged=False, created_offset=5)
+        self._add(db, _id("exchanged"), tokens_exchanged=True)
+        self._add(db, _id("pending"), tokens_exchanged=False, created_offset=5)
 
         page = sessions_crud.get_user_sessions_page(MOCK_USER_ID, db, limit=10, offset=0)
 
-        assert [session.id for session in page] == ["exchanged"]
+        assert [session.id for session in page] == [_id("exchanged")]
         assert sessions_crud.count_user_sessions(MOCK_USER_ID, db) == 1
 
     def test_the_purge_removes_an_expired_unexchanged_session_and_keeps_a_live_one(self, db):
-        self._add(db, "expired-pending", tokens_exchanged=False, expires_in=timedelta(minutes=-1))
-        self._add(db, "live-pending", tokens_exchanged=False, expires_in=timedelta(minutes=5))
+        self._add(db, _id("expired-pending"), tokens_exchanged=False, expires_in=timedelta(minutes=-1))
+        self._add(db, _id("live-pending"), tokens_exchanged=False, expires_in=timedelta(minutes=5))
 
         removed = sessions_crud.delete_expired_sessions(datetime.now(UTC), 100, db)
 
-        assert removed == [(MOCK_USER_ID, "expired-pending")]
-        assert sessions_crud.get_session_by_id("expired-pending", db) is None
-        assert sessions_crud.get_session_by_id("live-pending", db) is not None
+        assert removed == [(MOCK_USER_ID, _id("expired-pending"))]
+        assert sessions_crud.get_session_by_id(_id("expired-pending"), db) is None
+        assert sessions_crud.get_session_by_id(_id("live-pending"), db) is not None
 
     def test_the_claim_sets_the_real_expiry(self, db):
-        self._add(db, "pending", tokens_exchanged=False, expires_in=timedelta(minutes=5))
+        self._add(db, _id("pending"), tokens_exchanged=False, expires_in=timedelta(minutes=5))
         real_expiry = datetime.now(UTC) + timedelta(days=30)
 
         assert sessions_crud.claim_session_for_token_exchange(
-            "pending", "hashed", real_expiry, ["fed", "otp", "mfa"], db
+            _id("pending"), "hashed", real_expiry, ["fed", "otp", "mfa"], db
         )
 
         db.expire_all()
-        claimed = sessions_crud.get_session_by_id("pending", db)
+        claimed = sessions_crud.get_session_by_id(_id("pending"), db)
         assert claimed is not None
         assert claimed.tokens_exchanged is True
         assert claimed.amr == ["fed", "otp", "mfa"]
@@ -344,25 +353,25 @@ class TestDeviceHash:
         session.close()
 
     def test_the_delete_removes_only_the_users_sessions_of_that_device(self, db):
-        self._add(db, "same-device-1", device_hash="a" * 64)
-        self._add(db, "same-device-2", device_hash="a" * 64)
-        self._add(db, "other-device", device_hash="b" * 64)
-        self._add(db, "no-device")
-        self._add(db, "other-user", user_id=OTHER_USER_ID, device_hash="a" * 64)
+        self._add(db, _id("same-device-1"), device_hash="a" * 64)
+        self._add(db, _id("same-device-2"), device_hash="a" * 64)
+        self._add(db, _id("other-device"), device_hash="b" * 64)
+        self._add(db, _id("no-device"))
+        self._add(db, _id("other-user"), user_id=OTHER_USER_ID, device_hash="a" * 64)
 
         deleted = sessions_crud.delete_sessions_by_device(MOCK_USER_ID, "a" * 64, db)
 
-        assert sorted(session.id for session in deleted) == ["same-device-1", "same-device-2"]
-        for kept in ("other-device", "no-device", "other-user"):
+        assert sorted(session.id for session in deleted) == sorted([_id("same-device-1"), _id("same-device-2")])
+        for kept in (_id("other-device"), _id("no-device"), _id("other-user")):
             assert sessions_crud.get_session_by_id(kept, db) is not None
-        assert sessions_crud.get_session_by_id("same-device-1", db) is None
+        assert sessions_crud.get_session_by_id(_id("same-device-1"), db) is None
 
     def test_setting_the_hash_ties_a_session_to_a_device(self, db):
-        self._add(db, "pending")
+        self._add(db, _id("pending"))
 
-        sessions_crud.set_session_device_hash("pending", "c" * 64, db)
+        sessions_crud.set_session_device_hash(_id("pending"), "c" * 64, db)
 
         db.expire_all()
-        stored = sessions_crud.get_session_by_id("pending", db)
+        stored = sessions_crud.get_session_by_id(_id("pending"), db)
         assert stored is not None
         assert stored.device_hash == "c" * 64

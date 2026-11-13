@@ -64,7 +64,7 @@ def profile_section() -> users_profile_contracts.ProfileRecordsSection:
 
 
 def list_changed_health_sleep(
-    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
+    user_id: uuid.UUID, after: core_sync.Position | None, until: datetime, limit: int, db: Session
 ) -> list[health_sleep_schema.HealthSleepRead]:
     """Return a user's sleep records (with their stages) changed after a position, oldest change first.
 
@@ -82,8 +82,8 @@ def list_changed_health_sleep(
 
 
 def list_health_sleep_deletions(
-    user_id: uuid.UUID, after: core_sync.Position[uuid.UUID] | None, until: datetime, limit: int, db: Session
-) -> list[core_sync.Deletion[uuid.UUID]]:
+    user_id: uuid.UUID, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[core_sync.Deletion]:
     """Return a user's deleted sleep records (with their stages) after a position, oldest deletion first.
 
     Args:

@@ -30,8 +30,8 @@ def pushes():
         yield push
 
 
-def _hint(job_id: str, kind: str) -> tuple[int, dict[str, str]]:
-    return _USER, {"message": "JOB_STATUS_CHANGED", "job_id": job_id, "kind": kind}
+def _hint(job_id: uuid.UUID, kind: str) -> tuple[uuid.UUID, dict[str, str]]:
+    return _USER, {"message": "JOB_STATUS_CHANGED", "job_id": str(job_id), "kind": kind}
 
 
 def _sync_cases():

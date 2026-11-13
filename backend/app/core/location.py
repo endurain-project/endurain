@@ -8,6 +8,7 @@ A ``202`` answers only "queued". ``Content-Location`` (RFC 9110 §8.7) names the
 repeats ``Retry-After`` while the work is not finished.
 """
 
+import uuid
 from typing import Any
 
 from fastapi import Request, Response
@@ -65,7 +66,7 @@ def set_retry_after(response: Response, seconds: int) -> None:
     response.headers["Retry-After"] = str(seconds)
 
 
-def set_job_location(response: Response, request: Request, job_id: str, retry_after: int) -> None:
+def set_job_location(response: Response, request: Request, job_id: uuid.UUID, retry_after: int) -> None:
     """Name the job a ``202`` started and say when to poll it.
 
     ``Content-Location`` is the path of ``GET /jobs/{job_id}``, for the reason given on :func:`set_location`.
@@ -76,7 +77,7 @@ def set_job_location(response: Response, request: Request, job_id: str, retry_af
         job_id: The id of the job the route started.
         retry_after: Seconds before the first poll.
     """
-    response.headers["Content-Location"] = request.url_for(core_job_status.JOB_ROUTE, job_id=job_id).path
+    response.headers["Content-Location"] = request.url_for(core_job_status.JOB_ROUTE, job_id=str(job_id)).path
     set_retry_after(response, retry_after)
 
 

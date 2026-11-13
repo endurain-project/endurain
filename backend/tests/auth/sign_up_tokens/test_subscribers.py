@@ -11,6 +11,7 @@ import modules.auth.sign_up_tokens.event_publishers as sign_up_publishers
 import modules.auth.sign_up_tokens.events as sign_up_events
 import modules.auth.sign_up_tokens.subscribers as sign_up_subscribers
 from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
+from tests.auth.sign_up_tokens.ids import tid
 
 _USER_9 = uuid.UUID("00000000-0000-4000-8000-000000000009")
 
@@ -110,10 +111,10 @@ class TestEmailChangedHandler:
         prepare.return_value = ("old@example.test", "subject", "html", "text")
 
         sign_up_subscribers.send_email_changed_email_for_event(
-            _event(sign_up_events.EMAIL_CHANGED, {"user_id": str(_USER_4), "token_id": "t1"})
+            _event(sign_up_events.EMAIL_CHANGED, {"user_id": str(_USER_4), "token_id": str(tid("t1"))})
         )
 
-        prepare.assert_called_once_with(_USER_4, "t1", sign_up_subscribers.core_config.settings.ENDURAIN_HOST, db)
+        prepare.assert_called_once_with(_USER_4, tid("t1"), sign_up_subscribers.core_config.settings.ENDURAIN_HOST, db)
         send_email.assert_called_once_with(
             get_platform.return_value.mail, "old@example.test", "subject", "html", "text"
         )
@@ -124,7 +125,7 @@ class TestEmailChangedHandler:
     @patch("modules.auth.sign_up_tokens.subscribers.core_database.SessionLocal")
     def test_a_missing_row_is_skipped(self, _session_local, _get_platform, _prepare, send_email):
         sign_up_subscribers.send_email_changed_email_for_event(
-            _event(sign_up_events.EMAIL_CHANGED, {"user_id": str(_USER_4), "token_id": "t1"})
+            _event(sign_up_events.EMAIL_CHANGED, {"user_id": str(_USER_4), "token_id": str(tid("t1"))})
         )
 
         send_email.assert_not_called()
@@ -185,11 +186,11 @@ class TestPublishers:
         db = MagicMock()
 
         sign_up_publishers.publish_email_change_verification_requested(_USER_6, db)
-        sign_up_publishers.publish_email_changed(_USER_6, "token-1", db)
+        sign_up_publishers.publish_email_changed(_USER_6, tid("token-1"), db)
 
         assert [(call.args[0], call.args[1]) for call in mock_publish.call_args_list] == [
             (sign_up_events.EMAIL_CHANGE_VERIFICATION_REQUESTED, {"user_id": str(_USER_6)}),
-            (sign_up_events.EMAIL_CHANGED, {"user_id": str(_USER_6), "token_id": "token-1"}),
+            (sign_up_events.EMAIL_CHANGED, {"user_id": str(_USER_6), "token_id": str(tid("token-1"))}),
         ]
         assert all(call.kwargs["db"] is db for call in mock_publish.call_args_list)
 

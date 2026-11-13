@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict
 class PasswordResetTokenState(BaseModel):
     """Database state used by password reset workflows."""
 
-    id: str
+    id: uuid.UUID
     user_id: uuid.UUID
     token_hash: str
     created_at: datetime

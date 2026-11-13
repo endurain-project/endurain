@@ -13,6 +13,8 @@ import modules.activities.activity_ingestion.constants as activity_ingestion_con
 import modules.activities.activity_ingestion.service as ingestion_jobs
 import modules.activities.activity_ingestion.upload_entry_service as upload_entry_service
 
+_JOB_1 = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+
 _ID_A = uuid.UUID("00000000-0000-4000-8000-00000000000a")
 _ID_B = uuid.UUID("00000000-0000-4000-8000-00000000000b")
 
@@ -38,7 +40,7 @@ class TestReplay:
     def test_a_replay_returns_the_original_job_without_storing_or_parsing_again(self):
         """The content dedup would catch the duplicate, but only after both costs."""
         db = MagicMock()
-        original = MagicMock(id="job-1")
+        original = MagicMock(id=_JOB_1)
         with (
             patch.object(
                 ingestion_jobs.activity_ingestion_upload_entry_service, "receive_upload", return_value=_received()
@@ -116,7 +118,7 @@ class TestKeyReuseWithDifferentContent:
             patch.object(
                 ingestion_jobs.activity_ingestion_crud,
                 "get_job_for_idempotency",
-                return_value=(MagicMock(id="job-1"), "fp-first"),
+                return_value=(MagicMock(id=_JOB_1), "fp-first"),
             ),
             patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_received_upload") as discard,
             patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "store_received_upload") as store,
@@ -163,13 +165,13 @@ class TestDeletedActivities:
 
     @staticmethod
     def _job(status, activity_ids):
-        return MagicMock(id="job-1", status=status, activity_ids=activity_ids)
+        return MagicMock(id=_JOB_1, status=status, activity_ids=activity_ids)
 
     def test_the_key_is_released_and_the_file_imported_again(self):
         original = self._job(core_job_status.JobState.SUCCEEDED, [str(_ID_A), str(_ID_B)])
         _, release, create = self._accept(original, set())
 
-        release.assert_called_once_with("job-1", ANY)
+        release.assert_called_once_with(_JOB_1, ANY)
         create.assert_called_once()
 
     def test_a_surviving_activity_keeps_the_replay(self):
@@ -207,7 +209,7 @@ class TestConcurrentSameKey:
     def test_the_loser_reports_the_winners_job(self):
         """The constraint decides, not the read-then-write check above it."""
         db = MagicMock()
-        winner = MagicMock(id="job-1")
+        winner = MagicMock(id=_JOB_1)
         with (
             patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", True),
             patch.object(
@@ -245,7 +247,7 @@ class TestConcurrentSameKey:
             patch.object(
                 ingestion_jobs.activity_ingestion_crud,
                 "get_job_for_idempotency",
-                side_effect=[None, (MagicMock(id="job-1"), "fp-first")],
+                side_effect=[None, (MagicMock(id=_JOB_1), "fp-first")],
             ),
             patch.object(
                 ingestion_jobs.activity_ingestion_upload_entry_service, "store_received_upload", return_value="abc.gpx"

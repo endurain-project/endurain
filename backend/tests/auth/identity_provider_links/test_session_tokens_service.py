@@ -13,16 +13,18 @@ from tests._helpers.db import create_sqlite_session
 
 IDP_3 = uuid.uuid4()
 IDP_4 = uuid.uuid4()
+S1, S2, S3, S4 = (uuid.UUID(int=n) for n in range(1, 5))
+A1, A2, A3, A4, A5, A6 = (uuid.UUID(int=n) for n in range(101, 107))
 
 
 @pytest.fixture
 def db():
     session = create_sqlite_session()
     for session_id, user_id, idp_id in (
-        ("s1", MOCK_USER_ID, IDP_3),
-        ("s2", MOCK_USER_ID, IDP_3),
-        ("s3", MOCK_USER_ID, IDP_4),
-        ("s4", OTHER_USER_ID, IDP_3),
+        (S1, MOCK_USER_ID, IDP_3),
+        (S2, MOCK_USER_ID, IDP_3),
+        (S3, MOCK_USER_ID, IDP_4),
+        (S4, OTHER_USER_ID, IDP_3),
     ):
         identity_links_crud.create_idp_session_token(session_id, user_id, idp_id, None, None, session)
     session.commit()
@@ -55,22 +57,22 @@ class TestOrphanedSessionTokens:
     """A sign-in is an orphan once its Endurain session no longer exists."""
 
     def test_the_sign_ins_without_a_session_are_returned_with_the_windows_last_id(self, db):
-        with _alive("s1", "s3"):
+        with _alive(S1, S3):
             orphans, last_id = identity_links_integration.get_orphaned_idp_session_tokens_page(None, 10, db)
 
-        assert [row.session_id for row in orphans] == _in_id_order(db, "s2", "s4")
+        assert [row.session_id for row in orphans] == _in_id_order(db, S2, S4)
         assert last_id == identity_links_crud.get_idp_session_tokens_page(None, 10, db)[-1].id
 
     def test_a_user_can_be_asked_about_alone(self, db):
-        with _alive("s1"):
+        with _alive(S1):
             orphans, _ = identity_links_integration.get_orphaned_idp_session_tokens_page(
                 None, 10, db, user_id=MOCK_USER_ID
             )
 
-        assert [row.session_id for row in orphans] == _in_id_order(db, "s2", "s3")
+        assert [row.session_id for row in orphans] == _in_id_order(db, S2, S3)
 
     def test_the_cursor_moves_past_a_window_whose_sessions_all_exist(self, db):
-        first_window = _in_id_order(db, "s1", "s2", "s3", "s4")[:2]
+        first_window = _in_id_order(db, S1, S2, S3, S4)[:2]
         with _alive(*first_window):
             orphans, last_id = identity_links_integration.get_orphaned_idp_session_tokens_page(None, 2, db)
 
@@ -78,7 +80,7 @@ class TestOrphanedSessionTokens:
         assert last_id is not None
         with _alive(*first_window):
             orphans, _ = identity_links_integration.get_orphaned_idp_session_tokens_page(last_id, 2, db)
-        assert [row.session_id for row in orphans] == _in_id_order(db, "s1", "s2", "s3", "s4")[2:]
+        assert [row.session_id for row in orphans] == _in_id_order(db, S1, S2, S3, S4)[2:]
 
     def test_the_end_of_the_table_has_no_last_id(self, db):
         with _alive():
@@ -94,22 +96,22 @@ class TestEndIdpSessions:
 
     def test_each_live_session_of_that_user_and_provider_is_ended_through_the_sessions_surface(self, db):
         with (
-            _live("s1") as delete_session,
+            _live(S1) as delete_session,
         ):
             ended = identity_links_integration.end_idp_sessions(MOCK_USER_ID, IDP_3, db)
 
         assert ended == 1
         assert [call.args for call in delete_session.call_args_list] == [
-            ("s1", MOCK_USER_ID, db),
-            ("s2", MOCK_USER_ID, db),
+            (S1, MOCK_USER_ID, db),
+            (S2, MOCK_USER_ID, db),
         ]
 
     def test_a_session_that_vanishes_before_it_is_ended_is_skipped_and_not_counted(self, db):
-        with _live("s2") as delete_session:
+        with _live(S2) as delete_session:
             ended = identity_links_integration.end_idp_sessions(MOCK_USER_ID, IDP_3, db)
 
         assert ended == 1
-        assert [call.args[0] for call in delete_session.call_args_list] == ["s1", "s2"]
+        assert [call.args[0] for call in delete_session.call_args_list] == [S1, S2]
 
     def test_a_user_with_no_sign_in_through_the_provider_ends_nothing(self, db):
         with (
@@ -120,24 +122,24 @@ class TestEndIdpSessions:
         delete_session.assert_not_called()
 
     def test_the_sign_ins_stay_so_their_tokens_can_be_revoked(self, db):
-        with _live("s1", "s2"):
+        with _live(S1, S2):
             identity_links_integration.end_idp_sessions(MOCK_USER_ID, IDP_3, db)
 
-        assert identity_links_crud.get_idp_session_token("s1", db) is not None
+        assert identity_links_crud.get_idp_session_token(S1, db) is not None
 
 
 class TestEndAllIdpSessions:
     """Disabling a provider ends every session it signed in, whoever the user, and no other provider's."""
 
     def test_each_live_session_of_the_provider_is_ended_for_its_owner(self, db):
-        with _live("s1", "s4") as delete_session:
+        with _live(S1, S4) as delete_session:
             ended = identity_links_integration.end_all_idp_sessions(IDP_3, db)
 
         assert ended == 2
         assert sorted(call.args[:2] for call in delete_session.call_args_list) == [
-            ("s1", MOCK_USER_ID),
-            ("s2", MOCK_USER_ID),
-            ("s4", OTHER_USER_ID),
+            (S1, MOCK_USER_ID),
+            (S2, MOCK_USER_ID),
+            (S4, OTHER_USER_ID),
         ]
 
     def test_a_provider_with_no_sign_in_ends_nothing(self, db):
@@ -154,12 +156,12 @@ class TestEndIdpSessionsBySid:
     def sid_db(self):
         session = create_sqlite_session()
         for session_id, user_id, idp_id, sid in (
-            ("a1", MOCK_USER_ID, IDP_3, "sid-1"),
-            ("a2", MOCK_USER_ID, IDP_3, "sid-1"),
-            ("a3", OTHER_USER_ID, IDP_3, "sid-1"),
-            ("a4", MOCK_USER_ID, IDP_3, "sid-2"),
-            ("a5", MOCK_USER_ID, IDP_4, "sid-1"),
-            ("a6", MOCK_USER_ID, IDP_3, None),
+            (A1, MOCK_USER_ID, IDP_3, "sid-1"),
+            (A2, MOCK_USER_ID, IDP_3, "sid-1"),
+            (A3, OTHER_USER_ID, IDP_3, "sid-1"),
+            (A4, MOCK_USER_ID, IDP_3, "sid-2"),
+            (A5, MOCK_USER_ID, IDP_4, "sid-1"),
+            (A6, MOCK_USER_ID, IDP_3, None),
         ):
             identity_links_crud.create_idp_session_token(session_id, user_id, idp_id, None, None, session, idp_sid=sid)
         session.commit()
@@ -168,19 +170,19 @@ class TestEndIdpSessionsBySid:
 
     def test_the_live_sessions_of_that_provider_session_end_counted_per_user(self, sid_db):
         with (
-            _live("a1", "a3", "a4", "a5") as delete_session,
+            _live(A1, A3, A4, A5) as delete_session,
         ):
             ended = identity_links_integration.end_idp_sessions_by_sid(IDP_3, "sid-1", sid_db)
 
         assert ended == {MOCK_USER_ID: 1, OTHER_USER_ID: 1}
         assert sorted(call.args[:2] for call in delete_session.call_args_list) == [
-            ("a1", MOCK_USER_ID),
-            ("a2", MOCK_USER_ID),
-            ("a3", OTHER_USER_ID),
+            (A1, MOCK_USER_ID),
+            (A2, MOCK_USER_ID),
+            (A3, OTHER_USER_ID),
         ]
 
     def test_a_session_that_vanishes_is_skipped_and_the_others_still_end(self, sid_db):
-        with _live("a1", "a3") as delete_session:
+        with _live(A1, A3) as delete_session:
             ended = identity_links_integration.end_idp_sessions_by_sid(IDP_3, "sid-1", sid_db)
 
         assert ended == {MOCK_USER_ID: 1, OTHER_USER_ID: 1}
@@ -188,21 +190,21 @@ class TestEndIdpSessionsBySid:
 
     def test_a_user_restricts_the_match_to_their_own_sessions(self, sid_db):
         with (
-            _live("a1", "a2", "a3") as delete_session,
+            _live(A1, A2, A3) as delete_session,
         ):
             ended = identity_links_integration.end_idp_sessions_by_sid(IDP_3, "sid-1", sid_db, user_id=OTHER_USER_ID)
 
         assert ended == {OTHER_USER_ID: 1}
-        delete_session.assert_called_once_with("a3", OTHER_USER_ID, sid_db)
+        delete_session.assert_called_once_with(A3, OTHER_USER_ID, sid_db)
 
     def test_an_unknown_provider_session_ends_nothing(self, sid_db):
         with (
-            _live("a1", "a2") as delete_session,
+            _live(A1, A2) as delete_session,
         ):
             assert identity_links_integration.end_idp_sessions_by_sid(IDP_3, "sid-9", sid_db) == {}
 
         delete_session.assert_not_called()
 
     def test_the_sid_is_stored_with_the_sign_in(self, sid_db):
-        assert identity_links_crud.get_idp_session_token("a1", sid_db).idp_sid == "sid-1"
-        assert identity_links_crud.get_idp_session_token("a6", sid_db).idp_sid is None
+        assert identity_links_crud.get_idp_session_token(A1, sid_db).idp_sid == "sid-1"
+        assert identity_links_crud.get_idp_session_token(A6, sid_db).idp_sid is None

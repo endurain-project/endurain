@@ -17,6 +17,7 @@ import modules.users.users.deletion_job_service as job_service
 import modules.users.users.deletion_state_store as deletion_state_store
 import modules.users.users.events as users_events
 
+_SID_9 = uuid.UUID(int=109)
 _U1, _U2, _U3, _U9 = (uuid.UUID(int=n) for n in (1, 2, 3, 9))
 
 _MODULE = "modules.users.users.deletion_job_service"
@@ -176,7 +177,7 @@ class TestRequestDeletionByAdministrator:
         return job_service.request_deletion_by_administrator(
             _U1,
             actor_id,
-            "sid-9",
+            _SID_9,
             step_up or MagicMock(),
             store or MagicMock(),
             states,
@@ -213,7 +214,7 @@ class TestRequestDeletionByAdministrator:
 
         assert [call[0] for call in order.mock_calls] == ["step_up", "delete"]
         account_security.verify_step_up.assert_called_once_with(
-            step_up, _U9, "sid-9", identity_providers_constants.StepUpAction.ADMIN_USER_DELETE, store, mock_db
+            step_up, _U9, _SID_9, identity_providers_constants.StepUpAction.ADMIN_USER_DELETE, store, mock_db
         )
         request.assert_called_once_with(_U1, _U9, states, storage, request.call_args.args[4], mock_db, if_match='"4"')
         assert result is request.return_value

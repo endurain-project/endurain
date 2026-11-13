@@ -27,6 +27,10 @@ import modules.activities.activity_ingestion.constants as activity_ingestion_con
 import modules.activities.activity_ingestion.models as ingestion_models
 import modules.activities.activity_ingestion.service as ingestion_jobs
 
+_JOB_1 = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+_JOB_2 = uuid.UUID("00000000-0000-4000-8000-0000000000a2")
+_JOB_3 = uuid.UUID("00000000-0000-4000-8000-0000000000a3")
+
 _ID_A = uuid.UUID("00000000-0000-4000-8000-00000000000a")
 _ID_B = uuid.UUID("00000000-0000-4000-8000-00000000000b")
 
@@ -63,7 +67,7 @@ def factory(request):
 def _add_job(factory, **overrides) -> None:
     now = datetime.now(UTC)
     values = {
-        "id": "job-1",
+        "id": _JOB_1,
         "user_id": MOCK_USER_ID,
         "kind": "upload",
         "status": "pending",
@@ -78,7 +82,7 @@ def _add_job(factory, **overrides) -> None:
         db.commit()
 
 
-def _read_job(factory, job_id: str = "job-1"):
+def _read_job(factory, job_id: uuid.UUID = _JOB_1):
     """Read through a new session so only committed state is visible."""
     with factory() as db:
         row = db.get(ingestion_models.ActivityIngestionJob, job_id)
@@ -103,7 +107,7 @@ class TestUploadJob:
                 ingestion_jobs.activity_ingestion_upload_entry_service, "process_staged_upload", return_value=created
             ),
         ):
-            ingestion_jobs.run_upload_job("job-1", MagicMock())
+            ingestion_jobs.run_upload_job(_JOB_1, MagicMock())
 
         job = _read_job(factory)
         assert job.status == "completed"
@@ -119,7 +123,7 @@ class TestUploadJob:
                 ingestion_jobs.activity_ingestion_upload_entry_service, "process_staged_upload", return_value=[]
             ),
         ):
-            ingestion_jobs.run_upload_job("job-1", MagicMock())
+            ingestion_jobs.run_upload_job(_JOB_1, MagicMock())
 
         job = _read_job(factory)
         assert job.status == "failed"
@@ -140,7 +144,7 @@ class TestUploadJob:
                 ingestion_jobs.activity_ingestion_upload_entry_service, "process_staged_upload", side_effect=_import
             ),
         ):
-            ingestion_jobs.run_upload_job("job-1", MagicMock())
+            ingestion_jobs.run_upload_job(_JOB_1, MagicMock())
 
         assert seen == ["processing"]
 
@@ -148,7 +152,7 @@ class TestUploadJob:
         _add_job(factory, status="processing")
         with patch.object(ingestion_jobs.core_database, "SessionLocal", factory):
             ingestion_jobs.fail_ingestion_job(
-                "job-1",
+                _JOB_1,
                 activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED,
                 MagicMock(),
                 staged_key="abc.gpx",
@@ -170,7 +174,7 @@ class TestRefreshJob:
                 ingestion_jobs.activity_ingestion_refresh_entry_service, "sync_linked_providers", return_value=synced
             ),
         ):
-            ingestion_jobs.run_refresh_job("job-1", "storage")
+            ingestion_jobs.run_refresh_job(_JOB_1, "storage")
 
         job = _read_job(factory)
         assert job.status == "completed"
@@ -191,7 +195,7 @@ class TestDeferredRefresh:
                 ingestion_jobs.activity_ingestion_refresh_entry_service, "sync_linked_providers", side_effect=error
             ),
         ):
-            ingestion_jobs.run_refresh_job("job-1", "storage")
+            ingestion_jobs.run_refresh_job(_JOB_1, "storage")
 
         job = _read_job(factory)
         assert job.status == "deferred"
@@ -204,7 +208,7 @@ class TestDeferredRefresh:
             patch.object(ingestion_jobs.core_database, "SessionLocal", factory),
             patch.object(ingestion_jobs.activity_ingestion_refresh_entry_service, "sync_linked_providers") as sync,
         ):
-            ingestion_jobs.run_refresh_job("job-1", "storage")
+            ingestion_jobs.run_refresh_job(_JOB_1, "storage")
 
         sync.assert_not_called()
         assert _read_job(factory).status == "deferred"
@@ -224,7 +228,7 @@ class TestDeferredRefresh:
         job = _read_job(factory)
         assert released == 1
         assert (job.status, job.retry_after) == ("pending", None)
-        assert submit.call_args.args[1:] == ("job-1", "storage")
+        assert submit.call_args.args[1:] == (_JOB_1, "storage")
 
     def test_a_job_whose_wait_is_over_is_published_to_a_worker_when_durable(self, factory):
         _add_job(factory, kind="refresh", staged_key=None, status="deferred", retry_after=_now() - timedelta(minutes=1))
@@ -239,7 +243,7 @@ class TestDeferredRefresh:
         ):
             ingestion_jobs.redispatch_deferred_refreshes("storage")
 
-        assert publish.call_args.args[0] == [("job-1", MOCK_USER_ID)]
+        assert publish.call_args.args[0] == [(_JOB_1, MOCK_USER_ID)]
         submit.assert_not_called()
 
     def test_a_job_still_waiting_is_left_alone(self, factory):
@@ -313,15 +317,15 @@ class TestOrphanedLocalRefreshes:
             assert ingestion_jobs.activity_ingestion_crud.get_user_ids_with_active_refresh([MOCK_USER_ID], db) == set()
 
     def test_local_profile_keeps_what_the_pool_does_not_own(self, factory):
-        _add_job(factory, id="deferred", kind="refresh", staged_key=None, status="deferred", retry_after=_now())
-        _add_job(factory, id="upload", kind="upload", status="pending")
-        _add_job(factory, id="done", kind="refresh", staged_key=None, status="completed", completed_at=_now())
+        _add_job(factory, id=_JOB_1, kind="refresh", staged_key=None, status="deferred", retry_after=_now())
+        _add_job(factory, id=_JOB_2, kind="upload", status="pending")
+        _add_job(factory, id=_JOB_3, kind="refresh", staged_key=None, status="completed", completed_at=_now())
 
         assert self._fail_at_startup(factory, jobs_enabled=False) == 0
 
-        assert _read_job(factory, "deferred").status == "deferred"
-        assert _read_job(factory, "upload").status == "pending"
-        assert _read_job(factory, "done").status == "completed"
+        assert _read_job(factory, _JOB_1).status == "deferred"
+        assert _read_job(factory, _JOB_2).status == "pending"
+        assert _read_job(factory, _JOB_3).status == "completed"
 
     @pytest.mark.parametrize("status", ["pending", "processing"])
     def test_durable_profile_leaves_the_leased_refresh_to_its_worker(self, factory, status):
@@ -343,8 +347,8 @@ class TestOrphanedLocalRefreshes:
 class TestPrune:
     def test_deleted_rows_stay_deleted(self, factory):
         old = datetime.now(UTC) - timedelta(days=400)
-        _add_job(factory, id="old", status="completed", completed_at=old, staged_key=None)
-        _add_job(factory, id="fresh", status="pending")
+        _add_job(factory, id=_JOB_1, status="completed", completed_at=old, staged_key=None)
+        _add_job(factory, id=_JOB_2, status="pending")
 
         platform = MagicMock()
         platform.clock.now.return_value = datetime.now(UTC)
@@ -354,8 +358,8 @@ class TestPrune:
         ):
             ingestion_jobs.prune_expired_ingestion_jobs(platform.clock)
 
-        assert _read_job(factory, "old") is None
-        assert _read_job(factory, "fresh") is not None
+        assert _read_job(factory, _JOB_1) is None
+        assert _read_job(factory, _JOB_2) is not None
 
 
 class TestFinishedJobsAreNotReopened:
@@ -376,7 +380,7 @@ class TestFinishedJobsAreNotReopened:
             patch.object(ingestion_jobs.core_database, "SessionLocal", factory),
             patch.object(ingestion_jobs.activity_ingestion_refresh_entry_service, "sync_linked_providers") as sync,
         ):
-            ingestion_jobs.run_refresh_job("job-1", "storage")
+            ingestion_jobs.run_refresh_job(_JOB_1, "storage")
 
         sync.assert_not_called()
         job = _read_job(factory)
@@ -386,7 +390,7 @@ class TestFinishedJobsAreNotReopened:
     def test_a_job_that_is_still_pending_moves_to_processing(self, factory):
         _add_job(factory, kind="refresh", staged_key=None)
         with factory() as db:
-            assert ingestion_jobs.activity_ingestion_crud.mark_processing("job-1", db, lease=timedelta(0)) is True
+            assert ingestion_jobs.activity_ingestion_crud.mark_processing(_JOB_1, db, lease=timedelta(0)) is True
             db.commit()
 
         assert _read_job(factory).status == "processing"
@@ -395,33 +399,33 @@ class TestFinishedJobsAreNotReopened:
         _add_job(factory, kind="refresh", staged_key=None)
         with factory() as db:
             crud = ingestion_jobs.activity_ingestion_crud
-            assert crud.mark_processing("job-1", db, lease=timedelta(minutes=5)) is True
+            assert crud.mark_processing(_JOB_1, db, lease=timedelta(minutes=5)) is True
             db.commit()
         with factory() as db:
-            assert crud.mark_processing("job-1", db, lease=timedelta(minutes=5)) is False
+            assert crud.mark_processing(_JOB_1, db, lease=timedelta(minutes=5)) is False
 
     def test_an_abandoned_claim_can_be_taken_over(self, factory):
         _add_job(factory, kind="refresh", staged_key=None)
         with factory() as db:
             crud = ingestion_jobs.activity_ingestion_crud
-            assert crud.mark_processing("job-1", db, lease=timedelta(minutes=5)) is True
+            assert crud.mark_processing(_JOB_1, db, lease=timedelta(minutes=5)) is True
             db.commit()
         with factory() as db:
-            assert crud.mark_processing("job-1", db, lease=timedelta(minutes=-5)) is True
+            assert crud.mark_processing(_JOB_1, db, lease=timedelta(minutes=-5)) is True
 
     def test_a_released_job_can_be_claimed_by_the_retry(self, factory):
         _add_job(factory, kind="refresh", staged_key=None)
         crud = ingestion_jobs.activity_ingestion_crud
         with factory() as db:
-            crud.mark_processing("job-1", db, lease=timedelta(minutes=5))
-            crud.release_job("job-1", db)
+            crud.mark_processing(_JOB_1, db, lease=timedelta(minutes=5))
+            crud.release_job(_JOB_1, db)
             db.commit()
         with factory() as db:
-            assert crud.mark_processing("job-1", db, lease=timedelta(minutes=5)) is True
+            assert crud.mark_processing(_JOB_1, db, lease=timedelta(minutes=5)) is True
 
     def test_an_unknown_job_is_reported_as_not_runnable(self, factory):
         with factory() as db:
-            assert ingestion_jobs.activity_ingestion_crud.mark_processing("missing", db, lease=timedelta(0)) is False
+            assert ingestion_jobs.activity_ingestion_crud.mark_processing(_JOB_2, db, lease=timedelta(0)) is False
 
 
 class TestFailStaleJobs:

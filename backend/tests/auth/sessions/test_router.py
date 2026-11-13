@@ -1,5 +1,6 @@
 """Integration tests for users_sessions router endpoints."""
 
+import uuid
 from datetime import UTC
 from unittest.mock import MagicMock, patch
 
@@ -17,6 +18,7 @@ import modules.auth.sessions.router as users_sessions_router
 import modules.auth.sessions.schema as users_session_schema
 from tests._helpers.auth import MOCK_USER_ID
 
+SESSION_ID = uuid.UUID("00000000-0000-4000-8000-0000000005e1")
 VERIFIER = MagicMock()
 STEP_UP = {"current_password": "admin-password"}
 
@@ -93,7 +95,7 @@ class TestReadSessionsUser:
 
         now = datetime.now(UTC)
         session = users_session_schema.UserSessionsRead(
-            id="sess-1",
+            id=SESSION_ID,
             user_id=MOCK_USER_ID,
             ip_address="127.0.0.1",
             device_type="PC",
@@ -111,7 +113,7 @@ class TestReadSessionsUser:
 
         assert response.status_code == status.HTTP_200_OK
         body = response.json()
-        assert [item["id"] for item in body["items"]] == ["sess-1"]
+        assert [item["id"] for item in body["items"]] == [str(SESSION_ID)]
         assert (body["total"], body["page"], body["num_records"], body["next"]) == (3, 2, 1, 3)
         assert mock_list.call_args.args[:2] == (MOCK_USER_ID, core_pagination.PageParams(2, 1))
 
@@ -136,7 +138,7 @@ class TestReadSessionsUser:
         ("method", "path", "kwargs"),
         [
             ("get", "/users/{}/sessions", {}),
-            ("post", "/users/{}/sessions/s/revoke", {"json": {"step_up": STEP_UP}}),
+            ("post", f"/users/{{}}/sessions/{SESSION_ID}/revoke", {"json": {"step_up": STEP_UP}}),
             ("post", "/users/{}/sessions/revoke", {"json": {"step_up": STEP_UP}}),
         ],
     )
@@ -185,12 +187,12 @@ class TestRevokeSessionUser:
     ) -> None:
         """The service gets the ids, the step-up without wrapper, the verifier and the session."""
         response = sessions_client.post(
-            f"/users/{MOCK_USER_ID}/sessions/my-session-id/revoke", json={"step_up": STEP_UP}
+            f"/users/{MOCK_USER_ID}/sessions/{SESSION_ID}/revoke", json={"step_up": STEP_UP}
         )
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
         mock_delete.assert_called_once_with(
-            "my-session-id",
+            SESSION_ID,
             MOCK_USER_ID,
             auth_schema.StepUpVerification(current_password="admin-password"),
             VERIFIER,
@@ -200,8 +202,8 @@ class TestRevokeSessionUser:
     @patch("modules.auth.sessions.router.sessions_service.delete_session")
     def test_revoke_without_a_step_up_is_422_and_never_reaches_the_service(self, mock_delete, sessions_client) -> None:
         """An empty body, or a body without step_up, is refused before the service."""
-        assert sessions_client.post(f"/users/{MOCK_USER_ID}/sessions/s/revoke", json={}).status_code == 422
-        assert sessions_client.post(f"/users/{MOCK_USER_ID}/sessions/s/revoke").status_code == 422
+        assert sessions_client.post(f"/users/{MOCK_USER_ID}/sessions/{SESSION_ID}/revoke", json={}).status_code == 422
+        assert sessions_client.post(f"/users/{MOCK_USER_ID}/sessions/{SESSION_ID}/revoke").status_code == 422
         mock_delete.assert_not_called()
 
     @patch("modules.auth.sessions.router.sessions_service.delete_session")
@@ -209,7 +211,9 @@ class TestRevokeSessionUser:
         """The service's step-up refusal is a 403 problem."""
         mock_delete.side_effect = core_exceptions.StepUpFailedError()
 
-        response = sessions_client.post(f"/users/{MOCK_USER_ID}/sessions/s/revoke", json={"step_up": STEP_UP})
+        response = sessions_client.post(
+            f"/users/{MOCK_USER_ID}/sessions/{SESSION_ID}/revoke", json={"step_up": STEP_UP}
+        )
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert response.json()["type"] == "urn:endurain:error:step-up-failed"
@@ -219,13 +223,26 @@ class TestRevokeSessionUser:
         """A session that is not the user's is not found."""
         mock_delete.side_effect = core_exceptions.NotFoundError("Session not found")
 
-        response = sessions_client.post(f"/users/{MOCK_USER_ID}/sessions/s/revoke", json={"step_up": STEP_UP})
+        response = sessions_client.post(
+            f"/users/{MOCK_USER_ID}/sessions/{SESSION_ID}/revoke", json={"step_up": STEP_UP}
+        )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
+    @patch("modules.auth.sessions.router.sessions_service.delete_session")
+    def test_a_malformed_session_id_is_422_and_never_reaches_the_service(self, mock_delete, sessions_client) -> None:
+        """A session id that is not a UUID is refused before the service."""
+        response = sessions_client.post(f"/users/{MOCK_USER_ID}/sessions/not-a-uuid/revoke", json={"step_up": STEP_UP})
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        mock_delete.assert_not_called()
+
     def test_the_delete_route_is_gone(self, sessions_client) -> None:
         """DELETE on the session is not served any more."""
-        assert sessions_client.delete(f"/users/{MOCK_USER_ID}/sessions/s").status_code == status.HTTP_404_NOT_FOUND
+        assert (
+            sessions_client.delete(f"/users/{MOCK_USER_ID}/sessions/{SESSION_ID}").status_code
+            == status.HTTP_404_NOT_FOUND
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -251,14 +268,28 @@ class TestRevokeSessionsUser:
         )
 
     @patch("modules.auth.sessions.router.sessions_service.delete_sessions_by_user_and_commit")
+    def test_a_malformed_excluded_session_id_is_422(self, mock_delete, sessions_client) -> None:
+        """An exclude_session_id that is not a UUID is refused before the service."""
+        response = sessions_client.post(
+            f"/users/{MOCK_USER_ID}/sessions/revoke",
+            params={"exclude_session_id": "not-a-uuid"},
+            json={"step_up": STEP_UP},
+        )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        mock_delete.assert_not_called()
+
+    @patch("modules.auth.sessions.router.sessions_service.delete_sessions_by_user_and_commit")
     def test_revoke_forwards_the_excluded_session(self, mock_delete, sessions_client, mock_db) -> None:
         """The exclude_session_id query parameter leaves that session intact."""
         response = sessions_client.post(
-            f"/users/{MOCK_USER_ID}/sessions/revoke", params={"exclude_session_id": "keep"}, json={"step_up": STEP_UP}
+            f"/users/{MOCK_USER_ID}/sessions/revoke",
+            params={"exclude_session_id": str(SESSION_ID)},
+            json={"step_up": STEP_UP},
         )
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
-        assert mock_delete.call_args.kwargs == {"exclude_session_id": "keep"}
+        assert mock_delete.call_args.kwargs == {"exclude_session_id": SESSION_ID}
 
     @patch("modules.auth.sessions.router.sessions_service.delete_sessions_by_user_and_commit")
     def test_revoke_without_a_step_up_is_422_and_never_reaches_the_service(self, mock_delete, sessions_client) -> None:

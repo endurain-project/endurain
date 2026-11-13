@@ -66,7 +66,7 @@ def _stage_security_change(
     account_security_event_publishers.publish_account_security_changed(user_id, change, db)
 
 
-def _end_other_sessions(revoke_other_sessions: bool, user_id: uuid.UUID, session_id: str, db: Session) -> int:
+def _end_other_sessions(revoke_other_sessions: bool, user_id: uuid.UUID, session_id: uuid.UUID, db: Session) -> int:
     """Stage the end of the user's other sessions when the change asks for it.
 
     Args:
@@ -145,7 +145,7 @@ def setup_mfa(
 def enable_mfa(
     request: mfa_schema.MFASetupRequest,
     token_user_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     step_up_store: account_security_step_up_store.StepUpStore,
     mfa_secret_store: MFASecretStoreBackend,
     db: Session,
@@ -205,7 +205,7 @@ def enable_mfa(
 def disable_mfa(
     step_up: auth_schema.StepUpVerification,
     token_user_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
     *,
@@ -241,7 +241,7 @@ def disable_mfa(
 def generate_backup_codes(
     step_up: auth_schema.StepUpVerification,
     token_user_id: uuid.UUID,
-    session_id: str,
+    session_id: uuid.UUID,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
     *,

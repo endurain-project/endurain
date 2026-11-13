@@ -23,6 +23,11 @@ import modules.users.users.deletion_state_store as deletion_state_store
 USER = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
 OTHER_USER = uuid.UUID("7b1c93e4-5d28-4f6a-8e03-a94d2c6f1b57")
 THIRD_USER = uuid.UUID("c3a85f19-0e72-4b4d-b6a8-3d9e17f4c250")
+UPLOAD_1 = uuid.UUID("a1000000-0000-4000-8000-000000000001")
+UPLOAD_OLD = uuid.UUID("a1000000-0000-4000-8000-000000000002")
+UPLOAD_NEW = uuid.UUID("a1000000-0000-4000-8000-000000000003")
+MISSING_JOB = uuid.UUID("a1000000-0000-4000-8000-000000000004")
+ODD_JOB = uuid.UUID("a1000000-0000-4000-8000-000000000005")
 
 Status = core_job_status.JobState
 _ALL = frozenset({"account", "account:integrations", "activities:upload", "users:read-all"})
@@ -39,7 +44,7 @@ def _strava(state, user_id=USER, kind=strava_constants.SyncKind.GEAR):
     return strava_sync_state_store.StravaSyncStateStore(state).begin(user_id, kind, conflict="Busy")
 
 
-def _upload(job_id: str, created_at: datetime) -> activity_ingestion_schema.ActivityIngestionJobRead:
+def _upload(job_id: uuid.UUID, created_at: datetime) -> activity_ingestion_schema.ActivityIngestionJobRead:
     return activity_ingestion_schema.ActivityIngestionJobRead(
         id=job_id,
         kind="activity_upload",
@@ -93,29 +98,29 @@ class TestGetJob:
             jobs_service.get_job(first.id, USER, _ALL, state, MagicMock())
 
     def test_an_id_the_index_does_not_hold_is_read_as_an_ingestion_job(self, state):
-        upload = _upload("upload-1", datetime(2026, 1, 1, tzinfo=UTC))
+        upload = _upload(UPLOAD_1, datetime(2026, 1, 1, tzinfo=UTC))
         db = MagicMock()
         with patch(_INGESTION_READ, return_value=upload) as read:
-            view = jobs_service.get_job("upload-1", USER, _ALL, state, db)
+            view = jobs_service.get_job(UPLOAD_1, USER, _ALL, state, db)
 
-        read.assert_called_once_with("upload-1", USER, db)
+        read.assert_called_once_with(UPLOAD_1, USER, db)
         assert view.job is upload
         assert view.scope == "activities:upload"
 
     def test_an_unknown_id_is_not_found(self, state):
         with patch(_INGESTION_READ, return_value=None), pytest.raises(core_exceptions.NotFoundError):
-            jobs_service.get_job("missing", USER, _ALL, state, MagicMock())
+            jobs_service.get_job(MISSING_JOB, USER, _ALL, state, MagicMock())
 
     def test_an_indexed_job_of_a_kind_no_feature_reads_is_not_found(self, state):
         core_attempt_state.JobIndex(state).put(
             core_job_status.JobRef(
-                id="odd", kind="retired_kind", owner_id=USER, subject=str(USER), created_at=datetime.now(UTC)
+                id=ODD_JOB, kind="retired_kind", owner_id=USER, subject=str(USER), created_at=datetime.now(UTC)
             ),
             60,
         )
 
         with pytest.raises(core_exceptions.NotFoundError):
-            jobs_service.get_job("odd", USER, _ALL, state, MagicMock())
+            jobs_service.get_job(ODD_JOB, USER, _ALL, state, MagicMock())
 
     def test_any_holder_of_users_read_all_follows_an_account_deletion(self, state):
         job = deletion_state_store.UserDeletionStateStore(state).begin(
@@ -133,14 +138,14 @@ class TestListJobs:
     def test_state_store_and_ingestion_jobs_are_merged_newest_first_and_paged(self, state):
         gear = _strava(state)
         link = _strava(state, kind=strava_constants.SyncKind.LINK)
-        old = _upload("upload-old", gear.created_at - timedelta(days=1))
-        new = _upload("upload-new", link.created_at + timedelta(days=1))
+        old = _upload(UPLOAD_OLD, gear.created_at - timedelta(days=1))
+        new = _upload(UPLOAD_NEW, link.created_at + timedelta(days=1))
         with patch(_INGESTION_LIST, return_value=[new, old]) as ingestion:
             first = jobs_service.list_jobs(
                 USER, _ALL, state, MagicMock(), kind=None, status=None, cursor=None, num_records=2
             )
 
-        assert [job.id for job in first.items] == ["upload-new", link.id]
+        assert [job.id for job in first.items] == [UPLOAD_NEW, link.id]
         assert first.next_cursor is not None
         assert ingestion.call_args.kwargs["before"] is None
         assert ingestion.call_args.kwargs["limit"] == 3
@@ -151,7 +156,7 @@ class TestListJobs:
             )
 
         assert ingestion.call_args.kwargs["before"] == (link.created_at, link.id)
-        assert [job.id for job in second.items] == [gear.id, "upload-old"]
+        assert [job.id for job in second.items] == [gear.id, UPLOAD_OLD]
         assert second.next_cursor is None
 
     def test_a_link_job_is_not_listed_without_the_integrations_scope(self, state):

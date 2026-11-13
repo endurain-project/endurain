@@ -33,10 +33,9 @@ class UsersApiKeys(Base):
 
     __tablename__ = "users_api_keys"
 
-    id: Mapped[str] = mapped_column(
-        String(36),
+    id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True,
-        nullable=False,
+        default=uuid.uuid4,
         comment="Unique key identifier (UUID4)",
     )
     user_id: Mapped[uuid.UUID] = mapped_column(

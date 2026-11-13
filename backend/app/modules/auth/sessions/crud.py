@@ -44,7 +44,7 @@ def count_user_sessions(user_id: uuid.UUID, db: Session) -> int:
     ).scalar_one()
 
 
-def get_session_by_id(session_id: str, db: Session) -> sessions_contracts.SessionRead | None:
+def get_session_by_id(session_id: uuid.UUID, db: Session) -> sessions_contracts.SessionRead | None:
     """Return a session by its ID."""
     row = db.execute(select(sessions_models.UsersSessions).where(sessions_models.UsersSessions.id == session_id))
     session = row.scalar_one_or_none()
@@ -52,7 +52,7 @@ def get_session_by_id(session_id: str, db: Session) -> sessions_contracts.Sessio
 
 
 def get_session_by_id_and_user_id(
-    session_id: str,
+    session_id: uuid.UUID,
     user_id: uuid.UUID,
     db: Session,
 ) -> sessions_contracts.SessionRead | None:
@@ -66,7 +66,7 @@ def get_session_by_id_and_user_id(
     return sessions_serializers.to_read_schema(row) if row is not None else None
 
 
-def get_existing_session_ids(session_ids: Sequence[str], db: Session) -> set[str]:
+def get_existing_session_ids(session_ids: Sequence[uuid.UUID], db: Session) -> set[uuid.UUID]:
     """Return which of the given session ids still name a session."""
     if not session_ids:
         return set()
@@ -74,7 +74,7 @@ def get_existing_session_ids(session_ids: Sequence[str], db: Session) -> set[str
     return set(db.execute(select(model.id).where(model.id.in_(session_ids))).scalars())
 
 
-def get_session_by_id_not_expired(session_id: str, db: Session) -> sessions_contracts.SessionRead | None:
+def get_session_by_id_not_expired(session_id: uuid.UUID, db: Session) -> sessions_contracts.SessionRead | None:
     """Return a session by ID if it has not expired."""
     row = db.execute(
         select(sessions_models.UsersSessions).where(
@@ -86,7 +86,7 @@ def get_session_by_id_not_expired(session_id: str, db: Session) -> sessions_cont
 
 
 def lock_live_session(
-    session_id: str, db: Session, *, exclusive: bool = False
+    session_id: uuid.UUID, db: Session, *, exclusive: bool = False
 ) -> sessions_contracts.SessionRead | None:
     """Return an unexpired session by ID and hold a row lock on it until the transaction ends.
 
@@ -124,7 +124,7 @@ def create_session(
 
 
 def set_session_refresh_token_hash(
-    session_id: str,
+    session_id: uuid.UUID,
     hashed_refresh_token: str,
     db: Session,
 ) -> sessions_contracts.SessionRead:
@@ -140,7 +140,7 @@ def set_session_refresh_token_hash(
 
 
 def claim_session_for_token_exchange(
-    session_id: str, hashed_refresh_token: str, expires_at: datetime, amr: Sequence[str], db: Session
+    session_id: uuid.UUID, hashed_refresh_token: str, expires_at: datetime, amr: Sequence[str], db: Session
 ) -> bool:
     """Atomically claim a session for one-shot token exchange, give it its real expiry and record its final methods."""
     matched = core_database.rowcount(
@@ -155,7 +155,7 @@ def claim_session_for_token_exchange(
     return matched == 1
 
 
-def set_session_device_hash(session_id: str, device_hash: str, db: Session) -> None:
+def set_session_device_hash(session_id: uuid.UUID, device_hash: str, db: Session) -> None:
     """Stage the known device a session signed in from."""
     db.execute(
         update(sessions_models.UsersSessions)
@@ -164,7 +164,7 @@ def set_session_device_hash(session_id: str, device_hash: str, db: Session) -> N
     )
 
 
-def clear_oauth_state_reference(session_id: str, db: Session) -> None:
+def clear_oauth_state_reference(session_id: uuid.UUID, db: Session) -> None:
     """Stage removal of a session's OAuth-state reference."""
     db.execute(
         update(sessions_models.UsersSessions)
@@ -189,7 +189,7 @@ def edit_session(
     return sessions_serializers.to_read_schema(row)
 
 
-def update_session_csrf_hash(session_id: str, csrf_token_hash: str, db: Session) -> None:
+def update_session_csrf_hash(session_id: uuid.UUID, csrf_token_hash: str, db: Session) -> None:
     """Stage a CSRF-token hash update."""
     matched = core_database.rowcount(
         db,
@@ -202,7 +202,7 @@ def update_session_csrf_hash(session_id: str, csrf_token_hash: str, db: Session)
 
 
 def delete_session_if_present(
-    session_id: str, user_id: uuid.UUID, db: Session
+    session_id: uuid.UUID, user_id: uuid.UUID, db: Session
 ) -> sessions_contracts.SessionRead | None:
     """Stage deletion of a session owned by a user, or do nothing when there is none.
 
@@ -223,7 +223,7 @@ def delete_session_if_present(
     return session
 
 
-def delete_session(session_id: str, user_id: uuid.UUID, db: Session) -> sessions_contracts.SessionRead:
+def delete_session(session_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> sessions_contracts.SessionRead:
     """Stage deletion of a session owned by a user.
 
     Raises:
@@ -258,7 +258,7 @@ def delete_sessions_by_device(
     return sessions
 
 
-def delete_expired_sessions(now: datetime, limit: int, db: Session) -> list[tuple[uuid.UUID, str]]:
+def delete_expired_sessions(now: datetime, limit: int, db: Session) -> list[tuple[uuid.UUID, uuid.UUID]]:
     """Stage deletion of up to ``limit`` sessions that expired before ``now``.
 
     Returns:
@@ -268,7 +268,7 @@ def delete_expired_sessions(now: datetime, limit: int, db: Session) -> list[tupl
     return _delete_sessions(select(model.id).where(model.expires_at < now).limit(limit), db)
 
 
-def delete_idle_sessions(cutoff_time: datetime, limit: int, db: Session) -> list[tuple[uuid.UUID, str]]:
+def delete_idle_sessions(cutoff_time: datetime, limit: int, db: Session) -> list[tuple[uuid.UUID, uuid.UUID]]:
     """Stage deletion of up to ``limit`` sessions last active before an idle cutoff.
 
     Returns:
@@ -278,7 +278,7 @@ def delete_idle_sessions(cutoff_time: datetime, limit: int, db: Session) -> list
     return _delete_sessions(select(model.id).where(model.last_activity_at < cutoff_time).limit(limit), db)
 
 
-def _delete_sessions(session_ids: Select[tuple[str]], db: Session) -> list[tuple[uuid.UUID, str]]:
+def _delete_sessions(session_ids: Select[tuple[uuid.UUID]], db: Session) -> list[tuple[uuid.UUID, uuid.UUID]]:
     """Stage deletion of the sessions a query selects.
 
     Args:
@@ -293,7 +293,7 @@ def _delete_sessions(session_ids: Select[tuple[str]], db: Session) -> list[tuple
     return [(user_id, session_id) for user_id, session_id in rows]
 
 
-def list_session_owners_by_family(token_family_id: str, db: Session) -> list[tuple[uuid.UUID, str]]:
+def list_session_owners_by_family(token_family_id: uuid.UUID, db: Session) -> list[tuple[uuid.UUID, uuid.UUID]]:
     """Return the owner and id of each session in a token family."""
     rows = db.execute(
         select(sessions_models.UsersSessions.user_id, sessions_models.UsersSessions.id).where(
@@ -303,7 +303,7 @@ def list_session_owners_by_family(token_family_id: str, db: Session) -> list[tup
     return [(user_id, session_id) for user_id, session_id in rows]
 
 
-def delete_sessions_by_family(token_family_id: str, db: Session) -> int:
+def delete_sessions_by_family(token_family_id: uuid.UUID, db: Session) -> int:
     """Stage deletion of sessions in a token family."""
     return core_database.rowcount(
         db,
@@ -311,7 +311,9 @@ def delete_sessions_by_family(token_family_id: str, db: Session) -> int:
     )
 
 
-def list_oauth_state_ids_by_user(user_id: uuid.UUID, db: Session, exclude_session_id: str | None = None) -> list[str]:
+def list_oauth_state_ids_by_user(
+    user_id: uuid.UUID, db: Session, exclude_session_id: uuid.UUID | None = None
+) -> list[str]:
     """Return the OAuth state ids of a user's sessions, optionally leaving out one session."""
     stmt = select(sessions_models.UsersSessions.oauth_state_id).where(
         sessions_models.UsersSessions.user_id == user_id,
@@ -322,7 +324,7 @@ def list_oauth_state_ids_by_user(user_id: uuid.UUID, db: Session, exclude_sessio
     return [state_id for state_id in db.execute(stmt).scalars() if state_id is not None]
 
 
-def delete_sessions_by_user(user_id: uuid.UUID, db: Session, exclude_session_id: str | None = None) -> int:
+def delete_sessions_by_user(user_id: uuid.UUID, db: Session, exclude_session_id: uuid.UUID | None = None) -> int:
     """Stage deletion of a user's sessions, optionally keeping one session."""
     stmt = delete(sessions_models.UsersSessions).where(sessions_models.UsersSessions.user_id == user_id)
     if exclude_session_id is not None:

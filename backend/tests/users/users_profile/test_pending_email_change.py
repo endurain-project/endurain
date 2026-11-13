@@ -16,6 +16,7 @@ import modules.users.users.schema as users_schema
 import modules.users.users.service as users_service
 import modules.users.users_profile.service as profile_service
 
+_SID_9 = uuid.UUID(int=109)
 _PUBLISH = "modules.auth.sign_up_tokens.event_publishers.platform_publisher.publish_on_commit"
 _MAIL = "modules.auth.sign_up_tokens.service.server_settings_integration.is_mail_configured"
 _STEP_UP = "modules.auth.account_security.integration_service.verify_step_up"
@@ -298,7 +299,7 @@ class TestAdminEmailEdit:
             patch("modules.users.users.service.account_security_integration.verify_step_up"),
         ):
             updated = users_service.edit_user(
-                _USER_ID, edit, None, _ADMIN_ID, "sid-9", MagicMock(), db, if_match=str(current.version)
+                _USER_ID, edit, None, _ADMIN_ID, _SID_9, MagicMock(), db, if_match=str(current.version)
             )
         return updated, sessions
 
@@ -340,7 +341,7 @@ class TestAdminEmailEdit:
         assert (notice.previous_email, notice.email, notice.used) == (_EMAIL, "new@example.com", True)
         publish.assert_called_once()
         assert publish.call_args.args[0] == "auth.email_changed"
-        assert publish.call_args.args[1] == {"user_id": str(_USER_ID), "token_id": notice.id}
+        assert publish.call_args.args[1] == {"user_id": str(_USER_ID), "token_id": str(notice.id)}
 
     def test_without_mail_an_applied_address_stages_no_notice_and_voids_pending_links(self, db, no_mail, publish):
         with patch(_MAIL, return_value=True):

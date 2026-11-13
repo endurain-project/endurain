@@ -54,11 +54,7 @@ class UsersSessions(Base):
     __tablename__ = "users_sessions"
     __table_args__ = (CheckConstraint(f"client_type IN ({_CLIENT_TYPE_VALUES})", name="ck_users_sessions_client_type"),)
 
-    id: Mapped[str] = mapped_column(
-        String(36),
-        primary_key=True,
-        nullable=False,
-    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
@@ -129,8 +125,7 @@ class UsersSessions(Base):
         nullable=False,
         comment="Prevents duplicate token exchange for mobile",
     )
-    token_family_id: Mapped[str] = mapped_column(
-        String(36),
+    token_family_id: Mapped[uuid.UUID] = mapped_column(
         nullable=False,
         unique=True,
         index=True,

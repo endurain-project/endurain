@@ -74,7 +74,7 @@ class TestRotatedRefreshTokenModel:
 
         # Assert
         assert model.id.type.python_type is uuid.UUID
-        assert model.token_family_id.type.python_type is str
+        assert model.token_family_id.type.python_type is uuid.UUID
         assert model.hashed_token.type.python_type is str
         assert model.rotation_count.type.python_type is int
 
@@ -86,7 +86,6 @@ class TestRotatedRefreshTokenModel:
         model = rotated_token_models.RotatedRefreshToken
 
         # Assert
-        assert model.token_family_id.type.length == 36
         assert model.hashed_token.type.length == 255
 
     def test_rotated_refresh_token_model_unique_hashed_token(self):

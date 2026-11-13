@@ -65,15 +65,21 @@ def test_a_second_begin_is_refused_with_the_running_job_until_the_attempt_finish
     assert _begin(store).id != first.id
 
 
-def test_a_claim_the_previous_release_took_is_refused_without_naming_a_job():
+def test_a_claim_whose_job_expired_is_refused_without_naming_a_job():
     state = MemoryState()
     store = _store(state)
-    state.set(core_attempt_state.key("feature", "job:claim", "1"), b"1", ttl_seconds=60)
+    state.set(core_attempt_state.key("feature", "job:claim", "1"), str(uuid.uuid4()).encode(), ttl_seconds=60)
 
     with pytest.raises(core_exceptions.JobAlreadyRunningError) as refused:
         _begin(store)
 
     assert refused.value.job_id is None
+
+
+def test_job_ids_are_uuids():
+    job = _begin(_store())
+
+    assert isinstance(job.id, uuid.UUID)
 
 
 def test_subjects_and_features_do_not_block_each_other():
@@ -232,7 +238,7 @@ def test_an_outage_reading_the_index_is_a_service_unavailable_error():
     index = core_attempt_state.JobIndex(state)
 
     with pytest.raises(core_attempt_state.StateUnavailableError):
-        index.get("job")
+        index.get(uuid.uuid4())
     with pytest.raises(core_attempt_state.StateUnavailableError):
         index.list_owned(MOCK_USER_ID)
 

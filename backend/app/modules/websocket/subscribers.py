@@ -46,6 +46,26 @@ def on_realtime_hint(key: str, hint: dict[str, Any]) -> None:
     core_async_bridge.dispatch(websocket_service.deliver_hint(user_id, hint, websocket_manager.get_websocket_manager()))
 
 
+def _optional_uuid(value: object) -> uuid.UUID | None:
+    """Parse an optional UUID text from a control message.
+
+    Args:
+        value: The field of the control message.
+
+    Returns:
+        The UUID, or None when the field is absent.
+
+    Raises:
+        TypeError: When the field is neither absent nor a string.
+        ValueError: When the text is not a UUID.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise TypeError("a session id is text")
+    return uuid.UUID(value)
+
+
 def _close_revoked_sockets(user_id: uuid.UUID, message: dict[str, Any]) -> None:
     """Close, on the event loop, the sockets a control message names.
 
@@ -53,9 +73,10 @@ def _close_revoked_sockets(user_id: uuid.UUID, message: dict[str, Any]) -> None:
         user_id: The user the control key addresses.
         message: The control message, which anyone may have published.
     """
-    session_id = message.get("session_id")
-    except_session_id = message.get("except_session_id")
-    if not all(value is None or isinstance(value, str) for value in (session_id, except_session_id)):
+    try:
+        session_id = _optional_uuid(message.get("session_id"))
+        except_session_id = _optional_uuid(message.get("except_session_id"))
+    except (TypeError, ValueError):
         logger.debug("Ignored a malformed socket control message")
         return
     core_async_bridge.dispatch(
@@ -82,7 +103,10 @@ def close_sockets_for_event(event: Event) -> None:
         return
     platform_runtime.get_active_platform().realtime.notify(
         websocket_keys.control_key(payload.user_id),
-        {"session_id": payload.session_id, "except_session_id": payload.except_session_id},
+        {
+            "session_id": None if payload.session_id is None else str(payload.session_id),
+            "except_session_id": None if payload.except_session_id is None else str(payload.except_session_id),
+        },
     )
     logger.debug("Announced the end of sockets to every replica", extra=core_logger.context(user_id=payload.user_id))
 

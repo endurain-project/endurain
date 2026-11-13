@@ -16,6 +16,7 @@ import modules.auth.oauth_state.constants as oauth_state_constants
 from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
 IDP_ID = uuid.uuid4()
+SESSION_ID = uuid.UUID("11111111-2222-3333-4444-555555555555")
 OTHER_IDP_ID = uuid.uuid4()
 
 _LOGIN = "auth.session.login"
@@ -66,7 +67,7 @@ def _state(**overrides):
         "nonce": "n",
         "redirect_path": None,
         "idp_code_verifier": None,
-        "session_id": "sid",
+        "session_id": SESSION_ID,
         "ends_other_sessions": False,
         "security_generation": 0,
     }
@@ -444,7 +445,7 @@ class TestCompleteStepUpRefusals:
         oauth_state = _state(
             purpose=_PURPOSE.STEP_UP,
             user_id=MOCK_USER_ID,
-            session_id="sid",
+            session_id=SESSION_ID,
             action="account_delete",
             code_challenge="c" * 43,
             created_at=started,
@@ -524,7 +525,9 @@ class TestLinkSuccessActor:
         oauth_client = MagicMock()
         oauth_client.fetch_token.return_value = {"access_token": "at"}
         idp = _idp(sync_user_info=False, sync_email=False)
-        oauth_state = _state(purpose=_PURPOSE.LINK, user_id=MOCK_USER_ID, session_id="sid", ends_other_sessions=True)
+        oauth_state = _state(
+            purpose=_PURPOSE.LINK, user_id=MOCK_USER_ID, session_id=SESSION_ID, ends_other_sessions=True
+        )
         user = SimpleNamespace(id=MOCK_USER_ID, username="alice", active=True)
         with (
             patch.object(service._oidc, "decrypt_client_id", return_value="cid"),

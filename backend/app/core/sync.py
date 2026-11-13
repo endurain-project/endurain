@@ -20,7 +20,7 @@ from sqlalchemy.orm import InstrumentedAttribute, Mapped, Session, mapped_column
 TOMBSTONE_RETENTION = timedelta(days=90)
 
 #: A position in a ``(stamp, id)`` keyset walk: the stamp and id of the last row a page returned.
-type Position[IdT: (int, uuid.UUID)] = tuple[datetime, IdT]
+type Position = tuple[datetime, uuid.UUID]
 
 
 class UpdatedAtMixin:
@@ -64,24 +64,24 @@ class TombstoneMixin:
 
 
 @dataclass(frozen=True)
-class Deletion[IdT: (int, uuid.UUID)]:
+class Deletion:
     """A deleted record, as a module hands it to ``GET /sync``.
 
     Attributes:
         type: The sync type of the record, e.g. ``activity``.
         record_id: The id the record had.
         deleted_at: When it was deleted.
-        position: The tombstone's place in its table's keyset order; a tombstone's own id is always a UUID.
+        position: The tombstone's place in its table's keyset order; ids are UUIDs.
     """
 
     type: str
-    record_id: IdT
+    record_id: uuid.UUID
     deleted_at: datetime
-    position: Position[uuid.UUID]
+    position: Position
 
 
-def record_deletions[IdT: (int, uuid.UUID)](
-    db: Session, model: type[TombstoneMixin], user_id: uuid.UUID, record_ids: Sequence[IdT], **columns: Any
+def record_deletions(
+    db: Session, model: type[TombstoneMixin], user_id: uuid.UUID, record_ids: Sequence[uuid.UUID], **columns: Any
 ) -> None:
     """Stage a tombstone for each deleted record, in the transaction that deletes them.
 
@@ -96,10 +96,10 @@ def record_deletions[IdT: (int, uuid.UUID)](
         db.execute(insert(model), [{"user_id": user_id, "record_id": record_id, **columns} for record_id in record_ids])
 
 
-def _after[IdT: (int, uuid.UUID)](
+def _after(
     stamp: InstrumentedAttribute[datetime],
-    row_id: InstrumentedAttribute[IdT],
-    after: Position[IdT] | None,
+    row_id: InstrumentedAttribute[uuid.UUID],
+    after: Position | None,
     until: datetime,
 ) -> list[ColumnElement[bool]]:
     conditions: list[ColumnElement[bool]] = [stamp < until]
@@ -108,13 +108,13 @@ def _after[IdT: (int, uuid.UUID)](
     return conditions
 
 
-def changed_rows[RowT: UpdatedAtMixin, IdT: (int, uuid.UUID)](
+def changed_rows[RowT: UpdatedAtMixin](
     db: Session,
     model: type[RowT],
     owner: InstrumentedAttribute[uuid.UUID],
-    row_id: InstrumentedAttribute[IdT],
+    row_id: InstrumentedAttribute[uuid.UUID],
     user_id: uuid.UUID,
-    after: Position[IdT] | None,
+    after: Position | None,
     until: datetime,
     limit: int,
     conditions: Sequence[ColumnElement[bool]] = (),
@@ -148,7 +148,7 @@ def deleted_rows[TombstoneT: TombstoneMixin](
     db: Session,
     model: type[TombstoneT],
     user_id: uuid.UUID,
-    after: Position[uuid.UUID] | None,
+    after: Position | None,
     until: datetime,
     limit: int,
     conditions: Sequence[ColumnElement[bool]] = (),

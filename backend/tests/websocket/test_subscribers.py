@@ -13,11 +13,12 @@ import modules.websocket.subscribers as websocket_subscribers
 
 USER = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
 OTHER_USER = uuid.UUID("7b1c93e4-5d28-4f6a-8e03-a94d2c6f1b57")
+SESSION_1 = uuid.UUID("5b0f6c1e-2d3a-4b7c-8e91-3a4d5c6b7e01")
 
 
 async def _hold(manager, user_id=USER):
     websocket = AsyncMock()
-    await manager.connect(user_id, "s1", websocket)
+    await manager.connect(user_id, SESSION_1, websocket)
     return websocket
 
 
@@ -64,7 +65,7 @@ class TestControlMessages:
             patch.object(websocket_subscribers.core_async_bridge, "dispatch") as dispatch,
         ):
             websocket_subscribers.on_realtime_hint(
-                websocket_keys.control_key(USER), {"session_id": "s1", "except_session_id": None}
+                websocket_keys.control_key(USER), {"session_id": str(SESSION_1), "except_session_id": None}
             )
 
         await dispatch.call_args.args[0]
@@ -74,6 +75,12 @@ class TestControlMessages:
     def test_a_malformed_control_message_is_ignored(self):
         with patch.object(websocket_subscribers.core_async_bridge, "dispatch") as dispatch:
             websocket_subscribers.on_realtime_hint(websocket_keys.control_key(USER), {"session_id": 5})
+
+        dispatch.assert_not_called()
+
+    def test_a_control_message_naming_a_session_that_is_not_a_uuid_is_ignored(self):
+        with patch.object(websocket_subscribers.core_async_bridge, "dispatch") as dispatch:
+            websocket_subscribers.on_realtime_hint(websocket_keys.control_key(USER), {"session_id": "s1"})
 
         dispatch.assert_not_called()
 
@@ -101,9 +108,11 @@ class TestSessionsRevokedEvent:
             patch.object(websocket_subscribers.platform_runtime, "is_platform_active", return_value=True),
             patch.object(websocket_subscribers.platform_runtime, "get_active_platform", return_value=platform),
         ):
-            websocket_subscribers.close_sockets_for_event(self._event(session_id="s1"))
+            websocket_subscribers.close_sockets_for_event(self._event(session_id=str(SESSION_1)))
 
-        assert received == [(websocket_keys.control_key(USER), {"session_id": "s1", "except_session_id": None})]
+        assert received == [
+            (websocket_keys.control_key(USER), {"session_id": str(SESSION_1), "except_session_id": None})
+        ]
 
     def test_the_registry_subscribes_the_event(self):
         import modules.auth.sessions.events as sessions_events

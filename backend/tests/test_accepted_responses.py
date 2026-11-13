@@ -38,6 +38,8 @@ import modules.users.users_profile.constants as profile_constants
 import modules.users.users_profile.router as profile_router
 import modules.users.users_profile.schema as profile_schema
 
+_USER_ID = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
+_SESSION_ID = uuid.UUID("5b0f6c1e-2d3a-4b7c-8e91-3a4d5c6b7e01")
 _JOB_ID = "0c0f8e0e-3f0b-4a50-9a58-6a1d0a2d5d11"
 _NOW = datetime(2026, 11, 5, 7, 30, tzinfo=UTC)
 _DAYS = {"start_date": "2026-01-01", "end_date": "2026-01-08"}
@@ -56,8 +58,8 @@ def client() -> TestClient:
     app.include_router(jobs_router.router, prefix="/jobs")
     app.dependency_overrides[core_database.get_db] = lambda: MagicMock()
     app.dependency_overrides[core_dependencies.get_storage] = lambda: "storage"
-    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: 7
-    app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = lambda: "session"
+    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: _USER_ID
+    app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = lambda: _SESSION_ID
     app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
     app.dependency_overrides[core_dependencies.require_if_match_header] = lambda: '"1"'
     return TestClient(app)

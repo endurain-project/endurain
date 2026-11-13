@@ -1,5 +1,6 @@
 """Keyset listing of a user's ingestion jobs, where the row-value comparison runs in PostgreSQL."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -12,6 +13,10 @@ from tests._helpers.db import ensure_user
 
 _USER_ID = MOCK_USER_ID
 _NOW = datetime(2026, 7, 1, 12, 0, 0, tzinfo=UTC)
+_ID_A, _ID_B, _ID_C, _ID_D = (uuid.UUID(f"00000000-0000-4000-8000-{number:012x}") for number in range(1, 5))
+_ID_MINE_UPLOAD, _ID_MINE_REFRESH, _ID_THEIRS = (
+    uuid.UUID(f"00000000-0000-4000-8000-0000000000b{number}") for number in range(1, 4)
+)
 _KINDS = {"activity_upload", "activity_refresh", "activity_bulk_import"}
 
 
@@ -40,31 +45,31 @@ def _list(factory, **overrides):
 
 
 def test_lists_newest_first_and_pages_without_gaps_or_repeats_across_equal_timestamps(factory):
-    _add(factory, "a", age_minutes=5)
-    _add(factory, "b", age_minutes=1)
-    _add(factory, "c", age_minutes=1)
-    _add(factory, "d", age_minutes=0)
+    _add(factory, _ID_A, age_minutes=5)
+    _add(factory, _ID_B, age_minutes=1)
+    _add(factory, _ID_C, age_minutes=1)
+    _add(factory, _ID_D, age_minutes=0)
 
-    assert _list(factory) == ["d", "c", "b", "a"]
-    assert _list(factory, limit=2) == ["d", "c"]
-    assert _list(factory, before=(_NOW - timedelta(minutes=1), "c")) == ["b", "a"]
-    assert _list(factory, before=(_NOW - timedelta(minutes=1), "b")) == ["a"]
+    assert _list(factory) == [_ID_D, _ID_C, _ID_B, _ID_A]
+    assert _list(factory, limit=2) == [_ID_D, _ID_C]
+    assert _list(factory, before=(_NOW - timedelta(minutes=1), _ID_C)) == [_ID_B, _ID_A]
+    assert _list(factory, before=(_NOW - timedelta(minutes=1), _ID_B)) == [_ID_A]
 
 
 def test_filters_by_owner_kind_and_state(factory):
-    _add(factory, "mine-upload", status="processing")
-    _add(factory, "mine-refresh", kind="refresh", status="deferred", age_minutes=1)
-    _add(factory, "theirs", user_id=OTHER_USER_ID)
+    _add(factory, _ID_MINE_UPLOAD, status="processing")
+    _add(factory, _ID_MINE_REFRESH, kind="refresh", status="deferred", age_minutes=1)
+    _add(factory, _ID_THEIRS, user_id=OTHER_USER_ID)
 
-    assert _list(factory) == ["mine-upload", "mine-refresh"]
-    assert _list(factory, kinds={"activity_refresh"}) == ["mine-refresh"]
-    assert _list(factory, status=core_job_status.JobState.QUEUED) == ["mine-refresh"]
-    assert _list(factory, status=core_job_status.JobState.RUNNING) == ["mine-upload"]
+    assert _list(factory) == [_ID_MINE_UPLOAD, _ID_MINE_REFRESH]
+    assert _list(factory, kinds={"activity_refresh"}) == [_ID_MINE_REFRESH]
+    assert _list(factory, status=core_job_status.JobState.QUEUED) == [_ID_MINE_REFRESH]
+    assert _list(factory, status=core_job_status.JobState.RUNNING) == [_ID_MINE_UPLOAD]
 
 
 def test_read_job_is_scoped_to_the_owner(factory):
-    _add(factory, "theirs", user_id=OTHER_USER_ID)
+    _add(factory, _ID_THEIRS, user_id=OTHER_USER_ID)
 
     with factory() as db:
-        assert ingestion_integration.read_job("theirs", _USER_ID, db) is None
-        assert ingestion_integration.read_job("theirs", OTHER_USER_ID, db) is not None
+        assert ingestion_integration.read_job(_ID_THEIRS, _USER_ID, db) is None
+        assert ingestion_integration.read_job(_ID_THEIRS, OTHER_USER_ID, db) is not None

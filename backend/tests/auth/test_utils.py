@@ -17,6 +17,9 @@ import modules.auth.authentication.token_service as auth_utils_token_service
 import modules.auth.computation as auth_computation
 from modules.auth.constants import ClientType
 
+_SID_SID = uuid.UUID("a41234ab-8502-5f2d-ad0f-5b253aed5892")
+_SID_CUSTOM_SESSION_123 = uuid.UUID("0d45e1b2-6aea-5a10-8825-6e2c2b4166dc")
+
 _USER_ID = uuid.UUID(int=1)
 
 
@@ -148,8 +151,7 @@ class TestCreateTokens:
 
         # Assert
         assert session_id is not None
-        assert isinstance(session_id, str)
-        assert len(session_id) > 0
+        assert isinstance(session_id, uuid.UUID)
 
         assert access_token_exp is not None
         assert isinstance(access_token_exp, datetime)
@@ -174,7 +176,7 @@ class TestCreateTokens:
     def test_create_tokens_with_custom_session_id(self, token_manager, sample_user_read, session_policy):
         """Test that create_tokens uses provided session ID."""
         # Arrange
-        custom_session_id = "custom-session-123"
+        custom_session_id = _SID_CUSTOM_SESSION_123
 
         # Act
         (
@@ -268,7 +270,7 @@ class TestCompleteLogin:
         now = datetime.now(UTC)
 
         outcome = auth_utils_token_service.build_mobile_token_response(
-            "sid", "at", now + timedelta(minutes=15), "rt", now + timedelta(days=7), now + timedelta(days=30)
+            _SID_SID, "at", now + timedelta(minutes=15), "rt", now + timedelta(days=7), now + timedelta(days=30)
         )
 
         result = outcome.body.model_dump()

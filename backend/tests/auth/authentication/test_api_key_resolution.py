@@ -114,7 +114,7 @@ class TestResolveFromApiKey:
             principal_service.resolve_from_api_key(api_keys_utils.generate_api_key(), "/api/v1/x", "127.0.0.1", db)
 
 
-def _set_last_used(factory, api_key_id: str, last_used_at: datetime) -> None:
+def _set_last_used(factory, api_key_id: uuid.UUID, last_used_at: datetime) -> None:
     with factory() as db:
         db.get(api_keys_models.UsersApiKeys, api_key_id).last_used_at = last_used_at
         db.commit()

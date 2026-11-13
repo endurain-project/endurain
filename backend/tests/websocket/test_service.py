@@ -13,12 +13,14 @@ import modules.websocket.service as websocket_service
 
 USER = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
 OTHER_USER = uuid.UUID("7b1c93e4-5d28-4f6a-8e03-a94d2c6f1b57")
+SESSION_1 = uuid.UUID("5b0f6c1e-2d3a-4b7c-8e91-3a4d5c6b7e01")
+SESSION_2 = uuid.UUID("5b0f6c1e-2d3a-4b7c-8e91-3a4d5c6b7e02")
 
 
 async def _manager_with(*connections, user_id=USER):
     manager = websocket_manager.WebSocketManager()
     for connection in connections:
-        await manager.connect(user_id, "s1", connection)
+        await manager.connect(user_id, SESSION_1, connection)
     return manager
 
 
@@ -26,15 +28,15 @@ class TestCloseRevokedConnections:
     async def _two_sessions(self):
         mine, other, someone_else = AsyncMock(), AsyncMock(), AsyncMock()
         manager = websocket_manager.WebSocketManager()
-        await manager.connect(USER, "s1", mine)
-        await manager.connect(USER, "s2", other)
-        await manager.connect(OTHER_USER, "s1", someone_else)
+        await manager.connect(USER, SESSION_1, mine)
+        await manager.connect(USER, SESSION_2, other)
+        await manager.connect(OTHER_USER, SESSION_1, someone_else)
         return manager, mine, other, someone_else
 
     async def test_a_revoked_session_closes_only_its_own_sockets(self):
         manager, mine, other, someone_else = await self._two_sessions()
 
-        await websocket_service.close_revoked_connections(USER, "s1", None, manager)
+        await websocket_service.close_revoked_connections(USER, SESSION_1, None, manager)
 
         mine.close.assert_awaited_once_with(code=websocket_manager.SESSION_ENDED_CLOSE_CODE)
         other.close.assert_not_awaited()
@@ -54,7 +56,7 @@ class TestCloseRevokedConnections:
     async def test_revoking_the_other_sessions_keeps_the_current_one(self):
         manager, mine, other, _ = await self._two_sessions()
 
-        await websocket_service.close_revoked_connections(USER, None, "s1", manager)
+        await websocket_service.close_revoked_connections(USER, None, SESSION_1, manager)
 
         mine.close.assert_not_awaited()
         other.close.assert_awaited_once_with(code=websocket_manager.SESSION_ENDED_CLOSE_CODE)
@@ -77,9 +79,9 @@ class TestHasLiveSession:
                 websocket_service.sessions_integration, "get_session_by_id_not_expired", return_value=session
             ) as lookup,
         ):
-            result = websocket_service.has_live_session(USER, "s1")
+            result = websocket_service.has_live_session(USER, SESSION_1)
         session_local.return_value.__enter__.assert_called_once()
-        lookup.assert_called_once_with("s1", session_local.return_value.__enter__.return_value)
+        lookup.assert_called_once_with(SESSION_1, session_local.return_value.__enter__.return_value)
         return result
 
     def test_an_unknown_or_expired_session_is_not_live(self):
@@ -135,7 +137,7 @@ class TestServeConnection:
 
         websocket.receive.side_effect = receive
 
-        await websocket_service.serve_connection(websocket, USER, "s1", manager)
+        await websocket_service.serve_connection(websocket, USER, SESSION_1, manager)
 
         assert seen == [[websocket]]
         assert manager.get_connections(USER) == []
@@ -146,7 +148,7 @@ class TestServeConnection:
         websocket = AsyncMock()
         websocket.receive.side_effect = [{"type": "websocket.receive", **frame}]
 
-        await websocket_service.serve_connection(websocket, USER, "s1", manager)
+        await websocket_service.serve_connection(websocket, USER, SESSION_1, manager)
 
         websocket.close.assert_awaited_once_with(code=1008)
         assert manager.get_connections(USER) == []
@@ -161,7 +163,7 @@ class TestServeConnection:
 
         websocket.receive.side_effect = receive
 
-        await websocket_service.serve_connection(websocket, USER, "s1", manager)
+        await websocket_service.serve_connection(websocket, USER, SESSION_1, manager)
 
         websocket.close.assert_awaited_once_with(code=1001)
         assert manager.get_connections(USER) == []
@@ -172,6 +174,6 @@ class TestServeConnection:
         websocket.receive.side_effect = RuntimeError("boom")
 
         with pytest.raises(RuntimeError):
-            await websocket_service.serve_connection(websocket, USER, "s1", manager)
+            await websocket_service.serve_connection(websocket, USER, SESSION_1, manager)
 
         assert manager.get_connections(USER) == []
