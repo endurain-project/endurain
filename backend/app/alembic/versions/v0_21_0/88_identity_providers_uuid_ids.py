@@ -4,9 +4,8 @@
 ``users_identity_providers.idp_id``, ``idp_session_tokens.idp_id`` and ``oauth_states.idp_id``. Their foreign keys,
 indexes and unique constraints are recreated under the same names.
 
-jasil does not serialise ``uuid.UUID`` payload values: it publishes ``payload.model_dump()`` in python mode, and the
-JSON columns and the Redis bus use plain ``json.dumps``, which raises ``TypeError`` on a UUID. Every publisher therefore
-calls ``model_dump(mode="json")`` (``VersionedPayload`` parses the string back to ``uuid.UUID``), enforced by
+Every publisher dumps its payload with ``model_dump(mode="json")`` because datetime fields still need it (jasil 0.20
+stringifies UUIDs itself); ``VersionedPayload`` parses the string back to ``uuid.UUID``. This is enforced by
 ``tests/architecture/test_event_publishers_dump_json.py``.
 
 The ids stored in event payloads and notification options are rewritten as UUID strings, the shape

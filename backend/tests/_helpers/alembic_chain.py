@@ -458,7 +458,9 @@ def _mark_data_migrations_executed(connection: Connection) -> None:
 
 
 def seed_v0_20(connection: Connection) -> None:
-    """Insert one linked row into every table of the v0.20.x head (three goals and three followers, out of id order) and mark its data migrations executed.
+    """Insert one linked row into every table of the v0.20.x head and mark its data migrations executed.
+
+    The goals and the followers are three each, out of id order.
 
     The statements are written against the v0.20 head shape and run in dependency order: users first, then what
     refers to them, then the activities and the substrate tables. ``server_settings`` and ``migrations`` are filled
@@ -577,9 +579,10 @@ def _seed_v0_21_gear(connection: Connection) -> None:
 def _seed_v0_21_activity_children(connection: Connection) -> None:
     """Seed the children of activities 1 to 3, in the shape of revision 84, with out-of-id-order media.
 
-    Activities 1 and 3 get a map thumbnail named by their id. Activity 1 gets three laps in start order, two sets, three workout steps in ``message_index`` order, two streams and three media
-    rows (ids 4, 2 and 3, inserted out of id order) next to the seeded one. Activity 2 gets two streams and activity 3
-    one lap, two streams and one media row. Activity 1 and its first stream carry provider ids.
+    Activities 1 and 3 get a map thumbnail named by their id. Activity 1 gets three laps in start order, two sets, three
+    workout steps in ``message_index`` order, two streams and three media rows (ids 4, 2 and 3, inserted out of id
+    order) next to the seeded one. Activity 2 gets two streams and activity 3 one lap, two streams and one media row.
+    Activity 1 and its first stream carry provider ids.
     """
     _execute(connection, "UPDATE activities SET map_thumbnail_path = id || '.webp' WHERE id IN (1, 3)")
     _execute(
@@ -731,7 +734,7 @@ def _seed_v0_21_idp_session_tokens(connection: Connection) -> None:
 
 
 def _seed_v0_21_second_identity_provider(connection: Connection) -> None:
-    """Seed provider 2 with a link of user 2, a session token and an OAuth state, and an OAuth state with no provider."""
+    """Seed provider 2 with a link of user 2, a session token and an OAuth state, and a state with no provider."""
     _execute(
         connection,
         """INSERT INTO identity_providers (id, name, slug, provider_type, enabled, auto_create_users, sync_user_info)
@@ -750,7 +753,8 @@ def _seed_v0_21_second_identity_provider(connection: Connection) -> None:
         connection,
         """INSERT INTO oauth_states (id, idp_id, user_id, nonce, client_type, expires_at, used, purpose)
            VALUES ('seed-oauth-state-2', 2, 2, 'seed-nonce', 'web', '2030-01-01 00:00:00', false, 'login'),
-               ('seed-oauth-state-no-idp', NULL, NULL, 'seed-nonce', 'mobile', '2030-01-01 00:00:00', false, 'login')""",
+               ('seed-oauth-state-no-idp', NULL, NULL, 'seed-nonce', 'mobile', '2030-01-01 00:00:00', false,
+                'login')""",
     )
 
 
@@ -783,6 +787,8 @@ SEED_RESET_TOKEN_ID = _reference_id(1800)
 SEED_SIGN_UP_TOKEN_ID = _reference_id(1801)
 RESET_TOKEN_IDS = {2: _reference_id(1812), 3: _reference_id(1813)}
 EMAIL_CHANGE_TOKEN_IDS = {1: _reference_id(1821), 3: _reference_id(1823)}
+#: The id of a re-issued email-change link of user 1: its ``change_id`` names the first token of the change.
+REISSUED_EMAIL_CHANGE_TOKEN_ID = _reference_id(1824)
 SESSION_IDS = {2: _reference_id(1832), 3: _reference_id(1833)}
 TOKEN_FAMILY_IDS = {2: _reference_id(1842), 3: _reference_id(1843)}
 
@@ -1174,6 +1180,25 @@ def _seed_users_references_tokens_and_sessions(connection: Connection) -> None:
                 }
             ],
         )
+    _insert_rows(
+        connection,
+        "sign_up_tokens",
+        [
+            {
+                "id": REISSUED_EMAIL_CHANGE_TOKEN_ID,
+                "user_id": 1,
+                "token_hash": "email-change-hash-1-reissued",
+                "created_at": "2024-05-01 11:00:00",
+                "expires_at": "2030-01-01 00:00:00",
+                "used": False,
+                "email": "new-1@example.com",
+                "previous_email": "admin@example.com",
+                "security_generation": 1,
+                "change_id": EMAIL_CHANGE_TOKEN_IDS[1],
+                "revert_until": "2030-01-01 00:00:00",
+            }
+        ],
+    )
     for user_id in (2, 3):
         _insert_rows(
             connection,
@@ -1432,18 +1457,25 @@ _USER_EVENT_FIELDS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("users.profile_import_requested", ("user_id",)),
     ("users.profile_export_requested", ("user_id",)),
 )
+
+
+def _user_event_payload(index: int, event_type: str, fields: tuple[str, ...]) -> dict[str, object]:
+    """Return the payload of a seeded user event: each user field names a seeded user, beside a ``marker``.
+
+    A profile import event also carries the ``staged_key`` of the archive, in the integer layout of the user it names.
+    """
+    payload: dict[str, object] = {field: (index + offset) % 3 + 1 for offset, field in enumerate(fields)}
+    if event_type == "users.profile_import_requested":
+        payload["staged_key"] = f"{payload['user_id']}/archive.zip"
+    return {**payload, "marker": f"kept-{index}"}
+
+
 #: The events the users revision rewrites, as (event type, payload): one per type, each user field naming a seeded user
 #: (1, 2 or 3) with a field that is not rewritten beside it; then a password reset with a null user, one with a user
 #: that does not exist (999), a user id that is text, and a control of another type that must stay as it is.
 USER_EVENT_CASES: tuple[tuple[str, dict[str, object]], ...] = (
     *(
-        (
-            event_type,
-            {
-                **{field: (index + offset) % 3 + 1 for offset, field in enumerate(fields)},
-                "marker": f"kept-{index}",
-            },
-        )
+        (event_type, _user_event_payload(index, event_type, fields))
         for index, (event_type, fields) in enumerate(_USER_EVENT_FIELDS)
     ),
     ("auth.password_reset_requested", {"user_id": None, "marker": "null"}),

@@ -3,8 +3,10 @@
 ``users.id`` and the 38 columns that reference it become random ``uuid`` values: the ``user_id`` columns of the
 activity, gear, health, authentication, integration and notification tables, the two columns of ``followers``,
 ``follower_blocks`` and ``follow_request_declines``, and the ``user_id`` primary keys of ``users_local_credentials``
-and ``account_security_generations``. Their foreign keys (``ON DELETE CASCADE``), indexes, unique constraints, partial
-unique indexes, check constraints and comments are recreated under the same names.
+and ``account_security_generations``. Their foreign keys (``ON DELETE CASCADE``) are recreated under the PostgreSQL
+default names the models produce, ``{table}_{column}_fkey``, which renames ``followers_following_id_fkey`` to
+``followers_followee_id_fkey`` and matches a fresh install. Their indexes, unique constraints, partial unique indexes,
+check constraints and comments keep their names.
 
 The ids stored in event payloads and metadata and in notification options are rewritten as UUID strings, the shape
 ``model_dump(mode="json")`` writes: every user id field of the payload classes in ``PAYLOAD_ID_REWRITES`` in the
@@ -35,7 +37,10 @@ Expected cost, on a large install: ``users`` is rewritten once (the ``new_id`` f
 referencing tables is rewritten once by the ``new_<column>`` fill (``activities`` and the health tables are the big
 ones), then scanned for ``NOT NULL``, indexed, and its foreign key is validated against ``users_pkey``. The four
 emptied tables cost nothing. Every stored id (event payloads and metadata, notification options) is looked up through
-``users_pkey``, one index probe per rewritten row, so that part costs O(rewritten rows x log users). Dropped columns
+``users_pkey``, one index probe per rewritten row, so that part costs O(rewritten rows x log users). Each of the 33
+payload field rewrites is its own ``UPDATE`` of an event table, and ``jasil_processing_jobs`` and
+``jasil_event_outbox`` have no ``event_type`` index, so every one of them scans both tables in full: about 33 full
+scans of each, and a row with two user fields is written twice. Dropped columns
 are metadata-only. The dead tuples of the rewrites roughly double the heap until ``VACUUM``: run ``VACUUM (ANALYZE)``
 afterwards.
 
@@ -193,7 +198,8 @@ PAYLOAD_ID_REWRITES: tuple[tuple[str, str, tuple[str, ...], str], ...] = (
     ),
 )
 
-#: The tables decision C empties, in foreign-key-safe order: nothing references them.
+#: The tables decision C empties, in foreign-key-safe order: each is emptied before the table it references, and
+#: nothing outside the four references them.
 _EMPTIED_TABLES = ("rotated_refresh_tokens", "idp_session_tokens", "users_sessions", "oauth_states")
 
 _REFERENCES: tuple[IdReference, ...] = (

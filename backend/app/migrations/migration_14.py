@@ -8,7 +8,9 @@ import migrations.service as migrations_service
 
 logger = core_logger.get_logger(__name__)
 
-#: The state namespace of every key the application keeps in the platform state provider.
+#: The state namespace this migration clears: the attempt, cooldown, job, ticket and per-user stores keyed under it.
+#: The provider rate-limit flags, the Strava token refresh claim and the limiter counters sit outside it and expire on
+#: their own TTL.
 _STATE_NAMESPACE = "endurain:"
 
 

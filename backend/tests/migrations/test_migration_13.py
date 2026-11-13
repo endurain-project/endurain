@@ -76,6 +76,15 @@ _IDS = sa.Table(
     sa.Column("new_id", sa.Uuid, nullable=False),
 )
 
+_RECORDED_IDS = [
+    {"table_name": "identity_providers", "old_id": 1, "new_id": _FIRST},
+    {"table_name": "identity_providers", "old_id": 2, "new_id": _SECOND},
+    {"table_name": "activities", "old_id": 1, "new_id": _ACTIVITY},
+    {"table_name": "activities", "old_id": 3, "new_id": _OTHER_ACTIVITY},
+    {"table_name": "users", "old_id": 1, "new_id": _USER},
+    {"table_name": "users", "old_id": 2, "new_id": _OTHER_USER},
+]
+
 
 class _FailingCopy(LocalStorage):
     """A storage that cannot copy the object stored under the key ``fail``."""
@@ -86,6 +95,17 @@ class _FailingCopy(LocalStorage):
         if src_key == self.fail:
             raise OSError("disk full")
         super().copy(src_area, src_key, dst_area, dst_key)
+
+
+class _FailingListing(LocalStorage):
+    """A storage whose listing fails while ``failing`` is set."""
+
+    failing = True
+
+    def list_keys(self, area: str, prefix: str) -> list[str]:
+        if self.failing:
+            raise OSError("storage unavailable")
+        return super().list_keys(area, prefix)
 
 
 class _FakeS3Client:
@@ -150,14 +170,7 @@ def db():
         session.add(migrations_models.Migration(id=13, name="v0.21.0", description="rename", executed=False))
         session.execute(
             sa.insert(_IDS),
-            [
-                {"table_name": "identity_providers", "old_id": 1, "new_id": _FIRST},
-                {"table_name": "identity_providers", "old_id": 2, "new_id": _SECOND},
-                {"table_name": "activities", "old_id": 1, "new_id": _ACTIVITY},
-                {"table_name": "activities", "old_id": 3, "new_id": _OTHER_ACTIVITY},
-                {"table_name": "users", "old_id": 1, "new_id": _USER},
-                {"table_name": "users", "old_id": 2, "new_id": _OTHER_USER},
-            ],
+            _RECORDED_IDS,
         )
         session.execute(
             sa.insert(activity_models.Activity.__table__),
@@ -200,6 +213,17 @@ def _run(storage: LocalStorage | S3Storage, db: Session) -> None:
     with patch(f"{_MODULE}.platform_runtime") as runtime:
         runtime.get_active_platform.return_value.storage = storage
         migration_13.process_migration_13(db)
+
+
+def _record_the_ids_again(db: Session) -> None:
+    """Put the dropped ``uuid_migration_ids`` table back as the conversion left it and mark the migration pending."""
+    db.rollback()
+    _IDS.create(db.connection())
+    db.execute(sa.insert(_IDS), _RECORDED_IDS)
+    db.execute(
+        sa.update(migrations_models.Migration).where(migrations_models.Migration.id == 13).values(executed=False)
+    )
+    db.commit()
 
 
 def _executed(db: Session) -> bool:
@@ -248,6 +272,8 @@ class TestProcessMigration13:
         storage.save(_AREA, "1", b"first", "image/png")
         _run(storage, db)
 
+        _record_the_ids_again(db)
+
         _run(storage, db)
 
         assert storage.list_keys(_AREA, "") == [str(_FIRST)]
@@ -277,6 +303,28 @@ class TestProcessMigration13:
         _run(storage, db)
 
         assert sorted(storage.list_keys(_AREA, "")) == sorted([str(_FIRST), str(_SECOND)])
+        assert _executed(db) is True
+        assert _table_exists(db) is False
+
+    def test_a_failing_listing_keeps_the_table_and_the_migration_pending_and_the_next_run_finishes(
+        self, tmp_path: Path, db: Session, caplog: pytest.LogCaptureFixture
+    ):
+        storage = _FailingListing(str(tmp_path))
+        storage.save(_AREA, "1", b"first", "image/png")
+
+        _run(storage, db)
+
+        assert _executed(db) is False
+        assert _table_exists(db) is True
+        assert any(
+            record.levelname == "ERROR" and "could not rename the keys" in record.getMessage()
+            for record in caplog.records
+        )
+
+        storage.failing = False
+        _run(storage, db)
+
+        assert storage.list_keys(_AREA, "") == [str(_FIRST)]
         assert _executed(db) is True
         assert _table_exists(db) is False
 
@@ -372,6 +420,8 @@ class TestActivityBlobs:
         _run(storage, db)
         paths = _stored_paths(db)
 
+        _record_the_ids_again(db)
+
         _run(storage, db)
 
         assert _stored_paths(db) == paths
@@ -434,6 +484,8 @@ class TestActivityBlobsOnS3:
         _save_activity_blobs(storage)
         _run(storage, db)
         paths = _stored_paths(db)
+
+        _record_the_ids_again(db)
 
         _run(storage, db)
 
@@ -524,6 +576,8 @@ class TestUserBlobs:
         _save_user_blobs(storage)
         _run(storage, db)
 
+        _record_the_ids_again(db)
+
         _run(storage, db)
 
         _assert_user_blobs_renamed(storage, db)
@@ -612,6 +666,8 @@ class TestUserDropFolders:
         _write(files / "strava_import/1/a.csv", "a")
         storage = LocalStorage(str(tmp_path / "storage"))
         _run(storage, db)
+
+        _record_the_ids_again(db)
 
         _run(storage, db)
 

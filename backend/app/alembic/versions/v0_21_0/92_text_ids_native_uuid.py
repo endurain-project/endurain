@@ -72,6 +72,7 @@ _TEXT_ID_COLUMNS = (
 
 
 def upgrade() -> None:
+    """Refuse values that are not UUID text, then retype the columns and recreate the token family foreign key."""
     uuid_conversion.refuse_text_ids_that_are_not_uuids("92", _TEXT_ID_COLUMNS)
     op.drop_constraint("rotated_refresh_tokens_token_family_id_fkey", "rotated_refresh_tokens", type_="foreignkey")
     uuid_conversion.cast_text_ids_to_uuid(_TEXT_ID_COLUMNS)
@@ -86,6 +87,11 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Refuse: the text columns are not restored.
+
+    Raises:
+        NotImplementedError: Always.
+    """
     raise NotImplementedError(
         "Revision 92 cannot be reversed: restore the database from the backup taken before the upgrade."
     )

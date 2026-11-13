@@ -1,8 +1,8 @@
 """83: record when an API key was revoked
 
 The purge of stale API keys needs the moment a key was revoked, which ``is_active`` alone does not hold. A key that is
-already revoked at the upgrade takes its creation time, the nearest instant known, so it is purged on the same
-schedule as one revoked now.
+already revoked at the upgrade takes the upgrade time, the latest instant it can have been revoked, so it is kept
+for the full retention period before the purge and is never deleted at once because it was created long ago.
 
 Revision ID: a83d7e2c5f19
 Revises: f82c6d1a9e57
@@ -33,7 +33,7 @@ def upgrade() -> None:
             comment="When the key was revoked; null while it has not been",
         ),
     )
-    op.execute("UPDATE users_api_keys SET revoked_at = created_at WHERE is_active = false")
+    op.execute("UPDATE users_api_keys SET revoked_at = now() WHERE is_active = false")
 
 
 def downgrade() -> None:

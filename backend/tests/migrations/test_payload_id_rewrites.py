@@ -41,6 +41,8 @@ from jasil.event_versioning import VersionedPayload
 from pydantic import BaseModel
 from tests._helpers import alembic_chain
 
+from core.database import Base
+
 _PACKAGES = ("modules", "core")
 _OWNED_PREFIXES = tuple(f"{package}." for package in _PACKAGES)
 
@@ -260,6 +262,7 @@ def test_every_not_yet_rewritten_entry_is_still_an_integer_id_field() -> None:
 @pytest.mark.parametrize("entry", _declared_entries(), ids=lambda entry: f"{entry[0]}.{entry[1]}")
 def test_every_declared_entry_names_a_uuid_field(entry: tuple[str, str, tuple[str, ...], str]) -> None:
     payload_class, field, stored_under, parent_table = entry
+    _import_packages()
     cls = _resolve(payload_class)
     assert cls is not None, f"PAYLOAD_ID_REWRITES names {payload_class}, which does not exist."
     assert isinstance(cls, type) and issubclass(cls, VersionedPayload), f"{payload_class} is not a VersionedPayload."
@@ -268,7 +271,7 @@ def test_every_declared_entry_names_a_uuid_field(entry: tuple[str, str, tuple[st
     assert not _holds(annotation, int), f"{payload_class}.{field} is declared as rewritten but still holds int."
     assert _holds(annotation, uuid.UUID), f"{payload_class}.{field} is declared as rewritten but is not a uuid.UUID."
     assert stored_under and all(isinstance(name, str) for name in stored_under)
-    assert parent_table
+    assert parent_table in Base.metadata.tables, f"{payload_class}.{field} names the unknown table {parent_table}."
 
 
 def test_idp_revision_event_types_match_the_application_constants() -> None:

@@ -21,7 +21,7 @@ def test_the_revision_follows_migration_82():
     assert _migration_module().down_revision == "f82c6d1a9e57"
 
 
-def test_the_upgrade_adds_a_nullable_aware_column_and_backfills_revoked_keys_with_their_creation_time():
+def test_the_upgrade_adds_a_nullable_aware_column_and_backfills_revoked_keys_with_the_migration_time():
     migration = _migration_module()
     with patch.object(migration.op, "add_column") as add_column, patch.object(migration.op, "execute") as execute:
         migration.upgrade()
@@ -32,7 +32,7 @@ def test_the_upgrade_adds_a_nullable_aware_column_and_backfills_revoked_keys_wit
     assert column.nullable is True
     assert column.type.timezone is True
     statement = str(execute.call_args.args[0])
-    assert "SET revoked_at = created_at" in statement
+    assert "SET revoked_at = now()" in statement
     assert "is_active" in statement
 
 

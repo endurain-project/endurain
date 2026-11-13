@@ -1,22 +1,24 @@
-"""SQL building blocks of the UUID conversion revisions.
+"""SQL building blocks shared by the UUID conversion revisions.
 
 Revisions import this module and never the app's models. The SQL of a function a released revision uses is frozen:
 change behaviour with a new function, not by editing one. The module sits beside the migration runner rather than
-under ``alembic/`` because every conversion revision shares it. PostgreSQL only: ``gen_random_uuid()`` is built in
-from PostgreSQL 13. Table and index names come only from the literal spec of a revision, never from input. The helpers that rewrite stored ids and record the mapping run
-while the parent still holds both its ``id`` and its ``new_id``.
+under ``alembic/`` because every conversion revision shares it. It is PostgreSQL only: ``gen_random_uuid()`` is
+built in from PostgreSQL 13. Table and index names come only from the literal spec of a revision, never from input.
 
-Helpers added for the activity tables:
+The helpers fall into four groups:
 
-* :func:`add_uuid_ids_with_child_tables` maps the references and gives every child row its ``new_id`` in one rewrite.
-* :func:`swap_in_uuid_primary_key` is the swap half of :func:`give_uuid_primary_key`, for a table whose ``new_id``
-  is already filled.
-* :func:`rewrite_json_array_ids` rewrites the integer elements of a JSON array column.
-
-Helpers added for the text columns that hold UUID text:
-
-* :func:`refuse_text_ids_that_are_not_uuids` stops the upgrade before any DDL when a value is not canonical UUID text.
-* :func:`cast_text_ids_to_uuid` retypes the columns in place, keeping every value.
+* Ids and references: :func:`give_uuid_primary_key`, :func:`swap_in_uuid_primary_key`,
+  :func:`add_uuid_ids_with_references`, :func:`add_uuid_ids_with_child_tables` and :func:`swap_in_uuid_ids` give a
+  table a ``new_id`` and map the columns that reference it, then swap the integer columns for the UUID ones.
+  :func:`add_created_at_in_id_order`, :func:`keep_created_at_in_id_order` and :func:`empty_tombstones` keep row order
+  and drop the cursors the new ids invalidate.
+* Stored-id rewrites: :func:`rewrite_payload_ids`, :func:`rewrite_metadata_ids`,
+  :func:`rewrite_notification_option_ids` and :func:`rewrite_json_array_ids` replace the integer ids kept inside
+  JSON documents while the parent still holds both its ``id`` and its ``new_id``.
+* Scratch mapping and file renames: :func:`record_old_ids` stores the old and new id of every row, and
+  :func:`schedule_stored_key_renames` registers data migration 13, which renames the stored files.
+* Text to uuid casts: :func:`refuse_text_ids_that_are_not_uuids` stops the upgrade before any DDL when a value is
+  not canonical UUID text, and :func:`cast_text_ids_to_uuid` retypes the columns in place, keeping every value.
 """
 
 from collections.abc import Sequence
@@ -43,12 +45,14 @@ class IdIndex:
     columns: tuple[str, ...]
 
 
+_MAX_INT4 = 2147483647
+
 _MICROSECOND: sa.ColumnElement[Any] = sa.literal_column("interval '1 microsecond'")
 
 
-def _id_rank(table: sa.TableClause, partition_by: sa.ColumnElement[Any] | None = None) -> sa.Subquery:
-    """Rank the rows of a table by ``id``, restarting at 1 for each value of ``partition_by``."""
-    rank = sa.func.row_number().over(partition_by=partition_by, order_by=table.c.id).label("rank")
+def _id_rank(table: sa.TableClause) -> sa.Subquery:
+    """Rank the rows of a table by ``id``, starting at 1."""
+    rank = sa.func.row_number().over(order_by=table.c.id).label("rank")
     return sa.select(table.c.id, rank).subquery("ranked")
 
 
@@ -194,9 +198,10 @@ def _integer_id(value_text: sa.ColumnElement[Any]) -> sa.ColumnElement[Any]:
     """Return the text of a JSON number as an ``integer``, or ``NULL`` when it is not a plain id.
 
     Comparing ``integer`` to ``numeric`` keeps PostgreSQL from using a primary key, so the lookup casts to the
-    column's own type. Only whole numbers of up to nine digits match; anything else names no row.
+    column's own type. Only whole numbers that fit an ``integer`` (up to 2147483647) match; anything else names no row.
     """
-    return sa.case((value_text.regexp_match("^[0-9]{1,9}$").is_not(None), sa.cast(value_text, sa.Integer)))
+    fits = sa.case((sa.cast(value_text, sa.BigInteger) <= _MAX_INT4, sa.cast(value_text, sa.Integer)))
+    return sa.case((value_text.regexp_match("^[0-9]{1,10}$"), fits))
 
 
 def _with_uuid_id(
@@ -428,8 +433,10 @@ def swap_in_uuid_ids(parent: str, parent_indexes: Sequence[IdIndex], references:
     """Replace the integer ``id`` of a table and every column that references it by the ``new_id`` columns.
 
     Dropping a column drops its foreign key, its indexes and the unique constraints that contain it, and dropping the
-    parent's ``id`` drops its primary key, its serial sequence and its indexes. All of them are recreated on the UUID
-    columns with the same names. No server default stays: the models generate the UUID in Python.
+    parent's ``id`` drops its primary key, its serial sequence and its indexes. The indexes, unique constraints and the
+    primary key are recreated on the UUID columns with the same names. The foreign keys are recreated under the
+    PostgreSQL default name the models produce, ``{table}_{column}_fkey``, so a constraint that had another name is
+    renamed and the schema matches a fresh install. No server default stays: the models generate the UUID in Python.
 
     Args:
         parent: The table being converted.

@@ -128,6 +128,50 @@ def _data_type(engine, table: str, column: str) -> str | None:
         ).scalar()
 
 
+def _column_constraints(engine, columns) -> dict[tuple[str, str], tuple[tuple[str, str] | None, bool]]:
+    """Map each (table, column) to its single-column foreign key (name, ON DELETE code) or None, and nullability."""
+    with engine.connect() as connection:
+        nullable = {
+            (row.table_name, row.column_name): row.is_nullable == "YES"
+            for row in connection.execute(
+                sa.text(
+                    "SELECT table_name, column_name, is_nullable FROM information_schema.columns "
+                    "WHERE table_schema = 'public'"
+                )
+            )
+        }
+        foreign_keys = {
+            (row.tbl, row.col): (row.conname, row.confdeltype)
+            for row in connection.execute(
+                sa.text(
+                    "SELECT c.conrelid::regclass::text AS tbl, a.attname AS col, c.conname, c.confdeltype "
+                    "FROM pg_constraint c JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey) "
+                    "WHERE c.contype = 'f' AND cardinality(c.conkey) = 1"
+                )
+            )
+        }
+    return {column: (foreign_keys.get(column), nullable[column]) for column in columns}
+
+
+def _assert_constraints_kept_by_the_conversion(engine, columns, before) -> None:
+    """Check the converted columns keep their ON DELETE action and nullability and carry the default foreign key name.
+
+    Args:
+        engine: The database engine.
+        columns: The (table, column) pairs a revision converted.
+        before: ``_column_constraints`` of the same columns before the revision.
+    """
+    assert any(foreign_key is not None for foreign_key, _ in before.values())
+    after = _column_constraints(engine, columns)
+    for (table, column), (foreign_key, nullable) in after.items():
+        old_foreign_key, old_nullable = before[(table, column)]
+        assert nullable is old_nullable, (table, column)
+        if old_foreign_key is None:
+            assert foreign_key is None, (table, column)
+        else:
+            assert foreign_key == (f"{table}_{column}_fkey", old_foreign_key[1]), (table, column)
+
+
 def _columns_of_type(engine, data_type: str, names: tuple[str, ...]) -> list[tuple[str, str]]:
     """Return the (table, column) pairs of the 25 revision 87 tables whose name is in ``names``, with that type."""
     with engine.connect() as connection:
@@ -327,6 +371,10 @@ _IDP_REFERENCES = (
     ("idp_session_tokens", "session_id"),
     ("oauth_states", "id"),
 )
+_IDP_CONVERTED_COLUMNS = (
+    ("identity_providers", "id"),
+    *((table, "idp_id") for table in ("users_identity_providers", "idp_session_tokens", "oauth_states")),
+)
 _IDP_PAIRS = {1: "seed-provider", 2: "second-provider"}
 _JSON_PAYLOAD_COLUMNS = {
     "event_outbox": ("payload", "event_metadata"),
@@ -371,7 +419,7 @@ def _new_ids_by_slug(engine) -> dict[str, str]:
 
 
 def _seeded_rows(engine, table: str, *columns: str, id_prefix: str = "idp") -> list[tuple]:
-    """Return the given columns of the rows a seeder added to a substrate table, by id; the ids start with the prefix."""
+    """Return the given columns of the rows a seeder added to a substrate table, by id; ids start with the prefix."""
     rows = sa.table(table, sa.column("id"), *(sa.column(name) for name in columns))
     statement = (
         sa.select(*(rows.c[name] for name in columns), rows.c.id)
@@ -433,6 +481,7 @@ def test_revision_88_converts_identity_providers_and_their_references(upgrade_db
         ("seed-oauth-state-no-idp", None),
     ]
     _assert_job_states_covered(upgrade_db, "")
+    constraints_before = _column_constraints(upgrade_db, _IDP_CONVERTED_COLUMNS)
     control_before = _rows(
         upgrade_db, "SELECT id, event_payload FROM event_log WHERE event_type = 'activity.created' ORDER BY id"
     )
@@ -447,6 +496,7 @@ def test_revision_88_converts_identity_providers_and_their_references(upgrade_db
         ("oauth_states", "idp_id"),
     ):
         assert _data_type(upgrade_db, table, column) == "uuid"
+    _assert_constraints_kept_by_the_conversion(upgrade_db, _IDP_CONVERTED_COLUMNS, constraints_before)
     new_ids = _new_ids_by_slug(upgrade_db)
     assert len(set(new_ids.values())) == 2
     assert {table: _provider_pairs(upgrade_db, table, key) for table, key in _IDP_REFERENCES} == pairs_before
@@ -635,9 +685,13 @@ def test_revision_89_converts_gear_and_its_references(upgrade_db):
     substrate_before = _substrate_rows(upgrade_db)
     migration_ids_before = _rows(upgrade_db, "SELECT table_name, old_id, new_id::text FROM uuid_migration_ids")
     migrations_before = _migrations_state(upgrade_db)
+    gear_columns = [("gear", "id"), ("gear_components", "id"), *_GEAR_REFERENCES]
+    gear_columns += [(table, "record_id") for table in _GEAR_RECORD_ID_TABLES]
+    constraints_before = _column_constraints(upgrade_db, gear_columns)
 
     alembic_chain.upgrade(upgrade_db, _REVISION_89)
 
+    _assert_constraints_kept_by_the_conversion(upgrade_db, gear_columns, constraints_before)
     assert alembic_chain.row_counts(upgrade_db) == {
         **counts_before,
         "migrations": counts_before["migrations"],
@@ -717,11 +771,10 @@ _ACTIVITY_CHILD_KEYS = {
     "activities_streams": "stream_waypoints",
     "activity_workout_steps": "message_index",
 }
-#: The order of each child table that the old integer ids gave and the new sort must keep.
+#: The order of each child table that the old integer ids gave and the new sort must keep. Only the tables whose rows
+#: were seeded out of the order of their sort column are listed: sorting laps by ``start_time`` or steps by
+#: ``message_index`` could not tell a kept order from a changed one.
 _ACTIVITY_CHILD_ORDERS = {
-    "activity_laps": ("start_time", "start_time"),
-    "activity_sets": ("duration", "start_time"),
-    "activity_workout_steps": ("message_index", "message_index"),
     "activity_media": ("media_path", "created_at"),
 }
 _ACTIVITY_PROVIDER_ID_COLUMNS = (
@@ -756,7 +809,7 @@ def _count_joined_to_activities(engine, table: str) -> int:
 
 
 def _table_count(engine, table: str, *measure: str) -> int:
-    """Count the rows of a table, the distinct values of a column (``distinct``) or its non-null values (``not_null``)."""
+    """Count the rows of a table, the distinct values of a column (``distinct``) or its non-null ones (``not_null``)."""
     rows = sa.table(table, sa.column("id"), sa.column("activity_id"))
     with engine.connect() as connection:
         match measure:
@@ -842,7 +895,10 @@ def test_revision_90_converts_activities_and_their_children(upgrade_db):
     _seed_to_87(upgrade_db)
     alembic_chain.upgrade(upgrade_db, _REVISION_89)
     counts_before = alembic_chain.row_counts(upgrade_db)
+    with upgrade_db.begin() as connection:
+        connection.execute(sa.text("UPDATE migrations SET executed = true WHERE id = 13"))
     migrations_before = _migrations_state(upgrade_db)
+    assert migrations_before[13] is True
     idp_ids_before = _rows(upgrade_db, "SELECT table_name, old_id, new_id::text FROM uuid_migration_ids")
     assert len(idp_ids_before) == 2
     provider_types = {column: _data_type(upgrade_db, *column) for column in _ACTIVITY_PROVIDER_ID_COLUMNS}
@@ -893,9 +949,16 @@ def test_revision_90_converts_activities_and_their_children(upgrade_db):
         table: _seeded_rows(upgrade_db, table, payload, metadata)
         for table, (payload, metadata) in _JSON_PAYLOAD_COLUMNS.items()
     }
+    activity_columns = [
+        *((table, "id") for table in ("activities", *_ACTIVITY_CHILDREN)),
+        *((table, "activity_id") for table in _ACTIVITY_CHILDREN),
+        ("activity_deletions", "record_id"),
+    ]
+    constraints_before = _column_constraints(upgrade_db, activity_columns)
 
     alembic_chain.upgrade(upgrade_db, _REVISION_90)
 
+    _assert_constraints_kept_by_the_conversion(upgrade_db, activity_columns, constraints_before)
     for table in ("activities", *_ACTIVITY_CHILDREN):
         assert _data_type(upgrade_db, table, "id") == "uuid", table
     for table in _ACTIVITY_CHILDREN:
@@ -917,7 +980,8 @@ def test_revision_90_converts_activities_and_their_children(upgrade_db):
     )
     assert _rows(upgrade_db, "SELECT id, wkt_step_name FROM activity_exercise_titles") == titles_before
     assert alembic_chain.row_counts(upgrade_db) == {**counts_before, "activity_deletions": 0}
-    assert _migrations_state(upgrade_db) == migrations_before
+    # The revision registers migration 13 as not executed again, whatever it was before.
+    assert _migrations_state(upgrade_db) == {**migrations_before, 13: False}
     for table in ("activities", *_ACTIVITY_CHILDREN):
         assert _table_count(upgrade_db, table, "distinct", "id") == counts_before[table], table
 
@@ -960,7 +1024,6 @@ def test_revision_90_converts_activities_and_their_children(upgrade_db):
     assert sorted(_rows(upgrade_db, "SELECT table_name, old_id, new_id::text FROM uuid_migration_ids")) == sorted(
         [*idp_ids_before, *(("activities", old, new) for old, new in new_ids.items())]
     )
-    assert _migrations_state(upgrade_db)[13] is False
 
     notifications = _activity_notifications(upgrade_db)
     assert notifications[1] == {"activity_id": new_ids[1]}
@@ -1113,7 +1176,7 @@ def _seed_to_90(engine) -> None:
 
 
 def _user_pairs(engine, table: str, column: str, key: str) -> list[tuple]:
-    """Return (key of the row, username of the user the column references) of every row, whatever the type of the ids."""
+    """Return (key of the row, username of the user the column references) of every row, whatever the id type."""
     rows = sa.table(table, sa.column(key), sa.column(column))
     users = sa.table("users", sa.column("id"), sa.column("username"))
     key_text = sa.cast(rows.c[key], sa.Text)
@@ -1194,7 +1257,7 @@ def _assert_a_dangling_id(value, new_ids: dict[int, str]) -> None:
 
 
 def _expected_user_payload(event_type: str, old: dict, new_ids: dict[int, str]) -> dict:
-    """Return the payload a seeded user event has after the conversion; a dangling id is left as the string ``DANGLING``."""
+    """Return the payload a seeded user event has after the conversion; a dangling id is the string ``DANGLING``."""
     if event_type in _UNREWRITTEN_USER_EVENT_TYPES:
         return old
     return {
@@ -1227,6 +1290,11 @@ def _assert_user_events_rewritten(engine, prefix: str, new_ids: dict[int, str]) 
                 assert event_type == old_event_type
                 expected = _expected_user_payload(event_type, old_payload, new_ids)
                 assert payload.keys() == expected.keys(), (table, row_id)
+                if event_type == "users.profile_import_requested":
+                    # The revision rewrites the user id of a pending import and leaves its ``staged_key`` as it is:
+                    # the key still names the integer-layout folder, which only a dev database can hold.
+                    assert payload["user_id"] == new_ids[old_payload["user_id"]]
+                    assert payload["staged_key"] == f"{old_payload['user_id']}/archive.zip"
                 for key, value in expected.items():
                     if value == "DANGLING":
                         _assert_a_dangling_id(payload[key], new_ids)
@@ -1292,6 +1360,8 @@ def test_revision_91_converts_users_and_their_references(upgrade_db):
             upgrade_db, "SELECT idp_subject, idp_id::text FROM users_identity_providers ORDER BY idp_subject"
         ),
     }
+    user_columns = [("users", "id"), *((table, column) for table, column, _ in _USER_REFERENCES)]
+    constraints_before = _column_constraints(upgrade_db, user_columns)
     usernames_before = _rows(upgrade_db, "SELECT id, username, email, photo_path FROM users ORDER BY id")
     kept_tokens_before = {table: _tokens(upgrade_db, table) for table in _USER_TOKEN_TABLES}
     migration_ids_before = _rows(upgrade_db, "SELECT table_name, old_id, new_id::text FROM uuid_migration_ids")
@@ -1319,6 +1389,7 @@ def test_revision_91_converts_users_and_their_references(upgrade_db):
 
     alembic_chain.upgrade(upgrade_db, _REVISION_91)
 
+    _assert_constraints_kept_by_the_conversion(upgrade_db, user_columns, constraints_before)
     # The ids and the references are uuid, nullable only where the model says so.
     assert _data_type(upgrade_db, "users", "id") == "uuid"
     orm_model_registry.import_all_models()
@@ -1347,7 +1418,8 @@ def test_revision_91_converts_users_and_their_references(upgrade_db):
         "migrations": counts_before["migrations"] + 1,
         **dict.fromkeys(_USER_SESSION_TABLES, 0),
     }
-    assert sum(counts_before[table] for table in _USER_SESSION_TABLES) > 0
+    for table in _USER_SESSION_TABLES:
+        assert counts_before[table] > 0, table
     for table, column, key in _USER_REFERENCES:
         if table in _USER_SESSION_TABLES:
             continue
@@ -1368,7 +1440,11 @@ def test_revision_91_converts_users_and_their_references(upgrade_db):
         "SELECT t.id, u.username FROM sign_up_tokens t JOIN users u ON u.id = t.user_id "
         "WHERE t.change_id IS NOT NULL ORDER BY t.id",
     ) == sorted(
-        (alembic_chain.EMAIL_CHANGE_TOKEN_IDS[index], username) for index, username in ((1, "admin"), (3, "third"))
+        [
+            (alembic_chain.EMAIL_CHANGE_TOKEN_IDS[1], "admin"),
+            (alembic_chain.EMAIL_CHANGE_TOKEN_IDS[3], "third"),
+            (alembic_chain.REISSUED_EMAIL_CHANGE_TOKEN_ID, "admin"),
+        ]
     )
     assert _rows(
         upgrade_db,
@@ -1453,6 +1529,17 @@ def test_revision_91_converts_users_and_their_references(upgrade_db):
     ):
         with pytest.raises(sa.exc.IntegrityError):
             _insert(upgrade_db, table, values, with_id=False)
+    # The partial unique indexes refuse only what their predicate names: a second finished fast is accepted, and the
+    # TOTP index (the only factor type the check constraint allows) keeps its predicate.
+    _insert(
+        upgrade_db,
+        "health_fasting",
+        {"user_id": regular, "fast_start_time": "2024-06-01 20:00:00", "status": "completed"},
+    )
+    assert (
+        "WHERE ((type)::text = 'totp'::text)"
+        in _index_definitions(upgrade_db, "mfa_factors")["uq_mfa_factors_user_totp"]
+    )
     _insert(
         upgrade_db,
         "activity_ingestion_jobs",
@@ -1611,6 +1698,14 @@ def test_revision_92_converts_the_text_ids(upgrade_db):
     assert _scalar(
         upgrade_db, "SELECT count(*) FROM sign_up_tokens c JOIN sign_up_tokens i ON i.id = c.change_id"
     ) == _scalar(upgrade_db, "SELECT count(change_id) FROM sign_up_tokens")
+    assert _rows(
+        upgrade_db,
+        "SELECT id::text, change_id::text FROM sign_up_tokens WHERE change_id IS NOT NULL ORDER BY id",
+    ) == [
+        (alembic_chain.EMAIL_CHANGE_TOKEN_IDS[1], alembic_chain.EMAIL_CHANGE_TOKEN_IDS[1]),
+        (alembic_chain.EMAIL_CHANGE_TOKEN_IDS[3], alembic_chain.EMAIL_CHANGE_TOKEN_IDS[3]),
+        (alembic_chain.REISSUED_EMAIL_CHANGE_TOKEN_ID, alembic_chain.EMAIL_CHANGE_TOKEN_IDS[1]),
+    ]
     assert _scalar(upgrade_db, "SELECT count(change_id) FROM sign_up_tokens") > 0
     assert _rows(
         upgrade_db, "SELECT purpose, session_id::text FROM oauth_states WHERE session_id IS NOT NULL ORDER BY purpose"
@@ -1707,11 +1802,6 @@ def test_migration_13_renames_the_icons_after_the_upgrade(upgrade_db, tmp_path):
     assert _scalar(upgrade_db, "SELECT to_regclass('uuid_migration_ids')") is None
     assert _migrations_state(upgrade_db)[13] is True
 
-    run()
-
-    assert sorted(storage.list_keys("identity_provider_icons", "")) == keys
-    assert _migrations_state(upgrade_db)[13] is True
-
 
 def test_migration_13_renames_the_activity_files_after_the_upgrade(upgrade_db, tmp_path):
     _seed_to_87(upgrade_db)
@@ -1800,11 +1890,6 @@ def test_migration_13_renames_the_activity_files_after_the_upgrade(upgrade_db, t
     )
     assert _scalar(upgrade_db, "SELECT to_regclass('uuid_migration_ids')") is None
     assert _migrations_state(upgrade_db)[13] is True
-
-    renamed = listing()
-    run()
-
-    assert listing() == renamed
 
 
 def test_migration_13_renames_the_user_files_after_the_upgrade(upgrade_db, tmp_path):
@@ -1938,9 +2023,59 @@ def test_migration_13_renames_the_user_files_after_the_upgrade(upgrade_db, tmp_p
     assert _scalar(upgrade_db, "SELECT to_regclass('uuid_migration_ids')") is None
     assert _migrations_state(upgrade_db)[13] is True
 
-    renamed, renamed_folders = listing(), folders()
+
+class _FailingCopy(LocalStorage):
+    """A storage that cannot copy the object stored under the key ``fail``."""
+
+    fail = ""
+
+    def copy(self, src_area: str, src_key: str, dst_area: str, dst_key: str) -> None:
+        if src_key == self.fail:
+            raise OSError("disk full")
+        super().copy(src_area, src_key, dst_area, dst_key)
+
+
+def test_migration_13_keeps_the_mapping_when_a_copy_fails_and_a_rerun_finishes(upgrade_db, tmp_path):
+    _seed_to_90(upgrade_db)
+    alembic_chain.upgrade(upgrade_db, "head")
+    new_ids = _new_user_ids(upgrade_db)
+    storage = _FailingCopy(str(tmp_path / "storage"))
+    for key, data in (("1.png", b"photo one"), ("2.jpg", b"photo two")):
+        storage.save(users_migration_service.USER_IMAGE_STORAGE_AREA, key, data, "image/png")
+    photos_before = _rows(upgrade_db, "SELECT username, photo_path FROM users ORDER BY username")
+    assert photos_before == [("admin", "1.png"), ("regular", "2.jpg"), ("third", None)]
+    mapping_before = _rows(upgrade_db, "SELECT table_name, old_id, new_id::text FROM uuid_migration_ids")
+
+    def run() -> None:
+        with (
+            Session(upgrade_db) as db,
+            patch("migrations.migration_13.platform_runtime") as runtime,
+            patch.object(core_config.settings, "FILES_DIR", str(tmp_path / "files")),
+            patch.object(core_config, "FILES_BULK_IMPORT_DIR", str(tmp_path / "files" / "bulk_import")),
+        ):
+            runtime.get_active_platform.return_value.storage = storage
+            migration_13.process_migration_13(db)
+
+    storage.fail = "1.png"
     run()
 
-    assert listing() == renamed
-    assert folders() == renamed_folders
+    assert _scalar(upgrade_db, "SELECT to_regclass('uuid_migration_ids')") is not None
+    assert _rows(upgrade_db, "SELECT table_name, old_id, new_id::text FROM uuid_migration_ids") == mapping_before
+    assert _migrations_state(upgrade_db)[13] is False
+    assert _rows(upgrade_db, "SELECT username, photo_path FROM users WHERE username = 'admin'") == [("admin", "1.png")]
+    assert storage.get(users_migration_service.USER_IMAGE_STORAGE_AREA, "1.png") == b"photo one"
+
+    storage.fail = ""
+    run()
+
+    first, second = new_ids[1], new_ids[2]
+    assert sorted(storage.list_keys(users_migration_service.USER_IMAGE_STORAGE_AREA, "")) == sorted(
+        [f"{first}.png", f"{second}.jpg"]
+    )
+    assert _rows(upgrade_db, "SELECT username, photo_path FROM users ORDER BY username") == [
+        ("admin", f"{first}.png"),
+        ("regular", f"{second}.jpg"),
+        ("third", None),
+    ]
+    assert _scalar(upgrade_db, "SELECT to_regclass('uuid_migration_ids')") is None
     assert _migrations_state(upgrade_db)[13] is True

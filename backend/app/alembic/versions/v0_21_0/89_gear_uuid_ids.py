@@ -2,7 +2,9 @@
 
 ``gear.id``, ``gear_components.id`` and the 17 columns that hold a gear id become random ``uuid`` values: the gear
 column of ``activities`` and ``gear_components`` and the 15 columns of ``users_default_gear``. Their foreign keys (with
-the same ``ON DELETE``), indexes and comments are recreated under the same names.
+the same ``ON DELETE``) are recreated under the PostgreSQL default names the models produce, ``{table}_{column}_fkey``,
+which renames the three ``fk_users_default_gear_*`` constraints of ``alpine_ski_gear_id``, ``nordic_ski_gear_id`` and
+``snowboard_gear_id`` and matches a fresh install. Their indexes and comments are recreated under the same names.
 
 ``gear_components`` gets ``created_at``, filled in the old id order, so the order of the components survives.
 
