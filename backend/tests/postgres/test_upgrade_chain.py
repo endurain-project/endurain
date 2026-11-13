@@ -32,6 +32,7 @@ _REVISION_88 = "dc5f0450aaf0"
 _REVISION_89 = "ecaa46b32646"
 _REVISION_90 = "3ab6649cdd08"
 _REVISION_91 = "353455bea2a5"
+_REVISION_92 = "1087a5442836"
 _RETIRED_DATA_MIGRATIONS = {1, 2, 3, 4, 5, 6, 8, 9, 10}
 _UNPREFIXED_SUBSTRATE_TABLES = ("event_log", "event_outbox", "processing_jobs")
 #: The tables the chain empties by design: their record ids name rows whose ids change (revisions 87, 89 and 90), and
@@ -227,7 +228,7 @@ def test_revision_86_is_reversible(upgrade_db):
     at_86 = _difference_kinds(upgrade_db)
 
     alembic_chain.downgrade(upgrade_db, _REVISION_85)
-    assert _difference_kinds(upgrade_db) - at_86 == Counter({"modify_comment": 4, "modify_type": 1})
+    assert _difference_kinds(upgrade_db) - at_86 == Counter({"modify_comment": 3, "modify_type": 1})
     assert not at_86 - _difference_kinds(upgrade_db)
 
     alembic_chain.upgrade(upgrade_db, "head")
@@ -1366,11 +1367,19 @@ def test_revision_91_converts_users_and_their_references(upgrade_db):
         upgrade_db,
         "SELECT t.id, u.username FROM sign_up_tokens t JOIN users u ON u.id = t.user_id "
         "WHERE t.change_id IS NOT NULL ORDER BY t.id",
-    ) == [("email-change-token-1", "admin"), ("email-change-token-3", "third")]
+    ) == sorted(
+        (alembic_chain.EMAIL_CHANGE_TOKEN_IDS[index], username) for index, username in ((1, "admin"), (3, "third"))
+    )
     assert _rows(
         upgrade_db,
         "SELECT t.id, u.username FROM password_reset_tokens t JOIN users u ON u.id = t.user_id ORDER BY t.id",
-    ) == [("reset-token-2", "regular"), ("reset-token-3", "third"), ("seed-reset-token", "admin")]
+    ) == sorted(
+        [
+            (alembic_chain.RESET_TOKEN_IDS[2], "regular"),
+            (alembic_chain.RESET_TOKEN_IDS[3], "third"),
+            (alembic_chain.SEED_RESET_TOKEN_ID, "admin"),
+        ]
+    )
     assert {
         "gear": _rows(upgrade_db, "SELECT nickname, strava_gear_id, garminconnect_gear_id FROM gear ORDER BY nickname"),
         "activities": _rows(
@@ -1504,6 +1513,172 @@ def test_revision_91_is_irreversible(upgrade_db):
         alembic_chain.downgrade(upgrade_db, _REVISION_90)
 
     assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == _REVISION_91
+
+
+#: The converted columns of revision 92 as (table, column, length, nullable).
+_TEXT_ID_COLUMNS = (
+    ("users_sessions", "id", 36, False),
+    ("users_sessions", "token_family_id", 36, False),
+    ("rotated_refresh_tokens", "token_family_id", 36, False),
+    ("users_api_keys", "id", 36, False),
+    ("activity_ingestion_jobs", "id", 36, False),
+    ("oauth_states", "session_id", 36, True),
+    ("idp_session_tokens", "session_id", 36, False),
+    ("password_reset_tokens", "id", 64, False),
+    ("sign_up_tokens", "id", 64, False),
+    ("sign_up_tokens", "change_id", 64, True),
+)
+
+
+def _seed_to_91(engine) -> None:
+    _seed_to_90(engine)
+    alembic_chain.upgrade(engine, _REVISION_91)
+    _seed(engine, alembic_chain.seed_text_ids)
+
+
+def _text_values(engine, table: str, column: str) -> list[str | None]:
+    statement = sa.select(sa.cast(sa.column(column), sa.Text)).select_from(sa.table(table))
+    with engine.connect() as connection:
+        values = connection.execute(statement).scalars().all()
+    return sorted(values, key=lambda value: (value is None, value))
+
+
+def _rows_with(engine, statement: str, **parameters) -> list[tuple]:
+    with engine.connect() as connection:
+        return [tuple(row) for row in connection.execute(sa.text(statement), parameters)]
+
+
+def _constraints(engine, table: str) -> dict[str, tuple[str, str]]:
+    """Map each constraint of a table to its type and definition."""
+    with engine.connect() as connection:
+        return {
+            row.conname: (row.contype, row.definition)
+            for row in connection.execute(
+                sa.text(
+                    "SELECT conname, contype, pg_get_constraintdef(oid) AS definition FROM pg_constraint "
+                    "WHERE conrelid = CAST(:table AS regclass)"
+                ),
+                {"table": table},
+            )
+        }
+
+
+def _index_definitions(engine, table: str) -> dict[str, str]:
+    return {
+        name: definition
+        for name, definition in _rows_with(
+            engine, "SELECT indexname, indexdef FROM pg_indexes WHERE tablename = :table", table=table
+        )
+    }
+
+
+def test_revision_92_converts_the_text_ids(upgrade_db):
+    _seed_to_91(upgrade_db)
+    counts_before = alembic_chain.row_counts(upgrade_db)
+    values_before = {
+        (table, column): _text_values(upgrade_db, table, column) for table, column, _, _ in _TEXT_ID_COLUMNS
+    }
+    for (table, column), values in values_before.items():
+        assert any(value is not None for value in values), (table, column)
+    assert None in values_before[("oauth_states", "session_id")]
+    assert None in values_before[("sign_up_tokens", "change_id")]
+    for table, column, _, _ in _TEXT_ID_COLUMNS:
+        assert _data_type(upgrade_db, table, column) == "character varying", (table, column)
+
+    alembic_chain.upgrade(upgrade_db, _REVISION_92)
+
+    for table, column, _, nullable in _TEXT_ID_COLUMNS:
+        assert _data_type(upgrade_db, table, column) == "uuid", (table, column)
+        assert _is_nullable(upgrade_db, table, column) is nullable, (table, column)
+        assert _text_values(upgrade_db, table, column) == values_before[(table, column)], (table, column)
+    assert alembic_chain.row_counts(upgrade_db) == counts_before
+    assert _scalar(
+        upgrade_db,
+        "SELECT count(*) FROM rotated_refresh_tokens r JOIN users_sessions s ON s.token_family_id = r.token_family_id",
+    ) == _scalar(upgrade_db, "SELECT count(*) FROM rotated_refresh_tokens")
+    assert _scalar(upgrade_db, "SELECT count(*) FROM rotated_refresh_tokens") == 2
+    for named, joined in (
+        (
+            "SELECT count(session_id) FROM idp_session_tokens",
+            "SELECT count(*) FROM idp_session_tokens t JOIN users_sessions s ON s.id = t.session_id",
+        ),
+        (
+            "SELECT count(session_id) FROM oauth_states",
+            "SELECT count(*) FROM oauth_states t JOIN users_sessions s ON s.id = t.session_id",
+        ),
+    ):
+        assert _scalar(upgrade_db, joined) == _scalar(upgrade_db, named) > 0
+    assert _scalar(
+        upgrade_db, "SELECT count(*) FROM sign_up_tokens c JOIN sign_up_tokens i ON i.id = c.change_id"
+    ) == _scalar(upgrade_db, "SELECT count(change_id) FROM sign_up_tokens")
+    assert _scalar(upgrade_db, "SELECT count(change_id) FROM sign_up_tokens") > 0
+    assert _rows(
+        upgrade_db, "SELECT purpose, session_id::text FROM oauth_states WHERE session_id IS NOT NULL ORDER BY purpose"
+    ) == [("link", alembic_chain.TEXT_ID_SESSIONS[0][0]), ("step_up", alembic_chain.TEXT_ID_SESSIONS[1][0])]
+
+    foreign_key = _constraints(upgrade_db, "rotated_refresh_tokens")["rotated_refresh_tokens_token_family_id_fkey"]
+    assert foreign_key[0] == "f"
+    assert foreign_key[1] == (
+        "FOREIGN KEY (token_family_id) REFERENCES users_sessions(token_family_id) ON DELETE CASCADE"
+    )
+    for table, name in (
+        ("users_sessions", "users_sessions_pkey"),
+        ("users_api_keys", "users_api_keys_pkey"),
+        ("activity_ingestion_jobs", "activity_ingestion_jobs_pkey"),
+        ("password_reset_tokens", "password_reset_tokens_pkey"),
+        ("sign_up_tokens", "sign_up_tokens_pkey"),
+    ):
+        assert _constraints(upgrade_db, table)[name][0] == "p", name
+    assert _constraints(upgrade_db, "idp_session_tokens")["idp_session_tokens_session_id_key"][0] == "u"
+    indexes = _index_definitions(upgrade_db, "users_sessions")
+    assert "UNIQUE INDEX ix_users_sessions_token_family_id" in indexes["ix_users_sessions_token_family_id"]
+    assert "ix_rotated_refresh_tokens_token_family_id" in _index_definitions(upgrade_db, "rotated_refresh_tokens")
+    assert "ix_sign_up_tokens_change_id" in _index_definitions(upgrade_db, "sign_up_tokens")
+
+    alembic_chain.upgrade(upgrade_db, "head")
+    assert alembic_chain.schema_differences(upgrade_db) == []
+    alembic_chain.bootstrap_substrate(upgrade_db)
+    assert alembic_chain.schema_differences(upgrade_db) == []
+
+
+def test_revision_92_refuses_text_that_is_not_a_uuid(upgrade_db):
+    _seed_to_90(upgrade_db)
+    alembic_chain.upgrade(upgrade_db, _REVISION_91)
+    user_id = _scalar(upgrade_db, "SELECT id FROM users WHERE username = 'admin'")
+    created = {"created_at": "2024-05-01 10:00:00", "expires_at": "2030-01-01 00:00:00", "used": False}
+    with upgrade_db.begin() as connection:
+        connection.execute(
+            sa.text("UPDATE users_api_keys SET id = 'key-1' WHERE id = (SELECT min(id) FROM users_api_keys)")
+        )
+    for number in (1, 2):
+        _insert(
+            upgrade_db,
+            "sign_up_tokens",
+            {**created, "user_id": user_id, "token_hash": f"text-signup-{number}", "change_id": "change-1"},
+        )
+    _insert(
+        upgrade_db,
+        "password_reset_tokens",
+        {**created, "user_id": user_id, "token_hash": "text-reset", "id": str(uuid.uuid4()).upper()},
+        with_id=False,
+    )
+
+    with pytest.raises(RuntimeError) as refusal:
+        alembic_chain.upgrade(upgrade_db, _REVISION_92)
+
+    for named in ("users_api_keys.id: 1", "sign_up_tokens.change_id: 2", "password_reset_tokens.id: 1"):
+        assert named in str(refusal.value)
+    assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == _REVISION_91
+    assert _data_type(upgrade_db, "users_api_keys", "id") == "character varying"
+
+
+def test_revision_92_is_irreversible(upgrade_db):
+    alembic_chain.upgrade(upgrade_db, _REVISION_92)
+
+    with pytest.raises(NotImplementedError, match="restore the database from the backup"):
+        alembic_chain.downgrade(upgrade_db, _REVISION_91)
+
+    assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == _REVISION_92
 
 
 def test_migration_13_renames_the_icons_after_the_upgrade(upgrade_db, tmp_path):

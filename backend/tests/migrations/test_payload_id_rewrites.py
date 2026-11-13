@@ -34,9 +34,11 @@ import pkgutil
 import types
 import typing
 import uuid
+from collections.abc import Iterable
 
 import pytest
 from jasil.event_versioning import VersionedPayload
+from pydantic import BaseModel
 from tests._helpers import alembic_chain
 
 _PACKAGES = ("modules", "core")
@@ -153,16 +155,21 @@ def _is_id_field_name(name: str) -> bool:
     return name == "id" or name.endswith(("_id", "_ids"))
 
 
-def _discovered_integer_id_fields() -> set[tuple[str, str]]:
-    _import_packages()
+def _integer_id_fields(classes: Iterable[type[BaseModel]]) -> set[tuple[str, str]]:
+    """Return the integer id fields of the classes defined in an owned package, as (dotted class, field)."""
     found: set[tuple[str, str]] = set()
-    for cls in _subclasses(VersionedPayload):
+    for cls in classes:
         if not cls.__module__.startswith(_OWNED_PREFIXES):
             continue
         for name, field in cls.model_fields.items():
             if _is_id_field_name(name) and _holds(field.annotation, int):
                 found.add((_dotted(cls), name))
     return found
+
+
+def _discovered_integer_id_fields() -> set[tuple[str, str]]:
+    _import_packages()
+    return _integer_id_fields(_subclasses(VersionedPayload))
 
 
 def _declared_entries() -> list[tuple[str, str, tuple[str, ...], str]]:
@@ -195,6 +202,20 @@ def _resolve(dotted_class: str) -> type | None:
 
 def _format(pairs: set[tuple[str, str]]) -> str:
     return "\n".join(f"  {payload_class} {field}" for payload_class, field in sorted(pairs))
+
+
+def test_the_integer_id_filter_reports_only_owned_integer_id_fields() -> None:
+    class Example(BaseModel):
+        thing_id: int
+        name: str
+        other_id: uuid.UUID
+
+    Example.__module__ = "modules.example.events"
+
+    class Foreign(BaseModel):
+        thing_id: int
+
+    assert _integer_id_fields([Example, Foreign]) == {(_dotted(Example), "thing_id")}
 
 
 def test_every_integer_id_field_is_declared_or_listed() -> None:

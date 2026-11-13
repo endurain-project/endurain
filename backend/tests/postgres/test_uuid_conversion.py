@@ -2,6 +2,7 @@
 
 import uuid
 
+import pytest
 import sqlalchemy as sa
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
@@ -9,7 +10,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.engine import Engine
 
 from migrations import uuid_conversion
-from migrations.uuid_conversion import IdIndex, IdReference
+from migrations.uuid_conversion import IdIndex, IdReference, TextIdColumn
 
 _TABLES = (
     ("event_outbox", "event_metadata"),
@@ -166,3 +167,65 @@ def test_rewrite_json_array_ids_maps_number_elements_in_order(upgrade_db):
     assert found["scalar"] == 5
     assert found["null-value"] is None
     assert found["sql-null"] is None
+
+
+def test_refuse_text_ids_that_are_not_uuids_counts_null_as_valid_and_names_every_other_value(upgrade_db):
+    valid = "1a2b3c4d-1111-4111-8111-11111111aaaa"
+    with upgrade_db.begin() as connection:
+        connection.execute(sa.text("CREATE TABLE scratch_ids (id varchar(64) PRIMARY KEY, other varchar(64))"))
+        connection.execute(
+            sa.text("INSERT INTO scratch_ids (id, other) VALUES (:id, :other)"),
+            [
+                {"id": valid, "other": None},
+                {"id": valid.upper(), "other": valid},
+                {"id": valid.replace("-", ""), "other": "{" + valid + "}"},
+                {"id": "{" + valid + "}", "other": valid.upper()},
+                {"id": "sess-1", "other": None},
+                {"id": "11111111-1111-4111-8111-11111111111", "other": "sess-1"},
+            ],
+        )
+    columns = (TextIdColumn("scratch_ids", "id", 64, False), TextIdColumn("scratch_ids", "other", 64, True))
+
+    with pytest.raises(RuntimeError) as refusal:
+        _in_migration(upgrade_db, uuid_conversion.refuse_text_ids_that_are_not_uuids, "92", columns)
+
+    assert str(refusal.value) == (
+        "Revision 92 refused: 8 values are not a UUID: scratch_ids.id: 5, scratch_ids.other: 3. "
+        "Fix or delete those rows and run the upgrade again."
+    )
+
+
+def test_refuse_text_ids_that_are_not_uuids_passes_canonical_text_and_null(upgrade_db):
+    with upgrade_db.begin() as connection:
+        connection.execute(sa.text("CREATE TABLE scratch_ids (id varchar(36) PRIMARY KEY, other varchar(36))"))
+        connection.execute(
+            sa.text("INSERT INTO scratch_ids (id, other) VALUES (:id, :other)"),
+            [{"id": str(uuid.uuid4()), "other": None}, {"id": str(uuid.uuid4()), "other": str(uuid.uuid4())}],
+        )
+    columns = (TextIdColumn("scratch_ids", "id", 36, False), TextIdColumn("scratch_ids", "other", 36, True))
+
+    _in_migration(upgrade_db, uuid_conversion.refuse_text_ids_that_are_not_uuids, "92", columns)
+
+
+def test_cast_text_ids_to_uuid_keeps_the_text_the_comment_and_the_nullability(upgrade_db):
+    first, second = str(uuid.uuid4()), str(uuid.uuid4())
+    with upgrade_db.begin() as connection:
+        connection.execute(sa.text("CREATE TABLE scratch_ids (id varchar(64) PRIMARY KEY, other varchar(36))"))
+        connection.execute(sa.text("COMMENT ON COLUMN scratch_ids.other IS 'Other id'"))
+        connection.execute(
+            sa.text("INSERT INTO scratch_ids (id, other) VALUES (:id, :other)"),
+            [{"id": first, "other": second}, {"id": second, "other": None}],
+        )
+    columns = (TextIdColumn("scratch_ids", "id", 64, False), TextIdColumn("scratch_ids", "other", 36, True, "Other id"))
+
+    _in_migration(upgrade_db, uuid_conversion.cast_text_ids_to_uuid, columns)
+
+    inspector = sa.inspect(upgrade_db)
+    found = {column["name"]: column for column in inspector.get_columns("scratch_ids")}
+    assert all(isinstance(column["type"], sa.Uuid) for column in found.values())
+    assert (found["id"]["nullable"], found["other"]["nullable"]) == (False, True)
+    assert found["other"]["comment"] == "Other id"
+    assert inspector.get_pk_constraint("scratch_ids")["constrained_columns"] == ["id"]
+    with upgrade_db.connect() as connection:
+        rows = connection.execute(sa.text("SELECT id::text, other::text FROM scratch_ids")).all()
+    assert sorted(tuple(row) for row in rows) == sorted([(first, second), (second, None)], key=lambda row: row[0])

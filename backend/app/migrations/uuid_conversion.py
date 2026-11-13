@@ -12,6 +12,11 @@ Helpers added for the activity tables:
 * :func:`swap_in_uuid_primary_key` is the swap half of :func:`give_uuid_primary_key`, for a table whose ``new_id``
   is already filled.
 * :func:`rewrite_json_array_ids` rewrites the integer elements of a JSON array column.
+
+Helpers added for the text columns that hold UUID text:
+
+* :func:`refuse_text_ids_that_are_not_uuids` stops the upgrade before any DDL when a value is not canonical UUID text.
+* :func:`cast_text_ids_to_uuid` retypes the columns in place, keeping every value.
 """
 
 from collections.abc import Sequence
@@ -460,3 +465,80 @@ def swap_in_uuid_ids(parent: str, parent_indexes: Sequence[IdIndex], references:
             op.create_index(index.name, reference.table, list(index.columns))
         for constraint in reference.unique_constraints:
             op.create_unique_constraint(constraint.name, reference.table, list(constraint.columns))
+
+
+@dataclass(frozen=True)
+class TextIdColumn:
+    """A text column that holds UUID text and becomes a native ``uuid`` column.
+
+    Attributes:
+        table: The table holding the column.
+        column: The column.
+        length: The length of the text column (``String(length)``).
+        nullable: Whether the column accepts ``NULL``.
+        comment: The column comment, equal to the model's, or ``None`` when the column has none.
+    """
+
+    table: str
+    column: str
+    length: int
+    nullable: bool
+    comment: str | None = None
+
+
+#: The text a ``uuid`` column prints: lowercase hexadecimal groups with hyphens. The cast keeps the identity of any
+#: value matching it, so ids derived from the text (such as a signed link) stay valid.
+_CANONICAL_UUID_TEXT = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+
+
+def refuse_text_ids_that_are_not_uuids(revision: str, columns: Sequence[TextIdColumn]) -> None:
+    """Raise when a column holds a value that is not canonical UUID text, before any DDL runs.
+
+    ``NULL`` is valid. The values the cast would accept but print differently (uppercase, no hyphens, braces) are
+    refused too, so the cast never changes the text of an id. The refusal rolls the upgrade transaction back.
+
+    Args:
+        revision: The revision number named in the message.
+        columns: The columns to check.
+
+    Raises:
+        RuntimeError: When any column holds a value that is not canonical UUID text.
+    """
+    connection = op.get_bind()
+    offenders: list[tuple[str, int]] = []
+    for spec in columns:
+        column = sa.column(spec.column, sa.String(spec.length))
+        count = connection.execute(
+            sa.select(sa.func.count())
+            .select_from(sa.table(spec.table, column))
+            .where(column.is_not(None), sa.not_(column.regexp_match(_CANONICAL_UUID_TEXT)))
+        ).scalar_one()
+        if count:
+            offenders.append((f"{spec.table}.{spec.column}", count))
+    if offenders:
+        raise RuntimeError(
+            f"Revision {revision} refused: {sum(count for _, count in offenders)} values are not a UUID: "
+            f"{', '.join(f'{name}: {count}' for name, count in offenders)}. "
+            "Fix or delete those rows and run the upgrade again."
+        )
+
+
+def cast_text_ids_to_uuid(columns: Sequence[TextIdColumn]) -> None:
+    """Retype text columns that hold canonical UUID text as ``uuid``, in place and keeping every value.
+
+    PostgreSQL rebuilds the primary keys, unique constraints and indexes that contain a column under their own
+    names. A foreign key that joins two retyped columns must be dropped before and recreated after.
+
+    Args:
+        columns: The columns to retype, in order.
+    """
+    for spec in columns:
+        op.alter_column(
+            spec.table,
+            spec.column,
+            existing_type=sa.String(spec.length),
+            type_=sa.Uuid(),
+            existing_nullable=spec.nullable,
+            comment=spec.comment,
+            postgresql_using=f"{spec.column}::uuid",
+        )

@@ -252,7 +252,8 @@ def _seed_password_reset_tokens(connection: Connection) -> None:
     _execute(
         connection,
         """INSERT INTO password_reset_tokens (id, user_id, token_hash, created_at, expires_at, used)
-           VALUES ('seed-reset-token', 1, 'seed-reset-hash', '2024-05-01 10:00:00', '2030-01-01 00:00:00', false)""",
+           VALUES (:id, 1, 'seed-reset-hash', '2024-05-01 10:00:00', '2030-01-01 00:00:00', false)""",
+        id=SEED_RESET_TOKEN_ID,
     )
 
 
@@ -260,8 +261,9 @@ def _seed_sign_up_tokens(connection: Connection) -> None:
     _execute(
         connection,
         """INSERT INTO sign_up_tokens (id, user_id, token_hash, created_at, expires_at, used)
-           VALUES ('seed-signup-token', 2, 'seed-signup-hash', '2024-05-01 10:00:00', '2030-01-01 00:00:00',
+           VALUES (:id, 2, 'seed-signup-hash', '2024-05-01 10:00:00', '2030-01-01 00:00:00',
                false)""",
+        id=SEED_SIGN_UP_TOKEN_ID,
     )
 
 
@@ -776,6 +778,15 @@ def _reference_id(index: int) -> str:
     return f"00000000-0000-4000-8000-{index:012d}"
 
 
+#: The ids of the password-reset and sign-up tokens and of the sessions seeded at revision 90, by user.
+SEED_RESET_TOKEN_ID = _reference_id(1800)
+SEED_SIGN_UP_TOKEN_ID = _reference_id(1801)
+RESET_TOKEN_IDS = {2: _reference_id(1812), 3: _reference_id(1813)}
+EMAIL_CHANGE_TOKEN_IDS = {1: _reference_id(1821), 3: _reference_id(1823)}
+SESSION_IDS = {2: _reference_id(1832), 3: _reference_id(1833)}
+TOKEN_FAMILY_IDS = {2: _reference_id(1842), 3: _reference_id(1843)}
+
+
 def _insert_rows(
     connection: Connection, table: str, rows: Sequence[dict[str, object]], json_columns: Sequence[str] = ()
 ) -> None:
@@ -1134,7 +1145,7 @@ def _seed_users_references_tokens_and_sessions(connection: Connection) -> None:
             "password_reset_tokens",
             [
                 {
-                    "id": f"reset-token-{user_id}",
+                    "id": RESET_TOKEN_IDS[user_id],
                     "user_id": user_id,
                     "token_hash": f"reset-hash-{user_id}",
                     "created_at": "2024-05-01 10:00:00",
@@ -1149,7 +1160,7 @@ def _seed_users_references_tokens_and_sessions(connection: Connection) -> None:
             "sign_up_tokens",
             [
                 {
-                    "id": f"email-change-token-{user_id}",
+                    "id": EMAIL_CHANGE_TOKEN_IDS[user_id],
                     "user_id": user_id,
                     "token_hash": f"email-change-hash-{user_id}",
                     "created_at": "2024-05-01 10:00:00",
@@ -1158,7 +1169,7 @@ def _seed_users_references_tokens_and_sessions(connection: Connection) -> None:
                     "email": f"new-{user_id}@example.com",
                     "previous_email": previous_email,
                     "security_generation": 1,
-                    "change_id": f"change-{user_id}",
+                    "change_id": EMAIL_CHANGE_TOKEN_IDS[user_id],
                     "revert_until": "2030-01-01 00:00:00",
                 }
             ],
@@ -1169,7 +1180,7 @@ def _seed_users_references_tokens_and_sessions(connection: Connection) -> None:
             "users_sessions",
             [
                 {
-                    "id": f"session-of-user-{user_id}",
+                    "id": SESSION_IDS[user_id],
                     "user_id": user_id,
                     "ip_address": "127.0.0.1",
                     "device_type": "desktop",
@@ -1181,7 +1192,7 @@ def _seed_users_references_tokens_and_sessions(connection: Connection) -> None:
                     "expires_at": "2030-01-01 00:00:00",
                     "last_activity_at": "2024-05-01 10:00:00",
                     "tokens_exchanged": True,
-                    "token_family_id": f"family-of-user-{user_id}",
+                    "token_family_id": TOKEN_FAMILY_IDS[user_id],
                     "rotation_count": 0,
                     "client_type": "web",
                     "auth_time": "2024-05-01 10:00:00",
@@ -1212,7 +1223,7 @@ def _seed_users_references_tokens_and_sessions(connection: Connection) -> None:
         [
             {
                 "id": _reference_id(1600),
-                "session_id": "session-of-user-3",
+                "session_id": SESSION_IDS[3],
                 "user_id": 3,
                 "idp_id": _provider_id(connection, "seed-provider"),
             }
@@ -1230,6 +1241,95 @@ USER_NOTIFICATIONS: tuple[tuple[int, int, int, dict[str, object] | None], ...] =
     (5, 2, 1, None),
     (6, 3, 12, {"user_id": None}),
 )
+
+
+#: The sessions seeded by ``seed_text_ids`` on a database at revision 91: (session id, token family id).
+TEXT_ID_SESSIONS = ((_reference_id(1900), _reference_id(1910)), (_reference_id(1901), _reference_id(1911)))
+
+
+def seed_text_ids(connection: Connection) -> None:
+    """Insert the rows that hold the UUID text of the revision 92 columns, on a database at revision 91.
+
+    Revision 91 emptied the sessions, the rotated refresh tokens, the OAuth states and the identity provider session
+    tokens. This fills them again: two sessions with their token families, rotated tokens in both families, OAuth
+    states that name a session (a link and a step-up flow) and one that names none, and session tokens naming the
+    sessions. The API keys, ingestion jobs and password-reset and sign-up tokens are seeded by the earlier seeders.
+    Commits are the caller's.
+
+    Args:
+        connection: A connection on a database at ``353455bea2a5``.
+    """
+    user_id = connection.execute(sa.text("SELECT id FROM users WHERE username = 'admin'")).scalar_one()
+    idp_id = _provider_id(connection, "seed-provider")
+    for session_id, family_id in TEXT_ID_SESSIONS:
+        _insert_rows(
+            connection,
+            "users_sessions",
+            [
+                {
+                    "id": session_id,
+                    "user_id": user_id,
+                    "ip_address": "127.0.0.1",
+                    "device_type": "desktop",
+                    "operating_system": "Linux",
+                    "operating_system_version": "6",
+                    "browser": "Firefox",
+                    "browser_version": "120",
+                    "created_at": "2024-05-01 10:00:00",
+                    "expires_at": "2030-01-01 00:00:00",
+                    "last_activity_at": "2024-05-01 10:00:00",
+                    "tokens_exchanged": True,
+                    "token_family_id": family_id,
+                    "rotation_count": 0,
+                    "client_type": "web",
+                    "auth_time": "2024-05-01 10:00:00",
+                    "amr": ["pwd"],
+                }
+            ],
+            json_columns=("amr",),
+        )
+    for number, (_, family_id) in enumerate(TEXT_ID_SESSIONS, start=1):
+        _insert_rows(
+            connection,
+            "rotated_refresh_tokens",
+            [
+                {
+                    "id": _reference_id(1920 + number),
+                    "token_family_id": family_id,
+                    "hashed_token": f"text-id-rotated-hash-{number}",
+                    "rotation_count": 1,
+                    "rotated_at": "2024-05-01 10:00:00",
+                    "expires_at": "2030-01-01 00:00:00",
+                    "refresh_token_exp": "2030-01-01 00:00:00",
+                    "client_fingerprint": "seed-fingerprint",
+                }
+            ],
+        )
+    session_ids = [session_id for session_id, _ in TEXT_ID_SESSIONS]
+    _insert_rows(
+        connection,
+        "oauth_states",
+        [
+            {
+                "id": f"text-id-state-{purpose}",
+                "idp_id": idp_id,
+                "user_id": user_id,
+                "nonce": "seed-nonce",
+                "client_type": "web",
+                "expires_at": "2030-01-01 00:00:00",
+                "used": False,
+                "purpose": purpose,
+                "session_id": session_id,
+            }
+            for purpose, session_id in (("link", session_ids[0]), ("step_up", session_ids[1]), ("login", None))
+        ],
+    )
+    for number, session_id in enumerate(session_ids, start=1):
+        _insert_rows(
+            connection,
+            "idp_session_tokens",
+            [{"id": _reference_id(1930 + number), "session_id": session_id, "user_id": user_id, "idp_id": idp_id}],
+        )
 
 
 def _seed_users_references_notifications(connection: Connection) -> None:
