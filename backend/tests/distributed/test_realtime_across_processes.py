@@ -16,6 +16,7 @@ from websockets.sync.client import connect
 from tests.distributed.cluster import _APP_DIR, _SUPPORT_DIR
 
 _USER_ID = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
+_NOTIFICATION_ID = uuid.UUID("7c1b3a90-5e24-4d6f-8a07-3b9e2c4d1f58")
 
 
 def _run(cluster, script: str, *args: str, distributed: bool = True) -> str:
@@ -51,11 +52,11 @@ def test_a_process_without_sockets_reaches_a_socket_held_by_an_api_replica(clust
 
     with _connect(cluster, api) as socket:
         _wait_until_held(cluster, api)
-        _run(cluster, "push_hint.py", str(_USER_ID), "NEW_ACTIVITY_NOTIFICATION")
+        _run(cluster, "push_hint.py", str(_USER_ID), "NEW_ACTIVITY_NOTIFICATION", str(_NOTIFICATION_ID))
 
         message = json.loads(socket.recv(timeout=15))
 
-    assert message == {"message": "NEW_ACTIVITY_NOTIFICATION", "notification_id": 1}
+    assert message == {"message": "NEW_ACTIVITY_NOTIFICATION", "notification_id": str(_NOTIFICATION_ID)}
     assert cluster.error_lines() == []
 
 
@@ -66,7 +67,7 @@ def test_a_replica_that_does_not_hold_the_socket_does_not_swallow_the_hint(clust
 
     with _connect(cluster, holder) as socket:
         _wait_until_held(cluster, holder)
-        _run(cluster, "push_hint.py", str(_USER_ID), "NEW_FOLLOWER_REQUEST_NOTIFICATION")
+        _run(cluster, "push_hint.py", str(_USER_ID), "NEW_FOLLOWER_REQUEST_NOTIFICATION", str(_NOTIFICATION_ID))
 
         message = json.loads(socket.recv(timeout=15))
 

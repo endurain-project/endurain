@@ -32,6 +32,6 @@ runtime.set_active_platform(platform)
 
 import modules.websocket.integration_service as websocket_integration
 
-websocket_integration.push_to_user(uuid.UUID(sys.argv[1]), {"message": sys.argv[2], "notification_id": 1})
+websocket_integration.push_to_user(uuid.UUID(sys.argv[1]), {"message": sys.argv[2], "notification_id": sys.argv[3]})
 
 lifecycle.shutdown()
