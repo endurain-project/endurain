@@ -27,7 +27,7 @@ interface NotificationBase {
   /** ISO creation timestamp. */
   createdAt: string
   /** Owning user's id. */
-  userId: number
+  userId: string
 }
 
 /**

@@ -1295,7 +1295,8 @@
         "timed_out": "耗時過長，未匯入任何內容，因此您可以再試一次。",
         "files_incomplete": "您的資料已匯入，但缺少部分檔案。請勿再次匯入，否則會產生重複資料。",
         "processing_failed": "發生問題，未匯入任何內容，因此您可以再試一次。",
-        "wrong_account": "此封存檔是從另一個帳號匯出的，未匯入任何內容。"
+        "wrong_account": "此封存檔是從另一個帳號匯出的，未匯入任何內容。",
+        "older_version": "此封存檔由較舊版本的 Endurain 匯出，未匯入任何內容。"
       }
     },
     "blockedUsers": {

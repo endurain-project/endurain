@@ -69,7 +69,7 @@ describe('an untouched imperial field keeps the stored metric value', () => {
   it('weight, bone mass and muscle mass', async () => {
     const entry: WeightEntry = {
       id: '00000000-0000-4000-8000-000000000003',
-      userId: 1,
+      userId: '00000000-0000-4000-8000-000000000001',
       version: 4,
       date: '2026-10-30',
       weightKg: 70.5,
@@ -93,7 +93,7 @@ describe('an untouched imperial field keeps the stored metric value', () => {
   it('water', async () => {
     const entry: WaterEntry = {
       id: '00000000-0000-4000-8000-000000000009',
-      userId: 1,
+      userId: '00000000-0000-4000-8000-000000000001',
       version: 2,
       date: '2026-10-30',
       amountMl: 2000,
@@ -112,7 +112,7 @@ describe('an untouched imperial field keeps the stored metric value', () => {
   it('gear initial distance', async () => {
     const gear: Gear = {
       id: '00000000-0000-4000-8000-000000000002',
-      userId: 1,
+      userId: '00000000-0000-4000-8000-000000000001',
       gearType: GEAR_TYPE.BICYCLE,
       nickname: 'Road',
       brand: null,
@@ -138,7 +138,7 @@ describe('an untouched imperial field keeps the stored metric value', () => {
   it('gear component expected distance', async () => {
     const component: GearComponent = {
       id: '00000000-0000-4000-8000-000000000007',
-      userId: 1,
+      userId: '00000000-0000-4000-8000-000000000001',
       gearId: '00000000-0000-4000-8000-000000000005',
       type: 'chain',
       brand: 'Shimano',
@@ -175,7 +175,7 @@ describe('an untouched imperial field keeps the stored metric value', () => {
   ])('goal %s', async (_name, target, expected) => {
     const goal: Goal = {
       id: '00000000-0000-4000-8000-000000000004',
-      userId: 1,
+      userId: '00000000-0000-4000-8000-000000000001',
       version: 2,
       interval: 'weekly',
       activityType: 'run',
@@ -199,7 +199,7 @@ describe('an edited imperial value is still converted', () => {
   it('water', async () => {
     const entry: WaterEntry = {
       id: '00000000-0000-4000-8000-000000000009',
-      userId: 1,
+      userId: '00000000-0000-4000-8000-000000000001',
       version: 2,
       date: '2026-10-30',
       amountMl: 2000,
@@ -220,7 +220,7 @@ describe('an edited imperial value is still converted', () => {
   it('weight', async () => {
     const entry = {
       id: '00000000-0000-4000-8000-000000000003',
-      userId: 1,
+      userId: '00000000-0000-4000-8000-000000000001',
       version: 4,
       date: '2026-10-30',
       weightKg: 70.5,

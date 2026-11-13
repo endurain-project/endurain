@@ -73,7 +73,7 @@ export interface NotificationPresentation {
 /** Optional rendering context the presenter can't infer from the model alone. */
 export interface NotificationPresenterContext {
   /** The viewing user's id, used to deep-link follower requests to their list. */
-  currentUserId?: number | null
+  currentUserId?: string | null
   /** The viewer's locale, used to format dates a notification names. */
   locale?: string
 }
@@ -138,7 +138,7 @@ export function presentNotification(
           name: notification.options.user_name,
           username: notification.options.user_username,
         },
-        to: { name: 'user', params: { id: String(notification.options.user_id) } },
+        to: { name: 'user', params: { id: notification.options.user_id } },
       }
     }
     case 'garmin_token_expired': {
@@ -230,7 +230,7 @@ export function presentNotification(
           name: notification.options.user_name,
           username: notification.options.user_username,
         },
-        to: { name: 'settings-user-detail', params: { id: String(notification.options.user_id) } },
+        to: { name: 'settings-user-detail', params: { id: notification.options.user_id } },
       }
     }
     case 'admin_user_promoted': {
@@ -242,7 +242,7 @@ export function presentNotification(
           name: notification.options.user_name,
           username: notification.options.user_username,
         },
-        to: { name: 'settings-user-detail', params: { id: String(notification.options.user_id) } },
+        to: { name: 'settings-user-detail', params: { id: notification.options.user_id } },
       }
     }
     default:

@@ -22,7 +22,7 @@ import {
   useActivityWorkoutStepsQuery,
 } from '@/features/activities/composables/useActivityDetail'
 
-import { makeActivity, activityUuid } from './fixtures/activity'
+import { makeActivity, activityUuid, userUuid } from './fixtures/activity'
 
 const ACTIVITY_ID = activityUuid(5)
 
@@ -132,7 +132,7 @@ describe('useActivityQuery', () => {
     const jane = { name: 'Jane Runner', username: 'jane', avatarUrl: null }
     vi.mocked(fetchActivityDetail).mockResolvedValue({
       ...detail,
-      activity: makeActivity({ id: ACTIVITY_ID, userId: 7, media: [photo] }),
+      activity: makeActivity({ id: ACTIVITY_ID, userId: userUuid(7), media: [photo] }),
       owner: jane,
     })
     const queryClient = new QueryClient()
@@ -146,7 +146,7 @@ describe('useActivityQuery', () => {
     let owner: ReturnType<typeof useActivityOwnerQuery> | undefined
     mountWith(queryClient, () => {
       media = useActivityMediaQuery(ACTIVITY_ID)
-      owner = useActivityOwnerQuery(makeActivity({ id: ACTIVITY_ID, userId: 7 }))
+      owner = useActivityOwnerQuery(makeActivity({ id: ACTIVITY_ID, userId: userUuid(7) }))
     })
     await flushPromises()
 
@@ -160,7 +160,7 @@ describe('useActivityQuery', () => {
   it('keeps a hidden owner as null rather than looking it up', async () => {
     vi.mocked(fetchActivityDetail).mockResolvedValue({
       ...detail,
-      activity: makeActivity({ id: ACTIVITY_ID, userId: 7 }),
+      activity: makeActivity({ id: ACTIVITY_ID, userId: userUuid(7) }),
     })
     const queryClient = new QueryClient()
     mountWith(queryClient, () => {
@@ -168,7 +168,7 @@ describe('useActivityQuery', () => {
     })
     await flushPromises()
 
-    expect(queryClient.getQueryData(queryKeys.activities.owner(7))).toBeNull()
+    expect(queryClient.getQueryData(queryKeys.activities.owner(userUuid(7)))).toBeNull()
   })
 
   it('leaves an incomplete collection to its own query, which reads every page', async () => {

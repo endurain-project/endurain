@@ -1295,7 +1295,8 @@
         "timed_out": "trajal je predolgo. Nič ni bilo uvoženo, zato lahko poskusiš znova.",
         "files_incomplete": "tvoji podatki so bili uvoženi, vendar nekaj datotek manjka. Ne uvozi jih znova, ker bi se podatki podvojili.",
         "processing_failed": "nekaj je šlo narobe. Nič ni bilo uvoženo, zato lahko poskusiš znova.",
-        "wrong_account": "arhiv je bil izvožen iz drugega računa. Nič ni bilo uvoženo."
+        "wrong_account": "arhiv je bil izvožen iz drugega računa. Nič ni bilo uvoženo.",
+        "older_version": "arhiv je izvozila starejša različica Endurain. Nič ni bilo uvoženo."
       }
     },
     "blockedUsers": {

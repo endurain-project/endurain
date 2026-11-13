@@ -33,10 +33,9 @@ import type { ActivityIngestionJob } from '@/features/upload/types'
 /** Default number of activities fetched per feed page (matches v1's fallback). */
 export const DEFAULT_FEED_PAGE_SIZE = 25
 
-/** Resolves a reactive user id to a positive number, or `0` when unavailable. */
-function resolveUserId(userId: MaybeRefOrGetter<number | null>): number {
-  const value = toValue(userId)
-  return value !== null && Number.isFinite(value) && value > 0 ? value : 0
+/** Resolves a reactive user id to its string, or `''` when unavailable. */
+function resolveUserId(userId: MaybeRefOrGetter<string | null>): string {
+  return toValue(userId) ?? ''
 }
 
 /**
@@ -80,7 +79,7 @@ function seedFeedSlice(client: QueryClient, slice: ActivityFeedSlice): void {
  * @returns The TanStack infinite-query result for the user's activity feed.
  */
 export function useUserActivitiesFeed(
-  userId: MaybeRefOrGetter<number | null>,
+  userId: MaybeRefOrGetter<string | null>,
   pageSize: number = DEFAULT_FEED_PAGE_SIZE,
   enabled: MaybeRefOrGetter<boolean> = true,
 ) {
@@ -100,7 +99,7 @@ export function useUserActivitiesFeed(
     },
     initialPageParam: null as string | null,
     getNextPageParam: (lastSlice: ActivityFeedSlice) => lastSlice.nextCursor ?? undefined,
-    enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value > 0),
+    enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value !== ''),
   })
 
   // Activities uploaded this session stay on top through any refetch. Derived
@@ -124,7 +123,7 @@ export function useUserActivitiesFeed(
  * @returns The TanStack query result for that week's activities.
  */
 export function useUserWeekActivitiesQuery(
-  userId: MaybeRefOrGetter<number | null>,
+  userId: MaybeRefOrGetter<string | null>,
   week: MaybeRefOrGetter<number>,
   firstDayOfWeek: MaybeRefOrGetter<Schemas['WeekDay']>,
   enabled: MaybeRefOrGetter<boolean> = true,
@@ -149,7 +148,7 @@ export function useUserWeekActivitiesQuery(
       seedActivityMedia(client, activities)
       return activities
     },
-    enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value > 0),
+    enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value !== ''),
     staleTime: 5 * 60_000,
   })
 }
@@ -166,7 +165,7 @@ export function useUserWeekActivitiesQuery(
  * @returns The TanStack infinite-query result for the followed-users feed.
  */
 export function useFollowersActivitiesFeed(
-  userId: MaybeRefOrGetter<number | null>,
+  userId: MaybeRefOrGetter<string | null>,
   pageSize: number = DEFAULT_FEED_PAGE_SIZE,
   enabled: MaybeRefOrGetter<boolean> = true,
 ) {
@@ -185,7 +184,7 @@ export function useFollowersActivitiesFeed(
     // returned, so activities arriving mid-scroll cannot shift the window.
     initialPageParam: null as string | null,
     getNextPageParam: (lastSlice: ActivityFeedSlice) => lastSlice.nextCursor ?? undefined,
-    enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value > 0),
+    enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value !== ''),
   })
 }
 
@@ -199,7 +198,7 @@ export function useFollowersActivitiesFeed(
  * @returns The TanStack query result for the per-sport stats.
  */
 export function useActivityStatsQuery(
-  userId: MaybeRefOrGetter<number | null>,
+  userId: MaybeRefOrGetter<string | null>,
   timeframe: ActivityStatsTimeframe,
 ) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
@@ -208,7 +207,7 @@ export function useActivityStatsQuery(
   return useQuery<ActivityStats>({
     queryKey: computed(() => queryKeys.activities.stats(id.value, timeframe)),
     queryFn: ({ signal }) => fetchActivityStats(id.value, timeframe, signal),
-    enabled: computed(() => isAuthenticated.value && id.value > 0),
+    enabled: computed(() => isAuthenticated.value && id.value !== ''),
     staleTime: 5 * 60_000,
   })
 }

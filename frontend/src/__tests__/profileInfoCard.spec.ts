@@ -6,6 +6,7 @@ import type { ProfileDetails } from '@/features/profile/types'
 
 import i18n from '@/i18n'
 import ProfileInfoCard from '@/features/profile/components/ProfileInfoCard.vue'
+import { userUuid } from './fixtures/activity'
 
 vi.mock('@/composables/useToasts', () => ({
   useToasts: () => ({
@@ -33,7 +34,7 @@ const mounted: Array<{ unmount: () => void }> = []
 /** Builds a full profile for the card, overridable per case. */
 function makeProfile(overrides: Partial<ProfileDetails> = {}): ProfileDetails {
   return {
-    id: 1,
+    id: userUuid(1),
     version: 1,
     name: 'Ada Lovelace',
     username: 'ada',

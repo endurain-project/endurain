@@ -17,7 +17,7 @@ vi.mock('@/services/http', () => ({
 
 const linkedDto: LinkedProviderDto = {
   id: '00000000-0000-4000-8000-000000000003',
-  user_id: 7,
+  user_id: '00000000-0000-4000-8000-000000000007',
   idp_id: '00000000-0000-4000-8000-000000000002',
   idp_subject: 'sub-abc',
   idp_name: 'Keycloak',
@@ -53,7 +53,7 @@ describe('mapLinkedProvider', () => {
     expect(
       mapLinkedProvider({
         id: '00000000-0000-4000-8000-000000000001',
-        user_id: 1,
+        user_id: '00000000-0000-4000-8000-000000000001',
         idp_id: '00000000-0000-4000-8000-000000000009',
         idp_icon_uploaded: false,
         idp_subject: 'x',

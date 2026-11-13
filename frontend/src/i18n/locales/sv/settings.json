@@ -1295,7 +1295,8 @@
         "timed_out": "den tog för lång tid. Inget importerades, så du kan försöka igen.",
         "files_incomplete": "dina data importerades men vissa filer saknas. Importera inte igen; det skulle duplicera dina data.",
         "processing_failed": "något gick fel. Inget importerades, så du kan försöka igen.",
-        "wrong_account": "arkivet exporterades från ett annat konto. Inget importerades."
+        "wrong_account": "arkivet exporterades från ett annat konto. Inget importerades.",
+        "older_version": "arkivet exporterades av en äldre Endurain-version. Inget importerades."
       }
     },
     "blockedUsers": {

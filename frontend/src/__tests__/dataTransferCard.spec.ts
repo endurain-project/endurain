@@ -45,7 +45,13 @@ function mountCard(
   props: { hasLocalPassword?: boolean; mfaEnabled?: boolean; resume?: IdpStepUpResume | null } = {},
 ) {
   const wrapper = mount(DataTransferCard, {
-    props: { userId: 1, hasLocalPassword: true, mfaEnabled: false, resume: null, ...props },
+    props: {
+      userId: '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b',
+      hasLocalPassword: true,
+      mfaEnabled: false,
+      resume: null,
+      ...props,
+    },
     global: {
       plugins: [i18n],
       stubs: {
@@ -81,6 +87,20 @@ describe('DataTransferCard', () => {
 
     expect(wrapper.get('[role="status"]').text()).toBe(
       "The import didn't complete: the archive was exported from a different account. Nothing was imported.",
+    )
+    importStatus.value = null
+  })
+
+  it('explains that an archive from an older Endurain version was refused', () => {
+    importStatus.value = {
+      status: 'failed',
+      error_code: 'older_version',
+      imported: null,
+    } as ProfileImportStatus
+    const wrapper = mountCard()
+
+    expect(wrapper.get('[role="status"]').text()).toBe(
+      "The import didn't complete: the archive was exported by an older Endurain version. Nothing was imported.",
     )
     importStatus.value = null
   })

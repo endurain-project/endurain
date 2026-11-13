@@ -19,13 +19,13 @@ import {
  * @param userId - Reactive target user id (or `null` before it resolves).
  * @returns The TanStack Query result for the user's identity-provider links.
  */
-export function useUserIdentityProvidersQuery(userId: MaybeRefOrGetter<number | null>) {
+export function useUserIdentityProvidersQuery(userId: MaybeRefOrGetter<string | null>) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
 
   return useQuery<UserIdentityProvider[]>({
-    queryKey: computed(() => queryKeys.users.identityProviders(toValue(userId) ?? 0)),
-    queryFn: ({ signal }) => fetchUserIdentityProviders(toValue(userId) as number, signal),
-    enabled: computed(() => isAuthenticated.value && (toValue(userId) ?? 0) > 0),
+    queryKey: computed(() => queryKeys.users.identityProviders(toValue(userId) ?? '')),
+    queryFn: ({ signal }) => fetchUserIdentityProviders(toValue(userId) as string, signal),
+    enabled: computed(() => isAuthenticated.value && toValue(userId) !== null),
   })
 }
 
@@ -45,7 +45,7 @@ export function useUnlinkUserIdentityProviderMutation() {
       idpId,
       stepUp,
     }: {
-      userId: number
+      userId: string
       idpId: string
       stepUp: StepUpInput
     }) => unlinkUserIdentityProvider(userId, idpId, stepUp),

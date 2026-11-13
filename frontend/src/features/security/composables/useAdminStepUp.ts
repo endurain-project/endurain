@@ -65,22 +65,11 @@ export function useResumeOnce(
 export function resumeTargetId(
   resume: IdpStepUpResume | null,
   actions: readonly StepUpAction[],
-  key: 'userId',
-): number | null
-export function resumeTargetId(
-  resume: IdpStepUpResume | null,
-  actions: readonly StepUpAction[],
-  key: 'idpId',
-): string | null
-export function resumeTargetId(
-  resume: IdpStepUpResume | null,
-  actions: readonly StepUpAction[],
   key: 'userId' | 'idpId',
-): number | string | null {
+): string | null {
   const id = resume?.pending[key]
   if (!resume || !actions.includes(resume.action)) {
     return null
   }
-  const expected = key === 'userId' ? 'number' : 'string'
-  return typeof id === expected ? (id as number | string) : null
+  return typeof id === 'string' ? id : null
 }

@@ -214,7 +214,7 @@ export interface ActivityPrivacy {
  */
 export interface ActivitySummary {
   id: string
-  userId: number | null
+  userId: string | null
   name: string
   description: string | null
   activityType: ActivityType
@@ -375,5 +375,5 @@ export interface ActivityDetail {
 export interface ActivityFeedSlice {
   items: ActivitySummary[]
   nextCursor: string | null
-  owners: Map<number, ActivityOwner | null>
+  owners: Map<string, ActivityOwner | null>
 }

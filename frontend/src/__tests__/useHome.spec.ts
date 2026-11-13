@@ -17,7 +17,7 @@ import {
   useUserActivitiesFeed,
 } from '@/features/home/composables/useHome'
 
-import { makeActivity, activityUuid } from './fixtures/activity'
+import { makeActivity, activityUuid, userUuid } from './fixtures/activity'
 
 vi.mock('pinia', async (importOriginal) => ({
   ...(await importOriginal<typeof import('pinia')>()),
@@ -26,7 +26,7 @@ vi.mock('pinia', async (importOriginal) => ({
 
 vi.mock('@/features/auth/stores/auth', () => ({ useAuthStore: () => ({ isAuthenticated: true }) }))
 vi.mock('@/features/auth/composables/useCurrentUser', () => ({
-  useCurrentUser: () => ({ data: ref({ id: 1 }) }),
+  useCurrentUser: () => ({ data: ref({ id: '00000000-0000-4000-9000-000000000001' }) }),
 }))
 
 vi.mock('@/features/activities/services/activities', async (importOriginal) => ({
@@ -51,13 +51,13 @@ const jane: ActivityOwner = { name: 'Jane Runner', username: 'jane', avatarUrl: 
 
 const slice: ActivityFeedSlice = {
   items: [
-    makeActivity({ id: activityUuid(1), userId: 7 }),
-    makeActivity({ id: activityUuid(2), userId: 8 }),
+    makeActivity({ id: activityUuid(1), userId: userUuid(7) }),
+    makeActivity({ id: activityUuid(2), userId: userUuid(8) }),
   ],
   nextCursor: null,
-  owners: new Map<number, ActivityOwner | null>([
-    [7, jane],
-    [8, null],
+  owners: new Map<string, ActivityOwner | null>([
+    [userUuid(7), jane],
+    [userUuid(8), null],
   ]),
 }
 
@@ -86,21 +86,23 @@ describe('useFollowersActivitiesFeed', () => {
     vi.mocked(fetchFollowersActivities).mockResolvedValue(slice)
     const queryClient = new QueryClient()
     mountWith(queryClient, () => {
-      useFollowersActivitiesFeed(1)
+      useFollowersActivitiesFeed(userUuid(1))
     })
     await flushPromises()
 
-    expect(queryClient.getQueryData(queryKeys.activities.owner(7))).toEqual(jane)
+    expect(queryClient.getQueryData(queryKeys.activities.owner(userUuid(7)))).toEqual(jane)
     // An owner the server left out is cached as "not found" rather than looked up per card.
-    expect(queryClient.getQueryData(queryKeys.activities.owner(8))).toBeNull()
-    expect(queryClient.getQueryState(queryKeys.activities.owner(8))?.status).toBe('success')
+    expect(queryClient.getQueryData(queryKeys.activities.owner(userUuid(8)))).toBeNull()
+    expect(queryClient.getQueryState(queryKeys.activities.owner(userUuid(8)))?.status).toBe(
+      'success',
+    )
   })
 
   it('means a card mounted afterwards makes no owner request', async () => {
     vi.mocked(fetchFollowersActivities).mockResolvedValue(slice)
     const queryClient = new QueryClient()
     mountWith(queryClient, () => {
-      useFollowersActivitiesFeed(1)
+      useFollowersActivitiesFeed(userUuid(1))
     })
     await flushPromises()
     wrapper?.unmount()
@@ -122,7 +124,7 @@ describe('useFollowersActivitiesFeed', () => {
       .mockResolvedValueOnce(slice)
     let feed: ReturnType<typeof useFollowersActivitiesFeed> | undefined
     mountWith(new QueryClient(), () => {
-      feed = useFollowersActivitiesFeed(1)
+      feed = useFollowersActivitiesFeed(userUuid(1))
     })
     await flushPromises()
 
@@ -144,7 +146,7 @@ describe('useUserActivitiesFeed', () => {
       .mockResolvedValueOnce(slice)
     let feed: ReturnType<typeof useUserActivitiesFeed> | undefined
     mountWith(new QueryClient(), () => {
-      feed = useUserActivitiesFeed(1)
+      feed = useUserActivitiesFeed(userUuid(1))
     })
     await flushPromises()
     expect(feed?.hasNextPage.value).toBe(true)
@@ -167,11 +169,11 @@ describe('useUserActivitiesFeed', () => {
     vi.mocked(fetchFollowersActivities).mockResolvedValue(slice)
     const queryClient = new QueryClient()
     mountWith(queryClient, () => {
-      useUserActivitiesFeed(1)
+      useUserActivitiesFeed(userUuid(1))
     })
     await flushPromises()
 
-    expect(queryClient.getQueryData(queryKeys.activities.owner(7))).toEqual(jane)
+    expect(queryClient.getQueryData(queryKeys.activities.owner(userUuid(7)))).toEqual(jane)
   })
 })
 
@@ -192,7 +194,7 @@ describe('embedded activity media', () => {
     })
     const queryClient = new QueryClient()
     mountWith(queryClient, () => {
-      useUserActivitiesFeed(1)
+      useUserActivitiesFeed(userUuid(1))
     })
     await flushPromises()
     wrapper?.unmount()
@@ -211,11 +213,11 @@ describe('embedded activity media', () => {
   it('seeds the media of the following feed too', async () => {
     vi.mocked(fetchFollowersActivities).mockResolvedValue({
       ...slice,
-      items: [makeActivity({ id: activityUuid(1), userId: 7, media: [photo] })],
+      items: [makeActivity({ id: activityUuid(1), userId: userUuid(7), media: [photo] })],
     })
     const queryClient = new QueryClient()
     mountWith(queryClient, () => {
-      useFollowersActivitiesFeed(1)
+      useFollowersActivitiesFeed(userUuid(1))
     })
     await flushPromises()
 

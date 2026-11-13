@@ -27,7 +27,7 @@ const open = defineModel<boolean>('open', { required: true })
 
 const props = defineProps<{
   /** The target user's id. */
-  userId: number
+  userId: string | null
   /** The target user's username, shown in the dialog copy. */
   username: string
   /** The target user's access type, so the right length policy is enforced. */
@@ -56,7 +56,7 @@ const idpReauth = ref<IdpReauth | null>(null)
 useResumeOnce(
   () => props.resume ?? null,
   'admin_credential_reset',
-  (pending) => Boolean(props.userId) && pending.userId === props.userId,
+  (pending) => props.userId !== null && pending.userId === props.userId,
   (resume) => {
     idpReauth.value = resume.reauth
     open.value = true
@@ -84,7 +84,7 @@ interface PasswordFormValues {
  * @param formValues - The validated form values.
  */
 async function submitForm(formValues: PasswordFormValues): Promise<void> {
-  if (formValues.password !== formValues.confirm || !stepUp.value) {
+  if (formValues.password !== formValues.confirm || !stepUp.value || props.userId === null) {
     return
   }
   try {

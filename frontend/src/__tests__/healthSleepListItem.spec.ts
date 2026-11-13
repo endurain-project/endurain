@@ -21,7 +21,7 @@ vi.mock('@/features/auth/composables/useCurrentUser', () => ({
 function makeRow(overrides: Partial<SleepListEntry> = {}): SleepListEntry {
   return {
     id: '00000000-0000-4000-8000-000000000005',
-    userId: 9,
+    userId: '00000000-0000-4000-8000-000000000009',
     version: 1,
     date: '2026-06-25',
     sleepStartTimeLocal: null,
@@ -60,7 +60,7 @@ function makeRow(overrides: Partial<SleepListEntry> = {}): SleepListEntry {
 
 const fullDto = {
   id: '00000000-0000-4000-8000-000000000005',
-  user_id: 9,
+  user_id: '00000000-0000-4000-8000-000000000009',
   version: 1,
   date: '2026-06-25',
   sleep_stages: [

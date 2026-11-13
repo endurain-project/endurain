@@ -14,7 +14,7 @@ import {
 
 const props = defineProps<{
   /** The profile owner the viewer may block. */
-  targetUserId: number
+  targetUserId: string
   /** The profile owner's display name, interpolated into the confirm copy. */
   targetName: string
 }>()

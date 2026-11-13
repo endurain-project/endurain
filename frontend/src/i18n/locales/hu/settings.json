@@ -1295,7 +1295,8 @@
         "timed_out": "túl sokáig tartott. Semmi sem lett importálva, ezért próbálkozhatsz újra.",
         "files_incomplete": "az adataid importálva lettek, de néhány fájl hiányzik. Ne importáld újra, mert megduplázná az adataidat.",
         "processing_failed": "valami elromlott. Semmi sem lett importálva, ezért próbálkozhatsz újra.",
-        "wrong_account": "az archívum egy másik fiókból lett exportálva. Semmi sem lett importálva."
+        "wrong_account": "az archívum egy másik fiókból lett exportálva. Semmi sem lett importálva.",
+        "older_version": "az archívumot az Endurain egy régebbi verziója exportálta. Semmi sem lett importálva."
       }
     },
     "blockedUsers": {

@@ -1295,7 +1295,8 @@
         "timed_out": "trajao je predugo. Ništa nije uvezeno pa možete pokušati ponovno.",
         "files_incomplete": "vaši su podaci uvezeni, ali neke datoteke nedostaju. Nemojte ponovno uvoziti; podaci bi se duplicirali.",
         "processing_failed": "nešto je pošlo po zlu. Ništa nije uvezeno pa možete pokušati ponovno.",
-        "wrong_account": "arhiva je izvezena s drugog računa. Ništa nije uvezeno."
+        "wrong_account": "arhiva je izvezena s drugog računa. Ništa nije uvezeno.",
+        "older_version": "arhiva je izvezena starijom verzijom Endurain-a. Ništa nije uvezeno."
       }
     },
     "blockedUsers": {

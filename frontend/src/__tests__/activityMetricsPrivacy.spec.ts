@@ -9,40 +9,40 @@ import {
   streamMetricVisibility,
 } from '@/features/activities/utils/privacy'
 
-import { makeActivity, NO_PRIVACY } from './fixtures/activity'
+import { makeActivity, NO_PRIVACY, userUuid } from './fixtures/activity'
 
 describe('isActivityOwner', () => {
   it('matches the owner only when ids align and a viewer is present', () => {
-    const activity = makeActivity({ userId: 7 })
-    expect(isActivityOwner(activity, 7)).toBe(true)
-    expect(isActivityOwner(activity, 8)).toBe(false)
+    const activity = makeActivity({ userId: userUuid(7) })
+    expect(isActivityOwner(activity, userUuid(7))).toBe(true)
+    expect(isActivityOwner(activity, userUuid(8))).toBe(false)
     expect(isActivityOwner(activity, null)).toBe(false)
   })
 })
 
 describe('canViewField', () => {
   it('lets the owner see hidden fields but hides them from others', () => {
-    const activity = makeActivity({ userId: 7, privacy: { ...NO_PRIVACY, hideHr: true } })
-    expect(canViewField(activity, 'hideHr', 7)).toBe(true)
-    expect(canViewField(activity, 'hideHr', 8)).toBe(false)
+    const activity = makeActivity({ userId: userUuid(7), privacy: { ...NO_PRIVACY, hideHr: true } })
+    expect(canViewField(activity, 'hideHr', userUuid(7))).toBe(true)
+    expect(canViewField(activity, 'hideHr', userUuid(8))).toBe(false)
     expect(canViewField(activity, 'hideHr', null)).toBe(false)
   })
 
   it('shows non-hidden fields to everyone', () => {
-    const activity = makeActivity({ userId: 7 })
-    expect(canViewField(activity, 'hidePower', 8)).toBe(true)
+    const activity = makeActivity({ userId: userUuid(7) })
+    expect(canViewField(activity, 'hidePower', userUuid(8))).toBe(true)
   })
 })
 
 describe('buildMetricVisibility', () => {
   it('shows everything to the owner', () => {
-    const activity = makeActivity({ userId: 7, privacy: { ...NO_PRIVACY, hideHr: true } })
-    expect(buildMetricVisibility(activity, 7).hr).toBe(true)
+    const activity = makeActivity({ userId: userUuid(7), privacy: { ...NO_PRIVACY, hideHr: true } })
+    expect(buildMetricVisibility(activity, userUuid(7)).hr).toBe(true)
   })
 
   it('respects hide flags for non-owners', () => {
-    const activity = makeActivity({ userId: 7, privacy: { ...NO_PRIVACY, hideHr: true } })
-    const visibility = buildMetricVisibility(activity, 8)
+    const activity = makeActivity({ userId: userUuid(7), privacy: { ...NO_PRIVACY, hideHr: true } })
+    const visibility = buildMetricVisibility(activity, userUuid(8))
     expect(visibility.hr).toBe(false)
     expect(visibility.pace).toBe(true)
   })
@@ -50,8 +50,8 @@ describe('buildMetricVisibility', () => {
 
 describe('streamMetricVisibility', () => {
   it('always shows temperature and gates hr by its flag', () => {
-    const activity = makeActivity({ userId: 7, privacy: { ...NO_PRIVACY, hideHr: true } })
-    const visible = streamMetricVisibility(activity, 8)
+    const activity = makeActivity({ userId: userUuid(7), privacy: { ...NO_PRIVACY, hideHr: true } })
+    const visible = streamMetricVisibility(activity, userUuid(8))
     expect(visible('temperature')).toBe(true)
     expect(visible('hr')).toBe(false)
     expect(visible('pace')).toBe(true)

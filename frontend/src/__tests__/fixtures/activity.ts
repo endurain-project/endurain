@@ -5,6 +5,11 @@ export function activityUuid(n: number): string {
   return `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 }
 
+/** Builds a stable user-scoped UUID from a small number so ids stay readable in assertions. */
+export function userUuid(n: number): string {
+  return `00000000-0000-4000-9000-${String(n).padStart(12, '0')}`
+}
+
 /** All-false privacy flags (nothing hidden). */
 export const NO_PRIVACY: ActivityPrivacy = {
   hideStartTime: false,
@@ -30,7 +35,7 @@ export const NO_PRIVACY: ActivityPrivacy = {
 export function makeActivity(overrides: Partial<Activity> = {}): Activity {
   return {
     id: activityUuid(1),
-    userId: 7,
+    userId: userUuid(7),
     version: 1,
     name: 'Morning run',
     description: null,

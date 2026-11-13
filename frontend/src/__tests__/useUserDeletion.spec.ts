@@ -133,7 +133,7 @@ describe('useUserQuery', () => {
     wrapper = mount(
       defineComponent({
         setup() {
-          useUserQuery(7)
+          useUserQuery('00000000-0000-4000-8000-000000000007')
           return () => h('div')
         },
       }),
@@ -166,7 +166,7 @@ describe('useUserQuery', () => {
 describe('session deletion tracking', () => {
   const queryClient = new QueryClient()
 
-  function mountWatcher(tracked: Array<[number, string]>) {
+  function mountWatcher(tracked: Array<[string, string]>) {
     wrapper = mount(
       defineComponent({
         setup() {
@@ -195,24 +195,28 @@ describe('session deletion tracking', () => {
   it('tracks the user and job id of a queued deletion, once per job', () => {
     const deletions = useUserDeletionsStore()
 
-    deletions.track(7, 'job-7')
-    deletions.track(7, 'job-7')
-    deletions.track(8, 'job-8')
+    deletions.track('00000000-0000-4000-8000-000000000007', 'job-7')
+    deletions.track('00000000-0000-4000-8000-000000000007', 'job-7')
+    deletions.track('00000000-0000-4000-8000-000000000008', 'job-8')
     expect(deletions.deletions).toEqual([
-      { userId: 7, jobId: 'job-7' },
-      { userId: 8, jobId: 'job-8' },
+      { userId: '00000000-0000-4000-8000-000000000007', jobId: 'job-7' },
+      { userId: '00000000-0000-4000-8000-000000000008', jobId: 'job-8' },
     ])
 
     deletions.release('job-7')
-    expect(deletions.deletions).toEqual([{ userId: 8, jobId: 'job-8' }])
+    expect(deletions.deletions).toEqual([
+      { userId: '00000000-0000-4000-8000-000000000008', jobId: 'job-8' },
+    ])
   })
 
   it('follows a deletion queued in this session and drops it once it ends', async () => {
     vi.mocked(fetchJob).mockResolvedValue(queued)
-    mountWatcher([[7, 'job-7']])
+    mountWatcher([['00000000-0000-4000-8000-000000000007', 'job-7']])
     await flushPromises()
     expect(fetchJob).toHaveBeenCalledWith('job-7', expect.anything())
-    expect(useUserDeletionsStore().deletions).toEqual([{ userId: 7, jobId: 'job-7' }])
+    expect(useUserDeletionsStore().deletions).toEqual([
+      { userId: '00000000-0000-4000-8000-000000000007', jobId: 'job-7' },
+    ])
 
     vi.mocked(fetchJob).mockResolvedValue(failed)
     queryClient.setQueryData(queryKeys.jobs.detail('job-7'), failed)
@@ -224,14 +228,14 @@ describe('session deletion tracking', () => {
     const toasts = useToasts()
     const before = toasts.toasts.value.length
     vi.mocked(fetchJob).mockResolvedValue(queued)
-    mountWatcher([[7, 'job-7']])
+    mountWatcher([['00000000-0000-4000-8000-000000000007', 'job-7']])
     await flushPromises()
 
     queryClient.setQueryData(queryKeys.jobs.detail('job-7'), succeeded)
     await flushPromises()
     expect(toasts.toasts.value).toHaveLength(before)
 
-    useUserDeletionsStore().track(8, 'job-8')
+    useUserDeletionsStore().track('00000000-0000-4000-8000-000000000008', 'job-8')
     await flushPromises()
     queryClient.setQueryData(queryKeys.jobs.detail('job-8'), { ...failed, id: 'job-8' })
     await flushPromises()

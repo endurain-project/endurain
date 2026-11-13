@@ -30,7 +30,7 @@ vi.mock('@/services/http', async (importOriginal) => ({
 
 const gearDto: GearDto = {
   id: '00000000-0000-4000-8000-000000000005',
-  user_id: 1,
+  user_id: '00000000-0000-4000-8000-000000000001',
   gear_type: 'bike',
   nickname: 'Road Bike',
   active: true,
@@ -47,7 +47,7 @@ const gearDto: GearDto = {
 
 const mappedGear = {
   id: '00000000-0000-4000-8000-000000000005',
-  userId: 1,
+  userId: '00000000-0000-4000-8000-000000000001',
   gearType: 'bike',
   nickname: 'Road Bike',
   brand: 'Canyon',
@@ -92,7 +92,7 @@ describe('mapGear', () => {
     expect(
       mapGear({
         id: '00000000-0000-4000-8000-000000000009',
-        user_id: 2,
+        user_id: '00000000-0000-4000-8000-000000000002',
         gear_type: 'shoes',
         nickname: 'Shoes',
         version: 1,
@@ -100,7 +100,7 @@ describe('mapGear', () => {
       }),
     ).toEqual({
       id: '00000000-0000-4000-8000-000000000009',
-      userId: 2,
+      userId: '00000000-0000-4000-8000-000000000002',
       gearType: 'shoes',
       nickname: 'Shoes',
       brand: null,

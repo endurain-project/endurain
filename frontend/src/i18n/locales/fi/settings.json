@@ -1295,7 +1295,8 @@
         "timed_out": "se kesti liian kauan. Mitään ei tuotu, joten voit yrittää uudelleen.",
         "files_incomplete": "tietosi tuotiin, mutta joitakin tiedostoja puuttuu. Älä tuo uudelleen, koska se kaksinkertaistaisi tietosi.",
         "processing_failed": "jokin meni pieleen. Mitään ei tuotu, joten voit yrittää uudelleen.",
-        "wrong_account": "arkisto vietiin toiselta tililtä. Mitään ei tuotu."
+        "wrong_account": "arkisto vietiin toiselta tililtä. Mitään ei tuotu.",
+        "older_version": "arkisto vietiin Endurainin vanhemmalla versiolla. Mitään ei tuotu."
       }
     },
     "blockedUsers": {

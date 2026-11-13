@@ -8,6 +8,7 @@ import type { ProfileDetails } from '@/features/profile/types'
 import { apiFetch } from '@/services/http'
 import i18n from '@/i18n'
 import ProfileFormDialog from '@/features/profile/components/ProfileFormDialog.vue'
+import { userUuid } from './fixtures/activity'
 
 vi.mock('@/services/http', () => ({
   apiFetch: vi.fn<typeof apiFetch>(),
@@ -15,7 +16,7 @@ vi.mock('@/services/http', () => ({
 }))
 
 const profile: ProfileDetails = {
-  id: 1,
+  id: userUuid(1),
   version: 1,
   name: 'Tester',
   username: 'tester',

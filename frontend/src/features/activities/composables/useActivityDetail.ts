@@ -79,7 +79,9 @@ export function useActivityQuery(id: MaybeRefOrGetter<string | null>) {
       if (!detail) {
         return null
       }
-      client.setQueryData(queryKeys.activities.owner(detail.activity.userId ?? 0), detail.owner)
+      if (detail.activity.userId !== null) {
+        client.setQueryData(queryKeys.activities.owner(detail.activity.userId), detail.owner)
+      }
       if (auth.isAuthenticated) {
         client.setQueryData(queryKeys.activities.media(activityId), detail.activity.media)
       }
@@ -132,7 +134,7 @@ export function useActivityOwnerQuery(
   const ownerId = computed(() => toValue(activity)?.userId ?? null)
 
   return useQuery<ActivityOwner | null>({
-    queryKey: computed(() => queryKeys.activities.owner(ownerId.value ?? 0)),
+    queryKey: computed(() => queryKeys.activities.owner(ownerId.value ?? '')),
     queryFn: skipToken,
   })
 }

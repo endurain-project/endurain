@@ -362,7 +362,7 @@ export const OLDEST_WEEK_BUCKET = 51
  * @throws {HttpError} When the request fails.
  */
 export async function fetchUserWeekActivities(
-  userId: number,
+  userId: string,
   week: number,
   firstDayOfWeek: Schemas['WeekDay'],
   signal?: AbortSignal,
@@ -412,7 +412,7 @@ export interface ActivityListFilters {
 /** Page + filter + sort input for a user activities list request. */
 export interface ActivityListParams {
   /** The list owner's user id (the authenticated viewer). */
-  userId: number
+  userId: string
   /** 1-based page number. */
   page: number
   /** Page size (records per page). */
@@ -510,7 +510,7 @@ export async function fetchUserActivityTypes(signal?: AbortSignal): Promise<Acti
  * @throws {HttpError} When the request fails.
  */
 export async function fetchActivityStats(
-  userId: number,
+  userId: string,
   timeframe: ActivityStatsTimeframe,
   signal?: AbortSignal,
 ): Promise<ActivityStats> {

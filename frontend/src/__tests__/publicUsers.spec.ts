@@ -16,11 +16,11 @@ vi.mock('@/services/http', async (importOriginal) => ({
 }))
 
 const userDto: PublicUserDto = {
-  id: 7,
+  id: '00000000-0000-4000-8000-000000000007',
   name: 'Jane Runner',
   username: 'jane',
   city: 'Lisbon',
-  photo_path: '/api/v1/users/7/photo?t=sig',
+  photo_path: '/api/v1/users/00000000-0000-4000-8000-000000000007/photo?t=sig',
 }
 
 beforeEach(() => {
@@ -29,32 +29,53 @@ beforeEach(() => {
 
 describe('mapEmbeddedUsers', () => {
   it('maps each referenced id from the embedded users object', () => {
-    const users = mapEmbeddedUsers([7], { '7': userDto }, mapPublicUser)
+    const users = mapEmbeddedUsers(
+      ['00000000-0000-4000-8000-000000000007'],
+      { '00000000-0000-4000-8000-000000000007': userDto },
+      mapPublicUser,
+    )
 
-    expect(users.get(7)).toMatchObject({ id: 7, name: 'Jane Runner' })
+    expect(users.get('00000000-0000-4000-8000-000000000007')).toMatchObject({
+      id: '00000000-0000-4000-8000-000000000007',
+      name: 'Jane Runner',
+    })
   })
 
   it('maps an id the server left out to null, as a lookup of that user would', () => {
-    const users = mapEmbeddedUsers([7, 8], { '7': userDto }, mapPublicUser)
+    const users = mapEmbeddedUsers(
+      ['00000000-0000-4000-8000-000000000007', '00000000-0000-4000-8000-000000000008'],
+      { '00000000-0000-4000-8000-000000000007': userDto },
+      mapPublicUser,
+    )
 
-    expect(users.get(8)).toBeNull()
-    expect(users.has(8)).toBe(true)
+    expect(users.get('00000000-0000-4000-8000-000000000008')).toBeNull()
+    expect(users.has('00000000-0000-4000-8000-000000000008')).toBe(true)
   })
 
   it('maps every id to null when the response carries no users object', () => {
-    const users = mapEmbeddedUsers([7], undefined, mapPublicUser)
+    const users = mapEmbeddedUsers(
+      ['00000000-0000-4000-8000-000000000007'],
+      undefined,
+      mapPublicUser,
+    )
 
-    expect([...users.entries()]).toEqual([[7, null]])
+    expect([...users.entries()]).toEqual([['00000000-0000-4000-8000-000000000007', null]])
   })
 
   it('ignores embedded users nothing references, and repeated ids', () => {
     const users = mapEmbeddedUsers(
-      [7, 7],
-      { '7': userDto, '9': { ...userDto, id: 9 } },
+      ['00000000-0000-4000-8000-000000000007', '00000000-0000-4000-8000-000000000007'],
+      {
+        '00000000-0000-4000-8000-000000000007': userDto,
+        '00000000-0000-4000-8000-000000000009': {
+          ...userDto,
+          id: '00000000-0000-4000-8000-000000000009',
+        },
+      },
       mapPublicUser,
     )
 
-    expect([...users.keys()]).toEqual([7])
+    expect([...users.keys()]).toEqual(['00000000-0000-4000-8000-000000000007'])
   })
 })
 
@@ -62,8 +83,13 @@ describe('mapPublicUser', () => {
   it('keeps only public fields and resolves the avatar URL', () => {
     const user = mapPublicUser(userDto)
 
-    expect(user).toMatchObject({ id: 7, name: 'Jane Runner', username: 'jane', city: 'Lisbon' })
-    expect(user.avatarUrl).toContain('/users/7/photo?t=sig')
+    expect(user).toMatchObject({
+      id: '00000000-0000-4000-8000-000000000007',
+      name: 'Jane Runner',
+      username: 'jane',
+      city: 'Lisbon',
+    })
+    expect(user.avatarUrl).toContain('/users/00000000-0000-4000-8000-000000000007/photo?t=sig')
   })
 
   it('keeps a null city as null', () => {
@@ -82,9 +108,11 @@ describe('fetchPublicUser', () => {
   it('requests the authenticated user endpoint and maps the result', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(userDto)
 
-    const user = await fetchPublicUser(7)
+    const user = await fetchPublicUser('00000000-0000-4000-8000-000000000007')
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/users/00000000-0000-4000-8000-000000000007', {
+      signal: undefined,
+    })
     expect(user?.username).toBe('jane')
   })
 
@@ -92,7 +120,7 @@ describe('fetchPublicUser', () => {
     vi.mocked(apiFetch).mockRejectedValueOnce(
       new HttpError(404, 'Not Found', null, 'urn:endurain:error:not-found'),
     )
-    expect(await fetchPublicUser(7)).toBeNull()
+    expect(await fetchPublicUser('00000000-0000-4000-8000-000000000007')).toBeNull()
   })
 })
 

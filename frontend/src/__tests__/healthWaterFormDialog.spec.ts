@@ -91,7 +91,7 @@ describe('HealthWaterFormDialog', () => {
   it('sends no request and closes when an edit changed nothing', async () => {
     const wrapper = await openDialog({
       id: '00000000-0000-4000-8000-000000000007',
-      userId: 1,
+      userId: '00000000-0000-4000-8000-000000000001',
       version: 2,
       date: '2026-10-30',
       amountMl: 1500,

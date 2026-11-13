@@ -20,7 +20,7 @@ vi.mock('@/services/http', () => ({
 function makeDefaultGearDto(overrides: Partial<DefaultGearDto> = {}): DefaultGearDto {
   return {
     id: '00000000-0000-4000-8000-000000000001',
-    user_id: 5,
+    user_id: '00000000-0000-4000-8000-000000000005',
     version: 3,
     run_gear_id: '00000000-0000-4000-8000-000000000010',
     trail_run_gear_id: null,
@@ -46,7 +46,7 @@ describe('mapDefaultGear', () => {
     const gear = mapDefaultGear(makeDefaultGearDto())
     expect(gear).toMatchObject({
       id: '00000000-0000-4000-8000-000000000001',
-      userId: 5,
+      userId: '00000000-0000-4000-8000-000000000005',
       runGearId: '00000000-0000-4000-8000-000000000010',
       rideGearId: '00000000-0000-4000-8000-000000000020',
       trailRunGearId: null,
@@ -109,7 +109,7 @@ describe('default gear service requests', () => {
       items: [
         {
           id: '00000000-0000-4000-8000-000000000010',
-          user_id: 5,
+          user_id: '00000000-0000-4000-8000-000000000005',
           gear_type: 'shoes',
           nickname: 'Trail shoes',
           version: 1,

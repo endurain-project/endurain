@@ -4490,9 +4490,10 @@ export interface components {
             type: "garmin_token_expired" | "strava_data_deleted";
             /**
              * User Id
+             * Format: uuid
              * @description FK to user
              */
-            user_id: number;
+            user_id: string;
         };
         /**
          * AccountSecurityChangedNotificationOptions
@@ -4563,9 +4564,10 @@ export interface components {
             type: "account_security_changed";
             /**
              * User Id
+             * Format: uuid
              * @description FK to user
              */
-            user_id: number;
+            user_id: string;
         };
         /**
          * ActivitiesBulkEdit
@@ -5145,9 +5147,10 @@ export interface components {
             type: "duplicate_activity" | "new_activity";
             /**
              * User Id
+             * Format: uuid
              * @description FK to user
              */
-            user_id: number;
+            user_id: string;
         };
         /**
          * ActivityRead
@@ -5324,7 +5327,7 @@ export interface components {
             /** Updated At */
             readonly updated_at?: string | null;
             /** User Id */
-            user_id?: number | null;
+            user_id?: string | null;
             /** Version */
             readonly version?: number | null;
             visibility?: components["schemas"]["ActivityVisibility"] | null;
@@ -5671,7 +5674,7 @@ export interface components {
             /** Updated At */
             readonly updated_at?: string | null;
             /** User Id */
-            user_id?: number | null;
+            user_id?: string | null;
             /** Version */
             readonly version?: number | null;
             visibility?: components["schemas"]["ActivityVisibility"] | null;
@@ -6251,10 +6254,16 @@ export interface components {
          *         status: Whether the request is pending or accepted.
          */
         FollowRelationshipRead: {
-            /** Followee Id */
-            followee_id: number;
-            /** Follower Id */
-            follower_id: number;
+            /**
+             * Followee Id
+             * Format: uuid
+             */
+            followee_id: string;
+            /**
+             * Follower Id
+             * Format: uuid
+             */
+            follower_id: string;
             status: components["schemas"]["FollowStatus"];
         };
         /**
@@ -6541,9 +6550,10 @@ export interface components {
             readonly updated_at: string;
             /**
              * User Id
+             * Format: uuid
              * @description Foreign key to user
              */
-            user_id: number;
+            user_id: string;
             /**
              * Version
              * @description Optimistic-concurrency counter
@@ -6712,9 +6722,10 @@ export interface components {
             readonly updated_at: string;
             /**
              * User Id
+             * Format: uuid
              * @description Foreign key to user
              */
-            user_id: number;
+            user_id: string;
             /**
              * Version
              * @description Optimistic-concurrency counter
@@ -6857,9 +6868,10 @@ export interface components {
             readonly updated_at: string;
             /**
              * User Id
+             * Format: uuid
              * @description Foreign key to user
              */
-            user_id: number;
+            user_id: string;
             /**
              * Version
              * @description Optimistic-concurrency counter
@@ -6939,9 +6951,10 @@ export interface components {
             readonly updated_at: string;
             /**
              * User Id
+             * Format: uuid
              * @description Foreign key to user
              */
-            user_id: number;
+            user_id: string;
             /**
              * Version
              * @description Optimistic-concurrency counter
@@ -7319,9 +7332,10 @@ export interface components {
             readonly updated_at: string;
             /**
              * User Id
+             * Format: uuid
              * @description Foreign key reference to the user
              */
-            user_id: number;
+            user_id: string;
             /**
              * Version
              * @description Optimistic-concurrency counter, also sent as the ETag
@@ -7512,9 +7526,10 @@ export interface components {
             readonly updated_at: string;
             /**
              * User Id
+             * Format: uuid
              * @description Foreign key reference to the user
              */
-            user_id: number;
+            user_id: string;
             /**
              * Version
              * @description Optimistic-concurrency counter, also sent as the ETag
@@ -7995,9 +8010,10 @@ export interface components {
             readonly updated_at: string;
             /**
              * User Id
+             * Format: uuid
              * @description Foreign key reference to the user
              */
-            user_id: number;
+            user_id: string;
             /**
              * Version
              * @description Optimistic-concurrency counter, also sent as the ETag
@@ -8195,9 +8211,10 @@ export interface components {
             readonly updated_at: string;
             /**
              * User Id
+             * Format: uuid
              * @description Foreign key reference to the user
              */
-            user_id: number;
+            user_id: string;
             /**
              * Version
              * @description Optimistic-concurrency counter, also sent as the ETag
@@ -8497,7 +8514,7 @@ export interface components {
          *     Attributes:
          *         source (Source | None): Source of the steps data (e.g., device, API, manual entry). Optional field.
          *         id (uuid.UUID): Unique identifier for the steps record to update. Required field.
-         *         user_id (StrictInt): Foreign key reference to the user. Required field.
+         *         user_id (uuid.UUID): Foreign key reference to the user. Required field.
          */
         HealthStepsRead: {
             /**
@@ -8529,9 +8546,10 @@ export interface components {
             readonly updated_at: string;
             /**
              * User Id
+             * Format: uuid
              * @description Foreign key reference to the user
              */
-            user_id: number;
+            user_id: string;
             /**
              * Version
              * @description Optimistic-concurrency counter, also sent as the ETag
@@ -8627,9 +8645,10 @@ export interface components {
             readonly updated_at: string;
             /**
              * User Id
+             * Format: uuid
              * @description Foreign key reference to the user
              */
-            user_id: number;
+            user_id: string;
             /**
              * Version
              * @description Optimistic-concurrency counter, also sent as the ETag
@@ -8782,9 +8801,10 @@ export interface components {
             readonly updated_at: string;
             /**
              * User Id
+             * Format: uuid
              * @description Foreign key reference to the user
              */
-            user_id: number;
+            user_id: string;
             /**
              * Version
              * @description Optimistic-concurrency counter, also sent as the ETag
@@ -8924,7 +8944,7 @@ export interface components {
          *     Attributes:
          *         source (Source | None): The source or device from which the weight data was obtained.
          *         id (uuid.UUID): Unique identifier for the weight record to update.
-         *         user_id (StrictInt): Foreign key reference to the user.
+         *         user_id (uuid.UUID): Foreign key reference to the user.
          */
         HealthWeightRead: {
             /**
@@ -8986,9 +9006,10 @@ export interface components {
             readonly updated_at: string;
             /**
              * User Id
+             * Format: uuid
              * @description Foreign key reference to the user
              */
-            user_id: number;
+            user_id: string;
             /**
              * Version
              * @description Optimistic-concurrency counter, also sent as the ETag
@@ -9328,9 +9349,10 @@ export interface components {
             linked_at: string;
             /**
              * User Id
+             * Format: uuid
              * @description User ID
              */
-            user_id: number;
+            user_id: string;
         };
         /**
          * IdentityProviderLinkStart
@@ -9733,9 +9755,10 @@ export interface components {
             type: "idp_linked";
             /**
              * User Id
+             * Format: uuid
              * @description FK to user
              */
-            user_id: number;
+            user_id: string;
         };
         /**
          * IdpReauthProof
@@ -9768,7 +9791,7 @@ export interface components {
          *     client gets a code it can translate.
          * @enum {string}
          */
-        ImportFailure: "invalid_file" | "too_large" | "too_many_activities" | "timed_out" | "wrong_account" | "files_incomplete" | "processing_failed";
+        ImportFailure: "invalid_file" | "too_large" | "too_many_activities" | "timed_out" | "wrong_account" | "older_version" | "files_incomplete" | "processing_failed";
         /**
          * IngestionJobErrorCode
          * @description Stable, sanitized reasons an ingestion job can fail.
@@ -10580,9 +10603,10 @@ export interface components {
             type: "new_device_sign_in";
             /**
              * User Id
+             * Format: uuid
              * @description FK to user
              */
-            user_id: number;
+            user_id: string;
         };
         /**
          * NoNotificationOptions
@@ -12303,9 +12327,10 @@ export interface components {
             type: "strava_token_expired";
             /**
              * User Id
+             * Format: uuid
              * @description FK to user
              */
-            user_id: number;
+            user_id: string;
         };
         /**
          * SummaryPeriod
@@ -12862,9 +12887,10 @@ export interface components {
             scopes: string[];
             /**
              * User Id
+             * Format: uuid
              * @description Owner's user ID
              */
-            user_id: number;
+            user_id: string;
         };
         /**
          * UserApiKeyRead
@@ -12929,9 +12955,10 @@ export interface components {
             scopes: string[];
             /**
              * User Id
+             * Format: uuid
              * @description Owner's user ID
              */
-            user_id: number;
+            user_id: string;
         };
         /**
          * UserDefaultGearRead
@@ -13007,9 +13034,10 @@ export interface components {
             trail_run_gear_id?: string | null;
             /**
              * User Id
+             * Format: uuid
              * @description User ID
              */
-            user_id: number;
+            user_id: string;
             /**
              * Version
              * @description Optimistic-concurrency counter, also sent as the ETag
@@ -13372,9 +13400,10 @@ export interface components {
             interval: components["schemas"]["Interval-Output"];
             /**
              * User Id
+             * Format: uuid
              * @description User who owns this goal
              */
-            user_id: number;
+            user_id: string;
             /**
              * Version
              * @description Optimistic-concurrency counter, also sent as the ETag
@@ -13589,9 +13618,10 @@ export interface components {
             hide_activity_workout_sets_steps?: boolean | null;
             /**
              * Id
+             * Format: uuid
              * @description User ID
              */
-            readonly id: number;
+            readonly id: string;
             /**
              * Integrations Version
              * @description Version of the integrations, sent back in If-Match when the Strava client is set
@@ -13802,9 +13832,10 @@ export interface components {
             readonly id: string;
             /**
              * User Id
+             * Format: uuid
              * @description Foreign key reference to the user
              */
-            user_id: number;
+            user_id: string;
             /**
              * Version
              * @description Optimistic-concurrency counter, also sent as the ETag
@@ -13949,9 +13980,10 @@ export interface components {
             city?: string | null;
             /**
              * Id
+             * Format: uuid
              * @description User ID
              */
-            readonly id: number;
+            readonly id: string;
             /**
              * Name
              * @description User's full name
@@ -14045,9 +14077,10 @@ export interface components {
             height?: number | null;
             /**
              * Id
+             * Format: uuid
              * @description User ID
              */
-            readonly id: number;
+            readonly id: string;
             /**
              * Max Heart Rate
              * @description Maximum heart rate in bpm
@@ -14126,9 +14159,10 @@ export interface components {
         UserReferenceNotificationOptions: {
             /**
              * User Id
+             * Format: uuid
              * @description ID of the user the notification names
              */
-            user_id: number;
+            user_id: string;
             /**
              * User Name
              * @description Name of that user when the notification was created
@@ -14171,9 +14205,10 @@ export interface components {
             type: "admin_new_sign_up_approval_request" | "admin_user_promoted" | "new_follower_request" | "new_follower_request_accepted";
             /**
              * User Id
+             * Format: uuid
              * @description FK to user
              */
-            user_id: number;
+            user_id: string;
         };
         /**
          * UserSessionsRead
@@ -14243,9 +14278,10 @@ export interface components {
             operating_system_version: string;
             /**
              * User Id
+             * Format: uuid
              * @description User ID that owns this session
              */
-            user_id: number;
+            user_id: string;
         };
         /**
          * UserSignup
@@ -26981,7 +27017,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -27088,7 +27124,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -28524,7 +28560,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                follower_id: number;
+                follower_id: string;
             };
             cookie?: never;
         };
@@ -28631,7 +28667,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                follower_id: number;
+                follower_id: string;
             };
             cookie?: never;
         };
@@ -35712,7 +35748,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -35815,7 +35851,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -35973,7 +36009,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -36072,7 +36108,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -36170,7 +36206,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -36270,7 +36306,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -36391,7 +36427,7 @@ export interface operations {
             };
             path: {
                 api_key_id: string;
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -36511,7 +36547,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -36619,7 +36655,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -36771,7 +36807,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -36871,7 +36907,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -36980,8 +37016,8 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                user_id: number;
-                follower_id: number;
+                user_id: string;
+                follower_id: string;
             };
             cookie?: never;
         };
@@ -37087,7 +37123,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -37185,7 +37221,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -37285,7 +37321,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                user_id: number;
+                user_id: string;
                 idp_id: string;
             };
             cookie?: never;
@@ -37406,7 +37442,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -37524,7 +37560,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -37624,7 +37660,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -37744,7 +37780,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -37862,7 +37898,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -37942,7 +37978,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -38082,7 +38118,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -38184,7 +38220,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -38282,7 +38318,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -38385,7 +38421,7 @@ export interface operations {
                 "X-CSRF-Token"?: string;
             };
             path: {
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };
@@ -38506,7 +38542,7 @@ export interface operations {
             };
             path: {
                 session_id: string;
-                user_id: number;
+                user_id: string;
             };
             cookie?: never;
         };

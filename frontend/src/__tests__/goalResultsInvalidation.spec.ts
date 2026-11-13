@@ -16,7 +16,7 @@ import { useUploadActivityFileMutation } from '@/features/upload/composables/use
 import { useProfileImportQuery } from '@/features/profile/composables/useDataTransfer'
 import { fetchJob, followJob, listJobs } from '@/services/jobStatus'
 import { queryKeys } from '@/services/queryKeys'
-import { activityUuid } from './fixtures/activity'
+import { activityUuid, userUuid } from './fixtures/activity'
 
 vi.mock('@/features/activities/services/activities', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/activities/services/activities')>()),
@@ -56,7 +56,7 @@ let wrapper: ReturnType<typeof mount> | undefined
 function seededClient(): QueryClient {
   const client = new QueryClient()
   client.setQueryData(queryKeys.goals.results(), [])
-  client.setQueryData(queryKeys.activities.stats(1, 'week'), {})
+  client.setQueryData(queryKeys.activities.stats(userUuid(1), 'week'), {})
   return client
 }
 
@@ -95,7 +95,9 @@ describe('goal results follow activity changes', () => {
     await invalidateActivityData(client, [queryKeys.activities.owners()])
 
     expect(goalResultsStale(client)).toBe(true)
-    expect(client.getQueryState(queryKeys.activities.stats(1, 'week'))?.isInvalidated).toBe(true)
+    expect(
+      client.getQueryState(queryKeys.activities.stats(userUuid(1), 'week'))?.isInvalidated,
+    ).toBe(true)
     expect(client.getQueryState(queryKeys.activities.owners())?.isInvalidated).toBe(false)
   })
 

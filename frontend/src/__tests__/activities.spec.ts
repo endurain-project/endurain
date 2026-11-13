@@ -24,7 +24,7 @@ import {
   setActivityGear,
   updateUserActivitiesVisibility,
 } from '@/features/activities/services/activities'
-import { activityUuid } from './fixtures/activity'
+import { activityUuid, userUuid } from './fixtures/activity'
 
 const ACTIVITY_ID = activityUuid(5)
 
@@ -46,7 +46,7 @@ vi.mock('@/services/http', () => {
 const activityDto: ActivityDto = {
   id: ACTIVITY_ID,
   version: 3,
-  user_id: 7,
+  user_id: userUuid(7),
   name: 'Morning run',
   description: 'Felt great',
   activity_type: 'run',
@@ -69,7 +69,7 @@ describe('mapActivity', () => {
     const activity = mapActivity(activityDto)
     expect(activity).toMatchObject({
       id: ACTIVITY_ID,
-      userId: 7,
+      userId: userUuid(7),
       name: 'Morning run',
       description: 'Felt great',
       activityType: 'run',
@@ -108,7 +108,12 @@ describe('mapActivitySummary', () => {
     const dto: ActivityDto = { ...activityDto, private_notes: 'secret' }
     const summary = mapActivitySummary(dto)
 
-    expect(summary).toMatchObject({ id: ACTIVITY_ID, userId: 7, name: 'Morning run', version: 3 })
+    expect(summary).toMatchObject({
+      id: ACTIVITY_ID,
+      userId: userUuid(7),
+      name: 'Morning run',
+      version: 3,
+    })
     expect(summary.privacy.hideHr).toBe(true)
     expect(summary).not.toHaveProperty('privateNotes')
   })
@@ -255,7 +260,7 @@ describe('fetchActivityDetail', () => {
   }
 
   it('maps the owner the detail carries, and keeps a hidden one null', async () => {
-    const owner = { id: 7, name: 'Jane Runner', username: 'jane', photo_path: null }
+    const owner = { id: userUuid(7), name: 'Jane Runner', username: 'jane', photo_path: null }
     vi.mocked(apiFetch).mockResolvedValueOnce({ ...detailDto, owner })
     vi.mocked(apiFetch).mockResolvedValueOnce(detailDto)
 
@@ -351,8 +356,8 @@ describe('searchActivitiesByName', () => {
 
 describe('week activities query key', () => {
   it('differs by first day of the week, so a changed setting refetches', () => {
-    expect(queryKeys.activities.weekActivities(7, 1, 'monday')).not.toEqual(
-      queryKeys.activities.weekActivities(7, 1, 'sunday'),
+    expect(queryKeys.activities.weekActivities(userUuid(7), 1, 'monday')).not.toEqual(
+      queryKeys.activities.weekActivities(userUuid(7), 1, 'sunday'),
     )
   })
 })
@@ -366,10 +371,12 @@ describe('fetchUserWeekActivities', () => {
       num_records: 200,
       next: null,
     })
-    const result = await fetchUserWeekActivities(7, 3, 'monday')
+    const result = await fetchUserWeekActivities(userUuid(7), 3, 'monday')
     expect(apiFetch).toHaveBeenCalledWith(
       expect.stringMatching(
-        /^\/users\/7\/activities\?start_date=\d{4}-\d{2}-\d{2}&end_date=\d{4}-\d{2}-\d{2}&num_records=200$/,
+        new RegExp(
+          `^/users/${userUuid(7)}/activities\\?start_date=\\d{4}-\\d{2}-\\d{2}&end_date=\\d{4}-\\d{2}-\\d{2}&num_records=200$`,
+        ),
       ),
       expect.objectContaining({ signal: undefined }),
     )
@@ -394,13 +401,13 @@ describe('fetchUserWeekActivities', () => {
     }
 
     it("starts the week on the viewer's first day of the week", async () => {
-      await fetchUserWeekActivities(7, 0, 'sunday')
+      await fetchUserWeekActivities(userUuid(7), 0, 'sunday')
       expect(requestedParams().get('start_date')).toBe('2026-11-01')
       expect(requestedParams().get('end_date')).toBe('2026-11-07')
     })
 
     it('leaves the oldest bucket open-ended, ending before week 50 starts', async () => {
-      await fetchUserWeekActivities(7, 51, 'monday')
+      await fetchUserWeekActivities(userUuid(7), 51, 'monday')
       // Week 50 starts 2025-11-17 (a Monday), so the bucket ends the day before.
       expect(requestedParams().has('start_date')).toBe(false)
       expect(requestedParams().get('end_date')).toBe('2025-11-16')
@@ -415,7 +422,7 @@ describe('fetchUserWeekActivities', () => {
       num_records: 200,
       next: null,
     })
-    await expect(fetchUserWeekActivities(7, 0, 'monday')).resolves.toEqual([])
+    await expect(fetchUserWeekActivities(userUuid(7), 0, 'monday')).resolves.toEqual([])
   })
 })
 
@@ -653,7 +660,7 @@ describe('fetchUserActivitiesPage', () => {
     })
 
     const result = await fetchUserActivitiesPage({
-      userId: 7,
+      userId: userUuid(7),
       page: 2,
       numRecords: 25,
       filters: { type: 'run', startDate: '2024-01-01', endDate: '2024-12-31', nameSearch: ' run ' },
@@ -683,7 +690,7 @@ describe('fetchUserActivitiesPage', () => {
     })
 
     const result = await fetchUserActivitiesPage({
-      userId: 3,
+      userId: userUuid(3),
       page: 1,
       numRecords: 10,
       filters: { type: null, startDate: null, endDate: null, nameSearch: null },
@@ -709,7 +716,7 @@ describe('fetchUserActivitiesPage', () => {
     })
 
     await fetchUserActivitiesPage({
-      userId: 1,
+      userId: userUuid(1),
       page: 1,
       numRecords: 25,
       filters: { type: null, startDate: null, endDate: null, nameSearch: null },
@@ -728,13 +735,21 @@ describe('fetchUserActivitiesPage', () => {
 describe('fetchFollowersActivities', () => {
   const feedPage = {
     items: [
-      { ...activityDto, id: activityUuid(1), user_id: 7 },
-      { ...activityDto, id: activityUuid(2), user_id: 8 },
-      { ...activityDto, id: activityUuid(3), user_id: 7 },
+      { ...activityDto, id: activityUuid(1), user_id: userUuid(7) },
+      { ...activityDto, id: activityUuid(2), user_id: userUuid(8) },
+      { ...activityDto, id: activityUuid(3), user_id: userUuid(7) },
     ],
     num_records: 25,
     next_cursor: 'cursor-2',
-    users: { '7': { id: 7, name: 'Jane Runner', username: 'jane', city: null, photo_path: null } },
+    users: {
+      [userUuid(7)]: {
+        id: userUuid(7),
+        name: 'Jane Runner',
+        username: 'jane',
+        city: null,
+        photo_path: null,
+      },
+    },
   }
 
   it('requests the feed with the cursor and maps the slice', async () => {
@@ -772,10 +787,10 @@ describe('fetchFollowersActivities', () => {
     const { owners } = await fetchFollowersActivities(null, 25, 'following')
 
     expect(apiFetch).toHaveBeenCalledOnce()
-    expect([...owners.keys()].sort()).toEqual([7, 8])
-    expect(owners.get(7)).toMatchObject({ name: 'Jane Runner', username: 'jane' })
+    expect([...owners.keys()].sort()).toEqual([userUuid(7), userUuid(8)].sort())
+    expect(owners.get(userUuid(7))).toMatchObject({ name: 'Jane Runner', username: 'jane' })
     // 8 is inactive or awaiting approval, so the server left it out: same as a 404 lookup.
-    expect(owners.get(8)).toBeNull()
+    expect(owners.get(userUuid(8))).toBeNull()
   })
 
   it('returns no owners for an empty slice', async () => {
@@ -812,7 +827,7 @@ describe('local-calendar period anchoring', () => {
 
   it('sends the viewer local date so the backend resolves the right week/month', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({})
-    await fetchActivityStats(7, 'week')
+    await fetchActivityStats(userUuid(7), 'week')
 
     const url = vi.mocked(apiFetch).mock.calls[0]?.[0] as string
     const sentDate = new URLSearchParams(url.split('?')[1]).get('date')
@@ -834,7 +849,7 @@ describe('local-calendar period anchoring', () => {
     try {
       vi.setSystemTime(new Date('2026-01-05T13:30:00Z'))
       vi.mocked(apiFetch).mockResolvedValueOnce([])
-      await fetchUserWeekActivities(7, 0, 'monday')
+      await fetchUserWeekActivities(userUuid(7), 0, 'monday')
 
       const url = vi.mocked(apiFetch).mock.calls[0]?.[0] as string
       const params = new URLSearchParams(url.split('?')[1])

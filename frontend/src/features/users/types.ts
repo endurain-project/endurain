@@ -51,7 +51,7 @@ export type UserAccessType = Schemas['UserAccessType']
  * @property avatarUrl - Servable avatar URL derived from `photoPath`, or `null`.
  */
 export interface ManagedUser {
-  id: number
+  id: string
   /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
   version: number
   name: string
@@ -100,7 +100,7 @@ export interface UsersPage {
  * @property avatarUrl - Servable avatar URL derived from the photo path, or `null`.
  */
 export interface PublicUser {
-  id: number
+  id: string
   name: string
   username: string
   city: string | null

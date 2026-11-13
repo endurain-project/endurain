@@ -5,6 +5,7 @@ import { mount } from '@vue/test-utils'
 import i18n from '@/i18n'
 import NotificationsMenu from '@/features/notifications/components/NotificationsMenu.vue'
 import { Popover } from '@/components/ui/popover'
+import { userUuid } from './fixtures/activity'
 
 const refetch = vi.fn<() => Promise<void>>(() => Promise.resolve())
 const useNotificationsQuery =
@@ -16,7 +17,7 @@ vi.mock('vue-router', () => ({
 }))
 
 vi.mock('@/features/auth/composables/useCurrentUser', () => ({
-  useCurrentUser: () => ({ data: ref({ id: 1 }) }),
+  useCurrentUser: () => ({ data: ref({ id: userUuid(1) }) }),
 }))
 
 vi.mock('@/features/notifications/composables/useNotifications', () => ({

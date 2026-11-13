@@ -196,7 +196,7 @@ describe('HealthSleepFormDialog hours/minutes names', () => {
 describe('HealthSleepFormDialog edit', () => {
   const row: SleepListEntry = {
     id: '00000000-0000-4000-8000-000000000005',
-    userId: 9,
+    userId: '00000000-0000-4000-8000-000000000009',
     version: 1,
     date: '2026-06-25',
     totalSleepSeconds: 7 * 3600,
@@ -206,7 +206,7 @@ describe('HealthSleepFormDialog edit', () => {
   /** The full record the single read returns: a newer version than the list row, with one stage. */
   const fullDto = {
     id: '00000000-0000-4000-8000-000000000005',
-    user_id: 9,
+    user_id: '00000000-0000-4000-8000-000000000009',
     version: 4,
     date: '2026-06-25',
     total_sleep_seconds: 8 * 3600,

@@ -38,7 +38,7 @@ vi.mock('@/services/http', () => ({
 
 const sessionDto: SecuritySessionDto = {
   id: 'sess-1',
-  user_id: 5,
+  user_id: '00000000-0000-4000-8000-000000000005',
   ip_address: '1.2.3.4',
   device_type: 'desktop',
   operating_system: 'macOS',

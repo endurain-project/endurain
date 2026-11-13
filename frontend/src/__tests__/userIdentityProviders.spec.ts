@@ -17,7 +17,7 @@ vi.mock('@/services/http', () => ({
 function makeIdpDto(overrides: Partial<UserIdentityProviderDto> = {}): UserIdentityProviderDto {
   return {
     id: '00000000-0000-4000-8000-000000000003',
-    user_id: 7,
+    user_id: '00000000-0000-4000-8000-000000000007',
     idp_id: '00000000-0000-4000-8000-000000000011',
     idp_name: 'Authelia',
     idp_slug: 'authelia',
@@ -63,10 +63,10 @@ describe('user identity providers service', () => {
   it('fetchUserIdentityProviders calls the endpoint and maps records', async () => {
     vi.mocked(apiFetch).mockResolvedValue({ items: [makeIdpDto()], next: null })
 
-    const providers = await fetchUserIdentityProviders(7)
+    const providers = await fetchUserIdentityProviders('00000000-0000-4000-8000-000000000007')
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/users/7/identity-providers?num_records=200&page_number=1',
+      '/users/00000000-0000-4000-8000-000000000007/identity-providers?num_records=200&page_number=1',
       {
         signal: undefined,
       },
@@ -77,14 +77,18 @@ describe('user identity providers service', () => {
   it('unlinkUserIdentityProvider POSTs to the unlink route with the admin step-up', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await unlinkUserIdentityProvider(7, '00000000-0000-4000-8000-000000000011', {
-      currentPassword: null,
-      mfaCode: null,
-      idpReauth: { ticket: 't1', codeVerifier: 'v1' },
-    })
+    await unlinkUserIdentityProvider(
+      '00000000-0000-4000-8000-000000000007',
+      '00000000-0000-4000-8000-000000000011',
+      {
+        currentPassword: null,
+        mfaCode: null,
+        idpReauth: { ticket: 't1', codeVerifier: 'v1' },
+      },
+    )
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/users/7/identity-providers/00000000-0000-4000-8000-000000000011/unlink',
+      '/users/00000000-0000-4000-8000-000000000007/identity-providers/00000000-0000-4000-8000-000000000011/unlink',
       {
         method: 'POST',
         body: JSON.stringify({

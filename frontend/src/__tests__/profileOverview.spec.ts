@@ -11,7 +11,13 @@ vi.mock('@/services/http', async (importOriginal) => ({
 }))
 
 const overview: Schemas['UserProfileOverviewRead'] = {
-  user: { id: 7, name: 'Ada', username: 'ada', city: 'Lisbon', photo_path: null },
+  user: {
+    id: '00000000-0000-4000-8000-000000000007',
+    name: 'Ada',
+    username: 'ada',
+    city: 'Lisbon',
+    photo_path: null,
+  },
   week_stats: { run: { distance: 1000, time: 300, calories: 50 } },
   month_stats: { run: { distance: 5000, time: 1800, calories: 250 } },
   month_activity_count: 4,
@@ -25,13 +31,19 @@ describe('fetchUserProfileOverview', () => {
   it('reads the profile summary in one request and maps the public user', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(overview)
 
-    const result = await fetchUserProfileOverview(7, '2026-10-27')
+    const result = await fetchUserProfileOverview(
+      '00000000-0000-4000-8000-000000000007',
+      '2026-10-27',
+    )
 
-    expect(apiFetch).toHaveBeenCalledExactlyOnceWith('/users/7/overview?date=2026-10-27', {
-      signal: undefined,
-    })
+    expect(apiFetch).toHaveBeenCalledExactlyOnceWith(
+      '/users/00000000-0000-4000-8000-000000000007/overview?date=2026-10-27',
+      {
+        signal: undefined,
+      },
+    )
     expect(result.user).toEqual({
-      id: 7,
+      id: '00000000-0000-4000-8000-000000000007',
       name: 'Ada',
       username: 'ada',
       city: 'Lisbon',

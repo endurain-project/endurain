@@ -18,7 +18,7 @@ const passthrough = { template: '<div><slot /></div>' }
 
 const entry: StepsEntry = {
   id: '00000000-0000-4000-8000-000000000007',
-  userId: 1,
+  userId: '00000000-0000-4000-8000-000000000001',
   version: 2,
   date: '2026-10-30',
   steps: 900,

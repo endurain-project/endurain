@@ -17,6 +17,7 @@ import {
 } from '@/features/auth/services/session'
 import { queryClient } from '@/plugins/vueQuery'
 import { useAuthStore } from '@/features/auth/stores/auth'
+import { userUuid } from './fixtures/activity'
 
 vi.mock('@/services/authTokens', () => ({
   clearAuthTokens: vi.fn<typeof clearAuthTokens>(),
@@ -55,7 +56,7 @@ const tokenResponse: AuthTokenResponse = {
 }
 
 const authUser: User = {
-  id: 1,
+  id: userUuid(1),
   name: 'Demo User',
   username: 'demo',
   email: 'demo@example.com',

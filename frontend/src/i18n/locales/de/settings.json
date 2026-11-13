@@ -1295,7 +1295,8 @@
         "timed_out": "er hat zu lange gedauert. Es wurde nichts importiert, daher kannst du es erneut versuchen.",
         "files_incomplete": "deine Daten wurden importiert, aber einige Dateien fehlen. Importiere sie nicht erneut, sonst würden deine Daten doppelt vorhanden sein.",
         "processing_failed": "etwas ist schiefgelaufen. Es wurde nichts importiert, daher kannst du es erneut versuchen.",
-        "wrong_account": "das Archiv wurde von einem anderen Konto exportiert. Es wurde nichts importiert."
+        "wrong_account": "das Archiv wurde von einem anderen Konto exportiert. Es wurde nichts importiert.",
+        "older_version": "das Archiv wurde mit einer älteren Endurain-Version exportiert. Es wurde nichts importiert."
       }
     },
     "blockedUsers": {

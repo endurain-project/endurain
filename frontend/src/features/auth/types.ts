@@ -24,7 +24,7 @@ import type { Schemas } from '@/types'
  * @property firstDayOfWeek - First day used for calendar week boundaries.
  */
 export interface User {
-  id: number
+  id: string
   name: string
   username: string
   email: string

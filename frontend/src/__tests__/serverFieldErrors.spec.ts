@@ -19,6 +19,7 @@ import GearFormDialog from '@/features/gears/components/GearFormDialog.vue'
 import HealthWeightFormDialog from '@/features/health/components/HealthWeightFormDialog.vue'
 import ProfileFormDialog from '@/features/profile/components/ProfileFormDialog.vue'
 import UserFormDialog from '@/features/users/components/UserFormDialog.vue'
+import { userUuid } from './fixtures/activity'
 
 vi.mock('@/services/http', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/services/http')>()),
@@ -148,7 +149,7 @@ function mountDialog(component: Component, props: Record<string, unknown>) {
 }
 
 const user: ManagedUser = {
-  id: 1,
+  id: userUuid(1),
   version: 1,
   name: 'Admin',
   username: 'admin',
@@ -190,7 +191,7 @@ const profile: ProfileDetails = {
 
 const gear: Gear = {
   id: '00000000-0000-4000-8000-000000000002',
-  userId: 1,
+  userId: '00000000-0000-4000-8000-000000000001',
   gearType: 'bike',
   nickname: 'Road',
   brand: null,

@@ -6,6 +6,7 @@ import { loginWithPassword, refreshSession } from '@/features/auth/services/sess
 import { getAccessToken, getCsrfToken } from '@/services/authTokens'
 import { confirmEmailChange, confirmSignUp } from '@/features/auth/services/signUp'
 import { exchangeSessionForTokens } from '@/services/identityProviders'
+import { userUuid } from './fixtures/activity'
 
 vi.mock('@/services/runtime', () => ({
   getApiBaseUrl: () => '',
@@ -112,7 +113,7 @@ describe('onboarding service', () => {
   })
 
   it('posts the setup token and the administrator details', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ id: 1 }, 201))
+    fetchMock.mockResolvedValueOnce(jsonResponse({ id: userUuid(1) }, 201))
     const request = {
       token: 'tok',
       name: 'Ada',

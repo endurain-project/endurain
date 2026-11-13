@@ -35,7 +35,7 @@ export function mapUserIdentityProvider(dto: UserIdentityProviderDto): UserIdent
  * @throws {HttpError} When the request fails.
  */
 export async function fetchUserIdentityProviders(
-  userId: number,
+  userId: string,
   signal?: AbortSignal,
 ): Promise<UserIdentityProvider[]> {
   const dtos = await fetchAllPages<UserIdentityProviderDto>(
@@ -57,7 +57,7 @@ export async function fetchUserIdentityProviders(
  * @throws {HttpError} When the request fails.
  */
 export async function unlinkUserIdentityProvider(
-  userId: number,
+  userId: string,
   idpId: string,
   stepUp: StepUpInput,
 ): Promise<void> {

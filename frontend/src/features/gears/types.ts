@@ -36,7 +36,7 @@ export type GearType = Schemas['GearType']
  */
 export interface Gear {
   id: string
-  userId: number
+  userId: string
   gearType: GearType
   nickname: string
   brand: string | null
@@ -119,7 +119,7 @@ export type GearComponentTypeLists = Schemas['GearComponentTypesRead']
  */
 export interface GearComponent {
   id: string
-  userId: number
+  userId: string
   gearId: string
   type: string
   brand: string

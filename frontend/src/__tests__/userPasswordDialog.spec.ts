@@ -35,7 +35,12 @@ const passthrough = { template: '<div><slot /></div>' }
  */
 async function submitFilled() {
   const wrapper = mount(UserPasswordDialog, {
-    props: { open: false, userId: 2, username: 'bob', accessType: 'admin' },
+    props: {
+      open: false,
+      userId: '00000000-0000-4000-8000-000000000002',
+      username: 'bob',
+      accessType: 'admin',
+    },
     global: {
       plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]],
       stubs: {
@@ -78,7 +83,7 @@ describe('UserPasswordDialog weak password', () => {
     await submitFilled()
 
     expect(mutateAsync).toHaveBeenCalledWith({
-      userId: 2,
+      userId: '00000000-0000-4000-8000-000000000002',
       password: 'a-long-enough-password-1',
       stepUp: { currentPassword: 'admin-pw', mfaCode: null, idpReauth: null },
     })

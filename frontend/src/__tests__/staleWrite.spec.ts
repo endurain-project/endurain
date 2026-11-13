@@ -55,7 +55,7 @@ describe('a stale versioned write', () => {
     vi.mocked(apiFetch).mockRejectedValue(stale)
     const goal: Goal = {
       id: '00000000-0000-4000-8000-000000000004',
-      userId: 1,
+      userId: '00000000-0000-4000-8000-000000000001',
       version: 2,
       interval: 'weekly',
       activityType: 'run',
@@ -86,7 +86,12 @@ describe('a stale versioned write', () => {
     const wrapper = mount(HealthStepsTargetDialog, {
       props: {
         open: true,
-        targets: { id: 1, userId: 1, version: 3, steps: 8000 } as never,
+        targets: {
+          id: 1,
+          userId: '00000000-0000-4000-8000-000000000001',
+          version: 3,
+          steps: 8000,
+        } as never,
       },
       global: {
         plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]],

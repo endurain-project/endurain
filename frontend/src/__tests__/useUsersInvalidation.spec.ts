@@ -12,6 +12,7 @@ import {
 } from '@/features/users/composables/useUsers'
 import { deleteUserPhoto, updateUser, uploadUserPhoto } from '@/features/users/services/users'
 import { queryKeys } from '@/services/queryKeys'
+import { userUuid } from './fixtures/activity'
 
 vi.mock('@/features/users/services/users', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/users/services/users')>()),
@@ -20,7 +21,7 @@ vi.mock('@/features/users/services/users', async (importOriginal) => ({
   deleteUserPhoto: vi.fn<() => Promise<void>>(),
 }))
 
-const USER_ID = 4
+const USER_ID = userUuid(4)
 
 let wrapper: ReturnType<typeof mount> | undefined
 

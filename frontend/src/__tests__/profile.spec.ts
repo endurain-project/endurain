@@ -25,7 +25,7 @@ vi.mock('@/services/http', () => ({
 /** Builds a full `/profile` (`UserMe`) wire payload, overridable per case. */
 function makeProfileDto(overrides: Partial<ProfileDto> = {}): ProfileDto {
   return {
-    id: 5,
+    id: '00000000-0000-4000-8000-000000000005',
     version: 6,
     has_local_password: true,
     name: 'Ada Lovelace',
@@ -68,7 +68,7 @@ describe('mapProfileDetails', () => {
   it('maps identity, privacy, and the derived avatar URL', () => {
     const profile = mapProfileDetails(makeProfileDto())
     expect(profile).toMatchObject({
-      id: 5,
+      id: '00000000-0000-4000-8000-000000000005',
       name: 'Ada Lovelace',
       username: 'ada',
       email: 'ada@example.com',

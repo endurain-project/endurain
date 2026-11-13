@@ -14,7 +14,7 @@ const props = defineProps<{
   /** The notification to render. */
   notification: Notification
   /** Viewing user's id, used to deep-link follower requests to their list. */
-  currentUserId?: number | null
+  currentUserId?: string | null
 }>()
 
 const emit = defineEmits<{

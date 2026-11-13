@@ -21,7 +21,7 @@ import type {
 } from '@/features/notifications/types'
 
 import { presentNotification } from '@/features/notifications/utils/notificationPresenter'
-import { activityUuid } from './fixtures/activity'
+import { activityUuid, userUuid } from './fixtures/activity'
 
 /**
  * Builds a notification with sensible defaults so each test only states the
@@ -41,11 +41,11 @@ function make<Type extends NotificationType>(
     read: false,
     options,
     createdAt: '2026-06-19T10:00:00Z',
-    userId: 5,
+    userId: userUuid(5),
   } as Notification
 }
 
-const USER = { user_id: 3, user_name: 'Ada', user_username: 'ada' }
+const USER = { user_id: userUuid(3), user_name: 'Ada', user_username: 'ada' }
 const NO_OPTIONS = {}
 
 describe('presentNotification', () => {
@@ -68,12 +68,16 @@ describe('presentNotification', () => {
 
   it('links a follower request to the viewer followers list', () => {
     const result = presentNotification(make('new_follower_request', USER), {
-      currentUserId: 9,
+      currentUserId: userUuid(9),
     })
 
     expect(result.icon).toBe(UserPlus)
     expect(result.bodyParams).toEqual({ name: 'Ada', username: 'ada' })
-    expect(result.to).toEqual({ name: 'user', params: { id: '9' }, query: { tab: 'followers' } })
+    expect(result.to).toEqual({
+      name: 'user',
+      params: { id: userUuid(9) },
+      query: { tab: 'followers' },
+    })
   })
 
   it('omits the follower-request link without a current user id', () => {
@@ -84,7 +88,7 @@ describe('presentNotification', () => {
     const result = presentNotification(make('new_follower_request_accepted', USER))
 
     expect(result.icon).toBe(UserCheck)
-    expect(result.to).toEqual({ name: 'user', params: { id: '3' } })
+    expect(result.to).toEqual({ name: 'user', params: { id: userUuid(3) } })
   })
 
   it('routes a Garmin token expiry to settings integrations', () => {
@@ -300,7 +304,7 @@ describe('presentNotification', () => {
   it('routes an admin sign-up approval to the pending user', () => {
     const result = presentNotification(
       make('admin_new_sign_up_approval_request', {
-        user_id: 7,
+        user_id: userUuid(7),
         user_name: 'Ada',
         user_username: 'ada',
       }),
@@ -308,19 +312,19 @@ describe('presentNotification', () => {
 
     expect(result.icon).toBe(ShieldAlert)
     expect(result.bodyParams).toEqual({ name: 'Ada', username: 'ada' })
-    expect(result.to).toEqual({ name: 'settings-user-detail', params: { id: '7' } })
+    expect(result.to).toEqual({ name: 'settings-user-detail', params: { id: userUuid(7) } })
   })
 
   it('tells an admin which user was promoted and links to them', () => {
     const result = presentNotification(
-      make('admin_user_promoted', { user_id: 7, user_name: 'Ada', user_username: 'ada' }),
+      make('admin_user_promoted', { user_id: userUuid(7), user_name: 'Ada', user_username: 'ada' }),
     )
 
     expect(result.icon).toBe(ShieldAlert)
     expect(result.titleKey).toBe('notifications.types.adminUserPromoted.title')
     expect(result.bodyKey).toBe('notifications.types.adminUserPromoted.body')
     expect(result.bodyParams).toEqual({ name: 'Ada', username: 'ada' })
-    expect(result.to).toEqual({ name: 'settings-user-detail', params: { id: '7' } })
+    expect(result.to).toEqual({ name: 'settings-user-detail', params: { id: userUuid(7) } })
   })
 
   it('falls back to a neutral bell for unknown types', () => {

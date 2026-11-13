@@ -28,7 +28,7 @@ vi.mock('@/services/http', () => ({
 /** Builds a full `UserRead` wire payload, overridable per case. */
 function makeUserDto(overrides: Partial<UserDto> = {}): UserDto {
   return {
-    id: 7,
+    id: '00000000-0000-4000-8000-000000000007',
     version: 5,
     name: 'Ada Lovelace',
     username: 'ada',
@@ -49,7 +49,7 @@ function makeUserDto(overrides: Partial<UserDto> = {}): UserDto {
     birthdate: '1815-12-10',
     height: 170,
     max_heart_rate: 190,
-    photo_path: '/api/v1/users/7/photo?t=sig',
+    photo_path: '/api/v1/users/00000000-0000-4000-8000-000000000007/photo?t=sig',
     ...overrides,
   }
 }
@@ -57,7 +57,7 @@ function makeUserDto(overrides: Partial<UserDto> = {}): UserDto {
 describe('mapManagedUser', () => {
   it('maps the wire shape to the clean model and derives the avatar URL', () => {
     expect(mapManagedUser(makeUserDto())).toMatchObject({
-      id: 7,
+      id: '00000000-0000-4000-8000-000000000007',
       name: 'Ada Lovelace',
       username: 'ada',
       email: 'ada@example.com',
@@ -71,8 +71,8 @@ describe('mapManagedUser', () => {
       weightUnits: 'imperial',
       currency: 'euro',
       firstDayOfWeek: 'monday',
-      photoPath: '/api/v1/users/7/photo?t=sig',
-      avatarUrl: 'https://cdn.test/api/v1/users/7/photo?t=sig',
+      photoPath: '/api/v1/users/00000000-0000-4000-8000-000000000007/photo?t=sig',
+      avatarUrl: 'https://cdn.test/api/v1/users/00000000-0000-4000-8000-000000000007/photo?t=sig',
     })
   })
 
@@ -278,7 +278,7 @@ describe('users service requests', () => {
 
     await updateUser(user, { ...user, name: 'Ada L.', active: false })
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7', {
+    expect(apiFetch).toHaveBeenCalledWith('/users/00000000-0000-4000-8000-000000000007', {
       method: 'PATCH',
       headers: { 'If-Match': '"5"' },
       body: JSON.stringify({ name: 'Ada L.', active: false }),
@@ -288,16 +288,18 @@ describe('users service requests', () => {
   it('fetchUserById fetches and maps a single user', async () => {
     vi.mocked(apiFetch).mockResolvedValue(makeUserDto())
 
-    const user = await fetchUserById(7)
+    const user = await fetchUserById('00000000-0000-4000-8000-000000000007')
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/users/00000000-0000-4000-8000-000000000007', {
+      signal: undefined,
+    })
     expect(user?.username).toBe('ada')
   })
 
   it('fetchUserById maps a missing user to null', async () => {
     vi.mocked(apiFetch).mockResolvedValue(null)
 
-    expect(await fetchUserById(7)).toBeNull()
+    expect(await fetchUserById('00000000-0000-4000-8000-000000000007')).toBeNull()
   })
 
   it('updateUser sends step_up only when the caller supplies one', async () => {
@@ -343,27 +345,36 @@ describe('users service requests', () => {
   it('changeUserPassword POSTs the new password with the admin step-up', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await changeUserPassword(7, 'secret123', { currentPassword: 'admin-pw', mfaCode: '654321' })
-
-    expect(apiFetch).toHaveBeenCalledWith('/users/7/password/change', {
-      method: 'POST',
-      body: JSON.stringify({
-        password: 'secret123',
-        step_up: { current_password: 'admin-pw', mfa_code: '654321' },
-      }),
-      responseType: 'void',
+    await changeUserPassword('00000000-0000-4000-8000-000000000007', 'secret123', {
+      currentPassword: 'admin-pw',
+      mfaCode: '654321',
     })
+
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/users/00000000-0000-4000-8000-000000000007/password/change',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          password: 'secret123',
+          step_up: { current_password: 'admin-pw', mfa_code: '654321' },
+        }),
+        responseType: 'void',
+      },
+    )
   })
 
   it('deleteUser POSTs to the delete route with If-Match and the admin step-up', async () => {
     const job = { id: 'job-1', kind: 'user_deletion', status: 'queued' }
     vi.mocked(apiFetch).mockResolvedValue(job)
 
-    await expect(deleteUser(7, 2, { currentPassword: 'admin-pw', mfaCode: null })).resolves.toBe(
-      job,
-    )
+    await expect(
+      deleteUser('00000000-0000-4000-8000-000000000007', 2, {
+        currentPassword: 'admin-pw',
+        mfaCode: null,
+      }),
+    ).resolves.toBe(job)
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7/delete', {
+    expect(apiFetch).toHaveBeenCalledWith('/users/00000000-0000-4000-8000-000000000007/delete', {
       method: 'POST',
       headers: { 'If-Match': '"2"' },
       body: JSON.stringify({ step_up: { current_password: 'admin-pw', mfa_code: null } }),
@@ -374,11 +385,11 @@ describe('users service requests', () => {
     vi.mocked(apiFetch).mockResolvedValue({ photo_path: 'data/user_images/7.png' })
     const file = new File(['x'], 'avatar.png', { type: 'image/png' })
 
-    const path = await uploadUserPhoto(7, file)
+    const path = await uploadUserPhoto('00000000-0000-4000-8000-000000000007', file)
 
     expect(path).toBe('data/user_images/7.png')
     const call = vi.mocked(apiFetch).mock.calls[0]
-    expect(call?.[0]).toBe('/users/7/photo')
+    expect(call?.[0]).toBe('/users/00000000-0000-4000-8000-000000000007/photo')
     expect(call?.[1]).toMatchObject({ method: 'PUT', timeoutMs: 0 })
     expect(call?.[1]?.body).toBeInstanceOf(FormData)
   })
@@ -386,9 +397,9 @@ describe('users service requests', () => {
   it('deleteUserPhoto issues a DELETE for the photo', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await deleteUserPhoto(7)
+    await deleteUserPhoto('00000000-0000-4000-8000-000000000007')
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7/photo', {
+    expect(apiFetch).toHaveBeenCalledWith('/users/00000000-0000-4000-8000-000000000007/photo', {
       method: 'DELETE',
       responseType: 'void',
     })
@@ -397,9 +408,9 @@ describe('users service requests', () => {
   it('approveUser issues a POST to the approve endpoint', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await approveUser(7)
+    await approveUser('00000000-0000-4000-8000-000000000007')
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7/approve', {
+    expect(apiFetch).toHaveBeenCalledWith('/users/00000000-0000-4000-8000-000000000007/approve', {
       method: 'POST',
       responseType: 'void',
     })

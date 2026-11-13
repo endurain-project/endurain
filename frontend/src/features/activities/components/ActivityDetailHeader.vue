@@ -23,7 +23,7 @@ const props = defineProps<{
   activity: Activity
   units: Units
   /** The viewer's user id, or `null` when unauthenticated. */
-  currentUserId: number | null
+  currentUserId: string | null
   /** Owner identity, when known (e.g. the viewer's own activity). */
   owner?: ActivityOwner | null
 }>()

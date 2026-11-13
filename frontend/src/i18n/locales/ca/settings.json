@@ -1295,7 +1295,8 @@
         "timed_out": "ha trigat massa. No s'ha importat res, així que pots tornar-ho a provar.",
         "files_incomplete": "les teves dades s'han importat però falten alguns fitxers. No ho tornis a importar; duplicaria les teves dades.",
         "processing_failed": "ha anat alguna cosa malament. No s'ha importat res, així que pots tornar-ho a provar.",
-        "wrong_account": "l'arxiu s'ha exportat des d'un altre compte. No s'ha importat res."
+        "wrong_account": "l'arxiu s'ha exportat des d'un altre compte. No s'ha importat res.",
+        "older_version": "l'arxiu s'ha exportat des d'una versió anterior d'Endurain. No s'ha importat res."
       }
     },
     "blockedUsers": {

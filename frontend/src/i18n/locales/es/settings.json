@@ -1295,7 +1295,8 @@
         "timed_out": "tardó demasiado. No se importó nada, así que puedes intentarlo de nuevo.",
         "files_incomplete": "tus datos se importaron pero faltan algunos archivos. No lo importes de nuevo; duplicaría tus datos.",
         "processing_failed": "algo salió mal. No se importó nada, así que puedes intentarlo de nuevo.",
-        "wrong_account": "el archivo se exportó desde otra cuenta. No se importó nada."
+        "wrong_account": "el archivo se exportó desde otra cuenta. No se importó nada.",
+        "older_version": "el archivo se exportó con una versión anterior de Endurain. No se importó nada."
       }
     },
     "blockedUsers": {

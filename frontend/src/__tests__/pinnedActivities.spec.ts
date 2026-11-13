@@ -14,7 +14,7 @@ import {
 } from '@/features/upload/composables/usePinnedActivities'
 import { replaceActivitiesInFeed } from '@/features/upload/composables/useUpload'
 
-import { makeActivity, activityUuid } from './fixtures/activity'
+import { makeActivity, activityUuid, userUuid } from './fixtures/activity'
 
 vi.mock('pinia', async (importOriginal) => ({
   ...(await importOriginal<typeof import('pinia')>()),
@@ -54,7 +54,7 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
     mount(
       defineComponent({
         setup() {
-          const feed = useUserActivitiesFeed(7)
+          const feed = useUserActivitiesFeed(userUuid(7))
           ids = () =>
             feed.data.value?.pages.flatMap((page) => page.items).map((activity) => activity.id) ??
             []
@@ -77,7 +77,7 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
     const withThumbnail = { ...uploaded, mapThumbnailUrl: 'thumb' }
     updatePinnedActivities([withThumbnail])
     client.setQueriesData<InfiniteData<ActivityFeedSlice>>(
-      { queryKey: queryKeys.activities.userFeed(7, 25) },
+      { queryKey: queryKeys.activities.userFeed(userUuid(7), 25) },
       (data) => replaceActivitiesInFeed(data, [withThumbnail]),
     )
     await flushPromises()
@@ -98,7 +98,7 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
     mount(
       defineComponent({
         setup() {
-          const feed = useUserActivitiesFeed(7)
+          const feed = useUserActivitiesFeed(userUuid(7))
           thumbnail = () => feed.data.value?.pages[0]?.items[0]?.mapThumbnailUrl ?? null
           return () => h('div')
         },
@@ -121,7 +121,7 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
     mount(
       defineComponent({
         setup() {
-          const feed = useUserActivitiesFeed(7)
+          const feed = useUserActivitiesFeed(userUuid(7))
           ids = () =>
             feed.data.value?.pages.flatMap((page) => page.items).map((activity) => activity.id) ??
             []
@@ -153,7 +153,7 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
     mount(
       defineComponent({
         setup() {
-          const feed = useUserActivitiesFeed(7)
+          const feed = useUserActivitiesFeed(userUuid(7))
           top = () => feed.data.value?.pages[0]?.items[0]
           return () => h('div')
         },

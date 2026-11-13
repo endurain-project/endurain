@@ -17,7 +17,7 @@ import {
 } from '@/features/activities/services/activities'
 import { queryKeys } from '@/services/queryKeys'
 
-import { makeActivity, activityUuid } from './fixtures/activity'
+import { makeActivity, activityUuid, userUuid } from './fixtures/activity'
 
 vi.mock('@/features/activities/services/activities', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/activities/services/activities')>()),
@@ -53,10 +53,10 @@ const editInput: ActivityEditInput = {
 
 /** Everything derived from activity rows: an activity write makes these stale. */
 const AGGREGATE_KEYS = {
-  list: queryKeys.activities.list({ scope: 'user-list', userId: 7, page: 1 }),
-  feed: queryKeys.activities.userFeed(7, 25),
+  list: queryKeys.activities.list({ scope: 'user-list', userId: userUuid(7), page: 1 }),
+  feed: queryKeys.activities.userFeed(userUuid(7), 25),
   summary: queryKeys.activities.summary({ viewType: 'week' }),
-  stats: queryKeys.activities.stats(7, 'week'),
+  stats: queryKeys.activities.stats(userUuid(7), 'week'),
   search: queryKeys.activities.search('run'),
   types: queryKeys.activities.types(),
 }
@@ -70,7 +70,7 @@ const UNAFFECTED_ACTIVITY_KEYS = {
   media: queryKeys.activities.media(ACTIVITY_ID),
   otherDetail: queryKeys.activities.detail(activityUuid(99)),
   exerciseTitles: queryKeys.activities.exerciseTitles(),
-  owner: queryKeys.activities.owner(5),
+  owner: queryKeys.activities.owner(userUuid(5)),
 }
 
 /** A gear's totals and its activity rows depend on which activities carry it. */

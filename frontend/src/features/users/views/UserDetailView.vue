@@ -32,6 +32,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useToasts } from '@/composables/useToasts'
 import { consumeIdpStepUpReturn } from '@/features/security/composables/useIdpStepUp'
+import { isUuid } from '@/utils/validation'
 import { formatMediumDateTime } from '@/utils/datetime'
 import {
   useApproveUserMutation,
@@ -67,8 +68,8 @@ onMounted(() => {
 // A non-numeric or non-positive `:id` resolves to `null`, which keeps the query
 // disabled and surfaces the not-found state below.
 const userId = computed(() => {
-  const raw = Number(route.params.id)
-  return Number.isFinite(raw) && raw > 0 ? raw : null
+  const raw = route.params.id
+  return typeof raw === 'string' && isUuid(raw) ? raw : null
 })
 
 const { data: user, isPending, isError, refetch } = useUserQuery(userId)

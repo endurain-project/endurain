@@ -26,7 +26,7 @@ vi.mock('@/services/http', () => ({
 
 const goalDto: GoalDto = {
   id: '00000000-0000-4000-8000-000000000003',
-  user_id: 7,
+  user_id: '00000000-0000-4000-8000-000000000007',
   version: 4,
   interval: 'weekly',
   activity_type: 'run',
@@ -36,7 +36,7 @@ const goalDto: GoalDto = {
 
 const mappedGoal = {
   id: '00000000-0000-4000-8000-000000000003',
-  userId: 7,
+  userId: '00000000-0000-4000-8000-000000000007',
   version: 4,
   interval: 'weekly',
   activityType: 'run',
@@ -79,7 +79,7 @@ describe('mapGoal', () => {
     expect(
       mapGoal({
         id: '00000000-0000-4000-8000-000000000001',
-        user_id: 2,
+        user_id: '00000000-0000-4000-8000-000000000002',
         version: 1,
         interval: 'daily',
         activity_type: 'swim',
@@ -88,7 +88,7 @@ describe('mapGoal', () => {
       }),
     ).toEqual({
       id: '00000000-0000-4000-8000-000000000001',
-      userId: 2,
+      userId: '00000000-0000-4000-8000-000000000002',
       version: 1,
       interval: 'daily',
       activityType: 'swim',

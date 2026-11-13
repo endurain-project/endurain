@@ -29,7 +29,7 @@ beforeEach(() => {
 })
 
 const user: ManagedUser = {
-  id: 1,
+  id: '00000000-0000-4000-8000-000000000001',
   version: 1,
   name: 'Admin',
   username: 'admin',
@@ -103,7 +103,10 @@ async function mountDialog(
  */
 async function sentUpdate(): Promise<unknown> {
   await vi.waitFor(() =>
-    expect(apiFetch).toHaveBeenCalledWith('/users/1', expect.objectContaining({ method: 'PATCH' })),
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/users/00000000-0000-4000-8000-000000000001',
+      expect.objectContaining({ method: 'PATCH' }),
+    ),
   )
   const [, init] = vi.mocked(apiFetch).mock.calls.find(([, i]) => i?.method === 'PATCH')!
   return JSON.parse(String(init?.body))
@@ -338,7 +341,7 @@ describe('UserFormDialog height', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
     expect(apiFetch).not.toHaveBeenCalledWith(
-      '/users/1',
+      '/users/00000000-0000-4000-8000-000000000001',
       expect.objectContaining({ method: 'PATCH' }),
     )
   })
@@ -355,7 +358,7 @@ describe('UserFormDialog height', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
     expect(apiFetch).not.toHaveBeenCalledWith(
-      '/users/1',
+      '/users/00000000-0000-4000-8000-000000000001',
       expect.objectContaining({ method: 'PATCH' }),
     )
   })
@@ -440,7 +443,11 @@ describe('UserFormDialog create step-up', () => {
   })
 
   it.each<[string, IdpStepUpResume['action'], Record<string, unknown>]>([
-    ['an edit return', 'admin_user_edit', { userId: 1, draft: {} }],
+    [
+      'an edit return',
+      'admin_user_edit',
+      { userId: '00000000-0000-4000-8000-000000000001', draft: {} },
+    ],
     ['a return for another action', 'admin_credential_reset', { create: true, draft: {} }],
   ])('does not open the create form for %s', async (_label, action, pending) => {
     const wrapper = await mountCreate({

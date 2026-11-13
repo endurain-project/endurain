@@ -25,7 +25,7 @@ const unblockMutation = useUnblockUserMutation()
  *
  * @param userId - The blocked user to unblock.
  */
-function unblock(userId: number): void {
+function unblock(userId: string): void {
   unblockMutation.mutate(userId, {
     onError: () => toasts.error(t('settings.profile.blockedUsers.unblockError')),
   })

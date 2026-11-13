@@ -230,7 +230,7 @@ export async function updateUser(
  * @returns The user mapped to the clean model, or `null` when not found.
  * @throws {HttpError} When the request fails.
  */
-export async function fetchUserById(id: number, signal?: AbortSignal): Promise<ManagedUser | null> {
+export async function fetchUserById(id: string, signal?: AbortSignal): Promise<ManagedUser | null> {
   const dto = await apiFetch<UserDto | null>(`/users/${id}`, { signal })
   return dto ? mapManagedUser(dto) : null
 }
@@ -245,7 +245,7 @@ export async function fetchUserById(id: number, signal?: AbortSignal): Promise<M
  * @throws {HttpError} When the request fails (e.g. password too short, or a refused step-up).
  */
 export async function changeUserPassword(
-  userId: number,
+  userId: string,
   password: string,
   stepUp: StepUpInput,
 ): Promise<void> {
@@ -267,7 +267,7 @@ export async function changeUserPassword(
  * @param stepUp - The administrator's step-up credentials.
  * @throws {HttpError} When the request fails (`409` when the user has no MFA, `403` for a refused step-up).
  */
-export async function resetUserMfa(userId: number, stepUp: StepUpInput): Promise<void> {
+export async function resetUserMfa(userId: string, stepUp: StepUpInput): Promise<void> {
   await apiFetch<void>(`/users/${userId}/mfa/reset`, {
     method: 'POST',
     body: JSON.stringify({ step_up: toStepUpWire(stepUp) } satisfies StepUpRequestDto),
@@ -284,7 +284,7 @@ export async function resetUserMfa(userId: number, stepUp: StepUpInput): Promise
  * @throws {HttpError} When the request fails (`409` when the user has no local password, or a refused step-up).
  */
 export async function requireUserPasswordChange(
-  userId: number,
+  userId: string,
   stepUp: StepUpInput,
 ): Promise<void> {
   await apiFetch<void>(`/users/${userId}/password/require-change`, {
@@ -304,7 +304,7 @@ export async function requireUserPasswordChange(
  * @returns The new photo path, or `null` when none was stored.
  * @throws {HttpError} When the upload is rejected (e.g. an invalid image).
  */
-export async function uploadUserPhoto(userId: number, file: File): Promise<string | null> {
+export async function uploadUserPhoto(userId: string, file: File): Promise<string | null> {
   const formData = new FormData()
   // The third arg is the multipart part filename only; the backend sanitizes it
   // and generates its own storage filename, so it never reaches a path/URL.
@@ -323,7 +323,7 @@ export async function uploadUserPhoto(userId: number, file: File): Promise<strin
  * @param userId - The target user id.
  * @throws {HttpError} When the request fails.
  */
-export async function deleteUserPhoto(userId: number): Promise<void> {
+export async function deleteUserPhoto(userId: string): Promise<void> {
   await apiFetch<void>(`/users/${userId}/photo`, { method: 'DELETE', responseType: 'void' })
 }
 
@@ -337,7 +337,7 @@ export async function deleteUserPhoto(userId: number): Promise<void> {
  * @throws {HttpError} When the request fails (`412` when the user changed since it was read).
  */
 export async function deleteUser(
-  id: number,
+  id: string,
   version: number,
   stepUp: StepUpInput,
 ): Promise<UserDeletionStatus> {
@@ -355,6 +355,6 @@ export async function deleteUser(
  * @param id - The user id to approve.
  * @throws {HttpError} When the request fails.
  */
-export async function approveUser(id: number): Promise<void> {
+export async function approveUser(id: string): Promise<void> {
   await apiFetch<void>(`/users/${id}/approve`, { method: 'POST', responseType: 'void' })
 }

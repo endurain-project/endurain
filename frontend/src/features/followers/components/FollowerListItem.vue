@@ -18,7 +18,7 @@ import {
 
 const props = defineProps<{
   /** The other user's id (the follower, or the followed user). */
-  userId: number
+  userId: string
   /** Whether this follow relationship is accepted (vs a pending request). */
   isAccepted: boolean
   /**

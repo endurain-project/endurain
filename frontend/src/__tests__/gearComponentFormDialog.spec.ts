@@ -26,7 +26,7 @@ vi.mock('@/services/http', () => {
 
 const createdDto: GearComponentDto = {
   id: '00000000-0000-4000-8000-0000000000c7',
-  user_id: 1,
+  user_id: '00000000-0000-4000-8000-000000000001',
   gear_id: '00000000-0000-4000-8000-000000000005',
   type: 'chain',
   brand: 'Shimano',

@@ -15,7 +15,7 @@ import {
   deleteNotification,
   fetchNotifications,
 } from '@/features/notifications/services/notifications'
-import { activityUuid } from './fixtures/activity'
+import { activityUuid, userUuid } from './fixtures/activity'
 
 vi.mock('@/services/http', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/services/http')>()),
@@ -61,7 +61,7 @@ function notification(id: string, read = false): Notification {
     read,
     options: { activity_id: activityUuid(42) },
     createdAt: '2026-06-19T10:00:00Z',
-    userId: 1,
+    userId: userUuid(1),
   }
 }
 

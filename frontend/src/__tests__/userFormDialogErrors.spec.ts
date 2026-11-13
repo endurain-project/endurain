@@ -10,6 +10,7 @@ import type { ManagedUser } from '@/features/users/types'
 import { apiFetch, HttpError } from '@/services/http'
 import i18n from '@/i18n'
 import UserFormDialog from '@/features/users/components/UserFormDialog.vue'
+import { userUuid } from './fixtures/activity'
 
 vi.mock('@/services/http', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/services/http')>()),
@@ -27,7 +28,7 @@ beforeEach(() => {
 })
 
 const user: ManagedUser = {
-  id: 1,
+  id: userUuid(1),
   version: 1,
   name: 'Admin',
   username: 'admin',

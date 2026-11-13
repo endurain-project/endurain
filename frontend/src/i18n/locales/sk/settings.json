@@ -1295,7 +1295,8 @@
         "timed_out": "trval príliš dlho. Nič sa neimportovalo, takže to môžete skúsiť znova.",
         "files_incomplete": "vaše údaje boli importované, ale niektoré súbory chýbajú. Neimportujte ich znova, údaje by sa zduplikovali.",
         "processing_failed": "niečo sa pokazilo. Nič sa neimportovalo, takže to môžete skúsiť znova.",
-        "wrong_account": "archív bol exportovaný z iného účtu. Nič sa neimportovalo."
+        "wrong_account": "archív bol exportovaný z iného účtu. Nič sa neimportovalo.",
+        "older_version": "archív bol exportovaný staršou verziou Endurain. Nič sa neimportovalo."
       }
     },
     "blockedUsers": {

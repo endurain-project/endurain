@@ -1295,7 +1295,8 @@
         "timed_out": "a durat prea mult. Nu s-a importat nimic, deci poți încerca din nou.",
         "files_incomplete": "datele tale au fost importate, dar lipsesc unele fișiere. Nu le importa din nou; ți-ar duplica datele.",
         "processing_failed": "ceva nu a mers bine. Nu s-a importat nimic, deci poți încerca din nou.",
-        "wrong_account": "arhiva a fost exportată dintr-un alt cont. Nu s-a importat nimic."
+        "wrong_account": "arhiva a fost exportată dintr-un alt cont. Nu s-a importat nimic.",
+        "older_version": "arhiva a fost exportată de o versiune mai veche de Endurain. Nu s-a importat nimic."
       }
     },
     "blockedUsers": {

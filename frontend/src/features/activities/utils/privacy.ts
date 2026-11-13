@@ -10,7 +10,7 @@ import { METRIC_PRIVACY_FIELD } from './streams'
  * @param currentUserId - The viewer's user id, or `null` when unauthenticated.
  * @returns Whether the viewer is the owner.
  */
-export function isActivityOwner(activity: ActivitySummary, currentUserId: number | null): boolean {
+export function isActivityOwner(activity: ActivitySummary, currentUserId: string | null): boolean {
   return currentUserId !== null && activity.userId === currentUserId
 }
 
@@ -26,7 +26,7 @@ export function isActivityOwner(activity: ActivitySummary, currentUserId: number
 export function canViewField(
   activity: ActivitySummary,
   field: keyof ActivityPrivacy,
-  currentUserId: number | null,
+  currentUserId: string | null,
 ): boolean {
   return isActivityOwner(activity, currentUserId) || !activity.privacy[field]
 }
@@ -40,7 +40,7 @@ export function canViewField(
  */
 export function buildMetricVisibility(
   activity: ActivitySummary,
-  currentUserId: number | null,
+  currentUserId: string | null,
 ): MetricVisibility {
   return {
     pace: canViewField(activity, 'hidePace', currentUserId),
@@ -62,7 +62,7 @@ export function buildMetricVisibility(
  */
 export function streamMetricVisibility(
   activity: ActivitySummary,
-  currentUserId: number | null,
+  currentUserId: string | null,
 ): (metric: StreamMetric) => boolean {
   return (metric) => {
     const field = METRIC_PRIVACY_FIELD[metric]

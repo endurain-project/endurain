@@ -19,13 +19,13 @@ import {
  * @param userId - Reactive target user id (or `null` before it resolves).
  * @returns The TanStack Query result for the user's API keys.
  */
-export function useUserApiKeysQuery(userId: MaybeRefOrGetter<number | null>) {
+export function useUserApiKeysQuery(userId: MaybeRefOrGetter<string | null>) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
 
   return useQuery<ApiKey[]>({
-    queryKey: computed(() => queryKeys.users.apiKeys(toValue(userId) ?? 0)),
-    queryFn: ({ signal }) => fetchUserApiKeys(toValue(userId) as number, signal),
-    enabled: computed(() => isAuthenticated.value && (toValue(userId) ?? 0) > 0),
+    queryKey: computed(() => queryKeys.users.apiKeys(toValue(userId) ?? '')),
+    queryFn: ({ signal }) => fetchUserApiKeys(toValue(userId) as string, signal),
+    enabled: computed(() => isAuthenticated.value && toValue(userId) !== null),
   })
 }
 
@@ -45,7 +45,7 @@ export function useRevokeUserApiKeyMutation() {
       stepUp,
     }: {
       apiKeyId: string
-      userId: number
+      userId: string
       stepUp: StepUpInput
     }) => revokeUserApiKey(apiKeyId, userId, stepUp),
     onSettled: (_data, _error, { userId }) => {
@@ -63,7 +63,7 @@ export function useRevokeAllUserApiKeysMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ userId, stepUp }: { userId: number; stepUp: StepUpInput }) =>
+    mutationFn: ({ userId, stepUp }: { userId: string; stepUp: StepUpInput }) =>
       revokeAllUserApiKeys(userId, stepUp),
     onSettled: (_data, _error, { userId }) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.users.apiKeys(userId) })

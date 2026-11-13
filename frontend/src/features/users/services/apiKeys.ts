@@ -13,7 +13,7 @@ import { mapApiKey, toStepUpWire } from '@/features/security/services/security'
  * @returns The user's API keys, mapped to the clean model.
  * @throws {HttpError} When the request fails.
  */
-export async function fetchUserApiKeys(userId: number, signal?: AbortSignal): Promise<ApiKey[]> {
+export async function fetchUserApiKeys(userId: string, signal?: AbortSignal): Promise<ApiKey[]> {
   const dtos = await fetchAllPages<ApiKeyDto>(`/users/${userId}/api-keys`, undefined, { signal })
   return dtos.map(mapApiKey)
 }
@@ -29,7 +29,7 @@ export async function fetchUserApiKeys(userId: number, signal?: AbortSignal): Pr
  */
 export async function revokeUserApiKey(
   apiKeyId: string,
-  userId: number,
+  userId: string,
   stepUp: StepUpInput,
 ): Promise<void> {
   await apiFetch<void>(`/users/${userId}/api-keys/${encodeURIComponent(apiKeyId)}/revoke`, {
@@ -47,7 +47,7 @@ export async function revokeUserApiKey(
  * @param stepUp - The administrator's step-up credentials.
  * @throws {HttpError} When the request fails (`403` when the step-up is refused).
  */
-export async function revokeAllUserApiKeys(userId: number, stepUp: StepUpInput): Promise<void> {
+export async function revokeAllUserApiKeys(userId: string, stepUp: StepUpInput): Promise<void> {
   await apiFetch<void>(`/users/${userId}/api-keys/revoke`, {
     method: 'POST',
     body: JSON.stringify({ step_up: toStepUpWire(stepUp) } satisfies StepUpRequestDto),

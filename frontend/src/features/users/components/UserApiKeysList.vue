@@ -33,7 +33,7 @@ import {
  */
 const props = defineProps<{
   /** The user whose API keys to list. */
-  userId: number
+  userId: string
   /** The identity-provider sign-in the browser just returned from, if any. */
   resume: IdpStepUpResume | null
 }>()

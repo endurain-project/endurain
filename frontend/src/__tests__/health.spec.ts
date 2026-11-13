@@ -67,7 +67,7 @@ describe('health dashboard service', () => {
   it('maps dashboard metrics and targets from one response', async () => {
     const targets: Schemas['HealthTargetsRead'] = {
       id: '00000000-0000-4000-8000-000000000002',
-      user_id: 9,
+      user_id: '00000000-0000-4000-8000-000000000009',
       version: 3,
       updated_at: UPDATED_AT,
       sleep_seconds: 28800,
@@ -88,7 +88,7 @@ describe('health dashboard service', () => {
     expect(dashboard.steps).toBe(7500)
     expect(dashboard.targets).toEqual({
       id: '00000000-0000-4000-8000-000000000002',
-      userId: 9,
+      userId: '00000000-0000-4000-8000-000000000009',
       version: 3,
       sleepSeconds: 28800,
       steps: 8000,
@@ -106,7 +106,7 @@ function makeWeightDto(
 ): Schemas['HealthWeightRead'] {
   return {
     id: '00000000-0000-4000-8000-000000000005',
-    user_id: 9,
+    user_id: '00000000-0000-4000-8000-000000000009',
     version: 1,
     updated_at: UPDATED_AT,
     date: '2026-06-25',
@@ -203,7 +203,7 @@ describe('weight service requests', () => {
     expect(page.total).toBe(2)
     expect(page.records[0]).toEqual({
       id: '00000000-0000-4000-8000-000000000005',
-      userId: 9,
+      userId: '00000000-0000-4000-8000-000000000009',
       version: 1,
       date: '2026-06-25',
       weightKg: 72.5,
@@ -274,7 +274,7 @@ describe('weight service requests', () => {
   it('updateWeightTarget PATCHes only weight', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
       id: '00000000-0000-4000-8000-000000000003',
-      user_id: 9,
+      user_id: '00000000-0000-4000-8000-000000000009',
       version: 1,
       updated_at: UPDATED_AT,
       weight_kg: 70,
@@ -292,7 +292,7 @@ describe('weight service requests', () => {
   it('updateWeightTarget sends null to clear the target', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
       id: '00000000-0000-4000-8000-000000000003',
-      user_id: 9,
+      user_id: '00000000-0000-4000-8000-000000000009',
       version: 1,
       updated_at: UPDATED_AT,
     } satisfies Schemas['HealthTargetsRead'])
@@ -313,7 +313,7 @@ function makeStepsDto(
 ): Schemas['HealthStepsRead'] {
   return {
     id: '00000000-0000-4000-8000-000000000005',
-    user_id: 9,
+    user_id: '00000000-0000-4000-8000-000000000009',
     version: 1,
     updated_at: UPDATED_AT,
     date: '2026-06-25',
@@ -354,7 +354,7 @@ describe('steps service requests', () => {
     expect(page.total).toBe(2)
     expect(page.records[0]).toEqual({
       id: '00000000-0000-4000-8000-000000000005',
-      userId: 9,
+      userId: '00000000-0000-4000-8000-000000000009',
       version: 1,
       date: '2026-06-25',
       steps: 8500,
@@ -405,7 +405,7 @@ describe('steps service requests', () => {
   it('updateStepsTarget PATCHes only steps', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
       id: '00000000-0000-4000-8000-000000000003',
-      user_id: 9,
+      user_id: '00000000-0000-4000-8000-000000000009',
       version: 1,
       updated_at: UPDATED_AT,
       steps: 10000,
@@ -423,7 +423,7 @@ describe('steps service requests', () => {
   it('updateStepsTarget sends null to clear the target', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
       id: '00000000-0000-4000-8000-000000000003',
-      user_id: 9,
+      user_id: '00000000-0000-4000-8000-000000000009',
       version: 1,
       updated_at: UPDATED_AT,
     } satisfies Schemas['HealthTargetsRead'])
@@ -444,7 +444,7 @@ function makeWaterDto(
 ): Schemas['HealthWaterRead'] {
   return {
     id: '00000000-0000-4000-8000-000000000005',
-    user_id: 9,
+    user_id: '00000000-0000-4000-8000-000000000009',
     version: 1,
     updated_at: UPDATED_AT,
     date: '2026-06-25',
@@ -489,7 +489,7 @@ describe('water service requests', () => {
     expect(page.total).toBe(2)
     expect(page.records[0]).toEqual({
       id: '00000000-0000-4000-8000-000000000005',
-      userId: 9,
+      userId: '00000000-0000-4000-8000-000000000009',
       version: 1,
       date: '2026-06-25',
       amountMl: 1500,
@@ -540,7 +540,7 @@ describe('water service requests', () => {
   it('updateWaterTarget PATCHes only water_ml', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
       id: '00000000-0000-4000-8000-000000000003',
-      user_id: 9,
+      user_id: '00000000-0000-4000-8000-000000000009',
       version: 1,
       updated_at: UPDATED_AT,
       water_ml: 2000,
@@ -558,7 +558,7 @@ describe('water service requests', () => {
   it('updateWaterTarget sends null to clear the target', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
       id: '00000000-0000-4000-8000-000000000003',
-      user_id: 9,
+      user_id: '00000000-0000-4000-8000-000000000009',
       version: 1,
       updated_at: UPDATED_AT,
     } satisfies Schemas['HealthTargetsRead'])
@@ -579,7 +579,7 @@ function makePoopDto(
 ): Schemas['HealthPoopRead'] {
   return {
     id: '00000000-0000-4000-8000-000000000005',
-    user_id: 9,
+    user_id: '00000000-0000-4000-8000-000000000009',
     version: 1,
     updated_at: UPDATED_AT,
     date_time: '2026-06-25T08:30:00',
@@ -629,7 +629,7 @@ describe('poop service requests', () => {
     expect(page.total).toBe(2)
     expect(page.records[0]).toEqual({
       id: '00000000-0000-4000-8000-000000000005',
-      userId: 9,
+      userId: '00000000-0000-4000-8000-000000000009',
       version: 1,
       dateTime: '2026-06-25T08:30:00',
       bristolType: 'type_4',
@@ -692,7 +692,7 @@ describe('poop service requests', () => {
   it('updatePoopTarget PATCHes only poop_count', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
       id: '00000000-0000-4000-8000-000000000003',
-      user_id: 9,
+      user_id: '00000000-0000-4000-8000-000000000009',
       version: 1,
       updated_at: UPDATED_AT,
       poop_count: 2,
@@ -710,7 +710,7 @@ describe('poop service requests', () => {
   it('updatePoopTarget sends null to clear the target', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
       id: '00000000-0000-4000-8000-000000000003',
-      user_id: 9,
+      user_id: '00000000-0000-4000-8000-000000000009',
       version: 1,
       updated_at: UPDATED_AT,
     } satisfies Schemas['HealthTargetsRead'])
@@ -732,7 +732,7 @@ function makeSleepDto(
   return {
     id: '00000000-0000-4000-8000-000000000005',
     has_sleep_stages: false,
-    user_id: 9,
+    user_id: '00000000-0000-4000-8000-000000000009',
     version: 1,
     updated_at: UPDATED_AT,
     date: '2026-06-25',
@@ -829,7 +829,7 @@ function makeFastingDto(
 ): Schemas['HealthFastingRead'] {
   return {
     id: '00000000-0000-4000-8000-000000000005',
-    user_id: 9,
+    user_id: '00000000-0000-4000-8000-000000000009',
     version: 1,
     updated_at: UPDATED_AT,
     fast_start_time: '2026-06-25T08:00:00.000Z',
@@ -883,7 +883,7 @@ describe('fasting service requests', () => {
     expect(page.total).toBe(2)
     expect(page.records[0]).toEqual({
       id: '00000000-0000-4000-8000-000000000005',
-      userId: 9,
+      userId: '00000000-0000-4000-8000-000000000009',
       version: 1,
       fastStartTime: '2026-06-25T08:00:00.000Z',
       fastEndTime: '2026-06-25T22:00:00.000Z',
@@ -911,7 +911,7 @@ describe('fasting service requests', () => {
     expect(apiFetch).toHaveBeenCalledWith('/health/fasting/active', { signal: undefined })
     expect(active).toMatchObject({
       id: '00000000-0000-4000-8000-000000000005',
-      userId: 9,
+      userId: '00000000-0000-4000-8000-000000000009',
       version: 1,
       status: 'in_progress',
       fastEndTime: null,
@@ -1021,7 +1021,7 @@ describe('fasting service requests', () => {
   it('updateFastingTarget PATCHes only fasting', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
       id: '00000000-0000-4000-8000-000000000003',
-      user_id: 9,
+      user_id: '00000000-0000-4000-8000-000000000009',
       version: 1,
       updated_at: UPDATED_AT,
       fasting_seconds: 57600,
@@ -1039,7 +1039,7 @@ describe('fasting service requests', () => {
   it('updateFastingTarget sends null to clear the target', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
       id: '00000000-0000-4000-8000-000000000003',
-      user_id: 9,
+      user_id: '00000000-0000-4000-8000-000000000009',
       version: 1,
       updated_at: UPDATED_AT,
     } satisfies Schemas['HealthTargetsRead'])
@@ -1060,7 +1060,7 @@ function makeFullSleepDto(
 ): Schemas['HealthSleepRead'] {
   return {
     id: '00000000-0000-4000-8000-000000000005',
-    user_id: 9,
+    user_id: '00000000-0000-4000-8000-000000000009',
     version: 1,
     updated_at: UPDATED_AT,
     date: '2026-06-25',
@@ -1180,7 +1180,7 @@ describe('sleep service requests', () => {
     expect(page.total).toBe(2)
     expect(page.records[0]).toEqual({
       id: '00000000-0000-4000-8000-000000000005',
-      userId: 9,
+      userId: '00000000-0000-4000-8000-000000000009',
       version: 1,
       date: '2026-06-25',
       sleepStartTimeLocal: '2026-06-24T23:00',
@@ -1344,7 +1344,7 @@ describe('sleep service requests', () => {
   it('updateSleepTarget PATCHes only sleep', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
       id: '00000000-0000-4000-8000-000000000003',
-      user_id: 9,
+      user_id: '00000000-0000-4000-8000-000000000009',
       version: 1,
       updated_at: UPDATED_AT,
       sleep_seconds: 28800,
@@ -1362,7 +1362,7 @@ describe('sleep service requests', () => {
   it('updateSleepTarget sends null to clear the target', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
       id: '00000000-0000-4000-8000-000000000003',
-      user_id: 9,
+      user_id: '00000000-0000-4000-8000-000000000009',
       version: 1,
       updated_at: UPDATED_AT,
     } satisfies Schemas['HealthTargetsRead'])

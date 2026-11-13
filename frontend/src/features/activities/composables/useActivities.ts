@@ -12,10 +12,9 @@ import {
   fetchUserActivityTypes,
 } from '@/features/activities/services/activities'
 
-/** Resolves a reactive user id to a positive number, or `0` when unavailable. */
-function resolveUserId(userId: MaybeRefOrGetter<number | null>): number {
-  const value = toValue(userId)
-  return value !== null && Number.isFinite(value) && value > 0 ? value : 0
+/** Resolves a reactive user id to its string, or `''` when unavailable. */
+function resolveUserId(userId: MaybeRefOrGetter<string | null>): string {
+  return toValue(userId) ?? ''
 }
 
 /**
@@ -34,7 +33,7 @@ function resolveUserId(userId: MaybeRefOrGetter<number | null>): number {
  * @returns The TanStack query result for the current activities page.
  */
 export function useUserActivitiesQuery(
-  userId: MaybeRefOrGetter<number | null>,
+  userId: MaybeRefOrGetter<string | null>,
   page: MaybeRefOrGetter<number>,
   pageSize: MaybeRefOrGetter<number>,
   filters: MaybeRefOrGetter<ActivityListFilters>,
@@ -69,7 +68,7 @@ export function useUserActivitiesQuery(
         signal,
       ),
     placeholderData: keepPreviousData,
-    enabled: computed(() => isAuthenticated.value && id.value > 0),
+    enabled: computed(() => isAuthenticated.value && id.value !== ''),
   })
 }
 

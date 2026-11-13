@@ -38,7 +38,7 @@ function mountDialog(props: Record<string, unknown>) {
   return mount(UserCredentialActionDialog, {
     props: {
       open: false,
-      userId: 7,
+      userId: '00000000-0000-4000-8000-000000000007',
       username: 'bob',
       variant: 'mfa-reset',
       resume: null,
@@ -74,14 +74,20 @@ describe('UserCredentialActionDialog', () => {
   it('resets the MFA with the administrator step-up', async () => {
     await submit(mountDialog({ open: true, variant: 'mfa-reset' }))
 
-    expect(mocks.mfaMutate).toHaveBeenCalledWith({ userId: 7, stepUp }, expect.any(Object))
+    expect(mocks.mfaMutate).toHaveBeenCalledWith(
+      { userId: '00000000-0000-4000-8000-000000000007', stepUp },
+      expect.any(Object),
+    )
     expect(mocks.passwordMutate).not.toHaveBeenCalled()
   })
 
   it('requires a password change with the administrator step-up', async () => {
     await submit(mountDialog({ open: true, variant: 'password-change' }))
 
-    expect(mocks.passwordMutate).toHaveBeenCalledWith({ userId: 7, stepUp }, expect.any(Object))
+    expect(mocks.passwordMutate).toHaveBeenCalledWith(
+      { userId: '00000000-0000-4000-8000-000000000007', stepUp },
+      expect.any(Object),
+    )
     expect(mocks.mfaMutate).not.toHaveBeenCalled()
   })
 
@@ -157,7 +163,7 @@ describe('UserCredentialActionDialog', () => {
     const resume = {
       action: 'admin_mfa_reset',
       reauth: { ticket: 't1', codeVerifier: 'v1' },
-      pending: { userId: 7 },
+      pending: { userId: '00000000-0000-4000-8000-000000000007' },
     } as IdpStepUpResume
     const wrapper = mountDialog({ resume })
     await flushPromises()
@@ -166,8 +172,12 @@ describe('UserCredentialActionDialog', () => {
   })
 
   it.each([
-    ['the other action', 'admin_credential_change_require', { userId: 7 }],
-    ['another user', 'admin_mfa_reset', { userId: 8 }],
+    [
+      'the other action',
+      'admin_credential_change_require',
+      { userId: '00000000-0000-4000-8000-000000000007' },
+    ],
+    ['another user', 'admin_mfa_reset', { userId: '00000000-0000-4000-8000-000000000008' }],
   ])('ignores a return that was started for %s', async (_label, action, pending) => {
     const resume = {
       action,

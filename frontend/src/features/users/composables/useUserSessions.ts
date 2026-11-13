@@ -20,13 +20,13 @@ import {
  * @param userId - Reactive target user id (or `null` before it resolves).
  * @returns The TanStack Query result for the user's sessions.
  */
-export function useUserSessionsQuery(userId: MaybeRefOrGetter<number | null>) {
+export function useUserSessionsQuery(userId: MaybeRefOrGetter<string | null>) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
 
   return useQuery<UserSession[]>({
-    queryKey: computed(() => queryKeys.users.sessions(toValue(userId) ?? 0)),
-    queryFn: ({ signal }) => fetchUserSessions(toValue(userId) as number, signal),
-    enabled: computed(() => isAuthenticated.value && (toValue(userId) ?? 0) > 0),
+    queryKey: computed(() => queryKeys.users.sessions(toValue(userId) ?? '')),
+    queryFn: ({ signal }) => fetchUserSessions(toValue(userId) as string, signal),
+    enabled: computed(() => isAuthenticated.value && toValue(userId) !== null),
   })
 }
 
@@ -46,7 +46,7 @@ export function useRevokeUserSessionMutation() {
       stepUp,
     }: {
       sessionId: string
-      userId: number
+      userId: string
       stepUp: StepUpInput
     }) => revokeUserSession(sessionId, userId, stepUp),
     onSuccess: (_data, { userId }) => {
@@ -71,7 +71,7 @@ export function useRevokeOtherUserSessionsMutation() {
       stepUp,
       excludeSessionId,
     }: {
-      userId: number
+      userId: string
       stepUp: StepUpInput
       excludeSessionId?: string
     }) => revokeOtherUserSessions(userId, stepUp, excludeSessionId),

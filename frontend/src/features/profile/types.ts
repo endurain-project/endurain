@@ -96,7 +96,7 @@ export interface PrivacySettings {
  * @property privacy - The user's privacy preferences.
  */
 export interface ProfileDetails {
-  id: number
+  id: string
   /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
   version: number
   name: string
@@ -174,7 +174,7 @@ export type DefaultGearUpdateDto = Schemas['UserDefaultGearUpdate']
  */
 export interface DefaultGear {
   id: string
-  userId: number
+  userId: string
   /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
   version: number
   runGearId: string | null

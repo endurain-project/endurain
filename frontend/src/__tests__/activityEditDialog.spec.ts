@@ -6,7 +6,7 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { apiFetch } from '@/services/http'
 import i18n from '@/i18n'
 import ActivityEditDialog from '@/features/activities/components/ActivityEditDialog.vue'
-import { makeActivity, makeActivitySummary, activityUuid } from './fixtures/activity'
+import { makeActivity, makeActivitySummary, activityUuid, userUuid } from './fixtures/activity'
 import type { Activity, ActivitySummary } from '@/features/activities/types'
 
 vi.mock('@/services/http', () => ({
@@ -59,7 +59,7 @@ describe('ActivityEditDialog from a list row', () => {
   /** The full read of the activity: it carries the private notes and a newer version. */
   const fullDto = {
     id: activityUuid(1),
-    user_id: 7,
+    user_id: userUuid(7),
     version: 6,
     name: 'Morning run',
     activity_type: 'run',

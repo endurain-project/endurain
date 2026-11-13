@@ -30,14 +30,17 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('vue-router', () => ({
   RouterLink: { template: '<a><slot /></a>' },
-  useRoute: () => ({ params: { id: '7' }, path: '/settings/users/7' }),
+  useRoute: () => ({
+    params: { id: '00000000-0000-4000-8000-000000000007' },
+    path: '/settings/users/00000000-0000-4000-8000-000000000007',
+  }),
   useRouter: () => ({ push: mocks.push }),
 }))
 vi.mock('@/composables/useToasts', () => ({
   useToasts: () => ({ success: vi.fn<() => void>(), error: mocks.toastError }),
 }))
 vi.mock('@/features/auth/composables/useCurrentUser', () => ({
-  useCurrentUser: () => ({ data: ref({ id: 1 }) }),
+  useCurrentUser: () => ({ data: ref({ id: '00000000-0000-4000-8000-000000000001' }) }),
 }))
 vi.mock('@/features/security/composables/useAdminStepUp', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/security/composables/useAdminStepUp')>()),
@@ -105,7 +108,13 @@ const plugins = (): (Plugin | [Plugin, ...unknown[]])[] => [
 ]
 
 function managedUser(overrides: Partial<ManagedUser> = {}): ManagedUser {
-  return { id: 7, version: 3, name: 'Bob', username: 'bob', ...overrides } as ManagedUser
+  return {
+    id: '00000000-0000-4000-8000-000000000007',
+    version: 3,
+    name: 'Bob',
+    username: 'bob',
+    ...overrides,
+  } as ManagedUser
 }
 
 function resumeFor(action: IdpStepUpResume['action'], pending: Record<string, unknown>) {
@@ -125,7 +134,7 @@ beforeEach(() => {
   mocks.providers = []
   mocks.user = null
   sessionStorage.clear()
-  history.replaceState(null, '', '/settings/users/7')
+  history.replaceState(null, '', '/settings/users/00000000-0000-4000-8000-000000000007')
 })
 
 describe('UserDeleteDialog', () => {
@@ -143,7 +152,7 @@ describe('UserDeleteDialog', () => {
 
     expect(mocks.deleteMutate).toHaveBeenCalledWith(
       {
-        id: 7,
+        id: '00000000-0000-4000-8000-000000000007',
         version: 3,
         stepUp: { currentPassword: 'admin-pw', mfaCode: null, idpReauth: null },
       },
@@ -166,7 +175,10 @@ describe('UserDeleteDialog', () => {
   })
 
   it('reopens for the same user and variant after the identity-provider return', async () => {
-    const resume = resumeFor('admin_user_delete', { userId: 7, variant: 'delete' })
+    const resume = resumeFor('admin_user_delete', {
+      userId: '00000000-0000-4000-8000-000000000007',
+      variant: 'delete',
+    })
     const wrapper = mountDialog({ resume })
     await flushPromises()
 
@@ -174,8 +186,8 @@ describe('UserDeleteDialog', () => {
   })
 
   it.each([
-    ['another user', { userId: 8, variant: 'delete' }],
-    ['the other variant', { userId: 7, variant: 'reject' }],
+    ['another user', { userId: '00000000-0000-4000-8000-000000000008', variant: 'delete' }],
+    ['the other variant', { userId: '00000000-0000-4000-8000-000000000007', variant: 'reject' }],
   ])('ignores a return that was started for %s', async (_label, pending) => {
     const wrapper = mountDialog({ resume: resumeFor('admin_user_delete', pending) })
     await flushPromises()
@@ -199,7 +211,7 @@ describe('UserIdentityProvidersList unlink', () => {
   it('sends the administrator step-up for the chosen provider', async () => {
     mocks.providers = [provider]
     const wrapper = mount(UserIdentityProvidersList, {
-      props: { userId: 7, resume: null },
+      props: { userId: '00000000-0000-4000-8000-000000000007', resume: null },
       global: { plugins: plugins(), stubs },
     })
     await wrapper.get('button[aria-label]').trigger('click')
@@ -208,7 +220,7 @@ describe('UserIdentityProvidersList unlink', () => {
 
     expect(mocks.unlinkMutate).toHaveBeenCalledWith(
       {
-        userId: 7,
+        userId: '00000000-0000-4000-8000-000000000007',
         idpId: '00000000-0000-4000-8000-000000000011',
         stepUp: { currentPassword: 'admin-pw', mfaCode: null, idpReauth: null },
       },
@@ -219,7 +231,7 @@ describe('UserIdentityProvidersList unlink', () => {
   it('explains that the last sign-in method cannot be unlinked', async () => {
     mocks.providers = [provider]
     const wrapper = mount(UserIdentityProvidersList, {
-      props: { userId: 7, resume: null },
+      props: { userId: '00000000-0000-4000-8000-000000000007', resume: null },
       global: { plugins: plugins(), stubs },
     })
     await wrapper.get('button[aria-label]').trigger('click')
@@ -238,9 +250,9 @@ describe('UserIdentityProvidersList unlink', () => {
     mocks.providers = [provider]
     const wrapper = mount(UserIdentityProvidersList, {
       props: {
-        userId: 7,
+        userId: '00000000-0000-4000-8000-000000000007',
         resume: resumeFor('admin_idp_unlink', {
-          userId: 7,
+          userId: '00000000-0000-4000-8000-000000000007',
           idpId: '00000000-0000-4000-8000-000000000011',
         }),
       },
@@ -274,7 +286,7 @@ describe('UserSessionsList revoke', () => {
   function mountList(resume: IdpStepUpResume | null = null) {
     mocks.sessions = [session('current'), session('other')]
     return mount(UserSessionsList, {
-      props: { userId: 7, resume },
+      props: { userId: '00000000-0000-4000-8000-000000000007', resume },
       global: { plugins: plugins(), stubs },
     })
   }
@@ -284,7 +296,7 @@ describe('UserSessionsList revoke', () => {
   it('names the app a session was signed in through, only when it has one', () => {
     mocks.sessions = [session('current'), session('other', 'com.example.app:/callback')]
     const wrapper = mount(UserSessionsList, {
-      props: { userId: 7, resume: null },
+      props: { userId: '00000000-0000-4000-8000-000000000007', resume: null },
       global: { plugins: plugins(), stubs },
     })
     const rows = wrapper.findAll('ul > li')
@@ -300,7 +312,7 @@ describe('UserSessionsList revoke', () => {
     await wrapper.get('form').trigger('submit')
 
     expect(mocks.revokeMutate).toHaveBeenCalledWith(
-      { sessionId: 'other', userId: 7, stepUp },
+      { sessionId: 'other', userId: '00000000-0000-4000-8000-000000000007', stepUp },
       expect.any(Object),
     )
   })
@@ -313,7 +325,7 @@ describe('UserSessionsList revoke', () => {
     await wrapper.findAll('form')[1]!.trigger('submit')
 
     expect(mocks.revokeOthersMutate).toHaveBeenCalledWith(
-      { userId: 7, stepUp, excludeSessionId: 'current' },
+      { userId: '00000000-0000-4000-8000-000000000007', stepUp, excludeSessionId: 'current' },
       expect.any(Object),
     )
   })
@@ -334,7 +346,12 @@ describe('UserSessionsList revoke', () => {
   })
 
   it('reopens the revoke dialog for the session the return was started for', async () => {
-    const wrapper = mountList(resumeFor('admin_sessions_revoke', { userId: 7, sessionId: 'other' }))
+    const wrapper = mountList(
+      resumeFor('admin_sessions_revoke', {
+        userId: '00000000-0000-4000-8000-000000000007',
+        sessionId: 'other',
+      }),
+    )
     await flushPromises()
 
     expect(wrapper.findAllComponents({ name: 'StepUpDialog' })[0]!.props('open')).toBe(true)
@@ -342,7 +359,12 @@ describe('UserSessionsList revoke', () => {
   })
 
   it('reopens the revoke-others dialog after the return', async () => {
-    const wrapper = mountList(resumeFor('admin_sessions_revoke', { userId: 7, others: true }))
+    const wrapper = mountList(
+      resumeFor('admin_sessions_revoke', {
+        userId: '00000000-0000-4000-8000-000000000007',
+        others: true,
+      }),
+    )
     await flushPromises()
 
     expect(wrapper.findAllComponents({ name: 'StepUpDialog' })[0]!.props('open')).toBe(false)
@@ -362,7 +384,11 @@ describe('UserDetailView identity-provider return', () => {
         createdAt: Date.now(),
       }),
     )
-    history.replaceState(null, '', '/settings/users/7#step_up_ticket=t1')
+    history.replaceState(
+      null,
+      '',
+      '/settings/users/00000000-0000-4000-8000-000000000007#step_up_ticket=t1',
+    )
   }
 
   function mountView() {
@@ -387,7 +413,10 @@ describe('UserDetailView identity-provider return', () => {
 
   it('hands the consumed return to the dialogs and strips the fragment', () => {
     mocks.user = managedUser({ avatarUrl: null, emailVerified: true })
-    storeReturn('admin_user_delete', { userId: 7, variant: 'delete' })
+    storeReturn('admin_user_delete', {
+      userId: '00000000-0000-4000-8000-000000000007',
+      variant: 'delete',
+    })
     const wrapper = mountView()
 
     const dialogs = wrapper.findAllComponents(UserDeleteDialog)
@@ -396,7 +425,7 @@ describe('UserDetailView identity-provider return', () => {
       expect(dialog.props('resume')).toMatchObject({
         action: 'admin_user_delete',
         reauth: { ticket: 't1', codeVerifier: 'v1' },
-        pending: { userId: 7, variant: 'delete' },
+        pending: { userId: '00000000-0000-4000-8000-000000000007', variant: 'delete' },
       })
     }
     expect(window.location.hash).toBe('')
@@ -408,7 +437,7 @@ describe('UserDetailView identity-provider return', () => {
     ['a user without MFA', false, false, false],
   ])('shows the credential actions for %s as expected', (_label, isSelf, mfaEnabled, showsMfa) => {
     mocks.user = managedUser({
-      id: isSelf ? 1 : 7,
+      id: isSelf ? '00000000-0000-4000-8000-000000000001' : '00000000-0000-4000-8000-000000000007',
       avatarUrl: null,
       emailVerified: true,
       mfaEnabled,
@@ -438,8 +467,15 @@ describe('UserDetailView identity-provider return', () => {
 
   it('reports a return that was not fresh and passes no resume down', async () => {
     mocks.user = managedUser({ avatarUrl: null, emailVerified: true })
-    storeReturn('admin_user_delete', { userId: 7, variant: 'delete' })
-    history.replaceState(null, '', '/settings/users/7#step_up_error=not_fresh')
+    storeReturn('admin_user_delete', {
+      userId: '00000000-0000-4000-8000-000000000007',
+      variant: 'delete',
+    })
+    history.replaceState(
+      null,
+      '',
+      '/settings/users/00000000-0000-4000-8000-000000000007#step_up_error=not_fresh',
+    )
     const wrapper = mountView()
     await flushPromises()
 

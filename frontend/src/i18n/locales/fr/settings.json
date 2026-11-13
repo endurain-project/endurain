@@ -1295,7 +1295,8 @@
         "timed_out": "il a pris trop de temps. Rien n'a été importé, vous pouvez donc réessayer.",
         "files_incomplete": "vos données ont été importées mais certains fichiers sont manquants. Ne les importez pas à nouveau, cela créerait des doublons.",
         "processing_failed": "une erreur s'est produite. Rien n'a été importé, vous pouvez donc réessayer.",
-        "wrong_account": "l'archive a été exportée depuis un autre compte. Rien n'a été importé."
+        "wrong_account": "l'archive a été exportée depuis un autre compte. Rien n'a été importé.",
+        "older_version": "l'archive a été exportée par une version plus ancienne d'Endurain. Rien n'a été importé."
       }
     },
     "blockedUsers": {

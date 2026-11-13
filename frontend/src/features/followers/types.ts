@@ -37,7 +37,7 @@ export interface Relationship {
  * @property isAccepted - Whether the follow relationship has been accepted.
  */
 export interface FollowEdge {
-  userId: number
+  userId: string
   isAccepted: boolean
 }
 
@@ -51,5 +51,5 @@ export interface FollowEdge {
  */
 export interface FollowList {
   edges: FollowEdge[]
-  profiles: Map<number, PublicUser | null>
+  profiles: Map<string, PublicUser | null>
 }

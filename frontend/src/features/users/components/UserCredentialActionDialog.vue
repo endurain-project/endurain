@@ -23,7 +23,7 @@ const open = defineModel<boolean>('open', { required: true })
 
 const props = defineProps<{
   /** The target user's id. */
-  userId: number
+  userId: string
   /** The target user's username, shown in the dialog copy. */
   username: string
   /** `mfa-reset` removes the user's MFA; `password-change` makes them choose a new password. */

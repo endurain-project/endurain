@@ -12,6 +12,8 @@ import { fetchPublicUser } from '@/features/users/services/publicUsers'
 import { useFollowersQuery, useFollowingQuery } from '@/features/followers/composables/useFollowers'
 import { usePublicUserQuery } from '@/features/users/composables/usePublicUser'
 
+import { userUuid } from './fixtures/activity'
+
 vi.mock('pinia', async (importOriginal) => ({
   ...(await importOriginal<typeof import('pinia')>()),
   storeToRefs: () => ({ isAuthenticated: ref(true) }),
@@ -19,30 +21,36 @@ vi.mock('pinia', async (importOriginal) => ({
 
 vi.mock('@/features/auth/stores/auth', () => ({ useAuthStore: () => ({}) }))
 vi.mock('@/features/auth/composables/useCurrentUser', () => ({
-  useCurrentUser: () => ({ data: ref({ id: 1 }) }),
+  useCurrentUser: () => ({ data: ref({ id: '00000000-0000-4000-9000-000000000001' }) }),
 }))
 
 vi.mock('@/features/followers/services/followers', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/followers/services/followers')>()),
-  fetchFollowers: vi.fn<(userId: number) => Promise<FollowList>>(),
-  fetchFollowing: vi.fn<(userId: number) => Promise<FollowList>>(),
+  fetchFollowers: vi.fn<(userId: string) => Promise<FollowList>>(),
+  fetchFollowing: vi.fn<(userId: string) => Promise<FollowList>>(),
 }))
 
 vi.mock('@/features/users/services/publicUsers', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/users/services/publicUsers')>()),
-  fetchPublicUser: vi.fn<(userId: number) => Promise<PublicUser | null>>(),
+  fetchPublicUser: vi.fn<(userId: string) => Promise<PublicUser | null>>(),
 }))
 
-const ada: PublicUser = { id: 3, name: 'Ada', username: 'ada', city: null, avatarUrl: null }
+const ada: PublicUser = {
+  id: userUuid(3),
+  name: 'Ada',
+  username: 'ada',
+  city: null,
+  avatarUrl: null,
+}
 
 const followList: FollowList = {
   edges: [
-    { userId: 3, isAccepted: true },
-    { userId: 4, isAccepted: false },
+    { userId: userUuid(3), isAccepted: true },
+    { userId: userUuid(4), isAccepted: false },
   ],
-  profiles: new Map<number, PublicUser | null>([
-    [3, ada],
-    [4, null],
+  profiles: new Map<string, PublicUser | null>([
+    [userUuid(3), ada],
+    [userUuid(4), null],
   ]),
 }
 
@@ -75,7 +83,7 @@ describe.each([
     vi.mocked(fetchList).mockResolvedValue(followList)
     let list: ReturnType<typeof useFollowersQuery> | undefined
     mountWith(new QueryClient(), () => {
-      list = useListQuery(9)
+      list = useListQuery(userUuid(9))
     })
     await flushPromises()
 
@@ -86,7 +94,7 @@ describe.each([
     const enabled = ref(false)
     vi.mocked(fetchList).mockResolvedValue(followList)
     mountWith(new QueryClient(), () => {
-      useListQuery(9, enabled)
+      useListQuery(userUuid(9), enabled)
     })
     await flushPromises()
 
@@ -102,15 +110,15 @@ describe.each([
     vi.mocked(fetchList).mockResolvedValue(followList)
     const queryClient = new QueryClient()
     mountWith(queryClient, () => {
-      useListQuery(9)
+      useListQuery(userUuid(9))
     })
     await flushPromises()
 
     const query = queryClient.getQueryCache().find({
       queryKey:
         _name === 'followers'
-          ? queryKeys.followers.followersList(9)
-          : queryKeys.followers.followingList(9),
+          ? queryKeys.followers.followersList(userUuid(9))
+          : queryKeys.followers.followingList(userUuid(9)),
     })
     expect((query?.options as { staleTime?: number } | undefined)?.staleTime).toBe(60_000)
   })
@@ -119,29 +127,31 @@ describe.each([
     vi.mocked(fetchList).mockResolvedValue(followList)
     const queryClient = new QueryClient()
     mountWith(queryClient, () => {
-      useListQuery(9)
+      useListQuery(userUuid(9))
     })
     await flushPromises()
 
-    expect(queryClient.getQueryData(queryKeys.users.publicProfile(3))).toEqual(ada)
+    expect(queryClient.getQueryData(queryKeys.users.publicProfile(userUuid(3)))).toEqual(ada)
     // A user the server left out is cached as "not found" rather than looked up per row.
-    expect(queryClient.getQueryData(queryKeys.users.publicProfile(4))).toBeNull()
-    expect(queryClient.getQueryState(queryKeys.users.publicProfile(4))?.status).toBe('success')
+    expect(queryClient.getQueryData(queryKeys.users.publicProfile(userUuid(4)))).toBeNull()
+    expect(queryClient.getQueryState(queryKeys.users.publicProfile(userUuid(4)))?.status).toBe(
+      'success',
+    )
   })
 
   it('means a row mounted afterwards makes no profile request', async () => {
     vi.mocked(fetchList).mockResolvedValue(followList)
     const queryClient = new QueryClient()
     mountWith(queryClient, () => {
-      useListQuery(9)
+      useListQuery(userUuid(9))
     })
     await flushPromises()
     wrapper?.unmount()
 
     let row: ReturnType<typeof usePublicUserQuery> | undefined
     mountWith(queryClient, () => {
-      row = usePublicUserQuery(3)
-      usePublicUserQuery(4)
+      row = usePublicUserQuery(userUuid(3))
+      usePublicUserQuery(userUuid(4))
     })
     await flushPromises()
 

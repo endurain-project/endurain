@@ -5,9 +5,10 @@ import type { ManagedUser } from '@/features/users/types'
 
 import i18n from '@/i18n'
 import UserListItem from '@/features/users/components/UserListItem.vue'
+import { userUuid } from './fixtures/activity'
 
 const base: ManagedUser = {
-  id: 2,
+  id: userUuid(2),
   version: 1,
   name: 'Ada',
   username: 'ada',

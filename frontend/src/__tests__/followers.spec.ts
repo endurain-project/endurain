@@ -15,6 +15,8 @@ import {
   unfollowUser,
 } from '@/features/followers/services/followers'
 
+import { userUuid } from './fixtures/activity'
+
 vi.mock('@/services/http', () => ({ apiFetch: vi.fn<typeof apiFetch>() }))
 
 beforeEach(() => {
@@ -27,11 +29,15 @@ describe('mapFollowStatus', () => {
   })
 
   it('returns pending for an unaccepted relationship', () => {
-    expect(mapFollowStatus({ follower_id: 1, followee_id: 2, status: 'pending' })).toBe('pending')
+    expect(
+      mapFollowStatus({ follower_id: userUuid(1), followee_id: userUuid(2), status: 'pending' }),
+    ).toBe('pending')
   })
 
   it('returns accepted for an accepted relationship', () => {
-    expect(mapFollowStatus({ follower_id: 1, followee_id: 2, status: 'accepted' })).toBe('accepted')
+    expect(
+      mapFollowStatus({ follower_id: userUuid(1), followee_id: userUuid(2), status: 'accepted' }),
+    ).toBe('accepted')
   })
 })
 
@@ -39,8 +45,8 @@ describe('fetchFollowers', () => {
   it('maps the *follower* (other user) from follower_id', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({
       items: [
-        { follower_id: 3, followee_id: 9, status: 'accepted' },
-        { follower_id: 4, followee_id: 9, status: 'pending' },
+        { follower_id: userUuid(3), followee_id: userUuid(9), status: 'accepted' },
+        { follower_id: userUuid(4), followee_id: userUuid(9), status: 'pending' },
       ],
       total: 2,
       page: 1,
@@ -48,131 +54,183 @@ describe('fetchFollowers', () => {
       next: null,
     })
 
-    const { edges } = await fetchFollowers(9)
+    const { edges } = await fetchFollowers(userUuid(9))
 
     // The endpoint is paginated, so the request asks for the largest page the
     // backend allows rather than relying on an unbounded response.
-    expect(apiFetch).toHaveBeenCalledWith('/users/9/followers?num_records=200&page_number=1', {
-      signal: undefined,
-    })
+    expect(apiFetch).toHaveBeenCalledWith(
+      `/users/${userUuid(9)}/followers?num_records=200&page_number=1`,
+      {
+        signal: undefined,
+      },
+    )
     expect(edges).toEqual([
-      { userId: 3, isAccepted: true },
-      { userId: 4, isAccepted: false },
+      { userId: userUuid(3), isAccepted: true },
+      { userId: userUuid(4), isAccepted: false },
     ])
   })
 
   it('returns the profile of each follower from the same response', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({
       items: [
-        { follower_id: 3, followee_id: 9, status: 'accepted' },
-        { follower_id: 4, followee_id: 9, status: 'accepted' },
+        { follower_id: userUuid(3), followee_id: userUuid(9), status: 'accepted' },
+        { follower_id: userUuid(4), followee_id: userUuid(9), status: 'accepted' },
       ],
       total: 2,
       page: 1,
       num_records: 200,
       next: null,
-      users: { '3': { id: 3, name: 'Ada', username: 'ada', city: 'Porto', photo_path: null } },
+      users: {
+        [userUuid(3)]: {
+          id: userUuid(3),
+          name: 'Ada',
+          username: 'ada',
+          city: 'Porto',
+          photo_path: null,
+        },
+      },
     })
 
-    const { profiles } = await fetchFollowers(9)
+    const { profiles } = await fetchFollowers(userUuid(9))
 
     expect(apiFetch).toHaveBeenCalledOnce()
-    expect(profiles.get(3)).toMatchObject({ id: 3, name: 'Ada', username: 'ada', city: 'Porto' })
+    expect(profiles.get(userUuid(3))).toMatchObject({
+      id: userUuid(3),
+      name: 'Ada',
+      username: 'ada',
+      city: 'Porto',
+    })
     // 4 is inactive or awaiting approval, so the server left it out: same as a 404 lookup.
-    expect(profiles.get(4)).toBeNull()
+    expect(profiles.get(userUuid(4))).toBeNull()
   })
 
   it('follows every page and keeps the profiles of all of them', async () => {
     vi.mocked(apiFetch)
       .mockResolvedValueOnce({
-        items: [{ follower_id: 3, followee_id: 9, status: 'accepted' }],
+        items: [{ follower_id: userUuid(3), followee_id: userUuid(9), status: 'accepted' }],
         next: 2,
-        users: { '3': { id: 3, name: 'Ada', username: 'ada', city: null, photo_path: null } },
+        users: {
+          [userUuid(3)]: {
+            id: userUuid(3),
+            name: 'Ada',
+            username: 'ada',
+            city: null,
+            photo_path: null,
+          },
+        },
       })
       .mockResolvedValueOnce({
-        items: [{ follower_id: 4, followee_id: 9, status: 'accepted' }],
+        items: [{ follower_id: userUuid(4), followee_id: userUuid(9), status: 'accepted' }],
         next: null,
-        users: { '4': { id: 4, name: 'Bo', username: 'bo', city: null, photo_path: null } },
+        users: {
+          [userUuid(4)]: {
+            id: userUuid(4),
+            name: 'Bo',
+            username: 'bo',
+            city: null,
+            photo_path: null,
+          },
+        },
       })
 
-    const { edges, profiles } = await fetchFollowers(9)
+    const { edges, profiles } = await fetchFollowers(userUuid(9))
 
-    expect(apiFetch).toHaveBeenLastCalledWith('/users/9/followers?num_records=200&page_number=2', {
-      signal: undefined,
-    })
+    expect(apiFetch).toHaveBeenLastCalledWith(
+      `/users/${userUuid(9)}/followers?num_records=200&page_number=2`,
+      {
+        signal: undefined,
+      },
+    )
     expect(edges).toEqual([
-      { userId: 3, isAccepted: true },
-      { userId: 4, isAccepted: true },
+      { userId: userUuid(3), isAccepted: true },
+      { userId: userUuid(4), isAccepted: true },
     ])
-    expect(profiles.get(3)).toMatchObject({ username: 'ada' })
-    expect(profiles.get(4)).toMatchObject({ username: 'bo' })
+    expect(profiles.get(userUuid(3))).toMatchObject({ username: 'ada' })
+    expect(profiles.get(userUuid(4))).toMatchObject({ username: 'bo' })
   })
 
   it('treats a null payload as an empty list', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(null)
-    expect(await fetchFollowers(9)).toEqual({ edges: [], profiles: new Map() })
+    expect(await fetchFollowers(userUuid(9))).toEqual({ edges: [], profiles: new Map() })
   })
 })
 
 describe('fetchFollowing', () => {
   it('maps the *followed* (other user) from followee_id', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({
-      items: [{ follower_id: 9, followee_id: 5, status: 'accepted' }],
+      items: [{ follower_id: userUuid(9), followee_id: userUuid(5), status: 'accepted' }],
       total: 1,
       page: 1,
       num_records: 200,
       next: null,
     })
 
-    const { edges, profiles } = await fetchFollowing(9)
+    const { edges, profiles } = await fetchFollowing(userUuid(9))
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/9/following?num_records=200&page_number=1', {
-      signal: undefined,
-    })
-    expect(edges).toEqual([{ userId: 5, isAccepted: true }])
-    expect(profiles.get(5)).toBeNull()
+    expect(apiFetch).toHaveBeenCalledWith(
+      `/users/${userUuid(9)}/following?num_records=200&page_number=1`,
+      {
+        signal: undefined,
+      },
+    )
+    expect(edges).toEqual([{ userId: userUuid(5), isAccepted: true }])
+    expect(profiles.get(userUuid(5))).toBeNull()
   })
 
   it('returns the profile of each followed user from the same response', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({
-      items: [{ follower_id: 9, followee_id: 5, status: 'accepted' }],
+      items: [{ follower_id: userUuid(9), followee_id: userUuid(5), status: 'accepted' }],
       total: 1,
       page: 1,
       num_records: 200,
       next: null,
-      users: { '5': { id: 5, name: 'Grace', username: 'grace', city: null, photo_path: null } },
+      users: {
+        [userUuid(5)]: {
+          id: userUuid(5),
+          name: 'Grace',
+          username: 'grace',
+          city: null,
+          photo_path: null,
+        },
+      },
     })
 
-    const { profiles } = await fetchFollowing(9)
+    const { profiles } = await fetchFollowing(userUuid(9))
 
-    expect(profiles.get(5)).toMatchObject({ id: 5, name: 'Grace', username: 'grace' })
+    expect(profiles.get(userUuid(5))).toMatchObject({
+      id: userUuid(5),
+      name: 'Grace',
+      username: 'grace',
+    })
   })
 })
 
 describe('fetchRelationship', () => {
   it('maps the viewer’s outgoing relationship to a status and reports the block', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({
-      outgoing: { follower_id: 1, followee_id: 2, status: 'pending' },
+      outgoing: { follower_id: userUuid(1), followee_id: userUuid(2), status: 'pending' },
       incoming: null,
       is_blocked: true,
     })
 
-    const relationship = await fetchRelationship(2)
+    const relationship = await fetchRelationship(userUuid(2))
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/2/relationship', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith(`/users/${userUuid(2)}/relationship`, {
+      signal: undefined,
+    })
     expect(relationship).toEqual({ status: 'pending', isBlocked: true })
   })
 
   it('returns none and not blocked when there is no relationship', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(null)
-    expect(await fetchRelationship(2)).toEqual({ status: 'none', isBlocked: false })
+    expect(await fetchRelationship(userUuid(2))).toEqual({ status: 'none', isBlocked: false })
   })
 })
 
 describe('block list', () => {
   it('lists the blocked users as public users', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({
-      items: [{ id: 7, name: 'Bob', username: 'bob', city: null, photo_path: null }],
+      items: [{ id: userUuid(7), name: 'Bob', username: 'bob', city: null, photo_path: null }],
       total: 1,
       page: 1,
       num_records: 200,
@@ -190,9 +248,9 @@ describe('block list', () => {
   it('blocks with PUT on the blocked-user path', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(undefined)
 
-    await blockUser(7)
+    await blockUser(userUuid(7))
 
-    expect(apiFetch).toHaveBeenCalledWith('/profile/blocked-users/7', {
+    expect(apiFetch).toHaveBeenCalledWith(`/profile/blocked-users/${userUuid(7)}`, {
       method: 'PUT',
       responseType: 'void',
     })
@@ -201,9 +259,9 @@ describe('block list', () => {
   it('unblocks with DELETE on the blocked-user path', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(undefined)
 
-    await unblockUser(7)
+    await unblockUser(userUuid(7))
 
-    expect(apiFetch).toHaveBeenCalledWith('/profile/blocked-users/7', {
+    expect(apiFetch).toHaveBeenCalledWith(`/profile/blocked-users/${userUuid(7)}`, {
       method: 'DELETE',
       responseType: 'void',
     })
@@ -213,26 +271,26 @@ describe('block list', () => {
 describe('follow-graph mutations', () => {
   it('follows via POST on the follow path', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({
-      follower_id: 1,
-      followee_id: 2,
+      follower_id: userUuid(1),
+      followee_id: userUuid(2),
       status: 'pending',
     })
 
-    await followUser(2)
+    await followUser(userUuid(2))
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/2/followers', { method: 'POST' })
+    expect(apiFetch).toHaveBeenCalledWith(`/users/${userUuid(2)}/followers`, { method: 'POST' })
   })
 
   it('accepts a pending request by posting the accept action', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({
-      follower_id: 3,
-      followee_id: 1,
+      follower_id: userUuid(3),
+      followee_id: userUuid(1),
       status: 'accepted',
     })
 
-    await acceptFollower(3)
+    await acceptFollower(userUuid(3))
 
-    expect(apiFetch).toHaveBeenCalledWith('/profile/follow-requests/3/accept', {
+    expect(apiFetch).toHaveBeenCalledWith(`/profile/follow-requests/${userUuid(3)}/accept`, {
       method: 'POST',
     })
   })
@@ -240,9 +298,9 @@ describe('follow-graph mutations', () => {
   it('unfollows with the viewer as the follower', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(undefined)
 
-    await unfollowUser(4, 1)
+    await unfollowUser(userUuid(4), userUuid(1))
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/4/followers/1', {
+    expect(apiFetch).toHaveBeenCalledWith(`/users/${userUuid(4)}/followers/${userUuid(1)}`, {
       method: 'DELETE',
     })
   })
@@ -252,9 +310,9 @@ describe('follow-graph mutations', () => {
     // apart only by a singular/plural path segment.
     vi.mocked(apiFetch).mockResolvedValueOnce(undefined)
 
-    await removeFollower(5, 1)
+    await removeFollower(userUuid(5), userUuid(1))
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/1/followers/5', {
+    expect(apiFetch).toHaveBeenCalledWith(`/users/${userUuid(1)}/followers/${userUuid(5)}`, {
       method: 'DELETE',
     })
   })

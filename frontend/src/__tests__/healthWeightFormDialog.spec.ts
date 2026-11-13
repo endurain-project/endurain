@@ -24,7 +24,7 @@ vi.mock('@/services/http', () => {
 
 const entry: WeightEntry = {
   id: '00000000-0000-4000-8000-000000000003',
-  userId: 1,
+  userId: '00000000-0000-4000-8000-000000000001',
   version: 4,
   date: '2026-10-30',
   weightKg: 84.6,

@@ -26,7 +26,7 @@ const ERROR = 'Enter a value greater than 0, or leave it empty to remove the tar
 
 const targets: HealthTargets = {
   id: '00000000-0000-4000-8000-000000000001',
-  userId: 1,
+  userId: '00000000-0000-4000-8000-000000000001',
   version: 3,
   sleepSeconds: 28800,
   steps: 10000,

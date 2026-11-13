@@ -40,7 +40,7 @@ type FollowPage = Schemas['FollowRelationshipPage']
  */
 async function fetchFollowList(
   path: string,
-  otherUserId: (dto: FollowerDto) => number,
+  otherUserId: (dto: FollowerDto) => string,
   signal?: AbortSignal,
 ): Promise<FollowList> {
   const pages = await fetchAllPageEnvelopes<FollowPage>(path, undefined, { signal })
@@ -70,7 +70,7 @@ async function fetchFollowList(
  * @returns The follower edges (other user id + accepted flag) and each follower's profile.
  * @throws {HttpError} When the request fails.
  */
-export async function fetchFollowers(userId: number, signal?: AbortSignal): Promise<FollowList> {
+export async function fetchFollowers(userId: string, signal?: AbortSignal): Promise<FollowList> {
   return fetchFollowList(`/users/${userId}/followers`, (dto) => dto.follower_id, signal)
 }
 
@@ -83,7 +83,7 @@ export async function fetchFollowers(userId: number, signal?: AbortSignal): Prom
  * @returns The following edges (other user id + accepted flag) and each followed user's profile.
  * @throws {HttpError} When the request fails.
  */
-export async function fetchFollowing(userId: number, signal?: AbortSignal): Promise<FollowList> {
+export async function fetchFollowing(userId: string, signal?: AbortSignal): Promise<FollowList> {
   return fetchFollowList(`/users/${userId}/following`, (dto) => dto.followee_id, signal)
 }
 
@@ -98,7 +98,7 @@ export async function fetchFollowing(userId: number, signal?: AbortSignal): Prom
  * @throws {HttpError} When the request fails.
  */
 export async function fetchRelationship(
-  targetId: number,
+  targetId: string,
   signal?: AbortSignal,
 ): Promise<Relationship> {
   const view = await apiFetch<RelationshipDto | null>(`/users/${targetId}/relationship`, {
@@ -113,7 +113,7 @@ export async function fetchRelationship(
  * @param targetId - The user to follow.
  * @throws {HttpError} When the request fails.
  */
-export async function followUser(targetId: number): Promise<void> {
+export async function followUser(targetId: string): Promise<void> {
   await apiFetch<FollowerDto>(`/users/${targetId}/followers`, { method: 'POST' })
 }
 
@@ -124,7 +124,7 @@ export async function followUser(targetId: number): Promise<void> {
  * @param targetId - The requesting user to accept.
  * @throws {HttpError} When the request fails.
  */
-export async function acceptFollower(targetId: number): Promise<void> {
+export async function acceptFollower(targetId: string): Promise<void> {
   await apiFetch<FollowerDto>(`/profile/follow-requests/${targetId}/accept`, { method: 'POST' })
 }
 
@@ -135,7 +135,7 @@ export async function acceptFollower(targetId: number): Promise<void> {
  * @param targetId - The followed (or requested) user to drop.
  * @throws {HttpError} When the request fails.
  */
-export async function unfollowUser(targetId: number, viewerId: number): Promise<void> {
+export async function unfollowUser(targetId: string, viewerId: string): Promise<void> {
   // One route serves both directions; the viewer is the follower here.
   await apiFetch<void>(`/users/${targetId}/followers/${viewerId}`, {
     method: 'DELETE',
@@ -149,7 +149,7 @@ export async function unfollowUser(targetId: number, viewerId: number): Promise<
  * @param targetId - The follower to remove.
  * @throws {HttpError} When the request fails.
  */
-export async function removeFollower(targetId: number, viewerId: number): Promise<void> {
+export async function removeFollower(targetId: string, viewerId: string): Promise<void> {
   // Same route as unfollow, with the viewer as the followee instead.
   await apiFetch<void>(`/users/${viewerId}/followers/${targetId}`, {
     method: 'DELETE',
@@ -177,7 +177,7 @@ export async function fetchBlockedUsers(signal?: AbortSignal): Promise<PublicUse
  * @param targetId - The user to block.
  * @throws {HttpError} When the request fails.
  */
-export async function blockUser(targetId: number): Promise<void> {
+export async function blockUser(targetId: string): Promise<void> {
   await apiFetch<void>(`/profile/blocked-users/${targetId}`, {
     method: 'PUT',
     responseType: 'void',
@@ -190,7 +190,7 @@ export async function blockUser(targetId: number): Promise<void> {
  * @param targetId - The user to unblock.
  * @throws {HttpError} When the request fails.
  */
-export async function unblockUser(targetId: number): Promise<void> {
+export async function unblockUser(targetId: string): Promise<void> {
   await apiFetch<void>(`/profile/blocked-users/${targetId}`, {
     method: 'DELETE',
     responseType: 'void',

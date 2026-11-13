@@ -6,7 +6,7 @@ import { mapPublicUser } from '@/features/users/services/publicUsers'
 
 /** Fetches and maps the compact data shown at the top of a user's profile. */
 export async function fetchUserProfileOverview(
-  userId: number,
+  userId: string,
   anchorDate: string,
   signal?: AbortSignal,
 ): Promise<UserProfileOverview> {

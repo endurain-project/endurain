@@ -38,7 +38,7 @@ export function mapUserSession(dto: UserSessionDto): UserSession {
  * @throws {HttpError} When the request fails.
  */
 export async function fetchUserSessions(
-  userId: number,
+  userId: string,
   signal?: AbortSignal,
 ): Promise<UserSession[]> {
   const dtos = await fetchAllPages<UserSessionDto>(`/users/${userId}/sessions`, undefined, {
@@ -58,7 +58,7 @@ export async function fetchUserSessions(
  */
 export async function revokeUserSession(
   sessionId: string,
-  userId: number,
+  userId: string,
   stepUp: StepUpInput,
 ): Promise<void> {
   await apiFetch<void>(`/users/${userId}/sessions/${encodeURIComponent(sessionId)}/revoke`, {
@@ -80,7 +80,7 @@ export async function revokeUserSession(
  * @throws {HttpError} When the request fails (`403` when the step-up is refused).
  */
 export async function revokeOtherUserSessions(
-  userId: number,
+  userId: string,
   stepUp: StepUpInput,
   excludeSessionId?: string,
 ): Promise<void> {

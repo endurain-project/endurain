@@ -1295,7 +1295,8 @@
         "timed_out": "det tog for lang tid. Intet blev importeret, så du kan prøve igen.",
         "files_incomplete": "dine data blev importeret, men nogle filer mangler. Importér ikke igen, da det ville duplikere dine data.",
         "processing_failed": "noget gik galt. Intet blev importeret, så du kan prøve igen.",
-        "wrong_account": "arkivet blev eksporteret fra en anden konto. Intet blev importeret."
+        "wrong_account": "arkivet blev eksporteret fra en anden konto. Intet blev importeret.",
+        "older_version": "arkivet blev eksporteret fra en ældre version af Endurain. Intet blev importeret."
       }
     },
     "blockedUsers": {

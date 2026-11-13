@@ -39,13 +39,13 @@ export function mapPublicUser(dto: PublicUserDto): PublicUser {
  * @returns Every referenced id mapped to its model, or to `null` when it is not embedded.
  */
 export function mapEmbeddedUsers<T>(
-  ids: Iterable<number>,
+  ids: Iterable<string>,
   users: Record<string, PublicUserDto> | undefined,
   map: (dto: PublicUserDto) => T,
-): Map<number, T | null> {
-  const mapped = new Map<number, T | null>()
+): Map<string, T | null> {
+  const mapped = new Map<string, T | null>()
   for (const id of ids) {
-    const dto = users?.[String(id)]
+    const dto = users?.[id]
     mapped.set(id, dto ? map(dto) : null)
   }
   return mapped
@@ -64,7 +64,7 @@ export function mapEmbeddedUsers<T>(
  * @throws {HttpError} When the request fails for a reason other than `404`.
  */
 export async function fetchPublicUser(
-  userId: number,
+  userId: string,
   signal?: AbortSignal,
 ): Promise<PublicUser | null> {
   try {

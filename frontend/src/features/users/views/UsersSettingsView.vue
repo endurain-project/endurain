@@ -412,7 +412,7 @@ watch(
     />
     <UserPasswordDialog
       v-model:open="isPasswordOpen"
-      :user-id="passwordUser?.id ?? 0"
+      :user-id="passwordUser?.id ?? null"
       :username="passwordUser?.username ?? ''"
       :access-type="passwordUser?.accessType ?? 'regular'"
       :resume="resume"

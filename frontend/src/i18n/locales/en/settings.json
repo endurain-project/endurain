@@ -1295,7 +1295,8 @@
         "timed_out": "it took too long. Nothing was imported, so you can try again.",
         "files_incomplete": "your data was imported but some files are missing. Don't import it again; it would duplicate your data.",
         "processing_failed": "something went wrong. Nothing was imported, so you can try again.",
-        "wrong_account": "the archive was exported from a different account. Nothing was imported."
+        "wrong_account": "the archive was exported from a different account. Nothing was imported.",
+        "older_version": "the archive was exported by an older Endurain version. Nothing was imported."
       }
     },
     "blockedUsers": {

@@ -21,7 +21,7 @@ export interface HealthTargets {
   /** The targets record id (needed to PUT updates in later phases). */
   id: string
   /** The owning user's id. */
-  userId: number
+  userId: string
   /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
   version: number
   /** Target sleep duration in seconds, or `null`. */
@@ -111,7 +111,7 @@ export interface WeightEntry {
   /** The record id (needed to edit/delete). */
   id: string
   /** The owning user's id (echoed back on edit). */
-  userId: number
+  userId: string
   /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
   version: number
   /** Measurement date as a `yyyy-mm-dd` string, or `null`. */
@@ -164,7 +164,7 @@ export interface StepsEntry {
   /** The record id (needed to edit/delete). */
   id: string
   /** The owning user's id (echoed back on edit). */
-  userId: number
+  userId: string
   /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
   version: number
   /** Measurement date as a `yyyy-mm-dd` string, or `null`. */
@@ -196,7 +196,7 @@ export interface WaterEntry {
   /** The record id (needed to edit/delete). */
   id: string
   /** The owning user's id (echoed back on edit). */
-  userId: number
+  userId: string
   /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
   version: number
   /** Measurement date as a `yyyy-mm-dd` string, or `null`. */
@@ -233,7 +233,7 @@ export interface PoopEntry {
   /** The record id (needed to edit/delete). */
   id: string
   /** The owning user's id (echoed back on edit). */
-  userId: number
+  userId: string
   /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
   version: number
   /** ISO timestamp of the bowel movement, or `null`. */
@@ -305,7 +305,7 @@ export interface FastingEntry {
   /** The record id (needed to edit/delete/complete). */
   id: string
   /** The owning user's id (echoed back on edit). */
-  userId: number
+  userId: string
   /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
   version: number
   /** ISO start timestamp of the fast, or `null`. */
@@ -395,7 +395,7 @@ export interface SleepListEntry {
   /** The record id (needed to edit/delete). */
   id: string
   /** The owning user's id (echoed back on edit). */
-  userId: number
+  userId: string
   /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
   version: number
   /** Calendar date of the session as a `yyyy-mm-dd` string, or `null`. */

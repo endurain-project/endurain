@@ -28,7 +28,7 @@ import {
 
 const props = defineProps<{
   /** The current user's id, used to name the export archive. */
-  userId: number
+  userId: string
   /** Whether the account has a local password (gates the step-up password field). */
   hasLocalPassword: boolean
   /** Whether MFA is enabled (gates the step-up MFA-code field). */

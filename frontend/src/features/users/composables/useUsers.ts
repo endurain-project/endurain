@@ -128,7 +128,7 @@ export function useDeleteUserMutation() {
   const client = useQueryClient()
   const deletions = useUserDeletionsStore()
 
-  return useInvalidatingMutation<void, { id: number; version: number; stepUp: StepUpInput }>({
+  return useInvalidatingMutation<void, { id: string; version: number; stepUp: StepUpInput }>({
     mutationKey: queryKeys.users.all(),
     mutationFn: async ({ id, version, stepUp }) => {
       const job = await deleteUser(id, version, stepUp)
@@ -172,7 +172,7 @@ export function useUserDeletionQuery(jobId: MaybeRefOrGetter<string>) {
  * @returns The TanStack Query mutation for approving a user.
  */
 export function useApproveUserMutation() {
-  return useInvalidatingMutation<void, number>({
+  return useInvalidatingMutation<void, string>({
     mutationKey: queryKeys.users.all(),
     mutationFn: (id) => approveUser(id),
   })
@@ -185,13 +185,13 @@ export function useApproveUserMutation() {
  * @param id - Reactive user id (or `null` before it resolves / for a bad route).
  * @returns The TanStack Query result for the user.
  */
-export function useUserQuery(id: MaybeRefOrGetter<number | null>) {
+export function useUserQuery(id: MaybeRefOrGetter<string | null>) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
 
   return useQuery({
-    queryKey: computed(() => queryKeys.users.detail(toValue(id) ?? 0)),
-    queryFn: ({ signal }) => fetchUserById(toValue(id) as number, signal),
-    enabled: computed(() => isAuthenticated.value && (toValue(id) ?? 0) > 0),
+    queryKey: computed(() => queryKeys.users.detail(toValue(id) ?? '')),
+    queryFn: ({ signal }) => fetchUserById(toValue(id) as string, signal),
+    enabled: computed(() => isAuthenticated.value && toValue(id) !== null),
     // While the account waits to be erased, read it again until it is gone.
     refetchInterval: (state) => (state.state.data?.deletionRequestedAt ? DELETION_POLL_MS : false),
   })
@@ -210,7 +210,7 @@ export function useChangeUserPasswordMutation() {
       password,
       stepUp,
     }: {
-      userId: number
+      userId: string
       password: string
       stepUp: StepUpInput
     }) => changeUserPassword(userId, password, stepUp),
@@ -224,7 +224,7 @@ export function useChangeUserPasswordMutation() {
  * @returns The TanStack Query mutation for resetting a user's MFA.
  */
 export function useResetUserMfaMutation() {
-  return useInvalidatingMutation<void, { userId: number; stepUp: StepUpInput }>({
+  return useInvalidatingMutation<void, { userId: string; stepUp: StepUpInput }>({
     mutationKey: queryKeys.users.all(),
     mutationFn: ({ userId, stepUp }) => resetUserMfa(userId, stepUp),
   })
@@ -237,7 +237,7 @@ export function useResetUserMfaMutation() {
  * @returns The TanStack Query mutation for requiring a password change.
  */
 export function useRequireUserPasswordChangeMutation() {
-  return useInvalidatingMutation<void, { userId: number; stepUp: StepUpInput }>({
+  return useInvalidatingMutation<void, { userId: string; stepUp: StepUpInput }>({
     mutationKey: queryKeys.users.all(),
     mutationFn: ({ userId, stepUp }) => requireUserPasswordChange(userId, stepUp),
   })
@@ -253,7 +253,7 @@ export function useUploadUserPhotoMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ userId, file }: { userId: number; file: File }) => uploadUserPhoto(userId, file),
+    mutationFn: ({ userId, file }: { userId: string; file: File }) => uploadUserPhoto(userId, file),
     onSuccess: (_data, { userId }) => {
       // Bust the avatar cache so the replaced photo re-fetches (stable path).
       bumpAvatarCacheToken()
@@ -274,7 +274,7 @@ export function useDeleteUserPhotoMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (userId: number) => deleteUserPhoto(userId),
+    mutationFn: (userId: string) => deleteUserPhoto(userId),
     onSuccess: (_data, userId) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(userId) })
       void queryClient.invalidateQueries({ queryKey: queryKeys.users.lists() })

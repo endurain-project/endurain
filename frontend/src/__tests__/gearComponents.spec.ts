@@ -31,7 +31,7 @@ vi.mock('@/services/http', () => ({
 
 const componentDto: GearComponentDto = {
   id: '00000000-0000-4000-8000-0000000000c7',
-  user_id: 1,
+  user_id: '00000000-0000-4000-8000-000000000001',
   gear_id: '00000000-0000-4000-8000-000000000005',
   type: 'chain',
   brand: 'Shimano',
@@ -49,7 +49,7 @@ const componentDto: GearComponentDto = {
 
 const mappedComponent: GearComponent = {
   id: '00000000-0000-4000-8000-0000000000c7',
-  userId: 1,
+  userId: '00000000-0000-4000-8000-000000000001',
   gearId: '00000000-0000-4000-8000-000000000005',
   type: 'chain',
   brand: 'Shimano',
@@ -97,7 +97,7 @@ describe('mapGearComponent', () => {
     expect(
       mapGearComponent({
         id: '00000000-0000-4000-8000-0000000000c9',
-        user_id: 2,
+        user_id: '00000000-0000-4000-8000-000000000002',
         gear_id: '00000000-0000-4000-8000-000000000003',
         type: 'cleats',
         brand: 'Look',
@@ -107,7 +107,7 @@ describe('mapGearComponent', () => {
       }),
     ).toEqual({
       id: '00000000-0000-4000-8000-0000000000c9',
-      userId: 2,
+      userId: '00000000-0000-4000-8000-000000000002',
       gearId: '00000000-0000-4000-8000-000000000003',
       type: 'cleats',
       brand: 'Look',

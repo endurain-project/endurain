@@ -10,7 +10,7 @@ import GearBadges from '@/features/gears/components/GearBadges.vue'
 function makeGear(overrides: Partial<Gear> = {}): Gear {
   return {
     id: '00000000-0000-4000-8000-000000000001',
-    userId: 1,
+    userId: '00000000-0000-4000-8000-000000000001',
     gearType: 'bike',
     nickname: 'Road bike',
     brand: null,

@@ -42,7 +42,7 @@ const props = defineProps<{
   /** The viewer's unit system. */
   units: Units
   /** The viewer's user id, or `null` when unauthenticated. */
-  currentUserId: number | null
+  currentUserId: string | null
 }>()
 
 const { t, locale } = useI18n()

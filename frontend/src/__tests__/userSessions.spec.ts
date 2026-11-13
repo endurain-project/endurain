@@ -18,7 +18,7 @@ vi.mock('@/services/http', () => ({
 function makeSessionDto(overrides: Partial<UserSessionDto> = {}): UserSessionDto {
   return {
     id: 'sess-1',
-    user_id: 7,
+    user_id: '00000000-0000-4000-8000-000000000007',
     ip_address: '203.0.113.5',
     device_type: 'desktop',
     operating_system: 'macOS',
@@ -62,11 +62,14 @@ describe('user sessions service', () => {
   it('fetchUserSessions calls the user-sessions endpoint and maps records', async () => {
     vi.mocked(apiFetch).mockResolvedValue({ items: [makeSessionDto()], next: null })
 
-    const sessions = await fetchUserSessions(7)
+    const sessions = await fetchUserSessions('00000000-0000-4000-8000-000000000007')
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7/sessions?num_records=200&page_number=1', {
-      signal: undefined,
-    })
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/users/00000000-0000-4000-8000-000000000007/sessions?num_records=200&page_number=1',
+      {
+        signal: undefined,
+      },
+    )
     expect(sessions[0]?.browser).toBe('Chrome')
   })
 
@@ -75,11 +78,11 @@ describe('user sessions service', () => {
       .mockResolvedValueOnce({ items: [makeSessionDto()], next: 2 })
       .mockResolvedValueOnce({ items: [makeSessionDto({ id: 'sess-2' })], next: null })
 
-    const sessions = await fetchUserSessions(7)
+    const sessions = await fetchUserSessions('00000000-0000-4000-8000-000000000007')
 
     expect(apiFetch).toHaveBeenNthCalledWith(
       2,
-      '/users/7/sessions?num_records=200&page_number=2',
+      '/users/00000000-0000-4000-8000-000000000007/sessions?num_records=200&page_number=2',
       expect.anything(),
     )
     expect(sessions.map((session) => session.id)).toEqual(['sess-1', 'sess-2'])
@@ -88,7 +91,7 @@ describe('user sessions service', () => {
   it('fetchUserSessions maps a null payload to an empty array', async () => {
     vi.mocked(apiFetch).mockResolvedValue(null)
 
-    expect(await fetchUserSessions(7)).toEqual([])
+    expect(await fetchUserSessions('00000000-0000-4000-8000-000000000007')).toEqual([])
   })
 
   const stepUp = { currentPassword: 'admin-pw', mfaCode: '123456' }
@@ -97,19 +100,22 @@ describe('user sessions service', () => {
   it('revokeUserSession POSTs the revoke route with the administrator step-up', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await revokeUserSession('sess-1', 7, stepUp)
+    await revokeUserSession('sess-1', '00000000-0000-4000-8000-000000000007', stepUp)
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7/sessions/sess-1/revoke', {
-      method: 'POST',
-      body: JSON.stringify({ step_up: stepUpWire }),
-      responseType: 'void',
-    })
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/users/00000000-0000-4000-8000-000000000007/sessions/sess-1/revoke',
+      {
+        method: 'POST',
+        body: JSON.stringify({ step_up: stepUpWire }),
+        responseType: 'void',
+      },
+    )
   })
 
   it('revokeUserSession sends the identity-provider proof of an administrator without a password', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await revokeUserSession('sess-1', 7, {
+    await revokeUserSession('sess-1', '00000000-0000-4000-8000-000000000007', {
       currentPassword: null,
       mfaCode: null,
       idpReauth: { ticket: 't', codeVerifier: 'v' },
@@ -127,24 +133,30 @@ describe('user sessions service', () => {
   it('revokeOtherUserSessions POSTs with the exclude query param and the step-up', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await revokeOtherUserSessions(7, stepUp, 'sess-1')
+    await revokeOtherUserSessions('00000000-0000-4000-8000-000000000007', stepUp, 'sess-1')
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7/sessions/revoke?exclude_session_id=sess-1', {
-      method: 'POST',
-      body: JSON.stringify({ step_up: stepUpWire }),
-      responseType: 'void',
-    })
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/users/00000000-0000-4000-8000-000000000007/sessions/revoke?exclude_session_id=sess-1',
+      {
+        method: 'POST',
+        body: JSON.stringify({ step_up: stepUpWire }),
+        responseType: 'void',
+      },
+    )
   })
 
   it('revokeOtherUserSessions omits the exclude param when not given', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await revokeOtherUserSessions(7, stepUp)
+    await revokeOtherUserSessions('00000000-0000-4000-8000-000000000007', stepUp)
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7/sessions/revoke', {
-      method: 'POST',
-      body: JSON.stringify({ step_up: stepUpWire }),
-      responseType: 'void',
-    })
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/users/00000000-0000-4000-8000-000000000007/sessions/revoke',
+      {
+        method: 'POST',
+        body: JSON.stringify({ step_up: stepUpWire }),
+        responseType: 'void',
+      },
+    )
   })
 })

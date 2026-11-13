@@ -1295,7 +1295,8 @@
         "timed_out": "het duurde te lang. Er is niets geïmporteerd, dus je kunt het opnieuw proberen.",
         "files_incomplete": "je gegevens zijn geïmporteerd, maar sommige bestanden ontbreken. Importeer ze niet opnieuw; dat zou je gegevens dupliceren.",
         "processing_failed": "er ging iets mis. Er is niets geïmporteerd, dus je kunt het opnieuw proberen.",
-        "wrong_account": "het archief is geëxporteerd vanaf een ander account. Er is niets geïmporteerd."
+        "wrong_account": "het archief is geëxporteerd vanaf een ander account. Er is niets geïmporteerd.",
+        "older_version": "het archief is geëxporteerd door een oudere Endurain-versie. Er is niets geïmporteerd."
       }
     },
     "blockedUsers": {

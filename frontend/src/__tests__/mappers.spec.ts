@@ -9,7 +9,7 @@ vi.mock('@/services/runtime', () => ({
 }))
 
 const baseDto: UserProfileDto = {
-  id: 7,
+  id: '00000000-0000-4000-8000-000000000007',
   name: 'Ada Lovelace',
   username: 'ada',
   email: 'ada@example.com',
@@ -32,7 +32,7 @@ describe('mapUserProfile', () => {
     const user = mapUserProfile(baseDto)
 
     expect(user).toEqual({
-      id: 7,
+      id: '00000000-0000-4000-8000-000000000007',
       name: 'Ada Lovelace',
       username: 'ada',
       email: 'ada@example.com',

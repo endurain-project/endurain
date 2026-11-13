@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useDisplayUnits } from '@/features/activities/composables/useActivityDetail'
 import { OLDEST_WEEK_BUCKET as OLDEST_WEEK } from '@/features/activities/services/activities'
+import { isUuid } from '@/utils/validation'
 import { pastWeekRange } from '@/utils/datetime'
 import { useUserProfileOverviewQuery } from '@/features/users/composables/usePublicUser'
 import {
@@ -40,8 +41,8 @@ const firstDayOfWeek = computed(() => currentUser.value?.firstDayOfWeek ?? 'mond
 
 /** The profile owner's id from the route, or `null` when the param is invalid. */
 const profileId = computed(() => {
-  const raw = Number(route.params.id)
-  return Number.isFinite(raw) && raw > 0 ? raw : null
+  const raw = route.params.id
+  return typeof raw === 'string' && isUuid(raw) ? raw : null
 })
 
 /** Whether the viewer is looking at their own profile. */
@@ -139,7 +140,10 @@ function refetchFollowers(): void {
 
 <template>
   <!-- Loading -->
-  <div v-if="userQuery.isPending.value" class="grid grid-cols-1 gap-3 lg:grid-cols-12">
+  <div
+    v-if="profileId !== null && userQuery.isPending.value"
+    class="grid grid-cols-1 gap-3 lg:grid-cols-12"
+  >
     <aside class="flex flex-col gap-3 lg:col-span-3">
       <Card class="flex flex-col items-center gap-3">
         <Skeleton class="size-24 rounded-full" />

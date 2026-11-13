@@ -24,10 +24,9 @@ import {
 /** Freshness window for follow graph reads; relationship writes invalidate the domain. */
 const FOLLOWER_QUERY_STALE_TIME_MS = 60_000
 
-/** Resolves a reactive user id to a positive number, or `0` when unavailable. */
-function resolveUserId(userId: MaybeRefOrGetter<number | null>): number {
-  const value = toValue(userId)
-  return value !== null && Number.isFinite(value) && value > 0 ? value : 0
+/** Resolves a reactive user id to its string, or `''` when unavailable. */
+function resolveUserId(userId: MaybeRefOrGetter<string | null>): string {
+  return toValue(userId) ?? ''
 }
 
 /**
@@ -39,7 +38,7 @@ function resolveUserId(userId: MaybeRefOrGetter<number | null>): number {
  */
 function seedPublicProfiles(
   client: QueryClient,
-  profiles: ReadonlyMap<number, PublicUser | null>,
+  profiles: ReadonlyMap<string, PublicUser | null>,
 ): void {
   for (const [userId, profile] of profiles) {
     client.setQueryData(queryKeys.users.publicProfile(userId), profile)
@@ -56,7 +55,7 @@ function seedPublicProfiles(
  * @returns The TanStack query result for the followers list.
  */
 export function useFollowersQuery(
-  userId: MaybeRefOrGetter<number | null>,
+  userId: MaybeRefOrGetter<string | null>,
   enabled: MaybeRefOrGetter<boolean> = true,
 ) {
   const client = useQueryClient()
@@ -71,7 +70,7 @@ export function useFollowersQuery(
       return edges
     },
     staleTime: FOLLOWER_QUERY_STALE_TIME_MS,
-    enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value > 0),
+    enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value !== ''),
   })
 }
 
@@ -85,7 +84,7 @@ export function useFollowersQuery(
  * @returns The TanStack query result for the following list.
  */
 export function useFollowingQuery(
-  userId: MaybeRefOrGetter<number | null>,
+  userId: MaybeRefOrGetter<string | null>,
   enabled: MaybeRefOrGetter<boolean> = true,
 ) {
   const client = useQueryClient()
@@ -100,7 +99,7 @@ export function useFollowingQuery(
       return edges
     },
     staleTime: FOLLOWER_QUERY_STALE_TIME_MS,
-    enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value > 0),
+    enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value !== ''),
   })
 }
 
@@ -114,24 +113,24 @@ export function useFollowingQuery(
  * @returns The TanStack query result for the selected part of the relationship.
  */
 function useRelationshipQuery<T>(
-  targetId: MaybeRefOrGetter<number | null>,
+  targetId: MaybeRefOrGetter<string | null>,
   select: (relationship: Relationship) => T,
 ) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
   const { data: currentUser } = useCurrentUser()
-  const viewerId = computed(() => currentUser.value?.id ?? 0)
+  const viewerId = computed(() => currentUser.value?.id ?? null)
   const target = computed(() => resolveUserId(targetId))
 
   return useQuery<Relationship, Error, T>({
-    queryKey: computed(() => queryKeys.followers.state(viewerId.value, target.value)),
+    queryKey: computed(() => queryKeys.followers.state(viewerId.value ?? '', target.value)),
     queryFn: ({ signal }) => fetchRelationship(target.value, signal),
     select,
     staleTime: FOLLOWER_QUERY_STALE_TIME_MS,
     enabled: computed(
       () =>
         isAuthenticated.value &&
-        viewerId.value > 0 &&
-        target.value > 0 &&
+        viewerId.value !== null &&
+        target.value !== '' &&
         viewerId.value !== target.value,
     ),
   })
@@ -143,7 +142,7 @@ function useRelationshipQuery<T>(
  * @param targetId - Reactive id of the profile owner being viewed.
  * @returns The TanStack query result for the viewer's {@link FollowStatus}.
  */
-export function useFollowStatusQuery(targetId: MaybeRefOrGetter<number | null>) {
+export function useFollowStatusQuery(targetId: MaybeRefOrGetter<string | null>) {
   return useRelationshipQuery<FollowStatus>(targetId, (relationship) => relationship.status)
 }
 
@@ -153,7 +152,7 @@ export function useFollowStatusQuery(targetId: MaybeRefOrGetter<number | null>) 
  * @param targetId - Reactive id of the profile owner being viewed.
  * @returns The TanStack query result for the block state.
  */
-export function useIsBlockedQuery(targetId: MaybeRefOrGetter<number | null>) {
+export function useIsBlockedQuery(targetId: MaybeRefOrGetter<string | null>) {
   return useRelationshipQuery<boolean>(targetId, (relationship) => relationship.isBlocked)
 }
 
@@ -181,10 +180,10 @@ export function useBlockedUsersQuery() {
  * @param mutationFn - The service call the mutation performs (keyed by target id).
  * @returns A configured TanStack mutation taking the target user id.
  */
-function useFollowGraphMutation(mutationFn: (targetId: number) => Promise<void>) {
+function useFollowGraphMutation(mutationFn: (targetId: string) => Promise<void>) {
   const client = useQueryClient()
 
-  return useMutation<void, Error, number>({
+  return useMutation<void, Error, string>({
     mutationFn,
     onSettled: () => {
       void client.invalidateQueries({ queryKey: queryKeys.followers.all() })
@@ -202,13 +201,19 @@ function useFollowGraphMutation(mutationFn: (targetId: number) => Promise<void>)
  * @returns A configured TanStack mutation taking the target user id.
  */
 function useRelationshipDeleteMutation(
-  mutationFn: (targetId: number, viewerId: number) => Promise<void>,
+  mutationFn: (targetId: string, viewerId: string) => Promise<void>,
 ) {
   const client = useQueryClient()
   const { data: currentUser } = useCurrentUser()
 
-  return useMutation<void, Error, number>({
-    mutationFn: (targetId: number) => mutationFn(targetId, currentUser.value?.id ?? 0),
+  return useMutation<void, Error, string>({
+    mutationFn: (targetId: string) => {
+      const viewerId = currentUser.value?.id
+      if (viewerId === undefined) {
+        return Promise.reject(new Error('No authenticated user'))
+      }
+      return mutationFn(targetId, viewerId)
+    },
     onSettled: () => {
       void client.invalidateQueries({ queryKey: queryKeys.followers.all() })
       void client.invalidateQueries({ queryKey: queryKeys.activities.profileOverviews() })

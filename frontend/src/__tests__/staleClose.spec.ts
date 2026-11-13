@@ -32,7 +32,7 @@ import ProfileFormDialog from '@/features/profile/components/ProfileFormDialog.v
 import ProfileSettingsView from '@/features/profile/views/ProfileSettingsView.vue'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { FormDialog } from '@/components/ui/form-dialog'
-import { makeActivity, activityUuid } from './fixtures/activity'
+import { makeActivity, activityUuid, userUuid } from './fixtures/activity'
 
 // Only the network seam is replaced; the real `HttpError` stays so `instanceof` checks hold.
 vi.mock('@/services/http', async (importOriginal) => ({
@@ -91,7 +91,7 @@ vi.mock('@/features/profile/composables/useDefaultGear', async (importOriginal) 
 
 const waterEntry: WaterEntry = {
   id: '00000000-0000-4000-8000-000000000009',
-  userId: 1,
+  userId: userUuid(1),
   version: 2,
   date: '2026-10-30',
   amountMl: 500,
@@ -148,7 +148,7 @@ const dialogStubs = {
 
 const targets: HealthTargets = {
   id: '00000000-0000-4000-8000-000000000001',
-  userId: 1,
+  userId: userUuid(1),
   version: 3,
   sleepSeconds: 28800,
   steps: 8000,
@@ -159,7 +159,7 @@ const targets: HealthTargets = {
 }
 
 const profile = {
-  id: 1,
+  id: userUuid(1),
   version: 1,
   name: 'Tester',
   username: 'tester',
@@ -179,7 +179,7 @@ const profile = {
 
 const gear: Gear = {
   id: '00000000-0000-4000-8000-000000000002',
-  userId: 1,
+  userId: userUuid(1),
   gearType: 'bike',
   nickname: 'Road',
   brand: null,
@@ -203,8 +203,8 @@ const dialogs: [string, Component, Record<string, unknown>][] = [
     {
       units: 'metric',
       goal: {
-        id: 4,
-        userId: 1,
+        id: userUuid(4),
+        userId: userUuid(1),
         version: 2,
         interval: 'weekly',
         activityType: 'run',
@@ -220,7 +220,16 @@ const dialogs: [string, Component, Record<string, unknown>][] = [
   [
     'HealthStepsFormDialog',
     HealthStepsFormDialog,
-    { entry: { id: 1, userId: 1, version: 2, date: '2026-10-30', steps: 900, source: null } },
+    {
+      entry: {
+        id: userUuid(2),
+        userId: userUuid(1),
+        version: 2,
+        date: '2026-10-30',
+        steps: 900,
+        source: null,
+      },
+    },
   ],
   ['HealthStepsTargetDialog', HealthStepsTargetDialog, { targets }],
   ['HealthSleepTargetDialog', HealthSleepTargetDialog, { targets }],
@@ -388,13 +397,13 @@ describe('inline forms keyed on the resource version', () => {
 
   it('rebuilds the default gear form when the refetch changes its version', async () => {
     const mounted = { count: 0 }
-    defaultGearData.value = { id: 1, userId: 1, version: 1 }
+    defaultGearData.value = { id: userUuid(3), userId: userUuid(1), version: 1 }
     const wrapper = mount(DefaultGearCard, {
       global: { plugins: plugins(), stubs: { DefaultGearForm: countingStub(mounted) } },
     })
     expect(mounted.count).toBe(1)
 
-    defaultGearData.value = { id: 1, userId: 1, version: 2 }
+    defaultGearData.value = { id: userUuid(3), userId: userUuid(1), version: 2 }
     await flushPromises()
 
     expect(mounted.count).toBe(2)

@@ -1295,7 +1295,8 @@
         "timed_out": "tai truko per ilgai. Nieko neimportuota, todėl galite bandyti dar kartą.",
         "files_incomplete": "jūsų duomenys importuoti, bet kai kurių failų trūksta. Neimportuokite iš naujo, nes duomenys dubliuotųsi.",
         "processing_failed": "kažkas nepavyko. Nieko neimportuota, todėl galite bandyti dar kartą.",
-        "wrong_account": "archyvas buvo eksportuotas iš kitos paskyros. Nieko neimportuota."
+        "wrong_account": "archyvas buvo eksportuotas iš kitos paskyros. Nieko neimportuota.",
+        "older_version": "archyvas buvo eksportuotas senesne Endurain versija. Nieko neimportuota."
       }
     },
     "blockedUsers": {

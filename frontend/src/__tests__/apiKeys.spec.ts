@@ -17,7 +17,7 @@ vi.mock('@/services/http', () => ({
 
 const apiKeyDto: ApiKeyDto = {
   id: 'key-1',
-  user_id: 5,
+  user_id: '00000000-0000-4000-8000-000000000005',
   name: 'CI upload',
   key_prefix: 'endurain',
   scopes: ['activities:upload'],

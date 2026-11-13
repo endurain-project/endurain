@@ -158,7 +158,7 @@ export const queryKeys = {
     /** Prefix for combined user-profile reads that depend on activity data. */
     profileOverviews: () => ['activities', 'profile-overview'] as const,
     /** The profile overview depends on this user's visible activity aggregates. */
-    profileOverview: (userId: number) => ['activities', 'profile-overview', userId] as const,
+    profileOverview: (userId: string) => ['activities', 'profile-overview', userId] as const,
     lists: () => ['activities', 'list'] as const,
     /**
      * @param filters - Serializable list filters (paging, type, etc.).
@@ -202,7 +202,7 @@ export const queryKeys = {
     /** Every activity owner's identity; prefix of {@link owner}. */
     owners: () => ['activities', 'owner'] as const,
     /** The activity's owner user (public or authenticated), keyed by user id. */
-    owner: (userId: number) => ['activities', 'owner', userId] as const,
+    owner: (userId: string) => ['activities', 'owner', userId] as const,
     /** The user's activity-type code→name map (type filter options and summary type filter). */
     types: () => ['activities', 'types'] as const,
     /**
@@ -224,7 +224,7 @@ export const queryKeys = {
      *   query keys on size, not page number, so all pages share one entry).
      * @returns A list query key for the user's home feed.
      */
-    userFeed: (userId: number, pageSize: number) =>
+    userFeed: (userId: string, pageSize: number) =>
       ['activities', 'list', { scope: 'user-feed', userId, pageSize }] as const,
     /**
      * The home dashboard's feed of activities from people the user follows.
@@ -233,7 +233,7 @@ export const queryKeys = {
      * @param pageSize - Records per page.
      * @returns A list query key for the followed-users feed.
      */
-    followersFeed: (userId: number, pageSize: number) =>
+    followersFeed: (userId: string, pageSize: number) =>
       ['activities', 'list', { scope: 'followers-feed', userId, pageSize }] as const,
     /**
      * A user's per-sport aggregated stats for a timeframe (home dashboard).
@@ -242,7 +242,7 @@ export const queryKeys = {
      * @param timeframe - `week` or `month`.
      * @returns A stats query key.
      */
-    stats: (userId: number, timeframe: 'week' | 'month') =>
+    stats: (userId: string, timeframe: 'week' | 'month') =>
       ['activities', 'stats', userId, timeframe] as const,
     /**
      * A user's activities for a configured week (public-profile week browser).
@@ -253,7 +253,7 @@ export const queryKeys = {
      * @param firstDayOfWeek - The viewer's first weekday, which sets the week's bounds.
      * @returns A list query key for that week's activities.
      */
-    weekActivities: (userId: number, week: number, firstDayOfWeek: string) =>
+    weekActivities: (userId: string, week: number, firstDayOfWeek: string) =>
       ['activities', 'list', { scope: 'user-week', userId, week, firstDayOfWeek }] as const,
   },
 
@@ -333,7 +333,7 @@ export const queryKeys = {
      * @param id - The user id.
      * @returns A query key for a single user's detail.
      */
-    detail: (id: number) => ['users', 'detail', id] as const,
+    detail: (id: string) => ['users', 'detail', id] as const,
     /**
      * A user's public-facing profile (name/username/city/avatar), as shown on
      * the `/user/:id` page and in follower/following lists. Distinct from
@@ -343,22 +343,22 @@ export const queryKeys = {
      * @param id - The user id.
      * @returns A query key for a single user's public profile.
      */
-    publicProfile: (id: number) => ['users', 'public-profile', id] as const,
+    publicProfile: (id: string) => ['users', 'public-profile', id] as const,
     /**
      * @param userId - The session owner's id.
      * @returns A query key for a user's active-sessions list.
      */
-    sessions: (userId: number) => ['users', 'sessions', userId] as const,
+    sessions: (userId: string) => ['users', 'sessions', userId] as const,
     /**
      * @param userId - The key owner's id.
      * @returns A query key for a user's API-keys list.
      */
-    apiKeys: (userId: number) => ['users', 'api-keys', userId] as const,
+    apiKeys: (userId: string) => ['users', 'api-keys', userId] as const,
     /**
      * @param userId - The user whose identity-provider links to key.
      * @returns A query key for a user's linked identity providers.
      */
-    identityProviders: (userId: number) => ['users', 'identity-providers', userId] as const,
+    identityProviders: (userId: string) => ['users', 'identity-providers', userId] as const,
   },
 
   /**
@@ -377,14 +377,14 @@ export const queryKeys = {
      * @param userId - The profile owner whose followers to key.
      * @returns A query key for a user's followers list.
      */
-    followersList: (userId: number) => ['followers', 'followers', userId] as const,
+    followersList: (userId: string) => ['followers', 'followers', userId] as const,
     /**
      * The people a user follows (the user's following list).
      *
      * @param userId - The profile owner whose following list to key.
      * @returns A query key for a user's following list.
      */
-    followingList: (userId: number) => ['followers', 'following', userId] as const,
+    followingList: (userId: string) => ['followers', 'following', userId] as const,
     /**
      * The viewer → target follow relationship state, backing the follow button.
      *
@@ -392,7 +392,7 @@ export const queryKeys = {
      * @param targetId - The profile owner's id.
      * @returns A query key for the viewer's relationship to the target.
      */
-    state: (viewerId: number, targetId: number) =>
+    state: (viewerId: string, targetId: string) =>
       ['followers', 'state', viewerId, targetId] as const,
     /** The users the viewer has blocked. */
     blocked: () => ['followers', 'blocked'] as const,
