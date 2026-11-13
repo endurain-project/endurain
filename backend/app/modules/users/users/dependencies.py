@@ -10,28 +10,31 @@ import core.pagination as core_pagination
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.deletion_state_store as users_deletion_state_store
 
-#: The fewest characters a username search term may have, so a search cannot enumerate every user.
+#: The fewest characters a ``username_contains`` search term may have, so a search cannot enumerate every user.
 MIN_SEARCH_TERM_LENGTH = 3
 
 
 def require_search_term(username: str | None, username_contains: str | None) -> None:
-    """Refuse a directory read that names no search term of the minimum length, so the whole list cannot be paged.
+    """Refuse a directory read that names no search term, so the whole list cannot be paged.
+
+    The length of each term is bounded by the route's query declarations: an exact ``username`` takes any length, a
+    ``username_contains`` at least ``MIN_SEARCH_TERM_LENGTH`` characters.
 
     Args:
         username: The exact-username filter, or None.
         username_contains: The contains filter, or None.
 
     Raises:
-        RequestValidationError: When neither filter holds at least ``MIN_SEARCH_TERM_LENGTH`` characters (422).
+        RequestValidationError: When neither filter is sent (422).
     """
-    if any(term is not None and len(term) >= MIN_SEARCH_TERM_LENGTH for term in (username, username_contains)):
+    if username is not None or username_contains is not None:
         return
     raise RequestValidationError(
         [
             {
                 "type": "missing",
-                "loc": ("query", "username_contains"),
-                "msg": f"Send username or username_contains with at least {MIN_SEARCH_TERM_LENGTH} characters",
+                "loc": ("query", "username"),
+                "msg": f"Send username, or username_contains with at least {MIN_SEARCH_TERM_LENGTH} characters",
                 "input": None,
             }
         ]

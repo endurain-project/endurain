@@ -57,7 +57,7 @@ class TestTokenManagerSecurity:
         sub_claim = token_manager.get_token_claim(token, "sub", auth_token_manager.TokenType.ACCESS)
         sid_claim = token_manager.get_token_claim(token, "sid", auth_token_manager.TokenType.ACCESS)
 
-        assert sub_claim == str(sample_user_read.id), "sub claim should match user ID as a decimal string"
+        assert sub_claim == str(sample_user_read.id), "sub claim should be the user's canonical UUID text"
         assert sid_claim == str(session_id), "sid claim should be the session ID text"
 
     def test_the_sid_claim_is_the_canonical_uuid_text(self, token_manager, sample_user_read):

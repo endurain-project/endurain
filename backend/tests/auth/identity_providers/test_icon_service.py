@@ -2,7 +2,7 @@
 
 import io
 import uuid
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import jasil.providers as jasil_providers
 import jasil.testing as jasil_testing
@@ -156,6 +156,15 @@ class TestReferencedIconKeys:
 
         assert kept == {str(with_icon), "notes.txt", "7", "٣"}
         ids.assert_called_once_with(sorted([with_icon, without_icon]), db)
+
+    def test_a_key_that_is_not_the_canonical_spelling_of_an_id_is_not_judged(self):
+        provider = uuid.uuid4()
+        spellings = [str(provider).upper(), str(provider).replace("-", ""), f"{{{provider}}}", f"urn:uuid:{provider}"]
+        with patch.object(icon_service.idp_crud, "get_ids_with_icon", return_value=set()) as ids:
+            kept = icon_service._referenced_icon_keys(spellings, MagicMock())
+
+        assert kept == set(spellings)
+        ids.assert_called_once_with([], ANY)
 
 
 class TestSweepUnreferencedIcons:

@@ -4,6 +4,8 @@ from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException, status
 
+import modules.auth.credentials.contracts as credentials_contracts
+
 
 class TestRequestPasswordReset:
     """
@@ -218,6 +220,25 @@ class TestConfirmPasswordReset:
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
         assert mock_use.call_args.args[:2] == ("some-token-value", "short")
+
+    @patch(
+        "modules.auth.password_reset_tokens.public_router.password_reset_service.use_password_reset_token",
+    )
+    def test_confirm_password_reset_answers_the_typed_password_too_short_problem(
+        self,
+        mock_use,
+        fast_api_client,
+    ) -> None:
+        """Answers 422 with the ``password-too-short`` problem type through the real domain-error handler."""
+        mock_use.side_effect = credentials_contracts.PasswordTooShortError("short")
+
+        response = fast_api_client.post(
+            "/password-reset/confirm",
+            json={"token": "some-token-value", "password": "short"},
+        )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        assert response.json()["type"] == "urn:endurain:error:password-too-short"
 
     def test_confirm_password_reset_refuses_the_old_new_password_key(
         self,

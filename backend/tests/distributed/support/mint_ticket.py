@@ -36,7 +36,7 @@ platform = container.build_platform(substrate_settings)
 runtime.set_active_platform(platform)
 
 # A socket needs a live session, so the user and a session for it are stored first.
-session_id = str(uuid.uuid4())
+session_id = uuid.uuid4()
 now = datetime.now(UTC)
 with SessionLocal() as db:
     if db.get(users_models.Users, user_id) is None:

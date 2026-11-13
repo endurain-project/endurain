@@ -40,8 +40,13 @@ def state():
     return MemoryState()
 
 
-def _strava(state, user_id=USER, kind=strava_constants.SyncKind.GEAR):
-    return strava_sync_state_store.StravaSyncStateStore(state).begin(user_id, kind, conflict="Busy")
+def _strava(state, user_id=USER, kind=strava_constants.SyncKind.GEAR, created_at=None):
+    """Begin a Strava sync job; ``created_at`` fixes the instant the job is stamped with, else the clock does."""
+    store = strava_sync_state_store.StravaSyncStateStore(state)
+    if created_at is None:
+        return store.begin(user_id, kind, conflict="Busy")
+    with patch.object(core_attempt_state, "datetime", MagicMock(now=MagicMock(return_value=created_at))):
+        return store.begin(user_id, kind, conflict="Busy")
 
 
 def _upload(job_id: uuid.UUID, created_at: datetime) -> activity_ingestion_schema.ActivityIngestionJobRead:
@@ -136,8 +141,8 @@ class TestGetJob:
 
 class TestListJobs:
     def test_state_store_and_ingestion_jobs_are_merged_newest_first_and_paged(self, state):
-        gear = _strava(state)
-        link = _strava(state, kind=strava_constants.SyncKind.LINK)
+        gear = _strava(state, created_at=datetime(2026, 1, 10, 12, 0, tzinfo=UTC))
+        link = _strava(state, kind=strava_constants.SyncKind.LINK, created_at=datetime(2026, 1, 10, 12, 5, tzinfo=UTC))
         old = _upload(UPLOAD_OLD, gear.created_at - timedelta(days=1))
         new = _upload(UPLOAD_NEW, link.created_at + timedelta(days=1))
         with patch(_INGESTION_LIST, return_value=[new, old]) as ingestion:

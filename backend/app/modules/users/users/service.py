@@ -415,7 +415,8 @@ def create_user(
 
     Without a password the account is created active with no local credential, and its owner is mailed an invitation
     link to choose one, which needs mail to be configured. An administrator account needs the creating
-    administrator's own step-up verification, so a stolen access token cannot mint one. It is the creating administrator's credentials that are checked, not the new user's.
+    administrator's own step-up verification, so a stolen access token cannot mint one. It is the creating
+    administrator's credentials that are checked, not the new user's.
     Every other active administrator is told of a new administrator account.
 
     Args:
@@ -684,6 +685,33 @@ def _refuse_to_remove_last_admin(user: users_schema.UserRead, action: str, db: S
         raise core_exceptions.LastAdministratorError(f"The only administrator cannot be {action}")
 
 
+def _refuse_pending_activation(
+    user_id: uuid.UUID, existing: users_schema.UserRead, user: users_schema.UserEdit
+) -> None:
+    """Refuse an edit that activates a user awaiting approval, and audit the refusal.
+
+    Args:
+        user_id: ID of the user being edited.
+        existing: The user as stored.
+        user: The user data to apply.
+
+    Raises:
+        ApprovalPendingError: If the edit activates a user awaiting approval.
+    """
+    if user.active and not existing.active and existing.pending_admin_approval:
+        logger.debug("Refused to activate a user awaiting approval", extra=core_logger.context(user_id=user_id))
+        jasil_audit.record_detached(
+            users_audit_actions.USER_UPDATE,
+            outcome=jasil_audit.Outcome.DENIED,
+            target_type="user",
+            target_id=str(user_id),
+            target_owner_id=str(user_id),
+        )
+        raise core_exceptions.ApprovalPendingError(
+            f"User is awaiting approval, approve them with POST /users/{user_id}/approve"
+        )
+
+
 def stage_user_edit(
     user_id: uuid.UUID, user: users_schema.UserEdit, db: Session, *, if_match: str
 ) -> users_schema.UserRead:
@@ -713,18 +741,7 @@ def stage_user_edit(
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
     existing = require_user(user_id, db)
-    if user.active and not existing.active and existing.pending_admin_approval:
-        logger.debug("Refused to activate a user awaiting approval", extra=core_logger.context(user_id=user_id))
-        jasil_audit.record_detached(
-            users_audit_actions.USER_UPDATE,
-            outcome=jasil_audit.Outcome.DENIED,
-            target_type="user",
-            target_id=str(user_id),
-            target_owner_id=str(user_id),
-        )
-        raise core_exceptions.ApprovalPendingError(
-            f"User is awaiting approval, approve them with POST /users/{user_id}/approve"
-        )
+    _refuse_pending_activation(user_id, existing, user)
     changes = user.model_dump(exclude_unset=True)
     if user.username is not None:
         changes["username"] = user.username.lower()
@@ -954,6 +971,7 @@ def edit_user(
     email = user.email.lower() if user.email is not None else None
     if email is not None and existing.email != email:
         require_other_user(user_id, actor_id, "change your email")
+    _refuse_pending_activation(user_id, existing, user)
     if _edit_ends_sessions(existing, user):
         account_security_integration.verify_step_up(
             step_up or auth_schema.StepUpVerification(),

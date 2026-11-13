@@ -100,7 +100,8 @@ class IdentityProviderUpdateDetails(VersionedPayload):
 
     Attributes:
         changed_fields: The names of the fields whose value changed; a credential is named, never shown.
-        sessions_ended: How many sessions the provider had signed in that ending ended, 0 unless the update disabled it.
+        sessions_ended: How many sessions signed in through the provider the update ended, 0 unless it disabled
+            the provider.
     """
 
     model_config = ConfigDict(extra="forbid")

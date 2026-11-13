@@ -6,7 +6,7 @@ version-race guard, and charting a metric over an interval. A package passes the
 """
 
 import uuid
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from datetime import UTC, date, datetime
 from typing import Any, Protocol
 from zoneinfo import ZoneInfo
@@ -250,23 +250,6 @@ def upsert_dated[RecordT: _DatedRecord, CreateT: _DatedInput, UpdateT: BaseModel
     )
 
 
-def in_current_names(row: dict[str, Any], renamed: Mapping[str, str]) -> dict[str, Any]:
-    """Return an archived row under today's field names and with the defaults a missing value gets.
-
-    An archive written before the units were put in the field names carries the old names, and one written
-    before a record always had a source carries ``source: null``; both are read here, at the import boundary,
-    so the schemas know only the current names.
-
-    Args:
-        row: The archived row.
-        renamed: The old field name to the current one.
-
-    Returns:
-        The row with renamed keys and no null ``source``.
-    """
-    return {renamed.get(key, key): value for key, value in row.items() if key != "source" or value is not None}
-
-
 def restore_archived_records[CreateT: BaseModel](
     records: list[dict[str, Any]],
     schema: type[CreateT],
@@ -276,7 +259,6 @@ def restore_archived_records[CreateT: BaseModel](
     *,
     kind: str,
     server_derived: frozenset[str] = frozenset(),
-    renamed: Mapping[str, str] | None = None,
 ) -> int:
     """Stage the records of one kind from a profile archive for a user.
 
@@ -291,7 +273,6 @@ def restore_archived_records[CreateT: BaseModel](
         db: Database session.
         kind: The record kind, for the log.
         server_derived: Archived fields the server derives on write, which are dropped.
-        renamed: Field names an older archive used, mapped to the current ones.
 
     Returns:
         The number of records staged.
@@ -300,7 +281,7 @@ def restore_archived_records[CreateT: BaseModel](
     for row in records:
         fields = {
             key: value
-            for key, value in in_current_names(users_profile_contracts.without_row_identity(row), renamed or {}).items()
+            for key, value in users_profile_contracts.without_row_identity(row).items()
             if key not in server_derived
         }
         try:

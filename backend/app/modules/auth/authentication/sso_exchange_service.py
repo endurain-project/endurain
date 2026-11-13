@@ -74,7 +74,8 @@ def exchange_tokens_for_session(
     The session was created by a mobile password sign-in or the identity-provider callback and holds no tokens yet.
     The caller proves it holds the verifier whose challenge the OAuth state stored; the exchange succeeds once per
     session; a second one finds the session without its OAuth state and is answered like an unknown session. The
-    client type recorded when the sign-in started is the only one that can redeem it, and a different ``X-Client-Type`` is refused like a wrong verifier.
+    client type recorded when the sign-in started is the only one that can redeem it, and a different
+    ``X-Client-Type`` is refused like a wrong verifier.
 
     A session that came from an identity provider also needs an MFA code when the account has MFA enabled, since
     the provider's sign-in does not replace the account's own second factor. The code is checked after the PKCE

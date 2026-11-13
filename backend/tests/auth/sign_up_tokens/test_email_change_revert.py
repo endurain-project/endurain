@@ -11,6 +11,7 @@ from sqlalchemy.orm import sessionmaker
 
 import core.exceptions as core_exceptions
 import modules.auth.access_tokens.integration_service as access_tokens_integration
+import modules.auth.password_reset_tokens.models as password_reset_models
 import modules.auth.sign_up_tokens.models as sign_up_models
 import modules.auth.sign_up_tokens.service as sign_up_service
 import modules.users.users.integration_service as users_integration
@@ -87,6 +88,22 @@ def _confirm(db, event="event-1") -> uuid.UUID:
 
 def _revert(db, token):
     return sign_up_service.cancel_email_change(token, db)
+
+
+def _seed_reset_token(db) -> uuid.UUID:
+    """Store an unused password-reset token of the owner and return its id."""
+    now = datetime.now(UTC)
+    row = password_reset_models.PasswordResetToken(
+        user_id=MOCK_USER_ID, token_hash=uuid.uuid4().hex, created_at=now, expires_at=now + timedelta(hours=1)
+    )
+    db.add(row)
+    db.commit()
+    return row.id
+
+
+def _reset_token_used(db, token_id: uuid.UUID) -> bool:
+    db.expire_all()
+    return db.get(password_reset_models.PasswordResetToken, token_id).used
 
 
 class TestTheLinkSurvivesConfirmation:
@@ -265,27 +282,27 @@ class TestTheLinkSurvivesConfirmation:
         _confirm(db)
         db.query(users_models.Users).filter_by(id=OTHER_USER_ID).update({"email": _OLD})
         db.commit()
-
-        with (
-            patch(f"{_SERVICE}.password_reset_tokens_integration.revoke_unused_tokens") as revoke,
-            jasil_testing.capture_audit() as audit,
-        ):
-            _revert(db, link)
-
-        revoke.assert_called_once_with(MOCK_USER_ID, db)
-        assert audit.assert_audited(_ACTION, target_id=str(MOCK_USER_ID)).details["reset_tokens_revoked"] is True
-
-    def test_a_restored_address_is_audited_without_a_reset_token_revocation(self, db, platform, security_generations):
-        link = _request(db)
-        _confirm(db)
+        reset_token = _seed_reset_token(db)
 
         with jasil_testing.capture_audit() as audit:
             _revert(db, link)
 
-        assert audit.assert_audited(_ACTION, target_id=str(MOCK_USER_ID)).details["reset_tokens_revoked"] is False
+        assert _reset_token_used(db, reset_token) is True
+        assert audit.assert_audited(_ACTION, target_id=str(MOCK_USER_ID)).details["reset_tokens_revoked"] is True
+
+    def test_a_restored_address_revokes_the_reset_tokens_and_audits_it(self, db, platform, security_generations):
+        link = _request(db)
+        _confirm(db)
+        reset_token = _seed_reset_token(db)
+
+        with jasil_testing.capture_audit() as audit:
+            _revert(db, link)
+
+        assert _reset_token_used(db, reset_token) is True
+        assert audit.assert_audited(_ACTION, target_id=str(MOCK_USER_ID)).details["reset_tokens_revoked"] is True
 
 
-def _reserve_for_user_7(db):
+def _reserve_for_owner(db):
     """Request and confirm a change of the owner, so that the old address is reserved for it."""
     link = _request(db)
     _confirm(db)
@@ -294,7 +311,7 @@ def _reserve_for_user_7(db):
 
 class TestThePreviousAddressIsReserved:
     def test_it_is_reserved_for_the_account_it_came_from_and_only_during_the_window(self, db):
-        _reserve_for_user_7(db)
+        _reserve_for_owner(db)
 
         assert sign_up_service.get_email_reserver_id(_OLD, OTHER_USER_ID, db) == MOCK_USER_ID
         assert sign_up_service.get_email_reserver_id(_OLD.upper(), OTHER_USER_ID, db) == MOCK_USER_ID
@@ -310,7 +327,7 @@ class TestThePreviousAddressIsReserved:
         assert sign_up_service.get_email_reserver_id(_OLD, OTHER_USER_ID, db) is None
 
     def test_it_is_released_by_the_revert(self, db):
-        link = _reserve_for_user_7(db)
+        link = _reserve_for_owner(db)
         _revert(db, link)
 
         assert sign_up_service.get_email_reserver_id(_OLD, OTHER_USER_ID, db) is None
@@ -323,7 +340,7 @@ class TestThePreviousAddressIsReserved:
         assert sign_up_service.get_email_reserver_id(_OLD, OTHER_USER_ID, db) is None
 
     def test_the_account_can_take_its_own_previous_address_back(self, db):
-        _reserve_for_user_7(db)
+        _reserve_for_owner(db)
 
         assert users_service.is_email_available(MOCK_USER_ID, _OLD, db) is True
         assert users_service.is_email_available(OTHER_USER_ID, _OLD, db) is False
@@ -331,7 +348,7 @@ class TestThePreviousAddressIsReserved:
         assert users_service.is_email_available(OTHER_USER_ID, "free@example.com", db) is True
 
     def test_the_revert_restores_it_when_nobody_could_take_it(self, db):
-        link = _reserve_for_user_7(db)
+        link = _reserve_for_owner(db)
         with pytest.raises(core_exceptions.ConflictError):
             users_service.require_email_available(OTHER_USER_ID, _OLD, db)
 
@@ -339,7 +356,7 @@ class TestThePreviousAddressIsReserved:
         assert _user(db).email == _OLD
 
     def test_an_administrator_cannot_create_an_account_on_it(self, db):
-        _reserve_for_user_7(db)
+        _reserve_for_owner(db)
         created = users_schema.UserCreate(
             name="N", username="newone", email=_OLD, password="SecurePass1!", access_type="regular", active=True
         )
@@ -353,7 +370,7 @@ class TestThePreviousAddressIsReserved:
         assert db.query(users_models.Users).filter_by(username="newone").count() == 0
 
     def test_an_administrator_cannot_set_it_on_another_account(self, db):
-        _reserve_for_user_7(db)
+        _reserve_for_owner(db)
         edit = users_schema.UserEdit.from_read(users_integration.get_user(OTHER_USER_ID, db)).model_copy(
             update={"email": _OLD}
         )
@@ -362,7 +379,7 @@ class TestThePreviousAddressIsReserved:
             users_service.stage_user_edit(OTHER_USER_ID, edit, db, if_match="*")
 
     def test_an_administrator_edit_that_asks_for_confirmation_is_refused_too(self, db):
-        _reserve_for_user_7(db)
+        _reserve_for_owner(db)
         edit = users_schema.UserEdit.from_read(users_integration.get_user(OTHER_USER_ID, db)).model_copy(
             update={"email": _OLD, "email_verified": False}
         )
@@ -373,13 +390,13 @@ class TestThePreviousAddressIsReserved:
             )
 
     def test_the_change_without_mail_is_refused(self, db):
-        _reserve_for_user_7(db)
+        _reserve_for_owner(db)
 
         with pytest.raises(core_exceptions.ConflictError):
             users_service.stage_email_change(OTHER_USER_ID, _OLD, db)
 
     def test_a_confirmation_of_it_by_another_account_is_refused(self, db):
-        _reserve_for_user_7(db)
+        _reserve_for_owner(db)
 
         with pytest.raises(core_exceptions.ConflictError):
             users_service.stage_confirmed_email_change(OTHER_USER_ID, _OLD, db)
@@ -387,7 +404,7 @@ class TestThePreviousAddressIsReserved:
     def test_a_provider_sync_does_not_copy_it(self, db):
         import modules.auth.identity_providers.user_provisioning_service as provisioning
 
-        _reserve_for_user_7(db)
+        _reserve_for_owner(db)
         user = users_integration.get_user(OTHER_USER_ID, db)
         idp = MagicMock(sync_email=True)
 
@@ -398,7 +415,7 @@ class TestThePreviousAddressIsReserved:
             assert provisioning._synced_email(user, idp, {"email": _OLD}, {}, db) is None
 
     def test_a_provider_created_account_cannot_take_it(self, db):
-        _reserve_for_user_7(db)
+        _reserve_for_owner(db)
         settings = MagicMock(signup_require_email_verification=False, signup_require_admin_approval=False)
         profile = users_schema.UserBase(name="N", username="sso-new", email=_OLD)
 
@@ -406,7 +423,7 @@ class TestThePreviousAddressIsReserved:
             users_service.create_sso_user(profile, settings, db, email_verified=True)
 
     def test_a_sign_up_with_it_gets_the_answer_a_held_address_gets_and_creates_nothing(self, db):
-        _reserve_for_user_7(db)
+        _reserve_for_owner(db)
         signup = users_schema.UserSignup(name="N", username="signer", email=_OLD, password="SecurePass1!")
         state = MemoryState()
 
@@ -419,7 +436,7 @@ class TestThePreviousAddressIsReserved:
         assert publish.call_args.args[1]["user_id"] == str(MOCK_USER_ID)
 
     def test_a_sign_up_with_it_answers_like_one_with_a_held_address(self, db):
-        _reserve_for_user_7(db)
+        _reserve_for_owner(db)
         held = users_schema.UserSignup(name="N", username="signer", email=_NEW, password="SecurePass1!")
         reserved = users_schema.UserSignup(name="N", username="signer", email=_OLD, password="SecurePass1!")
 
@@ -429,7 +446,7 @@ class TestThePreviousAddressIsReserved:
             )
 
     def test_a_self_service_change_to_it_is_staged_like_a_held_address_and_tells_the_reserving_account(self, db):
-        _reserve_for_user_7(db)
+        _reserve_for_owner(db)
 
         with patch(_PUBLISH) as publish:
             staged = sign_up_service.request_self_service_email_change(
@@ -446,7 +463,7 @@ class TestThePreviousAddressIsReserved:
         assert sign_up_service.prepare_email_change_verification_email(OTHER_USER_ID, "event-x", _HOST, db) is None
 
     def test_a_resend_for_it_sends_no_link(self, db):
-        _reserve_for_user_7(db)
+        _reserve_for_owner(db)
         with patch(_PUBLISH):
             sign_up_service.request_self_service_email_change(OTHER_USER_ID, _OLD, _OTHER_EMAIL, MemoryState(), db)
         db.commit()
@@ -457,9 +474,18 @@ class TestThePreviousAddressIsReserved:
         assert [call.args[0] for call in publish.call_args_list] == ["auth.email_change_address_taken"]
 
 
+def _assert_secured(db, platform, security_generations, reset_token: uuid.UUID) -> None:
+    """Assert that the owner's account was secured: generation moved, sessions and keys ended, reset links void."""
+    assert MOCK_USER_ID in security_generations.bumps
+    platform.sessions.assert_called_once_with(MOCK_USER_ID, db)
+    platform.keys.assert_called_once_with(MOCK_USER_ID, db)
+    assert _reset_token_used(db, reset_token) is True
+
+
 class TestTheLinkBeforeConfirmation:
     def test_cancels_the_pending_change(self, db, platform, security_generations):
         link = _request(db)
+        reset_token = _seed_reset_token(db)
 
         with jasil_testing.capture_audit() as audit:
             result = _revert(db, link)
@@ -467,9 +493,9 @@ class TestTheLinkBeforeConfirmation:
         assert (result.email_restored, result.change_applied) == (False, False)
         assert _user(db).email == _OLD
         assert db.query(sign_up_models.SignUpToken).filter_by(used=False).count() == 0
-        assert MOCK_USER_ID in security_generations.bumps
-        platform.sessions.assert_called_once_with(MOCK_USER_ID, db)
-        assert audit.assert_audited(_ACTION, target_id=str(MOCK_USER_ID)).details["change_applied"] is False
+        _assert_secured(db, platform, security_generations, reset_token)
+        details = audit.assert_audited(_ACTION, target_id=str(MOCK_USER_ID)).details
+        assert (details["change_applied"], details["reset_tokens_revoked"]) == (False, True)
 
     def test_works_once(self, db):
         link = _request(db)
@@ -478,24 +504,99 @@ class TestTheLinkBeforeConfirmation:
         with pytest.raises(core_exceptions.InvalidInputError):
             _revert(db, link)
 
-    def test_an_earlier_requests_link_does_not_cancel_a_later_request(self, db, platform):
+    def test_an_earlier_requests_link_voids_the_later_pending_request_and_secures_the_account(
+        self, db, platform, security_generations
+    ):
         first = _request(db)
-        _request(db, new="other@example.com")
+        second = _request(db, new="other@example.com")
+        reset_token = _seed_reset_token(db)
+
+        with jasil_testing.capture_audit() as audit:
+            result = _revert(db, first)
+
+        assert (result.email_restored, result.change_applied) == (False, False)
+        assert _user(db).email == _OLD
+        assert db.query(sign_up_models.SignUpToken).filter_by(used=False).count() == 0
+        assert sign_up_service.prepare_email_change_verification_email(MOCK_USER_ID, "event-2", _HOST, db) is None
+        _assert_secured(db, platform, security_generations, reset_token)
+        details = audit.assert_audited(_ACTION, target_id=str(MOCK_USER_ID)).details
+        assert (details["change_applied"], details["reset_tokens_revoked"]) == (False, True)
+        with pytest.raises(core_exceptions.InvalidInputError):
+            _revert(db, second)
+
+    @pytest.mark.parametrize("later_confirmed", [False, True])
+    def test_a_replaced_changes_link_works_whether_or_not_the_later_change_was_confirmed(
+        self, db, platform, later_confirmed
+    ):
+        first = _request(db)
+        _request(db, new="third@example.com")
+        if later_confirmed:
+            _confirm(db, event="event-2")
+
+        result = _revert(db, first)
+
+        assert (result.change_applied, result.email_restored) == (later_confirmed, later_confirmed)
+        assert _user(db).email == _OLD
+        assert db.query(sign_up_models.SignUpToken).filter_by(used=False).count() == 0
+        platform.sessions.assert_called_once_with(MOCK_USER_ID, db)
+
+    def test_a_replaced_changes_link_works_once(self, db, platform):
+        first = _request(db)
+        _request(db, new="third@example.com")
+        _revert(db, first)
+        platform.sessions.reset_mock()
 
         with pytest.raises(core_exceptions.InvalidInputError):
             _revert(db, first)
-        db.rollback()
 
-        pending = db.query(sign_up_models.SignUpToken).filter_by(used=False).one()
-        assert pending.email == "other@example.com"
         platform.sessions.assert_not_called()
 
-    def test_an_expired_unconfirmed_change_has_nothing_to_cancel(self, db):
+    def test_a_replaced_changes_link_is_refused_seven_days_after_the_request(self, db, platform):
+        first = _request(db)
+        _request(db, new="third@example.com")
+
+        with patch(f"{_SERVICE}.datetime") as clock, pytest.raises(core_exceptions.InvalidInputError):
+            clock.now.return_value = datetime.now(UTC) + timedelta(days=7, minutes=1)
+            _revert(db, first)
+        db.rollback()
+
+        assert db.query(sign_up_models.SignUpToken).filter_by(used=False).one().email == "third@example.com"
+        platform.sessions.assert_not_called()
+
+    def test_an_expired_unconfirmed_change_is_still_reported_and_secures_the_account(
+        self, db, platform, security_generations
+    ):
+        link = _request(db)
+        reset_token = _seed_reset_token(db)
+
+        with patch(f"{_SERVICE}.datetime") as clock:
+            clock.now.return_value = datetime.now(UTC) + timedelta(days=2)
+            result = _revert(db, link)
+
+        assert (result.email_restored, result.change_applied) == (False, False)
+        assert _user(db).email == _OLD
+        _assert_secured(db, platform, security_generations, reset_token)
+
+    def test_an_expired_unconfirmed_changes_link_works_once(self, db, platform):
+        link = _request(db)
+
+        with patch(f"{_SERVICE}.datetime") as clock:
+            clock.now.return_value = datetime.now(UTC) + timedelta(days=2)
+            _revert(db, link)
+            platform.sessions.reset_mock()
+            with pytest.raises(core_exceptions.InvalidInputError):
+                _revert(db, link)
+
+        platform.sessions.assert_not_called()
+
+    def test_an_expired_unconfirmed_changes_link_is_refused_seven_days_after_the_request(self, db, platform):
         link = _request(db)
 
         with patch(f"{_SERVICE}.datetime") as clock, pytest.raises(core_exceptions.InvalidInputError):
-            clock.now.return_value = datetime.now(UTC) + timedelta(days=2)
+            clock.now.return_value = datetime.now(UTC) + timedelta(days=7, minutes=1)
             _revert(db, link)
+
+        platform.sessions.assert_not_called()
 
 
 class TestChangesTheOwnerDidNotRequest:

@@ -14,6 +14,7 @@ import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
 import modules.auth.constants as auth_constants
+import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.schema as auth_schema
 import modules.users.users.dependencies as users_dependencies
@@ -158,12 +159,31 @@ class TestReadUsers:
         assert regular_client.get("/users?username=dee").status_code == 200
         assert mock_search.call_args.kwargs == {"username": "dee", "username_contains": None}
 
-    @pytest.mark.parametrize("query", ["", "page_number=2", "username=ab"])
+    @pytest.mark.parametrize("username", ["a", "ab"])
     @patch(f"{_SERVICE}.list_public_users")
-    def test_a_regular_token_without_a_search_term_of_three_characters_is_refused(
+    def test_a_regular_token_looks_a_user_up_by_a_short_exact_username(
+        self, mock_search, username, regular_client, page_size_setting
+    ):
+        mock_search.return_value = users_schema.UserPublicPage.build([], 0, 1, 20)
+
+        assert regular_client.get(f"/users?username={username}").status_code == 200
+        assert mock_search.call_args.kwargs == {"username": username, "username_contains": None}
+
+    @pytest.mark.parametrize("query", ["", "page_number=2"])
+    @patch(f"{_SERVICE}.list_public_users")
+    def test_a_regular_token_without_a_search_term_is_refused(
         self, mock_search, query, regular_client, page_size_setting
     ):
         response = regular_client.get(f"/users?{query}")
+
+        assert response.status_code == 422
+        error = response.json()["errors"][0]
+        assert error["field"] == "query.username"
+        mock_search.assert_not_called()
+
+    @patch(f"{_SERVICE}.list_public_users")
+    def test_a_short_username_contains_is_refused_as_too_short(self, mock_search, regular_client, page_size_setting):
+        response = regular_client.get("/users?username_contains=ab")
 
         assert response.status_code == 422
         assert response.json()["errors"][0]["field"] == "query.username_contains"
@@ -370,6 +390,36 @@ class TestCreateUser:
         )
 
         assert response.status_code == 409
+
+
+class TestShortPasswordIsTyped:
+    """The administrator's password writes answer a too-short password with the typed 422 problem."""
+
+    @patch(f"{_SERVICE}.create_user", side_effect=credentials_contracts.PasswordTooShortError("short"))
+    def test_create_user(self, _create, client):
+        response = client.post(
+            "/users",
+            json={
+                "name": "New User",
+                "username": "newuser",
+                "email": "new@example.com",
+                "active": True,
+                "access_type": "regular",
+                "password": "short",
+            },
+        )
+
+        assert response.status_code == 422
+        assert response.json()["type"] == "urn:endurain:error:password-too-short"
+
+    @patch(f"{_SERVICE}.change_user_password", side_effect=credentials_contracts.PasswordTooShortError("short"))
+    def test_set_password(self, _change, client):
+        response = client.post(
+            f"/users/{_U1}/password/change", json={"password": "short", "step_up": {"current_password": "pw"}}
+        )
+
+        assert response.status_code == 422
+        assert response.json()["type"] == "urn:endurain:error:password-too-short"
 
 
 class TestUploadUserImage:

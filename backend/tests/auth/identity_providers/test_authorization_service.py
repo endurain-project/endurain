@@ -26,7 +26,7 @@ def service():
 
 
 def _idp(enabled=True, **overrides):
-    values = {"id": 1, "slug": "test", "name": "Test", "enabled": enabled}
+    values = {"id": IDP_ID, "slug": "test", "name": "Test", "enabled": enabled}
     values.update(overrides)
     return SimpleNamespace(**values)
 

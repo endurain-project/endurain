@@ -224,6 +224,19 @@ def test_a_cursor_of_the_previous_format_is_expired(db):
         _sync(db, previous)
 
 
+def test_a_cursor_with_an_integer_id_and_no_format_is_expired(db):
+    """The format before UUID ids wrote an integer ``i`` and no ``f``; it expires rather than being invalid."""
+    old = _encrypted(s=T1.isoformat(), r=0, i=42)
+
+    with pytest.raises(core_exceptions.SyncExpiredError):
+        _sync(db, old)
+
+
+def test_a_current_cursor_with_an_integer_id_is_invalid(db):
+    with pytest.raises(core_exceptions.InvalidInputError):
+        _sync(db, _encrypted(f=sync_service._CURSOR_FORMAT, s=T1.isoformat(), r=0, i=42))
+
+
 def test_a_format_3_cursor_is_expired_whatever_it_holds(db):
     old = _encrypted(f=3, s=T1.isoformat(), r=0, i=str(uuid.uuid4()))
 

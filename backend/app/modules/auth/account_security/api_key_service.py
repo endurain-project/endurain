@@ -54,6 +54,16 @@ def list_user_api_keys(
     return api_keys_integration.list_user_api_keys(user_id, page, db)
 
 
+def _require_room_for_key(user_id: uuid.UUID, db: Session) -> None:
+    """Refuse a user who already holds the most active API keys.
+
+    Raises:
+        ApiKeyLimitError: When the user already holds the most active keys.
+    """
+    if api_keys_integration.count_active_api_keys(user_id, db) >= api_keys_constants.MAX_ACTIVE_API_KEYS_PER_USER:
+        raise core_exceptions.ApiKeyLimitError
+
+
 def create_user_api_key(
     user_id: uuid.UUID,
     session_id: uuid.UUID,
@@ -65,13 +75,13 @@ def create_user_api_key(
     """Verify step-up, stage a key expiring at ``expires_at``, and commit it before returning its secret once.
 
     The request schema has already refused unsupported scopes, and a user at the key limit is refused here, so
-    neither request spends an identity-provider step-up ticket.
+    neither request spends an identity-provider step-up ticket. The limit is counted again under a per-user lock
+    right before the insert, so concurrent creations cannot pass it together.
 
     Raises:
         ApiKeyLimitError: When the user already holds the most active keys.
     """
-    if api_keys_integration.count_active_api_keys(user_id, db) >= api_keys_constants.MAX_ACTIVE_API_KEYS_PER_USER:
-        raise core_exceptions.ApiKeyLimitError
+    _require_room_for_key(user_id, db)
     step_up_service.verify_step_up_credentials(
         user_id,
         data.step_up.current_password,
@@ -83,6 +93,8 @@ def create_user_api_key(
         action=identity_providers_constants.StepUpAction.API_KEY_CREATE,
     )
     users_integration.require_user(user_id, db)
+    api_keys_integration.lock_api_key_creation(user_id, db)
+    _require_room_for_key(user_id, db)
     raw_key = api_keys_integration.generate_api_key()
     api_key = api_keys_integration.create_api_key(user_id, data, raw_key, expires_at, db)
     _stage_key_audit(

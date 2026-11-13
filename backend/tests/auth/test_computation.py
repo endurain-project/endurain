@@ -122,6 +122,17 @@ class TestValidatePkceVerifier:
 
         validate_pkce_verifier(code_verifier, code_challenge, "S256")
 
+    def test_validate_pkce_verifier_rejects_trailing_newline(self):
+        """Test a verifier ending in a newline fails the charset check.
+
+        Asserts:
+            - A 43-character verifier followed by a newline is refused
+        """
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
+            validate_pkce_verifier("a" * 43 + "\n", "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", "S256")
+
+        assert "code_verifier must use only" in str(exc_info.value.detail)
+
     def test_validate_pkce_verifier_min_length_violation(self):
         """Test PKCE verifier minimum length validation.
 

@@ -1411,6 +1411,17 @@ class TestEdits:
         )
         mock_crud.update_user.assert_not_called()
 
+    def test_an_admin_edit_activating_a_user_awaiting_approval_does_not_spend_the_step_up(
+        self, mock_crud, mock_weight, mock_db
+    ):
+        mock_crud.get_user_by_id.return_value = _user(_U1, active=False, pending_admin_approval=True)
+
+        with pytest.raises(core_exceptions.ApprovalPendingError):
+            _admin_edit(_U1, _edit(_U1, active=True), _U9, mock_db)
+
+        _verify_step_up_mock.assert_not_called()
+        mock_crud.update_user.assert_not_called()
+
     def test_an_edit_of_other_fields_of_a_user_awaiting_approval_is_applied(self, mock_crud, mock_weight, mock_db):
         mock_crud.get_user_by_id.return_value = _user(_U1, active=False, pending_admin_approval=True)
         mock_crud.update_user.return_value = _user(_U1, active=False, pending_admin_approval=True, name="Renamed")

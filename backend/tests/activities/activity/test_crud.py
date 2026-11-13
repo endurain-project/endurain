@@ -1774,13 +1774,14 @@ class TestFollowingFeedOrder:
         import modules.activities.activity.crud as crud
 
         recorded = datetime(2024, 1, 20, tzinfo=UTC)
-        row = SimpleNamespace(id=7, start_time=datetime(2024, 1, 15, 8, tzinfo=UTC))
+        activity_id = uuid.uuid4()
+        row = SimpleNamespace(id=activity_id, start_time=datetime(2024, 1, 15, 8, tzinfo=UTC))
         mock_db.execute.return_value.all.return_value = [(row, recorded)]
 
         with patch.object(crud.activity_serializers, "serialize_and_mask", return_value=[MagicMock()]):
             [entry] = crud.get_following_feed_after([_USER_2], None, 10, mock_db)
 
-        assert (entry.cursor_sort_value, entry.cursor_id) == (recorded, 7)
+        assert (entry.cursor_sort_value, entry.cursor_id) == (recorded, activity_id)
 
     def test_the_own_feed_reads_every_visibility_of_one_user_in_the_same_order(self, mock_db):
         import modules.activities.activity.crud as crud
@@ -1796,7 +1797,9 @@ class TestFollowingFeedOrder:
     def test_the_own_feed_masks_nothing_for_its_owner(self, mock_db):
         import modules.activities.activity.crud as crud
 
-        mock_db.execute.return_value.all.return_value = [(SimpleNamespace(id=7), datetime(2024, 1, 20, tzinfo=UTC))]
+        mock_db.execute.return_value.all.return_value = [
+            (SimpleNamespace(id=uuid.uuid4()), datetime(2024, 1, 20, tzinfo=UTC))
+        ]
 
         with patch.object(crud.activity_serializers, "serialize_and_mask", return_value=[MagicMock()]) as serialize:
             crud.get_own_feed_after(_USER_3, None, 10, mock_db)

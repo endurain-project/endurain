@@ -82,7 +82,7 @@ def normalize_username_key(username: str) -> str:
         username: Raw username from the request.
 
     Returns:
-        The URL-decoded, trimmed, case-folded username.
+        The trimmed, lower-cased username, the form the account lookup matches on.
     """
     return lockout_store.normalize_username_key(username)
 

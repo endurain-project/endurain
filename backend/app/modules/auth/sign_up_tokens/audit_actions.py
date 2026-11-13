@@ -33,10 +33,10 @@ class EmailChangeCancelDetails(VersionedPayload):
     Attributes:
         sessions_revoked: How many of the user's sessions the cancellation ended.
         api_keys_revoked: How many of the user's API keys it revoked.
-        change_applied: Whether the change, or a later change voided by the link, had been confirmed.
+        change_applied: Whether the change, or a later change reverted by the link, had been confirmed.
         email_restored: Whether the account's previous address was put back.
-        reset_tokens_revoked: Whether the account's unused password-reset tokens were revoked because the previous
-            address could not be put back.
+        reset_tokens_revoked: Whether the account's unused password-reset tokens were revoked; every accepted link
+            revokes them, through the restored address or directly.
     """
 
     model_config = ConfigDict(extra="forbid")

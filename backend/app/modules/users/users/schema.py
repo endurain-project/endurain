@@ -908,8 +908,10 @@ class UserEdit(ProfileUpdate):
         "email_verified",
     )
 
-    username: UserUsername | None = None
-    email: UserEmail | None = None
+    username: UserUsername | None = Field(
+        default=None, description="Unique username (alphanumeric, dots, hyphen, underscore)"
+    )
+    email: UserEmail | None = Field(default=None, description="User's email address")
     access_type: UserAccessType | None = Field(default=None, description="User access level")
     active: StrictBool | None = Field(default=None, description="Whether the user is active")
     email_verified: StrictBool | None = Field(default=None, description="Whether email is verified")

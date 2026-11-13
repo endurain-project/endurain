@@ -136,7 +136,7 @@ class TestUploadJob:
 
         def _import(*_args, **_kwargs):
             seen.append(_read_job(factory).status)
-            return [SimpleNamespace(id=1)]
+            return [SimpleNamespace(id=uuid.uuid4())]
 
         with (
             patch.object(ingestion_jobs.core_database, "SessionLocal", factory),

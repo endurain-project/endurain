@@ -113,7 +113,7 @@ def set_browser_binding_cookie(response: Response, browser_binding: str) -> None
         browser_binding: The secret the callback requires.
     """
     response.set_cookie(
-        key=auth_computation.host_cookie_name(_BINDING_COOKIE_BASE_NAME, core_config.settings.ENVIRONMENT),
+        key=BINDING_COOKIE_NAME,
         value=browser_binding,
         max_age=oauth_state_constants.STATE_TTL_SECONDS,
         path=BINDING_COOKIE_PATH,
@@ -130,7 +130,7 @@ def clear_browser_binding_cookie(response: Response) -> None:
         response: The callback's response.
     """
     response.delete_cookie(
-        key=auth_computation.host_cookie_name(_BINDING_COOKIE_BASE_NAME, core_config.settings.ENVIRONMENT),
+        key=BINDING_COOKIE_NAME,
         path=BINDING_COOKIE_PATH,
         httponly=True,
         secure=auth_computation.secure_cookie(core_config.settings.ENVIRONMENT),

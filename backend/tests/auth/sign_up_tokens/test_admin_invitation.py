@@ -8,10 +8,12 @@ import pytest
 from sqlalchemy.orm import sessionmaker
 
 import core.exceptions as core_exceptions
+import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.sign_up_tokens.email_messages as email_messages
 import modules.auth.sign_up_tokens.event_publishers as sign_up_publishers
 import modules.auth.sign_up_tokens.events as sign_up_events
 import modules.auth.sign_up_tokens.integration_service as sign_up_integration
+import modules.auth.sign_up_tokens.schema as sign_up_schema
 import modules.auth.sign_up_tokens.service as sign_up_service
 import modules.auth.sign_up_tokens.subscribers as sign_up_subscribers
 import modules.users.users.models as users_models
@@ -102,6 +104,28 @@ class TestPrepare:
 
     def test_a_missing_user_is_skipped(self, db):
         assert sign_up_service.prepare_admin_invitation_email(_USER_999, "event-1", _HOST, db) is None
+
+
+class TestConfirm:
+    def test_the_invitation_link_is_confirmed_while_email_verification_is_not_required(self, db):
+        _, _, html_body, _ = sign_up_service.prepare_admin_invitation_email(MOCK_USER_ID, "event-1", _HOST, db)
+        token = html_body.split("/signup/confirm?token=")[1].split('"')[0].split("<")[0]
+        settings = MagicMock(
+            signup_enabled=True,
+            signup_require_email_verification=False,
+            signup_require_admin_approval=False,
+            password_length_regular_users=8,
+            password_length_admin_users=12,
+        )
+
+        with patch(f"{_SERVICE}.server_settings_integration.get_server_settings", return_value=settings):
+            result = sign_up_service.confirm_sign_up(token, "ChosenPass1!", db)
+
+        assert result.next_step is sign_up_schema.SignUpNextStep.SIGN_IN
+        db.expire_all()
+        user = db.get(users_models.Users, MOCK_USER_ID)
+        assert (user.active, user.email_verified) == (True, True)
+        assert credentials_integration.has_local_password(MOCK_USER_ID, db) is True
 
 
 class TestSubscriber:

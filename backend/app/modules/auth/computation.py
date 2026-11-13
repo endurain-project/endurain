@@ -84,7 +84,7 @@ def validate_pkce_challenge(code_challenge: str, code_challenge_method: str) -> 
 
 
 #: The characters RFC 7636 section 4.1 allows in a ``code_verifier``: ``ALPHA / DIGIT / "-" / "." / "_" / "~"``.
-PKCE_VERIFIER_PATTERN = re.compile(r"^[A-Za-z0-9._~-]+$")
+PKCE_VERIFIER_PATTERN = re.compile(r"[A-Za-z0-9._~-]+")
 PKCE_VERIFIER_CHARSET_MESSAGE = "code_verifier must use only the characters A-Z, a-z, 0-9, '-', '.', '_' and '~'"
 
 
@@ -108,7 +108,7 @@ def validate_pkce_verifier(code_verifier: str, code_challenge: str, code_challen
     if not (43 <= len(code_verifier) <= 128):
         raise core_exceptions.InvalidInputError("code_verifier must be 43-128 characters")
 
-    if not PKCE_VERIFIER_PATTERN.match(code_verifier):
+    if not PKCE_VERIFIER_PATTERN.fullmatch(code_verifier):
         raise core_exceptions.InvalidInputError(PKCE_VERIFIER_CHARSET_MESSAGE)
 
     # Verify method is S256

@@ -204,6 +204,14 @@ class TestUnknownUsername:
 
         assert store.is_locked_out("alice", _IP, user_id=_USER_ID) is False
 
+    def test_a_percent_encoded_variant_of_a_locked_unknown_username_answers_like_one_of_a_locked_account(self):
+        store = failed_login_store.FailedLoginAttempts(MemoryState())
+        for i in range(100):
+            store.record_failed_attempt("ghost", f"198.51.100.{i}", user_id=None)
+
+        assert store.is_locked_out("%67host", _IP, user_id=None) is False
+        assert store.is_locked_out("ghost", _IP, user_id=None) is True
+
     def test_clear_all_clears_the_unknown_username_counters(self):
         store = failed_login_store.FailedLoginAttempts(MemoryState())
         for i in range(100):

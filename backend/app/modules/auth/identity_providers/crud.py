@@ -27,6 +27,27 @@ def get_identity_provider(idp_id: uuid.UUID, db: Session) -> identity_provider_c
     return identity_provider_serializers.to_state(row) if row is not None else None
 
 
+def lock_provider_enabled(idp_id: uuid.UUID, db: Session) -> bool:
+    """Lock a provider row and tell whether it exists and is enabled.
+
+    The lock lasts until the caller's transaction ends, so an edit that disables the provider waits for it and then
+    ends the sessions this transaction created, and an edit that already disabled it is read as disabled.
+
+    Args:
+        idp_id: The provider to lock.
+        db: Database session.
+
+    Returns:
+        True when the provider exists and is enabled.
+    """
+    enabled = db.execute(
+        select(identity_provider_models.IdentityProvider.enabled)
+        .where(identity_provider_models.IdentityProvider.id == idp_id)
+        .with_for_update()
+    ).scalar_one_or_none()
+    return enabled is True
+
+
 def get_identity_provider_by_slug(slug: str, db: Session) -> identity_provider_contracts.IdentityProviderState | None:
     """Return a provider state by its slug."""
     row = db.execute(

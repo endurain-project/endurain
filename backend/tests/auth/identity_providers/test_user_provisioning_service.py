@@ -19,6 +19,8 @@ import modules.auth.identity_providers.user_provisioning_service as user_provisi
 import modules.users.users.schema as users_schema
 from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
+NEW_USER_ID = uuid.uuid4()
+
 IDP_ID = uuid.uuid4()
 
 
@@ -247,7 +249,7 @@ class TestCreatedAccountEmailVerification:
                 user_provisioning_service.identity_provider_links_integration, "create_user_identity_provider"
             ),
         ):
-            create_sso_user.return_value = MagicMock(id=3, username="new")
+            create_sso_user.return_value = MagicMock(id=NEW_USER_ID, username="new")
             user_provisioning_service.create_user_from_idp(
                 _make_idp(),
                 "subject-123",
@@ -300,7 +302,7 @@ class TestCreatedAccountEmailVerification:
                 user_provisioning_service.identity_provider_links_integration, "create_user_identity_provider"
             ),
         ):
-            create_sso_user.return_value = MagicMock(id=3, username="new")
+            create_sso_user.return_value = MagicMock(id=NEW_USER_ID, username="new")
             user_provisioning_service.create_user_from_idp(
                 _make_idp(),
                 "subject-123",
@@ -445,7 +447,9 @@ class TestLinkByEmail:
             patch(f"{_BASE}.users_integration.get_user_by_email", return_value=None),
             patch(f"{_BASE}.users_integration.get_user_by_username", return_value=None),
             patch(f"{_BASE}.server_settings_integration.get_server_settings"),
-            patch(f"{_BASE}.users_integration.create_sso_user", return_value=MagicMock(id=3, username="new")) as create,
+            patch(
+                f"{_BASE}.users_integration.create_sso_user", return_value=MagicMock(id=NEW_USER_ID, username="new")
+            ) as create,
             patch(f"{_BASE}.identity_provider_links_integration.create_user_identity_provider"),
         ):
             user_provisioning_service.find_or_create_user(
@@ -613,7 +617,7 @@ def _signed_up_username(subject: str, claims: dict, taken: set[str] | None = Non
         patch.object(user_provisioning_service.users_integration, "create_sso_user") as create_sso_user,
         patch.object(user_provisioning_service.identity_provider_links_integration, "create_user_identity_provider"),
     ):
-        create_sso_user.return_value = MagicMock(id=3, username="new")
+        create_sso_user.return_value = MagicMock(id=NEW_USER_ID, username="new")
         user_provisioning_service.create_user_from_idp(idp, subject, mapped, MagicMock(), email_verified=True)
     return create_sso_user.call_args.args[0].username
 

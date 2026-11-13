@@ -41,6 +41,10 @@ def client():
 _MULTIPART = {"content-type": "multipart/form-data; boundary=b"}
 
 
+_PRODUCTION_BODY_BYTES = body_limit.MAX_BODY_BYTES
+_PRODUCTION_PUBLIC_BODY_BYTES = body_limit.MAX_PUBLIC_BODY_BYTES
+
+
 @pytest.fixture(autouse=True)
 def _small_limits(monkeypatch):
     monkeypatch.setattr(body_limit, "MAX_BODY_BYTES", 100)
@@ -216,7 +220,8 @@ class TestRealCredentialRoutes:
 
     @pytest.fixture(autouse=True)
     def _production_caps(self, monkeypatch):
-        monkeypatch.undo()
+        monkeypatch.setattr(body_limit, "MAX_BODY_BYTES", _PRODUCTION_BODY_BYTES)
+        monkeypatch.setattr(body_limit, "MAX_PUBLIC_BODY_BYTES", _PRODUCTION_PUBLIC_BODY_BYTES)
 
     @pytest.mark.parametrize(
         "path",

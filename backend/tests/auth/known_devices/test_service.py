@@ -474,6 +474,43 @@ class TestListAndForget:
 
         assert known_devices_service.list_devices(MOCK_USER_ID, None, core_pagination.PageParams(1, 10), db).total == 0
 
+    def test_forgetting_the_other_devices_after_a_security_change_ends_the_sessions_of_every_generation(
+        self, db, publish
+    ):
+        _account(db, age=timedelta(days=30))
+        _record(db, device_id=_DEVICE_ID)
+        _record(db, device_id=_OTHER_DEVICE_ID)
+        current_hash, other_hash = core_hashing.sha256_hex(_DEVICE_ID), core_hashing.sha256_hex(_OTHER_DEVICE_ID)
+        _session(db, _sid("on-current"), MOCK_USER_ID, current_hash)
+        _session(db, _sid("on-other"), MOCK_USER_ID, other_hash)
+        security_generation_integration.stage_bump(MOCK_USER_ID, db)
+        _record(db, device_id=_DEVICE_ID)
+
+        with patch(_PUBLISH_REVOKED):
+            ended = known_devices_service.forget_other_devices(MOCK_USER_ID, _DEVICE_ID, db)
+
+        assert ended == 1
+        assert _hashes(db, MOCK_USER_ID) == {current_hash}
+        assert _session_ids(db) == {_sid("on-current")}
+
+    def test_forgetting_all_devices_after_a_security_change_ends_every_session_of_every_generation(self, db, publish):
+        _account(db, age=timedelta(days=30))
+        _record(db, device_id=_DEVICE_ID)
+        _record(db, device_id=_OTHER_DEVICE_ID)
+        current_hash, other_hash = core_hashing.sha256_hex(_DEVICE_ID), core_hashing.sha256_hex(_OTHER_DEVICE_ID)
+        _session(db, _sid("on-current"), MOCK_USER_ID, current_hash)
+        _session(db, _sid("on-other"), MOCK_USER_ID, other_hash)
+        _session(db, _sid("before-the-migration"), MOCK_USER_ID, None)
+        security_generation_integration.stage_bump(MOCK_USER_ID, db)
+        _record(db, device_id=_DEVICE_ID)
+
+        with patch(_PUBLISH_REVOKED):
+            ended = known_devices_service.forget_other_devices(MOCK_USER_ID, None, db)
+
+        assert ended == 2
+        assert _hashes(db, MOCK_USER_ID) == set()
+        assert _session_ids(db) == {_sid("before-the-migration")}
+
     def test_forgetting_the_other_devices_leaves_another_users_devices(self, db, publish):
         _account(db, age=timedelta(days=30))
         _account(db, user_id=OTHER_USER_ID, age=timedelta(days=30))

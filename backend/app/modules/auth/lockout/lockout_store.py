@@ -5,7 +5,6 @@ import hmac
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import NoReturn
-from urllib.parse import unquote
 
 from jasil.providers import StateBackendUnavailableError, StateProvider
 
@@ -17,8 +16,8 @@ _AUTH_KEY_PREFIX = "endurain:auth"
 
 
 def normalize_username_key(username: str) -> str:
-    """Normalize a username before using it as a lockout key."""
-    return unquote(username).replace("+", " ").strip().casefold()
+    """Return the form the account lookup uses (trimmed, lower-cased), so a name and its lock key always agree."""
+    return username.strip().lower()
 
 
 def _username_digest(username: str) -> str:

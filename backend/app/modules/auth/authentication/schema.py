@@ -217,7 +217,7 @@ class TokenExchangeRequest(BaseModel):
         Raises:
             ValueError: If format is invalid (wrong length or characters).
         """
-        if not auth_computation.PKCE_VERIFIER_PATTERN.match(v):
+        if not auth_computation.PKCE_VERIFIER_PATTERN.fullmatch(v):
             raise ValueError(auth_computation.PKCE_VERIFIER_CHARSET_MESSAGE)
         return v
 

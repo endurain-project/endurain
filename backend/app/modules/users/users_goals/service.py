@@ -6,7 +6,6 @@ modules may consume lives in :mod:`modules.users.users_goals.integration_service
 """
 
 import uuid
-from datetime import datetime
 
 from sqlalchemy.orm import Session
 
@@ -74,8 +73,6 @@ def create_goal(
     user_id: uuid.UUID,
     user_goal: user_goals_schema.UserGoalCreate,
     db: Session,
-    *,
-    created_at: datetime | None = None,
 ) -> user_goals_schema.UserGoalRead:
     """Create a goal for a user and commit.
 
@@ -83,7 +80,6 @@ def create_goal(
         user_id: The user the goal belongs to.
         user_goal: Goal data to create.
         db: Database session.
-        created_at: Creation time to store; the transaction time when omitted.
 
     Returns:
         The created goal.
@@ -91,7 +87,7 @@ def create_goal(
     Raises:
         ConflictError: If the user already has a goal for this activity type, interval and goal type.
     """
-    created = user_goals_crud.create_user_goal(user_id, user_goal, db, created_at=created_at)
+    created = user_goals_crud.create_user_goal(user_id, user_goal, db)
     db.commit()
     logger.info("User goal created", extra=core_logger.context(user_id=user_id, goal_id=created.id))
     return created

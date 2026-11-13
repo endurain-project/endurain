@@ -195,7 +195,8 @@ class _RawCursor(BaseModel):
     f: int | None = None
     s: datetime | None = None
     r: int | None = None
-    i: str | None = None
+    # Any type, so a cursor of an older format (an integer id) reaches the format check and expires.
+    i: object = None
     t: datetime
 
 
@@ -215,6 +216,8 @@ def _decode(cursor: str) -> _Cursor:
         raise core_exceptions.SyncExpiredError()
     if raw.s is None or raw.r is None or raw.i is None:
         return _Cursor(None, raw.t)
+    if not isinstance(raw.i, str):
+        raise core_exceptions.InvalidInputError("Invalid sync cursor")
     try:
         _check_rank(raw.r)
         row_id = uuid.UUID(raw.i)

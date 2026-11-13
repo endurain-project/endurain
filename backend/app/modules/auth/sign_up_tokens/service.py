@@ -795,27 +795,28 @@ def cancel_email_change(token: str, db: Session) -> sign_up_schema.EmailChangeCa
     """Report an email change as not made by the account's owner, with its "this wasn't me" link, and commit.
 
     The person who asked knew the password and passed the step-up, so the account is treated as one that someone
-    else may reach: the security generation advances, every session ends and the API keys are revoked. The password
-    is not changed; the notice tells the owner to reset it. The link works once, for seven days after the request.
+    else may reach: the security generation advances, every session ends, the API keys are revoked and the unused
+    password-reset tokens are revoked. The password is not changed; the notice tells the owner to reset it. The link
+    works once, for seven days after the request, whatever happened to the change since: confirmed, still pending,
+    replaced by a later request or expired unconfirmed.
 
-    The link puts the account back on the address it was mailed to, whether or not the change was confirmed and
-    whatever the account's address is now, and voids every later change of the account that is still inside its
-    revert window, so a change requested after the first one cannot end the link. The previous address is put back
-    unless another account holds it now; the account is secured either way, and when the address is not restored the
-    account's unused password-reset tokens are also revoked, so no reset reaches the address that stays. Before any
-    change is confirmed, the pending change is voided.
+    The link reverts its change together with every later change of the account that is still inside its revert
+    window and not reverted, and voids every unused link of the account, so a pending change can no longer be
+    confirmed. When any of those changes was confirmed, the account is put back on the address the link was mailed
+    to, whatever its address is now, unless another account holds that address now; the account is secured either
+    way.
 
     Args:
         token: The token of the link emailed to the account's address.
         db: Database session.
 
     Returns:
-        An ``EmailChangeCancelRead`` saying whether the change, or a later change the link voided, had been confirmed
+        An ``EmailChangeCancelRead`` saying whether the change, or a later change the link reverted, had been confirmed
         and whether the previous address was restored.
 
     Raises:
-        InvalidInputError: If the link is malformed, forged, expired, already used, or names a change that was
-            already reverted or replaced before it was confirmed.
+        InvalidInputError: If the link is malformed, forged, used more than seven days after the request, or names a
+            change that was already reverted.
     """
     now = datetime.now(UTC)
     named = _email_change_of_link(token, now, db)
@@ -837,27 +838,18 @@ def cancel_email_change(token: str, db: Session) -> sign_up_schema.EmailChangeCa
         run_rows.extend(sign_up_crud.get_email_change_tokens(later_id, now, db))
     confirmed = any(row.confirmed_at is not None for row in run_rows)
     previous_email = next((row.previous_email for row in rows if row.previous_email is not None), None)
-    if confirmed:
-        if previous_email is None:
-            _refuse_revert(db)
-    elif not any(
-        pending.change_id == change_id for pending in sign_up_crud.get_pending_email_change_tokens([user_id], now, db)
-    ):
-        _refuse_revert(db)
-    if sign_up_crud.mark_email_changes_reverted([change_id, *later_ids], db) == 0:
+    if previous_email is None or sign_up_crud.mark_email_changes_reverted([change_id, *later_ids], db) == 0:
         _refuse_revert(db)
     sign_up_crud.mark_user_sign_up_tokens_used(user_id, db)
 
     email_restored = False
-    reset_tokens_revoked = False
-    if confirmed and previous_email is not None:
+    if confirmed:
         if _holder_of(previous_email, user_id, db) is None:
             users_integration.stage_confirmed_email_change(user_id, previous_email, db)
             email_restored = True
         else:
             logger.info("Previous email address not restored", extra=core_logger.context(user_id=user_id))
-            password_reset_tokens_integration.revoke_unused_tokens(user_id, db)
-            reset_tokens_revoked = True
+    password_reset_tokens_integration.revoke_unused_tokens(user_id, db)
     sessions_revoked = sessions_integration.delete_sessions_by_user(user_id, db)
     api_keys_revoked = api_keys_integration.revoke_user_api_keys(user_id, db)
     jasil_audit.stage(
@@ -871,7 +863,7 @@ def cancel_email_change(token: str, db: Session) -> sign_up_schema.EmailChangeCa
             api_keys_revoked=api_keys_revoked,
             change_applied=confirmed,
             email_restored=email_restored,
-            reset_tokens_revoked=reset_tokens_revoked,
+            reset_tokens_revoked=True,
         ),
     )
     db.commit()

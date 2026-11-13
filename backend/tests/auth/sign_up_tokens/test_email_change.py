@@ -309,10 +309,11 @@ class TestVerifyEmailOnAnInactiveAccount:
     """A link never activates an account an administrator deactivated, and never takes the sign-up path."""
 
     @staticmethod
-    def _settings(*, verification, approval):
+    def _settings(*, verification, approval, enabled=True):
         return patch(
             f"{_SERVICE}.server_settings_integration.get_server_settings",
             return_value=MagicMock(
+                signup_enabled=enabled,
                 signup_require_email_verification=verification,
                 signup_require_admin_approval=approval,
                 password_length_regular_users=8,
@@ -397,6 +398,31 @@ class TestVerifyEmailOnAnInactiveAccount:
         user = db.get(users_models.Users, MOCK_USER_ID)
         assert (user.active, user.email_verified, user.pending_admin_approval) == (False, True, True)
         approval_emails.assert_called_once_with(MOCK_USER_ID, db)
+
+    def test_a_sign_up_refused_while_sign_up_is_off_confirms_with_the_same_link_once_it_is_on(
+        self, db, mail_configured
+    ):
+        self._make_inactive(db, deactivated=False)
+        _add_token(db, token_id=tid("t1"), token="plain", email=_OWNER_EMAIL, previous_email=None)
+
+        with (
+            self._settings(verification=True, approval=False, enabled=False),
+            pytest.raises(core_exceptions.PermissionDeniedError),
+        ):
+            sign_up_service.confirm_sign_up("plain", "ChosenPass1!", db)
+
+        db.expire_all()
+        assert _tokens(db).one().used is False
+        assert db.get(users_models.Users, MOCK_USER_ID).active is False
+
+        with self._settings(verification=True, approval=False), patch(_PUBLISH):
+            result = sign_up_service.confirm_sign_up("plain", "ChosenPass1!", db)
+
+        assert result.next_step is sign_up_schema.SignUpNextStep.SIGN_IN
+        db.expire_all()
+        user = db.get(users_models.Users, MOCK_USER_ID)
+        assert (user.active, user.email_verified) == (True, True)
+        assert _tokens(db).one().used is True
 
 
 class TestVerifyEmailVoidsPasswordResetTokens:

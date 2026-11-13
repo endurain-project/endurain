@@ -216,7 +216,7 @@ class TestCreateNotificationOnce:
             source_event_id="event-1",
             options={"user_id": str(_ID_1)},
         )
-        existing = MagicMock(id=7)
+        existing = MagicMock(id=uuid.uuid4())
 
         with (
             patch("modules.notifications.crud.get_notification_by_source_event", return_value=existing),
@@ -238,7 +238,7 @@ class TestCreateNotificationOnce:
             source_event_id="event-1",
             options={"user_id": str(_ID_1)},
         )
-        existing = MagicMock(id=7)
+        existing = MagicMock(id=uuid.uuid4())
         integrity_error = IntegrityError("INSERT", {}, RuntimeError("duplicate"))
         mock_db.begin_nested.return_value.__exit__.return_value = False
 

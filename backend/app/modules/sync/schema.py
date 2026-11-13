@@ -34,7 +34,7 @@ class SyncType(StrEnum):
     GEAR_COMPONENT = "gear_component"
 
 
-class SyncChange[RecordT: BaseModel, IdT: (int, uuid.UUID)](BaseModel):
+class SyncChange[RecordT: BaseModel](BaseModel):
     """One record that changed or was deleted since the cursor.
 
     Attributes:
@@ -45,66 +45,66 @@ class SyncChange[RecordT: BaseModel, IdT: (int, uuid.UUID)](BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    id: IdT = Field(..., description="The record's id")
+    id: uuid.UUID = Field(..., description="The record's id")
     changed_at: datetime = Field(..., description="When the record changed, or when it was deleted")
     record: RecordT | None = Field(default=None, description="The record; null when it was deleted")
 
 
-class ActivityChange(SyncChange[activity_schema.ActivityRead, uuid.UUID]):
+class ActivityChange(SyncChange[activity_schema.ActivityRead]):
     """A changed or deleted activity."""
 
     type: Literal["activity"] = "activity"
 
 
-class HealthWeightChange(SyncChange[health_weight_schema.HealthWeightRead, uuid.UUID]):
+class HealthWeightChange(SyncChange[health_weight_schema.HealthWeightRead]):
     """A changed or deleted weight record."""
 
     type: Literal["health_weight"] = "health_weight"
 
 
-class HealthStepsChange(SyncChange[health_steps_schema.HealthStepsRead, uuid.UUID]):
+class HealthStepsChange(SyncChange[health_steps_schema.HealthStepsRead]):
     """A changed or deleted steps record."""
 
     type: Literal["health_steps"] = "health_steps"
 
 
-class HealthSleepChange(SyncChange[health_sleep_schema.HealthSleepRead, uuid.UUID]):
+class HealthSleepChange(SyncChange[health_sleep_schema.HealthSleepRead]):
     """A changed or deleted sleep record, with its sleep stages."""
 
     type: Literal["health_sleep"] = "health_sleep"
 
 
-class HealthWaterChange(SyncChange[health_water_schema.HealthWaterRead, uuid.UUID]):
+class HealthWaterChange(SyncChange[health_water_schema.HealthWaterRead]):
     """A changed or deleted water record."""
 
     type: Literal["health_water"] = "health_water"
 
 
-class HealthPoopChange(SyncChange[health_poop_schema.HealthPoopRead, uuid.UUID]):
+class HealthPoopChange(SyncChange[health_poop_schema.HealthPoopRead]):
     """A changed or deleted bowel movement record."""
 
     type: Literal["health_poop"] = "health_poop"
 
 
-class HealthFastingChange(SyncChange[health_fasting_schema.HealthFastingRead, uuid.UUID]):
+class HealthFastingChange(SyncChange[health_fasting_schema.HealthFastingRead]):
     """A changed or deleted fasting record."""
 
     type: Literal["health_fasting"] = "health_fasting"
 
 
-class HealthTargetsChange(SyncChange[health_targets_schema.HealthTargetsRead, uuid.UUID]):
+class HealthTargetsChange(SyncChange[health_targets_schema.HealthTargetsRead]):
     """A changed or deleted set of health targets."""
 
     type: Literal["health_targets"] = "health_targets"
 
 
-class GearChange(SyncChange[gear_schema.GearDetailRead, uuid.UUID]):
+class GearChange(SyncChange[gear_schema.GearDetailRead]):
     """A changed or deleted gear, with its totals; the totals follow activities without stamping the gear."""
 
     type: Literal["gear"] = "gear"
 
 
-class GearComponentChange(SyncChange[gear_components_schema.GearComponentRead, uuid.UUID]):
+class GearComponentChange(SyncChange[gear_components_schema.GearComponentRead]):
     """A changed or deleted gear component."""
 
     type: Literal["gear_component"] = "gear_component"

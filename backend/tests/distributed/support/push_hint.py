@@ -3,6 +3,8 @@
 Run from the ``app`` directory with that process's environment. It builds the platform and
 publishes through the websocket surface without subscribing or starting the channel, which
 is all a worker does.
+
+Arguments: the user id, the hint message and the notification id the hint carries.
 """
 
 # ruff: noqa: E402 - a process entry point: it extends sys.path before importing.

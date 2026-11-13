@@ -16,7 +16,6 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
 import core.sync as core_sync
-import core.types as core_types
 import modules.gears.contracts as gears_contracts
 import modules.gears.contributor_registry as gears_contributor_registry
 import modules.gears.gear.constants as gears_constants
@@ -209,8 +208,7 @@ def restore_profile_gear_components(
     """Stage the gear components of a profile archive; the caller commits.
 
     Each component moves onto the stored gear its archived gear id was restored as; one whose gear is not
-    in ``ids["gears"]`` is skipped. An archive exported before the rename carries ``expected_kms``, read as
-    ``expected_usage``.
+    in ``ids["gears"]`` is skipped.
 
     Args:
         records: The archived components.
@@ -232,15 +230,9 @@ def restore_profile_gear_components(
             continue
         record["gear_id"] = new_gear_id
 
-        if "expected_kms" in record:
-            legacy_threshold = record.pop("expected_kms")
-            record.setdefault("expected_usage", legacy_threshold)
-
         record = users_profile_contracts.without_row_identity(record)
         for derived in ("current_distance", "current_time"):
             record.pop(derived, None)
-        if "purchase_value" in record:
-            record["purchase_value"] = core_types.money_from_archived_number(record["purchase_value"])
 
         try:
             gear_component = gear_components_schema.GearComponentCreate(**record)

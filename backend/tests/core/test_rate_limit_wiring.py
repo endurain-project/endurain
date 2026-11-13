@@ -624,3 +624,88 @@ def test_job_polling_has_its_own_tier(enabled_limiter, real_app):
 
     assert 429 not in statuses[:cap]
     assert statuses[cap] == 429
+
+
+def _refused_polls(client: TestClient, count: int) -> list[int]:
+    """Poll a job with a token no one signed, which the authentication layer refuses."""
+    path = f"{core_config.ROOT_PATH}/jobs/{uuid.uuid4()}"
+    return [client.get(path, headers={"Authorization": "Bearer not-a-token"}).status_code for _ in range(count)]
+
+
+@pytest.fixture
+def signed_in(real_app) -> Iterator[None]:
+    """Authenticate every request of the real application as one user."""
+    real_app.dependency_overrides[auth_dependencies.get_principal] = lambda: SimpleNamespace(
+        user_id=uuid.uuid4(), scopes=frozenset()
+    )
+    try:
+        yield
+    finally:
+        real_app.dependency_overrides.pop(auth_dependencies.get_principal)
+
+
+def test_refused_requests_to_a_decorated_route_count_against_the_default_limit(enabled_limiter, real_app):
+    """A flood the authentication layer refuses is capped like one against an undecorated route."""
+    client = TestClient(real_app, raise_server_exceptions=False)
+
+    statuses = _refused_polls(client, 121)
+
+    assert statuses[:120] == [401] * 120
+    assert statuses[120] == 429
+
+
+def test_the_refusal_answer_carries_the_back_off_headers(enabled_limiter, real_app):
+    """The 429 for a spent refusal budget tells the client how long to wait, as every other 429 does."""
+    client = TestClient(real_app, raise_server_exceptions=False)
+    _refused_polls(client, 120)
+
+    refused = client.get(f"{core_config.ROOT_PATH}/jobs/{uuid.uuid4()}", headers={"Authorization": "Bearer nope"})
+
+    assert refused.status_code == 429
+    assert refused.headers["content-type"].startswith("application/problem+json")
+    assert 1 <= int(refused.headers["Retry-After"]) <= 60
+    assert refused.headers["X-RateLimit-Limit"] == "120"
+    assert refused.headers["X-RateLimit-Remaining"] == "0"
+
+
+def test_a_spent_refusal_budget_refuses_later_requests_to_decorated_routes(enabled_limiter, real_app, signed_in):
+    """Once the budget is spent the client is answered 429 on the route until the window resets."""
+    client = TestClient(real_app, raise_server_exceptions=False)
+    real_app.dependency_overrides.pop(auth_dependencies.get_principal)
+    _refused_polls(client, 120)
+    real_app.dependency_overrides[auth_dependencies.get_principal] = lambda: SimpleNamespace(
+        user_id=uuid.uuid4(), scopes=frozenset()
+    )
+
+    assert client.get(f"{core_config.ROOT_PATH}/jobs/{uuid.uuid4()}").status_code == 429
+
+
+def test_valid_requests_are_not_counted_against_the_default_limit(enabled_limiter, real_app, signed_in):
+    """Requests the route accepts keep to the route's own limit, so more than the default's worth are served."""
+    client = TestClient(real_app, raise_server_exceptions=False)
+
+    statuses = _statuses(client, f"{core_config.ROOT_PATH}/jobs/{uuid.uuid4()}", 130)
+
+    assert 429 not in statuses
+
+
+def test_refused_requests_are_counted_once(enabled_limiter, real_app):
+    """A refused request spends one unit of the refusal budget, not two."""
+    client = TestClient(real_app, raise_server_exceptions=False)
+
+    statuses = _refused_polls(client, 120)
+
+    assert 429 not in statuses
+
+
+def test_the_refusal_budget_is_kept_per_route_not_per_url(enabled_limiter, real_app):
+    """A flood that varies the path parameters of a route still spends one budget."""
+    client = TestClient(real_app, raise_server_exceptions=False)
+    headers = {"Authorization": "Bearer not-a-token"}
+
+    statuses = [
+        client.get(f"{core_config.ROOT_PATH}/jobs/{uuid.uuid4()}", headers=headers).status_code for _ in range(121)
+    ]
+
+    assert statuses[:120] == [401] * 120
+    assert statuses[120] == 429

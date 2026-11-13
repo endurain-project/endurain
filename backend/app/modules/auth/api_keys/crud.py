@@ -3,7 +3,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy import delete, func, or_, select, text, update
 from sqlalchemy.orm import Session
 
 import core.database as core_database
@@ -11,6 +11,26 @@ import core.exceptions as core_exceptions
 import modules.auth.api_keys.models as api_keys_models
 import modules.auth.api_keys.schema as api_keys_schema
 import modules.auth.api_keys.serializers as api_keys_serializers
+
+#: Advisory-lock namespace of a user's API-key creation, kept apart from every other advisory lock.
+_CREATION_LOCK_NAMESPACE = 7303
+
+
+def lock_api_key_creation(user_id: uuid.UUID, db: Session) -> None:
+    """Serialise the writers that add an API key for a user, until the transaction ends.
+
+    A cap read with ``count`` and then enforced by an insert lets concurrent requests each see room and all
+    insert, so the writer takes this lock first and counts again under it. It blocks only requests for the same
+    user.
+
+    Args:
+        user_id: The user the key is created for.
+        db: Database session.
+    """
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(:namespace, hashtext(:user_id))"),
+        {"namespace": _CREATION_LOCK_NAMESPACE, "user_id": str(user_id)},
+    )
 
 
 def get_api_keys_page(

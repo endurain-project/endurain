@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.dependencies as core_dependencies
+import core.exceptions as core_exceptions
 import modules.auth.credentials.password_hasher as auth_password_hasher
 import modules.auth.password_reset_tokens.public_router as prt_router
 
@@ -25,6 +26,7 @@ def fast_api_app() -> FastAPI:
     """
     app = FastAPI()
     app.include_router(prt_router.router)
+    core_exceptions.register_exception_handlers(app)
 
     mock_db = MagicMock(spec=Session)
     hasher = auth_password_hasher.get_password_hasher()

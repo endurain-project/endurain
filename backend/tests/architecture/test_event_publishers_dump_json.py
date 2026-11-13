@@ -1,7 +1,8 @@
 """Event payloads reach the outbox and the event bus through ``json.dumps``, so publishers dump in JSON mode.
 
 A python-mode ``model_dump()`` keeps ``datetime`` values that ``json.dumps`` rejects (jasil turns a ``uuid.UUID`` into
-its string itself). Dumping in JSON mode everywhere keeps one rule. Every ``.model_dump(...)`` call in a module that imports ``jasil.publisher`` must pass ``mode="json"``.
+its string itself). Dumping in JSON mode everywhere keeps one rule. Every ``.model_dump(...)`` call in a module that
+imports ``jasil.publisher`` must pass ``mode="json"``.
 """
 
 import ast

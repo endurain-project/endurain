@@ -25,15 +25,6 @@ import modules.users.users_profile.contracts as users_profile_contracts
 
 logger = core_logger.get_logger(__name__)
 
-#: The field names a profile archive written before the units were in the names uses, by current name.
-_ARCHIVE_RENAMES = {
-    "weight": "weight_kg",
-    "body_fat": "body_fat_percent",
-    "body_water": "body_water_percent",
-    "bone_mass": "bone_mass_kg",
-    "muscle_mass": "muscle_mass_kg",
-}
-
 
 def _user_height_cm(user_id: uuid.UUID, db: Session) -> float | None:
     """Return the user's height in centimeters, or ``None`` when unknown.
@@ -391,9 +382,7 @@ def restore_profile_records(
     """
     staged = 0
     for health_weight in records:
-        health_weight = health_record_service.in_current_names(
-            users_profile_contracts.without_row_identity(health_weight), _ARCHIVE_RENAMES
-        )
+        health_weight = users_profile_contracts.without_row_identity(health_weight)
 
         # Convert string numeric values to floats
         numeric_fields = [

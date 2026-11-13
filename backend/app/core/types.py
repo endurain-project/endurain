@@ -1,4 +1,4 @@
-"""Annotated types for values a client sends, shared by the request schemas and routes."""
+"""Annotated types for values a client sends, shared by the request schemas and routes, and the keyset sentinels."""
 
 import uuid
 from datetime import UTC, date, datetime, timedelta
@@ -113,20 +113,6 @@ Money = Annotated[StrictStr, BeforeValidator(_stored_decimal_as_text), Field(pat
 
 #: A sum of prices as a decimal string with two decimals, which can pass what one price can be.
 MoneyTotal = Annotated[StrictStr, BeforeValidator(_stored_decimal_as_text), Field(pattern=r"^\d+\.\d{2}$")]
-
-
-def money_from_archived_number(value: object) -> object:
-    """Read a price an archive written before prices were decimal strings, a JSON number, as a money amount.
-
-    Args:
-        value: The archived price.
-
-    Returns:
-        The amount as text with two decimals when it was a number, otherwise the value unchanged.
-    """
-    if isinstance(value, bool) or not isinstance(value, int | float):
-        return value
-    return f"{Decimal(str(value)):.2f}"
 
 
 #: Characters that reorder or hide text around a name: the bidirectional marks and embeddings, the isolates, the

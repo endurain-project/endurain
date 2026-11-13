@@ -72,7 +72,7 @@ def read_users(
     With `users:read-all` the page holds full records and every filter is available. With only `users:read` it
     holds public projections of active users who are discoverable (those who switched off "Let others find me
     in search" are left out; their profile stays reachable by id), a state filter is refused with 403, and a request
-    without `username` or `username_contains` of at least 3 characters is refused with 422.
+    with neither `username` nor `username_contains` (at least 3 characters) is refused with 422.
     `num_records` defaults to the server's page size and may not exceed it; a larger value is refused with 422.
     """
     if "users:read-all" in scopes:

@@ -45,15 +45,6 @@ class TestRestoreProfileRecords:
         assert mock_edit.call_args.kwargs == {"if_match": "*"}
 
     @patch("modules.health.health_targets.service.health_targets_crud.edit_health_targets")
-    def test_an_archive_with_the_names_from_before_the_units_is_read(self, mock_edit, mock_db):
-        rows = [{"weight": 80.0, "sleep": 28800, "fasting": 57600, "steps": 10000}]
-
-        assert health_targets_service.restore_profile_records(rows, _USER_ID, {}, mock_db) == 1
-
-        target = mock_edit.call_args.args[0]
-        assert (target.weight_kg, target.sleep_seconds, target.fasting_seconds) == (80.0, 28800, 57600)
-
-    @patch("modules.health.health_targets.service.health_targets_crud.edit_health_targets")
     def test_numbers_archived_as_strings_are_read_as_numbers(self, mock_edit, mock_db):
         rows = [{"weight_kg": "80.5", "steps": "10000", "sleep_seconds": "28800"}]
 

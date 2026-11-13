@@ -1,6 +1,7 @@
 """Audit actions written by the users-profile package.
 
-They cover the user's own profile, privacy, username-change and email-change requests, and the profile export and import.
+They cover the user's own profile, privacy, username-change and email-change requests, and the profile export
+and import.
 
 Ids are stable forever: rows outlive the code. ``details`` carry changed field names and flags only, never a
 field's value, a username, an email address or a file name.

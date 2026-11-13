@@ -40,7 +40,7 @@ import modules.users.users_profile.schema as profile_schema
 
 _USER_ID = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
 _SESSION_ID = uuid.UUID("5b0f6c1e-2d3a-4b7c-8e91-3a4d5c6b7e01")
-_JOB_ID = "0c0f8e0e-3f0b-4a50-9a58-6a1d0a2d5d11"
+_JOB_ID = uuid.UUID("0c0f8e0e-3f0b-4a50-9a58-6a1d0a2d5d11")
 _NOW = datetime(2026, 11, 5, 7, 30, tzinfo=UTC)
 _DAYS = {"start_date": "2026-01-01", "end_date": "2026-01-08"}
 
@@ -74,7 +74,7 @@ def _job(
 
 
 def _envelope(kind: str, status: core_job_status.JobState = core_job_status.JobState.QUEUED) -> dict[str, object]:
-    return {"id": _JOB_ID, "kind": kind, "status": status, "created_at": _NOW}
+    return {"id": str(_JOB_ID), "kind": kind, "status": status, "created_at": _NOW}
 
 
 _JOB_STATUS = f"/jobs/{_JOB_ID}"
@@ -256,7 +256,7 @@ class TestARefusedSecondRun:
         assert response.headers["Content-Type"].startswith("application/problem+json")
         body = response.json()
         assert body["type"].endswith(":conflict")
-        assert body["job_id"] == _JOB_ID
+        assert body["job_id"] == str(_JOB_ID)
 
     def test_a_sync_conflict_names_the_running_job(self, client):
         running = core_exceptions.JobAlreadyRunningError(
@@ -267,7 +267,7 @@ class TestARefusedSecondRun:
 
         assert response.status_code == 409
         assert response.headers["Content-Location"] == _JOB_STATUS
-        assert response.json()["job_id"] == _JOB_ID
+        assert response.json()["job_id"] == str(_JOB_ID)
 
     def test_a_conflict_over_a_job_that_cannot_be_named_carries_no_location(self, client):
         running = core_exceptions.JobAlreadyRunningError(

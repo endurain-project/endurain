@@ -19,6 +19,15 @@ Architecture
    serves as files or pages, which are not counted. The counter store is synchronous, so the
    check runs in the threadpool, as the checks of decorated
    sync routes already do.
+   A route with its own ``@limiter.limit`` is checked by that decorator alone, which counts
+   only once the request has passed authentication. So that a flood the authentication layer
+   refuses cannot go uncounted, every response of such a route with status 401 or 403 is
+   counted against :data:`DEFAULT` for that client (same key function as the default) in a
+   budget kept per route, whatever the path parameters, and apart from the route's own counter, so
+   nothing is counted twice. Once that
+   budget is spent, every further request from the client to that route is answered 429, with
+   ``Retry-After`` and ``X-RateLimit-*``, until its window resets. The route's own limit and
+   the counting of undecorated routes are unchanged.
 2. Routers import a tier constant (e.g. :data:`WRITE`)
    and decorate individual endpoints with
    ``@limiter.limit(...)`` for tighter caps.
@@ -39,7 +48,7 @@ from joserfc.jwk import KeySet, OctKey
 from limits import RateLimitItem
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware, _should_exempt, sync_check_limits
+from slowapi.middleware import SlowAPIMiddleware, _get_route_name, sync_check_limits
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import Response
@@ -234,6 +243,65 @@ def _route_handler(app: FastAPI, scope: Scope) -> Callable[..., Any] | None:
     return None
 
 
+def _refusal_budget_exhausted(limiter: Limiter, request: Request, handler: Callable[..., Any], *, count: bool) -> bool:
+    """
+    Check, and optionally count against, the refusal budget a client has on a decorated route.
+
+    The budget is the default limits, keyed as the default is (the limiter's key function) and scoped to the route's
+    endpoint rather than the URL, so a flood that varies the path parameters still spends one budget. It is a counter
+    of its own, apart from the one the route's decorator keeps.
+
+    Args:
+        limiter: The application limiter.
+        request: The incoming request.
+        handler: The decorated endpoint.
+        count: True to count this request against the budget, False to only look.
+
+    Returns:
+        True when the budget is spent: with ``count`` the request could not be counted, without it none is left.
+        ``request.state.view_rate_limit`` then names the spent counter for the 429 headers.
+    """
+    scope = f"{_get_route_name(handler)}:refused"
+    for group in limiter._default_limits:
+        for default in group:
+            args = [default.key_func(request), scope]
+            if limiter._key_prefix:
+                args.insert(0, limiter._key_prefix)
+            try:
+                strategy = (
+                    limiter._fallback_limiter
+                    if limiter._storage_dead and limiter._fallback_limiter
+                    else limiter.limiter
+                )
+                allowed = strategy.hit(default.limit, *args) if count else strategy.test(default.limit, *args)
+            except Exception as err:
+                if limiter._storage_dead or not limiter._in_memory_fallback_enabled:
+                    raise
+                logger.warning("Rate limit storage unreachable - falling back to in-memory storage", exc_info=err)
+                limiter._storage_dead = True
+                return _refusal_budget_exhausted(limiter, request, handler, count=count)
+            if not allowed:
+                request.state.view_rate_limit = (default.limit, args)
+                return True
+    return False
+
+
+def _refusal_limit_exceeded(limiter: Limiter) -> RateLimitExceeded:
+    """Build the exception for a request refused while the refusal budget is spent."""
+    default = next(iter(next(iter(limiter._default_limits))))
+    return RateLimitExceeded(default)
+
+
+#: Response statuses of a refused request: the authentication layer answers 401 or 403.
+_REFUSED_STATUSES = frozenset({401, 403})
+
+
+def _is_decorated(limiter: Limiter, handler: Callable[..., Any]) -> bool:
+    """Tell whether an endpoint carries its own ``@limiter.limit``."""
+    name = _get_route_name(handler)
+    return name in limiter._route_limits or name in limiter._dynamic_route_limits
+
+
 class RateLimitMiddleware(SlowAPIMiddleware):
     """
     Apply the default limits without blocking the event loop.
@@ -259,10 +327,15 @@ class RateLimitMiddleware(SlowAPIMiddleware):
             return await call_next(request)
 
         handler = _route_handler(app, request.scope)
-        if _should_exempt(limiter, handler) or (
-            handler is core_router.frontend_not_found and core_router.serves_frontend(request.url.path)
+        if (
+            handler is None
+            or _get_route_name(handler) in limiter._exempt_routes
+            or (handler is core_router.frontend_not_found and core_router.serves_frontend(request.url.path))
         ):
             return await call_next(request)
+
+        if _is_decorated(limiter, handler):
+            return await self._dispatch_decorated(request, call_next, handler)
 
         error_response, should_inject_headers = await run_in_threadpool(
             sync_check_limits, limiter, request, handler, app
@@ -273,6 +346,36 @@ class RateLimitMiddleware(SlowAPIMiddleware):
         response = await call_next(request)
         if should_inject_headers:
             response = limiter._inject_headers(response, request.state.view_rate_limit)
+        return response
+
+    async def _dispatch_decorated(
+        self, request: Request, call_next: RequestResponseEndpoint, handler: Callable[..., Any]
+    ) -> Response:
+        """
+        Pass a request for a route with its own limit on, counting what authentication refuses.
+
+        The route's decorator counts a request only after authentication, so a request answered 401 or 403 is
+        counted here against the default limits, in a budget of its own for the route. A client that has spent
+        that budget is answered 429 before the route runs.
+
+        Args:
+            request: Incoming request.
+            call_next: The rest of the application.
+            handler: The route's decorated endpoint.
+
+        Returns:
+            The 429 response when the refusal budget is spent, otherwise the application's response.
+        """
+        app = request.app
+        limiter: Limiter = app.state.limiter
+        if await run_in_threadpool(_refusal_budget_exhausted, limiter, request, handler, count=False):
+            return rate_limit_exceeded_handler(request, _refusal_limit_exceeded(limiter))
+
+        response = await call_next(request)
+        if response.status_code in _REFUSED_STATUSES and await run_in_threadpool(
+            _refusal_budget_exhausted, limiter, request, handler, count=True
+        ):
+            return rate_limit_exceeded_handler(request, _refusal_limit_exceeded(limiter))
         return response
 
 

@@ -60,26 +60,6 @@ def test_no_archived_components_restores_none(db):
     assert service.restore_profile_gear_components([], MOCK_USER_ID, {"gears": {}}, db) == 0
 
 
-def test_a_price_archived_as_a_number_is_read_as_a_decimal_string(db):
-    gear = gear_crud.create_gear(gear_create(), MOCK_USER_ID, db)
-
-    service.restore_profile_gear_components(
-        [_record(purchase_value=45.5)], MOCK_USER_ID, {"gears": {_ARCHIVED_GEAR: gear.id}}, db
-    )
-
-    assert crud.get_gear_components_user(MOCK_USER_ID, db)[0].purchase_value == "45.50"
-
-
-def test_an_archived_expected_kms_is_read_as_expected_usage(db):
-    gear = gear_crud.create_gear(gear_create(), MOCK_USER_ID, db)
-
-    service.restore_profile_gear_components(
-        [_record(expected_kms=3000)], MOCK_USER_ID, {"gears": {_ARCHIVED_GEAR: gear.id}}, db
-    )
-
-    assert crud.get_gear_components_user(MOCK_USER_ID, db)[0].expected_usage == 3000
-
-
 def test_an_archived_component_with_its_version_and_stamp_is_restored(db):
     gear = gear_crud.create_gear(gear_create(), MOCK_USER_ID, db)
     record = _record(user_id=str(uuid.uuid4()), version=2, updated_at="2026-11-11T07:30:00Z")

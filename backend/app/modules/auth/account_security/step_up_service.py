@@ -244,8 +244,8 @@ def verify_step_up_credentials(
     bounded even when the attacker has a valid access token. A session that has failed does not lock the user's other
     sessions out, so a stolen session cannot lock the owner out. Failures from all of the account's sessions also
     add up: the 100th locks step-up for 30 days in every session, whatever the credentials, until a successful
-    step-up before that, a password reset or an administrator setting the password. A password-less request that carries no ticket at all is the challenge, not a
-    failure, and is not counted.
+    step-up before that, a password reset or an administrator setting the password. A password-less request that
+    carries no ticket at all is the challenge, not a failure, and is not counted.
 
     Args:
         user_id: ID of the authenticated user.

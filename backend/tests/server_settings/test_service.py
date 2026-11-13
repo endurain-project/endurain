@@ -199,7 +199,7 @@ _SECURITY_CHANGES = {
 
 
 class TestSecurityFieldsNeedStepUp:
-    """A change to a field that governs sign-in, sessions or the audit trail needs the administrator's step-up."""
+    """A change to a field governing sign-in, sessions, public links or the server's outbound requests needs step-up."""
 
     def test_every_security_field_is_covered_by_a_case(self):
         assert set(_SECURITY_CHANGES) == server_settings_constants.SECURITY_FIELDS

@@ -7,7 +7,7 @@ lives in :mod:`modules.gears.gear.integration_service`.
 
 import uuid
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 from pydantic import ValidationError
@@ -18,7 +18,6 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
 import core.sync as core_sync
-import core.types as core_types
 import modules.gears.contributor_registry as gears_contributor_registry
 import modules.gears.gear.constants as gears_constants
 import modules.gears.gear.crud as gears_crud
@@ -193,7 +192,8 @@ def restore_profile_gears(
 
     A gear whose nickname the user already has maps onto that gear. A provider gear ID the user already
     holds on another gear is dropped, so the archive cannot make the import fail. The archived ids
-    (UUIDs) are mapped to the stored UUIDs, which are published under ``ids["gears"]``, even when the archive lists none.
+    (UUIDs) are mapped to the stored UUIDs, which are published under ``ids["gears"]``, even when the archive
+    lists none.
 
     Args:
         records: The archived gears.
@@ -210,8 +210,6 @@ def restore_profile_gears(
     for record in records:
         original_id = users_profile_contracts.archived_id(record.get("id"))
         fields: dict[str, Any] = {**users_profile_contracts.without_row_identity(record), "user_id": user_id}
-        _read_legacy_creation_timestamp(fields)
-        _read_legacy_units(fields)
 
         try:
             gear = gears_schema.GearCreate(**fields)
@@ -226,38 +224,6 @@ def restore_profile_gears(
 
     logger.debug("Imported gears", extra=core_logger.context(count=restored))
     return restored
-
-
-def _read_legacy_units(record: dict[str, Any]) -> None:
-    """Read the units of an archive exported before gear distances were meters and prices decimal strings.
-
-    Args:
-        record: The archived gear; ``initial_kms`` (kilometers) becomes ``initial_distance`` (meters) and a
-            numeric ``purchase_value`` becomes a decimal string.
-    """
-    kilometers = record.pop("initial_kms", None)
-    if isinstance(kilometers, int | float) and not isinstance(kilometers, bool) and "initial_distance" not in record:
-        record["initial_distance"] = float(kilometers) * 1000
-    if "purchase_value" in record:
-        record["purchase_value"] = core_types.money_from_archived_number(record["purchase_value"])
-
-
-def _read_legacy_creation_timestamp(record: dict[str, Any]) -> None:
-    """Turn the ``created_at`` timestamp of an archive exported before ``acquired_on`` into its UTC day.
-
-    An unreadable timestamp is dropped, so the gear gets the default date.
-
-    Args:
-        record: The archived gear; ``created_at`` is removed and ``acquired_on`` set from it when absent.
-    """
-    legacy = record.pop("created_at", None)
-    if record.get("acquired_on") is not None or not isinstance(legacy, str):
-        return
-    try:
-        moment = datetime.fromisoformat(legacy)
-    except ValueError:
-        return
-    record["acquired_on"] = (moment.astimezone(UTC) if moment.tzinfo else moment).date()
 
 
 def _restore_gear(gear: gears_schema.GearCreate, user_id: uuid.UUID, db: Session) -> uuid.UUID:

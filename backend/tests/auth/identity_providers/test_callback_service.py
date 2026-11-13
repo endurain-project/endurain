@@ -486,8 +486,27 @@ class TestCreateCallbackSession:
 
     @pytest.fixture(autouse=True)
     def stamp(self):
-        with patch.object(callback_service.oauth_state_integration, "stamp_security_generation") as stamp:
+        with (
+            patch.object(callback_service.idp_crud, "lock_provider_enabled", return_value=True),
+            patch.object(callback_service.oauth_state_integration, "stamp_security_generation") as stamp,
+        ):
             yield stamp
+
+    def test_a_provider_disabled_meanwhile_gets_no_session(self, service):
+        user = SimpleNamespace(id=MOCK_USER_ID)
+        with (
+            patch.object(callback_service.users_integration, "require_active_user"),
+            patch.object(callback_service.idp_crud, "lock_provider_enabled", return_value=False) as lock,
+            patch.object(callback_service.sessions_integration, "create_session") as create_session,
+            pytest.raises(core_exceptions.NotFoundError),
+        ):
+            service.create_callback_session(
+                user, "10.0.0.1", "agent", MagicMock(), _STATE, IDP_ID, {}, MagicMock(), idp_sid=None
+            )
+
+        lock.assert_called_once()
+        create_session.assert_not_called()
+        service._tokens.store_session_tokens.assert_not_called()
 
     def test_the_state_is_stamped_with_the_generation_current_for_the_user(self, service, stamp, security_generations):
         security_generations.generations[MOCK_USER_ID] = 4
@@ -519,7 +538,7 @@ class TestCreateCallbackSession:
                 "agent",
                 MagicMock(),
                 _STATE,
-                3,
+                IDP_ID,
                 token_response or {"refresh_token": "rt"},
                 db,
                 idp_sid=idp_sid,
@@ -623,7 +642,7 @@ class TestCreateCallbackSession:
         assert service._tokens.store_session_tokens.call_args.args[:4] == (
             session_id,
             MOCK_USER_ID,
-            3,
+            IDP_ID,
             {"refresh_token": "rt"},
         )
         assert [call[0] for call in order.mock_calls] == ["create_session", "store", "commit"]
@@ -639,7 +658,7 @@ class TestCreateCallbackSession:
         assert service._tokens.store_session_tokens.call_args.args[:4] == (
             session_id,
             MOCK_USER_ID,
-            3,
+            IDP_ID,
             {"access_token": "at"},
         )
 
@@ -670,7 +689,7 @@ class TestCreateCallbackSession:
             pytest.raises(callback_service.user_provisioning_service.SsoSignInRefusedError) as exc_info,
         ):
             service.create_callback_session(
-                user, "10.0.0.1", "agent", MagicMock(), _STATE, 3, {}, MagicMock(), idp_sid=None
+                user, "10.0.0.1", "agent", MagicMock(), _STATE, IDP_ID, {}, MagicMock(), idp_sid=None
             )
 
         assert exc_info.value.login_error == login_error

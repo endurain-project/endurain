@@ -73,7 +73,8 @@ done
 # Print ENDURAIN_HOST in the canonical form the backend validates
 # (config._validate_endurain_host): lower-case scheme and host, the default port
 # of the scheme dropped, IPv6 brackets and other ports kept. A value that is not
-# a clean http(s) origin is printed unchanged, so the backend reports it.
+# a clean http(s) origin, or whose host is not ASCII, is printed unchanged, so the
+# backend reports or canonicalises it.
 canonical_endurain_host() {
     value="$1"
     case "$value" in
@@ -107,6 +108,11 @@ canonical_endurain_host() {
     case "$host" in
         ""|"[]"|*/*) printf '%s' "$value"; return 0 ;;
     esac
+    # Lower-casing a non-ASCII host depends on the locale, so the backend does it.
+    if [ -n "$(printf '%s' "$host" | LC_ALL=C tr -d '\000-\177')" ]; then
+        printf '%s' "$value"
+        return 0
+    fi
     port="${port_part#:}"
     case "$port_part" in
         ""|:) port="" ;;
@@ -116,7 +122,7 @@ canonical_endurain_host() {
     case "$port" in
         *[!0-9]*) printf '%s' "$value"; return 0 ;;
     esac
-    while [ "${port#0}" != "$port" ]; do
+    while [ "${#port}" -gt 1 ] && [ "${port#0}" != "$port" ]; do
         port="${port#0}"
     done
     if [ "${#port}" -gt 5 ] || { [ -n "$port" ] && [ "$port" -gt 65535 ]; }; then

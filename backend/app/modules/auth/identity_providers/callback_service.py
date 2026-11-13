@@ -899,6 +899,7 @@ class CallbackService:
 
         Raises:
             SsoSignInRefusedError: If the account is not active, with the login page's code for why.
+            NotFoundError: If the provider was disabled or deleted since the callback began.
         """
         try:
             users_integration.require_active_user(user)
@@ -907,6 +908,10 @@ class CallbackService:
                 jasil_audit.Outcome.DENIED, login_audit_actions.LoginFailureReason.INACTIVE, user_id=user.id
             )
             raise _inactive_account_refusal(user, db) from err
+        # Disabling a provider ends its sessions in one transaction; the lock makes this one either see the
+        # provider disabled or commit before that edit looks for sessions to end.
+        if not idp_crud.lock_provider_enabled(idp_id, db):
+            raise core_exceptions.NotFoundError("Identity provider not found or disabled")
         user_read = users_schema.UserRead.model_validate(user)
         session_id = uuid.uuid4()
         # The exchange redeems the session only while the account's security generation is still this one.

@@ -188,11 +188,12 @@ def _referenced_icon_keys(keys: list[str], db: Session) -> set[str]:
 
 
 def _parse_icon_key(key: str) -> uuid.UUID | None:
-    """Return the provider id a key names, or None when the key is not a UUID."""
+    """Return the provider id a key names, or None when the key is not the canonical spelling of a UUID."""
     try:
-        return uuid.UUID(key)
+        parsed = uuid.UUID(key)
     except ValueError:
         return None
+    return parsed if str(parsed) == key else None
 
 
 def read_icon(idp_id: uuid.UUID, storage: platform_providers.StorageProvider) -> tuple[bytes, str] | None:

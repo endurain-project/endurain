@@ -26,13 +26,6 @@ import modules.users.users_profile.contracts as users_profile_contracts
 
 logger = core_logger.get_logger(__name__)
 
-#: The field names a profile archive written before the units were in the names uses, by current name.
-_ARCHIVE_RENAMES = {
-    "avg_spo2": "avg_spo2_percent",
-    "lowest_spo2": "lowest_spo2_percent",
-    "highest_spo2": "highest_spo2_percent",
-}
-
 #: Minute rounding a provider applies to the stage durations and to the total.
 _TOLERANCE_SECONDS = 60
 
@@ -217,8 +210,8 @@ def _check_and_score_edit(
 ) -> None:
     """Refuse an update that makes the record contradict itself, and set the scores it produces.
 
-    The update is checked as the stored record with its fields laid over it. The scores follow the stored record with the update's fields laid over it. An update that sends no
-    scoring input keeps the stored scores, and scores the client sends never reach the record.
+    The update is checked, and its scores computed, as the stored record with the update's fields laid over it. An
+    update that sends no scoring input keeps the stored scores, and scores the client sends never reach the record.
 
     Args:
         user_id: The record's owner.
@@ -404,5 +397,4 @@ def restore_profile_records(
         user_id,
         db,
         kind="health_sleep",
-        renamed=_ARCHIVE_RENAMES,
     )

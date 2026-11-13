@@ -63,6 +63,11 @@ def count_active_api_keys(user_id: uuid.UUID, db: Session) -> int:
     return api_keys_crud.count_active_api_keys(user_id, datetime.now(UTC), db)
 
 
+def lock_api_key_creation(user_id: uuid.UUID, db: Session) -> None:
+    """Serialise a user's API-key creations until the transaction ends, so the key limit holds under concurrency."""
+    api_keys_crud.lock_api_key_creation(user_id, db)
+
+
 def revoke_api_key(api_key_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> None:
     """Stage revocation of a user's API key."""
     api_keys_crud.revoke_api_key(api_key_id, user_id, db)

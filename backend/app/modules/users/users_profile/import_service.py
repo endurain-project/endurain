@@ -204,6 +204,7 @@ class ImportService:
             FileFormatError: If ZIP format is invalid.
             FileSystemError: If file system error occurs.
             ImportAccountMismatchError: If the archive was exported from a different account.
+            ImportArchiveFromOlderVersionError: If the archive was exported by a version that used integer ids.
             ImportTimeoutError: If operation times out.
         """
         start_time = time.time()

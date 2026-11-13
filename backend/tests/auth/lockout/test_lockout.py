@@ -29,26 +29,20 @@ class TestNormalizeUsernameKey:
     def test_strips_leading_trailing_whitespace(self):
         assert lockout_integration.normalize_username_key("  testuser  ") == "testuser"
 
-    def test_url_decodes_percent_at(self):
-        assert lockout_integration.normalize_username_key("test%40example.com") == "test@example.com"
+    def test_percent_encoding_is_not_decoded(self):
+        assert lockout_integration.normalize_username_key("%61lice") == "%61lice"
 
-    def test_url_decodes_percent_20_space(self):
-        assert lockout_integration.normalize_username_key("test%20user") == "test user"
+    def test_plus_sign_is_kept(self):
+        assert lockout_integration.normalize_username_key("test+user") == "test+user"
 
-    def test_plus_sign_converted_to_space(self):
-        assert lockout_integration.normalize_username_key("test+user") == "test user"
-
-    def test_percent_2b_url_decoded_then_converted_to_space(self):
-        assert lockout_integration.normalize_username_key("test%2Buser") == "test user"
-
-    def test_combined_casing_whitespace_and_url_encoding(self):
-        assert lockout_integration.normalize_username_key("  Test%40Example.COM  ") == "test@example.com"
+    def test_combined_casing_and_whitespace(self):
+        assert lockout_integration.normalize_username_key("  Test.User  ") == "test.user"
 
     def test_empty_string_returns_empty_string(self):
         assert lockout_integration.normalize_username_key("") == ""
 
-    def test_unicode_casefold(self):
-        assert lockout_integration.normalize_username_key("StraBe") == "strabe"
+    def test_matches_the_account_lookup_form(self):
+        assert lockout_integration.normalize_username_key("Straße") == "straße"
 
     def test_whitespace_only_returns_empty_string(self):
         assert lockout_integration.normalize_username_key("   ") == ""
@@ -87,11 +81,11 @@ class TestUsernameLogIdentifier:
 
     def test_lockout_state_key_still_uses_the_plain_digest(self):
         plain = hashlib.sha256(b"alice@example.com").hexdigest()
-        assert lockout_store._username_digest(" Alice%40Example.COM ") == plain
+        assert lockout_store._username_digest(" Alice@Example.COM ") == plain
 
     def test_same_canonical_form_same_identifier(self):
         assert lockout_integration.username_log_identifier(
-            "Alice%40Example.COM"
+            " Alice@Example.COM "
         ) == lockout_integration.username_log_identifier("alice@example.com")
 
     def test_different_usernames_different_identifiers(self):

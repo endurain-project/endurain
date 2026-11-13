@@ -86,6 +86,34 @@ def _build_principal(
     )
 
 
+def read_session_id_claim(
+    token_manager: access_tokens_integration.TokenManager,
+    token: str,
+    token_type: access_tokens_integration.TokenType,
+) -> uuid.UUID:
+    """Read the ``sid`` claim of a token as a session id.
+
+    Args:
+        token_manager: The token manager that checks the token's signature.
+        token: The encoded token.
+        token_type: The kind of token, which decides the keys its signature is checked with.
+
+    Returns:
+        The session id the claim names.
+
+    Raises:
+        InvalidTokenError: If the claim is missing or is not the text of a UUID.
+    """
+    sid = token_manager.get_token_claim(token, "sid", token_type)
+    try:
+        if not isinstance(sid, str):
+            raise ValueError("the 'sid' claim is not text")
+        return uuid.UUID(sid)
+    except ValueError as err:
+        logger.warning("Token refused: malformed 'sid' claim")
+        raise core_exceptions.InvalidTokenError("Invalid token: 'sid' claim must be a session id") from err
+
+
 def resolve_from_access_token(
     access_token: str,
     token_manager: access_tokens_integration.TokenManager,
@@ -118,14 +146,7 @@ def resolve_from_access_token(
         logger.warning("Access token refused: malformed 'sub' claim")
         raise core_exceptions.InvalidTokenError("Invalid token: 'sub' claim must be a user id")
 
-    sid = token_manager.get_token_claim(access_token, "sid", access_tokens_integration.TokenType.ACCESS)
-    try:
-        session_id = uuid.UUID(sid) if isinstance(sid, str) else None
-    except ValueError:
-        session_id = None
-    if session_id is None:
-        logger.warning("Access token refused: malformed 'sid' claim")
-        raise core_exceptions.InvalidTokenError("Invalid token: 'sid' claim must be a session id")
+    session_id = read_session_id_claim(token_manager, access_token, access_tokens_integration.TokenType.ACCESS)
 
     # A token of a deleted or deactivated user is a dead credential, not a refusal the caller may learn about.
     user = users_integration.get_user(user_id, db)

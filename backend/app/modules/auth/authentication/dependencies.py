@@ -16,6 +16,7 @@ import core.config as core_config
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as access_tokens_integration
+import modules.auth.authentication.principal_service as principal_service
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.computation as auth_computation
 import modules.auth.constants as auth_constants
@@ -452,13 +453,9 @@ def get_sid_from_refresh_token(
 
     Precondition: ``validate_refresh_token`` ran first; this reader checks only the signature.
     """
-    sid = token_manager.get_token_claim(refresh_token, "sid", access_tokens_integration.TokenType.REFRESH)
-    try:
-        if isinstance(sid, str):
-            return uuid.UUID(sid)
-    except ValueError:
-        pass
-    raise core_exceptions.InvalidTokenError("Invalid token: 'sid' claim must be a session id")
+    return principal_service.read_session_id_claim(
+        token_manager, refresh_token, access_tokens_integration.TokenType.REFRESH
+    )
 
 
 def get_exp_from_refresh_token(

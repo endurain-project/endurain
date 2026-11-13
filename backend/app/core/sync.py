@@ -3,7 +3,8 @@
 A client that keeps a local copy asks ``GET /sync`` what changed since its cursor. A record that still exists is
 found by its ``updated_at``; a record that was deleted leaves a tombstone, a small row naming it, written in the
 same transaction as the delete so a deletion is never lost. Each owning module keeps its own tombstone table built
-on :class:`TombstoneMixin`, its records carry :class:`UpdatedAtMixin`, and it pages both through the helpers here, in ``(stamp, id)`` order.
+on :class:`TombstoneMixin`, its records carry :class:`UpdatedAtMixin`, and it pages both through the helpers
+here, in ``(stamp, id)`` order.
 """
 
 import uuid

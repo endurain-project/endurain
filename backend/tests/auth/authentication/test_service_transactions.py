@@ -188,7 +188,7 @@ def test_a_logout_leaves_the_identity_provider_tokens_of_the_users_other_session
         authentication_service.logout(_SESSION_ID, "rt", _USER_ID, hasher, auth_constants.ClientType.WEB, db)
 
     remaining = {
-        row.session_id: row.refresh_token for row in identity_links_crud.get_idp_session_tokens_page(0, 10, db)
+        row.session_id: row.refresh_token for row in identity_links_crud.get_idp_session_tokens_page(None, 10, db)
     }
     assert remaining == {
         _SESSION_ID: "encrypted",

@@ -183,7 +183,7 @@ class TestCancel:
             "api_keys_revoked": 1,
             "change_applied": False,
             "email_restored": False,
-            "reset_tokens_revoked": False,
+            "reset_tokens_revoked": True,
         }
         assert token not in repr(entry)
 

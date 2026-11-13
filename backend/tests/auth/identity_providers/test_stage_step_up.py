@@ -24,7 +24,7 @@ SESSION_ID = uuid.UUID("11111111-2222-3333-4444-555555555555")
 
 def _idp(**overrides):
     values = {
-        "id": 3,
+        "id": IDP_ID,
         "slug": "idp",
         "name": "Pocket ID",
         "enabled": True,
@@ -56,7 +56,7 @@ def _stage(service, *, idp=None, linked=True, redirect="/settings/security", cha
         staged = service.stage_step_up(
             MOCK_USER_ID,
             SESSION_ID,
-            3,
+            IDP_ID,
             StepUpAction.ACCOUNT_DELETE,
             challenge,
             redirect,

@@ -14,13 +14,9 @@ import core.etag as core_etag
 import core.logger as core_logger
 import modules.health.health_targets.crud as health_targets_crud
 import modules.health.health_targets.schema as health_targets_schema
-import modules.health.record_service as health_record_service
 import modules.users.users_profile.contracts as users_profile_contracts
 
 logger = core_logger.get_logger(__name__)
-
-#: The field names a profile archive written before the units were in the names uses, by current name.
-_ARCHIVE_RENAMES = {"weight": "weight_kg", "sleep": "sleep_seconds", "fasting": "fasting_seconds"}
 
 
 def get_health_targets(user_id: uuid.UUID, db: Session) -> health_targets_schema.HealthTargetsRead | None:
@@ -91,7 +87,7 @@ def restore_profile_records(
     """
     staged = 0
     for archived in records:
-        target_data = health_record_service.in_current_names(archived, _ARCHIVE_RENAMES)
+        target_data = dict(archived)
         # Convert string numeric values to floats/ints
         if isinstance(target_data.get("weight_kg"), str):
             try:

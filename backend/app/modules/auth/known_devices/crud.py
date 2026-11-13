@@ -208,12 +208,11 @@ def delete_device(device_id: uuid.UUID, user_id: uuid.UUID, generation: int, db:
     return device_hash
 
 
-def delete_devices_except(user_id: uuid.UUID, generation: int, keep_hash: str | None, db: Session) -> list[str]:
-    """Stage the deletion of every device the user knows under the current security generation but one.
+def delete_devices_except(user_id: uuid.UUID, keep_hash: str | None, db: Session) -> list[str]:
+    """Stage the deletion of every device the user has, whatever its security generation, but one.
 
     Args:
         user_id: The user who owns the devices.
-        generation: The account's current security generation.
         keep_hash: The SHA-256 hex digest of the device id to keep, or None to keep none.
         db: Database session.
 
@@ -221,7 +220,7 @@ def delete_devices_except(user_id: uuid.UUID, generation: int, keep_hash: str | 
         The SHA-256 hex digest of each deleted device's id.
     """
     model = known_devices_models.KnownDevice
-    stmt = delete(model).where(model.user_id == user_id, model.security_generation == generation)
+    stmt = delete(model).where(model.user_id == user_id)
     if keep_hash is not None:
         stmt = stmt.where(model.device_hash != keep_hash)
     hashes = list(db.execute(stmt.returning(model.device_hash)).scalars())

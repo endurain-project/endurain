@@ -624,8 +624,8 @@ def _feed_slice(
 
     Ordered by ``(sort value DESC, id DESC)``. The sort value is the start time, or the creation time
     where the owner hid the start: a hidden start ordered among the visible ones would be pinned between
-    its neighbours' start times. The creation time is assigned on insert, as the id is, so where it puts
-    an activity tells a reader nothing the activity's id does not. ``id`` is part of the key because the
+    its neighbours' start times. A hidden-start activity is therefore positioned by when it was created;
+    the id is random, so it adds no ordering of its own. ``id`` is part of the key because the
     sort value is not unique — two activities sharing one would otherwise straddle the boundary and one of
     them would be skipped or repeated.
 

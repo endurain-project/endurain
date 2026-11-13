@@ -17,6 +17,7 @@ import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
 import modules.activities.activity.constants as activity_constants
+import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.sessions.schema as auth_sessions_schema
@@ -586,6 +587,16 @@ class TestEditProfilePassword:
 
         assert response.status_code == 204
         mock_auth_services.change_own_password.assert_called_once()
+
+    def test_a_short_password_is_the_typed_password_too_short_problem(self, profile_client, mock_auth_services):
+        mock_auth_services.change_own_password.side_effect = credentials_contracts.PasswordTooShortError("short")
+
+        response = profile_client.post(
+            PREFIX + "/password/change", json={"password": "short", "step_up": {"current_password": "oldpass"}}
+        )
+
+        assert response.status_code == 422
+        assert response.json()["type"] == "urn:endurain:error:password-too-short"
 
     def test_step_up_fails(
         self,

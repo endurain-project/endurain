@@ -770,6 +770,35 @@ class TestSignUpOffEndpoints:
         assert response.status_code == status.HTTP_200_OK
 
 
+class TestConfirmSignUpPasswordPolicy:
+    """The password policy's refusal reaches the client through the real domain-error handler."""
+
+    @patch("modules.auth.sign_up_tokens.service.users_integration")
+    @patch("modules.auth.sign_up_tokens.service.verify_sign_up_token")
+    @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
+    def test_a_short_password_answers_the_typed_password_too_short(
+        self, mock_settings, claim, mock_users, signup_client, mock_db
+    ) -> None:
+        mock_settings.return_value = MagicMock(
+            signup_enabled=True,
+            signup_require_email_verification=True,
+            signup_require_admin_approval=False,
+            password_breach_check_enabled=False,
+            password_length_regular_users=12,
+        )
+        claim.return_value = MagicMock(user_id=_USER_10)
+        mock_users.get_user.return_value = MagicMock(
+            id=_USER_10, active=False, access_type="regular", username="newuser", email="new@example.com"
+        )
+        mock_users.is_deactivated.return_value = False
+
+        response = signup_client.post("/sign-up/sign-up/confirm", json={"token": "tok", "password": "Short1!x"})
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        assert response.json()["type"] == "urn:endurain:error:password-too-short"
+        mock_db.commit.assert_not_called()
+
+
 class TestCancelEmailChangeEndpoint:
     @patch("modules.auth.sign_up_tokens.service.cancel_email_change")
     def test_a_valid_link_answers_200_with_what_happened(self, cancel, signup_client) -> None:
