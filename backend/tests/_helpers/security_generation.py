@@ -1,5 +1,7 @@
 """An in-memory stand-in for the account security generations, for tests that run without PostgreSQL."""
 
+import uuid
+
 from sqlalchemy.orm import Session
 
 
@@ -16,18 +18,18 @@ class FakeSecurityGenerations:
 
     def __init__(self) -> None:
         """Start with every user at generation 0."""
-        self.generations: dict[int, int] = {}
-        self.bumps: list[int] = []
+        self.generations: dict[uuid.UUID, int] = {}
+        self.bumps: list[uuid.UUID] = []
 
-    def current_generation(self, user_id: int, db: Session) -> int:
+    def current_generation(self, user_id: uuid.UUID, db: Session) -> int:
         """Return the user's generation."""
         return self.generations.get(user_id, 0)
 
-    def stage_bump(self, user_id: int, db: Session) -> None:
+    def stage_bump(self, user_id: uuid.UUID, db: Session) -> None:
         """Advance the user's generation by one."""
         self.generations[user_id] = self.generations.get(user_id, 0) + 1
         self.bumps.append(user_id)
 
-    def matches_locked(self, user_id: int, stamped: int | None, db: Session) -> bool:
+    def matches_locked(self, user_id: uuid.UUID, stamped: int | None, db: Session) -> bool:
         """Return whether a stamp is the user's current generation; a missing stamp never is."""
         return stamped is not None and self.generations.get(user_id, 0) == stamped

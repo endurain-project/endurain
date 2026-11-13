@@ -44,57 +44,7 @@ _OWNED_PREFIXES = tuple(f"{package}." for package in _PACKAGES)
 
 #: Integer id fields of payload classes that no revision converts yet, as (dotted class, field).
 #: Step 9 requires this list to be empty.
-_NOT_YET_REWRITTEN: frozenset[tuple[str, str]] = frozenset(
-    {
-        # modules.activities.activity.events
-        ("modules.activities.activity.events.ActivityCreatedPayload", "user_id"),
-        ("modules.activities.activity.events.ActivityUpdatedPayload", "user_id"),
-        ("modules.activities.activity.events.VisibilityEditRequestedPayload", "user_id"),
-        # modules.auth.account_security.events
-        ("modules.auth.account_security.events.AccountSecurityChangedPayload", "user_id"),
-        ("modules.auth.account_security.events.StepUpLockedPayload", "user_id"),
-        ("modules.auth.account_security.events.StepUpSessionEndedPayload", "user_id"),
-        # modules.auth.authentication.events
-        ("modules.auth.authentication.events.AccountLockedPayload", "user_id"),
-        ("modules.auth.authentication.events.MfaLockedPayload", "user_id"),
-        ("modules.auth.authentication.events.RefreshReuseDetectedPayload", "user_id"),
-        # modules.auth.identity_providers.events
-        ("modules.auth.identity_providers.events.IdpLinkedPayload", "user_id"),
-        ("modules.auth.identity_providers.events.IdpTokenRefreshPayload", "user_id"),
-        # modules.auth.known_devices.events
-        ("modules.auth.known_devices.events.NewDeviceSignInPayload", "user_id"),
-        # modules.auth.mfa_backup_codes.events
-        ("modules.auth.mfa_backup_codes.events.BackupCodeUsedPayload", "user_id"),
-        # modules.auth.password_reset_tokens.events
-        ("modules.auth.password_reset_tokens.events.PasswordResetCompletedPayload", "user_id"),
-        ("modules.auth.password_reset_tokens.events.PasswordResetRequestedPayload", "user_id"),
-        # modules.auth.sessions.events
-        ("modules.auth.sessions.events.SessionsRevokedPayload", "user_id"),
-        # modules.auth.sign_up_tokens.events
-        ("modules.auth.sign_up_tokens.events.EmailChangedPayload", "user_id"),
-        ("modules.auth.sign_up_tokens.events.SignUpApprovalRequestedPayload", "user_id"),
-        ("modules.auth.sign_up_tokens.events.SignUpApprovalRequestedPayload", "admin_user_id"),
-        ("modules.auth.sign_up_tokens.events.SignUpUserPayload", "user_id"),
-        # modules.followers.events
-        ("modules.followers.events.FollowerAcceptedPayload", "accepter_user_id"),
-        ("modules.followers.events.FollowerAcceptedPayload", "requester_user_id"),
-        ("modules.followers.events.FollowerRequestRemovedPayload", "requester_user_id"),
-        ("modules.followers.events.FollowerRequestRemovedPayload", "target_user_id"),
-        ("modules.followers.events.FollowerRequestedPayload", "requester_user_id"),
-        ("modules.followers.events.FollowerRequestedPayload", "target_user_id"),
-        # modules.garmin.events
-        ("modules.garmin.events.SyncRequestedPayload", "user_id"),
-        # modules.strava.events
-        ("modules.strava.events.SyncRequestedPayload", "user_id"),
-        # modules.users.users.events
-        ("modules.users.users.events.AdminPromotedPayload", "user_id"),
-        ("modules.users.users.events.AdminPromotedPayload", "admin_user_id"),
-        ("modules.users.users.events.DeletionRequestedPayload", "user_id"),
-        # modules.users.users_profile.events
-        ("modules.users.users_profile.events.ProfileExportRequestedPayload", "user_id"),
-        ("modules.users.users_profile.events.ProfileImportRequestedPayload", "user_id"),
-    }
-)
+_NOT_YET_REWRITTEN: frozenset[tuple[str, str]] = frozenset()
 
 #: Every integer id field of a payload class as the v0.21 code had them, as (dotted class, field). It is fixed and
 #: never shrinks: each pair must be declared in PAYLOAD_ID_REWRITES or still sit in _NOT_YET_REWRITTEN, so emptying
@@ -227,6 +177,14 @@ def _declared_pairs() -> set[tuple[str, str]]:
     return {(payload_class, field) for payload_class, field, _stored_under, _parent_table in _declared_entries()}
 
 
+def _stored_under() -> dict[str, set[tuple[str, ...]]]:
+    """Map each declared class to the event types it is stored under; a class may be declared by several revisions."""
+    stored_under: dict[str, set[tuple[str, ...]]] = {}
+    for payload_class, _field, event_types, _parent in _declared_entries():
+        stored_under.setdefault(payload_class, set()).add(event_types)
+    return stored_under
+
+
 def _resolve(dotted_class: str) -> type | None:
     module_name, _, class_name = dotted_class.rpartition(".")
     try:
@@ -296,25 +254,107 @@ def test_idp_revision_event_types_match_the_application_constants() -> None:
     from modules.auth.account_security import events as account_security_events
     from modules.auth.identity_providers import events as idp_events
 
-    stored_under = {payload_class: event_types for payload_class, _field, event_types, _parent in _declared_entries()}
+    stored_under = _stored_under()
 
-    assert stored_under["modules.auth.identity_providers.events.IdpLinkedPayload"] == (idp_events.IDP_LINKED,)
-    assert stored_under["modules.auth.account_security.events.AccountSecurityChangedPayload"] == (
-        account_security_events.ACCOUNT_SECURITY_CHANGED,
-    )
+    assert stored_under["modules.auth.identity_providers.events.IdpLinkedPayload"] == {(idp_events.IDP_LINKED,)}
+    assert stored_under["modules.auth.account_security.events.AccountSecurityChangedPayload"] == {
+        (account_security_events.ACCOUNT_SECURITY_CHANGED,)
+    }
 
 
 def test_activity_revision_event_types_match_the_application_constants() -> None:
     from modules.activities.activity import events as activity_events
 
-    stored_under = {payload_class: event_types for payload_class, _field, event_types, _parent in _declared_entries()}
+    stored_under = _stored_under()
 
-    assert stored_under["modules.activities.activity.events.ActivityCreatedPayload"] == (
-        activity_events.ACTIVITY_CREATED,
-    )
-    assert stored_under["modules.activities.activity.events.ActivityUpdatedPayload"] == (
-        activity_events.ACTIVITY_UPDATED,
-    )
-    assert stored_under["modules.activities.activity.events.ActivityDeletedPayload"] == (
-        activity_events.ACTIVITY_DELETED,
-    )
+    assert stored_under["modules.activities.activity.events.ActivityCreatedPayload"] == {
+        (activity_events.ACTIVITY_CREATED,)
+    }
+    assert stored_under["modules.activities.activity.events.ActivityUpdatedPayload"] == {
+        (activity_events.ACTIVITY_UPDATED,)
+    }
+    assert stored_under["modules.activities.activity.events.ActivityDeletedPayload"] == {
+        (activity_events.ACTIVITY_DELETED,)
+    }
+    assert stored_under["modules.activities.activity.events.VisibilityEditRequestedPayload"] == {
+        (activity_events.ACTIVITIES_VISIBILITY_EDIT_REQUESTED,)
+    }
+
+
+def test_users_revision_event_types_match_the_application_constants() -> None:
+    from modules.activities.activity import events as activity_events
+    from modules.auth.account_security import events as account_security_events
+    from modules.auth.authentication import events as authentication_events
+    from modules.auth.identity_providers import events as idp_events
+    from modules.auth.known_devices import events as known_devices_events
+    from modules.auth.mfa_backup_codes import events as backup_codes_events
+    from modules.auth.password_reset_tokens import events as password_reset_events
+    from modules.auth.sessions import events as sessions_events
+    from modules.auth.sign_up_tokens import events as sign_up_events
+    from modules.followers import events as followers_events
+    from modules.garmin import events as garmin_events
+    from modules.strava import events as strava_events
+    from modules.users.users import events as users_events
+    from modules.users.users_profile import events as profile_events
+
+    expected: dict[str, set[tuple[str, ...]]] = {
+        "modules.activities.activity.events.ActivityCreatedPayload": {(activity_events.ACTIVITY_CREATED,)},
+        "modules.activities.activity.events.ActivityUpdatedPayload": {(activity_events.ACTIVITY_UPDATED,)},
+        "modules.activities.activity.events.VisibilityEditRequestedPayload": {
+            (activity_events.ACTIVITIES_VISIBILITY_EDIT_REQUESTED,)
+        },
+        "modules.auth.account_security.events.AccountSecurityChangedPayload": {
+            (account_security_events.ACCOUNT_SECURITY_CHANGED,)
+        },
+        "modules.auth.account_security.events.StepUpSessionEndedPayload": {
+            (account_security_events.STEP_UP_SESSION_ENDED,)
+        },
+        "modules.auth.account_security.events.StepUpLockedPayload": {(account_security_events.STEP_UP_LOCKED,)},
+        "modules.auth.authentication.events.AccountLockedPayload": {(authentication_events.ACCOUNT_LOCKED,)},
+        "modules.auth.authentication.events.MfaLockedPayload": {(authentication_events.MFA_LOCKED,)},
+        "modules.auth.authentication.events.RefreshReuseDetectedPayload": {
+            (authentication_events.REFRESH_REUSE_DETECTED,)
+        },
+        "modules.auth.identity_providers.events.IdpLinkedPayload": {(idp_events.IDP_LINKED,)},
+        "modules.auth.identity_providers.events.IdpTokenRefreshPayload": {(idp_events.IDP_TOKEN_REFRESH_REQUESTED,)},
+        "modules.auth.known_devices.events.NewDeviceSignInPayload": {(known_devices_events.NEW_DEVICE_SIGN_IN,)},
+        "modules.auth.mfa_backup_codes.events.BackupCodeUsedPayload": {(backup_codes_events.BACKUP_CODE_USED,)},
+        "modules.auth.password_reset_tokens.events.PasswordResetRequestedPayload": {
+            (password_reset_events.PASSWORD_RESET_REQUESTED,)
+        },
+        "modules.auth.password_reset_tokens.events.PasswordResetCompletedPayload": {
+            (password_reset_events.PASSWORD_RESET_COMPLETED,)
+        },
+        "modules.auth.sessions.events.SessionsRevokedPayload": {(sessions_events.SESSIONS_REVOKED,)},
+        "modules.auth.sign_up_tokens.events.SignUpUserPayload": {
+            (
+                sign_up_events.SIGN_UP_VERIFICATION_REQUESTED,
+                sign_up_events.ADMIN_INVITATION_REQUESTED,
+                sign_up_events.EMAIL_CHANGE_VERIFICATION_REQUESTED,
+                sign_up_events.SIGN_UP_APPROVED,
+                sign_up_events.SIGN_UP_EXISTING_ACCOUNT,
+                sign_up_events.EMAIL_CHANGE_REQUESTED,
+                sign_up_events.EMAIL_CHANGE_ADDRESS_TAKEN,
+            )
+        },
+        "modules.auth.sign_up_tokens.events.EmailChangedPayload": {(sign_up_events.EMAIL_CHANGED,)},
+        "modules.auth.sign_up_tokens.events.SignUpApprovalRequestedPayload": {
+            (sign_up_events.SIGN_UP_APPROVAL_REQUESTED,)
+        },
+        "modules.followers.events.FollowerRequestedPayload": {(followers_events.FOLLOWER_REQUESTED,)},
+        "modules.followers.events.FollowerAcceptedPayload": {(followers_events.FOLLOWER_ACCEPTED,)},
+        "modules.followers.events.FollowerRequestRemovedPayload": {(followers_events.FOLLOWER_REQUEST_REMOVED,)},
+        "modules.garmin.events.SyncRequestedPayload": {(garmin_events.GARMIN_SYNC_REQUESTED,)},
+        "modules.strava.events.SyncRequestedPayload": {(strava_events.STRAVA_SYNC_REQUESTED,)},
+        "modules.users.users.events.DeletionRequestedPayload": {(users_events.USERS_DELETION_REQUESTED,)},
+        "modules.users.users.events.AdminPromotedPayload": {(users_events.USERS_ADMIN_PROMOTED,)},
+        "modules.users.users_profile.events.ProfileImportRequestedPayload": {
+            (profile_events.USERS_PROFILE_IMPORT_REQUESTED,)
+        },
+        "modules.users.users_profile.events.ProfileExportRequestedPayload": {
+            (profile_events.USERS_PROFILE_EXPORT_REQUESTED,)
+        },
+    }
+    stored_under = _stored_under()
+
+    assert {payload_class: stored_under[payload_class] for payload_class in expected} == expected

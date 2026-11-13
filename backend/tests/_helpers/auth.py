@@ -1,11 +1,18 @@
 """Builders for the sign-in records the auth tests put in the stores."""
 
+import uuid
+
 import modules.auth.constants as auth_constants
 import modules.auth.mfa.dependencies as mfa_dependencies
 
+#: The id of the signed-in user the test app's overridden principal carries.
+MOCK_USER_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
+#: The id of a second user, for tests that need someone else.
+OTHER_USER_ID = uuid.UUID("00000000-0000-4000-8000-000000000002")
+
 
 def pending_login(
-    user_id: int = 1,
+    user_id: uuid.UUID = MOCK_USER_ID,
     client_type: auth_constants.ClientType = auth_constants.ClientType.WEB,
     code_challenge: str | None = None,
     code_challenge_method: str | None = None,

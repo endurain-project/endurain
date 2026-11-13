@@ -1,4 +1,5 @@
 import os
+import uuid
 from collections.abc import Sequence
 from typing import Any
 from unittest.mock import MagicMock
@@ -178,7 +179,7 @@ def drop_postgres_schema(factory: sessionmaker[Session]) -> None:
     engine.dispose()
 
 
-def ensure_user(factory: sessionmaker[Session], user_id: int) -> None:
+def ensure_user(factory: sessionmaker[Session], user_id: uuid.UUID) -> None:
     """Insert a minimal user row if it is missing.
 
     PostgreSQL enforces the ``users.id`` foreign keys that SQLite leaves
@@ -191,9 +192,9 @@ def ensure_user(factory: sessionmaker[Session], user_id: int) -> None:
             db.add(
                 users_models.Users(
                     id=user_id,
-                    name=f"User {user_id}",
-                    username=f"user{user_id}",
-                    email=f"user{user_id}@example.com",
+                    name=f"User {user_id.hex[-12:]}",
+                    username=f"user{user_id.hex}",
+                    email=f"user{user_id.hex}@example.com",
                     preferred_language="en",
                     access_type="regular",
                 )

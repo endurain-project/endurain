@@ -15,6 +15,8 @@ import migrations.utils as migrations_utils
 import modules.activities.activity_media.contracts as activity_media_contracts
 
 _MODULE = "migrations.migration_12"
+_USER = uuid.UUID("11111111-1111-4111-8111-111111111111")
+_OTHER_USER = uuid.UUID("22222222-2222-4222-8222-222222222222")
 _JPEG = images.jpeg_with_exif((2000, 1000))
 _PNG = images.png_with_text()
 
@@ -25,7 +27,7 @@ def _media(media_id: uuid.UUID, key: str) -> activity_media_contracts.ActivityMe
     )
 
 
-def _run(storage: LocalStorage, *, photo_keys: list[tuple[int, str | None]], media: list[str]):
+def _run(storage: LocalStorage, *, photo_keys: list[tuple[uuid.UUID, str | None]], media: list[str]):
     db = MagicMock(spec=Session)
     with (
         patch(f"{_MODULE}.platform_runtime") as runtime,
@@ -49,7 +51,7 @@ class TestProcessMigration12:
         storage = LocalStorage(str(tmp_path))
         storage.save("user_images", "7.jpg", _JPEG, "image/jpeg")
 
-        db, migrations_service = _run(storage, photo_keys=[(7, "7.jpg"), (8, None)], media=[])
+        db, migrations_service = _run(storage, photo_keys=[(_USER, "7.jpg"), (_OTHER_USER, None)], media=[])
 
         stored = storage.get("user_images", "7.jpg")
         assert stored is not None
@@ -101,7 +103,7 @@ class TestProcessMigration12:
     def test_a_key_with_no_stored_object_is_skipped(self, tmp_path: Path):
         storage = LocalStorage(str(tmp_path))
 
-        _, migrations_service = _run(storage, photo_keys=[(7, "7.jpg")], media=["1_missing.jpg"])
+        _, migrations_service = _run(storage, photo_keys=[(_USER, "7.jpg")], media=["1_missing.jpg"])
 
         migrations_service.mark_executed.assert_called_once()
 

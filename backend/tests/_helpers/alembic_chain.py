@@ -771,6 +771,502 @@ def _seed_v0_21_idp_notifications(connection: Connection) -> None:
         )
 
 
+def _reference_id(index: int) -> str:
+    """Return a fixed UUID for a row seeded on a database at revision 90."""
+    return f"00000000-0000-4000-8000-{index:012d}"
+
+
+def _insert_rows(
+    connection: Connection, table: str, rows: Sequence[dict[str, object]], json_columns: Sequence[str] = ()
+) -> None:
+    """Insert rows into a table, each given as a dict of column to value."""
+    for row in rows:
+        target = sa.table(table, *(sa.column(name, sa.JSON if name in json_columns else None) for name in row))
+        connection.execute(sa.insert(target).values(row))
+
+
+def _provider_id(connection: Connection, slug: str) -> str:
+    return str(
+        connection.execute(sa.text("SELECT id FROM identity_providers WHERE slug = :slug"), {"slug": slug}).scalar()
+    )
+
+
+def _seed_users_references_health(connection: Connection) -> None:
+    for number, user_id in enumerate((2, 3), start=1):
+        day = f"2024-05-0{number + 1}"
+        _insert_rows(
+            connection,
+            "health_fasting",
+            [
+                {
+                    "id": _reference_id(1100 + number),
+                    "user_id": user_id,
+                    "fast_start_time": f"{day} 20:00:00",
+                    "status": "in_progress" if user_id == 2 else "completed",
+                }
+            ],
+        )
+        _insert_rows(
+            connection,
+            "health_poop",
+            [{"id": _reference_id(1110 + number), "user_id": user_id, "date_time": f"{day} 08:00:00"}],
+        )
+        _insert_rows(
+            connection, "health_sleep", [{"id": _reference_id(1120 + number), "user_id": user_id, "date": day}]
+        )
+        _insert_rows(
+            connection,
+            "health_steps",
+            [{"id": _reference_id(1130 + number), "user_id": user_id, "date": day, "steps": 1000 * user_id}],
+        )
+        _insert_rows(
+            connection,
+            "health_targets",
+            [{"id": _reference_id(1140 + number), "user_id": user_id, "steps": 5000 * user_id}],
+        )
+        _insert_rows(
+            connection,
+            "health_water",
+            [{"id": _reference_id(1150 + number), "user_id": user_id, "date": day, "amount_ml": 250 * user_id}],
+        )
+        _insert_rows(
+            connection,
+            "health_weight",
+            [{"id": _reference_id(1160 + number), "user_id": user_id, "date": day, "weight_kg": 60 + user_id}],
+        )
+    for number, user_id in enumerate((1, 2, 3), start=1):
+        _insert_rows(
+            connection,
+            "health_record_deletions",
+            [
+                {
+                    "id": _reference_id(1170 + number),
+                    "user_id": user_id,
+                    "record_id": _reference_id(1180 + number),
+                    "record_type": "health_weight",
+                }
+            ],
+        )
+
+
+def _seed_users_references_gear(connection: Connection) -> None:
+    _insert_rows(
+        connection,
+        "gear",
+        [
+            {
+                "id": _reference_id(1200 + user_id),
+                "nickname": f"Bike of user {user_id}",
+                "gear_type": 1,
+                "user_id": user_id,
+                "initial_distance": 0,
+                "active": True,
+                "strava_gear_id": f"strava-gear-{user_id}",
+                "garminconnect_gear_id": f"garmin-gear-{user_id}",
+            }
+            for user_id in (2, 3)
+        ],
+    )
+    _insert_rows(
+        connection,
+        "gear_components",
+        [
+            {
+                "id": _reference_id(1210 + user_id),
+                "user_id": user_id,
+                "gear_id": _reference_id(1200 + user_id),
+                "type": "chain",
+                "brand": "Brand",
+                "model": f"Component of user {user_id}",
+                "purchase_date": "2024-05-01",
+                "active": True,
+            }
+            for user_id in (2, 3)
+        ],
+    )
+    for number, user_id in enumerate((1, 2, 3), start=1):
+        for table, offset in (
+            ("gear_deletions", 1220),
+            ("gear_component_deletions", 1230),
+            ("activity_deletions", 1240),
+        ):
+            _insert_rows(
+                connection,
+                table,
+                [
+                    {
+                        "id": _reference_id(offset + number),
+                        "user_id": user_id,
+                        "record_id": _reference_id(offset + 5 + number),
+                    }
+                ],
+            )
+    _insert_rows(
+        connection,
+        "users_default_gear",
+        [{"id": _reference_id(1250), "user_id": 3, "version": 1}],
+    )
+
+
+def _seed_users_references_activities(connection: Connection) -> None:
+    for user_id in (2, 3):
+        _insert_rows(
+            connection,
+            "activities",
+            [
+                {
+                    "id": _reference_id(1300 + user_id),
+                    "user_id": user_id,
+                    "name": f"Ride of user {user_id}",
+                    "distance": 1000 * user_id,
+                    "activity_type": 2,
+                    "start_time": "2024-05-04 10:00:00",
+                    "end_time": "2024-05-04 11:00:00",
+                    "created_at": "2024-05-04 12:00:00",
+                    "visibility": 0,
+                    "total_elapsed_time": 3600,
+                    "total_timer_time": 3500,
+                    "hide_start_time": False,
+                    "hide_location": False,
+                    "hide_map": False,
+                    "hide_hr": False,
+                    "hide_power": False,
+                    "hide_cadence": False,
+                    "hide_elevation": False,
+                    "hide_speed": False,
+                    "hide_pace": False,
+                    "hide_laps": False,
+                    "hide_workout_sets_steps": False,
+                    "hide_gear": False,
+                    "is_hidden": False,
+                    "dedup_key": f"dedup-{user_id}",
+                    "version": 1,
+                }
+            ],
+        )
+    _insert_rows(
+        connection,
+        "activity_ingestion_jobs",
+        [
+            {
+                "id": "66666666-6666-4666-8666-666666666680",
+                "user_id": 2,
+                "filename": "bulk.zip",
+                "status": "pending",
+                "kind": "bulk_import",
+            },
+            {
+                "id": "66666666-6666-4666-8666-666666666681",
+                "user_id": 3,
+                "filename": "third.fit",
+                "status": "completed",
+                "kind": "upload",
+            },
+        ],
+    )
+
+
+def _seed_users_references_social(connection: Connection) -> None:
+    _insert_rows(
+        connection,
+        "followers",
+        [
+            {
+                "id": _reference_id(1400),
+                "follower_id": 2,
+                "followee_id": 3,
+                "status": "accepted",
+                "created_at": "2024-05-01 10:00:03",
+            }
+        ],
+    )
+    _insert_rows(connection, "follower_blocks", [{"id": _reference_id(1410), "blocker_id": 3, "blocked_id": 1}])
+    _insert_rows(
+        connection,
+        "follow_request_declines",
+        [
+            {"id": _reference_id(1420), "follower_id": 3, "followee_id": 2, "declined_at": "2024-05-01 10:00:01"},
+            {"id": _reference_id(1421), "follower_id": 1, "followee_id": 3, "declined_at": "2024-05-01 10:00:02"},
+        ],
+    )
+    _insert_rows(
+        connection,
+        "users_goals",
+        [
+            {
+                "id": _reference_id(1430 + user_id),
+                "user_id": user_id,
+                "interval": "weekly",
+                "goal_distance": 1000 * user_id,
+                "activity_type": "run",
+                "goal_type": "distance",
+            }
+            for user_id in (2, 3)
+        ],
+    )
+
+
+def _seed_users_references_accounts(connection: Connection) -> None:
+    _insert_rows(
+        connection,
+        "account_security_generations",
+        [{"user_id": 2, "generation": 2}, {"user_id": 3, "generation": 3}],
+    )
+    _insert_rows(
+        connection,
+        "users_local_credentials",
+        [
+            {"user_id": 2, "password_hash": "second-hash"},
+            {"user_id": 3, "password_hash": "third-hash"},
+        ],
+    )
+    _insert_rows(
+        connection,
+        "users_integrations",
+        [{"id": _reference_id(1500 + user_id), "user_id": user_id, "strava_sync_gear": False} for user_id in (2, 3)],
+    )
+    privacy = {
+        f"hide_activity_{name}": False
+        for name in (
+            "start_time",
+            "location",
+            "map",
+            "hr",
+            "power",
+            "cadence",
+            "elevation",
+            "speed",
+            "pace",
+            "laps",
+            "workout_sets_steps",
+            "gear",
+        )
+    }
+    _insert_rows(
+        connection,
+        "users_privacy_settings",
+        [
+            {
+                "id": _reference_id(1510 + user_id),
+                "user_id": user_id,
+                **privacy,
+                "default_activity_visibility": "public",
+            }
+            for user_id in (2, 3)
+        ],
+    )
+    _insert_rows(
+        connection,
+        "users_identity_providers",
+        [
+            {
+                "id": _reference_id(1520),
+                "user_id": 3,
+                "idp_id": _provider_id(connection, "seed-provider"),
+                "idp_subject": "third-subject",
+            }
+        ],
+    )
+    for user_id in (2, 3):
+        _insert_rows(
+            connection,
+            "mfa_backup_codes",
+            [
+                {
+                    "id": _reference_id(1530 + user_id),
+                    "user_id": user_id,
+                    "code_hash": f"backup-code-hash-{user_id}",
+                    "used": False,
+                    "created_at": "2024-05-01 10:00:00",
+                }
+            ],
+        )
+        _insert_rows(
+            connection,
+            "mfa_factors",
+            [
+                {
+                    "id": _reference_id(1540 + user_id),
+                    "user_id": user_id,
+                    "type": "totp",
+                    "credential": f"credential-{user_id}",
+                    "created_at": "2024-05-01 10:00:00",
+                }
+            ],
+        )
+        _insert_rows(
+            connection,
+            "auth_known_devices",
+            [
+                {
+                    "id": _reference_id(1550 + user_id),
+                    "user_id": user_id,
+                    "device_hash": f"device-hash-{user_id}",
+                    "created_at": "2024-05-01 10:00:00",
+                    "last_seen_at": "2024-05-01 10:00:00",
+                    "security_generation": 1,
+                }
+            ],
+        )
+        _insert_rows(
+            connection,
+            "users_api_keys",
+            [
+                {
+                    "id": f"1111111{user_id}-1111-4111-8111-111111111111",
+                    "user_id": user_id,
+                    "name": f"key of user {user_id}",
+                    "key_prefix": f"edk_{user_id}",
+                    "key_hash": f"key-hash-{user_id}",
+                    "scopes": "activities:read",
+                    "expires_at": "2030-01-01 00:00:00",
+                    "created_at": "2024-05-01 10:00:00",
+                    "is_active": True,
+                }
+            ],
+        )
+
+
+def _seed_users_references_tokens_and_sessions(connection: Connection) -> None:
+    for user_id in (2, 3):
+        _insert_rows(
+            connection,
+            "password_reset_tokens",
+            [
+                {
+                    "id": f"reset-token-{user_id}",
+                    "user_id": user_id,
+                    "token_hash": f"reset-hash-{user_id}",
+                    "created_at": "2024-05-01 10:00:00",
+                    "expires_at": "2030-01-01 00:00:00",
+                    "used": False,
+                }
+            ],
+        )
+    for user_id, previous_email in ((1, "admin@example.com"), (3, "third@example.com")):
+        _insert_rows(
+            connection,
+            "sign_up_tokens",
+            [
+                {
+                    "id": f"email-change-token-{user_id}",
+                    "user_id": user_id,
+                    "token_hash": f"email-change-hash-{user_id}",
+                    "created_at": "2024-05-01 10:00:00",
+                    "expires_at": "2030-01-01 00:00:00",
+                    "used": False,
+                    "email": f"new-{user_id}@example.com",
+                    "previous_email": previous_email,
+                    "security_generation": 1,
+                    "change_id": f"change-{user_id}",
+                    "revert_until": "2030-01-01 00:00:00",
+                }
+            ],
+        )
+    for user_id in (2, 3):
+        _insert_rows(
+            connection,
+            "users_sessions",
+            [
+                {
+                    "id": f"session-of-user-{user_id}",
+                    "user_id": user_id,
+                    "ip_address": "127.0.0.1",
+                    "device_type": "desktop",
+                    "operating_system": "Linux",
+                    "operating_system_version": "6",
+                    "browser": "Firefox",
+                    "browser_version": "120",
+                    "created_at": "2024-05-01 10:00:00",
+                    "expires_at": "2030-01-01 00:00:00",
+                    "last_activity_at": "2024-05-01 10:00:00",
+                    "tokens_exchanged": True,
+                    "token_family_id": f"family-of-user-{user_id}",
+                    "rotation_count": 0,
+                    "client_type": "web",
+                    "auth_time": "2024-05-01 10:00:00",
+                    "amr": ["pwd"],
+                }
+            ],
+            json_columns=("amr",),
+        )
+    _insert_rows(
+        connection,
+        "oauth_states",
+        [
+            {
+                "id": "seed-oauth-state-3",
+                "idp_id": _provider_id(connection, "seed-provider"),
+                "user_id": 3,
+                "nonce": "seed-nonce",
+                "client_type": "web",
+                "expires_at": "2030-01-01 00:00:00",
+                "used": False,
+                "purpose": "login",
+            }
+        ],
+    )
+    _insert_rows(
+        connection,
+        "idp_session_tokens",
+        [
+            {
+                "id": _reference_id(1600),
+                "session_id": "session-of-user-3",
+                "user_id": 3,
+                "idp_id": _provider_id(connection, "seed-provider"),
+            }
+        ],
+    )
+
+
+#: The notifications seeded at revision 90, as (index, owner, type, options): the ones that name a user in their
+#: options (a follower notification), a dangling user and options that carry no user id.
+USER_NOTIFICATIONS: tuple[tuple[int, int, int, dict[str, object] | None], ...] = (
+    (1, 1, 11, {"user_id": 2, "username": "regular"}),
+    (2, 2, 12, {"user_id": 1, "other": "kept"}),
+    (3, 3, 11, {"user_id": 999, "username": "gone"}),
+    (4, 3, 1, {"activity_id": "kept"}),
+    (5, 2, 1, None),
+    (6, 3, 12, {"user_id": None}),
+)
+
+
+def _seed_users_references_notifications(connection: Connection) -> None:
+    for index, owner, notification_type, options in USER_NOTIFICATIONS:
+        connection.execute(
+            sa.text(
+                """INSERT INTO notifications (id, user_id, type, options, read, created_at)
+                   VALUES (:id, :owner, :type, CAST(:options AS json), false, '2024-05-01 10:00:00')"""
+            ),
+            {
+                "id": _reference_id(1700 + index),
+                "owner": owner,
+                "type": notification_type,
+                "options": None if options is None else json.dumps(options),
+            },
+        )
+
+
+def seed_users_references(connection: Connection) -> None:
+    """Give every column that references ``users`` rows naming users 1, 2 and 3, on a database at revision 90.
+
+    Adds to what ``seed_v0_20`` and ``seed_v0_21`` seeded: a pending email change and a password reset token, API
+    keys, tombstones, the rows of the two ``user_id`` primary-key tables, an active bulk import, an in-progress
+    fast, a TOTP factor and a self-contained set of notifications whose options name a user. Commits are the caller's.
+
+    Args:
+        connection: A connection on a database at ``3ab6649cdd08``.
+    """
+    _seed_users_references_health(connection)
+    _seed_users_references_gear(connection)
+    _seed_users_references_activities(connection)
+    _seed_users_references_social(connection)
+    _seed_users_references_accounts(connection)
+    _seed_users_references_tokens_and_sessions(connection)
+    _seed_users_references_notifications(connection)
+
+
 #: The events the identity-provider revision rewrites, plus one control of another type that must stay as it is, as
 #: (event type, payload). The ``idp_id`` is the old integer id: 1 and 2 name seeded providers, 99 names none.
 IDP_EVENT_CASES: tuple[tuple[str, dict[str, object]], ...] = (
@@ -798,6 +1294,73 @@ ACTIVITY_EVENT_CASES: tuple[tuple[str, dict[str, object]], ...] = (
 ACTIVITY_EVENT_METADATA: dict[str, object] = {"activity_id": 1, "user_id": 1, "request_id": "seed"}
 #: The id prefix of the activity event rows, laid out as ``IDP_EVENT_PREFIX`` is.
 ACTIVITY_EVENT_PREFIX = "act"
+#: The user id fields of every event type the users revision rewrites, as (event type, fields), read from the payload
+#: classes. Each field of a case names a different seeded user.
+_USER_EVENT_FIELDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("activity.created", ("user_id",)),
+    ("activity.updated", ("user_id",)),
+    ("activities.visibility_edit_requested", ("user_id",)),
+    ("auth.account_security_changed", ("user_id",)),
+    ("auth.step_up_session_ended", ("user_id",)),
+    ("auth.step_up_locked", ("user_id",)),
+    ("auth.account_locked", ("user_id",)),
+    ("auth.mfa_locked", ("user_id",)),
+    ("auth.refresh_reuse_detected", ("user_id",)),
+    ("auth.idp_linked", ("user_id",)),
+    ("auth.idp_token_refresh_requested", ("user_id",)),
+    ("auth.new_device_sign_in", ("user_id",)),
+    ("auth.backup_code_used", ("user_id",)),
+    ("auth.password_reset_requested", ("user_id",)),
+    ("auth.password_reset_completed", ("user_id",)),
+    ("auth.sessions_revoked", ("user_id",)),
+    ("auth.sign_up_verification_requested", ("user_id",)),
+    ("auth.admin_invitation_requested", ("user_id",)),
+    ("auth.email_change_verification_requested", ("user_id",)),
+    ("auth.sign_up_approved", ("user_id",)),
+    ("auth.sign_up_existing_account", ("user_id",)),
+    ("auth.email_change_requested", ("user_id",)),
+    ("auth.email_change_address_taken", ("user_id",)),
+    ("auth.email_changed", ("user_id",)),
+    ("auth.sign_up_approval_requested", ("user_id", "admin_user_id")),
+    ("follower.requested", ("requester_user_id", "target_user_id")),
+    ("follower.accepted", ("accepter_user_id", "requester_user_id")),
+    ("follower.request_removed", ("requester_user_id", "target_user_id")),
+    ("garmin.sync_requested", ("user_id",)),
+    ("strava.sync_requested", ("user_id",)),
+    ("users.deletion_requested", ("user_id",)),
+    ("users.admin_promoted", ("user_id", "admin_user_id")),
+    ("users.profile_import_requested", ("user_id",)),
+    ("users.profile_export_requested", ("user_id",)),
+)
+#: The events the users revision rewrites, as (event type, payload): one per type, each user field naming a seeded user
+#: (1, 2 or 3) with a field that is not rewritten beside it; then a password reset with a null user, one with a user
+#: that does not exist (999), a user id that is text, and a control of another type that must stay as it is.
+USER_EVENT_CASES: tuple[tuple[str, dict[str, object]], ...] = (
+    *(
+        (
+            event_type,
+            {
+                **{field: (index + offset) % 3 + 1 for offset, field in enumerate(fields)},
+                "marker": f"kept-{index}",
+            },
+        )
+        for index, (event_type, fields) in enumerate(_USER_EVENT_FIELDS)
+    ),
+    ("auth.password_reset_requested", {"user_id": None, "marker": "null"}),
+    ("auth.password_reset_requested", {"user_id": 999, "marker": "dangling"}),
+    ("auth.mfa_locked", {"user_id": "already-text", "marker": "text"}),
+    ("activity.deleted", {"user_id": 1, "marker": "control"}),
+)
+#: The metadata of every seeded user event row: user 2 is named, so the rewrite is told apart from user 1.
+USER_EVENT_METADATA: dict[str, object] = {"user_id": 2, "request_id": "seed"}
+#: One event whose metadata names a user that does not exist.
+USER_EVENT_DANGLING_METADATA_CASES: tuple[tuple[str, dict[str, object]], ...] = (
+    ("auth.sessions_revoked", {"user_id": 3, "marker": "dangling metadata"}),
+)
+USER_EVENT_DANGLING_METADATA: dict[str, object] = {"user_id": 999, "request_id": "seed"}
+#: The id prefixes of the user event rows, laid out as ``IDP_EVENT_PREFIX`` is.
+USER_EVENT_PREFIX = "usr"
+USER_EVENT_DANGLING_PREFIX = "usd"
 #: The states of the seeded processing jobs; ``retrying`` is a pending job that was attempted.
 EVENT_JOB_STATES = ("pending", "retrying", "claimed", "dead_letter", "completed")
 

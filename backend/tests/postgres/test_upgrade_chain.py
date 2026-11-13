@@ -3,16 +3,24 @@
 import json
 import uuid
 from collections import Counter
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
 import sqlalchemy as sa
+from jasil.backends.state_memory import MemoryState
 from jasil.backends.storage_local import LocalStorage
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Session
 
+import core.config as core_config
 import migrations.migration_13 as migration_13
+import migrations.migration_14 as migration_14
+import model_registry as orm_model_registry
+import modules.activities.activity_ingestion.migration_service as activity_ingestion_migration_service
+import modules.users.users.migration_service as users_migration_service
+import modules.users.users_profile.migration_service as users_profile_migration_service
+from core.database import Base
 from tests._helpers import alembic_chain
 
 _REVISION_0 = "c5cfe02a11c2"
@@ -23,14 +31,20 @@ _REVISION_87 = "e05703e64861"
 _REVISION_88 = "dc5f0450aaf0"
 _REVISION_89 = "ecaa46b32646"
 _REVISION_90 = "3ab6649cdd08"
+_REVISION_91 = "353455bea2a5"
 _RETIRED_DATA_MIGRATIONS = {1, 2, 3, 4, 5, 6, 8, 9, 10}
 _UNPREFIXED_SUBSTRATE_TABLES = ("event_log", "event_outbox", "processing_jobs")
-#: The tables the chain empties by design: their record ids name rows whose ids change (revisions 87, 89 and 90).
+#: The tables the chain empties by design: their record ids name rows whose ids change (revisions 87, 89 and 90), and
+#: the sessions and everything that proves one (revision 91, decision C).
 _TABLES_EMPTIED_BY_THE_CHAIN = {
     "health_record_deletions",
     "gear_deletions",
     "gear_component_deletions",
     "activity_deletions",
+    "rotated_refresh_tokens",
+    "idp_session_tokens",
+    "users_sessions",
+    "oauth_states",
 }
 #: The one table revision 87 empties.
 _TABLE_EMPTIED_BY_REVISION_87 = "health_record_deletions"
@@ -140,7 +154,7 @@ def test_a_fresh_install_upgrades_to_head_and_matches_the_models(upgrade_db):
     assert alembic_chain.schema_differences(upgrade_db) == []
     alembic_chain.bootstrap_substrate(upgrade_db)
     assert alembic_chain.schema_differences(upgrade_db) == []
-    assert _migrations_state(upgrade_db) == {7: True, 11: False, 12: False, 13: False}
+    assert _migrations_state(upgrade_db) == {7: True, 11: False, 12: False, 13: False, 14: False}
     assert _scalar(upgrade_db, "SELECT count(*) FROM uuid_migration_ids") == 0
     assert _scalar(upgrade_db, "SELECT to_regclass('cadence_spm_migration_rows')") is None
 
@@ -160,10 +174,10 @@ def test_a_seeded_v0_20_install_upgrades_to_head_keeping_every_row(upgrade_db):
     after = alembic_chain.row_counts(upgrade_db)
     assert after == {
         **before,
-        "migrations": before["migrations"] - 9 + 1,
+        "migrations": before["migrations"] - 9 + 2,
         **dict.fromkeys(_TABLES_EMPTIED_BY_THE_CHAIN, 0),
     }
-    assert set(_migrations_state(upgrade_db)) == {7, 11, 12, 13}
+    assert set(_migrations_state(upgrade_db)) == {7, 11, 12, 13, 14}
     assert _scalar(upgrade_db, "SELECT to_regclass('cadence_spm_migration_rows')") is None
     assert _scalar(upgrade_db, "SELECT start_time FROM activity_sets WHERE duration = 30").isoformat() == (
         "2024-05-01T10:00:00+00:00"
@@ -475,14 +489,11 @@ def test_revision_88_converts_identity_providers_and_their_references(upgrade_db
 
     with upgrade_db.begin() as connection:
         connection.execute(sa.text("DELETE FROM identity_providers WHERE slug = 'second-provider'"))
-    assert _provider_pairs(upgrade_db, "users_identity_providers", "user_id") == [(1, "seed-provider")]
-    assert _provider_pairs(upgrade_db, "idp_session_tokens", "session_id") == [
-        ("33333333-3333-4333-8333-333333333333", "seed-provider")
-    ]
-    assert _provider_pairs(upgrade_db, "oauth_states", "id") == [
-        ("seed-oauth-state", "seed-provider"),
-        ("seed-oauth-state-no-idp", None),
-    ]
+    admin_id = _scalar(upgrade_db, "SELECT id FROM users WHERE username = 'admin'")
+    assert _provider_pairs(upgrade_db, "users_identity_providers", "user_id") == [(admin_id, "seed-provider")]
+    # Revision 91 empties the session tables, so nothing of them is left to name the provider.
+    assert _provider_pairs(upgrade_db, "idp_session_tokens", "session_id") == []
+    assert _provider_pairs(upgrade_db, "oauth_states", "id") == []
 
 
 def test_revision_88_rewrites_the_jasil_prefixed_substrate_tables(upgrade_db):
@@ -675,8 +686,9 @@ def test_revision_89_converts_gear_and_its_references(upgrade_db):
     assert _scalar(upgrade_db, "SELECT count(*) FROM gear_components") == 2
     for table, column in _GEAR_REFERENCES:
         assert _count_joined_to_gear(upgrade_db, table, column) == _count_not_null(upgrade_db, table, column)
-    assert _scalar(upgrade_db, "SELECT trail_run_gear_id FROM users_default_gear WHERE user_id = 1") is None
-    assert _scalar(upgrade_db, "SELECT run_gear_id FROM users_default_gear WHERE user_id = 1") is not None
+    admin_default_gear = "FROM users_default_gear WHERE user_id = (SELECT id FROM users WHERE username = 'admin')"
+    assert _scalar(upgrade_db, f"SELECT trail_run_gear_id {admin_default_gear}") is None
+    assert _scalar(upgrade_db, f"SELECT run_gear_id {admin_default_gear}") is not None
 
 
 def test_revision_89_is_irreversible(upgrade_db):
@@ -1033,6 +1045,467 @@ def test_revision_90_is_irreversible(upgrade_db):
     assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == _REVISION_90
 
 
+#: Every column that references ``users.id`` at revision 90, as (table, column, the column that names a row across the
+#: conversion). A row is named by its own id, which revision 91 leaves alone, except where the table has none.
+_USER_REFERENCES = (
+    ("account_security_generations", "user_id", "generation"),
+    ("activities", "user_id", "id"),
+    ("activity_deletions", "user_id", "id"),
+    ("activity_ingestion_jobs", "user_id", "id"),
+    ("auth_known_devices", "user_id", "id"),
+    ("follow_request_declines", "follower_id", "id"),
+    ("follow_request_declines", "followee_id", "id"),
+    ("follower_blocks", "blocker_id", "id"),
+    ("follower_blocks", "blocked_id", "id"),
+    ("followers", "follower_id", "id"),
+    ("followers", "followee_id", "id"),
+    ("gear", "user_id", "id"),
+    ("gear_component_deletions", "user_id", "id"),
+    ("gear_components", "user_id", "id"),
+    ("gear_deletions", "user_id", "id"),
+    ("health_fasting", "user_id", "id"),
+    ("health_poop", "user_id", "id"),
+    ("health_record_deletions", "user_id", "id"),
+    ("health_sleep", "user_id", "id"),
+    ("health_steps", "user_id", "id"),
+    ("health_targets", "user_id", "id"),
+    ("health_water", "user_id", "id"),
+    ("health_weight", "user_id", "id"),
+    ("idp_session_tokens", "user_id", "id"),
+    ("mfa_backup_codes", "user_id", "id"),
+    ("mfa_factors", "user_id", "id"),
+    ("notifications", "user_id", "id"),
+    ("oauth_states", "user_id", "id"),
+    ("password_reset_tokens", "user_id", "id"),
+    ("sign_up_tokens", "user_id", "id"),
+    ("users_api_keys", "user_id", "id"),
+    ("users_default_gear", "user_id", "id"),
+    ("users_goals", "user_id", "id"),
+    ("users_identity_providers", "user_id", "id"),
+    ("users_integrations", "user_id", "id"),
+    ("users_local_credentials", "user_id", "password_hash"),
+    ("users_privacy_settings", "user_id", "id"),
+    ("users_sessions", "user_id", "id"),
+)
+#: The tables revision 91 empties: sessions, rotated tokens, OAuth states and identity provider session tokens.
+_USER_SESSION_TABLES = ("rotated_refresh_tokens", "idp_session_tokens", "users_sessions", "oauth_states")
+#: The tables whose ``(created_at, id)`` order the conversion must keep.
+_USER_ORDERED_TABLES = ("followers", "follower_blocks", "users_goals", "activity_media")
+#: The tables whose rows are kept by the conversion and found again by their id and hash.
+_USER_TOKEN_TABLES = ("sign_up_tokens", "password_reset_tokens")
+_USER_NAMES = {1: "admin", 2: "regular", 3: "third"}
+_USER_EVENT_FIELD_NAMES = frozenset(
+    {"user_id", "admin_user_id", "requester_user_id", "target_user_id", "accepter_user_id"}
+)
+_UNREWRITTEN_USER_EVENT_TYPES = frozenset({"activity.deleted"})
+#: The notification id of each seeded notification that names a user, by its index.
+_USER_NOTIFICATION_IDS = {index: f"00000000-0000-4000-8000-{1700 + index:012d}" for index in range(1, 7)}
+
+
+def _seed_to_90(engine) -> None:
+    _seed_to_87(engine)
+    alembic_chain.upgrade(engine, _REVISION_90)
+    _seed(engine, alembic_chain.seed_users_references)
+    with engine.begin() as connection:
+        connection.execute(sa.text("UPDATE users SET photo_path = '1.png' WHERE id = 1"))
+        connection.execute(sa.text("UPDATE users SET photo_path = '2.jpg' WHERE id = 2"))
+
+
+def _user_pairs(engine, table: str, column: str, key: str) -> list[tuple]:
+    """Return (key of the row, username of the user the column references) of every row, whatever the type of the ids."""
+    rows = sa.table(table, sa.column(key), sa.column(column))
+    users = sa.table("users", sa.column("id"), sa.column("username"))
+    key_text = sa.cast(rows.c[key], sa.Text)
+    statement = (
+        sa.select(key_text, users.c.username)
+        .select_from(rows.outerjoin(users, users.c.id == rows.c[column]))
+        .order_by(key_text, users.c.username)
+    )
+    with engine.connect() as connection:
+        return [tuple(row) for row in connection.execute(statement)]
+
+
+def _users_named_by(engine, table: str, column: str) -> set:
+    rows = sa.table(table, sa.column(column))
+    with engine.connect() as connection:
+        return set(connection.execute(sa.select(rows.c[column]).distinct()).scalars())
+
+
+def _ids_in_creation_order(engine, table: str) -> list[str]:
+    rows = sa.table(table, sa.column("id"), sa.column("created_at"))
+    with engine.connect() as connection:
+        return list(
+            connection.execute(sa.select(sa.cast(rows.c.id, sa.Text)).order_by(rows.c.created_at, rows.c.id)).scalars()
+        )
+
+
+def _tokens(engine, table: str) -> list[tuple]:
+    rows = sa.table(table, sa.column("id"), sa.column("token_hash"))
+    with engine.connect() as connection:
+        return [tuple(row) for row in connection.execute(sa.select(rows.c.id, rows.c.token_hash).order_by(rows.c.id))]
+
+
+def _count_joined_to_users(engine, table: str, column: str) -> int:
+    rows = sa.table(table, sa.column(column))
+    users = sa.table("users", sa.column("id"))
+    with engine.connect() as connection:
+        return connection.execute(
+            sa.select(sa.func.count()).select_from(rows.join(users, users.c.id == rows.c[column]))
+        ).scalar_one()
+
+
+def _insert(engine, table: str, values: dict, with_id: bool = True) -> None:
+    """Insert one row on its own transaction, with a fresh UUID id unless the table has none."""
+    row = {**values, "id": str(uuid.uuid4())} if with_id else values
+    target = sa.table(table, *(sa.column(name) for name in row))
+    with engine.begin() as connection:
+        connection.execute(sa.insert(target).values(row))
+
+
+def _is_nullable(engine, table: str, column: str) -> bool:
+    return (
+        _scalar_with(
+            engine,
+            "SELECT is_nullable FROM information_schema.columns "
+            "WHERE table_schema = 'public' AND table_name = :table AND column_name = :column",
+            table=table,
+            column=column,
+        )
+        == "YES"
+    )
+
+
+def _scalar_with(engine, statement: str, **parameters):
+    with engine.connect() as connection:
+        return connection.execute(sa.text(statement), parameters).scalar()
+
+
+def _new_user_ids(engine) -> dict[int, str]:
+    """Return the UUID of each seeded user by its old integer id, as ``uuid_migration_ids`` recorded it."""
+    return dict(_rows(engine, "SELECT old_id, new_id::text FROM uuid_migration_ids WHERE table_name = 'users'"))
+
+
+def _assert_a_dangling_id(value, new_ids: dict[int, str]) -> None:
+    """Check a value is a fresh random UUID that names no user."""
+    assert str(uuid.UUID(value)) == value
+    assert uuid.UUID(value).version == 4
+    assert value not in new_ids.values()
+
+
+def _expected_user_payload(event_type: str, old: dict, new_ids: dict[int, str]) -> dict:
+    """Return the payload a seeded user event has after the conversion; a dangling id is left as the string ``DANGLING``."""
+    if event_type in _UNREWRITTEN_USER_EVENT_TYPES:
+        return old
+    return {
+        key: (
+            ("DANGLING" if value == 999 else new_ids[value])
+            if key in _USER_EVENT_FIELD_NAMES and isinstance(value, int)
+            else value
+        )
+        for key, value in old.items()
+    }
+
+
+def _assert_user_events_rewritten(engine, prefix: str, new_ids: dict[int, str]) -> None:
+    """Check every seeded row of the substrate tables: user ids rewritten by event type, the rest of the row kept."""
+    cases = {
+        "usr": (alembic_chain.USER_EVENT_CASES, {**alembic_chain.USER_EVENT_METADATA, "user_id": new_ids[2]}),
+        "usd": (alembic_chain.USER_EVENT_DANGLING_METADATA_CASES, None),
+    }
+    cases_count = len(alembic_chain.USER_EVENT_CASES)
+    expected_rows = {"event_outbox": 2 * cases_count, "processing_jobs": 5 * cases_count, "event_log": cases_count}
+    for table, (payload_column, metadata_column) in _JSON_PAYLOAD_COLUMNS.items():
+        for id_prefix, (event_cases, expected_metadata) in cases.items():
+            rows = _seeded_rows(
+                engine, f"{prefix}{table}", "event_type", payload_column, metadata_column, id_prefix=id_prefix
+            )
+            if id_prefix == "usr":
+                assert len(rows) == expected_rows[table], table
+            for event_type, payload, metadata, row_id in rows:
+                old_event_type, old_payload = event_cases[int(row_id.split("-")[2])]
+                assert event_type == old_event_type
+                expected = _expected_user_payload(event_type, old_payload, new_ids)
+                assert payload.keys() == expected.keys(), (table, row_id)
+                for key, value in expected.items():
+                    if value == "DANGLING":
+                        _assert_a_dangling_id(payload[key], new_ids)
+                    else:
+                        assert payload[key] == value, (table, row_id, key)
+                if expected_metadata is None:
+                    _assert_a_dangling_id(metadata["user_id"], new_ids)
+                    assert metadata["request_id"] == "seed"
+                else:
+                    assert metadata == expected_metadata
+        for older_prefix in ("act", "idp"):
+            for payload, metadata, row_id in _seeded_rows(
+                engine, f"{prefix}{table}", payload_column, metadata_column, id_prefix=older_prefix
+            ):
+                assert payload.get("user_id", new_ids[1]) == new_ids[1], row_id
+                assert metadata["user_id"] == new_ids[1], row_id
+
+
+def _assert_user_notifications_rewritten(engine, new_ids: dict[int, str]) -> None:
+    options = dict(_rows(engine, "SELECT id::text, options::jsonb FROM notifications"))
+    notifications = {index: options[notification_id] for index, notification_id in _USER_NOTIFICATION_IDS.items()}
+    assert notifications[1] == {"user_id": new_ids[2], "username": "regular"}
+    assert notifications[2] == {"user_id": new_ids[1], "other": "kept"}
+    assert set(notifications[3]) == {"user_id", "username"}
+    assert notifications[3]["username"] == "gone"
+    _assert_a_dangling_id(notifications[3]["user_id"], new_ids)
+    assert notifications[4] == {"activity_id": "kept"}
+    assert notifications[5] is None
+    assert notifications[6] == {"user_id": None}
+
+
+def test_revision_91_converts_users_and_their_references(upgrade_db):
+    _seed_to_90(upgrade_db)
+    counts_before = alembic_chain.row_counts(upgrade_db)
+    with upgrade_db.begin() as connection:
+        connection.execute(sa.text("UPDATE migrations SET executed = true WHERE id = 13"))
+    migrations_before = _migrations_state(upgrade_db)
+    assert len(_USER_REFERENCES) == 38
+    with upgrade_db.connect() as connection:
+        referencing = connection.execute(
+            sa.text(
+                "SELECT c.conrelid::regclass::text, a.attname FROM pg_constraint c "
+                "JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey) "
+                "WHERE c.contype = 'f' AND c.confrelid = 'users'::regclass"
+            )
+        ).all()
+    assert sorted(tuple(row) for row in referencing) == sorted((table, column) for table, column, _ in _USER_REFERENCES)
+    for table, column, _ in _USER_REFERENCES:
+        assert {1, 2, 3} <= _users_named_by(upgrade_db, table, column), (table, column)
+    pairs_before = {
+        (table, column): _user_pairs(upgrade_db, table, column, key) for table, column, key in _USER_REFERENCES
+    }
+    for pairs in pairs_before.values():
+        assert {username for _, username in pairs} >= set(_USER_NAMES.values())
+    orders_before = {table: _ids_in_creation_order(upgrade_db, table) for table in _USER_ORDERED_TABLES}
+    assert all(len(order) >= 3 for order in orders_before.values())
+    provider_ids_before = {
+        "gear": _rows(upgrade_db, "SELECT nickname, strava_gear_id, garminconnect_gear_id FROM gear ORDER BY nickname"),
+        "activities": _rows(
+            upgrade_db, "SELECT name, strava_activity_id, garminconnect_activity_id FROM activities ORDER BY name"
+        ),
+        "users_identity_providers": _rows(
+            upgrade_db, "SELECT idp_subject, idp_id::text FROM users_identity_providers ORDER BY idp_subject"
+        ),
+    }
+    usernames_before = _rows(upgrade_db, "SELECT id, username, email, photo_path FROM users ORDER BY id")
+    kept_tokens_before = {table: _tokens(upgrade_db, table) for table in _USER_TOKEN_TABLES}
+    migration_ids_before = _rows(upgrade_db, "SELECT table_name, old_id, new_id::text FROM uuid_migration_ids")
+    api_keys_before = _rows(upgrade_db, "SELECT id, key_hash FROM users_api_keys ORDER BY id")
+    seeded_events = (
+        (alembic_chain.USER_EVENT_CASES, alembic_chain.USER_EVENT_METADATA, alembic_chain.USER_EVENT_PREFIX),
+        (
+            alembic_chain.USER_EVENT_DANGLING_METADATA_CASES,
+            alembic_chain.USER_EVENT_DANGLING_METADATA,
+            alembic_chain.USER_EVENT_DANGLING_PREFIX,
+        ),
+    )
+    with upgrade_db.begin() as connection:
+        for cases, metadata, id_prefix in seeded_events:
+            alembic_chain.seed_events(connection, cases, metadata, id_prefix)
+    _assert_job_states_covered(upgrade_db, "", "usr")
+    rewritten_types = {
+        event_type
+        for _, _, event_types, _ in alembic_chain.script_directory()
+        .get_revision(_REVISION_91)
+        .module.PAYLOAD_ID_REWRITES
+        for event_type in event_types
+    }
+    assert rewritten_types <= {event_type for event_type, _ in alembic_chain.USER_EVENT_CASES}
+
+    alembic_chain.upgrade(upgrade_db, _REVISION_91)
+
+    # The ids and the references are uuid, nullable only where the model says so.
+    assert _data_type(upgrade_db, "users", "id") == "uuid"
+    orm_model_registry.import_all_models()
+    for table, column, _ in _USER_REFERENCES:
+        assert _data_type(upgrade_db, table, column) == "uuid", (table, column)
+        expected_nullable = Base.metadata.tables[table].c[column].nullable
+        assert _is_nullable(upgrade_db, table, column) is expected_nullable, (table, column)
+    new_ids = _new_user_ids(upgrade_db)
+    assert sorted(new_ids) == [1, 2, 3]
+    assert {_USER_NAMES[old]: new for old, new in new_ids.items()} == dict(
+        _rows(upgrade_db, "SELECT username, id::text FROM users")
+    )
+    assert len(set(new_ids.values())) == 3
+    assert {uuid.UUID(value).version for value in new_ids.values()} == {4}
+    assert _rows(upgrade_db, "SELECT username, email FROM users ORDER BY username") == sorted(
+        (username, email) for _, username, email, _ in usernames_before
+    )
+    assert _data_type(upgrade_db, "users", "photo_path") == "character varying"
+    assert _rows(upgrade_db, "SELECT username, photo_path FROM users ORDER BY username") == sorted(
+        (username, photo_path) for _, username, _, photo_path in usernames_before
+    )
+
+    # No row is lost but the sessions', and every row still belongs to the same user.
+    assert alembic_chain.row_counts(upgrade_db) == {
+        **counts_before,
+        "migrations": counts_before["migrations"] + 1,
+        **dict.fromkeys(_USER_SESSION_TABLES, 0),
+    }
+    assert sum(counts_before[table] for table in _USER_SESSION_TABLES) > 0
+    for table, column, key in _USER_REFERENCES:
+        if table in _USER_SESSION_TABLES:
+            continue
+        assert _user_pairs(upgrade_db, table, column, key) == pairs_before[(table, column)], (table, column)
+        with upgrade_db.connect() as connection:
+            not_null = connection.execute(
+                sa.select(sa.func.count(sa.column(column))).select_from(sa.table(table))
+            ).scalar_one()
+        assert _count_joined_to_users(upgrade_db, table, column) == not_null, (table, column)
+    for table in _USER_ORDERED_TABLES:
+        assert _ids_in_creation_order(upgrade_db, table) == orders_before[table], table
+    assert _migrations_state(upgrade_db) == {**migrations_before, 13: False, 14: False}
+    assert _rows(upgrade_db, "SELECT id, key_hash FROM users_api_keys ORDER BY id") == api_keys_before
+    for table, tokens in kept_tokens_before.items():
+        assert _tokens(upgrade_db, table) == tokens, table
+    assert _rows(
+        upgrade_db,
+        "SELECT t.id, u.username FROM sign_up_tokens t JOIN users u ON u.id = t.user_id "
+        "WHERE t.change_id IS NOT NULL ORDER BY t.id",
+    ) == [("email-change-token-1", "admin"), ("email-change-token-3", "third")]
+    assert _rows(
+        upgrade_db,
+        "SELECT t.id, u.username FROM password_reset_tokens t JOIN users u ON u.id = t.user_id ORDER BY t.id",
+    ) == [("reset-token-2", "regular"), ("reset-token-3", "third"), ("seed-reset-token", "admin")]
+    assert {
+        "gear": _rows(upgrade_db, "SELECT nickname, strava_gear_id, garminconnect_gear_id FROM gear ORDER BY nickname"),
+        "activities": _rows(
+            upgrade_db, "SELECT name, strava_activity_id, garminconnect_activity_id FROM activities ORDER BY name"
+        ),
+        "users_identity_providers": _rows(
+            upgrade_db, "SELECT idp_subject, idp_id::text FROM users_identity_providers ORDER BY idp_subject"
+        ),
+    } == provider_ids_before
+
+    # Everything that named a user integer in the old layout is recorded, and the tables hold what the models say.
+    assert sorted(_rows(upgrade_db, "SELECT table_name, old_id, new_id::text FROM uuid_migration_ids")) == sorted(
+        [*migration_ids_before, *(("users", old, new) for old, new in new_ids.items())]
+    )
+    with upgrade_db.connect() as connection:
+        keys = {
+            row.tbl: row.cols
+            for row in connection.execute(
+                sa.text(
+                    "SELECT c.conrelid::regclass::text AS tbl, array_agg(a.attname ORDER BY a.attnum) AS cols "
+                    "FROM pg_constraint c "
+                    "JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey) "
+                    "WHERE c.contype = 'p' AND c.conrelid::regclass::text = ANY(:tables) "
+                    "GROUP BY c.conrelid, c.conname"
+                ),
+                {"tables": ["users_local_credentials", "account_security_generations", "users"]},
+            )
+        }
+        assert keys == {
+            "users_local_credentials": ["user_id"],
+            "account_security_generations": ["user_id"],
+            "users": ["id"],
+        }
+        foreign_keys = connection.execute(
+            sa.text(
+                "SELECT c.conrelid::regclass::text, a.attname, c.conname, c.confdeltype FROM pg_constraint c "
+                "JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey) "
+                "WHERE c.contype = 'f' AND c.confrelid = 'users'::regclass"
+            )
+        ).all()
+    assert sorted((row[0], row[1], row[2], row[3]) for row in foreign_keys) == sorted(
+        (table, column, f"{table}_{column}_fkey", "c") for table, column, _ in _USER_REFERENCES
+    )
+
+    # The constraints that contained a user id column still hold.
+    admin, regular, third = (uuid.UUID(new_ids[index]) for index in (1, 2, 3))
+    for table, values in (
+        ("followers", {"follower_id": admin, "followee_id": admin, "status": "accepted"}),
+        ("follower_blocks", {"blocker_id": admin, "blocked_id": admin}),
+        ("followers", {"follower_id": regular, "followee_id": third, "status": "accepted"}),
+        ("follower_blocks", {"blocker_id": third, "blocked_id": admin}),
+        ("health_fasting", {"user_id": regular, "fast_start_time": "2024-06-01 20:00:00", "status": "in_progress"}),
+        (
+            "activity_ingestion_jobs",
+            {"user_id": regular, "filename": "second.zip", "status": "pending", "kind": "bulk_import"},
+        ),
+        ("mfa_factors", {"user_id": admin, "type": "totp", "credential": "second", "created_at": "2024-06-01"}),
+        ("health_targets", {"user_id": admin, "steps": 1}),
+        (
+            "gear",
+            {"nickname": "BIKE OF USER 2", "gear_type": 1, "user_id": regular, "initial_distance": 0, "active": True},
+        ),
+        ("health_sleep", {"user_id": regular, "date": "2024-05-02"}),
+        ("users_default_gear", {"user_id": third, "version": 1}),
+    ):
+        with pytest.raises(sa.exc.IntegrityError):
+            _insert(upgrade_db, table, values)
+    for table, values in (
+        ("users_local_credentials", {"user_id": third, "password_hash": "second"}),
+        ("account_security_generations", {"user_id": third, "generation": 9}),
+    ):
+        with pytest.raises(sa.exc.IntegrityError):
+            _insert(upgrade_db, table, values, with_id=False)
+    _insert(
+        upgrade_db,
+        "activity_ingestion_jobs",
+        {
+            "user_id": regular,
+            "filename": "done.zip",
+            "status": "completed",
+            "kind": "bulk_import",
+            "completed_at": datetime(2024, 6, 1, tzinfo=UTC),
+        },
+    )
+
+    # The events and notifications carry the new ids.
+    _assert_user_events_rewritten(upgrade_db, "", new_ids)
+    _assert_user_notifications_rewritten(upgrade_db, new_ids)
+
+    alembic_chain.upgrade(upgrade_db, "head")
+    assert alembic_chain.schema_differences(upgrade_db) == []
+    alembic_chain.bootstrap_substrate(upgrade_db)
+    assert alembic_chain.schema_differences(upgrade_db) == []
+
+    with upgrade_db.begin() as connection:
+        connection.execute(sa.text("DELETE FROM users WHERE username = 'third'"))
+    for table, column, _ in _USER_REFERENCES:
+        assert _count_joined_to_users(upgrade_db, table, column) == _table_count(upgrade_db, table), (table, column)
+    assert _scalar(upgrade_db, "SELECT count(*) FROM gear WHERE nickname = 'Bike of user 3'") == 0
+
+
+def test_revision_91_rewrites_the_jasil_prefixed_substrate_tables(upgrade_db):
+    _seed_to_90(upgrade_db)
+    alembic_chain.bootstrap_substrate(upgrade_db)
+    assert _scalar(upgrade_db, "SELECT to_regclass('event_outbox')") is None
+    for cases, metadata, id_prefix in (
+        (alembic_chain.USER_EVENT_CASES, alembic_chain.USER_EVENT_METADATA, alembic_chain.USER_EVENT_PREFIX),
+        (
+            alembic_chain.USER_EVENT_DANGLING_METADATA_CASES,
+            alembic_chain.USER_EVENT_DANGLING_METADATA,
+            alembic_chain.USER_EVENT_DANGLING_PREFIX,
+        ),
+    ):
+        with upgrade_db.begin() as connection:
+            alembic_chain.seed_events(connection, cases, metadata, id_prefix, "jasil_")
+    _assert_job_states_covered(upgrade_db, "jasil_", "usr")
+
+    alembic_chain.upgrade(upgrade_db, _REVISION_91)
+
+    _assert_user_events_rewritten(upgrade_db, "jasil_", _new_user_ids(upgrade_db))
+    alembic_chain.upgrade(upgrade_db, "head")
+    assert alembic_chain.schema_differences(upgrade_db) == []
+    alembic_chain.bootstrap_substrate(upgrade_db)
+    assert alembic_chain.schema_differences(upgrade_db) == []
+
+
+def test_revision_91_is_irreversible(upgrade_db):
+    alembic_chain.upgrade(upgrade_db, _REVISION_91)
+
+    with pytest.raises(NotImplementedError, match="restore the database from the backup"):
+        alembic_chain.downgrade(upgrade_db, _REVISION_90)
+
+    assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == _REVISION_91
+
+
 def test_migration_13_renames_the_icons_after_the_upgrade(upgrade_db, tmp_path):
     _seed_to_87(upgrade_db)
     old_ids = dict(_rows(upgrade_db, "SELECT slug, id FROM identity_providers"))
@@ -1157,3 +1630,142 @@ def test_migration_13_renames_the_activity_files_after_the_upgrade(upgrade_db, t
     run()
 
     assert listing() == renamed
+
+
+def test_migration_13_renames_the_user_files_after_the_upgrade(upgrade_db, tmp_path):
+    _seed_to_90(upgrade_db)
+    alembic_chain.upgrade(upgrade_db, "head")
+    new_ids = _new_user_ids(upgrade_db)
+    first, second = new_ids[1], new_ids[2]
+    storage = LocalStorage(str(tmp_path / "storage"))
+    state = MemoryState()
+    files_dir = tmp_path / "files"
+    uuid_key = "33333333-3333-4333-8333-333333333333"
+    old_blobs = {
+        users_migration_service.USER_IMAGE_STORAGE_AREA: {
+            "1.png": b"photo one",
+            "2.jpg": b"photo two",
+            "999.png": b"orphan",
+            f"{uuid_key}.png": b"kept",
+        },
+        activity_ingestion_migration_service.BULK_IMPORT_ERROR_STORAGE_AREA: {
+            "1/a.txt": b"error one",
+            "1/nested/b.txt": b"nested",
+            "2/c.txt": b"error two",
+            "999/orphan.txt": b"orphan",
+            f"{uuid_key}/kept.txt": b"kept",
+        },
+        users_profile_migration_service.EXPORT_STAGING_AREA: {
+            "1.zip": b"export one",
+            "999.zip": b"orphan",
+            f"{uuid_key}.zip": b"kept",
+        },
+        users_profile_migration_service.IMPORT_STAGING_AREA: {
+            "2/archive.zip": b"import two",
+            "999/orphan.zip": b"orphan",
+            f"{uuid_key}/kept.zip": b"kept",
+        },
+    }
+    for area, blobs in old_blobs.items():
+        for key, data in blobs.items():
+            storage.save(area, key, data, "application/octet-stream")
+    for key in ("endurain:rate:1", "endurain:lock:2"):
+        state.set(key, b"cleared")
+    state.set("other:key", b"kept")
+    folder_roots = (files_dir / "bulk_import", files_dir / "strava_import")
+    for root in folder_roots:
+        for name, entries in {
+            "1": {"drop.fit": b"drop one"},
+            "2": {"merge.fit": b"moved", "same.fit": b"old"},
+            "999": {"orphan.fit": b"orphan"},
+            uuid_key: {"kept.fit": b"kept"},
+        }.items():
+            (root / name).mkdir(parents=True)
+            for entry, data in entries.items():
+                (root / name / entry).write_bytes(data)
+        (root / second).mkdir()
+        (root / second / "same.fit").write_bytes(b"new")
+        (root / "notes.txt").write_bytes(b"not a folder")
+
+    def run() -> None:
+        with (
+            Session(upgrade_db) as db,
+            patch("migrations.migration_13.platform_runtime") as runtime,
+            patch.object(core_config.settings, "FILES_DIR", str(files_dir)),
+            patch.object(core_config, "FILES_BULK_IMPORT_DIR", str(files_dir / "bulk_import")),
+        ):
+            runtime.get_active_platform.return_value.storage = storage
+            migration_13.process_migration_13(db)
+
+    def listing() -> dict[str, list[str]]:
+        return {area: storage.list_keys(area, "") for area in old_blobs}
+
+    def folders() -> dict[str, list[str]]:
+        return {
+            str(path.relative_to(files_dir)): sorted(entry.name for entry in path.iterdir())
+            for root in folder_roots
+            for path in [root, *sorted(root.iterdir())]
+            if path.is_dir()
+        }
+
+    run()
+
+    expected = {
+        users_migration_service.USER_IMAGE_STORAGE_AREA: {
+            f"{first}.png": b"photo one",
+            f"{second}.jpg": b"photo two",
+            f"{uuid_key}.png": b"kept",
+        },
+        activity_ingestion_migration_service.BULK_IMPORT_ERROR_STORAGE_AREA: {
+            f"{first}/a.txt": b"error one",
+            f"{first}/nested/b.txt": b"nested",
+            f"{second}/c.txt": b"error two",
+            f"{uuid_key}/kept.txt": b"kept",
+        },
+        users_profile_migration_service.EXPORT_STAGING_AREA: {
+            f"{first}.zip": b"export one",
+            f"{uuid_key}.zip": b"kept",
+        },
+        users_profile_migration_service.IMPORT_STAGING_AREA: {
+            f"{second}/archive.zip": b"import two",
+            f"{uuid_key}/kept.zip": b"kept",
+        },
+    }
+    for area, blobs in expected.items():
+        assert storage.list_keys(area, "") == sorted(blobs), area
+        for key, data in blobs.items():
+            assert storage.get(area, key) == data
+    assert _rows(upgrade_db, "SELECT username, photo_path FROM users ORDER BY username") == [
+        ("admin", f"{first}.png"),
+        ("regular", f"{second}.jpg"),
+        ("third", None),
+    ]
+    for root in folder_roots:
+        assert sorted(entry.name for entry in root.iterdir()) == sorted(
+            ["2", "999", first, second, uuid_key, "notes.txt"]
+        )
+        assert (root / first / "drop.fit").read_bytes() == b"drop one"
+        assert (root / second / "merge.fit").read_bytes() == b"moved"
+        assert (root / second / "same.fit").read_bytes() == b"new"
+        assert (root / "2").is_dir() is True
+        assert sorted(entry.name for entry in (root / "2").iterdir()) == ["same.fit"]
+        assert (root / "2" / "same.fit").read_bytes() == b"old"
+        assert (root / "999" / "orphan.fit").read_bytes() == b"orphan"
+        assert (root / uuid_key / "kept.fit").read_bytes() == b"kept"
+        assert (root / "notes.txt").read_bytes() == b"not a folder"
+    with Session(upgrade_db) as db, patch("migrations.migration_14.platform_runtime") as runtime:
+        runtime.get_active_platform.return_value.state = state
+        migration_14.process_migration_14(db)
+    assert state.get("endurain:rate:1") is None
+    assert state.get("endurain:lock:2") is None
+    assert state.get("other:key") == b"kept"
+    assert _migrations_state(upgrade_db)[14] is True
+    assert _scalar(upgrade_db, "SELECT to_regclass('uuid_migration_ids')") is None
+    assert _migrations_state(upgrade_db)[13] is True
+
+    renamed, renamed_folders = listing(), folders()
+    run()
+
+    assert listing() == renamed
+    assert folders() == renamed_folders
+    assert _migrations_state(upgrade_db)[13] is True
