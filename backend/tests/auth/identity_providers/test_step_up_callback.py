@@ -376,7 +376,7 @@ class TestDispatch:
             patch.object(service, "handle_callback") as handle,
         ):
             url = service.complete_callback(
-                _idp(), "code", None, "state-id", _oauth_state(), "1.2.3.4", "ua", MagicMock(), MagicMock()
+                _idp(), "code", None, "state-id", _oauth_state(), "1.2.3.4", "ua", MagicMock()
             )
 
         assert url == "step-up-url"
@@ -387,9 +387,7 @@ class TestDispatch:
         state = oauth_state_schema.OAuthStateRead.model_validate(_oauth_state().model_dump() | {"session_id": None})
 
         with patch.object(service, "complete_step_up_callback") as step_up, pytest.raises(ValidationError):
-            service.complete_callback(
-                _idp(), "code", None, "state-id", state, "1.2.3.4", "ua", MagicMock(), MagicMock()
-            )
+            service.complete_callback(_idp(), "code", None, "state-id", state, "1.2.3.4", "ua", MagicMock())
 
         step_up.assert_not_called()
 
@@ -411,7 +409,6 @@ class TestDispatch:
                 _oauth_state(purpose=purpose),
                 "1.2.3.4",
                 "ua",
-                MagicMock(),
                 MagicMock(),
             )
 

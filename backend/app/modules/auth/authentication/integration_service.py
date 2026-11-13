@@ -16,7 +16,6 @@ import modules.auth.authentication.schema as authentication_schema
 import modules.auth.authentication.service as authentication_service
 import modules.auth.constants as auth_constants
 import modules.auth.contracts as auth_contracts
-import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.lockout.contracts as lockout_contracts
 import modules.users.users.schema as users_schema
 
@@ -72,7 +71,6 @@ def finish_login(
     client_type: auth_constants.ClientType,
     code_challenge: str | None,
     code_challenge_method: str | None,
-    password_hasher: credentials_integration.PasswordHasher,
     token_manager: access_tokens_integration.TokenManager,
     db: Session,
     *,
@@ -88,7 +86,6 @@ def finish_login(
         client_type,
         code_challenge,
         code_challenge_method,
-        password_hasher,
         token_manager,
         db,
         mfa=mfa,

@@ -227,6 +227,9 @@ def _route_handler(app: FastAPI, scope: Scope) -> Callable[..., Any] | None:
     application serves, so a catch-all route registered after the real ones does not take its place. The contexts
     are listed on the first request, after every router has been included, and kept on the application.
 
+    A HEAD request is looked up as the GET it is served as (``GetSemanticsMiddleware`` runs inside the limiter), since
+    a GET route only partially matches HEAD and the request would otherwise escape the default limit.
+
     Args:
         app: The application serving the request.
         scope: The ASGI connection scope.
@@ -237,6 +240,8 @@ def _route_handler(app: FastAPI, scope: Scope) -> Callable[..., Any] | None:
     routes = getattr(app.state, "rate_limit_routes", None)
     if routes is None:
         routes = app.state.rate_limit_routes = list(routing.iter_route_contexts(app.routes))
+    if scope["method"] == "HEAD":
+        scope = {**scope, "method": "GET"}
     for route in routes:
         if route.matches(scope)[0] == Match.FULL:
             return route.endpoint

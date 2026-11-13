@@ -257,10 +257,6 @@ def refresh_token(
         datetime,
         Depends(authentication_dependencies.get_exp_from_refresh_token),
     ],
-    password_hasher: Annotated[
-        credentials_integration.PasswordHasher,
-        Depends(credentials_integration.get_password_hasher),
-    ],
     token_manager: Annotated[
         access_tokens_integration.TokenManager,
         Depends(access_tokens_integration.get_token_manager),
@@ -291,7 +287,6 @@ def refresh_token(
         token_session_id: Session ID extracted from the refresh token.
         refresh_token_value: The raw refresh token value.
         refresh_token_exp: Expiry of the presented refresh token.
-        password_hasher: Utility for verifying token hashes.
         token_manager: Utility for creating tokens.
         db: Database session.
         client_type: Client type (\"web\" or \"mobile\").
@@ -312,7 +307,6 @@ def refresh_token(
             token_session_id,
             refresh_token_value,
             refresh_token_exp,
-            password_hasher,
             token_manager,
             client_type,
             db,
@@ -336,10 +330,6 @@ def logout(
         authentication_dependencies.LogoutTarget | None, Depends(authentication_dependencies.get_logout_target)
     ],
     client_type: Annotated[auth_constants.ClientType, Depends(authentication_dependencies.get_client_type)],
-    password_hasher: Annotated[
-        credentials_integration.PasswordHasher,
-        Depends(credentials_integration.get_password_hasher),
-    ],
     db: core_dependencies.DbSession,
 ) -> auth_schema.LogoutRead:
     """Log out a user by deleting their session, and answer where to end it at the identity provider.
@@ -364,7 +354,6 @@ def logout(
         request: The HTTP request object, read by the rate limiter.
         target: The session the refresh token names, or None when the token is not usable.
         client_type: The type of client ("web" or "mobile").
-        password_hasher: Utility for verifying the refresh token.
         db: Database session for CRUD operations.
 
     Returns:
@@ -376,8 +365,9 @@ def logout(
             target.session_id,
             target.refresh_token,
             target.user_id,
-            password_hasher,
             client_type,
+            core_network.get_ip_address(request),
+            core_network.get_user_agent(request),
             db,
         )
     core_cache_control.set_no_store(response)

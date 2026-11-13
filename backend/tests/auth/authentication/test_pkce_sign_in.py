@@ -13,7 +13,6 @@ import pytest
 import core.timezone as core_timezone
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.account_security.account_security_service as account_security_service
-import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.oauth_state.integration_service as oauth_state_integration
 import modules.auth.sessions.integration_service as sessions_integration
@@ -305,7 +304,6 @@ class TestWebExchange:
                 "127.0.0.1",
                 "agent",
                 None,
-                credentials_integration.get_password_hasher(),
                 core_timezone.to_utc_aware(state.expires_at),
                 db,
                 oauth_state_id=state_id,

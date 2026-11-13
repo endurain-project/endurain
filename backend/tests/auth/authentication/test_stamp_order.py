@@ -121,12 +121,11 @@ class TestWebSignInChecksTheStamp:
     """A web session is created only when the account's generation is still the one the sign-in's proof carries."""
 
     @staticmethod
-    def _complete(db, security_generation, hasher=None, token_manager=None):
+    def _complete(db, security_generation, token_manager=None):
         return authentication_service.complete_login(
             "127.0.0.1",
             "agent",
             _USER,
-            hasher or MagicMock(),
             token_manager or MagicMock(),
             db,
             mfa=False,

@@ -3,13 +3,23 @@
 Defines :class:`PasswordHasher` (Argon2 only) and the singleton accessor used as a FastAPI dependency.
 """
 
+import contextlib
 import secrets
-from collections.abc import Iterable
+import threading
+from collections.abc import Iterable, Iterator
 
 from pwdlib import PasswordHash
 from pwdlib.exceptions import UnknownHashError
 from pwdlib.hashers.argon2 import Argon2Hasher
 from pwdlib.hashers.base import HasherProtocol
+
+import core.exceptions as core_exceptions
+
+#: How many Argon2 operations one process runs at once. Each takes about 64 MiB, so an unbounded burst of sign-ins
+#: from many addresses would fill the worker threads and the memory of the host.
+MAX_CONCURRENT_HASHES = 4
+#: How long an operation waits for a slot before the request is refused with a 503.
+HASH_QUEUE_WAIT_SECONDS = 5.0
 
 
 class PasswordHasher:
@@ -19,6 +29,9 @@ class PasswordHasher:
     :mod:`modules.auth.credentials.password_policy`, so the same hasher also serves refresh tokens and backup codes.
     A stored hash no configured hasher recognises (for example a hash in a scheme that is no longer supported)
     never matches: it is treated like a wrong secret.
+
+    At most :data:`MAX_CONCURRENT_HASHES` operations run at once in a process; one that cannot get a slot within
+    :data:`HASH_QUEUE_WAIT_SECONDS` raises :class:`~core.exceptions.ServiceUnavailableError`.
 
     Methods:
         hash_password(password: str) -> str:
@@ -70,6 +83,21 @@ class PasswordHasher:
         # The hash of a random throwaway password, made once here so the first unknown-user sign-in does not pay for
         # it; only the hash is kept.
         self._dummy_hash = self._password_hash.hash(secrets.token_urlsafe(32))
+        self._slots = threading.BoundedSemaphore(MAX_CONCURRENT_HASHES)
+
+    @contextlib.contextmanager
+    def _slot(self) -> Iterator[None]:
+        """Hold one of the hashing slots for the duration of an Argon2 operation.
+
+        Raises:
+            ServiceUnavailableError: If no slot frees up within :data:`HASH_QUEUE_WAIT_SECONDS`.
+        """
+        if not self._slots.acquire(timeout=HASH_QUEUE_WAIT_SECONDS):
+            raise core_exceptions.ServiceUnavailableError("Too many sign-ins are being processed, try again shortly")
+        try:
+            yield
+        finally:
+            self._slots.release()
 
     def hash_password(self, password: str) -> str:
         """Hashes the provided password using the configured password hashing algorithm.
@@ -80,7 +108,8 @@ class PasswordHasher:
         Returns:
             str: The resulting hashed password.
         """
-        return self._password_hash.hash(password)
+        with self._slot():
+            return self._password_hash.hash(password)
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """Verifies whether the provided plain text password matches the given hashed password.
@@ -94,7 +123,8 @@ class PasswordHasher:
             hasher recognises does not match, after the Argon2 work of a real verify.
         """
         try:
-            return self._password_hash.verify(plain_password, hashed_password)
+            with self._slot():
+                return self._password_hash.verify(plain_password, hashed_password)
         except UnknownHashError:
             self.dummy_verify()
             return False
@@ -112,7 +142,8 @@ class PasswordHasher:
             the hash algorithm has changed or None otherwise. A hash no configured hasher recognises does not match.
         """
         try:
-            return self._password_hash.verify_and_update(plain_password, hashed_password)
+            with self._slot():
+                return self._password_hash.verify_and_update(plain_password, hashed_password)
         except UnknownHashError:
             self.dummy_verify()
             return False, None
@@ -135,7 +166,8 @@ class PasswordHasher:
         # Verify a *different* random string so the result is always
         # False; we ignore the return value — the call exists purely
         # for its timing side effect.
-        self._password_hash.verify(secrets.token_urlsafe(32), self._dummy_hash)
+        with self._slot():
+            self._password_hash.verify(secrets.token_urlsafe(32), self._dummy_hash)
 
 
 def get_password_hasher() -> PasswordHasher:

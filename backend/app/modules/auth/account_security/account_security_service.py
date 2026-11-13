@@ -570,7 +570,7 @@ def complete_password_change(
         change_request: The challenge the sign-in returned and the new password.
         client_type: The type of client making the request; it must be the one that signed in.
         password_change_store: Store for pending password changes.
-        password_hasher: Hasher for the stored refresh token, and the dummy verify of an unknown challenge.
+        password_hasher: Hasher for the dummy verify of an unknown challenge.
         token_manager: Token manager that signs the tokens.
         db: Database session.
         device_id: Device id from the browser's device cookie or the mobile app's ``X-Device-Id`` header, or None
@@ -638,7 +638,6 @@ def complete_password_change(
         client_type,
         pending.code_challenge,
         pending.code_challenge_method,
-        password_hasher,
         token_manager,
         db,
         mfa=pending.mfa,

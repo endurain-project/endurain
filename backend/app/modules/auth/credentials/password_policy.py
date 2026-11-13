@@ -8,6 +8,7 @@ platforms is the same password.
 
 import functools
 import gzip
+import secrets
 import unicodedata
 from pathlib import Path
 
@@ -15,6 +16,12 @@ import modules.auth.credentials.contracts as credentials_contracts
 
 _BLOCKLIST_PATH = Path(__file__).parent / "data" / "password_blocklist.txt.gz"
 _APPLICATION_NAME = "endurain"
+
+#: Letters, digits and a few symbols that are easy to read and to type on most keyboards: none of ``0 O o 1 l I``,
+#: which look alike, and no symbol that needs a dead key or a modifier combination on some layouts (``^ ~ ` \ | " '``).
+GENERATED_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#%+=-"
+#: The shortest generated password; about 144 bits from the alphabet above.
+GENERATED_MIN_LENGTH = 24
 
 
 def hash_form(password: str) -> str:
@@ -81,3 +88,17 @@ def check_password(password: str, min_length: int, username: str, email: str) ->
     account_details.add(_APPLICATION_NAME)
     if candidate in account_details:
         raise credentials_contracts.PasswordMatchesAccountError()
+
+
+def generate_password(min_length: int) -> str:
+    """Generate a random password that meets a minimum length and is easy to type.
+
+    Args:
+        min_length: The account's minimum password length.
+
+    Returns:
+        A password of at least :data:`GENERATED_MIN_LENGTH` characters, and at least ``min_length``, drawn
+        uniformly from :data:`GENERATED_CHARACTERS` with a cryptographic random source.
+    """
+    length = max(min_length, GENERATED_MIN_LENGTH)
+    return "".join(secrets.choice(GENERATED_CHARACTERS) for _ in range(length))

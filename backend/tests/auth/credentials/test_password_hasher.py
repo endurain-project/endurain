@@ -1,9 +1,13 @@
+import threading
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 from pwdlib import PasswordHash
 from pwdlib.hashers.argon2 import Argon2Hasher
 
+import core.exceptions as core_exceptions
+import modules.auth.credentials.password_hasher as password_hasher_module
 from modules.auth.credentials.password_hasher import PasswordHasher
 
 
@@ -304,3 +308,46 @@ class TestDummyVerifyCost:
             hasher.verify_and_update("wrong", stored)
 
         dummy.assert_not_called()
+
+
+class TestConcurrentHashingBound:
+    """Argon2 work is memory-hard, so the number of hashes running at once in a process is bounded."""
+
+    @staticmethod
+    def _hasher_that_blocks(
+        release: threading.Event, started: threading.Event, monkeypatch: pytest.MonkeyPatch
+    ) -> PasswordHasher:
+        monkeypatch.setattr(password_hasher_module, "MAX_CONCURRENT_HASHES", 1)
+        monkeypatch.setattr(password_hasher_module, "HASH_QUEUE_WAIT_SECONDS", 0.05)
+        hasher = PasswordHasher(hasher=[Argon2Hasher()])
+
+        def slow_verify(*_args):
+            started.set()
+            release.wait(timeout=5)
+            return True
+
+        hasher._password_hash = SimpleNamespace(verify=slow_verify, hash=lambda _p: "hash")
+        return hasher
+
+    def test_a_hash_that_waits_too_long_for_a_slot_is_refused_with_503(self, monkeypatch):
+        release, started = threading.Event(), threading.Event()
+        hasher = self._hasher_that_blocks(release, started, monkeypatch)
+        running = threading.Thread(target=hasher.verify_password, args=("a", "b"))
+        running.start()
+        assert started.wait(timeout=5)
+        try:
+            with pytest.raises(core_exceptions.ServiceUnavailableError):
+                hasher.verify_password("c", "d")
+            with pytest.raises(core_exceptions.ServiceUnavailableError):
+                hasher.hash_password("c")
+        finally:
+            release.set()
+            running.join(timeout=5)
+
+    def test_a_slot_is_free_again_once_the_running_hash_ends(self, monkeypatch):
+        release, started = threading.Event(), threading.Event()
+        release.set()
+        hasher = self._hasher_that_blocks(release, started, monkeypatch)
+
+        assert hasher.verify_password("a", "b")
+        assert hasher.verify_password("c", "d")

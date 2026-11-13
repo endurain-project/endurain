@@ -27,7 +27,7 @@ _NOT_ELIGIBLE = "Session not found or not eligible for token exchange"
 
 
 @pytest.fixture
-def pending_exchange(pg_factory, password_hasher, session_policy):
+def pending_exchange(pg_factory, session_policy):
     """A web SSO-style session with its OAuth state, both stored in PostgreSQL."""
     ensure_user(pg_factory, _USER_ID)
     with (
@@ -53,7 +53,6 @@ def pending_exchange(pg_factory, password_hasher, session_policy):
             "127.0.0.1",
             "agent",
             None,
-            password_hasher,
             datetime.now(UTC) + timedelta(days=1),
             db,
             oauth_state_id=_STATE_ID,

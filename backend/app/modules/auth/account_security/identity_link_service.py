@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 
 import jasil.audit as jasil_audit
+from jasil.providers import StateProvider
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
@@ -37,8 +38,9 @@ def start_idp_link(
     token_user_id: uuid.UUID,
     session_id: uuid.UUID,
     step_up_store: account_security_step_up_store.StepUpStore,
+    state: StateProvider,
     db: Session,
-) -> identity_providers_contracts.BrowserFlowStart:
+) -> identity_providers_contracts.BrowserFlowStart | identity_providers_contracts.TicketedFlowStart:
     """Start linking an identity provider to the signed-in user's account, after step-up verification.
 
     The return path, the provider and the existing links are checked before step-up, so a refused request does
@@ -52,10 +54,13 @@ def start_idp_link(
         token_user_id: The authenticated user's ID.
         session_id: The caller's session, kept when the completed link ends the user's other sessions.
         step_up_store: Step-up lockout store.
+        state: The platform state provider, which holds the link ticket of a native app.
         db: Database session.
 
     Returns:
-        The provider URL and the browser binding the route sets as a cookie.
+        For a web client, the provider URL and the browser binding the route sets as a cookie. For a native-app
+        ``redirect``, the URL of a single-use ticket the app opens in the system browser: the app's own HTTP client
+        is not the browser the callback arrives in, so the browser receives the binding when it redeems the ticket.
 
     Raises:
         NotFoundError: If the identity provider is missing or disabled.
@@ -106,8 +111,15 @@ def start_idp_link(
         "Identity provider link started for user <token_user_id>: idp_id=<idp_id> (<name>)",
         extra=core_logger.context(token_user_id=token_user_id, idp_id=idp_id, name=idp.name),
     )
+    authorization_url = identity_providers_integration.authorization_url(staged)
+    if identity_providers_integration.is_native_redirect(link.redirect):
+        return identity_providers_contracts.TicketedFlowStart(
+            authorization_url=identity_providers_integration.issue_link_ticket(
+                state, authorization_url, staged.browser_binding
+            )
+        )
     return identity_providers_contracts.BrowserFlowStart(
-        authorization_url=identity_providers_integration.authorization_url(staged),
+        authorization_url=authorization_url,
         browser_binding=staged.browser_binding,
     )
 

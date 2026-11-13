@@ -154,6 +154,7 @@ _TIERED_ENDPOINTS = [
     pytest.param(server_settings_router.delete_login_photo, core_rate_limit.WRITE, id="server-settings-delete-login"),
     pytest.param(server_settings_logs_router.clear_logs, core_rate_limit.WRITE, id="server-settings-clear-logs"),
     pytest.param(idp_public_router.initiate_login, core_rate_limit.SENSITIVE, id="oidc-initiate"),
+    pytest.param(idp_public_router.start_link_in_browser, core_rate_limit.SENSITIVE, id="oidc-link-in-browser"),
     pytest.param(idp_public_router.handle_callback, core_rate_limit.SENSITIVE, id="oidc-callback"),
     # The provider's own bucket: a burst of logouts after a sign-out at the provider must not be throttled away.
     pytest.param(idp_public_router.backchannel_logout, core_rate_limit.DEFAULT, id="oidc-backchannel-logout"),
@@ -557,6 +558,16 @@ def test_the_default_limit_applies_to_an_undecorated_route(enabled_limiter, real
     client = TestClient(real_app)
 
     statuses = _statuses(client, f"{core_config.ROOT_PATH}/about", 121)
+
+    assert statuses[:120] == [200] * 120
+    assert statuses[120] == 429
+
+
+def test_a_head_request_counts_against_the_default_limit(enabled_limiter, real_app):
+    """A HEAD request is served as the GET of its route, so it spends the same default limit as that GET."""
+    client = TestClient(real_app)
+
+    statuses = [client.head(f"{core_config.ROOT_PATH}/about").status_code for _ in range(121)]
 
     assert statuses[:120] == [200] * 120
     assert statuses[120] == 429

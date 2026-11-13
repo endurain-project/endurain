@@ -44,6 +44,13 @@ def require_password_change(user_id: uuid.UUID, db: Session) -> None:
     credentials_service.require_password_change(user_id, db)
 
 
+def generate_password_for_access_type(
+    server_settings: server_settings_schema.ServerSettingsRead, access_type: str
+) -> str:
+    """Generate a random password of letters and digits that meets the server's minimum length for an account type."""
+    return credentials_service.generate_password_for_access_type(server_settings, access_type)
+
+
 def validate_and_hash_password_for_user(
     server_settings: server_settings_schema.ServerSettingsRead,
     access_type: str,

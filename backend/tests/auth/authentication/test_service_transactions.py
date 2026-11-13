@@ -13,6 +13,7 @@ import modules.auth.authentication.refresh_service as authentication_service_ref
 import modules.auth.authentication.service as authentication_service
 import modules.auth.constants as auth_constants
 import modules.auth.identity_provider_links.crud as identity_links_crud
+import modules.auth.sessions.integration_service as sessions_integration
 from tests._helpers.db import create_sqlite_session
 
 _SESSION_ID = uuid.UUID(int=7)
@@ -33,7 +34,7 @@ def _session(**overrides):
     values = {
         "user_id": _USER_ID,
         "token_family_id": _FAMILY_ID,
-        "refresh_token": "hash",
+        "refresh_token": sessions_integration.hash_refresh_token("old"),
         "csrf_token_hash": None,
         "rotation_count": 0,
         "id": _SESSION_ID,
@@ -58,7 +59,7 @@ def test_a_reused_refresh_token_keeps_the_family_invalidated_although_the_reques
         pytest.raises(core_exceptions.UnauthenticatedError),
     ):
         authentication_service_refresh_service.refresh_token(
-            "127.0.0.1", "agent", _USER_ID, _SESSION_ID, "old", _OLD_EXP, MagicMock(), MagicMock(), "mobile", mock_db
+            "127.0.0.1", "agent", _USER_ID, _SESSION_ID, "old", _OLD_EXP, MagicMock(), "mobile", mock_db
         )
 
     invalidate.assert_called_once_with(_FAMILY_ID, mock_db)
@@ -73,7 +74,7 @@ def test_a_refresh_reads_the_session_under_an_exclusive_row_lock_and_refuses_one
         pytest.raises(core_exceptions.InvalidTokenError),
     ):
         authentication_service_refresh_service.refresh_token(
-            "127.0.0.1", "agent", _USER_ID, _SESSION_ID, "old", _OLD_EXP, MagicMock(), MagicMock(), "web", mock_db
+            "127.0.0.1", "agent", _USER_ID, _SESSION_ID, "old", _OLD_EXP, MagicMock(), "web", mock_db
         )
 
     lock.assert_called_once_with(_SESSION_ID, mock_db, exclusive=True)
@@ -82,8 +83,6 @@ def test_a_refresh_reads_the_session_under_an_exclusive_row_lock_and_refuses_one
 
 def test_a_rotation_records_the_presented_tokens_own_expiry(mock_db):
     """Reuse detection keeps the record until the old token could no longer be presented."""
-    hasher = MagicMock()
-    hasher.verify_password.return_value = True
     tokens = (_SESSION_ID, datetime(2026, 11, 1, tzinfo=UTC), "at", datetime(2026, 12, 1, tzinfo=UTC), "rt", "csrf")
     with (
         patch(
@@ -109,7 +108,7 @@ def test_a_rotation_records_the_presented_tokens_own_expiry(mock_db):
         patch("modules.auth.authentication.refresh_service.identity_providers_integration.request_idp_token_refresh"),
     ):
         authentication_service_refresh_service.refresh_token(
-            "127.0.0.1", "agent", _USER_ID, _SESSION_ID, "old", _OLD_EXP, hasher, MagicMock(), "mobile", mock_db
+            "127.0.0.1", "agent", _USER_ID, _SESSION_ID, "old", _OLD_EXP, MagicMock(), "mobile", mock_db
         )
 
     assert store.call_args.kwargs["refresh_token_exp"] == _OLD_EXP
@@ -121,8 +120,6 @@ def test_a_rotation_records_the_presented_tokens_own_expiry(mock_db):
 
 def test_a_rotation_reports_the_sessions_capped_expiry_for_the_body_and_the_cookie(mock_db):
     """The absolute session timeout can end the session before the new refresh token expires."""
-    hasher = MagicMock()
-    hasher.verify_password.return_value = True
     session_expiry = datetime.now(UTC) + timedelta(hours=2)
     tokens = (
         _SESSION_ID,
@@ -148,7 +145,7 @@ def test_a_rotation_reports_the_sessions_capped_expiry_for_the_body_and_the_cook
         patch("modules.auth.authentication.refresh_service.identity_providers_integration.request_idp_token_refresh"),
     ):
         outcome = authentication_service_refresh_service.refresh_token(
-            "127.0.0.1", "agent", _USER_ID, _SESSION_ID, "old", _OLD_EXP, hasher, MagicMock(), "web", mock_db
+            "127.0.0.1", "agent", _USER_ID, _SESSION_ID, "old", _OLD_EXP, MagicMock(), "web", mock_db
         )
 
     assert outcome.body.refresh_token_expires_in == pytest.approx(2 * 3600, abs=2)
@@ -156,14 +153,17 @@ def test_a_rotation_reports_the_sessions_capped_expiry_for_the_body_and_the_cook
 
 
 def test_logout_commits_the_session_deletion(mock_db):
-    hasher = MagicMock()
-    hasher.verify_password.return_value = True
     with (
-        patch(f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired", return_value=_session()),
+        patch(
+            f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired",
+            return_value=_session(refresh_token=sessions_integration.hash_refresh_token("rt")),
+        ),
         patch(f"{_SERVICE}.sessions_integration.delete_session") as delete_session,
         patch(f"{_SERVICE}.identity_providers_integration.read_end_session", return_value=None),
     ):
-        authentication_service.logout(_SESSION_ID, "rt", _USER_ID, hasher, auth_constants.ClientType.WEB, mock_db)
+        authentication_service.logout(
+            _SESSION_ID, "rt", _USER_ID, auth_constants.ClientType.WEB, "127.0.0.1", "agent", mock_db
+        )
 
     delete_session.assert_called_once_with(_SESSION_ID, _USER_ID, mock_db)
     mock_db.commit.assert_called_once()
@@ -178,14 +178,17 @@ def test_a_logout_leaves_the_identity_provider_tokens_of_the_users_other_session
     ):
         identity_links_crud.create_idp_session_token(session_id, _USER_ID, idp_id, "encrypted", None, db)
     db.commit()
-    hasher = MagicMock()
-    hasher.verify_password.return_value = True
     with (
-        patch(f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired", return_value=_session()),
+        patch(
+            f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired",
+            return_value=_session(refresh_token=sessions_integration.hash_refresh_token("rt")),
+        ),
         patch(f"{_SERVICE}.sessions_integration.delete_session"),
         patch(f"{_SERVICE}.identity_providers_integration.read_end_session", return_value=None),
     ):
-        authentication_service.logout(_SESSION_ID, "rt", _USER_ID, hasher, auth_constants.ClientType.WEB, db)
+        authentication_service.logout(
+            _SESSION_ID, "rt", _USER_ID, auth_constants.ClientType.WEB, "127.0.0.1", "agent", db
+        )
 
     remaining = {
         row.session_id: row.refresh_token for row in identity_links_crud.get_idp_session_tokens_page(None, 10, db)
@@ -203,11 +206,12 @@ class TestLogoutEndsTheProviderSessionLast:
 
     @staticmethod
     def _logout(client_type, db, *, events, end_session="request", url="https://idp.example.com/out"):
-        hasher = MagicMock()
-        hasher.verify_password.return_value = True
         db.commit.side_effect = lambda: events.append("commit")
         with (
-            patch(f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired", return_value=_session()),
+            patch(
+                f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired",
+                return_value=_session(refresh_token=sessions_integration.hash_refresh_token("rt")),
+            ),
             patch(f"{_SERVICE}.sessions_integration.delete_session", side_effect=lambda *a: events.append("delete")),
             patch(
                 f"{_SERVICE}.identity_providers_integration.read_end_session",
@@ -218,7 +222,7 @@ class TestLogoutEndsTheProviderSessionLast:
                 side_effect=lambda *a: events.append("resolve") or url,
             ) as resolve,
         ):
-            result = authentication_service.logout(_SESSION_ID, "rt", _USER_ID, hasher, client_type, db)
+            result = authentication_service.logout(_SESSION_ID, "rt", _USER_ID, client_type, "127.0.0.1", "agent", db)
         return result, read, resolve
 
     def test_the_ids_are_read_before_the_session_is_deleted_and_the_endpoint_resolved_after_the_commit(self, mock_db):

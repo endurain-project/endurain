@@ -18,6 +18,7 @@ import modules.auth.authentication.service as authentication_service
 import modules.auth.constants as auth_constants
 import modules.auth.login_audit.audit_actions as login_audit_actions
 import modules.auth.mfa.pending_login_store as pending_login_store
+import modules.auth.sessions.integration_service as sessions_integration
 import modules.server_settings.contracts as server_settings_contracts
 from tests._helpers.auth import pending_login
 
@@ -120,7 +121,7 @@ def _session(**overrides):
         "id": _SESSION_ID,
         "user_id": _USER_ID_5,
         "token_family_id": _FAMILY_ID,
-        "refresh_token": "hash",
+        "refresh_token": sessions_integration.hash_refresh_token("old-token"),
         "csrf_token_hash": None,
         "rotation_count": 0,
         "client_type": auth_constants.ClientType.WEB,
@@ -128,7 +129,7 @@ def _session(**overrides):
     return SimpleNamespace(**{**values, **overrides})
 
 
-def _refresh(db, *, session, x_csrf_token=None, hasher=None, token_user_id=_USER_ID_5):
+def _refresh(db, *, session, x_csrf_token=None, token_user_id=_USER_ID_5):
     with (
         patch(f"{_SERVICE}.sessions_integration.lock_live_session", return_value=session),
         patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
@@ -140,7 +141,6 @@ def _refresh(db, *, session, x_csrf_token=None, hasher=None, token_user_id=_USER
             _SESSION_ID,
             "old-token",
             datetime(2999, 1, 1, tzinfo=UTC),
-            hasher or MagicMock(),
             MagicMock(),
             "web",
             db,
@@ -218,8 +218,6 @@ class TestRefreshRefusal:
         self._assert_refused(audit, "failure", "tokens_not_exchanged")
 
     def test_a_token_that_does_not_match_the_session_is_a_failure(self, mock_db):
-        hasher = MagicMock()
-        hasher.verify_password.return_value = False
         with (
             patch(f"{_SERVICE}.sessions_integration.validate_session_timeout"),
             patch(
@@ -229,13 +227,11 @@ class TestRefreshRefusal:
             jasil_testing.capture_audit() as audit,
             pytest.raises(core_exceptions.UnauthenticatedError),
         ):
-            _refresh(mock_db, session=_session(), hasher=hasher)
+            _refresh(mock_db, session=_session(refresh_token=sessions_integration.hash_refresh_token("another-token")))
 
         self._assert_refused(audit, "failure", "invalid_token")
 
     def _refresh_with_valid_token(self, db, *, user):
-        hasher = MagicMock()
-        hasher.verify_password.return_value = True
         with (
             patch(f"{_SERVICE}.sessions_integration.validate_session_timeout"),
             patch(
@@ -244,7 +240,7 @@ class TestRefreshRefusal:
             ),
             patch(f"{_SERVICE}.users_integration.get_user", return_value=user),
         ):
-            _refresh(db, session=_session(), hasher=hasher)
+            _refresh(db, session=_session())
 
     def test_a_missing_user_is_a_failure(self, mock_db):
         with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.UnauthenticatedError):
@@ -324,8 +320,6 @@ class TestRefreshRefusal:
         audit.assert_not_audited(_REFRESH)
 
     def _rotate_losing_the_race(self, db, *, reuse_after_conflict):
-        hasher = MagicMock()
-        hasher.verify_password.return_value = True
         tokens = (_SESSION_ID, datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
         integration = "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration"
         with (
@@ -338,7 +332,7 @@ class TestRefreshRefusal:
             patch.object(authentication_service_refresh_service, "_replay_rotation") as replay,
         ):
             try:
-                _refresh(db, session=_session(), hasher=hasher)
+                _refresh(db, session=_session())
             finally:
                 self.check, self.invalidate, self.replay = check, invalidate, replay
 

@@ -243,7 +243,6 @@ class TestCompleteLogin:
                 "127.0.0.1",
                 "pytest-agent",
                 sample_user_read,
-                password_hasher,
                 token_manager,
                 mock_db,
                 mfa=False,
@@ -295,7 +294,6 @@ class TestCompleteLogin:
                 "127.0.0.1",
                 "pytest-agent",
                 sample_user_read,
-                password_hasher,
                 token_manager,
                 mock_db,
                 mfa=False,
@@ -341,7 +339,6 @@ class TestCompleteLogin:
                 "127.0.0.1",
                 "pytest-agent",
                 sample_user_read,
-                password_hasher,
                 token_manager,
                 mock_db,
                 mfa=False,
@@ -352,7 +349,7 @@ class TestCompleteLogin:
 
         assert result["expires_in"] == pytest.approx(300, abs=2)
         assert result["refresh_token_expires_in"] == pytest.approx(3 * 86400, abs=2)
-        session_expiry = mock_create_session.call_args.args[7]
+        session_expiry = mock_create_session.call_args.args[6]
         assert session_expiry - datetime.now(UTC) == pytest.approx(timedelta(days=3), abs=timedelta(seconds=2))
         cookie = _set_cookie_headers(response)[-1].lower()
         assert f"{session_expiry:%d %b %Y}".lower() in cookie
@@ -372,7 +369,6 @@ class TestCompleteLogin:
                 "127.0.0.1",
                 "pytest-agent",
                 sample_user_read,
-                password_hasher,
                 token_manager,
                 mock_db,
                 mfa=False,
@@ -412,7 +408,6 @@ class TestCompleteLogin:
                 "127.0.0.1",
                 "pytest-agent",
                 sample_user_read,
-                password_hasher,
                 token_manager,
                 mock_db,
                 mfa=False,
@@ -445,7 +440,6 @@ class TestCompleteLogin:
                 "127.0.0.1",
                 "pytest-agent",
                 sample_user_read,
-                password_hasher,
                 token_manager,
                 mock_db,
                 mfa=False,
@@ -475,7 +469,6 @@ class TestCompleteLogin:
                 "127.0.0.1",
                 "pytest-agent",
                 sample_user_read,
-                password_hasher,
                 token_manager,
                 mock_db,
                 mfa=False,
@@ -563,7 +556,6 @@ class TestCompleteLogin:
                 "127.0.0.1",
                 "pytest-agent",
                 sample_user_read,
-                password_hasher,
                 token_manager,
                 mock_db,
                 mfa=False,
@@ -576,7 +568,6 @@ class TestCompleteLogin:
                 "127.0.0.1",
                 "pytest-agent",
                 sample_user_read,
-                password_hasher,
                 token_manager,
                 mock_db,
                 mfa=False,
@@ -662,7 +653,6 @@ class TestCreateMobilePkceSessionResponse:
                 user=MagicMock(),
                 code_challenge="abc",
                 code_challenge_method="plain",
-                password_hasher=password_hasher,
                 db=mock_db,
                 security_generation=0,
                 mfa=False,
@@ -688,7 +678,6 @@ class TestCreateMobilePkceSessionResponse:
                 user=mock_user,
                 code_challenge="E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
                 code_challenge_method="S256",
-                password_hasher=password_hasher,
                 db=mock_db,
                 security_generation=0,
                 mfa=False,

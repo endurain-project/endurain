@@ -16,7 +16,6 @@ import core.config as core_config
 import core.database as core_db
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
-import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_providers.authorization_service as authorization_service
 import modules.auth.identity_providers.callback_service as callback_service
 import modules.auth.identity_providers.contracts as identity_provider_contracts
@@ -43,7 +42,6 @@ def client(service, monkeypatch):
     app.dependency_overrides[idp_dependencies.get_authorization_service] = lambda: service
     app.dependency_overrides[idp_dependencies.get_callback_service] = lambda: service
     monkeypatch.setattr(public_router, "idp_provider_service", service)
-    app.dependency_overrides[credentials_integration.get_password_hasher] = lambda: MagicMock()
     return TestClient(app)
 
 
@@ -241,7 +239,6 @@ class TestLoginBindingRoundTrip:
             app.dependency_overrides[core_db.get_db] = lambda: MagicMock()
             app.dependency_overrides[idp_dependencies.get_authorization_service] = lambda: authorization
             app.dependency_overrides[idp_dependencies.get_callback_service] = lambda: callback
-            app.dependency_overrides[credentials_integration.get_password_hasher] = lambda: MagicMock()
             # The cookie is Secure outside development, so a browser, and this jar, keeps it only over https.
             return TestClient(app, base_url="https://testserver")
 

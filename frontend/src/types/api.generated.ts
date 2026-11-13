@@ -2529,8 +2529,12 @@ export interface paths {
          *
          *     Linking enables persistent sign-in, so it needs step-up verification in ``step_up``: ``current_password`` (or, for an
          *     account without one, ``idp_reauth``), and an MFA code when MFA is enabled. The browser then follows
-         *     ``authorization_url``, signs in at the provider, and the callback returns to ``redirect``. The response
-         *     sets a cookie that binds the link to this browser.
+         *     ``authorization_url``, signs in at the provider, and the callback returns to ``redirect``. For a web client the
+         *     response sets a cookie that binds the link to this browser. For a native-app ``redirect`` the app opens
+         *     ``authorization_url`` in the system browser, which is not the app's HTTP client: the URL is an Endurain address
+         *     with a single-use ticket that lives two minutes, and the browser that opens it receives the binding cookie and is
+         *     redirected to the provider. The callback then returns to ``redirect`` with ``idp_link=success`` or
+         *     ``idp_link=error``.
          */
         post: operations["start_idp_link"];
         delete?: never;
@@ -3192,6 +3196,32 @@ export interface paths {
          *     It finishes a login, a link of the provider to the signed-in account, or a step-up re-authentication.
          */
         get: operations["handle_callback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/idp/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Start Link In Browser
+         * @description Hand a link a native app started to the system browser: bind the browser, then send it to the provider.
+         *
+         *     A native app starts a link with an authenticated request, but the provider's callback must arrive in a browser
+         *     that holds the binding of the flow, and the app's HTTP client is not that browser. The start request answers with
+         *     the URL of this route and a single-use ticket that lives two minutes; the app opens it in the system browser, which
+         *     receives the binding cookie here and is redirected to the provider. The ticket is spent by the first request, so
+         *     a second browser that obtains the URL later gets a 400. Rate limit: 10 requests per minute per IP.
+         */
+        get: operations["start_link_in_browser"];
         put?: never;
         post?: never;
         delete?: never;
@@ -32480,6 +32510,80 @@ export interface operations {
             };
             /** @description The resource does not exist, or is concealed from the caller. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    start_link_in_browser: {
+        parameters: {
+            query: {
+                /** @description The single-use ticket the link start answered. */
+                ticket: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            307: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The ticket is unknown, expired or already used. */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };

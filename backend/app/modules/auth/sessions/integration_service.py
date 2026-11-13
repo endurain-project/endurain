@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 
 import core.pagination as core_pagination
 import modules.auth.constants as auth_constants
-import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.oauth_state.schema as oauth_state_schema
 import modules.auth.sessions.contracts as sessions_contracts
 import modules.auth.sessions.crud as sessions_crud
@@ -68,7 +67,6 @@ def create_session(
     ip_address: str,
     user_agent: str,
     refresh_token: str | None,
-    password_hasher: credentials_contracts.SupportsHashPassword,
     expires_at: datetime,
     db: Session,
     oauth_state_id: str | None = None,
@@ -86,7 +84,6 @@ def create_session(
         ip_address,
         user_agent,
         refresh_token,
-        password_hasher,
         expires_at,
         db,
         oauth_state_id,
@@ -102,7 +99,6 @@ def edit_session(
     ip_address: str,
     user_agent: str,
     new_refresh_token: str,
-    password_hasher: credentials_contracts.SupportsHashPassword,
     expires_at: datetime,
     db: Session,
     new_csrf_token: str | None = None,
@@ -113,7 +109,6 @@ def edit_session(
         ip_address,
         user_agent,
         new_refresh_token,
-        password_hasher,
         expires_at,
         db,
         new_csrf_token,
@@ -168,6 +163,16 @@ def validate_session_timeout(
 def verify_csrf_token(candidate: str, stored_hmac: str) -> bool:
     """Verify a CSRF token."""
     return sessions_service.verify_csrf_token(candidate, stored_hmac)
+
+
+def hash_refresh_token(token: str) -> str:
+    """Return the digest a session stores for a refresh token."""
+    return sessions_service.hash_refresh_token(token)
+
+
+def verify_refresh_token(candidate: str, stored_digest: str) -> bool:
+    """Verify a presented refresh token against the digest a session stores."""
+    return sessions_service.verify_refresh_token(candidate, stored_digest)
 
 
 def invalidate_token_family(token_family_id: uuid.UUID, db: Session) -> int:

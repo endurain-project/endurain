@@ -223,7 +223,7 @@ def test_a_revoke_waits_for_a_refresh_holding_the_session_and_a_refresh_after_it
         assert sessions_integration.lock_live_session(_S1_SESSION, refresh, exclusive=True) is None
 
 
-def _web_sign_in(db, user_id, stamp, password_hasher, token_manager, session_policy):
+def _web_sign_in(db, user_id, stamp, token_manager, session_policy):
     import modules.auth.authentication.service as authentication_service
     import modules.users.users.schema as users_schema
 
@@ -243,7 +243,6 @@ def _web_sign_in(db, user_id, stamp, password_hasher, token_manager, session_pol
             "127.0.0.1",
             "agent",
             user,
-            password_hasher,
             token_manager,
             db,
             mfa=False,
@@ -253,7 +252,7 @@ def _web_sign_in(db, user_id, stamp, password_hasher, token_manager, session_pol
 
 
 def test_a_web_sign_in_whose_generation_was_read_before_a_committed_bump_creates_no_session(
-    pg_factory, password_hasher, token_manager, session_policy
+    pg_factory, token_manager, session_policy
 ):
     ensure_user(pg_factory, MOCK_USER_ID)
     with pg_factory() as login:
@@ -271,19 +270,17 @@ def test_a_web_sign_in_whose_generation_was_read_before_a_committed_bump_creates
             patch("modules.auth.authentication.service.login_audit_integration.record_login_refusal"),
             pytest.raises(core_exceptions.UnauthenticatedError),
         ):
-            _web_sign_in(login, MOCK_USER_ID, stamp, password_hasher, token_manager, session_policy)
+            _web_sign_in(login, MOCK_USER_ID, stamp, token_manager, session_policy)
         login.rollback()
 
     assert _session_ids(pg_factory) == set()
 
 
-def test_a_web_sign_in_with_the_current_generation_creates_its_session(
-    pg_factory, password_hasher, token_manager, session_policy
-):
+def test_a_web_sign_in_with_the_current_generation_creates_its_session(pg_factory, token_manager, session_policy):
     ensure_user(pg_factory, MOCK_USER_ID)
     with pg_factory() as login:
         stamp = security_generation_integration.current_generation(MOCK_USER_ID, login)
         login.rollback()
-        _web_sign_in(login, MOCK_USER_ID, stamp, password_hasher, token_manager, session_policy)
+        _web_sign_in(login, MOCK_USER_ID, stamp, token_manager, session_policy)
 
     assert len(_session_ids(pg_factory)) == 1

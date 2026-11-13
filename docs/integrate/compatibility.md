@@ -51,6 +51,8 @@ The scopes with an underscore were renamed to kebab-case in v0.21.0, so every sc
 
 Linking and unlinking Garmin Connect and Strava moved from `account` to the new `account:integrations` scope in v0.21.0, so a token can hold the account's data without being able to hand a provider's credentials to the server. Every user holds it. A session started after the upgrade holds it.
 
+A native app can now link an identity provider: `POST /profile/identity-providers/{idp_id}/link` with a native-app `redirect` answers an `authorization_url` that is an Endurain address, `GET /public/idp/link?ticket=...`, which the system browser opens (see [Linking Accounts](oauth-sso-pkce.md#linking-accounts)). An identity-provider slug can no longer be `link`.
+
 The identity-provider API changed in v0.21.0. `jwks_uri` is gone from its requests and responses: the signing keys come from the provider's discovery document. A `client_id` or `client_secret` sent as `null` on `PATCH /identity-providers/{idp_id}` is refused with `422` instead of clearing the stored credential, and an `oidc` provider needs an `issuer_url` and the `openid` scope. The slugs `login`, `callback`, `icon` and `backchannel-logout` are reserved and refused with `422`; the upgrade stops when an existing provider uses one. Disabling a provider ends every session it signed in.
 
 `PATCH /users/{user_id}` is a partial edit and answers `409` when it would activate a user who awaits approval; use `POST /users/{user_id}/approve`. A username changes through `POST /profile/username/change`, which needs step-up, and `PATCH /profile` refuses a `username` field. A replay of the SSO token exchange (`POST /auth/sessions/{session_id}/tokens`) answers `404` like any session that is not eligible, and never `409`.

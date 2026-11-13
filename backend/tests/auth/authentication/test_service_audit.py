@@ -18,6 +18,7 @@ import modules.auth.constants as auth_constants
 import modules.auth.known_devices.contracts as known_devices_contracts
 import modules.auth.login_audit.audit_actions as login_audit_actions
 import modules.auth.mfa.pending_login_store as pending_login_store
+import modules.auth.sessions.integration_service as sessions_integration
 from tests._helpers.auth import pending_login
 
 _SESSION_ID = uuid.UUID(int=7)
@@ -310,27 +311,31 @@ class TestMfaSignIn:
 
 
 class TestLogoutAndReuse:
-    def _session(self):
-        return SimpleNamespace(
-            id=_SESSION_ID,
-            user_id=_USER_ID_1,
-            token_family_id=_FAMILY_ID,
-            refresh_token="hash",
-            csrf_token_hash=None,
-            rotation_count=0,
-            client_type="web",
-        )
+    def _session(self, **overrides):
+        values = {
+            "id": _SESSION_ID,
+            "user_id": _USER_ID_1,
+            "token_family_id": _FAMILY_ID,
+            "refresh_token": "hash",
+            "csrf_token_hash": None,
+            "rotation_count": 0,
+            "client_type": "web",
+        }
+        return SimpleNamespace(**{**values, **overrides})
 
     def test_a_logout_is_audited_in_the_transaction_that_deletes_the_session(self, mock_db):
-        hasher = MagicMock()
-        hasher.verify_password.return_value = True
         with (
-            patch(f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired", return_value=self._session()),
+            patch(
+                f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired",
+                return_value=self._session(refresh_token=sessions_integration.hash_refresh_token("rt")),
+            ),
             patch(f"{_SERVICE}.sessions_integration.delete_session"),
             patch(f"{_SERVICE}.identity_providers_integration.read_end_session", return_value=None),
             jasil_testing.capture_audit() as audit,
         ):
-            authentication_service.logout(_SESSION_ID, "rt", _USER_ID_1, hasher, auth_constants.ClientType.WEB, mock_db)
+            authentication_service.logout(
+                _SESSION_ID, "rt", _USER_ID_1, auth_constants.ClientType.WEB, "127.0.0.1", "agent", mock_db
+            )
 
         audit.assert_audited(
             authentication_audit_actions.LOGOUT.id,
@@ -347,7 +352,7 @@ class TestLogoutAndReuse:
             jasil_testing.capture_audit() as audit,
         ):
             authentication_service.logout(
-                _SESSION_ID, "rt", _USER_ID_1, MagicMock(), auth_constants.ClientType.WEB, mock_db
+                _SESSION_ID, "rt", _USER_ID_1, auth_constants.ClientType.WEB, "127.0.0.1", "agent", mock_db
             )
 
         audit.assert_not_audited(authentication_audit_actions.LOGOUT.id)
@@ -372,7 +377,6 @@ class TestLogoutAndReuse:
                 _SESSION_ID,
                 "old",
                 datetime(2999, 1, 1, tzinfo=UTC),
-                MagicMock(),
                 MagicMock(),
                 "web",
                 mock_db,
@@ -406,7 +410,6 @@ class TestLogoutAndReuse:
                 _SESSION_ID,
                 "old",
                 datetime(2999, 1, 1, tzinfo=UTC),
-                MagicMock(),
                 MagicMock(),
                 "web",
                 mock_db,

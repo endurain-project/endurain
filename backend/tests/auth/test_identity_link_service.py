@@ -11,6 +11,7 @@ import core.pagination as core_pagination
 import modules.auth.account_security.identity_link_service as identity_link_service
 import modules.auth.identity_provider_links.schema as auth_identity_links_schema
 import modules.auth.identity_providers.constants as identity_providers_constants
+import modules.auth.identity_providers.contracts as identity_providers_contracts
 import modules.users.users.schema as users_schema
 from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
@@ -104,7 +105,7 @@ class TestStartIdpLink:
         ):
             order.attach_mock(build, "build_url")
             flow = identity_link_service.start_idp_link(
-                IDP_ID, link, "127.0.0.1", MOCK_USER_ID, _SID, MagicMock(), mock_db
+                IDP_ID, link, "127.0.0.1", MOCK_USER_ID, _SID, MagicMock(), MagicMock(), mock_db
             )
 
         verify.assert_called_once()
@@ -140,7 +141,7 @@ class TestStartIdpLink:
             # A security change that commits during the step-up must not reach the stamp.
             verify.side_effect = lambda *args, **kwargs: security_generations.stage_bump(MOCK_USER_ID, mock_db)
             identity_link_service.start_idp_link(
-                IDP_ID, self._link(), "127.0.0.1", MOCK_USER_ID, _SID, MagicMock(), mock_db
+                IDP_ID, self._link(), "127.0.0.1", MOCK_USER_ID, _SID, MagicMock(), MagicMock(), mock_db
             )
 
         assert [call[0] for call in order.mock_calls][:2] == ["read_generation", "step_up"]
@@ -166,7 +167,9 @@ class TestStartIdpLink:
             ) as stage,
             patch(f"{self._MODULE}.identity_providers_integration.authorization_url", return_value="https://idp"),
         ):
-            identity_link_service.start_idp_link(IDP_ID, link, "127.0.0.1", MOCK_USER_ID, _SID, MagicMock(), mock_db)
+            identity_link_service.start_idp_link(
+                IDP_ID, link, "127.0.0.1", MOCK_USER_ID, _SID, MagicMock(), MagicMock(), mock_db
+            )
 
         assert stage.call_args.args[4:6] == (_SID, revoke)
 
@@ -183,6 +186,7 @@ class TestStartIdpLink:
                 MOCK_USER_ID,
                 _SID,
                 MagicMock(),
+                MagicMock(),
                 mock_db,
             )
 
@@ -197,7 +201,7 @@ class TestStartIdpLink:
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
             identity_link_service.start_idp_link(
-                IDP_ID, self._link(), "127.0.0.1", MOCK_USER_ID, _SID, MagicMock(), mock_db
+                IDP_ID, self._link(), "127.0.0.1", MOCK_USER_ID, _SID, MagicMock(), MagicMock(), mock_db
             )
 
         assert exc.value.status_code == 404
@@ -213,7 +217,7 @@ class TestStartIdpLink:
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
             identity_link_service.start_idp_link(
-                IDP_ID, self._link(), "127.0.0.1", MOCK_USER_ID, _SID, MagicMock(), mock_db
+                IDP_ID, self._link(), "127.0.0.1", MOCK_USER_ID, _SID, MagicMock(), MagicMock(), mock_db
             )
 
         assert exc.value.status_code == 404
@@ -232,7 +236,7 @@ class TestStartIdpLink:
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
             identity_link_service.start_idp_link(
-                IDP_ID, self._link(), "127.0.0.1", MOCK_USER_ID, _SID, MagicMock(), mock_db
+                IDP_ID, self._link(), "127.0.0.1", MOCK_USER_ID, _SID, MagicMock(), MagicMock(), mock_db
             )
 
         assert exc.value.status_code == 409
@@ -255,7 +259,7 @@ class TestStartIdpLink:
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
             identity_link_service.start_idp_link(
-                IDP_ID, self._link(), "127.0.0.1", MOCK_USER_ID, _SID, MagicMock(), mock_db
+                IDP_ID, self._link(), "127.0.0.1", MOCK_USER_ID, _SID, MagicMock(), MagicMock(), mock_db
             )
 
         assert exc.value.status_code == 403
@@ -619,3 +623,58 @@ class TestUnlinkBumpsTheSecurityGeneration:
             identity_link_service.admin_delete_identity_provider_link(MOCK_USER_ID, IDP_ID, mock_db)
 
         bump.assert_not_called()
+
+
+class TestStartIdpLinkFromANativeApp:
+    """A native-app redirect hands the link to the system browser through a single-use ticket."""
+
+    _MODULE = "modules.auth.account_security.identity_link_service"
+
+    def _start(self, mock_db, redirect, state=None):
+        link = users_schema.IdentityProviderLinkStart(step_up={"current_password": "pass"}, redirect=redirect)
+        idp = MagicMock(enabled=True, name="TestIDP")
+        with (
+            patch(f"{self._MODULE}.step_up_service.verify_step_up_credentials"),
+            patch(f"{self._MODULE}.identity_providers_integration.validate_redirect"),
+            patch(f"{self._MODULE}.identity_providers_integration.get_identity_provider", return_value=idp),
+            patch(
+                f"{self._MODULE}.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
+                return_value=None,
+            ),
+            patch(
+                f"{self._MODULE}.identity_providers_integration.stage_browser_link",
+                return_value=MagicMock(browser_binding="binding"),
+            ),
+            patch(
+                f"{self._MODULE}.identity_providers_integration.authorization_url",
+                return_value="https://idp.example.com/auth",
+            ),
+            patch(
+                f"{self._MODULE}.identity_providers_integration.is_native_redirect",
+                side_effect=lambda redirect: redirect.startswith("endurain://"),
+            ),
+            patch(
+                f"{self._MODULE}.identity_providers_integration.issue_link_ticket",
+                return_value="https://endurain.example.com/api/v1/public/idp/link?ticket=t",
+            ) as issue,
+        ):
+            flow = identity_link_service.start_idp_link(
+                IDP_ID, link, "127.0.0.1", MOCK_USER_ID, _SID, MagicMock(), state or MagicMock(), mock_db
+            )
+        return flow, issue
+
+    def test_a_native_redirect_gets_a_ticket_url_and_no_binding_cookie(self, mock_db):
+        state = MagicMock()
+
+        flow, issue = self._start(mock_db, "endurain://link-result", state)
+
+        assert isinstance(flow, identity_providers_contracts.TicketedFlowStart)
+        assert flow.authorization_url == "https://endurain.example.com/api/v1/public/idp/link?ticket=t"
+        issue.assert_called_once_with(state, "https://idp.example.com/auth", "binding")
+
+    def test_a_web_redirect_keeps_the_binding_cookie_flow(self, mock_db):
+        flow, issue = self._start(mock_db, "/settings/security")
+
+        assert isinstance(flow, identity_providers_contracts.BrowserFlowStart)
+        assert flow.browser_binding == "binding"
+        issue.assert_not_called()

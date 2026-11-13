@@ -9,7 +9,7 @@ BUILTIN_ICONS = frozenset({"authelia", "authentik", "casdoor", "keycloak", "pock
 #: Slugs no provider may use: the fixed words of the public identity-provider routes, which a slug in the same
 #: position would make ambiguous (``/public/idp/login/icon`` is both a login and the icon of ``login``). A test walks
 #: the route table and fails when a route adds a word that is not listed.
-RESERVED_SLUGS = frozenset({"login", "callback", "icon", "backchannel-logout"})
+RESERVED_SLUGS = frozenset({"login", "link", "callback", "icon", "backchannel-logout"})
 
 #: Storage area of the uploaded provider icons, keyed by identity-provider id.
 ICON_STORAGE_AREA = "identity_provider_icons"
@@ -36,6 +36,10 @@ STEP_UP_MAX_AGE_SECONDS = 60
 #: step-up was for (scanning an MFA enrolment code, typing a new email address), and still one request only,
 #: in the session and browser that started it.
 STEP_UP_TICKET_TTL_SECONDS = 300
+
+#: How long a native app has to open a link ticket in the system browser after the start request answered it. The
+#: ticket carries the secret that binds the link to the browser, and one redemption sets it.
+LINK_TICKET_TTL_SECONDS = 120
 
 
 class StepUpAction(StrEnum):

@@ -58,10 +58,9 @@ def _session(**updates):
 
 def test_create_session_hashes_secrets_and_stages(mock_db):
     user = SimpleNamespace(id=MOCK_USER_ID)
-    hasher = MagicMock()
-    hasher.hash_password.return_value = "hashed-refresh"
     with (
         _policy_patch(),
+        patch("modules.auth.sessions.service.hash_refresh_token", return_value="hashed-refresh") as hasher,
         patch("modules.auth.sessions.service.sessions_crud.create_session", return_value=_session()) as create,
     ):
         result = sessions_service.create_session(
@@ -71,7 +70,6 @@ def test_create_session_hashes_secrets_and_stages(mock_db):
             "127.0.0.1",
             _FIREFOX_UA,
             "plain-refresh",
-            hasher,
             datetime.now(UTC) + timedelta(days=1),
             mock_db,
             amr=["pwd", "otp", "mfa"],
@@ -80,7 +78,7 @@ def test_create_session_hashes_secrets_and_stages(mock_db):
     assert result.id == SESSION_ID
     assert create.call_args.args[0].amr == ["pwd", "otp", "mfa"]
     assert create.call_args.args[0].auth_time == create.call_args.args[0].created_at
-    hasher.hash_password.assert_called_once_with("plain-refresh")
+    hasher.assert_called_once_with("plain-refresh")
     assert create.call_args.args[0].refresh_token == "hashed-refresh"
     assert create.call_args.args[0].ip_address == "127.0.0.1"
     assert create.call_args.args[0].browser == "Firefox"
@@ -101,7 +99,6 @@ def test_create_session_records_the_device_hash(mock_db):
             "127.0.0.1",
             _FIREFOX_UA,
             None,
-            MagicMock(),
             datetime.now(UTC) + timedelta(days=1),
             mock_db,
             amr=["pwd"],
@@ -147,7 +144,6 @@ def test_create_session_records_the_app_redirect_uri(mock_db):
             "127.0.0.1",
             _FIREFOX_UA,
             None,
-            MagicMock(),
             datetime.now(UTC) + timedelta(days=1),
             mock_db,
             amr=["fed"],
@@ -159,14 +155,12 @@ def test_create_session_records_the_app_redirect_uri(mock_db):
 
 def test_a_rotation_keeps_the_app_redirect_uri(mock_db):
     session = _session(app_redirect_uri="gadgetbridge://auth/sso/callback")
-    hasher = MagicMock()
-    hasher.hash_password.return_value = "replacement-hash"
     with (
         _policy_patch(),
         patch("modules.auth.sessions.service.sessions_crud.edit_session", return_value=session) as edit,
     ):
         sessions_service.edit_session(
-            session, "127.0.0.2", _FIREFOX_UA, "replacement", hasher, datetime.now(UTC) + timedelta(days=1), mock_db
+            session, "127.0.0.2", _FIREFOX_UA, "replacement", datetime.now(UTC) + timedelta(days=1), mock_db
         )
     assert edit.call_args.args[0].app_redirect_uri == "gadgetbridge://auth/sso/callback"
 
@@ -182,22 +176,18 @@ def test_the_session_read_schema_shows_the_app_redirect_uri():
 
 def test_a_rotation_keeps_the_device_hash(mock_db):
     session = _session(device_hash="a" * 64)
-    hasher = MagicMock()
-    hasher.hash_password.return_value = "replacement-hash"
     with (
         _policy_patch(),
         patch("modules.auth.sessions.service.sessions_crud.edit_session", return_value=session) as edit,
     ):
         sessions_service.edit_session(
-            session, "127.0.0.2", _FIREFOX_UA, "replacement", hasher, datetime.now(UTC) + timedelta(days=1), mock_db
+            session, "127.0.0.2", _FIREFOX_UA, "replacement", datetime.now(UTC) + timedelta(days=1), mock_db
         )
     assert edit.call_args.args[0].device_hash == "a" * 64
 
 
 def test_edit_session_stages_rotation(mock_db):
     session = _session()
-    hasher = MagicMock()
-    hasher.hash_password.return_value = "replacement-hash"
     with (
         _policy_patch(),
         patch(
@@ -205,10 +195,10 @@ def test_edit_session_stages_rotation(mock_db):
         ) as edit,
     ):
         result = sessions_service.edit_session(
-            session, "127.0.0.2", _FIREFOX_UA, "replacement", hasher, datetime.now(UTC) + timedelta(days=1), mock_db
+            session, "127.0.0.2", _FIREFOX_UA, "replacement", datetime.now(UTC) + timedelta(days=1), mock_db
         )
     assert result.rotation_count == 1
-    assert edit.call_args.args[0].refresh_token == "replacement-hash"
+    assert edit.call_args.args[0].refresh_token == sessions_service.hash_refresh_token("replacement")
     assert edit.call_args.args[0].rotation_count == 1
     assert edit.call_args.args[0].ip_address == "127.0.0.2"
     mock_db.commit.assert_not_called()
@@ -300,8 +290,6 @@ def test_claim_of_a_missing_session_is_refused(mock_db):
 
 @pytest.mark.parametrize(("refresh_token", "exchanged"), [("refresh", True), (None, False)])
 def test_a_session_created_with_a_refresh_token_needs_no_exchange(refresh_token, exchanged, mock_db):
-    hasher = MagicMock()
-    hasher.hash_password.return_value = "hashed"
     with (
         patch(
             "modules.auth.sessions.service.server_settings_integration.get_session_policy",
@@ -316,7 +304,6 @@ def test_a_session_created_with_a_refresh_token_needs_no_exchange(refresh_token,
             "127.0.0.1",
             "agent",
             refresh_token,
-            hasher,
             datetime.now(UTC) + timedelta(minutes=10),
             mock_db,
             amr=["pwd"],
@@ -446,19 +433,12 @@ def test_session_logs_carry_a_fingerprint_not_the_session_id(mock_db, caplog):
 _ABSOLUTE = timedelta(hours=720)
 
 
-def _hasher():
-    hasher = MagicMock()
-    hasher.hash_password.return_value = "hashed"
-    return hasher
-
-
 def _policy_patch():
     policy = SimpleNamespace(idle_timeout=None, absolute_timeout=_ABSOLUTE)
     return patch("modules.auth.sessions.service.server_settings_integration.get_session_policy", return_value=policy)
 
 
 def test_create_session_caps_expiry_at_the_absolute_timeout(mock_db):
-    hasher = _hasher()
     before = datetime.now(UTC)
     with (
         _policy_patch(),
@@ -471,7 +451,6 @@ def test_create_session_caps_expiry_at_the_absolute_timeout(mock_db):
             "127.0.0.1",
             _FIREFOX_UA,
             "r",
-            hasher,
             before + timedelta(days=3650),
             mock_db,
             amr=["pwd"],
@@ -494,7 +473,6 @@ def test_create_session_keeps_an_earlier_expiry(mock_db):
             "127.0.0.1",
             _FIREFOX_UA,
             "r",
-            _hasher(),
             requested,
             mock_db,
             amr=["pwd"],
@@ -511,7 +489,7 @@ def test_edit_session_caps_expiry_at_creation_plus_absolute_timeout(mock_db):
         patch("modules.auth.sessions.service.sessions_crud.edit_session", return_value=session) as edit,
     ):
         sessions_service.edit_session(
-            session, "127.0.0.2", _FIREFOX_UA, "r", _hasher(), datetime.now(UTC) + timedelta(days=7), mock_db
+            session, "127.0.0.2", _FIREFOX_UA, "r", datetime.now(UTC) + timedelta(days=7), mock_db
         )
     assert edit.call_args.args[0].expires_at == created + _ABSOLUTE
 
@@ -523,7 +501,7 @@ def test_edit_session_keeps_an_earlier_expiry(mock_db):
         _policy_patch(),
         patch("modules.auth.sessions.service.sessions_crud.edit_session", return_value=session) as edit,
     ):
-        sessions_service.edit_session(session, "127.0.0.2", _FIREFOX_UA, "r", _hasher(), requested, mock_db)
+        sessions_service.edit_session(session, "127.0.0.2", _FIREFOX_UA, "r", requested, mock_db)
     assert edit.call_args.args[0].expires_at == requested
 
 

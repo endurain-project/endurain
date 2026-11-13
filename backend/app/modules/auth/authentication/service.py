@@ -20,6 +20,7 @@ import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.event_publishers as authentication_event_publishers
 import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.authentication.pending_password_change_store as pending_password_change_store
+import modules.auth.authentication.refresh_service as authentication_refresh_service
 import modules.auth.authentication.refusal_audit as authentication_refusal_audit
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.token_service as authentication_token_service
@@ -37,6 +38,7 @@ import modules.auth.mfa.dependencies as mfa_dependencies
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.oauth_state.integration_service as oauth_state_integration
+import modules.auth.rotated_refresh_tokens.integration_service as rotated_refresh_tokens_integration
 import modules.auth.security_generation.integration_service as security_generation_integration
 import modules.auth.sessions.integration_service as sessions_integration
 import modules.server_settings.integration_service as server_settings_integration
@@ -201,7 +203,6 @@ def complete_login(
     ip_address: str,
     user_agent: str,
     user: users_schema.UserRead,
-    password_hasher: credentials_integration.PasswordHasher,
     token_manager: access_tokens_integration.TokenManager,
     db: Session,
     *,
@@ -223,7 +224,6 @@ def complete_login(
         ip_address (str): Client address, recorded on the session.
         user_agent (str): Client user agent, recorded on the session.
         user (users_schema.UserRead): The authenticated user object.
-        password_hasher (credentials_integration.PasswordHasher): Utility for password hashing.
         token_manager (access_tokens_integration.TokenManager): Utility for token generation and management.
         db (Session): Database session for storing session information.
         mfa (bool): Whether a second factor was verified for this sign-in.
@@ -262,7 +262,6 @@ def complete_login(
         ip_address,
         user_agent,
         refresh_token,
-        password_hasher,
         refresh_token_exp,
         db,
         amr=password_amr(mfa=mfa),
@@ -288,7 +287,6 @@ def create_mobile_pkce_session_response(
     user: users_schema.UserRead,
     code_challenge: str | None,
     code_challenge_method: str | None,
-    password_hasher: credentials_integration.PasswordHasher,
     db: Session,
     *,
     security_generation: int | None,
@@ -306,7 +304,6 @@ def create_mobile_pkce_session_response(
         user: Authenticated user object
         code_challenge: PKCE code challenge (base64url-encoded SHA256)
         code_challenge_method: PKCE method (must be S256)
-        password_hasher: Password hasher instance
         db: Database session
         security_generation: The generation the exchange must still find; read before the credential that justifies
             this sign-in was verified, or the one the sign-in's MFA or password-change challenge carries.
@@ -350,7 +347,6 @@ def create_mobile_pkce_session_response(
         ip_address,
         user_agent,
         None,
-        password_hasher,
         core_timezone.to_utc_aware(oauth_state.expires_at),
         db,
         oauth_state_id=state_id,
@@ -583,7 +579,6 @@ def finish_login(
     client_type: auth_constants.ClientType,
     code_challenge: str | None,
     code_challenge_method: str | None,
-    password_hasher: credentials_integration.PasswordHasher,
     token_manager: access_tokens_integration.TokenManager,
     db: Session,
     *,
@@ -602,7 +597,6 @@ def finish_login(
         client_type: The client type.
         code_challenge: PKCE code challenge of the sign-in; a mobile client always has one.
         code_challenge_method: PKCE challenge method of the sign-in.
-        password_hasher: Hasher for the stored refresh token.
         token_manager: Token manager that signs the tokens.
         db: Database session.
         mfa: Whether a second factor was verified for this sign-in.
@@ -642,7 +636,6 @@ def finish_login(
             user,
             code_challenge,
             code_challenge_method,
-            password_hasher,
             db,
             security_generation=security_generation,
             mfa=mfa,
@@ -655,7 +648,6 @@ def finish_login(
         ip_address,
         user_agent,
         user,
-        password_hasher,
         token_manager,
         db,
         mfa=mfa,
@@ -912,7 +904,6 @@ def login_for_access_token(
         client_type,
         code_challenge,
         code_challenge_method,
-        password_hasher,
         token_manager,
         db,
         mfa=False,
@@ -1053,7 +1044,6 @@ def verify_mfa_and_login(
         client_type,
         pending.code_challenge,
         pending.code_challenge_method,
-        password_hasher,
         token_manager,
         db,
         mfa=True,
@@ -1067,14 +1057,17 @@ def logout(
     token_session_id: uuid.UUID,
     refresh_token_value: str,
     token_user_id: uuid.UUID,
-    password_hasher: credentials_integration.PasswordHasher,
     client_type: auth_constants.ClientType,
+    ip_address: str,
+    user_agent: str,
     db: Session,
 ) -> str | None:
     """Log out a user by validating and deleting their session, and name where to end it at the identity provider.
 
     Logout is idempotent: a session that is gone, not yet exchanged, or whose stored refresh token is not the
-    presented one is left as it is.
+    presented one is left as it is. A presented token that an earlier refresh already rotated is a reuse, as it is
+    at refresh: outside the rotating client's grace window it ends the session's whole token family, because the
+    token has leaked.
 
     The provider and ID token of an identity-provider sign-in are read before the session is deleted, because the
     sign-in is deleted with it. The deletion is committed first; only then is the provider's end-session endpoint
@@ -1086,9 +1079,10 @@ def logout(
         token_session_id: The session ID extracted from the refresh token.
         refresh_token_value: The refresh token value from the request.
         token_user_id: The user ID extracted from the refresh token.
-        password_hasher: Utility for verifying the refresh token.
         client_type: The type of client; a web client is sent back to the login page after the provider ends its
             session, a mobile client is not.
+        ip_address: Client address of the request, compared with the one that rotated a token.
+        user_agent: ``User-Agent`` of the request, compared likewise.
         db: Database session for CRUD operations.
 
     Returns:
@@ -1102,13 +1096,23 @@ def logout(
     if session is None:
         return None
 
-    # A session whose tokens are not yet exchanged (pending PKCE), or whose stored token is not the presented one
-    # (the token was rotated or revoked), is not this caller's to end
-    if not session.refresh_token or not password_hasher.verify_password(refresh_token_value, session.refresh_token):
-        logger.warning(
-            "Logout ended nothing: refresh token does not match session for user <token_user_id>",
-            extra=core_logger.context(token_user_id=str(token_user_id)),
+    # A session whose tokens are not yet exchanged (pending PKCE) is not this caller's to end
+    if not session.refresh_token:
+        return None
+
+    # A stored token that is not the presented one means the presented token was rotated or revoked. A rotated token
+    # used outside its grace window, or inside it by another client, was stolen: the family ends, as at refresh.
+    if not sessions_integration.verify_refresh_token(refresh_token_value, session.refresh_token):
+        is_reused, in_grace = rotated_refresh_tokens_integration.check_token_reuse(
+            refresh_token_value, db, ip_address=ip_address, user_agent=user_agent
         )
+        if is_reused and not in_grace:
+            authentication_refresh_service.end_session_on_reuse(token_user_id, session.token_family_id, db)
+        else:
+            logger.warning(
+                "Logout ended nothing: refresh token does not match session for user <token_user_id>",
+                extra=core_logger.context(token_user_id=str(token_user_id)),
+            )
         return None
 
     end_session = identity_providers_integration.read_end_session(session.id, db)

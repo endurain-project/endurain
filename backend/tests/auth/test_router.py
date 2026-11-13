@@ -24,6 +24,7 @@ import modules.auth.credentials.password_hasher as auth_password_hasher
 import modules.auth.lockout.contracts as lockout_contracts
 import modules.auth.mfa.dependencies as auth_mfa_dependencies
 import modules.auth.mfa.pending_login_store as pending_login_store
+import modules.auth.sessions.integration_service as sessions_integration
 from tests._helpers.auth import MOCK_USER_ID, pending_login
 
 _SID_SID_1 = uuid.UUID("a103482d-8b28-53a0-bbde-23e8bbcd7815")
@@ -989,7 +990,7 @@ class TestRefreshEndpoint:
         mock_session.id = _SID_SID_1
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
-        mock_session.refresh_token = password_hasher.hash_password("mock_refresh_token")
+        mock_session.refresh_token = sessions_integration.hash_refresh_token("mock_refresh_token")
         mock_session.csrf_token_hash = None
         mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 0
@@ -1216,7 +1217,7 @@ class TestRefreshEndpoint:
         mock_session.id = _SID_SID_CSRF_1
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
-        mock_session.refresh_token = password_hasher.hash_password("mock_rt")
+        mock_session.refresh_token = sessions_integration.hash_refresh_token("mock_rt")
         mock_session.csrf_token_hash = "stored-hmac"
         mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 0
@@ -1365,7 +1366,7 @@ class TestRefreshEndpoint:
         mock_session.id = _SID_SID_RELOAD
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
-        mock_session.refresh_token = password_hasher.hash_password("mock_rt")
+        mock_session.refresh_token = sessions_integration.hash_refresh_token("mock_rt")
         mock_session.csrf_token_hash = "stored-hmac"
         mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 0
@@ -1460,7 +1461,7 @@ class TestRefreshEndpoint:
         mock_session.id = _SID_SID_MOB_CSRF
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "mobile"
-        mock_session.refresh_token = password_hasher.hash_password("mock_rt")
+        mock_session.refresh_token = sessions_integration.hash_refresh_token("mock_rt")
         mock_session.csrf_token_hash = "stored-hmac"
         mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 0
@@ -1580,7 +1581,7 @@ class TestRefreshEndpoint:
         mock_session.id = _SID_SID_BAD_RT
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
-        mock_session.refresh_token = password_hasher.hash_password("real_token")
+        mock_session.refresh_token = sessions_integration.hash_refresh_token("real_token")
         mock_session.csrf_token_hash = None
         mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 0
@@ -1648,7 +1649,7 @@ class TestRefreshEndpoint:
         mock_session.id = _SID_SID_NO_USER
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
-        mock_session.refresh_token = password_hasher.hash_password("mock_rt")
+        mock_session.refresh_token = sessions_integration.hash_refresh_token("mock_rt")
         mock_session.csrf_token_hash = None
         mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 0
@@ -1728,7 +1729,7 @@ class TestRefreshEndpoint:
         mock_session.id = _SID_SID_MOB
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "mobile"
-        mock_session.refresh_token = password_hasher.hash_password("mock_rt")
+        mock_session.refresh_token = sessions_integration.hash_refresh_token("mock_rt")
         mock_session.csrf_token_hash = None
         mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 0
@@ -1799,7 +1800,7 @@ class TestRefreshEndpoint:
         mock_session.id = _SID_SID_REPLAY_MOB
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "mobile"
-        mock_session.refresh_token = password_hasher.hash_password("current_rt")
+        mock_session.refresh_token = sessions_integration.hash_refresh_token("current_rt")
         mock_session.csrf_token_hash = None
         mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 1
@@ -1867,7 +1868,7 @@ class TestRefreshEndpoint:
         mock_session.id = _SID_SID_RACE
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "mobile"
-        mock_session.refresh_token = password_hasher.hash_password("old_rt")
+        mock_session.refresh_token = sessions_integration.hash_refresh_token("old_rt")
         mock_session.csrf_token_hash = None
         mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 1
@@ -1936,7 +1937,7 @@ class TestRefreshEndpoint:
         mock_session.id = _SID_SID_REPLAY_WEB
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
-        mock_session.refresh_token = password_hasher.hash_password("current_rt")
+        mock_session.refresh_token = sessions_integration.hash_refresh_token("current_rt")
         mock_session.csrf_token_hash = "stored-hmac"
         mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 1
@@ -1997,7 +1998,7 @@ class TestRefreshEndpoint:
         mock_session.id = _SID_SID_REPLAY_NONE
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
-        mock_session.refresh_token = password_hasher.hash_password("current_rt")
+        mock_session.refresh_token = sessions_integration.hash_refresh_token("current_rt")
         mock_session.csrf_token_hash = None
         mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 1
@@ -2050,7 +2051,7 @@ class TestLogoutEndpoint:
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = _SID_SID_1
-        mock_session.refresh_token = password_hasher.hash_password("mock_refresh_token")
+        mock_session.refresh_token = sessions_integration.hash_refresh_token("mock_refresh_token")
         mock_get_session.return_value = mock_session
         mock_delete_session.return_value = None
 
@@ -2066,12 +2067,17 @@ class TestLogoutEndpoint:
         assert response.headers["cache-control"] == "no-store"
         mock_delete_session.assert_called_once()
 
+    @patch(
+        "modules.auth.authentication.service.rotated_refresh_tokens_integration.check_token_reuse",
+        return_value=(False, False),
+    )
     @patch("modules.auth.authentication.service.sessions_integration.delete_session")
     @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")
     def test_logout_with_a_token_the_session_does_not_hold_ends_nothing(
         self,
         mock_get_session,
         mock_delete_session,
+        mock_check_token_reuse,
         auth_client,
         auth_app,
         password_hasher,
@@ -2080,7 +2086,7 @@ class TestLogoutEndpoint:
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = _SID_SID_1
-        mock_session.refresh_token = password_hasher.hash_password("real_token")
+        mock_session.refresh_token = sessions_integration.hash_refresh_token("real_token")
         mock_get_session.return_value = mock_session
 
         app = auth_app
@@ -2207,7 +2213,7 @@ class TestLogoutEndpoint:
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = _SID_SID_WEB
-        mock_session.refresh_token = password_hasher.hash_password("mock_rt")
+        mock_session.refresh_token = sessions_integration.hash_refresh_token("mock_rt")
         mock_get_session.return_value = mock_session
         mock_delete_session.return_value = None
 
@@ -2255,7 +2261,7 @@ class TestLogoutEndpoint:
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = _SID_SID_MOB
-        mock_session.refresh_token = password_hasher.hash_password("mock_rt")
+        mock_session.refresh_token = sessions_integration.hash_refresh_token("mock_rt")
         mock_get_session.return_value = mock_session
         mock_delete_session.return_value = None
 
@@ -2300,7 +2306,7 @@ class TestLogoutEndpoint:
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = session_id
-        mock_session.refresh_token = password_hasher.hash_password("rt")
+        mock_session.refresh_token = sessions_integration.hash_refresh_token("rt")
         auth_app.dependency_overrides[authentication_dependencies.get_logout_target] = lambda: (
             authentication_dependencies.LogoutTarget(MOCK_USER_ID, session_id, "rt")
         )
@@ -2431,7 +2437,7 @@ class TestLogoutEndpoint:
     def test_web_logout_of_a_revoked_token_succeeds_and_clears_the_cookie(
         self, mock_get_session, mock_delete_session, auth_client, token_manager, sample_user_read, password_hasher
     ):
-        session = MagicMock(id=_SID_SID_1, refresh_token=password_hasher.hash_password("a-newer-token"))
+        session = MagicMock(id=_SID_SID_1, refresh_token=sessions_integration.hash_refresh_token("a-newer-token"))
         mock_get_session.return_value = session
         token = self._refresh_token(token_manager, sample_user_read)
 
@@ -2475,7 +2481,9 @@ class TestLogoutEndpoint:
         auth_app.state._client_type = "mobile"
         auth_app.dependency_overrides[access_tokens_integration.get_token_manager] = lambda: token_manager
         token = self._mobile_refresh_token(token_manager, sample_user_read)
-        mock_get_session.return_value = MagicMock(id=_SID_SID_1, refresh_token=password_hasher.hash_password(token))
+        mock_get_session.return_value = MagicMock(
+            id=_SID_SID_1, refresh_token=sessions_integration.hash_refresh_token(token)
+        )
 
         response = auth_client.post("/auth/logout", json={"refresh_token": token})
 

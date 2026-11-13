@@ -137,7 +137,6 @@ def _callback(service, oauth_state, *, user=None, session="alive"):
             oauth_state,
             "ip",
             "agent",
-            MagicMock(),
             db,
         )
     return url, audit, create_link, delete_sessions, db

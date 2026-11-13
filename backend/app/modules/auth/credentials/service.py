@@ -139,6 +139,21 @@ def dummy_verify_password(password: str, password_hasher: credentials_password_h
         password_hasher.dummy_verify()
 
 
+def generate_password_for_access_type(
+    server_settings: server_settings_schema.ServerSettingsRead, access_type: str
+) -> str:
+    """Generate a password that meets the minimum length the server sets for an account type.
+
+    Args:
+        server_settings: The server settings holding the minimum lengths.
+        access_type: The account's normalised access type.
+
+    Returns:
+        A random password of letters and digits.
+    """
+    return credentials_password_policy.generate_password(resolve_password_min_length(server_settings, access_type))
+
+
 def validate_and_hash_password_for_user(
     server_settings: server_settings_schema.ServerSettingsRead,
     access_type: str,

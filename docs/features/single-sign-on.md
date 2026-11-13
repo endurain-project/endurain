@@ -139,7 +139,7 @@ Save the generated **Client ID** and **Client Secret**.
 | Field | Description | Example |
 | ----- | ----------- | ------- |
 | **Provider Name** | Display name shown on login button | `Google`, `GitHub`, etc. |
-| **Slug** | URL-safe identifier (lowercase letters, numbers, hyphens). `login`, `callback`, `icon` and `backchannel-logout` are reserved for the sign-in routes and refused | `google`, `github` |
+| **Slug** | URL-safe identifier (lowercase letters, numbers, hyphens). `login`, `link`, `callback`, `icon` and `backchannel-logout` are reserved for the sign-in routes and refused | `google`, `github` |
 | **Provider Type** | Protocol type: `OIDC` (the default) or `OAuth2`. An `OAuth2` provider whose scopes include `openid` issues an ID token, so its sign-in must carry a verified ID token and needs an issuer URL, like an `OIDC` one. Without `openid` the provider is identified by its userinfo endpoint alone | `OIDC` or `OAuth2` |
 | **Issuer URL** | Provider's issuer URL, exactly as the `issuer` in its `/.well-known/openid-configuration` document, trailing slash included. Another provider cannot use the same issuer, and the issuer cannot change while any user is linked to the provider | `https://accounts.google.com` |
 | **Client ID** | OAuth client identifier | From Step 1 |
@@ -162,7 +162,7 @@ Both refusals are answered with `409` and nothing is saved.
 
 Upgrading from a version that allowed it is refused while two providers share an issuer URL. The error names the providers' slugs for each shared issuer: change the issuer URL of, or delete, all but one of them (unlinking their users first if the issuer must change), then start the new version again.
 
-Upgrading is also refused while a provider's slug is one of the reserved words (`login`, `callback`, `icon`, `backchannel-logout`). The error names the slugs: change each one, register the new callback URL (`https://<your-endurain-domain>/api/v1/public/idp/callback/<slug>`) at the provider, then start the new version again.
+Upgrading is also refused while a provider's slug is one of the reserved words (`login`, `callback`, `icon`, `backchannel-logout`; `link` is refused for new and renamed providers, and a provider that already uses it keeps working). The error names the slugs: change each one, register the new callback URL (`https://<your-endurain-domain>/api/v1/public/idp/callback/<slug>`) at the provider, then start the new version again.
 
 #### Linking by email and syncing the email
 

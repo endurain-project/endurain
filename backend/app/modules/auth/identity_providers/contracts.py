@@ -96,6 +96,36 @@ class BrowserFlowStart(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class TicketedFlowStart(BaseModel):
+    """Where a native app sends the system browser to start a link, in place of a binding cookie it cannot hand over.
+
+    The app's own HTTP client receives the start answer, and the system browser is a different cookie jar, so the
+    binding cannot travel as a cookie of the answer. The URL carries a single-use ticket instead; the browser that
+    opens it receives the binding cookie and is redirected to the provider.
+
+    Attributes:
+        authorization_url: The Endurain URL that redeems the ticket.
+    """
+
+    authorization_url: str
+
+    model_config = ConfigDict(frozen=True)
+
+
+class LinkTicket(BaseModel):
+    """What the redemption of a link ticket needs: the browser binding to set and where to send the browser.
+
+    Attributes:
+        authorization_url: The provider's authorization URL.
+        browser_binding: The secret the system browser keeps in a cookie; the callback requires it.
+    """
+
+    authorization_url: str
+    browser_binding: str
+
+    model_config = ConfigDict(frozen=True)
+
+
 class StepUpTicket(BaseModel):
     """What a fresh identity-provider sign-in proved, held until the sensitive request redeems it.
 

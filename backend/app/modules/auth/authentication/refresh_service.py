@@ -18,7 +18,6 @@ import modules.auth.authentication.refusal_audit as authentication_refusal_audit
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.token_service as authentication_token_service
 import modules.auth.constants as auth_constants
-import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_providers.integration_service as identity_providers_integration
 import modules.auth.login_audit.integration_service as login_audit_integration
 import modules.auth.rotated_refresh_tokens.integration_service as rotated_refresh_tokens_integration
@@ -31,19 +30,15 @@ import modules.users.users.integration_service as users_integration
 logger = core_logger.get_logger(__name__)
 
 
-def _end_session_on_reuse(token_user_id: uuid.UUID, token_family_id: uuid.UUID, db: Session) -> NoReturn:
+def end_session_on_reuse(token_user_id: uuid.UUID, token_family_id: uuid.UUID, db: Session) -> None:
     """End the session of a refresh token that was reused outside its rotating client or its grace window, and tell its owner.
 
     Args:
         token_user_id: User ID extracted from the refresh token.
         token_family_id: UUID of the token family to invalidate.
         db: Database session.
-
-    Raises:
-        InvalidTokenError: Always, once the family is invalidated and the refusal audited.
     """
     sessions_integration.invalidate_token_family(token_family_id, db)
-    # The family stays invalidated although this request is refused.
     with authentication_refusal_audit.refresh_token_context(token_user_id):
         jasil_audit.stage(
             db,
@@ -57,6 +52,21 @@ def _end_session_on_reuse(token_user_id: uuid.UUID, token_family_id: uuid.UUID, 
         "Refresh token reuse detected for user <token_user_id>; token family invalidated",
         extra=core_logger.context(token_user_id=str(token_user_id)),
     )
+
+
+def _refuse_reused_token(token_user_id: uuid.UUID, token_family_id: uuid.UUID, db: Session) -> NoReturn:
+    """End the session of a reused refresh token, then refuse the request.
+
+    Args:
+        token_user_id: User ID extracted from the refresh token.
+        token_family_id: UUID of the token family to invalidate.
+        db: Database session.
+
+    Raises:
+        InvalidTokenError: Always, once the family is invalidated and the refusal audited.
+    """
+    # The family stays invalidated although this request is refused.
+    end_session_on_reuse(token_user_id, token_family_id, db)
     raise core_exceptions.InvalidTokenError("Refresh token reuse detected. The session was ended.")
 
 
@@ -168,7 +178,6 @@ def refresh_token(
     token_session_id: uuid.UUID,
     refresh_token_value: str,
     refresh_token_exp: datetime,
-    password_hasher: credentials_integration.PasswordHasher,
     token_manager: access_tokens_integration.TokenManager,
     client_type: auth_constants.ClientType,
     db: Session,
@@ -195,7 +204,6 @@ def refresh_token(
         token_session_id: Session ID extracted from the refresh token.
         refresh_token_value: The raw refresh token value.
         refresh_token_exp: Expiry of the presented refresh token; its rotated record is kept until then.
-        password_hasher: Utility for verifying token hashes.
         token_manager: Utility for creating tokens.
         db: Database session.
         client_type: Client type (\"web\" or \"mobile\").
@@ -323,7 +331,7 @@ def refresh_token(
 
     if is_reused and not in_grace:
         # Token theft detected (reuse after the grace window, or inside it from another client)
-        _end_session_on_reuse(token_user_id, session.token_family_id, db)
+        _refuse_reused_token(token_user_id, session.token_family_id, db)
 
     if is_reused and in_grace:
         # A retry inside the grace window (a lost rotation response, or a duplicate refresh) from the rotating
@@ -333,7 +341,7 @@ def refresh_token(
             client_type, session, refresh_token_value, ip_address, user_agent, token_user_id, token_manager, policy, db
         )
 
-    is_valid = password_hasher.verify_password(refresh_token_value, session.refresh_token)
+    is_valid = sessions_integration.verify_refresh_token(refresh_token_value, session.refresh_token)
 
     if not is_valid:
         logger.warning(
@@ -401,7 +409,7 @@ def refresh_token(
             refresh_token_value, db, ip_address=ip_address, user_agent=user_agent
         )
         if is_reused and not in_grace:
-            _end_session_on_reuse(token_user_id, session.token_family_id, db)
+            _refuse_reused_token(token_user_id, session.token_family_id, db)
         return _replay_rotation(
             client_type, session, refresh_token_value, ip_address, user_agent, token_user_id, token_manager, policy, db
         )
@@ -414,7 +422,6 @@ def refresh_token(
         ip_address,
         user_agent,
         new_refresh_token,
-        password_hasher,
         new_refresh_token_exp,
         db,
         new_csrf_token=new_csrf_token,

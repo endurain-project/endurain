@@ -15,6 +15,7 @@ import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.identity_providers.contracts as identity_providers_contracts
 import modules.auth.identity_providers.crud as identity_providers_crud
 import modules.auth.identity_providers.end_session_service as identity_providers_end_session
+import modules.auth.identity_providers.link_ticket_store as identity_providers_link_tickets
 import modules.auth.identity_providers.oidc_client_service as identity_providers_oidc_client
 import modules.auth.identity_providers.step_up_ticket_store as identity_providers_step_up_tickets
 import modules.auth.identity_providers.token_service as identity_providers_tokens
@@ -51,6 +52,30 @@ def enrich_user_identity_providers(
 def validate_redirect(redirect: str | None) -> None:
     """Refuse a frontend return path that is not a relative path or a configured native-app address."""
     identity_providers_utils.validate_redirect_url(redirect, core_config.settings.ALLOWED_REDIRECT_URIS)
+
+
+def is_native_redirect(redirect: str | None) -> bool:
+    """Tell whether a validated redirect is an address a native app receives."""
+    return identity_providers_utils.is_native_redirect(redirect)
+
+
+def issue_link_ticket(state: StateProvider, authorization_url: str, browser_binding: str) -> str:
+    """Issue the single-use ticket that hands a link to the system browser, and return its URL.
+
+    Args:
+        state: The platform state provider.
+        authorization_url: The provider's authorization URL the redeeming browser is sent to.
+        browser_binding: The secret the redeeming browser keeps in a cookie.
+
+    Returns:
+        The Endurain URL the app opens in the system browser.
+    """
+    ticket = identity_providers_link_tickets.LinkTicketStore(state).issue(
+        identity_providers_contracts.LinkTicket(authorization_url=authorization_url, browser_binding=browser_binding)
+    )
+    return identity_providers_utils.append_query_params(
+        f"{core_config.settings.ENDURAIN_HOST}{core_config.ROOT_PATH}/public/idp/link", {"ticket": ticket}
+    )
 
 
 def stage_browser_link(

@@ -90,7 +90,7 @@ def exchange_tokens_for_session(
         ip_address: Client address of the exchange request.
         user_agent: Client user agent of the exchange request.
         pending_mfa_store: Store for the MFA lockout and the TOTP replay guard.
-        password_hasher: Hasher for the stored refresh token.
+        password_hasher: Verifies a backup code against its stored hash.
         token_manager: Token manager that signs the tokens.
         db: Database session.
         device_id: Device id from the browser's device cookie or the mobile app's ``X-Device-Id`` header, or None when
@@ -223,7 +223,7 @@ def exchange_tokens_for_session(
     # window to the refresh lifetime in one conditional update. The CSRF hash is not stored: the first /refresh
     # after a page reload establishes the binding.
     session_expires_at = sessions_integration.claim_session_for_token_exchange(
-        session_id, password_hasher.hash_password(refresh_token), refresh_token_exp, amr, db
+        session_id, sessions_integration.hash_refresh_token(refresh_token), refresh_token_exp, amr, db
     )
     if session_expires_at is None:
         # Another exchange claimed the session first; to this caller it is the session of a finished exchange.

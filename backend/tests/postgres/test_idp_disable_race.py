@@ -71,7 +71,7 @@ def _set_enabled(factory, idp_id: uuid.UUID, enabled: bool, *, lock_timeout: str
         )
 
 
-def _sign_in(factory, idp_id: uuid.UUID, state_id: str, password_hasher, session_policy, *, db=None) -> uuid.UUID:
+def _sign_in(factory, idp_id: uuid.UUID, state_id: str, session_policy, *, db=None) -> uuid.UUID:
     """Run the callback's session creation for the user, in the given session or a new one."""
 
     def run(session):
@@ -86,7 +86,7 @@ def _sign_in(factory, idp_id: uuid.UUID, state_id: str, password_hasher, session
         )
         state = oauth_state_integration.get_oauth_state_by_id_and_not_used(state_id, session)
         return _service().create_callback_session(
-            user, "127.0.0.1", "agent", password_hasher, state, idp_id, {"access_token": "at"}, session, idp_sid=None
+            user, "127.0.0.1", "agent", state, idp_id, {"access_token": "at"}, session, idp_sid=None
         )
 
     with patch(_SESSION_POLICY_TARGET, return_value=session_policy):
@@ -101,40 +101,36 @@ def _live_sessions(factory) -> set[uuid.UUID]:
         return set(db.execute(text("SELECT id FROM users_sessions")).scalars())
 
 
-def test_a_callback_for_a_provider_disabled_meanwhile_creates_no_session(
-    pg_factory, provider, password_hasher, session_policy
-):
+def test_a_callback_for_a_provider_disabled_meanwhile_creates_no_session(pg_factory, provider, session_policy):
     _set_enabled(pg_factory, provider, False)
 
     with pytest.raises(core_exceptions.NotFoundError):
-        _sign_in(pg_factory, provider, "a" * 32, password_hasher, session_policy)
+        _sign_in(pg_factory, provider, "a" * 32, session_policy)
 
     assert _live_sessions(pg_factory) == set()
 
 
 def test_a_disable_waits_for_a_callback_holding_the_provider_and_then_ends_its_session(
-    pg_factory, provider, password_hasher, session_policy
+    pg_factory, provider, session_policy
 ):
     with pg_factory() as callback:
         assert idp_crud.lock_provider_enabled(provider, callback) is True
         with pytest.raises(OperationalError):
             _set_enabled(pg_factory, provider, False, lock_timeout="200ms")
-        session_id = _sign_in(pg_factory, provider, "b" * 32, password_hasher, session_policy, db=callback)
+        session_id = _sign_in(pg_factory, provider, "b" * 32, session_policy, db=callback)
 
     assert _live_sessions(pg_factory) == {session_id}
     _set_enabled(pg_factory, provider, False)
     assert _live_sessions(pg_factory) == set()
 
 
-def test_sessions_ended_by_a_disable_stay_gone_when_the_provider_is_enabled_again(
-    pg_factory, provider, password_hasher, session_policy
-):
-    _sign_in(pg_factory, provider, "c" * 32, password_hasher, session_policy)
+def test_sessions_ended_by_a_disable_stay_gone_when_the_provider_is_enabled_again(pg_factory, provider, session_policy):
+    _sign_in(pg_factory, provider, "c" * 32, session_policy)
     _set_enabled(pg_factory, provider, False)
     assert _live_sessions(pg_factory) == set()
 
     _set_enabled(pg_factory, provider, True)
 
     assert _live_sessions(pg_factory) == set()
-    new_session = _sign_in(pg_factory, provider, "d" * 32, password_hasher, session_policy)
+    new_session = _sign_in(pg_factory, provider, "d" * 32, session_policy)
     assert _live_sessions(pg_factory) == {new_session}

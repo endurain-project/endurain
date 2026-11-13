@@ -855,7 +855,7 @@ class TestJwksUriIsGone:
 class TestReservedSlugs:
     """The slug is refused when it is a fixed word of the public identity-provider routes."""
 
-    @pytest.mark.parametrize("slug", ["login", "callback", "icon", "backchannel-logout"])
+    @pytest.mark.parametrize("slug", ["login", "link", "callback", "icon", "backchannel-logout"])
     def test_identity_provider_base_rejects_a_reserved_slug(self, slug):
         """Test a reserved slug is refused, since it would shadow a public route."""
         # Arrange, Act & Assert

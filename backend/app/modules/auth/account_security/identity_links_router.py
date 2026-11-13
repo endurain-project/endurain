@@ -11,6 +11,7 @@ import core.rate_limit as core_rate_limit
 import modules.auth.account_security.identity_link_service as identity_link_service
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_provider_links.schema as auth_identity_links_schema
+import modules.auth.identity_providers.contracts as identity_providers_contracts
 import modules.auth.identity_providers.schema as identity_providers_schema
 import modules.auth.schema as auth_schema
 import modules.users.users.schema as users_schema
@@ -35,14 +36,19 @@ def start_idp_link(
         auth_dependencies.StepUpStore,
         Depends(auth_dependencies.get_step_up_attempts),
     ],
+    state: core_dependencies.PlatformState,
     db: core_dependencies.DbSession,
 ) -> identity_providers_schema.BrowserFlowStartRead:
     """Start linking an identity provider to the authenticated user's account.
 
     Linking enables persistent sign-in, so it needs step-up verification in ``step_up``: ``current_password`` (or, for an
     account without one, ``idp_reauth``), and an MFA code when MFA is enabled. The browser then follows
-    ``authorization_url``, signs in at the provider, and the callback returns to ``redirect``. The response
-    sets a cookie that binds the link to this browser.
+    ``authorization_url``, signs in at the provider, and the callback returns to ``redirect``. For a web client the
+    response sets a cookie that binds the link to this browser. For a native-app ``redirect`` the app opens
+    ``authorization_url`` in the system browser, which is not the app's HTTP client: the URL is an Endurain address
+    with a single-use ticket that lives two minutes, and the browser that opens it receives the binding cookie and is
+    redirected to the provider. The callback then returns to ``redirect`` with ``idp_link=success`` or
+    ``idp_link=error``.
 
     Args:
         idp_id: The identity provider to link.
@@ -52,10 +58,11 @@ def start_idp_link(
         token_user_id: User ID from access token.
         token_session_id: Session ID from access token.
         step_up_store: Step-up lockout store.
+        state: The platform state provider, which holds the link ticket of a native app.
         db: Database session.
 
     Returns:
-        The provider's authorization URL.
+        The provider's authorization URL, or the ticket URL of a native app.
     """
     flow = identity_link_service.start_idp_link(
         idp_id,
@@ -64,9 +71,11 @@ def start_idp_link(
         token_user_id,
         token_session_id,
         step_up_store,
+        state,
         db,
     )
-    auth_dependencies.set_idp_browser_binding_cookie(response, flow.browser_binding)
+    if isinstance(flow, identity_providers_contracts.BrowserFlowStart):
+        auth_dependencies.set_idp_browser_binding_cookie(response, flow.browser_binding)
     return identity_providers_schema.BrowserFlowStartRead(authorization_url=flow.authorization_url)
 
 

@@ -20,7 +20,6 @@ import core.hashing as core_hashing
 import core.logger as core_logger
 import core.timezone as core_timezone
 import modules.auth.constants as auth_constants
-import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
 import modules.auth.identity_providers.audit_actions as idp_audit_actions
 import modules.auth.identity_providers.constants as idp_constants
@@ -198,7 +197,6 @@ class CallbackService:
         oauth_state: oauth_state_schema.OAuthStateRead,
         ip_address: str,
         user_agent: str,
-        password_hasher: credentials_integration.PasswordHasher,
         db: Session,
         *,
         iss: str | None = None,
@@ -218,7 +216,6 @@ class CallbackService:
             oauth_state: The claimed OAuth state.
             ip_address: Client address, recorded on the new session.
             user_agent: Client user agent, recorded on the new session.
-            password_hasher: Hasher for the session's refresh token.
             db: Database session.
             iss: The ``iss`` parameter of the callback, if it carried one (RFC 9207).
 
@@ -255,7 +252,6 @@ class CallbackService:
                 user,
                 ip_address,
                 user_agent,
-                password_hasher,
                 oauth_state,
                 idp.id,
                 result.token_response,
@@ -867,7 +863,6 @@ class CallbackService:
         user: users_schema.UserRead,
         ip_address: str,
         user_agent: str,
-        password_hasher: credentials_integration.PasswordHasher,
         oauth_state: oauth_state_schema.OAuthStateRead,
         idp_id: uuid.UUID,
         token_response: dict[str, Any],
@@ -887,7 +882,6 @@ class CallbackService:
             user: The user who signed in.
             ip_address: Client address, recorded on the session.
             user_agent: Client user agent, recorded on the session.
-            password_hasher: Hasher for the session's refresh token.
             oauth_state: The OAuth state the token exchange will validate.
             idp_id: The provider the user signed in through.
             token_response: The provider's token response.
@@ -925,7 +919,6 @@ class CallbackService:
             ip_address,
             user_agent,
             None,
-            password_hasher,
             core_timezone.to_utc_aware(oauth_state.expires_at),
             db,
             oauth_state_id=oauth_state.id,

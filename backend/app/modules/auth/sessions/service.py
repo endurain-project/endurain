@@ -14,7 +14,6 @@ import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.constants as auth_constants
-import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.oauth_state.integration_service as oauth_state_integration
 import modules.auth.oauth_state.schema as oauth_state_schema
 import modules.auth.rotated_refresh_tokens.integration_service as rotated_refresh_tokens_integration
@@ -86,7 +85,6 @@ def create_session(
     ip_address: str,
     user_agent: str,
     refresh_token: str | None,
-    password_hasher: credentials_contracts.SupportsHashPassword,
     expires_at: datetime,
     db: Session,
     oauth_state_id: str | None = None,
@@ -96,7 +94,7 @@ def create_session(
     device_hash: str | None,
     app_redirect_uri: str | None = None,
 ) -> sessions_contracts.SessionRead:
-    """Stage a session with hashed tokens, its client type, the client's IP address and user agent.
+    """Stage a session with digested tokens, its client type, the client's IP address and user agent.
 
     ``amr`` records how the user signed in; ``auth_time`` is the moment the session is created.
     ``device_hash`` is the digest of the known-device id the sign-in recorded, or ``None`` when the device is not
@@ -109,7 +107,7 @@ def create_session(
     session_data = sessions_schema.UserSessionsInternal(
         id=session_id,
         user_id=user.id,
-        refresh_token=password_hasher.hash_password(refresh_token) if refresh_token else None,
+        refresh_token=hash_refresh_token(refresh_token) if refresh_token else None,
         ip_address=ip_address,
         device_type=device.device_type.value,
         operating_system=device.operating_system,
@@ -144,7 +142,6 @@ def edit_session(
     ip_address: str,
     user_agent: str,
     new_refresh_token: str,
-    password_hasher: credentials_contracts.SupportsHashPassword,
     expires_at: datetime,
     db: Session,
     new_csrf_token: str | None = None,
@@ -155,7 +152,7 @@ def edit_session(
     session_data = sessions_schema.UserSessionsInternal.model_validate(session)
     session_data = session_data.model_copy(
         update={
-            "refresh_token": password_hasher.hash_password(new_refresh_token),
+            "refresh_token": hash_refresh_token(new_refresh_token),
             "ip_address": ip_address,
             "device_type": device.device_type.value,
             "operating_system": device.operating_system,
@@ -443,13 +440,46 @@ def validate_session_timeout(
     sessions_utils.validate_session_timeout(session, policy)
 
 
-def verify_csrf_token(candidate: str, stored_hmac: str) -> bool:
-    """Verify a CSRF token against its stored HMAC, which may predate a rotation of ``SECRET_KEY``."""
+def _matches_stored_digest(candidate: str, stored_hmac: str) -> bool:
+    """Compare a secret with a stored HMAC that may predate a rotation of ``SECRET_KEY``."""
     matches = [
         sessions_utils.verify_csrf_token(stored_hmac, digest)
         for digest in access_tokens_integration.hmac_sha256_under_every_key(candidate)
     ]
     return any(matches)
+
+
+def verify_csrf_token(candidate: str, stored_hmac: str) -> bool:
+    """Verify a CSRF token against its stored HMAC, which may predate a rotation of ``SECRET_KEY``."""
+    return _matches_stored_digest(candidate, stored_hmac)
+
+
+def hash_refresh_token(token: str) -> str:
+    """Return the digest a session stores for a refresh token.
+
+    A refresh token is 256 bits of signed random data, so a keyed digest is enough: a slow password hash would only
+    cost the server time on every refresh.
+
+    Args:
+        token: The raw refresh token.
+
+    Returns:
+        The HMAC-SHA256 digest, under the first ``SECRET_KEY`` entry.
+    """
+    return access_tokens_integration.hmac_sha256(token)
+
+
+def verify_refresh_token(candidate: str, stored_digest: str) -> bool:
+    """Tell whether a presented refresh token is the one a session stores, whichever ``SECRET_KEY`` entry made it.
+
+    Args:
+        candidate: The raw refresh token presented.
+        stored_digest: The digest the session stores.
+
+    Returns:
+        True when the digest matches.
+    """
+    return _matches_stored_digest(candidate, stored_digest)
 
 
 def _hash_csrf_token(token: str) -> str:

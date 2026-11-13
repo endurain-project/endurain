@@ -141,7 +141,7 @@ class TestCompleteCallback:
             patch.object(service, "create_callback_session", return_value=session_id) as create_session,
         ):
             url = service.complete_callback(
-                _idp(), "code", None, "state", oauth_state, "10.0.0.1", "agent", MagicMock(), MagicMock()
+                _idp(), "code", None, "state", oauth_state, "10.0.0.1", "agent", MagicMock()
             )
         return url, create_session
 
@@ -192,8 +192,8 @@ class TestCompleteCallback:
         state = self._state()
         _, create_session = self._complete(service, result, state)
 
-        assert create_session.call_args.args[5:7] == (IDP_ID, {"refresh_token": "rt"})
-        assert create_session.call_args.args[4] is state
+        assert create_session.call_args.args[4:6] == (IDP_ID, {"refresh_token": "rt"})
+        assert create_session.call_args.args[3] is state
 
     def test_a_login_carries_a_relative_return_path(self, service):
         url, _ = self._complete(service, _login(redirect_path="/activities?x=1"), self._state())
@@ -320,7 +320,6 @@ class TestCompleteCallback:
                 self._state(redirect_path=NATIVE),
                 "10.0.0.1",
                 "agent",
-                MagicMock(),
                 MagicMock(),
             )
 
@@ -500,9 +499,7 @@ class TestCreateCallbackSession:
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            service.create_callback_session(
-                user, "10.0.0.1", "agent", MagicMock(), _STATE, IDP_ID, {}, MagicMock(), idp_sid=None
-            )
+            service.create_callback_session(user, "10.0.0.1", "agent", _STATE, IDP_ID, {}, MagicMock(), idp_sid=None)
 
         lock.assert_called_once()
         create_session.assert_not_called()
@@ -536,7 +533,6 @@ class TestCreateCallbackSession:
                 user,
                 "10.0.0.1",
                 "agent",
-                MagicMock(),
                 _STATE,
                 IDP_ID,
                 token_response or {"refresh_token": "rt"},
@@ -548,7 +544,7 @@ class TestCreateCallbackSession:
     def test_the_session_expires_when_the_exchange_window_does(self, service):
         _, create_session, _ = self._create(service)
 
-        assert create_session.call_args.args[7] == _STATE.expires_at
+        assert create_session.call_args.args[6] == _STATE.expires_at
         assert create_session.call_args.kwargs["oauth_state_id"] == "state-id"
 
     def test_a_native_redirect_is_recorded_on_the_session(self, service):
@@ -566,9 +562,7 @@ class TestCreateCallbackSession:
             ),
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
         ):
-            service.create_callback_session(
-                user, "10.0.0.1", "agent", MagicMock(), native, IDP_ID, {}, MagicMock(), idp_sid=None
-            )
+            service.create_callback_session(user, "10.0.0.1", "agent", native, IDP_ID, {}, MagicMock(), idp_sid=None)
 
         assert create_session.call_args.kwargs["app_redirect_uri"] == "gadgetbridge://auth/sso/callback"
 
@@ -584,9 +578,7 @@ class TestCreateCallbackSession:
             ),
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
         ):
-            service.create_callback_session(
-                user, "10.0.0.1", "agent", MagicMock(), web, IDP_ID, {}, MagicMock(), idp_sid=None
-            )
+            service.create_callback_session(user, "10.0.0.1", "agent", web, IDP_ID, {}, MagicMock(), idp_sid=None)
 
         assert create_session.call_args.kwargs["app_redirect_uri"] is None
 
@@ -602,11 +594,9 @@ class TestCreateCallbackSession:
             ),
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
         ):
-            service.create_callback_session(
-                user, "10.0.0.1", "agent", MagicMock(), naive, IDP_ID, {}, MagicMock(), idp_sid=None
-            )
+            service.create_callback_session(user, "10.0.0.1", "agent", naive, IDP_ID, {}, MagicMock(), idp_sid=None)
 
-        assert create_session.call_args.args[7] == datetime(2026, 11, 6, 12, 0, tzinfo=UTC)
+        assert create_session.call_args.args[6] == datetime(2026, 11, 6, 12, 0, tzinfo=UTC)
 
     @pytest.mark.parametrize("client_type", list(ClientType))
     def test_the_session_is_for_the_client_type_the_sign_in_started_with(self, service, client_type):
@@ -624,7 +614,6 @@ class TestCreateCallbackSession:
                 SimpleNamespace(id=MOCK_USER_ID),
                 "10.0.0.1",
                 "agent",
-                MagicMock(),
                 state,
                 IDP_ID,
                 {},
@@ -688,9 +677,7 @@ class TestCreateCallbackSession:
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
             pytest.raises(callback_service.user_provisioning_service.SsoSignInRefusedError) as exc_info,
         ):
-            service.create_callback_session(
-                user, "10.0.0.1", "agent", MagicMock(), _STATE, IDP_ID, {}, MagicMock(), idp_sid=None
-            )
+            service.create_callback_session(user, "10.0.0.1", "agent", _STATE, IDP_ID, {}, MagicMock(), idp_sid=None)
 
         assert exc_info.value.login_error == login_error
         record_refusal.assert_called_once_with(

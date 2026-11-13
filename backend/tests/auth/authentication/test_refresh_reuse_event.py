@@ -54,7 +54,6 @@ def _refresh(mock_db, reuse):
             "old",
             datetime(2999, 1, 1, tzinfo=UTC),
             MagicMock(),
-            MagicMock(),
             "web",
             mock_db,
         )
@@ -78,7 +77,7 @@ def test_the_event_is_staged_before_the_commit(mock_db):
         ),
         pytest.raises(core_exceptions.InvalidTokenError),
     ):
-        refresh_service._end_session_on_reuse(_USER_ID, _FAMILY_ID, mock_db)
+        refresh_service._refuse_reused_token(_USER_ID, _FAMILY_ID, mock_db)
 
     assert calls == ["publish", "commit"]
 

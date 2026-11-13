@@ -246,9 +246,7 @@ class TestCompleteLoginRefusals:
             patch.object(callback_service.sessions_integration, "create_session"),
             jasil_testing.capture_audit() as audit,
         ):
-            url = service.complete_callback(
-                _idp(), "code", None, "state", _state(), "10.0.0.1", "agent", MagicMock(), MagicMock()
-            )
+            url = service.complete_callback(_idp(), "code", None, "state", _state(), "10.0.0.1", "agent", MagicMock())
         return url, audit
 
     def test_an_invalid_id_token_is_audited(self, service):
@@ -298,7 +296,6 @@ class TestCompleteLoginRefusals:
                 "ip",
                 "agent",
                 MagicMock(),
-                MagicMock(),
             )
 
         audit.assert_not_audited(_LOGIN)
@@ -306,7 +303,7 @@ class TestCompleteLoginRefusals:
     def test_a_provider_error_without_a_code_is_audited(self, service):
         with jasil_testing.capture_audit() as audit:
             url = service.complete_callback(
-                _idp(), None, "access_denied", "state", _state(), "ip", "agent", MagicMock(), MagicMock()
+                _idp(), None, "access_denied", "state", _state(), "ip", "agent", MagicMock()
             )
 
         assert url == f"{_HOST}/login?error=sso_failed"
@@ -331,9 +328,7 @@ class TestCompleteLoginRefusals:
             patch.object(service._oidc, "create_oauth_client", return_value=oauth_client),
             jasil_testing.capture_audit() as audit,
         ):
-            url = service.complete_callback(
-                _idp(), "code", None, "state", _state(), "ip", "agent", MagicMock(), MagicMock()
-            )
+            url = service.complete_callback(_idp(), "code", None, "state", _state(), "ip", "agent", MagicMock())
 
         assert url == f"{_HOST}/login?error=sso_failed"
         _assert_refusal(audit, outcome="failure", reason="token_exchange_failed")
@@ -350,9 +345,7 @@ class TestCompleteLoginRefusals:
             patch.object(service._oidc, "get_userinfo", return_value=userinfo),
             jasil_testing.capture_audit() as audit,
         ):
-            url = service.complete_callback(
-                _idp(), "code", None, "state", _state(), "ip", "agent", MagicMock(), MagicMock()
-            )
+            url = service.complete_callback(_idp(), "code", None, "state", _state(), "ip", "agent", MagicMock())
 
         assert url == f"{_HOST}/login?error=sso_failed"
         _assert_refusal(audit, outcome="failure", reason="no_subject")
@@ -389,7 +382,6 @@ class TestCompleteLinkRefusals:
                 _state(purpose=_PURPOSE.LINK, user_id=MOCK_USER_ID, redirect_path="/settings"),
                 "ip",
                 "agent",
-                MagicMock(),
                 MagicMock(),
             )
         return url, audit
@@ -478,7 +470,6 @@ class TestCompleteStepUpRefusals:
                 oauth_state,
                 "ip",
                 "agent",
-                MagicMock(),
                 MagicMock(),
             )
         return audit
