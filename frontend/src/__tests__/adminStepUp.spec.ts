@@ -77,7 +77,7 @@ vi.mock('@/features/users/composables/useUserIdentityProviders', () => ({
 }))
 
 vi.mock('@/features/auth/stores/auth', () => ({
-  useAuthStore: () => ({ sessionId: ref('current') }),
+  useAuthStore: () => ({ sessionId: ref('00000000-0000-4000-8000-0000000000b1') }),
 }))
 vi.mock('@/features/users/composables/useUserSessions', () => ({
   useUserSessionsQuery: () => ({
@@ -284,7 +284,10 @@ describe('UserSessionsList revoke', () => {
   }
 
   function mountList(resume: IdpStepUpResume | null = null) {
-    mocks.sessions = [session('current'), session('other')]
+    mocks.sessions = [
+      session('00000000-0000-4000-8000-0000000000b1'),
+      session('00000000-0000-4000-8000-0000000000b2'),
+    ]
     return mount(UserSessionsList, {
       props: { userId: '00000000-0000-4000-8000-000000000007', resume },
       global: { plugins: plugins(), stubs },
@@ -294,7 +297,10 @@ describe('UserSessionsList revoke', () => {
   const stepUp = { currentPassword: 'admin-pw', mfaCode: null, idpReauth: null }
 
   it('names the app a session was signed in through, only when it has one', () => {
-    mocks.sessions = [session('current'), session('other', 'com.example.app:/callback')]
+    mocks.sessions = [
+      session('00000000-0000-4000-8000-0000000000b1'),
+      session('00000000-0000-4000-8000-0000000000b2', 'com.example.app:/callback'),
+    ]
     const wrapper = mount(UserSessionsList, {
       props: { userId: '00000000-0000-4000-8000-000000000007', resume: null },
       global: { plugins: plugins(), stubs },
@@ -312,7 +318,11 @@ describe('UserSessionsList revoke', () => {
     await wrapper.get('form').trigger('submit')
 
     expect(mocks.revokeMutate).toHaveBeenCalledWith(
-      { sessionId: 'other', userId: '00000000-0000-4000-8000-000000000007', stepUp },
+      {
+        sessionId: '00000000-0000-4000-8000-0000000000b2',
+        userId: '00000000-0000-4000-8000-000000000007',
+        stepUp,
+      },
       expect.any(Object),
     )
   })
@@ -325,7 +335,11 @@ describe('UserSessionsList revoke', () => {
     await wrapper.findAll('form')[1]!.trigger('submit')
 
     expect(mocks.revokeOthersMutate).toHaveBeenCalledWith(
-      { userId: '00000000-0000-4000-8000-000000000007', stepUp, excludeSessionId: 'current' },
+      {
+        userId: '00000000-0000-4000-8000-000000000007',
+        stepUp,
+        excludeSessionId: '00000000-0000-4000-8000-0000000000b1',
+      },
       expect.any(Object),
     )
   })
@@ -349,7 +363,7 @@ describe('UserSessionsList revoke', () => {
     const wrapper = mountList(
       resumeFor('admin_sessions_revoke', {
         userId: '00000000-0000-4000-8000-000000000007',
-        sessionId: 'other',
+        sessionId: '00000000-0000-4000-8000-0000000000b2',
       }),
     )
     await flushPromises()

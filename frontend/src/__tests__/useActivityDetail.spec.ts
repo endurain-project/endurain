@@ -21,10 +21,10 @@ import { makeActivity, activityUuid, userUuid } from './fixtures/activity'
 
 vi.mock('@/features/activities/services/activities', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/activities/services/activities')>()),
-  deleteActivity: vi.fn<(id: number, version: number) => Promise<void>>(),
+  deleteActivity: vi.fn<(id: string, version: number) => Promise<void>>(),
   editActivity:
-    vi.fn<(id: number, input: ActivityEditInput, version: number) => Promise<Activity>>(),
-  setActivityGear: vi.fn<(activity: Activity, gearId: number | null) => Promise<Activity>>(),
+    vi.fn<(id: string, input: ActivityEditInput, version: number) => Promise<Activity>>(),
+  setActivityGear: vi.fn<(activity: Activity, gearId: string | null) => Promise<Activity>>(),
 }))
 
 const ACTIVITY_ID = activityUuid(5)

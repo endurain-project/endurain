@@ -28,7 +28,7 @@ vi.mock('@/composables/useRealtime', () => ({
 /** A job as `GET /jobs/{id}` answers it. */
 function job(status: string, extra: Record<string, unknown> = {}): Job {
   return {
-    id: 'job-1',
+    id: '00000000-0000-4000-8000-0000000000a1',
     kind: 'user_deletion',
     status,
     created_at: '2026-01-01T00:00:00Z',
@@ -85,7 +85,9 @@ describe('seedJob', () => {
 
     seedJob(client, queued)
 
-    expect(client.getQueryData(queryKeys.jobs.detail('job-1'))).toBe(queued)
+    expect(client.getQueryData(queryKeys.jobs.detail('00000000-0000-4000-8000-0000000000a1'))).toBe(
+      queued,
+    )
     expect(client.getQueryData(queryKeys.jobs.latest('user_deletion'))).toBe(queued)
   })
 })
@@ -97,11 +99,11 @@ describe('followJob', () => {
       .mockResolvedValueOnce(job('running'))
       .mockResolvedValueOnce(job('failed', { error_code: 'internal' }))
 
-    const finished = await followJob('job-1', { intervalMs: 0 })
+    const finished = await followJob('00000000-0000-4000-8000-0000000000a1', { intervalMs: 0 })
 
     expect(finished.status).toBe('failed')
     expect(apiFetch).toHaveBeenCalledTimes(3)
-    expect(watchJob).toHaveBeenCalledExactlyOnceWith('job-1')
+    expect(watchJob).toHaveBeenCalledExactlyOnceWith('00000000-0000-4000-8000-0000000000a1')
     expect(wait).toHaveBeenCalledWith(0)
     expect(stop).toHaveBeenCalledOnce()
   })
@@ -113,7 +115,7 @@ describe('followJob', () => {
       .mockResolvedValueOnce(job('running'))
       .mockResolvedValueOnce(job('succeeded'))
 
-    const done = followJob('job-1', { intervalMs: 60_000 })
+    const done = followJob('00000000-0000-4000-8000-0000000000a1', { intervalMs: 60_000 })
     await vi.waitFor(() => expect(wait).toHaveBeenCalledOnce())
     expect(apiFetch).toHaveBeenCalledTimes(1)
 
@@ -126,9 +128,9 @@ describe('followJob', () => {
   it('throws JobTimeoutError when the job is still running at the deadline', async () => {
     vi.mocked(apiFetch).mockResolvedValue(job('running'))
 
-    await expect(followJob('job-1', { intervalMs: 0, timeoutMs: 0 })).rejects.toBeInstanceOf(
-      JobTimeoutError,
-    )
+    await expect(
+      followJob('00000000-0000-4000-8000-0000000000a1', { intervalMs: 0, timeoutMs: 0 }),
+    ).rejects.toBeInstanceOf(JobTimeoutError)
     expect(stop).toHaveBeenCalledOnce()
   })
 
@@ -140,9 +142,12 @@ describe('followJob', () => {
       return Promise.resolve()
     })
 
-    await expect(followJob('job-1', { intervalMs: 0, signal: controller.signal })).rejects.toThrow(
-      'cancelled',
-    )
+    await expect(
+      followJob('00000000-0000-4000-8000-0000000000a1', {
+        intervalMs: 0,
+        signal: controller.signal,
+      }),
+    ).rejects.toThrow('cancelled')
     expect(apiFetch).toHaveBeenCalledTimes(1)
     expect(stop).toHaveBeenCalledOnce()
   })
@@ -150,7 +155,7 @@ describe('followJob', () => {
   it('throws a failed read, a 404 included', async () => {
     vi.mocked(apiFetch).mockRejectedValue(new Error('404'))
 
-    await expect(followJob('job-1')).rejects.toThrow('404')
+    await expect(followJob('00000000-0000-4000-8000-0000000000a1')).rejects.toThrow('404')
     expect(stop).toHaveBeenCalledOnce()
   })
 })

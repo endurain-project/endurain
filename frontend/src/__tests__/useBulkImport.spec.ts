@@ -29,7 +29,7 @@ vi.mock('@/services/jobStatus', async (importOriginal) => ({
 }))
 
 const running = {
-  id: 'import-1',
+  id: '00000000-0000-4000-8000-0000000000b1',
   kind: 'activity_bulk_import',
   status: 'running',
   files_total: 10,
@@ -77,7 +77,7 @@ describe('useBulkImportJob', () => {
       { kind: 'activity_bulk_import', numRecords: 1 },
       expect.anything(),
     )
-    expect(job.value?.id).toBe('import-1')
+    expect(job.value?.id).toBe('00000000-0000-4000-8000-0000000000b1')
   })
 
   it('shows no import when the user has none', async () => {
@@ -91,7 +91,16 @@ describe('useBulkImportJob', () => {
   it('follows the running import a 409 names, from either start route', async () => {
     vi.mocked(listJobs).mockResolvedValue({ items: [], num_records: 0 })
     vi.mocked(fetchJob).mockResolvedValue(running as never)
-    const conflict = new HttpError(409, 'Conflict', null, null, null, [], null, 'import-1')
+    const conflict = new HttpError(
+      409,
+      'Conflict',
+      null,
+      null,
+      null,
+      [],
+      null,
+      '00000000-0000-4000-8000-0000000000b1',
+    )
     vi.mocked(bulkImportFromFolder).mockRejectedValue(conflict)
     vi.mocked(bulkImportFromArchive).mockRejectedValue(conflict)
     const { job, folder, archive } = mountComposables(new QueryClient())
@@ -101,7 +110,7 @@ describe('useBulkImportJob', () => {
     vi.mocked(listJobs).mockResolvedValue({ items: [running], num_records: 1 } as never)
     await expect(folder.mutateAsync('generic')).rejects.toBe(conflict)
     await flushPromises()
-    expect(job.value?.id).toBe('import-1')
+    expect(job.value?.id).toBe('00000000-0000-4000-8000-0000000000b1')
 
     vi.mocked(listJobs).mockResolvedValue({ items: [], num_records: 0 })
     await expect(
@@ -139,7 +148,10 @@ describe('useBulkImportJob scoping', () => {
     await flushPromises()
     expect(job.value?.status).toBe('running')
 
-    queryClient.setQueryData(queryKeys.jobs.detail('import-1'), finished)
+    queryClient.setQueryData(
+      queryKeys.jobs.detail('00000000-0000-4000-8000-0000000000b1'),
+      finished,
+    )
     await flushPromises()
     expect(job.value?.status).toBe('succeeded')
   })

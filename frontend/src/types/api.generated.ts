@@ -4608,6 +4608,7 @@ export interface components {
             finished_at?: string | null;
             /**
              * Id
+             * Format: uuid
              * @description The job's identifier
              */
             readonly id: string;
@@ -4836,7 +4837,10 @@ export interface components {
              * @description When the job succeeded or failed
              */
             finished_at?: string | null;
-            /** Id */
+            /**
+             * Id
+             * Format: uuid
+             */
             readonly id: string;
             /** Import Source */
             import_source?: string | null;
@@ -6302,6 +6306,7 @@ export interface components {
             finished_at?: string | null;
             /**
              * Id
+             * Format: uuid
              * @description The job's identifier
              */
             readonly id: string;
@@ -6363,6 +6368,7 @@ export interface components {
             finished_at?: string | null;
             /**
              * Id
+             * Format: uuid
              * @description The job's identifier
              */
             readonly id: string;
@@ -10449,7 +10455,10 @@ export interface components {
              * @enum {string}
              */
             next_step: "exchange";
-            /** Session Id */
+            /**
+             * Session Id
+             * Format: uuid
+             */
             session_id: string;
         };
         /**
@@ -11292,6 +11301,7 @@ export interface components {
             finished_at?: string | null;
             /**
              * Id
+             * Format: uuid
              * @description The job's identifier
              */
             readonly id: string;
@@ -11332,6 +11342,7 @@ export interface components {
             finished_at?: string | null;
             /**
              * Id
+             * Format: uuid
              * @description The job's identifier
              */
             readonly id: string;
@@ -12270,6 +12281,7 @@ export interface components {
             finished_at?: string | null;
             /**
              * Id
+             * Format: uuid
              * @description The job's identifier
              */
             readonly id: string;
@@ -12526,7 +12538,10 @@ export interface components {
             refresh_token: string;
             /** Refresh Token Expires In */
             refresh_token_expires_in: number;
-            /** Session Id */
+            /**
+             * Session Id
+             * Format: uuid
+             */
             session_id: string;
             /**
              * Token Type
@@ -12562,7 +12577,10 @@ export interface components {
             next_step: "tokens";
             /** Refresh Token Expires In */
             refresh_token_expires_in: number;
-            /** Session Id */
+            /**
+             * Session Id
+             * Format: uuid
+             */
             session_id: string;
             /**
              * Token Type
@@ -12852,6 +12870,7 @@ export interface components {
             expires_at: string;
             /**
              * Id
+             * Format: uuid
              * @description Unique key identifier (UUID)
              */
             readonly id: string;
@@ -12925,6 +12944,7 @@ export interface components {
             expires_at: string;
             /**
              * Id
+             * Format: uuid
              * @description Unique key identifier (UUID)
              */
             readonly id: string;
@@ -13172,6 +13192,7 @@ export interface components {
             finished_at?: string | null;
             /**
              * Id
+             * Format: uuid
              * @description The job's identifier
              */
             readonly id: string;
@@ -14252,6 +14273,7 @@ export interface components {
             expires_at: string;
             /**
              * Id
+             * Format: uuid
              * @description Unique session identifier
              */
             readonly id: string;

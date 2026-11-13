@@ -13,7 +13,11 @@ vi.mock('@/services/jobStatus', async (importOriginal) => ({
   followJob: vi.fn<typeof followJob>(),
 }))
 
-const job = { id: 'job-1', kind: 'strava_gear', created_at: '2026-01-01T00:00:00Z' } as const
+const job = {
+  id: '00000000-0000-4000-8000-0000000000a1',
+  kind: 'strava_gear',
+  created_at: '2026-01-01T00:00:00Z',
+} as const
 
 let wrapper: ReturnType<typeof mount> | undefined
 
@@ -48,10 +52,10 @@ describe('useRetrievalOutcome', () => {
   it('toasts success when the followed job succeeds', async () => {
     vi.mocked(followJob).mockResolvedValue({ ...job, status: 'succeeded' } as never)
     const before = useToasts().toasts.value.length
-    await mountOutcome().follow('job-1')
+    await mountOutcome().follow('00000000-0000-4000-8000-0000000000a1')
     await flushPromises()
 
-    expect(followJob).toHaveBeenCalledWith('job-1')
+    expect(followJob).toHaveBeenCalledWith('00000000-0000-4000-8000-0000000000a1')
     expect(toastKindsSince(before)).toEqual(['success'])
   })
 
@@ -60,8 +64,8 @@ describe('useRetrievalOutcome', () => {
     vi.mocked(followJob).mockRejectedValueOnce(new Error('network'))
     const before = useToasts().toasts.value.length
     const outcome = mountOutcome()
-    await outcome.follow('job-1')
-    await outcome.follow('job-1')
+    await outcome.follow('00000000-0000-4000-8000-0000000000a1')
+    await outcome.follow('00000000-0000-4000-8000-0000000000a1')
 
     expect(toastKindsSince(before)).toEqual(['error', 'error'])
   })
@@ -69,7 +73,7 @@ describe('useRetrievalOutcome', () => {
   it('stays quiet when it gives up following a job that is still running', async () => {
     vi.mocked(followJob).mockRejectedValue(new JobTimeoutError())
     const before = useToasts().toasts.value.length
-    await mountOutcome().follow('job-1')
+    await mountOutcome().follow('00000000-0000-4000-8000-0000000000a1')
 
     expect(toastKindsSince(before)).toEqual([])
   })
@@ -77,12 +81,21 @@ describe('useRetrievalOutcome', () => {
   it('follows the running job a 409 names and says it is already running', async () => {
     vi.mocked(followJob).mockResolvedValue({ ...job, status: 'succeeded' } as never)
     const before = useToasts().toasts.value.length
-    const conflict = new HttpError(409, 'Conflict', null, null, null, [], null, 'job-9')
+    const conflict = new HttpError(
+      409,
+      'Conflict',
+      null,
+      null,
+      null,
+      [],
+      null,
+      '00000000-0000-4000-8000-0000000000a9',
+    )
 
     expect(mountOutcome().resumeOnConflict(conflict)).toBe(true)
     await flushPromises()
 
-    expect(followJob).toHaveBeenCalledWith('job-9')
+    expect(followJob).toHaveBeenCalledWith('00000000-0000-4000-8000-0000000000a9')
     expect(toastKindsSince(before)).toEqual(['info', 'success'])
   })
 

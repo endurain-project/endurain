@@ -22,7 +22,7 @@ describe('import service', () => {
   })
 
   it('bulkImportFromFolder POSTs the folder path for the chosen source and returns the one job', async () => {
-    const job = { id: 'job-1' }
+    const job = { id: '00000000-0000-4000-8000-0000000000a1' }
     vi.mocked(apiFetch).mockResolvedValueOnce(job)
 
     await expect(bulkImportFromFolder('strava')).resolves.toBe(job)
@@ -32,7 +32,7 @@ describe('import service', () => {
   })
 
   it('bulkImportFromArchive uploads the archive as multipart with no request timeout', async () => {
-    const job = { id: 'job-2' }
+    const job = { id: '00000000-0000-4000-8000-0000000000a2' }
     vi.mocked(apiFetch).mockResolvedValueOnce(job)
     const archive = new File(['zip'], 'export.zip', { type: 'application/zip' })
 

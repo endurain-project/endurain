@@ -37,7 +37,7 @@ const INVALID_TOKEN = 'urn:endurain:error:invalid-token'
 const refreshTokenResponse = {
   access_token: 'access-new',
   csrf_token: 'csrf-new',
-  session_id: 'session-1',
+  session_id: '00000000-0000-4000-8000-0000000000f1',
   token_type: 'bearer',
   expires_in: 900,
   refresh_token_expires_in: 604_800,
@@ -430,9 +430,11 @@ describe('RFC 9457 problem documents', () => {
         status: 409,
         headers: { 'Content-Type': 'application/problem+json' },
       }) as Response
-    vi.mocked(fetch).mockResolvedValueOnce(conflict({ job_id: 'job-9' }))
+    vi.mocked(fetch).mockResolvedValueOnce(
+      conflict({ job_id: '00000000-0000-4000-8000-0000000000a9' }),
+    )
     await expect(apiFetch('/profile/export', { method: 'POST' })).rejects.toMatchObject({
-      jobId: 'job-9',
+      jobId: '00000000-0000-4000-8000-0000000000a9',
     })
 
     vi.mocked(fetch).mockResolvedValueOnce(conflict({}))

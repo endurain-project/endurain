@@ -66,7 +66,7 @@ const plugins = (): (Plugin | [Plugin, ...unknown[]])[] => [
 
 function makeKeyDto(overrides: Partial<ApiKeyDto> = {}): ApiKeyDto {
   return {
-    id: 'key-1',
+    id: '00000000-0000-4000-8000-0000000000d1',
     user_id: '00000000-0000-4000-8000-000000000007',
     name: 'Upload script',
     key_prefix: 'endu_ab',
@@ -81,7 +81,7 @@ function makeKeyDto(overrides: Partial<ApiKeyDto> = {}): ApiKeyDto {
 
 function makeKey(overrides: Partial<ApiKey> = {}): ApiKey {
   return {
-    id: 'key-1',
+    id: '00000000-0000-4000-8000-0000000000d1',
     name: 'Upload script',
     keyPrefix: 'endu_ab',
     scopes: ['activities:upload'],
@@ -118,23 +118,33 @@ describe('user API keys service', () => {
   it('fetchUserApiKeys follows the pages until the last one', async () => {
     vi.mocked(apiFetch)
       .mockResolvedValueOnce({ items: [makeKeyDto()], next: 2 })
-      .mockResolvedValueOnce({ items: [makeKeyDto({ id: 'key-2' })], next: null })
+      .mockResolvedValueOnce({
+        items: [makeKeyDto({ id: '00000000-0000-4000-8000-0000000000d2' })],
+        next: null,
+      })
 
     const keys = await fetchUserApiKeys('00000000-0000-4000-8000-000000000007')
 
-    expect(keys.map((key) => key.id)).toEqual(['key-1', 'key-2'])
+    expect(keys.map((key) => key.id)).toEqual([
+      '00000000-0000-4000-8000-0000000000d1',
+      '00000000-0000-4000-8000-0000000000d2',
+    ])
   })
 
   it('revokeUserApiKey POSTs the revoke route with the administrator step-up', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await revokeUserApiKey('key-1', '00000000-0000-4000-8000-000000000007', {
-      currentPassword: 'admin-pw',
-      mfaCode: '123456',
-    })
+    await revokeUserApiKey(
+      '00000000-0000-4000-8000-0000000000d1',
+      '00000000-0000-4000-8000-000000000007',
+      {
+        currentPassword: 'admin-pw',
+        mfaCode: '123456',
+      },
+    )
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/users/00000000-0000-4000-8000-000000000007/api-keys/key-1/revoke',
+      '/users/00000000-0000-4000-8000-000000000007/api-keys/00000000-0000-4000-8000-0000000000d1/revoke',
       {
         method: 'POST',
         body: JSON.stringify({ step_up: stepUpWire }),
@@ -179,7 +189,10 @@ describe('UserApiKeysList', () => {
   }
 
   beforeEach(() => {
-    mocks.apiKeys = [makeKey(), makeKey({ id: 'key-2', name: 'Old key', isActive: false })]
+    mocks.apiKeys = [
+      makeKey(),
+      makeKey({ id: '00000000-0000-4000-8000-0000000000d2', name: 'Old key', isActive: false }),
+    ]
     mocks.isError = false
     mocks.isPending = false
     mocks.revokeMutate.mockReset()
@@ -226,7 +239,11 @@ describe('UserApiKeysList', () => {
     await wrapper.get('form').trigger('submit')
 
     expect(mocks.revokeMutate).toHaveBeenCalledWith(
-      { apiKeyId: 'key-1', userId: '00000000-0000-4000-8000-000000000007', stepUp },
+      {
+        apiKeyId: '00000000-0000-4000-8000-0000000000d1',
+        userId: '00000000-0000-4000-8000-000000000007',
+        stepUp,
+      },
       expect.any(Object),
     )
   })
@@ -276,7 +293,10 @@ describe('UserApiKeysList', () => {
 
   it('reopens the revoke dialog for the key the return was started for', async () => {
     const wrapper = mountList(
-      resumeFor({ userId: '00000000-0000-4000-8000-000000000007', apiKeyId: 'key-1' }),
+      resumeFor({
+        userId: '00000000-0000-4000-8000-000000000007',
+        apiKeyId: '00000000-0000-4000-8000-0000000000d1',
+      }),
     )
     await flushPromises()
 

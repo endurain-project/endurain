@@ -19,7 +19,7 @@ vi.mock('@/features/gears/services/gears', async (importOriginal) => ({
   createGear: vi.fn<(input: GearInput) => Promise<Gear>>(),
   deleteGear: vi.fn<(id: string, version: number) => Promise<void>>(),
   fetchGears: vi.fn<() => Promise<GearsPage>>(),
-  updateGear: vi.fn<(id: number, input: GearInput, version: number) => Promise<Gear>>(),
+  updateGear: vi.fn<(id: string, input: GearInput, version: number) => Promise<Gear>>(),
 }))
 
 vi.mock('pinia', async (importOriginal) => ({

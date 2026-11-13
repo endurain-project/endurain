@@ -24,7 +24,7 @@ vi.mock('@/services/jobStatus', async (importOriginal) => ({
 }))
 
 const queued: ProfileExportStatus = {
-  id: 'export-1',
+  id: '00000000-0000-4000-8000-0000000000c1',
   kind: 'profile_export',
   status: 'queued',
   created_at: '2026-01-01T00:00:00Z',
@@ -75,7 +75,7 @@ describe('profile export composables', () => {
     const { job } = mountComposables(new QueryClient())
     await flushPromises()
 
-    expect(fetchJob).toHaveBeenCalledWith('export-1', expect.anything())
+    expect(fetchJob).toHaveBeenCalledWith('00000000-0000-4000-8000-0000000000c1', expect.anything())
     expect(job.value?.status).toBe('succeeded')
   })
 
@@ -89,7 +89,9 @@ describe('profile export composables', () => {
 
     await mutation.mutateAsync({ currentPassword: 'pw', mfaCode: null, idpReauth: null })
 
-    expect(queryClient.getQueryData(queryKeys.jobs.detail('export-1'))).toEqual(queued)
+    expect(
+      queryClient.getQueryData(queryKeys.jobs.detail('00000000-0000-4000-8000-0000000000c1')),
+    ).toEqual(queued)
     expect(queryClient.getQueryData(queryKeys.jobs.latest('profile_export'))).toEqual(queued)
   })
 })

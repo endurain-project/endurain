@@ -91,7 +91,9 @@ describe('signUp service', () => {
 
 describe('SSO token exchange service', () => {
   it('posts the verifier to the session exchange under /auth', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ next_step: 'tokens', session_id: 'sid' }))
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ next_step: 'tokens', session_id: '00000000-0000-4000-8000-0000000000f3' }),
+    )
     await exchangeSessionForTokens('sid/1', 'verifier-123', '123456')
     const call = fetchMock.mock.calls[0]
     expect(call?.[0]).toContain('/auth/sessions/sid%2F1/tokens')

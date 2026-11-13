@@ -47,7 +47,7 @@ vi.mock('@/composables/useRealtime', () => ({
 
 const tokenResponse: AuthTokenResponse = {
   next_step: 'tokens',
-  session_id: 'session-1',
+  session_id: '00000000-0000-4000-8000-0000000000f1',
   access_token: 'access-token',
   csrf_token: 'csrf-token',
   token_type: 'bearer',
@@ -113,7 +113,14 @@ describe('auth store', () => {
   })
 
   it.each([
-    ['an exchange session', { next_step: 'exchange', session_id: 's', device_id: null }],
+    [
+      'an exchange session',
+      {
+        next_step: 'exchange',
+        session_id: '00000000-0000-4000-8000-0000000000b3',
+        device_id: null,
+      },
+    ],
     ['a step it does not know', { next_step: 'passkey' }],
   ])('stops at %s without touching the session', async (_label, answer) => {
     vi.mocked(loginWithPassword).mockResolvedValue(answer as never)
@@ -177,7 +184,7 @@ describe('auth store', () => {
 
     expect(result).toEqual({ status: 'authenticated', user: authUser })
     expect(setAuthTokens).toHaveBeenCalledWith('access-token', 'csrf-token')
-    expect(auth.sessionId).toBe('session-1')
+    expect(auth.sessionId).toBe('00000000-0000-4000-8000-0000000000f1')
     expect(queryClient.getQueryData(queryKeys.currentUser())).toEqual(authUser)
     expect(auth.isAuthenticated).toBe(true)
     expect(realtimeConnect).toHaveBeenCalled()

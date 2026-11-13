@@ -159,18 +159,24 @@ describe('useRealtime', () => {
 
     const unsubscribe = realtime.on('NEW_ACTIVITY_NOTIFICATION', handler)
     socket.onmessage?.({
-      data: JSON.stringify({ message: 'NEW_ACTIVITY_NOTIFICATION', notification_id: 9 }),
+      data: JSON.stringify({
+        message: 'NEW_ACTIVITY_NOTIFICATION',
+        notification_id: '00000000-0000-4000-8000-000000000091',
+      }),
     })
 
     expect(handler).toHaveBeenCalledWith({
       message: 'NEW_ACTIVITY_NOTIFICATION',
-      notification_id: 9,
+      notification_id: '00000000-0000-4000-8000-000000000091',
     })
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['notifications'] })
 
     unsubscribe()
     socket.onmessage?.({
-      data: JSON.stringify({ message: 'NEW_ACTIVITY_NOTIFICATION', notification_id: 10 }),
+      data: JSON.stringify({
+        message: 'NEW_ACTIVITY_NOTIFICATION',
+        notification_id: '00000000-0000-4000-8000-000000000092',
+      }),
     })
     expect(handler).toHaveBeenCalledTimes(1)
   })
@@ -359,7 +365,7 @@ describe('useRealtime', () => {
       vi.useFakeTimers()
       expect(jobPollInterval(1_500)).toBe(1_500)
 
-      const wait = track(watchJob('job-1').wait(1_500))
+      const wait = track(watchJob('00000000-0000-4000-8000-0000000000a1').wait(1_500))
       await vi.advanceTimersByTimeAsync(1_499)
       expect(wait.settled).toBe(false)
       await vi.advanceTimersByTimeAsync(1)
@@ -382,7 +388,7 @@ describe('useRealtime', () => {
     it('waits the slow interval while connected, as the fallback for a lost hint', async () => {
       const socket = await openSocket()
       vi.useFakeTimers()
-      const wait = track(watchJob('job-1').wait(1_500))
+      const wait = track(watchJob('00000000-0000-4000-8000-0000000000a1').wait(1_500))
       expect(socket).toBeDefined()
 
       await vi.advanceTimersByTimeAsync(JOB_POLL_CONNECTED_MS - 1)
@@ -393,9 +399,9 @@ describe('useRealtime', () => {
 
     it('returns at once when a hint names the job it waits on', async () => {
       const socket = await openSocket()
-      const wait = track(watchJob('job-1').wait(1_500))
+      const wait = track(watchJob('00000000-0000-4000-8000-0000000000a1').wait(1_500))
 
-      hint(socket, 'job-1')
+      hint(socket, '00000000-0000-4000-8000-0000000000a1')
       await flushPromises()
 
       expect(wait.settled).toBe(true)
@@ -403,7 +409,7 @@ describe('useRealtime', () => {
 
     it('ignores a hint for another job', async () => {
       const socket = await openSocket()
-      const wait = track(watchJob('job-1').wait(1_500))
+      const wait = track(watchJob('00000000-0000-4000-8000-0000000000a1').wait(1_500))
 
       hint(socket, 'other-job')
       await flushPromises()
@@ -413,9 +419,9 @@ describe('useRealtime', () => {
 
     it('remembers a hint that arrives between waits, so the next wait returns at once', async () => {
       const socket = await openSocket()
-      const watch = watchJob('job-1')
+      const watch = watchJob('00000000-0000-4000-8000-0000000000a1')
 
-      hint(socket, 'job-1')
+      hint(socket, '00000000-0000-4000-8000-0000000000a1')
       const wait = track(watch.wait(1_500))
       await flushPromises()
 
@@ -424,8 +430,8 @@ describe('useRealtime', () => {
 
     it('waits normally again once a remembered hint has been used', async () => {
       const socket = await openSocket()
-      const watch = watchJob('job-1')
-      hint(socket, 'job-1')
+      const watch = watchJob('00000000-0000-4000-8000-0000000000a1')
+      hint(socket, '00000000-0000-4000-8000-0000000000a1')
       await watch.wait(1_500)
 
       const next = track(watch.wait(1_500))
@@ -436,10 +442,10 @@ describe('useRealtime', () => {
 
     it('stops listening once stopped, so a later hint wakes nothing', async () => {
       const socket = await openSocket()
-      const watch = watchJob('job-1')
+      const watch = watchJob('00000000-0000-4000-8000-0000000000a1')
       watch.stop()
 
-      hint(socket, 'job-1')
+      hint(socket, '00000000-0000-4000-8000-0000000000a1')
       const wait = track(watch.wait(1_500))
       await flushPromises()
 

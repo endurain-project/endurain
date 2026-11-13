@@ -19,7 +19,7 @@ describe('data transfer service requests', () => {
 
   it('requestProfileExport queues the export with a POST carrying the step-up credentials', async () => {
     const status = {
-      id: 'job-1',
+      id: '00000000-0000-4000-8000-0000000000a1',
       kind: 'profile_export',
       status: 'queued',
       error_code: null,

@@ -45,7 +45,7 @@ vi.mock('pinia', async (importOriginal) => ({
 vi.mock('@/features/auth/stores/auth', () => ({ useAuthStore: () => ({}) }))
 
 const completedJob = {
-  id: 'job-1',
+  id: '00000000-0000-4000-8000-0000000000a1',
   status: 'succeeded',
   activity_ids: [],
 } as unknown as ActivityIngestionJob
@@ -138,20 +138,30 @@ describe('goal results follow activity changes', () => {
 
   it('a finished bulk import refreshes goal results', async () => {
     const client = seededClient()
-    mountHook(client, () => useBulkImportJobQuery(ref<string | null>('job-1')))
+    mountHook(client, () =>
+      useBulkImportJobQuery(ref<string | null>('00000000-0000-4000-8000-0000000000a1')),
+    )
 
     await vi.waitFor(() => expect(goalResultsStale(client)).toBe(true))
   })
 
   it('a finished profile import refreshes goal results', async () => {
     const client = seededClient()
-    const running = { id: 'import-1', kind: 'profile_import', status: 'running', imported: null }
+    const running = {
+      id: '00000000-0000-4000-8000-0000000000b1',
+      kind: 'profile_import',
+      status: 'running',
+      imported: null,
+    }
     vi.mocked(listJobs).mockResolvedValue({ items: [running], num_records: 1 } as never)
     vi.mocked(fetchJob).mockResolvedValue(running as never)
     mountHook(client, useProfileImportQuery)
     await flushPromises()
 
-    client.setQueryData(queryKeys.jobs.detail('import-1'), { ...running, status: 'succeeded' })
+    client.setQueryData(queryKeys.jobs.detail('00000000-0000-4000-8000-0000000000b1'), {
+      ...running,
+      status: 'succeeded',
+    })
     await flushPromises()
 
     expect(goalResultsStale(client)).toBe(true)

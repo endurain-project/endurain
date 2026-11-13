@@ -25,7 +25,7 @@ vi.mock('@/services/jobStatus', async (importOriginal) => ({
 }))
 
 const running: ProfileImportStatus = {
-  id: 'import-1',
+  id: '00000000-0000-4000-8000-0000000000b1',
   kind: 'profile_import',
   status: 'running',
   created_at: '2026-01-01T00:00:00Z',
@@ -82,13 +82,15 @@ describe('profile import composables', () => {
     await mutation.mutateAsync(new File(['x'], 'a.zip'))
     await flushPromises()
 
-    expect(queryClient.getQueryData(queryKeys.jobs.detail('import-1'))).toMatchObject({
+    expect(
+      queryClient.getQueryData(queryKeys.jobs.detail('00000000-0000-4000-8000-0000000000b1')),
+    ).toMatchObject({
       status: 'queued',
     })
     expect(queryClient.getQueryData(queryKeys.jobs.latest('profile_import'))).toMatchObject({
-      id: 'import-1',
+      id: '00000000-0000-4000-8000-0000000000b1',
     })
-    expect(job.value?.id).toBe('import-1')
+    expect(job.value?.id).toBe('00000000-0000-4000-8000-0000000000b1')
   })
 
   it('refetches what the import changed once it goes from running to completed', async () => {
@@ -100,7 +102,10 @@ describe('profile import composables', () => {
     await flushPromises()
     expect(invalidate).not.toHaveBeenCalled()
 
-    queryClient.setQueryData(queryKeys.jobs.detail('import-1'), completed)
+    queryClient.setQueryData(
+      queryKeys.jobs.detail('00000000-0000-4000-8000-0000000000b1'),
+      completed,
+    )
     await flushPromises()
 
     const keys = invalidate.mock.calls.map((call) =>
@@ -134,7 +139,7 @@ describe('profile import composables', () => {
         null,
         [],
         null,
-        'import-1',
+        '00000000-0000-4000-8000-0000000000b1',
       ),
     )
     const { mutation, job } = mountComposables(new QueryClient())
@@ -145,6 +150,6 @@ describe('profile import composables', () => {
     await expect(mutation.mutateAsync(new File(['x'], 'a.zip'))).rejects.toBeInstanceOf(HttpError)
     await flushPromises()
 
-    expect(job.value?.id).toBe('import-1')
+    expect(job.value?.id).toBe('00000000-0000-4000-8000-0000000000b1')
   })
 })

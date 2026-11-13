@@ -33,7 +33,12 @@ vi.mock('@/services/runtime', () => ({
 
 /** A Strava job as the server reports it. */
 function stravaJob(kind: 'strava_link' | 'strava_unlink', status: string) {
-  return { id: 'job-1', kind, status, created_at: '2026-01-01T00:00:00Z' }
+  return {
+    id: '00000000-0000-4000-8000-0000000000a1',
+    kind,
+    status,
+    created_at: '2026-01-01T00:00:00Z',
+  }
 }
 
 const range: DateRange = { startDate: '2026-01-01', endDate: '2026-01-07' }
@@ -107,7 +112,9 @@ describe('strava service', () => {
           scope: 'read,profile:read_all,activity:read_all',
         }),
       })
-      expect(apiFetch).toHaveBeenNthCalledWith(2, '/jobs/job-1', { signal: undefined })
+      expect(apiFetch).toHaveBeenNthCalledWith(2, '/jobs/00000000-0000-4000-8000-0000000000a1', {
+        signal: undefined,
+      })
       expect(apiFetch).toHaveBeenCalledTimes(3)
     })
 
@@ -122,7 +129,7 @@ describe('strava service', () => {
       await vi.advanceTimersByTimeAsync(1_000)
       await done
 
-      expect(watch).toHaveBeenCalledExactlyOnceWith('job-1')
+      expect(watch).toHaveBeenCalledExactlyOnceWith('00000000-0000-4000-8000-0000000000a1')
       expect(watch.mock.invocationCallOrder[0]!).toBeGreaterThan(
         vi.mocked(apiFetch).mock.invocationCallOrder[0]!,
       )
@@ -139,7 +146,11 @@ describe('strava service', () => {
   })
 
   it('retrieveStravaActivities POSTs the activities path with the window and returns the queued job', async () => {
-    const job = { id: 'job-3', kind: 'activity_refresh', status: 'queued' }
+    const job = {
+      id: '00000000-0000-4000-8000-0000000000a3',
+      kind: 'activity_refresh',
+      status: 'queued',
+    }
     vi.mocked(apiFetch).mockResolvedValueOnce(job)
 
     await expect(retrieveStravaActivities(range)).resolves.toBe(job)
@@ -150,7 +161,11 @@ describe('strava service', () => {
   })
 
   it('retrieveStravaGear POSTs the gear path and returns the queued job', async () => {
-    const job = { id: 'job-4', kind: 'strava_gear', status: 'queued' }
+    const job = {
+      id: '00000000-0000-4000-8000-0000000000a4',
+      kind: 'strava_gear',
+      status: 'queued',
+    }
     vi.mocked(apiFetch).mockResolvedValueOnce(job)
 
     await expect(retrieveStravaGear()).resolves.toBe(job)
@@ -174,7 +189,9 @@ describe('strava service', () => {
       await done
 
       expect(apiFetch).toHaveBeenNthCalledWith(1, '/strava/link', { method: 'DELETE' })
-      expect(apiFetch).toHaveBeenNthCalledWith(2, '/jobs/job-1', { signal: undefined })
+      expect(apiFetch).toHaveBeenNthCalledWith(2, '/jobs/00000000-0000-4000-8000-0000000000a1', {
+        signal: undefined,
+      })
       expect(apiFetch).toHaveBeenCalledTimes(3)
     })
 
@@ -189,7 +206,7 @@ describe('strava service', () => {
       await vi.advanceTimersByTimeAsync(1_000)
       await done
 
-      expect(watch).toHaveBeenCalledExactlyOnceWith('job-1')
+      expect(watch).toHaveBeenCalledExactlyOnceWith('00000000-0000-4000-8000-0000000000a1')
       expect(watch.mock.invocationCallOrder[0]!).toBeGreaterThan(
         vi.mocked(apiFetch).mock.invocationCallOrder[0]!,
       )
@@ -224,7 +241,7 @@ describe('garmin service', () => {
 
   it('linkGarmin POSTs the credentials and returns the queued job', async () => {
     const queued = {
-      id: 'job-1',
+      id: '00000000-0000-4000-8000-0000000000a1',
       kind: 'garmin_link',
       status: 'queued',
       mfa_required: false,
@@ -259,7 +276,11 @@ describe('garmin service', () => {
   })
 
   it('retrieveGarminActivities POSTs the activities path with the window and returns the queued job', async () => {
-    const job = { id: 'job-5', kind: 'activity_refresh', status: 'queued' }
+    const job = {
+      id: '00000000-0000-4000-8000-0000000000a5',
+      kind: 'activity_refresh',
+      status: 'queued',
+    }
     vi.mocked(apiFetch).mockResolvedValueOnce(job)
 
     await expect(retrieveGarminActivities(range)).resolves.toBe(job)
@@ -270,7 +291,11 @@ describe('garmin service', () => {
   })
 
   it('retrieveGarminGear POSTs the gear path and returns the queued job', async () => {
-    const job = { id: 'job-6', kind: 'garmin_sync_gear', status: 'queued' }
+    const job = {
+      id: '00000000-0000-4000-8000-0000000000a6',
+      kind: 'garmin_sync_gear',
+      status: 'queued',
+    }
     vi.mocked(apiFetch).mockResolvedValueOnce(job)
 
     await expect(retrieveGarminGear()).resolves.toBe(job)
@@ -278,7 +303,11 @@ describe('garmin service', () => {
   })
 
   it('retrieveGarminHealth POSTs the health path with the window and returns the queued job', async () => {
-    const job = { id: 'job-7', kind: 'garmin_sync_health', status: 'queued' }
+    const job = {
+      id: '00000000-0000-4000-8000-0000000000a7',
+      kind: 'garmin_sync_health',
+      status: 'queued',
+    }
     vi.mocked(apiFetch).mockResolvedValueOnce(job)
 
     await expect(retrieveGarminHealth(range)).resolves.toBe(job)

@@ -65,7 +65,7 @@ vi.mock('@/features/auth/utils/pkce', () => ({
 
 const tokenExchange = {
   next_step: 'tokens',
-  session_id: 'sso-session',
+  session_id: '00000000-0000-4000-8000-0000000000f2',
   access_token: 'sso-access',
   csrf_token: 'sso-csrf',
   token_type: 'bearer',
@@ -125,14 +125,17 @@ describe('processSsoCallback', () => {
       'pkce_verifier',
       JSON.stringify({ verifier: 'verifier-123', createdAt: Date.now() }),
     )
-    mocks.route.query = { sso: 'success', session_id: 'sso-session' }
+    mocks.route.query = { sso: 'success', session_id: '00000000-0000-4000-8000-0000000000f2' }
     mocks.exchangeSessionForTokens.mockResolvedValue(tokenExchange)
 
     const { processSsoCallback } = useSsoLogin()
     const result = await processSsoCallback()
 
     expect(result).toEqual({ status: 'completed' })
-    expect(mocks.exchangeSessionForTokens).toHaveBeenCalledWith('sso-session', 'verifier-123')
+    expect(mocks.exchangeSessionForTokens).toHaveBeenCalledWith(
+      '00000000-0000-4000-8000-0000000000f2',
+      'verifier-123',
+    )
     expect(mocks.completeTokenLogin).toHaveBeenCalledWith(tokenExchange)
     expect(mocks.navigateAfterLogin).toHaveBeenCalled()
     // The single-use verifier is cleared after a successful exchange.
@@ -140,7 +143,7 @@ describe('processSsoCallback', () => {
   })
 
   it('fails when no PKCE verifier is stored', async () => {
-    mocks.route.query = { sso: 'success', session_id: 'sso-session' }
+    mocks.route.query = { sso: 'success', session_id: '00000000-0000-4000-8000-0000000000f2' }
 
     const { processSsoCallback } = useSsoLogin()
     const result = await processSsoCallback()
@@ -155,7 +158,7 @@ describe('processSsoCallback', () => {
       'pkce_verifier',
       JSON.stringify({ verifier: 'verifier-123', createdAt: Date.now() - 10 * 60 * 1000 - 1 }),
     )
-    mocks.route.query = { sso: 'success', session_id: 'sso-session' }
+    mocks.route.query = { sso: 'success', session_id: '00000000-0000-4000-8000-0000000000f2' }
 
     const { processSsoCallback } = useSsoLogin()
     const result = await processSsoCallback()
@@ -171,13 +174,16 @@ describe('processSsoCallback', () => {
     await startSsoLogin('acme')
     mocks.verifier = 'verifier-second'
     await startSsoLogin('beta')
-    mocks.route.query = { sso: 'success', session_id: 'sso-session' }
+    mocks.route.query = { sso: 'success', session_id: '00000000-0000-4000-8000-0000000000f2' }
     mocks.exchangeSessionForTokens.mockResolvedValue(tokenExchange)
 
     const result = await processSsoCallback()
 
     expect(result).toEqual({ status: 'completed' })
-    expect(mocks.exchangeSessionForTokens).toHaveBeenCalledWith('sso-session', 'verifier-second')
+    expect(mocks.exchangeSessionForTokens).toHaveBeenCalledWith(
+      '00000000-0000-4000-8000-0000000000f2',
+      'verifier-second',
+    )
     expect(sessionStorage.getItem('pkce_verifier')).toBeNull()
   })
 
@@ -194,7 +200,7 @@ describe('processSsoCallback', () => {
         'pkce_verifier',
         JSON.stringify({ verifier: 'verifier-123', createdAt: Date.now() }),
       )
-      mocks.route.query = { sso: 'success', session_id: 'sso-session' }
+      mocks.route.query = { sso: 'success', session_id: '00000000-0000-4000-8000-0000000000f2' }
     }
 
     it('asks for a code and keeps the verifier until the exchange succeeds', async () => {
@@ -219,7 +225,7 @@ describe('processSsoCallback', () => {
       await completeSsoMfa('123456')
 
       expect(mocks.exchangeSessionForTokens).toHaveBeenLastCalledWith(
-        'sso-session',
+        '00000000-0000-4000-8000-0000000000f2',
         'verifier-123',
         '123456',
       )
@@ -263,7 +269,11 @@ describe('processSsoCallback', () => {
   })
 
   it('removes the session id from the address bar once it holds it, keeping the rest of the query', async () => {
-    mocks.route.query = { sso: 'success', session_id: 'sso-session', redirect: '/activities' }
+    mocks.route.query = {
+      sso: 'success',
+      session_id: '00000000-0000-4000-8000-0000000000f2',
+      redirect: '/activities',
+    }
 
     const { processSsoCallback } = useSsoLogin()
     await processSsoCallback()
@@ -277,7 +287,7 @@ describe('processSsoCallback', () => {
     it('forwards the session_id to the app scheme without touching the browser session', async () => {
       mocks.route.query = {
         sso: 'success',
-        session_id: 'sso-session',
+        session_id: '00000000-0000-4000-8000-0000000000f2',
         external_redirect: 'true',
         redirect: 'endurain://native-callback',
       }
@@ -286,7 +296,9 @@ describe('processSsoCallback', () => {
       const result = await processSsoCallback()
 
       expect(result).toEqual({ status: 'completed' })
-      expect(window.location.href).toBe('endurain://native-callback?session_id=sso-session')
+      expect(window.location.href).toBe(
+        'endurain://native-callback?session_id=00000000-0000-4000-8000-0000000000f2',
+      )
       expect(mocks.completeTokenLogin).not.toHaveBeenCalled()
       expect(mocks.routerReplace).not.toHaveBeenCalledWith({ name: 'home' })
     })
@@ -294,7 +306,7 @@ describe('processSsoCallback', () => {
     it('forwards the session_id to a listed claimed-https address', async () => {
       mocks.route.query = {
         sso: 'success',
-        session_id: 'sso-session',
+        session_id: '00000000-0000-4000-8000-0000000000f2',
         external_redirect: 'true',
         redirect: 'https://app.example.org/auth/sso/callback',
       }
@@ -304,25 +316,34 @@ describe('processSsoCallback', () => {
 
       expect(result).toEqual({ status: 'completed' })
       expect(window.location.href).toBe(
-        'https://app.example.org/auth/sso/callback?session_id=sso-session',
+        'https://app.example.org/auth/sso/callback?session_id=00000000-0000-4000-8000-0000000000f2',
       )
       expect(mocks.completeTokenLogin).not.toHaveBeenCalled()
     })
 
     it.each([
-      ['endurain://native-callback', 'endurain://native-callback?session_id=sso-session'],
-      ['endurain://cb?a=1', 'endurain://cb?a=1&session_id=sso-session'],
-      ['endurain://cb#frag', 'endurain://cb?session_id=sso-session#frag'],
-      ['endurain://cb?a=1#frag', 'endurain://cb?a=1&session_id=sso-session#frag'],
-      ['endurain://cb#frag?x=1', 'endurain://cb?session_id=sso-session#frag?x=1'],
-      ['endurain:/cb', 'endurain:/cb?session_id=sso-session'],
-      ['endurain:cb#frag', 'endurain:cb?session_id=sso-session#frag'],
+      [
+        'endurain://native-callback',
+        'endurain://native-callback?session_id=00000000-0000-4000-8000-0000000000f2',
+      ],
+      ['endurain://cb?a=1', 'endurain://cb?a=1&session_id=00000000-0000-4000-8000-0000000000f2'],
+      ['endurain://cb#frag', 'endurain://cb?session_id=00000000-0000-4000-8000-0000000000f2#frag'],
+      [
+        'endurain://cb?a=1#frag',
+        'endurain://cb?a=1&session_id=00000000-0000-4000-8000-0000000000f2#frag',
+      ],
+      [
+        'endurain://cb#frag?x=1',
+        'endurain://cb?session_id=00000000-0000-4000-8000-0000000000f2#frag?x=1',
+      ],
+      ['endurain:/cb', 'endurain:/cb?session_id=00000000-0000-4000-8000-0000000000f2'],
+      ['endurain:cb#frag', 'endurain:cb?session_id=00000000-0000-4000-8000-0000000000f2#frag'],
     ])(
       'puts the session_id of %s in the query, before any fragment',
       async (redirect, expected) => {
         mocks.route.query = {
           sso: 'success',
-          session_id: 'sso-session',
+          session_id: '00000000-0000-4000-8000-0000000000f2',
           external_redirect: 'true',
           redirect,
         }
@@ -339,7 +360,7 @@ describe('processSsoCallback', () => {
       // PKCE verifier the callback must fail rather than navigate anywhere.
       mocks.route.query = {
         sso: 'success',
-        session_id: 'sso-session',
+        session_id: '00000000-0000-4000-8000-0000000000f2',
         external_redirect: 'true',
         redirect: '/\\evil.example',
       }
@@ -357,7 +378,7 @@ describe('processSsoCallback', () => {
       mocks.isAuthenticated = true
       mocks.route.query = {
         sso: 'success',
-        session_id: 'sso-session',
+        session_id: '00000000-0000-4000-8000-0000000000f2',
         external_redirect: 'true',
         redirect: 'endurain://native-callback',
       }
@@ -366,7 +387,9 @@ describe('processSsoCallback', () => {
       const result = await processSsoCallback()
 
       expect(result).toEqual({ status: 'completed' })
-      expect(window.location.href).toBe('endurain://native-callback?session_id=sso-session')
+      expect(window.location.href).toBe(
+        'endurain://native-callback?session_id=00000000-0000-4000-8000-0000000000f2',
+      )
       expect(mocks.routerReplace).toHaveBeenCalledWith({ name: 'home' })
     })
   })

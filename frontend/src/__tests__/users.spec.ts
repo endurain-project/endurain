@@ -364,7 +364,11 @@ describe('users service requests', () => {
   })
 
   it('deleteUser POSTs to the delete route with If-Match and the admin step-up', async () => {
-    const job = { id: 'job-1', kind: 'user_deletion', status: 'queued' }
+    const job = {
+      id: '00000000-0000-4000-8000-0000000000a1',
+      kind: 'user_deletion',
+      status: 'queued',
+    }
     vi.mocked(apiFetch).mockResolvedValue(job)
 
     await expect(

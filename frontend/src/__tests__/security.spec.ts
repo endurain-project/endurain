@@ -37,7 +37,7 @@ vi.mock('@/services/http', () => ({
 }))
 
 const sessionDto: SecuritySessionDto = {
-  id: 'sess-1',
+  id: '00000000-0000-4000-8000-0000000000e1',
   user_id: '00000000-0000-4000-8000-000000000005',
   ip_address: '1.2.3.4',
   device_type: 'desktop',
@@ -51,7 +51,7 @@ const sessionDto: SecuritySessionDto = {
 }
 
 const mappedSession = {
-  id: 'sess-1',
+  id: '00000000-0000-4000-8000-0000000000e1',
   ipAddress: '1.2.3.4',
   deviceType: 'desktop',
   operatingSystem: 'macOS',
@@ -267,12 +267,15 @@ describe('security service requests', () => {
   it('revokeSession DELETEs the session path', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await revokeSession('sess-1')
+    await revokeSession('00000000-0000-4000-8000-0000000000e1')
 
-    expect(apiFetch).toHaveBeenCalledWith('/profile/sessions/sess-1', {
-      method: 'DELETE',
-      responseType: 'void',
-    })
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/profile/sessions/00000000-0000-4000-8000-0000000000e1',
+      {
+        method: 'DELETE',
+        responseType: 'void',
+      },
+    )
   })
 
   it('revokeOtherSessions POSTs the revoke action keeping the current session', async () => {

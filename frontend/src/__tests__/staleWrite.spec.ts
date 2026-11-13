@@ -87,7 +87,7 @@ describe('a stale versioned write', () => {
       props: {
         open: true,
         targets: {
-          id: 1,
+          id: '00000000-0000-4000-8000-000000000001',
           userId: '00000000-0000-4000-8000-000000000001',
           version: 3,
           steps: 8000,

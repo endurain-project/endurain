@@ -32,7 +32,7 @@ vi.mock('@/services/jobStatus', async (importOriginal) => ({
 }))
 
 /** A job as `GET /jobs/{id}` answers it. */
-function job(status: string, id = 'job-1'): Job {
+function job(status: string, id = '00000000-0000-4000-8000-0000000000a1'): Job {
   return {
     id,
     kind: 'garmin_link',
@@ -87,18 +87,24 @@ describe('useJobQuery', () => {
     const query = mountHook(() => useJobQuery(id, { intervalMs: 1_000 }))
     await flushPromises()
 
-    id.value = 'job-1'
+    id.value = '00000000-0000-4000-8000-0000000000a1'
     await flushPromises()
 
-    expect(fetchJob).toHaveBeenCalledWith('job-1', expect.anything())
+    expect(fetchJob).toHaveBeenCalledWith('00000000-0000-4000-8000-0000000000a1', expect.anything())
     expect(query.data.value?.status).toBe('queued')
   })
 
   it('starts from a seeded job', async () => {
     vi.mocked(fetchJob).mockReturnValue(new Promise(() => undefined))
     const client = new QueryClient()
-    client.setQueryData(queryKeys.jobs.detail('job-1'), job('running'))
-    const query = mountHook(() => useJobQuery('job-1', { intervalMs: 1_000 }), client)
+    client.setQueryData(
+      queryKeys.jobs.detail('00000000-0000-4000-8000-0000000000a1'),
+      job('running'),
+    )
+    const query = mountHook(
+      () => useJobQuery('00000000-0000-4000-8000-0000000000a1', { intervalMs: 1_000 }),
+      client,
+    )
 
     expect(query.data.value?.status).toBe('running')
   })
@@ -107,7 +113,7 @@ describe('useJobQuery', () => {
     vi.useFakeTimers()
     vi.mocked(fetchJob).mockResolvedValueOnce(job('running')).mockResolvedValue(job('succeeded'))
     jobPollInterval.mockReturnValue(5_000)
-    mountHook(() => useJobQuery('job-1', { intervalMs: 1_500 }))
+    mountHook(() => useJobQuery('00000000-0000-4000-8000-0000000000a1', { intervalMs: 1_500 }))
     await vi.advanceTimersByTimeAsync(0)
     expect(fetchJob).toHaveBeenCalledTimes(1)
     expect(jobPollInterval).toHaveBeenCalledWith(1_500)
@@ -126,7 +132,7 @@ describe('useJobQuery', () => {
     vi.mocked(fetchJob).mockRejectedValue(
       new HttpError(404, 'Not Found', null, 'urn:endurain:error:not-found'),
     )
-    mountHook(() => useJobQuery('job-1', { intervalMs: 1_000 }))
+    mountHook(() => useJobQuery('00000000-0000-4000-8000-0000000000a1', { intervalMs: 1_000 }))
     await vi.advanceTimersByTimeAsync(0)
     expect(fetchJob).toHaveBeenCalledTimes(1)
 
@@ -136,11 +142,11 @@ describe('useJobQuery', () => {
 
   it('reads again right away when a hint names the job', async () => {
     vi.mocked(fetchJob).mockResolvedValue(job('running'))
-    mountHook(() => useJobQuery('job-1', { intervalMs: 60_000 }))
+    mountHook(() => useJobQuery('00000000-0000-4000-8000-0000000000a1', { intervalMs: 60_000 }))
     await flushPromises()
     expect(fetchJob).toHaveBeenCalledTimes(1)
 
-    announce('job-1')
+    announce('00000000-0000-4000-8000-0000000000a1')
     await flushPromises()
 
     expect(fetchJob).toHaveBeenCalledTimes(2)
@@ -148,10 +154,10 @@ describe('useJobQuery', () => {
 
   it('ignores a hint for another job', async () => {
     vi.mocked(fetchJob).mockResolvedValue(job('running'))
-    mountHook(() => useJobQuery('job-1', { intervalMs: 60_000 }))
+    mountHook(() => useJobQuery('00000000-0000-4000-8000-0000000000a1', { intervalMs: 60_000 }))
     await flushPromises()
 
-    announce('job-2')
+    announce('00000000-0000-4000-8000-0000000000a2')
     await flushPromises()
 
     expect(fetchJob).toHaveBeenCalledTimes(1)
@@ -161,7 +167,7 @@ describe('useJobQuery', () => {
     mountHook(() => useJobQuery(null, { intervalMs: 60_000 }))
     await flushPromises()
 
-    announce('job-1')
+    announce('00000000-0000-4000-8000-0000000000a1')
     await flushPromises()
 
     expect(fetchJob).not.toHaveBeenCalled()
@@ -169,7 +175,7 @@ describe('useJobQuery', () => {
 
   it('stops listening once its scope is gone', async () => {
     vi.mocked(fetchJob).mockResolvedValue(job('running'))
-    mountHook(() => useJobQuery('job-1', { intervalMs: 60_000 }))
+    mountHook(() => useJobQuery('00000000-0000-4000-8000-0000000000a1', { intervalMs: 60_000 }))
     await flushPromises()
     wrapper?.unmount()
     wrapper = undefined

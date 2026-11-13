@@ -540,7 +540,7 @@ describe('deleteActivity', () => {
 
 describe('updateUserActivitiesVisibility', () => {
   const bulkEdit = (status: string) => ({
-    id: 'job-1',
+    id: '00000000-0000-4000-8000-0000000000a1',
     kind: 'activities_bulk_edit',
     status,
     created_at: '2026-01-01T00:00:00Z',
@@ -572,7 +572,9 @@ describe('updateUserActivitiesVisibility', () => {
       await vi.advanceTimersByTimeAsync(2_000)
       await done
 
-      expect(apiFetch).toHaveBeenNthCalledWith(2, '/jobs/job-1', { signal: undefined })
+      expect(apiFetch).toHaveBeenNthCalledWith(2, '/jobs/00000000-0000-4000-8000-0000000000a1', {
+        signal: undefined,
+      })
       expect(apiFetch).toHaveBeenCalledTimes(3)
     } finally {
       vi.useRealTimers()

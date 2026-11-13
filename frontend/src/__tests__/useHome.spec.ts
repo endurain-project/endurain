@@ -39,7 +39,7 @@ vi.mock('@/features/activities/services/activities', async (importOriginal) => (
 
 vi.mock('@/features/activities/services/activityMedia', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/activities/services/activityMedia')>()),
-  fetchActivityMedia: vi.fn<(activityId: number) => Promise<ActivityMedia[]>>(),
+  fetchActivityMedia: vi.fn<(activityId: string) => Promise<ActivityMedia[]>>(),
 }))
 
 vi.mock('@/features/upload/composables/usePinnedActivities', () => ({

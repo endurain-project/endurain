@@ -17,7 +17,7 @@ const statusData = ref<GarminLinkStatus | undefined>(undefined)
 /** A link job as the server reports it. */
 function linkJob(overrides: Partial<GarminLinkStatus>): GarminLinkStatus {
   return {
-    id: 'job-1',
+    id: '00000000-0000-4000-8000-0000000000a1',
     kind: 'garmin_link',
     created_at: '2026-01-01T00:00:00Z',
     status: 'running',
@@ -99,7 +99,7 @@ describe('GarminLoginDialog', () => {
       password: 'pw',
       isCn: false,
     })
-    expect(followed.value).toBe('job-1')
+    expect(followed.value).toBe('00000000-0000-4000-8000-0000000000a1')
   })
 
   it('asks for the MFA code only once the status says so', async () => {

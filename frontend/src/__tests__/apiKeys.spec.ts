@@ -16,7 +16,7 @@ vi.mock('@/services/http', () => ({
 }))
 
 const apiKeyDto: ApiKeyDto = {
-  id: 'key-1',
+  id: '00000000-0000-4000-8000-0000000000d1',
   user_id: '00000000-0000-4000-8000-000000000005',
   name: 'CI upload',
   key_prefix: 'endurain',
@@ -30,7 +30,7 @@ const apiKeyDto: ApiKeyDto = {
 describe('mapApiKey', () => {
   it('maps a full payload and keeps the scopes array', () => {
     expect(mapApiKey(apiKeyDto)).toEqual({
-      id: 'key-1',
+      id: '00000000-0000-4000-8000-0000000000d1',
       name: 'CI upload',
       keyPrefix: 'endurain',
       scopes: ['activities:upload'],

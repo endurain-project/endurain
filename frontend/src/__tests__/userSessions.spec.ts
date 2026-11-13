@@ -17,7 +17,7 @@ vi.mock('@/services/http', () => ({
 /** Builds a full `UserSessionsRead` wire payload, overridable per case. */
 function makeSessionDto(overrides: Partial<UserSessionDto> = {}): UserSessionDto {
   return {
-    id: 'sess-1',
+    id: '00000000-0000-4000-8000-0000000000e1',
     user_id: '00000000-0000-4000-8000-000000000007',
     ip_address: '203.0.113.5',
     device_type: 'desktop',
@@ -39,7 +39,7 @@ describe('user sessions service', () => {
 
   it('mapUserSession camel-cases the wire shape', () => {
     expect(mapUserSession(makeSessionDto())).toEqual({
-      id: 'sess-1',
+      id: '00000000-0000-4000-8000-0000000000e1',
       ipAddress: '203.0.113.5',
       deviceType: 'desktop',
       operatingSystem: 'macOS',
@@ -76,7 +76,10 @@ describe('user sessions service', () => {
   it('fetchUserSessions follows the pages until the last one', async () => {
     vi.mocked(apiFetch)
       .mockResolvedValueOnce({ items: [makeSessionDto()], next: 2 })
-      .mockResolvedValueOnce({ items: [makeSessionDto({ id: 'sess-2' })], next: null })
+      .mockResolvedValueOnce({
+        items: [makeSessionDto({ id: '00000000-0000-4000-8000-0000000000e2' })],
+        next: null,
+      })
 
     const sessions = await fetchUserSessions('00000000-0000-4000-8000-000000000007')
 
@@ -85,7 +88,10 @@ describe('user sessions service', () => {
       '/users/00000000-0000-4000-8000-000000000007/sessions?num_records=200&page_number=2',
       expect.anything(),
     )
-    expect(sessions.map((session) => session.id)).toEqual(['sess-1', 'sess-2'])
+    expect(sessions.map((session) => session.id)).toEqual([
+      '00000000-0000-4000-8000-0000000000e1',
+      '00000000-0000-4000-8000-0000000000e2',
+    ])
   })
 
   it('fetchUserSessions maps a null payload to an empty array', async () => {
@@ -100,10 +106,14 @@ describe('user sessions service', () => {
   it('revokeUserSession POSTs the revoke route with the administrator step-up', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await revokeUserSession('sess-1', '00000000-0000-4000-8000-000000000007', stepUp)
+    await revokeUserSession(
+      '00000000-0000-4000-8000-0000000000e1',
+      '00000000-0000-4000-8000-000000000007',
+      stepUp,
+    )
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/users/00000000-0000-4000-8000-000000000007/sessions/sess-1/revoke',
+      '/users/00000000-0000-4000-8000-000000000007/sessions/00000000-0000-4000-8000-0000000000e1/revoke',
       {
         method: 'POST',
         body: JSON.stringify({ step_up: stepUpWire }),
@@ -115,11 +125,15 @@ describe('user sessions service', () => {
   it('revokeUserSession sends the identity-provider proof of an administrator without a password', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await revokeUserSession('sess-1', '00000000-0000-4000-8000-000000000007', {
-      currentPassword: null,
-      mfaCode: null,
-      idpReauth: { ticket: 't', codeVerifier: 'v' },
-    })
+    await revokeUserSession(
+      '00000000-0000-4000-8000-0000000000e1',
+      '00000000-0000-4000-8000-000000000007',
+      {
+        currentPassword: null,
+        mfaCode: null,
+        idpReauth: { ticket: 't', codeVerifier: 'v' },
+      },
+    )
 
     expect(JSON.parse(vi.mocked(apiFetch).mock.calls[0]?.[1]?.body as string)).toEqual({
       step_up: {
@@ -133,10 +147,14 @@ describe('user sessions service', () => {
   it('revokeOtherUserSessions POSTs with the exclude query param and the step-up', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await revokeOtherUserSessions('00000000-0000-4000-8000-000000000007', stepUp, 'sess-1')
+    await revokeOtherUserSessions(
+      '00000000-0000-4000-8000-000000000007',
+      stepUp,
+      '00000000-0000-4000-8000-0000000000e1',
+    )
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/users/00000000-0000-4000-8000-000000000007/sessions/revoke?exclude_session_id=sess-1',
+      '/users/00000000-0000-4000-8000-000000000007/sessions/revoke?exclude_session_id=00000000-0000-4000-8000-0000000000e1',
       {
         method: 'POST',
         body: JSON.stringify({ step_up: stepUpWire }),

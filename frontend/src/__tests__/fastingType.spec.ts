@@ -9,7 +9,7 @@ import HealthFastingActiveCard from '@/features/health/components/HealthFastingA
 import HealthFastingListItem from '@/features/health/components/HealthFastingListItem.vue'
 
 const entry = {
-  id: 1,
+  id: '00000000-0000-4000-8000-000000000001',
   version: 1,
   fastingType: 'OMAD',
   status: 'in_progress',

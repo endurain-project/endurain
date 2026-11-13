@@ -61,7 +61,7 @@ function jsonResponse(body: unknown, status = 201): Response {
  */
 function uploadJob(overrides: Partial<ActivityIngestionJob> = {}): ActivityIngestionJob {
   return {
-    id: 'job-1',
+    id: '00000000-0000-4000-8000-0000000000a1',
     kind: 'activity_upload',
     filename: 'ride.gpx',
     status: 'queued',
@@ -177,7 +177,7 @@ describe('uploadActivityFile', () => {
     expect(headers.get('Content-Type')).toBeNull()
 
     // A handle to poll, not the parsed activities: parsing happens on a worker.
-    expect(result.id).toBe('job-1')
+    expect(result.id).toBe('00000000-0000-4000-8000-0000000000a1')
     expect(result.status).toBe('queued')
   })
 
@@ -212,9 +212,9 @@ describe('followIngestionJob', () => {
         jsonResponse(uploadJob({ status: 'succeeded', activity_ids: [activityUuid(7)] })),
       )
 
-    await followIngestionJob('job-1', { intervalMs: 0 })
+    await followIngestionJob('00000000-0000-4000-8000-0000000000a1', { intervalMs: 0 })
 
-    expect(watch).toHaveBeenCalledExactlyOnceWith('job-1')
+    expect(watch).toHaveBeenCalledExactlyOnceWith('00000000-0000-4000-8000-0000000000a1')
     watch.mockRestore()
   })
 
@@ -225,9 +225,9 @@ describe('followIngestionJob', () => {
       .mockReturnValue({ wait: () => Promise.resolve(), stop })
     fetchMock.mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'failed' })))
 
-    await expect(followIngestionJob('job-1', { intervalMs: 0 })).rejects.toThrow(
-      'Activity import failed',
-    )
+    await expect(
+      followIngestionJob('00000000-0000-4000-8000-0000000000a1', { intervalMs: 0 }),
+    ).rejects.toThrow('Activity import failed')
 
     expect(stop).toHaveBeenCalledOnce()
     watch.mockRestore()
@@ -243,7 +243,7 @@ describe('followIngestionJob', () => {
         ),
       )
 
-    const job = await followIngestionJob('job-1', { intervalMs: 0 })
+    const job = await followIngestionJob('00000000-0000-4000-8000-0000000000a1', { intervalMs: 0 })
 
     expect(fetchMock).toHaveBeenCalledTimes(3)
     expect(job.activity_ids).toEqual([activityUuid(7), activityUuid(8)])
@@ -258,7 +258,7 @@ describe('followIngestionJob', () => {
         jsonResponse(uploadJob({ status: 'succeeded', activity_ids: [activityUuid(3)] })),
       )
 
-    const job = await followIngestionJob('job-1', { intervalMs: 0 })
+    const job = await followIngestionJob('00000000-0000-4000-8000-0000000000a1', { intervalMs: 0 })
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(job.activity_ids).toEqual([activityUuid(3)])
@@ -269,7 +269,9 @@ describe('followIngestionJob', () => {
       jsonResponse(uploadJob({ status: 'failed', error_code: 'invalid_file' })),
     )
 
-    const error = await followIngestionJob('job-1', { intervalMs: 0 }).catch((err: unknown) => err)
+    const error = await followIngestionJob('00000000-0000-4000-8000-0000000000a1', {
+      intervalMs: 0,
+    }).catch((err: unknown) => err)
 
     expect(error).toBeInstanceOf(IngestionJobFailedError)
     expect((error as IngestionJobFailedError).code).toBe('invalid_file')
@@ -279,7 +281,7 @@ describe('followIngestionJob', () => {
     fetchMock.mockResolvedValue(jsonResponse(uploadJob({ status: 'running' })))
 
     await expect(
-      followIngestionJob('job-1', { intervalMs: 0, timeoutMs: 0 }),
+      followIngestionJob('00000000-0000-4000-8000-0000000000a1', { intervalMs: 0, timeoutMs: 0 }),
     ).rejects.toBeInstanceOf(IngestionJobTimeoutError)
   })
 })

@@ -35,15 +35,15 @@ vi.mock('@/features/auth/stores/auth', () => ({ useAuthStore: () => ({ isAuthent
 
 vi.mock('@/features/activities/services/activityMedia', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/activities/services/activityMedia')>()),
-  fetchActivityMedia: vi.fn<(id: number) => Promise<unknown[]>>(),
+  fetchActivityMedia: vi.fn<(id: string) => Promise<unknown[]>>(),
 }))
 
 vi.mock('@/features/activities/services/activities', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/activities/services/activities')>()),
-  fetchActivityDetail: vi.fn<(id: number) => Promise<ActivityDetail | null>>(),
-  fetchActivityLaps: vi.fn<(id: number) => Promise<unknown[]>>(),
-  fetchActivitySets: vi.fn<(id: number) => Promise<unknown[]>>(),
-  fetchActivityWorkoutSteps: vi.fn<(id: number) => Promise<unknown[]>>(),
+  fetchActivityDetail: vi.fn<(id: string) => Promise<ActivityDetail | null>>(),
+  fetchActivityLaps: vi.fn<(id: string) => Promise<unknown[]>>(),
+  fetchActivitySets: vi.fn<(id: string) => Promise<unknown[]>>(),
+  fetchActivityWorkoutSteps: vi.fn<(id: string) => Promise<unknown[]>>(),
 }))
 
 const lap = { id: activityUuid(1) } as ActivityDetail['laps'] extends (infer T)[] | null ? T : never
